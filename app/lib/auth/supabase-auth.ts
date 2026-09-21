@@ -219,6 +219,31 @@ class SupabaseAuthRepository implements AuthRepository {
     return { ok: true, user: toAccount(data.user) };
   }
 
+  /**
+   * Every account the site can see, for the user directory and the comms picker.
+   *
+   * Read from `profiles`, not from `auth.users`: the auth table is not readable
+   * with the public key (and should not be), while a profile row is exactly what
+   * the board already prints next to every post. Addresses are not part of it, so
+   * `email` comes back empty - nothing on the site shows one anyway.
+   */
+  async listAccounts(): Promise<AccountUser[]> {
+    const { data, error } = await this.client()
+      .from('profiles')
+      .select('id, display_name, created_at')
+      .order('created_at', { ascending: true });
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+
+    return ((data ?? []) as { id: string; display_name: string; created_at: string }[]).map((row) => ({
+      id: row.id,
+      email: '',
+      displayName: row.display_name.length > 0 ? row.display_name : 'Anonymous',
+      createdAt: row.created_at,
+      backend: 'supabase',
+    }));
+  }
+
   /** Supabase-owned accounts are removed from the dashboard, not from here. */
   subscribe(listener: (user: AccountUser | null) => void): () => void {
     const { data } = this.client().auth.onAuthStateChange((_event, session) => {
