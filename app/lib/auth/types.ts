@@ -73,5 +73,11 @@ export type AuthRepository = {
   updatePassword(input: UpdatePasswordInput): Promise<AuthResult>;
   /** Mock only: wipe the local account. Supabase accounts are removed in the dashboard. */
   deleteAccount?(): Promise<AuthResult>;
+  /**
+   * The accounts this browser can see, which is what the comms "new message"
+   * picker offers. Supabase answers with `select id, display_name from profiles`
+   * (a public read: the board already shows these names on every post).
+   */
+  listAccounts?(): Promise<AccountUser[]>;
   subscribe(listener: (user: AccountUser | null) => void): () => void;
 };

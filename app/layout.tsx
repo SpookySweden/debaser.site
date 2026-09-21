@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import AuthProvider from "./components/AuthProvider";
+import CommsNotifier from "./components/CommsNotifier";
+import CommsProvider from "./components/CommsProvider";
 import ForumProvider from "./components/ForumProvider";
 import PresenceProvider from "./components/PresenceProvider";
 import "./globals.css";
@@ -29,7 +31,13 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <AuthProvider>
           <PresenceProvider>
-            <ForumProvider>{children}</ForumProvider>
+            <ForumProvider>
+              <CommsProvider>
+                {children}
+                {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
+                <CommsNotifier />
+              </CommsProvider>
+            </ForumProvider>
           </PresenceProvider>
         </AuthProvider>
       </body>

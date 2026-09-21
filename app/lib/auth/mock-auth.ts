@@ -305,6 +305,13 @@ class MockAuthRepository implements AuthRepository {
     return { ok: true, user: null };
   }
 
+  /** Every account this browser holds, so comms can offer somebody to write to. */
+  async listAccounts(): Promise<AccountUser[]> {
+    return readState()
+      .users.map(toAccount)
+      .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
+  }
+
   subscribe(listener: Listener): () => void {
     listeners.add(listener);
 
