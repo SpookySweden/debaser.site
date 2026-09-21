@@ -1,4 +1,5 @@
 import { tagKey } from './tag-vocabulary';
+import { postCredit } from './site-author';
 import type { ForumAnchorKind, ForumThread } from './types';
 
 /**
@@ -12,6 +13,10 @@ import type { ForumAnchorKind, ForumThread } from './types';
  *   - the `tags` sort ranks posts by how many of the selected tags they include,
  *     which is what "sort by tag inclusion" means, with newest first as the
  *     tie-breaker.
+ *
+ * Free text looks at the title, the body, the item the post is filed under, the
+ * tags and the accounts on it - so a post is findable by whoever it is credited
+ * to, and by anyone who replied.
  */
 
 export type SortMode = 'newest' | 'replies' | 'tags';
@@ -19,7 +24,7 @@ export type SourceFilter = 'all' | ForumAnchorKind;
 export type TagMatchMode = 'any' | 'all';
 
 export type BoardQuery = {
-  /** Free text search across title, body, source item and tags. */
+  /** Free text search across title, body, source item, tags and account names. */
   query: string;
   sourceFilter: SourceFilter;
   /** Canonical tag keys to include. */
@@ -31,6 +36,26 @@ export type BoardQuery = {
 /** Canonical keys of every tag on a post. */
 export function threadTagKeys(thread: ForumThread): string[] {
   return thread.tags.map((tag) => tagKey(tag.label));
+}
+
+/**
+ * Every account name that shows on a post.
+ *
+ * That is whoever the post is credited to (the site, for a thread an item's
+ * comment box opened) plus everybody who replied - so searching an account finds
+ * the posts it started and the conversations it joined.
+ */
+export function threadAccountNames(thread: ForumThread): string[] {
+  const names = new Set<string>();
+
+  const credit = postCredit(thread);
+  if (credit.displayName.length > 0) names.add(credit.displayName);
+
+  for (const comment of thread.comments) {
+    if (comment.author.displayName.length > 0) names.add(comment.author.displayName);
+  }
+
+  return [...names];
 }
 
 /**
@@ -70,7 +95,8 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
       thread.title.toLowerCase().includes(needle) ||
       thread.body.toLowerCase().includes(needle) ||
       thread.anchor.label.toLowerCase().includes(needle) ||
-      thread.tags.some((tag) => tag.label.toLowerCase().includes(needle) || tagKey(tag.label).includes(needle))
+      thread.tags.some((tag) => tag.label.toLowerCase().includes(needle) || tagKey(tag.label).includes(needle)) ||
+      threadAccountNames(thread).some((name) => name.toLowerCase().includes(needle))
     );
   });
 

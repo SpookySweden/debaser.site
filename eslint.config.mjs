@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scratch space: verification logs and the throwaway CommonJS check scripts
+    // that go with them (see Temp/*.txt for the commands they were run with).
+    "Temp/**",
   ]),
 ]);
 

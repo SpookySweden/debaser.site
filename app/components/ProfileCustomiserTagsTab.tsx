@@ -25,7 +25,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
 
       {profile.tags.length === 0 ? (
         <p className="mt-2 text-[10px] font-bold text-black">
-          NO TAGS GIVEN YET. VISITORS CAN GIVE ONE FROM YOUR PUBLIC PROFILE PAGE.
+          NO TAGS GIVEN YET. GIVE YOURSELF ONE FROM YOUR PUBLIC PROFILE PAGE, OR LET A VISITOR GIVE YOU ONE THERE.
         </p>
       ) : (
         <>

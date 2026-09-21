@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
-import { isAutoFiledBody, threadDomId } from '../lib/forum/anchors';
+import { threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
 import { buildPostLayout } from '../lib/forum/post-layout';
+import { isItemOwnedThread } from '../lib/forum/site-author';
 import type { ForumThread } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AnchorLink from './AnchorLink';
@@ -43,7 +44,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
   const forum = useForum();
   // A post an item's comment box opened is credited to the item - and so to the
   // site - which means no commenter's profile is read for the header.
-  const itemOwned = isAutoFiledBody(thread.body);
+  const itemOwned = isItemOwnedThread(thread);
   const { profile } = usePublicProfile(itemOwned ? null : thread.author.id);
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
@@ -92,7 +93,6 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
     repliesLabel: countReplies(thread.comments.length),
     imageSourceLabel: imageSourceLabel(images.source),
     postImage: images.preview,
-    isAnchorPost: itemOwned,
   });
 
   // While the card is open its left column already draws the item's own sheet, so

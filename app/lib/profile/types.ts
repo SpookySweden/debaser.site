@@ -139,7 +139,9 @@ export type ProfileCommentKind = ProfileComment['kind'];
  *
  * RLS: rows are readable when the owner's `show_*` flag allows it, and writable
  * only by the owner (`auth.uid() = user_id`) except `giveTag` / `addComment`,
- * which any signed-in user may insert and only their author may delete.
+ * which any signed-in user may insert - the owner included, since tagging and
+ * commenting on your own page is the same action as doing it on somebody else's -
+ * and only their author may delete.
  */
 export type ProfileRepository = {
   readonly source: ProfileDataSource;

@@ -21,7 +21,10 @@ type ProfilePictureHistoryProps = {
   repository: ProfileRepository;
   /** Who a new comment is filed under, or null when the viewer cannot comment. */
   viewer: ForumAuthor | null;
-  /** Owner view: hidden comments are listed and the comment box is not offered. */
+  /**
+   * Owner view: hidden comments are listed too, and the box is titled as the
+   * owner's own - the owner can comment on their own picture like anyone else.
+   */
   owner: boolean;
 };
 
@@ -122,11 +125,11 @@ export default function ProfilePictureHistory({ profile, repository, viewer, own
         </div>
       )}
 
-      {owner || viewer === null || current === undefined ? null : (
+      {viewer === null || current === undefined ? null : (
         <div className="border-t border-gray-500 p-3">
           <ProfileCommentBox
             id={`avatar-comment-${profile.userId}`}
-            title="COMMENT ON THIS PICTURE"
+            title={owner ? 'COMMENT ON YOUR OWN PICTURE' : 'COMMENT ON THIS PICTURE'}
             placeholder="What do you make of this drawing?"
             submitLabel="[ FILE COMMENT ]"
             versions={versions.map((version) => ({

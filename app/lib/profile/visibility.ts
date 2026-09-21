@@ -44,6 +44,27 @@ export function visibleGivenTags(profile: PublicProfile) {
   return profile.tags.filter((tag) => !tag.hidden);
 }
 
+/**
+ * Whether the "give this profile a tag" box is offered.
+ *
+ * The owner always gets it, so tagging your own profile works exactly like
+ * tagging somebody else's; a visitor gets it only while the owner lets tags
+ * through, so a profile that hides them does not quietly collect more.
+ */
+export function canGiveTag(owner: boolean, visibility: ProfileVisibility): boolean {
+  return owner || visibility.showTags;
+}
+
+/**
+ * Whether the comment box on the profile itself is offered.
+ *
+ * Same rule as tags: the owner can always leave a comment on their own page, and
+ * visitors only while comments are switched on.
+ */
+export function canCommentOnProfile(owner: boolean, visibility: ProfileVisibility): boolean {
+  return owner || visibility.showProfileComments;
+}
+
 export function profileComments(profile: PublicProfile): ProfileComment[] {
   return profile.comments.filter((comment) => comment.kind === 'profile');
 }

@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scratch verification output (logs and the throwaway check scripts beside them)
+/Temp/

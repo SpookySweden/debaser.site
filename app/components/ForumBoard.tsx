@@ -364,7 +364,7 @@ export default function ForumBoard() {
 
               <div>
                 <label htmlFor="forum-search" className="block text-[10px] font-bold text-black">
-                  SEARCH TITLE / BODY / TAG:
+                  SEARCH TITLE / BODY / TAG / ACCOUNT:
                 </label>
                 <input
                   id="forum-search"
@@ -374,7 +374,7 @@ export default function ForumBoard() {
                     setQuery(event.target.value);
                     setPage(1);
                   }}
-                  placeholder="e.g. LORE, foundry, spoiler"
+                  placeholder="e.g. LORE, spoiler, account name"
                   className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
                 />
               </div>

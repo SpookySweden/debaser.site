@@ -1,6 +1,6 @@
 import type { ForumAuthor, ForumPreview, ForumTag, ForumThread } from './types';
 import { displayTags } from './tags';
-import { SITE_AUTHOR, SITE_AUTHOR_PICTURE } from './site-author';
+import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
 import type { GivenTag, PublicProfile } from '../profile/types';
 import { visibleGivenTags } from '../profile/visibility';
 
@@ -78,15 +78,14 @@ export type PostLayoutInput = {
   imageSourceLabel: string;
   /** Whether the thread's picture should be shown at all (post media only). */
   postImage: ForumPreview | undefined;
-  isAnchorPost: boolean;
 };
 
 export function buildPostLayout(input: PostLayoutInput): PostLayout {
   const { thread, isOpen, authorProfile, postImage } = input;
   // A post an item owns - the thread an item's comment box opened - is credited
   // to the item, so its header never repeats the account that commented first.
-  const itemOwned = input.isAnchorPost;
-  const credit = itemOwned ? SITE_AUTHOR : thread.author;
+  const itemOwned = isItemOwnedThread(thread);
+  const credit = postCredit(thread);
   const displayedTags =
     itemOwned || authorProfile === null || authorProfile === undefined ? [] : visibleGivenTags(authorProfile);
   const showsPicture = itemOwned || credit.id !== null;
@@ -115,7 +114,7 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
     right: {
       showBody: isOpen,
       body: thread.body,
-      isAnchorPost: input.isAnchorPost,
+      isAnchorPost: itemOwned,
     },
     // Collapsed rows keep the ink for the text: the avatar and the picture only
     // appear when the row is hovered, which the card wires to the title/name. A
