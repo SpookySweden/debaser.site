@@ -99,6 +99,15 @@ export type PublicProfile = {
   tags: GivenTag[];
   comments: ProfileComment[];
   updatedAt: string;
+  /**
+   * Set while the house account has the account banned (supabase/schema.sql,
+   * section 12). A banned account can read and write nothing, and its posts and
+   * replies stop being shown to anybody but the admin - so this flag is how the
+   * board and the directory say *why* a name has gone quiet.
+   */
+  banned?: boolean;
+  /** The admin's own words, written when the ban was set. */
+  bannedReason?: string;
 };
 
 export type ProfilePatch = {

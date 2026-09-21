@@ -227,21 +227,81 @@ class SupabaseAuthRepository implements AuthRepository {
    * the board already prints next to every post. Addresses are not part of it, so
    * `email` comes back empty - nothing on the site shows one anyway.
    */
+  /**
+   * Every account the site can see, for the user directory and the comms picker.
+   *
+   * Read from `profiles`, not from `auth.users`: the auth table is not readable
+   * with the public key (and should not be), while a profile row is exactly what
+   * the board already prints next to every post. Addresses are not part of it, so
+   * `email` comes back empty - nothing on the site shows one anyway.
+   */
   async listAccounts(): Promise<AccountUser[]> {
     const { data, error } = await this.client()
       .from('profiles')
-      .select('id, display_name, created_at')
+      .select('id, display_name, created_at, banned_at')
       .order('created_at', { ascending: true });
 
     if (error !== null) throw new Error(error.message.toUpperCase());
 
-    return ((data ?? []) as { id: string; display_name: string; created_at: string }[]).map((row) => ({
+    return (
+      (data ?? []) as { id: string; display_name: string; created_at: string; banned_at: string | null }[]
+    ).map((row) => ({
       id: row.id,
       email: '',
       displayName: row.display_name.length > 0 ? row.display_name : 'Anonymous',
       createdAt: row.created_at,
       backend: 'supabase',
+      ...(row.banned_at === null ? {} : { banned: true }),
     }));
+  }
+
+  /**
+   * Banning an account, for the house account.
+   *
+   * The ban itself is three columns on the profile row, and the permission is a
+   * policy (`profiles moderated by admin`, supabase/schema.sql section 12): this
+   * code only writes the stamps. The write is asked to hand the row back, so a
+   * visitor whose request was refused gets told rather than being shown "done" -
+   * RLS refuses by touching nothing, which is otherwise silent.
+   */
+  async banAccount(userId: string, reason: string): Promise<void> {
+    const viewer = await this.getCurrentUser();
+
+    const { data, error } = await this.client()
+      .from('profiles')
+      .update({ banned_at: new Date().toISOString(), banned_reason: reason.trim(), banned_by: viewer?.id ?? null })
+      .eq('id', userId)
+      .select('id');
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+    if ((data ?? []).length === 0) {
+      throw new Error('THE DATABASE REFUSED THAT - ONLY THE HOUSE ACCOUNT MAY BAN AN ACCOUNT.');
+    }
+  }
+
+  async unbanAccount(userId: string): Promise<void> {
+    const { data, error } = await this.client()
+      .from('profiles')
+      .update({ banned_at: null, banned_reason: '', banned_by: null })
+      .eq('id', userId)
+      .select('id');
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+    if ((data ?? []).length === 0) {
+      throw new Error('THE DATABASE REFUSED THAT - ONLY THE HOUSE ACCOUNT MAY LIFT A BAN.');
+    }
+  }
+
+  /** Every banned account id, for the `[ BANNED ]` marks on the board and directory. */
+  async listBannedAccountIds(): Promise<string[]> {
+    const { data, error } = await this.client()
+      .from('profiles')
+      .select('id')
+      .not('banned_at', 'is', null);
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+
+    return ((data ?? []) as { id: string }[]).map((row) => row.id);
   }
 
   /** Supabase-owned accounts are removed from the dashboard, not from here. */

@@ -21,8 +21,10 @@
 --
 -- It also plants the house account's profile row (debaser.site in dark blue), gives
 -- every new account - email or Google - a profile and a name of its own, hands the
--- house account the power to edit or remove anybody's post (`is_admin`), and makes
--- a public storage bucket for uploaded profile pictures.
+-- house account the power to edit or remove anybody's post (`is_admin`), lets it ban
+-- an account outright - stopping its writing and hiding what it already wrote
+-- (`banned_at`, section 12) - and makes a public storage bucket for uploaded
+-- profile pictures.
 --
 -- After running it:
 --   1. Authentication -> Users -> Add user: email admin1212@debaser.site, the
@@ -634,7 +636,161 @@ create policy "avatars removed by owner or admin" on storage.objects
   );
 
 -- -----------------------------------------------------------------------------
--- 12. check it landed
+-- 12. banning an account
+-- -----------------------------------------------------------------------------
+-- The board takes posts from guests, so a bad one has to be stoppable without
+-- deleting the account behind it. A ban is three stamps on the profile row:
+-- `banned_at` (when), `banned_reason` (the admin's own words) and `banned_by` (who
+-- did it). Only the house account may set them - the policy at the end of this
+-- section - so nothing else in the site can write a ban.
+--
+-- A ban does two things at once:
+--
+--   * it stops the account writing anywhere: posts, replies, profile edits,
+--     picture uploads, tags, comments and messages. Every write policy below is its
+--     own earlier definition with `not public.is_banned()` added, re-created by
+--     name, so the refusal happens in the database rather than in the UI;
+--   * it hides what the account already wrote. The two board policies that were
+--     `using (true)` now skip rows whose author is banned, so existing posts and
+--     replies disappear for everybody. The house account is exempt from that half
+--     on purpose: it still sees them (the board marks them `[ BANNED ]`), which is
+--     what makes an unban or a cleanup possible at all.
+--
+-- The columns are added rather than created, so this section is safe to re-run on
+-- a database that already holds profiles and posts.
+
+alter table public.profiles add column if not exists banned_at timestamptz;
+alter table public.profiles add column if not exists banned_reason text not null default '';
+alter table public.profiles add column if not exists banned_by uuid references auth.users (id) on delete set null;
+
+-- Who is banned: `is_banned()` asks about whoever is calling, `is_banned(<id>)`
+-- about somebody else, which is what the read policies need. Definer and stable,
+-- like `is_admin()`, so it answers the same whoever asks - and so a policy on
+-- profiles can call it without recursing through profiles' own policies.
+create or replace function public.is_banned(user_id uuid default auth.uid())
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.profiles p
+    where p.id = user_id and p.banned_at is not null
+  );
+$$;
+
+-- The house account may write anybody's profile row; that is how a ban is set and
+-- lifted. Permissive, like the section above, so it ORs with the owner's own access.
+drop policy if exists "profiles moderated by admin" on public.profiles;
+create policy "profiles moderated by admin" on public.profiles
+  for update using (public.is_admin()) with check (public.is_admin());
+
+-- 12a. writing is refused to a banned account, everywhere
+-- -----------------------------------------------------------------------------
+-- Each of these is the policy as its own section defined it, with the ban check
+-- added, re-created by name. Re-running the script therefore leaves the board,
+-- profiles, tags, comments, messages and the picture bucket all saying the same
+-- thing: a banned account may still read, and may write nothing.
+--
+-- The house account is not exempt here, and does not need to be: it keeps its own
+-- rights through the `is_admin()` policies in section 10, which are permissive, so
+-- a banned admin could still moderate (and would still be able to unban itself).
+
+drop policy if exists "profiles update own" on public.profiles;
+create policy "profiles update own" on public.profiles
+  for update using (auth.uid() = id and not public.is_banned())
+  with check (auth.uid() = id);
+
+drop policy if exists "avatar versions insert own" on public.profile_avatar_versions;
+create policy "avatar versions insert own" on public.profile_avatar_versions
+  for insert with check (auth.uid() = user_id and not public.is_banned());
+
+drop policy if exists "profile tags insert" on public.profile_tags;
+create policy "profile tags insert" on public.profile_tags
+  for insert with check ((given_by is null or given_by = auth.uid()) and not public.is_banned());
+
+drop policy if exists "profile comments insert" on public.profile_comments;
+create policy "profile comments insert" on public.profile_comments
+  for insert with check ((author_id is null or author_id = auth.uid()) and not public.is_banned());
+
+drop policy if exists "forum_threads insert own" on public.forum_threads;
+create policy "forum_threads insert own" on public.forum_threads
+  for insert with check ((author_id is null or author_id = auth.uid()) and not public.is_banned());
+
+drop policy if exists "forum_threads update own" on public.forum_threads;
+create policy "forum_threads update own" on public.forum_threads
+  for update using (author_id = auth.uid() and not public.is_banned())
+  with check (author_id = auth.uid());
+
+drop policy if exists "forum_comments insert own" on public.forum_comments;
+create policy "forum_comments insert own" on public.forum_comments
+  for insert with check ((author_id is null or author_id = auth.uid()) and not public.is_banned());
+
+drop policy if exists "forum_comments update own" on public.forum_comments;
+create policy "forum_comments update own" on public.forum_comments
+  for update using (author_id = auth.uid() and not public.is_banned())
+  with check (author_id = auth.uid());
+
+drop policy if exists "comms threads insert by participant" on public.comms_threads;
+create policy "comms threads insert by participant" on public.comms_threads
+  for insert with check (auth.uid() in (participant_a, participant_b) and not public.is_banned());
+
+drop policy if exists "comms threads update by participant" on public.comms_threads;
+create policy "comms threads update by participant" on public.comms_threads
+  for update using (auth.uid() in (participant_a, participant_b) and not public.is_banned())
+  with check (auth.uid() in (participant_a, participant_b));
+
+drop policy if exists "comms messages insert own" on public.comms_messages;
+create policy "comms messages insert own" on public.comms_messages
+  for insert with check (
+    author_id = auth.uid()
+    and not public.is_banned()
+    and exists (
+      select 1 from public.comms_threads t
+      where t.id = thread_id and auth.uid() in (t.participant_a, t.participant_b)
+    )
+  );
+
+drop policy if exists "avatars filed by owner" on storage.objects;
+create policy "avatars filed by owner" on storage.objects
+  for insert to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and not public.is_banned()
+  );
+
+drop policy if exists "avatars replaced by owner" on storage.objects;
+create policy "avatars replaced by owner" on storage.objects
+  for update to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+    and not public.is_banned()
+  )
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- 12b. reading hides a banned author's posts and replies
+-- -----------------------------------------------------------------------------
+-- The half that makes a ban more than a locked door: what the account already filed
+-- stops being shown to anybody. Guests write with no author id at all, so their
+-- rows are never caught by this.
+--
+-- Realtime note: a page that is already open keeps the rows it has until it
+-- reloads, because the ban is an update to a profile row and the board is watching
+-- the posts. Nothing new arrives from that account, and the next load is clean.
+
+drop policy if exists "forum_threads readable" on public.forum_threads;
+create policy "forum_threads readable" on public.forum_threads
+  for select using ((author_id is null or not public.is_banned(author_id)) or public.is_admin());
+
+drop policy if exists "forum_comments readable" on public.forum_comments;
+create policy "forum_comments readable" on public.forum_comments
+  for select using ((author_id is null or not public.is_banned(author_id)) or public.is_admin());
+
+-- -----------------------------------------------------------------------------
+-- 13. check it landed
 -- -----------------------------------------------------------------------------
 -- Run these on their own after the script; each should answer without an error.
 --
@@ -642,7 +798,13 @@ create policy "avatars removed by owner or admin" on storage.objects
 --     where schemaname = 'public' order by tablename;
 --   select tablename, policyname, cmd from pg_policies
 --     where schemaname = 'public' order by tablename, policyname;
---   select id, display_name, name_colour from public.profiles;
+--   select id, display_name, name_colour, banned_at from public.profiles;
 --   select id, public, file_size_limit, allowed_mime_types from storage.buckets;
 --   select policyname, cmd from pg_policies
 --     where schemaname = 'storage' order by policyname;
+--   -- which policies carry the ban check (should be fifteen: thirteen writes and
+--   -- the two board read policies):
+--   select policyname, cmd from pg_policies
+--     where schemaname in ('public', 'storage')
+--       and coalesce(qual, '') || coalesce(with_check, '') like '%is_banned%'
+--     order by policyname;

@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { isSiteAccount } from '../lib/auth/builtin-account';
-import type { ForumComment, ForumThread } from '../lib/forum/types';
+import type { ForumAuthor, ForumComment, ForumThread } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 
@@ -31,6 +31,103 @@ export function useAdmin(): boolean {
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof Error ? caught.message : fallback;
+}
+
+/**
+ * The admin's controls for the account behind a post or a reply.
+ *
+ * A ban is heavier than removing a post: it stops that account writing anywhere, and
+ * it hides what it has already written from everybody but the admin
+ * (supabase/schema.sql, section 12). So the button asks for the reason in the
+ * archive's own words first, and the row says `[ BANNED ]` once it is on - otherwise
+ * a name that has gone quiet would look like it had simply stopped posting.
+ *
+ * Guests write with no account behind them, and the house account is never the one
+ * to ban, so both get no controls at all.
+ */
+export function AuthorModeration({ author }: { author: ForumAuthor }) {
+  const auth = useAuth();
+  const admin = useAdmin();
+  const [naming, setNaming] = useState(false);
+  const [reason, setReason] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const accountId = author.id;
+  if (!admin || accountId === null || isSiteAccount(accountId)) return null;
+
+  async function ban() {
+    if (accountId === null) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      await auth.banAccount(accountId, reason);
+      setNaming(false);
+      setReason('');
+    } catch (caught) {
+      setError(failure(caught, 'THAT ACCOUNT COULD NOT BE BANNED.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function lift() {
+    if (accountId === null) return;
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      await auth.unbanAccount(accountId);
+    } catch (caught) {
+      setError(failure(caught, 'THAT BAN COULD NOT BE LIFTED.'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <span className="inline-flex flex-wrap items-center gap-1">
+      {author.banned === true ? (
+        <span className="border border-black bg-[#800000] px-1 text-white">[ BANNED ]</span>
+      ) : null}
+
+      {author.banned === true ? (
+        <button type="button" onClick={() => void lift()} disabled={busy} className={BUTTON}>
+          {busy ? '[ WORKING... ]' : '[ UNBAN ]'}
+        </button>
+      ) : (
+        <button type="button" onClick={() => setNaming(!naming)} disabled={busy} className={BUTTON}>
+          {naming ? '[ CANCEL BAN ]' : '[ BAN ]'}
+        </button>
+      )}
+
+      {naming ? (
+        <span className="inline-flex w-full flex-wrap items-center gap-1">
+          <label htmlFor={`ban-reason-${accountId}`}>REASON:</label>
+          <input
+            id={`ban-reason-${accountId}`}
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+            placeholder="OFF-TOPIC, ABUSE, SPAM..."
+            className={FIELD}
+          />
+
+          <button type="button" onClick={() => void ban()} disabled={busy} className={BUTTON}>
+            {busy ? '[ BANNING... ]' : '[ CONFIRM BAN ]'}
+          </button>
+
+          <span className="text-[#800000]">
+            BANNING STOPS THIS ACCOUNT WRITING ANYWHERE AND HIDES WHAT IT ALREADY WROTE FROM EVERYBODY BUT YOU.
+          </span>
+        </span>
+      ) : null}
+
+      {error === null ? null : <span className="text-[#800000]">{error}</span>}
+    </span>
+  );
 }
 
 /** The admin's controls for a post: rewrite it, or take it off the board. */
@@ -90,6 +187,8 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
         <button type="button" onClick={() => void remove()} disabled={busy} className={BUTTON}>
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE POST ]'}
         </button>
+
+        <AuthorModeration author={thread.author} />
 
         {confirming ? <span className="text-[#800000]">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
       </div>
@@ -184,6 +283,8 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
         <button type="button" onClick={() => void remove()} disabled={busy} className={BUTTON}>
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE REPLY ]'}
         </button>
+
+        <AuthorModeration author={comment.author} />
 
         {/* Removing a reply takes the replies to it with it, which is worth saying. */}
         {confirming ? (

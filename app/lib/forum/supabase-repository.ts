@@ -118,16 +118,21 @@ type ThreadRow = {
   forum_comments?: CommentRow[] | null;
 };
 
-function toAuthor(id: string | null, label: string): ForumAuthor {
-  return { id, displayName: label.length > 0 ? label : ANONYMOUS_AUTHOR.displayName };
+function toAuthor(id: string | null, label: string, banned = false): ForumAuthor {
+  return {
+    id,
+    displayName: label.length > 0 ? label : ANONYMOUS_AUTHOR.displayName,
+    ...(banned ? { banned: true } : {}),
+  };
 }
 
-function toComment(row: CommentRow, threadId: string): ForumComment {
+/** `banned` holds the ids the admin has banned, so a row can be marked on sight. */
+function toComment(row: CommentRow, threadId: string, banned: ReadonlySet<string> = new Set()): ForumComment {
   return {
     id: row.id,
     threadId,
     body: row.body,
-    author: toAuthor(row.author_id, row.author_label),
+    author: toAuthor(row.author_id, row.author_label, row.author_id !== null && banned.has(row.author_id)),
     createdAt: row.created_at,
     tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
     ...(row.parent_id === null || row.parent_id === undefined ? {} : { parentId: row.parent_id }),
@@ -144,16 +149,16 @@ function toComment(row: CommentRow, threadId: string): ForumComment {
   };
 }
 
-function toThread(row: ThreadRow): ForumThread {
+function toThread(row: ThreadRow, banned: ReadonlySet<string> = new Set()): ForumThread {
   const comments = (row.forum_comments ?? [])
-    .map((comment) => toComment(comment, row.id))
+    .map((comment) => toComment(comment, row.id, banned))
     .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
 
   return {
     id: row.id,
     title: row.title,
     body: row.body,
-    author: toAuthor(row.author_id, row.author_label),
+    author: toAuthor(row.author_id, row.author_label, row.author_id !== null && banned.has(row.author_id)),
     createdAt: row.created_at,
     anchor: { kind: row.anchor_kind, id: row.anchor_id, label: row.anchor_label },
     tags: row.tags ?? deriveTags({ text: `${row.title}\n${row.body}`, maxTags: 6 }),
@@ -223,7 +228,26 @@ class SupabaseForumRepository implements ForumRepository {
     return client;
   }
 
+  /**
+   * Which accounts the admin has banned.
+   *
+   * The database does the hiding (the readable policies in supabase/schema.sql,
+   * section 12, skip a banned author's rows for everybody), so this is only about
+   * telling the truth on screen: the admin still sees those rows, and they should
+   * say why that name has gone quiet rather than looking ordinary. A read failure
+   * is not worth failing the board over, so it comes back empty.
+   */
+  private async bannedAuthorIds(): Promise<ReadonlySet<string>> {
+    const { data, error } = await this.client().from('profiles').select('id').not('banned_at', 'is', null);
+
+    if (error !== null) return new Set();
+
+    return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
+  }
+
   async listThreads(): Promise<ForumThread[]> {
+    const banned = await this.bannedAuthorIds();
+
     const { data, error } = await this.client()
       .from(THREADS_TABLE)
       .select(THREAD_SELECT)
@@ -231,7 +255,7 @@ class SupabaseForumRepository implements ForumRepository {
 
     if (error !== null) throw new Error(`forum thread select failed: ${error.message}`);
 
-    return ((data ?? []) as ThreadRow[]).map(toThread);
+    return ((data ?? []) as ThreadRow[]).map((row) => toThread(row, banned));
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {
@@ -326,7 +350,7 @@ class SupabaseForumRepository implements ForumRepository {
 
     if (error !== null) throw new Error(`forum thread refresh failed: ${error.message}`);
 
-    return toThread(data as ThreadRow);
+    return toThread(data as ThreadRow, await this.bannedAuthorIds());
   }
 
   /** Which thread a reply is filed under, for the refresh above. */

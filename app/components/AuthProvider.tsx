@@ -39,6 +39,18 @@ export type AuthContextValue = {
   updateEmail: (input: UpdateEmailInput) => Promise<AuthResult>;
   updatePassword: (input: UpdatePasswordInput) => Promise<AuthResult>;
   deleteAccount: () => Promise<AuthResult>;
+  /**
+   * Banning an account, for the house account.
+   *
+   * A ban stops that account writing anywhere and hides what it already wrote - for
+   * everybody but the admin (supabase/schema.sql, section 12). Both calls are
+   * ordinary writes as far as this context is concerned: the database refuses them
+   * for anybody but the admin, so the controls being hidden is a courtesy, not the
+   * rule. They throw with the database's own complaint, which is what the board
+   * shows.
+   */
+  banAccount: (userId: string, reason: string) => Promise<void>;
+  unbanAccount: (userId: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -157,6 +169,22 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     return result;
   }, []);
 
+  const banAccount = useCallback(async (userId: string, reason: string) => {
+    const repository = repositoryRef.current ?? getAuthRepository();
+
+    if (repository.banAccount === undefined) throw new Error('THIS BACKEND CANNOT BAN AN ACCOUNT.');
+
+    await repository.banAccount(userId, reason);
+  }, []);
+
+  const unbanAccount = useCallback(async (userId: string) => {
+    const repository = repositoryRef.current ?? getAuthRepository();
+
+    if (repository.unbanAccount === undefined) throw new Error('THIS BACKEND CANNOT LIFT A BAN.');
+
+    await repository.unbanAccount(userId);
+  }, []);
+
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
@@ -173,6 +201,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       updateEmail,
       updatePassword,
       deleteAccount,
+      banAccount,
+      unbanAccount,
     }),
     [
       user,
@@ -185,6 +215,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       updateEmail,
       updatePassword,
       deleteAccount,
+      banAccount,
+      unbanAccount,
     ],
   );
 

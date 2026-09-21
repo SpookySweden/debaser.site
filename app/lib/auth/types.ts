@@ -17,6 +17,13 @@ export type AccountUser = {
   displayName: string;
   createdAt: string;
   backend: AuthBackend;
+  /**
+   * True while the house account has this account banned (see the ban methods
+   * below). A banned account still signs in and still reads, but every write it
+   * makes is refused, and what it already wrote stops being shown to anybody but
+   * the admin - so this flag is how the directory says why a name went quiet.
+   */
+  banned?: boolean;
 };
 
 export type SignUpInput = {
@@ -90,5 +97,19 @@ export type AuthRepository = {
    * (a public read: the board already shows these names on every post).
    */
   listAccounts?(): Promise<AccountUser[]>;
+  /**
+   * Banning an account, for the house account only.
+   *
+   * A ban is written onto the profile row (`banned_at`, `banned_reason`, `banned_by`)
+   * and enforced by Row Level Security, not by this code: the account keeps reading,
+   * loses every write - posts, replies, profile edits, tags, comments, messages and
+   * picture uploads - and what it already filed stops being shown to anybody but the
+   * admin (supabase/schema.sql, section 12). The database refuses the write outright
+   * if anybody but the house account tries it.
+   */
+  banAccount?(userId: string, reason: string): Promise<void>;
+  unbanAccount?(userId: string): Promise<void>;
+  /** Every banned account id, so the board and the directory can mark them. */
+  listBannedAccountIds?(): Promise<string[]>;
   subscribe(listener: (user: AccountUser | null) => void): () => void;
 };

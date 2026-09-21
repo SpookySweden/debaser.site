@@ -26,8 +26,8 @@ type UserDirectoryRowProps = {
  *
  * Left to right: the lamp and what it means, the account's picture and name (the
  * name in the colour that account chose, both opening its public profile), the
- * `[ ADMIN ]` / `[ YOU ]` marks, when the account was made, and the button that
- * opens a conversation with it.
+ * `[ ADMIN ]` / `[ YOU ]` / `[ BANNED ]` marks, when the account was made, and the
+ * button that opens a conversation with it.
  *
  * The lamp is drawn straight from `StatusDot` rather than through `ProfileName`,
  * and that is deliberate: the house account wears no lamp on the board - a post an
@@ -63,6 +63,11 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
           <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
         ) : null}
         {row.you ? <span className="border border-black bg-white px-1">[ YOU ]</span> : null}
+        {/* Banned is worth saying out loud: their posts are hidden from everybody
+            but the admin, so the name would otherwise just look quiet. */}
+        {row.account.banned === true ? (
+          <span className="border border-black bg-[#800000] px-1 text-white">[ BANNED ]</span>
+        ) : null}
       </span>
 
       {row.account.createdAt.length === 0 ? null : (

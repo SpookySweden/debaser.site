@@ -52,6 +52,13 @@ export type ForumAnchor = {
 export type ForumAuthor = {
   id: string | null;
   displayName: string;
+  /**
+   * True while the house account has that account banned (supabase/schema.sql,
+   * section 12). A banned author's rows are hidden from everybody else by the
+   * database, so the admin is the only one who still sees them - marked, so the
+   * name does not just look quiet for no reason.
+   */
+  banned?: boolean;
 };
 
 export type ForumComment = {

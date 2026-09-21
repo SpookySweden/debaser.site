@@ -1,4 +1,5 @@
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
+import { locallyBannedAccountIds } from '../auth/mock-auth';
 import { createLocalId } from './ids';
 import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
 import { deriveTags, mergeTags } from './tags';
@@ -98,7 +99,27 @@ function sortNewestFirst(threads: ForumThread[]): ForumThread[] {
 }
 
 function snapshot(): ForumThread[] {
-  return sortNewestFirst(ensureState());
+  const banned = locallyBannedAccountIds();
+  if (banned.length === 0) return sortNewestFirst(ensureState());
+
+  // A banned account's posts and replies stop being shown, exactly as the readable
+  // policies in supabase/schema.sql hide them on the real store. Guests write with
+  // no author id, so their rows are never caught by this.
+  return sortNewestFirst(ensureState())
+    .filter((thread) => thread.author.id === null || !banned.includes(thread.author.id))
+    .map((thread) => ({
+      ...thread,
+      comments: thread.comments.filter(
+        (comment) => comment.author.id === null || !banned.includes(comment.author.id),
+      ),
+    }));
+}
+
+/** The mock's stand-in for the database refusing a banned account's writes. */
+function assertNotBanned(author: ForumAuthor): void {
+  if (author.id !== null && locallyBannedAccountIds().includes(author.id)) {
+    throw new Error('THIS ACCOUNT IS BANNED.');
+  }
 }
 
 function persist(): void {
@@ -172,6 +193,8 @@ class MockForumRepository implements ForumRepository {
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {
+    assertNotBanned(input.author);
+
     const existing = ensureState();
     const thread: ForumThread = {
       id: createLocalId('thread'),
@@ -194,6 +217,8 @@ class MockForumRepository implements ForumRepository {
   }
 
   async addComment(input: CreateCommentInput): Promise<AddCommentResult> {
+    assertNotBanned(input.author);
+
     const threads = ensureState();
     const body = input.body.trim();
     const author = { ...input.author };

@@ -54,6 +54,12 @@ type StoredUser = {
 type PersistedAuth = {
   users: StoredUser[];
   sessionUserId: string | null;
+  /**
+   * Accounts this browser has banned, by id. The real ban lives on the profile row
+   * and is enforced by the database (supabase/schema.sql, section 12); this is the
+   * mock store's copy of it so the local backend behaves the same way.
+   */
+  bannedIds: string[];
 };
 
 type Listener = (user: AccountUser | null) => void;
@@ -82,7 +88,7 @@ function isStoredUser(value: unknown): value is StoredUser {
 function readState(): PersistedAuth {
   if (state !== null) return state;
 
-  const empty: PersistedAuth = { users: [], sessionUserId: null };
+  const empty: PersistedAuth = { users: [], sessionUserId: null, bannedIds: [] };
 
   if (!hasStorage()) {
     state = empty;
@@ -106,6 +112,9 @@ function readState(): PersistedAuth {
     state = {
       users: Array.isArray(candidate.users) ? candidate.users.filter(isStoredUser) : [],
       sessionUserId: typeof candidate.sessionUserId === 'string' ? candidate.sessionUserId : null,
+      bannedIds: Array.isArray(candidate.bannedIds)
+        ? candidate.bannedIds.filter((id): id is string => typeof id === 'string')
+        : [],
     };
 
     return state;
@@ -127,21 +136,33 @@ function writeState(next: PersistedAuth): void {
   }
 }
 
-function toAccount(user: StoredUser): AccountUser {
+function toAccount(user: StoredUser, banned = false): AccountUser {
   return {
     id: user.id,
     email: user.email,
     displayName: user.displayName,
     createdAt: user.createdAt,
     backend: 'mock',
+    ...(banned ? { banned: true } : {}),
   };
+}
+
+/**
+ * The banned ids, read straight out of the local store.
+ *
+ * Sync on purpose: the board redraws from a snapshot, and asking an async store
+ * whether an author is banned on every row would turn that into a promise. The
+ * mock's ban lives beside its accounts; Supabase keeps it on the profile row.
+ */
+export function locallyBannedAccountIds(): string[] {
+  return [...readState().bannedIds];
 }
 
 function currentAccount(): AccountUser | null {
   const current = readState();
   const user = current.users.find((item) => item.id === current.sessionUserId);
 
-  return user === undefined ? null : toAccount(user);
+  return user === undefined ? null : toAccount(user, current.bannedIds.includes(user.id));
 }
 
 function notify(): void {
@@ -241,7 +262,7 @@ class MockAuthRepository implements AuthRepository {
       secretHash: await hashSecret(input.password, salt),
     };
 
-    writeState({ users: [...current.users, user], sessionUserId: user.id });
+    writeState({ ...current, users: [...current.users, user], sessionUserId: user.id });
     notify();
 
     return { ok: true, user: toAccount(user) };
@@ -364,8 +385,10 @@ class MockAuthRepository implements AuthRepository {
     }
 
     writeState({
+      ...current,
       users: current.users.filter((item) => item.id !== current.sessionUserId),
       sessionUserId: null,
+      bannedIds: current.bannedIds.filter((id) => id !== user?.id),
     });
     notify();
 
@@ -376,9 +399,44 @@ class MockAuthRepository implements AuthRepository {
   async listAccounts(): Promise<AccountUser[]> {
     await ensureBuiltInAccount();
 
-    return readState()
-      .users.map(toAccount)
+    const current = readState();
+
+    return current.users
+      .map((user) => toAccount(user, current.bannedIds.includes(user.id)))
       .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
+  }
+
+  /**
+   * Banning, locally.
+   *
+   * The mock has no database to enforce this, so the ban is a list beside the
+   * accounts and the board asks it before drawing a row (`locallyBannedAccountIds`);
+   * the reason is not kept, because nothing local reads it. Supabase keeps the
+   * reason and enforces the rest in Row Level Security - see the ban section of
+   * supabase/schema.sql.
+   */
+  async banAccount(userId: string): Promise<void> {
+    const current = readState();
+    if (current.users.every((user) => user.id !== userId)) {
+      throw new Error('THAT ACCOUNT IS NOT IN THIS BROWSER.');
+    }
+
+    if (!current.bannedIds.includes(userId)) {
+      writeState({ ...current, bannedIds: [...current.bannedIds, userId] });
+    }
+
+    notify();
+  }
+
+  async unbanAccount(userId: string): Promise<void> {
+    const current = readState();
+
+    writeState({ ...current, bannedIds: current.bannedIds.filter((id) => id !== userId) });
+    notify();
+  }
+
+  async listBannedAccountIds(): Promise<string[]> {
+    return locallyBannedAccountIds();
   }
 
   subscribe(listener: Listener): () => void {
@@ -405,7 +463,7 @@ export function getMockAuthRepository(): AuthRepository {
  * item-owned posts would lose the account behind their byline.
  */
 export function resetMockAuth(): void {
-  writeState({ users: [], sessionUserId: null });
+  writeState({ users: [], sessionUserId: null, bannedIds: [] });
   builtInAccount = null;
   void ensureBuiltInAccount();
   notify();

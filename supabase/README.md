@@ -121,10 +121,41 @@ the signed-in account's address), and section 10 of the script gives it update a
 delete on `forum_threads` and `forum_comments` - anything, not just its own rows -
 plus delete on `profile_tags` and `profile_comments`.
 
-The site draws `[ ADMIN ] [ EDIT POST ] [ REMOVE POST ]` on every post and reply
-when that account is signed in (app/components/ForumModerationControls.tsx), and
-nothing at all for anybody else. The controls are a convenience; the rule is the
+The site draws `[ ADMIN ] [ EDIT POST ] [ REMOVE POST ] [ BAN ]` on every post and
+reply when that account is signed in (app/components/ForumModerationControls.tsx),
+and nothing at all for anybody else. The controls are a convenience; the rule is the
 database's, so a request forged by hand is refused there rather than in the UI.
+
+Banning an account
+------------------
+The moderation above is about one post or one reply; a ban is about the account
+behind it, and it is section 12 of the script. A ban stamps three columns on the
+profile row - `banned_at`, `banned_reason`, `banned_by` - and only the house account
+may write them (`profiles moderated by admin`); nothing else in the site can.
+
+What a ban does, in the database rather than in the UI:
+
+  - stops the account writing anywhere - posts and replies, profile edits, tags,
+    comments, direct messages and picture uploads all carry `not public.is_banned()`
+    in their policies - while still letting it read the site;
+  - hides what the account already wrote: its posts and replies disappear from the
+    board for everybody *except* the house account, which still sees them, marked
+    `[ BANNED ]`. That is deliberate - without it a ban could not be lifted and the
+    writing could not be tidied up afterwards.
+
+Where you use it: with the house account signed in, every post and reply shows
+`[ BAN ]` beside `[ EDIT POST ]` and `[ REMOVE POST ]`. It asks for the reason in the
+archive's own words, then the row reads `[ BANNED ]` with an `[ UNBAN ]` button. The
+account directory marks the row too, so a name that has gone quiet says why.
+
+Two things worth knowing:
+
+  - a page that is already open keeps the rows it has until it reloads, because a ban
+    is an update to a profile row while the board is watching posts. Nothing new
+    arrives from that account, and the next load is clean;
+  - deleting an account outright is still a dashboard job (Authentication -> Users ->
+    Delete user): removing an auth user needs the service role, which the site is
+    never given. A ban is what the site itself can do.
 
 Profile pictures
 ----------------
