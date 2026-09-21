@@ -10,6 +10,7 @@ import type { ProfileComment, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import {
   avatarVersionById,
+  canCommentOnPicture,
   canCommentOnProfile,
   currentAvatarVersion,
   profileComments,
@@ -22,10 +23,14 @@ import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileCommentBox from './ProfileCommentBox';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
+import ProfilePictureCommentWindow from './ProfilePictureCommentWindow';
 import ProfilePicturePanel from './ProfilePicturePanel';
 import ProfileTagList from './ProfileTagList';
 import { usePresence } from './PresenceProvider';
 import TimeStamp from './TimeStamp';
+
+const BUTTON =
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -78,6 +83,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   // together. Empty until a version is chosen, which falls back to the current one.
   const [selectedVersionId, setSelectedVersionId] = useState('');
   const selectedVersion = avatarVersionById(profile, selectedVersionId) ?? currentAvatarVersion(profile);
+  // The comment window, opened from the button beside the version label.
+  const [commenting, setCommenting] = useState(false);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
 
   return (
@@ -99,13 +106,25 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         <div className="flex flex-col gap-3 p-3 sm:flex-row">
           {/* The picture keeps the size it has always been drawn at, and the version
               being looked at is the one the comments below belong to. */}
-          <div className="shrink-0 text-center">
+          <div className="shrink-0">
             <ProfileAvatar version={selectedVersion} displayName={displayName} size={176} />
+
+            {/* The version label and the way into the comment window share the bottom
+                of the picture's own space: writing about a drawing no longer pushes the
+                rest of the page down. */}
             {selectedVersion === undefined ? null : (
-              <p className="mt-1 text-[10px] font-bold text-black">
-                V{selectedVersion.version}
-                {selectedVersion.id === profile.avatar.currentVersionId ? ' (CURRENT)' : ''}
-              </p>
+              <div className="mt-1 flex items-center justify-between gap-2">
+                <p className="text-[10px] font-bold text-black">
+                  V{selectedVersion.version}
+                  {selectedVersion.id === profile.avatar.currentVersionId ? ' (CURRENT)' : ''}
+                </p>
+
+                {canCommentOnPicture(owner, profile.visibility) ? (
+                  <button type="button" onClick={() => setCommenting(true)} className={BUTTON}>
+                    [ COMMENT ]
+                  </button>
+                ) : null}
+              </div>
             )}
           </div>
 
@@ -174,14 +193,33 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         <div className="border-t border-gray-500 p-3 text-black">
           <ProfilePicturePanel
             profile={profile}
-            repository={repository}
-            viewer={viewer}
             owner={owner}
             selectedId={selectedVersionId}
             onSelect={setSelectedVersionId}
           />
         </div>
       </section>
+
+      {commenting && selectedVersion !== undefined ? (
+        <ProfilePictureCommentWindow
+          profile={profile}
+          repository={repository}
+          viewer={viewer}
+          owner={owner}
+          selectedId={selectedVersionId}
+          onSelect={setSelectedVersionId}
+          onClose={() => setCommenting(false)}
+        />
+      ) : null}
+
+      {/* Board activity first, then the comments on the profile itself: what the
+          account has filed reads better before the discussion of it. */}
+      <ProfileBoardActivity
+        userId={userId}
+        displayName={displayName}
+        nameColour={nameColour}
+        threads={theirThreads}
+      />
 
       <CommentsSection
         userId={userId}
@@ -193,13 +231,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         onComment={async (body) => {
           await repository.addComment(userId, { kind: 'profile', author: viewer, body });
         }}
-      />
-
-      <ProfileBoardActivity
-        userId={userId}
-        displayName={displayName}
-        nameColour={nameColour}
-        threads={theirThreads}
       />
     </div>
   );

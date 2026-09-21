@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { validateProfileComment } from '../lib/profile/visibility';
+import SheetImage from './SheetImage';
 
 const FIELD =
   'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
@@ -12,6 +13,12 @@ const BUTTON =
 export type CommentVersionOption = {
   id: string;
   label: string;
+  /**
+   * The drawing itself, shown as a preview while the option is hovered. A pointer
+   * device gets that; a touch screen has no hover, which is why choosing an option
+   * inside the comment window also swaps the picture the window is showing.
+   */
+  preview?: { src: string; alt: string; width: number; height: number };
 };
 
 type ProfileCommentBoxProps = {
@@ -93,20 +100,38 @@ export default function ProfileCommentBox({
       </div>
 
       {versions === undefined || onVersionChange === undefined ? null : (
-        <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
-          <label htmlFor={`${id}-version`}>{versionLabel}</label>
-          <select
-            id={`${id}-version`}
-            value={versionId ?? ''}
-            onChange={(event) => onVersionChange(event.target.value)}
-            className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
-          >
+        <div className="mt-1 text-[10px] font-bold text-black">
+          <p>{versionLabel}</p>
+
+          <ul className="mt-1 flex flex-wrap gap-1">
             {versions.map((version) => (
-              <option key={version.id} value={version.id}>
-                {version.label}
-              </option>
+              <li key={version.id} className="group relative">
+                <button
+                  type="button"
+                  onClick={() => onVersionChange(version.id)}
+                  className={`${BUTTON} ${
+                    version.id === versionId ? 'bg-[#000080] text-white hover:bg-[#000080]' : ''
+                  }`}
+                  title={version.preview === undefined ? undefined : `${version.preview.src} :: HOVER TO SEE IT`}
+                >
+                  {version.label}
+                </button>
+
+                {/* Desktop: the drawing appears while the pointer rests on the button. */}
+                {version.preview === undefined ? null : (
+                  <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-1 group-hover:block">
+                    <SheetImage
+                      src={version.preview.src}
+                      alt={version.preview.alt}
+                      width={version.preview.width}
+                      height={version.preview.height}
+                      sizes="160px"
+                    />
+                  </span>
+                )}
+              </li>
             ))}
-          </select>
+          </ul>
         </div>
       )}
 

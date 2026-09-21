@@ -2,16 +2,15 @@
 
 import { useState } from 'react';
 import { authorTag } from '../lib/auth/author';
-import type { ForumAuthor } from '../lib/forum/types';
-import type { ProfileRepository, PublicProfile } from '../lib/profile/types';
+import type { PublicProfile } from '../lib/profile/types';
 import {
   avatarComments,
   avatarVersionById,
   avatarVersionsNewestFirst,
+  canCommentOnPicture,
   currentAvatarVersion,
   visibleAvatarComments,
 } from '../lib/profile/visibility';
-import ProfileCommentBox from './ProfileCommentBox';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
@@ -21,10 +20,7 @@ const BUTTON =
 
 type ProfilePicturePanelProps = {
   profile: PublicProfile;
-  repository: ProfileRepository;
-  /** Who a new comment is filed under, or null when the viewer cannot comment. */
-  viewer: ForumAuthor | null;
-  /** Owner view: hidden comments are listed too, and the box is titled as theirs. */
+  /** Owner view: hidden comments are listed too. */
   owner: boolean;
   /** The version being looked at, which is the one the comments below belong to. */
   selectedId: string;
@@ -39,15 +35,12 @@ type ProfilePicturePanelProps = {
  * the thread. Picking another version from the history switches both - the drawing
  * and the conversation - which is what keeps an older drawing's remarks with the
  * older drawing (see the append-only note in app/lib/profile/types.ts).
+ *
+ * Writing one is not done here: `[ COMMENT ]` beside the picture opens
+ * ProfilePictureCommentWindow, so the page keeps its shape whether or not somebody
+ * is mid-sentence.
  */
-export default function ProfilePicturePanel({
-  profile,
-  repository,
-  viewer,
-  owner,
-  selectedId,
-  onSelect,
-}: ProfilePicturePanelProps) {
+export default function ProfilePicturePanel({ profile, owner, selectedId, onSelect }: ProfilePicturePanelProps) {
   const versions = avatarVersionsNewestFirst(profile);
   const current = currentAvatarVersion(profile);
   const selected = avatarVersionById(profile, selectedId) ?? current;
@@ -55,7 +48,7 @@ export default function ProfilePicturePanel({
 
   const listed = owner ? avatarComments(profile) : visibleAvatarComments(profile);
   const thread = selected === undefined ? [] : listed.filter((comment) => comment.avatarVersionId === selected.id);
-  const commentsSwitchedOff = !owner && !profile.visibility.showAvatarComments;
+  const commentsSwitchedOff = !canCommentOnPicture(owner, profile.visibility);
 
   return (
     <div className="space-y-2">
@@ -89,40 +82,12 @@ export default function ProfilePicturePanel({
               ))}
             </ul>
           )}
-
-          {viewer === null || commentsSwitchedOff ? null : (
-            <ProfileCommentBox
-              id={`avatar-comment-${profile.userId}`}
-              title={owner ? 'COMMENT ON YOUR OWN PICTURE' : 'COMMENT ON THIS PICTURE'}
-              placeholder="What do you make of this drawing?"
-              submitLabel="[ FILE COMMENT ]"
-              versions={versions.map((version) => ({
-                id: version.id,
-                label:
-                  version.id === profile.avatar.currentVersionId ? `V${version.version} (CURRENT)` : `V${version.version}`,
-              }))}
-              versionId={selected.id}
-              onVersionChange={onSelect}
-              onSubmit={async (body) => {
-                await repository.addComment(profile.userId, {
-                  kind: 'avatar',
-                  author: viewer,
-                  body,
-                  avatarVersionId: selected.id,
-                });
-              }}
-            />
-          )}
         </div>
       )}
 
       {versions.length === 0 ? null : (
         <div className="space-y-1">
           <div className="flex flex-wrap items-center justify-between gap-1">
-            <span className="text-[10px] font-bold">
-              VERSION HISTORY :: {versions.length} ON FILE :: EVERY OLDER DRAWING KEEPS ITS OWN COMMENTS
-            </span>
-
             <button type="button" onClick={() => setHistoryOpen(!historyOpen)} className={BUTTON}>
               {historyOpen ? '[ HIDE HISTORY ]' : `[ SHOW HISTORY (${versions.length}) ]`}
             </button>

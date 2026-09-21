@@ -108,6 +108,11 @@ export function canGiveTag(owner: boolean, visibility: ProfileVisibility): boole
   return owner || visibility.showTags;
 }
 
+/** Whether the picture may be commented on: the same rule as the profile itself. */
+export function canCommentOnPicture(owner: boolean, visibility: ProfileVisibility): boolean {
+  return owner || visibility.showAvatarComments;
+}
+
 /**
  * Whether the comment box on the profile itself is offered.
  *
