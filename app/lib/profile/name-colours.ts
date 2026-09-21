@@ -56,3 +56,8 @@ export function profileNameColour(profile: PublicProfile | null | undefined): st
 export function nameColourLabel(hex: string): string {
   return NAME_COLOURS.find((colour) => colour.hex === hex)?.label ?? 'DEFAULT';
 }
+
+/** The swatch hex for one of the sixteen by name, e.g. `green` -> `#008000`. */
+export function nameColourHex(id: string): string | undefined {
+  return NAME_COLOURS.find((colour) => colour.id === id)?.hex;
+}

@@ -5,27 +5,39 @@ import { authorLabel } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { usePresence } from './PresenceProvider';
+import StatusDot from './StatusDot';
 
 type ProfileNameProps = {
   author: ForumAuthor;
   /** Defaults to the author's display name. */
   children?: ReactNode;
   className?: string;
+  /**
+   * The swatch colour to draw, when the caller already knows it (the board's post
+   * row does - it reads it with the author's profile). Left out, the colour comes
+   * from the author's own profile, which is where every other caller gets it.
+   */
+  colour?: string;
 };
 
 /**
- * A username drawn in the colour its account picked in the customiser.
+ * A username: the lamp beside it, and the colour its account picked.
  *
  * Reading the profile here means the colour follows the name everywhere it is
- * printed, and a visitor's browser sees the change as soon as the owner saves it.
- * Guests have no profile, so their names stay the page's own black.
+ * printed, and a visitor's browser sees a change as soon as the owner saves it.
+ * The lamp comes from `usePresence`, so green / yellow / red follow presence the
+ * same way. Guests have neither: an anonymous post has no profile and no account
+ * to be online with.
  */
-export default function ProfileName({ author, children, className }: ProfileNameProps) {
+export default function ProfileName({ author, children, className, colour }: ProfileNameProps) {
   const { profile } = usePublicProfile(author.id);
-  const colour = profileNameColour(profile);
+  const { status, record } = usePresence(author.id);
+  const chosen = colour !== undefined && colour.length > 0 ? colour : profileNameColour(profile);
 
   return (
-    <span className={className} style={colour === undefined ? undefined : { color: colour }}>
+    <span className={className} style={chosen === undefined ? undefined : { color: chosen }}>
+      {status === undefined ? null : <StatusDot status={status} record={record} className="mr-1" />}
       {children ?? authorLabel(author)}
     </span>
   );

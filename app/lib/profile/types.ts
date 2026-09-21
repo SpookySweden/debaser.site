@@ -1,4 +1,5 @@
 import type { ForumAuthor } from '../forum/types';
+import type { PresenceRecord } from './presence';
 
 /**
  * Domain types for public profiles.
@@ -143,6 +144,20 @@ export type ProfileCommentKind = ProfileComment['kind'];
  *   `setTagVisibility`    -> update profile_tags set hidden where the owner matches
  *   `addComment`          -> insert into profile_comments (kind, avatar_version_id)
  *   `subscribe`           -> `supabase.channel('profiles').on('postgres_changes', ...)`
+ *   `markSeen`            -> `update profiles set last_seen_at = now(), is_online = true where id = auth.uid()`
+ *   `markOffline`         -> `update profiles set is_online = false where id = auth.uid()`
+ *   `getPresence`         -> `select id, last_seen_at, is_online from profiles where id = $1`
+ *   `listPresence`        -> the same, `where id in (...)` (or every row for `[]`)
+ *   `subscribePresence`   -> `supabase.channel('presence')`, ideally Realtime Presence itself:
+ *                            connect/disconnect events there are exact, and `is_online` then only
+ *                            has to cover the "gone" write from a closing tab
+ *
+ * DDL for presence (additive):
+ *   alter table public.profiles add column last_seen_at timestamptz;
+ *   alter table public.profiles add column is_online boolean not null default false;
+ * Read access has to widen for these two columns, or presence has to live on a
+ * view/function: they are the one part of a profile that is always public, while
+ * the rest of the row is gated by the owner's `show_*` flags.
  *
  * RLS: rows are readable when the owner's `show_*` flag allows it, and writable
  * only by the owner (`auth.uid() = user_id`) except `giveTag` / `addComment`,
@@ -164,6 +179,24 @@ export type ProfileRepository = {
   addComment(userId: string, input: AddProfileCommentInput): Promise<PublicProfile>;
   /** Realtime hook: fires with a fresh snapshot whenever a profile changes. */
   subscribe(listener: (profile: PublicProfile) => void): () => void;
+
+  /**
+   * Presence: the account's own browser says it is still there.
+   *
+   * `markSeen` is the heartbeat while the site is open (the provider beats once a
+   * minute, on tab focus, and as soon as somebody signs in); `markOffline` is the
+   * goodbye when the tab closes or the visitor signs out. The dot the board draws
+   * is worked out from the record alone, so a browser that dies mid-session
+   * simply ages out of "online" instead of lying.
+   */
+  markSeen(userId: string): Promise<PresenceRecord>;
+  markOffline(userId: string): Promise<PresenceRecord>;
+  getPresence(userId: string): Promise<PresenceRecord | null>;
+  /** One read for a whole page of names. No ids means everyone the store knows. */
+  listPresence(userIds?: string[]): Promise<PresenceRecord[]>;
+  /** Realtime hook: fires with a fresh snapshot whenever presence moves. */
+  subscribePresence(listener: (records: PresenceRecord[]) => void): () => void;
+
   /** Mock-only helper so local test profiles can be purged. */
   clearLocalProfiles?(): Promise<void>;
 };

@@ -6,6 +6,7 @@ import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { GivenTag } from '../lib/profile/types';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
 import { AVATAR_PLAIN_FRAME } from './ProfileAvatar';
 import SheetImage from './SheetImage';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
@@ -86,7 +87,9 @@ export default function PostAuthorRow({
       )}
 
       <ProfileLink author={author} className="text-xs font-bold">
-        <span style={nameColour === undefined ? undefined : { color: nameColour }}>{label}</span>
+        <ProfileName author={author} colour={nameColour}>
+          {label}
+        </ProfileName>
       </ProfileLink>
 
       {location.length === 0 ? null : (

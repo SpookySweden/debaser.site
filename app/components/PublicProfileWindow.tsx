@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { authorFromAccount, authorLabel, authorTag } from '../lib/auth/author';
 import { tagColour } from '../lib/forum/tag-vocabulary';
 import { profileNameColour } from '../lib/profile/name-colours';
+import { presenceLabel } from '../lib/profile/presence';
 import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
 import type { ProfileComment, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -23,6 +24,7 @@ import ProfileCommentBox from './ProfileCommentBox';
 import ProfilePictureHistory from './ProfilePictureHistory';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
+import { usePresence } from './PresenceProvider';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
 import TimeStamp from './TimeStamp';
 
@@ -62,6 +64,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const displayName = profile.displayName !== 'Anonymous' ? profile.displayName : (forumName ?? 'Anonymous');
   // The swatch the owner picked for their username, if any.
   const nameColour = profileNameColour(profile);
+  // The lamp beside that name: green / yellow / red, straight from the store.
+  const presence = usePresence(userId);
   const tags = owner ? profile.tags : visibleGivenTags(profile);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
 
@@ -82,6 +86,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         <div className="space-y-1 p-3 text-[10px] font-bold text-black">
           <p>ACCOUNT ID: {userId}</p>
           <p>PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}</p>
+          <p>
+            PRESENCE: {presence.status === undefined ? 'CHECKING...' : presenceLabel(presence.status)}
+            {presence.record === undefined ? null : (
+              <>
+                {' :: LAST SEEN '}
+                <TimeStamp at={presence.record.lastSeenAt} />
+              </>
+            )}
+            {PROFILE_DATA_SOURCE === 'mock' ? ' :: THE MOCK STORE ONLY KNOWS THIS BROWSER' : ''}
+          </p>
           <p>
             PICTURE VERSIONS: {profile.avatar.versions.length} :: TAGS GIVEN: {profile.tags.length} :: PROFILE
             COMMENTS: {profileComments(profile).length}

@@ -1,5 +1,6 @@
 import { createLocalId } from '../forum/ids';
 import { isNameColour } from './name-colours';
+import type { PresenceRecord } from './presence';
 import {
   DEFAULT_VISIBILITY,
   avatarVersionById,
@@ -174,6 +175,102 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     updatedAt: new Date().toISOString(),
   };
 }
+/* Presence ------------------------------------------------------------------ */
+
+/**
+ * Presence lives under its own storage key.
+ *
+ * A heartbeat rewrites this row every minute, so keeping it beside the profiles
+ * would mean rewriting every profile blob on the same tick for no reason. In
+ * Supabase the two are one table again (`profiles.last_seen_at`), which is why
+ * the methods sit on the profile repository rather than in a store of their own.
+ */
+const PRESENCE_STORAGE_KEY = 'debaser.presence.mock.v1';
+const PRESENCE_STORAGE_VERSION = 1;
+
+type PersistedPresence = {
+  version: number;
+  records: PresenceRecord[];
+};
+
+let presenceState: Record<string, PresenceRecord> | null = null;
+const presenceListeners = new Set<(records: PresenceRecord[]) => void>();
+
+function isPresenceShaped(value: unknown): value is PresenceRecord {
+  if (typeof value !== 'object' || value === null) return false;
+  const row = value as Partial<PresenceRecord>;
+
+  return typeof row.userId === 'string' && typeof row.lastSeenAt === 'string' && typeof row.online === 'boolean';
+}
+
+function loadPresence(): Record<string, PresenceRecord> {
+  if (!hasStorage()) return {};
+
+  const raw = window.localStorage.getItem(PRESENCE_STORAGE_KEY);
+  if (raw === null || raw.length === 0) return {};
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+
+    const candidate = parsed as Partial<PersistedPresence>;
+    const rows = Array.isArray(candidate.records) ? candidate.records.filter(isPresenceShaped) : [];
+
+    const records: Record<string, PresenceRecord> = {};
+    for (const record of rows) records[record.userId] = record;
+    return records;
+  } catch {
+    return {};
+  }
+}
+
+function ensurePresence(): Record<string, PresenceRecord> {
+  if (presenceState === null) presenceState = loadPresence();
+  return presenceState;
+}
+
+/** Newest first would change the order under the dots, so this is sorted by id. */
+function presenceSnapshot(): PresenceRecord[] {
+  return Object.values(ensurePresence()).sort((a, b) => a.userId.localeCompare(b.userId));
+}
+
+function persistPresence(): void {
+  if (!hasStorage()) return;
+
+  const payload: PersistedPresence = { version: PRESENCE_STORAGE_VERSION, records: presenceSnapshot() };
+
+  try {
+    window.localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    // Storage disabled or full: presence keeps working in memory.
+  }
+}
+
+function commitPresence(record: PresenceRecord): PresenceRecord {
+  ensurePresence()[record.userId] = record;
+  persistPresence();
+
+  const snapshot = presenceSnapshot();
+  for (const listener of presenceListeners) listener(snapshot);
+
+  return record;
+}
+
+function clearPresence(): void {
+  presenceState = {};
+
+  if (hasStorage()) {
+    try {
+      window.localStorage.removeItem(PRESENCE_STORAGE_KEY);
+    } catch {
+      // Nothing to clean up.
+    }
+  }
+
+  for (const listener of presenceListeners) listener([]);
+}
+
+
 
 class MockProfileRepository implements ProfileRepository {
   readonly source = 'mock' as const;
@@ -344,9 +441,56 @@ class MockProfileRepository implements ProfileRepository {
     };
   }
 
+  /**
+   * The heartbeat: called as soon as somebody signs in, every minute after that,
+   * and whenever the tab comes back to the front.
+   */
+  async markSeen(userId: string): Promise<PresenceRecord> {
+    return commitPresence({ userId, lastSeenAt: new Date().toISOString(), online: true });
+  }
+
+  /**
+   * The goodbye: the tab is closing, or the visitor signed out.
+   *
+   * `lastSeenAt` keeps the moment they were last around - that is what turns the
+   * dot yellow instead of red - and saying goodbye twice never pushes it forward.
+   */
+  async markOffline(userId: string): Promise<PresenceRecord> {
+    const previous = ensurePresence()[userId];
+    const stillOnline = previous === undefined || previous.online;
+
+    return commitPresence({
+      userId,
+      lastSeenAt: stillOnline ? new Date().toISOString() : (previous?.lastSeenAt ?? new Date().toISOString()),
+      online: false,
+    });
+  }
+
+  async getPresence(userId: string): Promise<PresenceRecord | null> {
+    return ensurePresence()[userId] ?? null;
+  }
+
+  /** No ids means everything this store knows, which is what the board wants. */
+  async listPresence(userIds?: string[]): Promise<PresenceRecord[]> {
+    if (userIds === undefined || userIds.length === 0) return presenceSnapshot();
+
+    const wanted = new Set(userIds);
+    return presenceSnapshot().filter((record) => wanted.has(record.userId));
+  }
+
+  subscribePresence(listener: (records: PresenceRecord[]) => void): () => void {
+    presenceListeners.add(listener);
+
+    return () => {
+      presenceListeners.delete(listener);
+    };
+  }
+
   async clearLocalProfiles(): Promise<void> {
     state = {};
     persist();
+    clearPresence();
+
     for (const profile of Object.values(ensureState())) {
       for (const listener of listeners) listener(profile);
     }
@@ -364,4 +508,5 @@ export function getMockProfileRepository(): ProfileRepository {
 export function resetMockProfiles(): void {
   state = {};
   persist();
+  clearPresence();
 }
