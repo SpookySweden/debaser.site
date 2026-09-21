@@ -33,8 +33,10 @@ RLS flag, the policies, and the profile rows) - each should answer without error
 2. Create the house account
 ---------------------------
 Authentication -> Users -> Add user: email `admin1212@debaser.site`, the password
-you want for it, "Auto Confirm User" on. The new-user trigger gives it a profile;
-the seed in section 8 of the script makes that profile debaser.site in dark blue.
+you want for it, "Auto Confirm User" on. The trigger gives it a profile named
+`debaser.site` in `#000080` whether the account is created before or after the
+script runs, and section 8 is the backfill for one made before this trigger
+existed.
 
 Signing in from the site uses the identifier `ADMIN1212` (see
 app/lib/auth/builtin-account.ts): `resolveSignInAddress` maps it to that address
@@ -73,3 +75,33 @@ What lives where
 
 Each repository is the only place that knows a table name: no component reads a
 table, and nothing in the UI changes when a switch flips.
+
+What the permissions actually allow
+-----------------------------------
+Read as an anonymous visitor (the public key, no session):
+
+  profiles, profile_avatar_versions, forum_threads, forum_comments   all rows
+  profile_tags, profile_comments                                     only rows that
+      are not hidden, plus what the profile's own `show_*` switches open up
+  comms_threads, comms_messages, comms_reads                         nothing
+
+Write, signed in:
+
+  profiles                       your own row only (insert, update, delete)
+  profile_avatar_versions        your own versions, append only - no rewriting a
+                                 filed drawing, which is the point of the history
+  profile_tags                   any account may give a tag; the page's owner
+                                 decides what shows, and either of them may remove it
+  profile_comments               any account may comment; only the author may edit
+                                 or delete (the page's owner may also delete)
+  forum_threads / forum_comments your own rows, and only signed by you
+  comms_*                        only the two accounts in the conversation; a
+                                 message can only be signed by its writer
+
+Write, with no session at all: the board and the tag/comment shelves still accept
+a row whose author is null, which is what "posting stays open to guests" means once
+this backend is live (the mock store behaved the same way). Those rows have no
+owner, so nothing can delete them through the API - only SQL, or a moderation
+policy added on purpose. If guest posting turns out to be more trouble than it is
+worth, the fix is one line per policy (`with check (author_id = auth.uid())`) plus
+hiding the composer for signed-out visitors.

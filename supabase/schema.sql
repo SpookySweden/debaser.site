@@ -403,6 +403,10 @@ create policy "comms reads own" on public.comms_reads
 -- the directory all read that row. `user_metadata.display_name` is what the sign-up
 -- form sends; a Google account brings its own name in `full_name` / `name`, and an
 -- account with neither falls back to the part of its address before the @.
+--
+-- The house account is handled here too, rather than only by the backfill in
+-- section 8: it should not matter whether the account is created before or after
+-- this script is first run (see app/lib/auth/builtin-account.ts).
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -412,17 +416,23 @@ set search_path = public
 as $$
 declare
   chosen_name text;
+  is_house boolean;
 begin
-  chosen_name := coalesce(
-    nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
-    nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''),
-    nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
-    nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
-    'Anonymous'
-  );
+  is_house := lower(coalesce(new.email, '')) = 'admin1212@debaser.site';
 
-  insert into public.profiles (id, display_name)
-  values (new.id, chosen_name)
+  chosen_name := case
+    when is_house then 'debaser.site'
+    else coalesce(
+      nullif(trim(new.raw_user_meta_data ->> 'display_name'), ''),
+      nullif(trim(new.raw_user_meta_data ->> 'full_name'), ''),
+      nullif(trim(new.raw_user_meta_data ->> 'name'), ''),
+      nullif(split_part(coalesce(new.email, ''), '@', 1), ''),
+      'Anonymous'
+    )
+  end;
+
+  insert into public.profiles (id, display_name, name_colour)
+  values (new.id, chosen_name, case when is_house then '#000080' else null end)
   on conflict (id) do nothing;
 
   return new;
@@ -435,14 +445,13 @@ create trigger on_auth_user_created
   for each row execute function public.handle_new_user();
 
 -- -----------------------------------------------------------------------------
--- 8. the house account
+-- 8. the house account (backfill)
 -- -----------------------------------------------------------------------------
--- debaser.site signs the archive's own posts and wears the dark blue swatch
--- (app/lib/auth/builtin-account.ts), so its profile is seeded rather than
--- customised. Create the account first (Authentication -> Users -> Add user,
--- admin1212@debaser.site, Auto Confirm User on); this finds it by address and only
--- fills in what the trigger left as default, so re-running never undoes a choice
--- the owner has since made by hand.
+-- debaser.site signs the archive's own posts and wears the dark blue swatch, which
+-- the trigger above now bakes in for any house account created from here on. This
+-- is the backfill for one that was made before that: it only fills in what the
+-- trigger left as default, so re-running never undoes a choice the owner has since
+-- made by hand.
 
 update public.profiles
 set display_name = 'debaser.site',
@@ -451,11 +460,13 @@ set display_name = 'debaser.site',
 where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site')
   and (display_name = 'admin1212' or display_name = 'Anonymous' or display_name = '');
 
--- The same seed for an account that already arrived through Google:
+-- The same seed for an account that arrived with a name already (a Google sign-in),
+-- where only the colour is still missing:
 update public.profiles
 set name_colour = coalesce(name_colour, '#000080'),
     updated_at = now()
-where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site');
+where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site')
+  and display_name = 'debaser.site';
 
 -- -----------------------------------------------------------------------------
 -- 9. realtime
