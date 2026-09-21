@@ -444,6 +444,33 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
+-- The account name a post is *signed* with lives on the account itself, not on the
+-- profile row: app/lib/auth/supabase-auth.ts reads `user_metadata.display_name`, and
+-- an account made in the dashboard has none, so a post would go out signed with the
+-- address. This runs before the row is written, so the house account carries its
+-- name from its first moment whatever order things happened in - and section 8
+-- below backfills one that already exists.
+create or replace function public.claim_house_name()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if lower(coalesce(new.email, '')) = 'admin1212@debaser.site' then
+    new.raw_user_meta_data := coalesce(new.raw_user_meta_data, '{}'::jsonb)
+      || jsonb_build_object('display_name', 'debaser.site');
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created_before on auth.users;
+create trigger on_auth_user_created_before
+  before insert on auth.users
+  for each row execute function public.claim_house_name();
+
 -- -----------------------------------------------------------------------------
 -- 8. the house account (backfill)
 -- -----------------------------------------------------------------------------
