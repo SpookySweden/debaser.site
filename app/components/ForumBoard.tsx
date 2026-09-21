@@ -3,19 +3,20 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { authorTag } from '../lib/auth/author';
 import { threadDomId } from '../lib/forum/anchors';
-import type { ForumAnchorKind, ForumTag, ForumThread } from '../lib/forum/types';
+import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
+import { paginate } from '../lib/forum/paging';
+import { makeUserTag } from '../lib/forum/tag-vocabulary';
+import type { ForumTag, ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
 import NewPostForm from './NewPostForm';
 import { useForum } from './ForumProvider';
-import { TagRow } from './TagBadge';
-
-type SortMode = 'newest' | 'replies';
-type SourceFilter = 'all' | ForumAnchorKind;
+import { tagChipClasses, tagChipStyle, TagRow } from './TagBadge';
 
 const TAG_LEGEND: ForumTag[] = [
-  { id: 'legend-source', kind: 'source', label: 'SOURCE' },
-  { id: 'legend-category', kind: 'category', label: 'CATEGORY' },
-  { id: 'legend-content', kind: 'content', label: 'CONTENT' },
+  { id: 'legend-user', kind: 'user', label: 'YOUR TAG' },
+  { id: 'legend-category', kind: 'category', label: 'AUTO TOPIC' },
+  { id: 'legend-content', kind: 'content', label: 'AUTO CONTENT' },
+  { id: 'legend-source', kind: 'source', label: 'AUTO SOURCE' },
 ];
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
@@ -24,6 +25,9 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'asset', label: 'ASSET THREADS' },
   { value: 'text-box', label: 'TEXT BOX THREADS' },
 ];
+
+/** Posts-per-page choices offered at the foot of the board. */
+const PAGE_SIZES = [5, 10, 20, 50];
 
 /**
  * The board itself: status window, filters, composer and the collapsible
@@ -37,38 +41,63 @@ export default function ForumBoard() {
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   const [query, setQuery] = useState('');
-  const [openThreadIds, setOpenThreadIds] = useState<string[]>(() => {
-    const newest = forum.threads[0];
-    return newest === undefined ? [] : [newest.id];
-  });
+  const [tagFilters, setTagFilters] = useState<string[]>([]);
+  const [tagMatchMode, setTagMatchMode] = useState<TagMatchMode>('any');
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [perPage, setPerPage] = useState<number>(PAGE_SIZES[0]);
+  const [page, setPage] = useState(1);
+  const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
 
-  const visibleThreads = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-
-    const filtered = forum.threads.filter((thread) => {
-      if (sourceFilter !== 'all' && thread.anchor.kind !== sourceFilter) return false;
-      if (needle.length === 0) return true;
-
-      return (
-        thread.title.toLowerCase().includes(needle) ||
-        thread.body.toLowerCase().includes(needle) ||
-        thread.anchor.label.toLowerCase().includes(needle) ||
-        thread.tags.some((tag) => tag.label.toLowerCase().includes(needle))
-      );
-    });
-
-    return [...filtered].sort((a, b) => {
-      if (sortMode === 'replies' && b.comments.length !== a.comments.length) {
-        return b.comments.length - a.comments.length;
-      }
-      return Date.parse(b.createdAt) - Date.parse(a.createdAt);
-    });
-  }, [forum.threads, query, sourceFilter, sortMode]);
+  const visibleThreads = useMemo(
+    () =>
+      selectBoardThreads(forum.threads, {
+        query,
+        sourceFilter,
+        tagKeys: tagFilters,
+        tagMatchMode,
+        sortMode,
+      }),
+    [forum.threads, query, sourceFilter, tagFilters, tagMatchMode, sortMode],
+  );
 
   const totalReplies = useMemo(
     () => forum.threads.reduce((sum, thread) => sum + thread.comments.length, 0),
     [forum.threads],
   );
+
+  // Paging: the page is clamped, so filtering a page away can never show a blank board.
+  const slice = paginate(visibleThreads, perPage, page);
+  const currentPage = slice.page;
+  const totalPages = slice.totalPages;
+  const pageStart = slice.start;
+  const pageThreads = slice.items;
+  const pageNumbers = Array.from({ length: totalPages }, (_unused, index) => index + 1);
+
+  const toggleTagFilter = useCallback((key: string) => {
+    setTagFilters((current) =>
+      current.includes(key) ? current.filter((item) => item !== key) : [...current, key],
+    );
+    setPage(1);
+  }, []);
+
+  const clearTagFilters = useCallback(() => {
+    setTagFilters([]);
+    setPage(1);
+  }, []);
+
+  const goToPage = useCallback((next: number) => {
+    setPage(Math.max(1, next));
+
+    if (typeof window === 'undefined') return;
+    window.requestAnimationFrame(() => {
+      document.getElementById('forum-thread-list')?.scrollIntoView({ block: 'start' });
+    });
+  }, []);
+
+  const handlePerPageChange = useCallback((next: number) => {
+    setPerPage(next);
+    setPage(1);
+  }, []);
   const localThreads = useMemo(
     () => forum.threads.filter((thread) => thread.origin === 'user').length,
     [forum.threads],
@@ -82,17 +111,20 @@ export default function ForumBoard() {
   }, []);
 
   const handleExpandAll = useCallback(() => {
-    setOpenThreadIds(visibleThreads.map((thread) => thread.id));
-  }, [visibleThreads]);
+    setOpenThreadIds(pageThreads.map((thread) => thread.id));
+  }, [pageThreads]);
 
   const handleCollapseAll = useCallback(() => {
     setOpenThreadIds([]);
   }, []);
 
   const handleCreated = useCallback((thread: ForumThread) => {
+    setComposerOpen(false);
+    setPage(1);
     setOpenThreadIds((current) => (current.includes(thread.id) ? current : [...current, thread.id]));
     setSortMode('newest');
     setSourceFilter('all');
+    setTagFilters([]);
     setQuery('');
 
     if (typeof window === 'undefined') return;
@@ -104,16 +136,25 @@ export default function ForumBoard() {
   const handleReset = useCallback(() => {
     void clearLocalPosts();
     setOpenThreadIds([]);
+    setPage(1);
   }, [clearLocalPosts]);
 
-  // Deep link support for `#thread-<id>` links posted by the asset comment boxes.
-  // Runs through requestAnimationFrame so the board never calls setState
-  // synchronously inside the effect body.
+  // Deep links: `#thread-<id>` opens a thread, `#tag-<key>` filters the board by
+  // a tag badge. Runs through requestAnimationFrame so the board never calls
+  // setState synchronously inside the effect body.
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const openThreadFromHash = () => {
+    const applyHash = () => {
       const hash = window.location.hash;
+
+      if (hash.startsWith('#tag-')) {
+        const key = decodeURIComponent(hash.slice('#tag-'.length));
+        setTagFilters((current) => (current.includes(key) ? current : [...current, key]));
+        setPage(1);
+        return;
+      }
+
       if (!hash.startsWith('#thread-')) return;
 
       const id = hash.slice('#thread-'.length);
@@ -121,12 +162,12 @@ export default function ForumBoard() {
       document.getElementById(threadDomId(id))?.scrollIntoView({ block: 'center' });
     };
 
-    const frame = window.requestAnimationFrame(openThreadFromHash);
-    window.addEventListener('hashchange', openThreadFromHash);
+    const frame = window.requestAnimationFrame(applyHash);
+    window.addEventListener('hashchange', applyHash);
 
     return () => {
       window.cancelAnimationFrame(frame);
-      window.removeEventListener('hashchange', openThreadFromHash);
+      window.removeEventListener('hashchange', applyHash);
     };
   }, []);
 
@@ -151,124 +192,340 @@ export default function ForumBoard() {
           </p>
           <p>POSTING AS: {authorTag(forum.author)}</p>
 
+          {/* Tag inclusion: toggle tags in, choose ANY/ALL, and the
+              "MOST SELECTED TAGS" sort ranks posts by how many they include. */}
+          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
+            <p className="text-[10px] font-bold text-black">TAG FILTER ({tagFilters.length} INCLUDED):</p>
+
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {forum.tagVocabulary.slice(0, 14).map((option) => {
+                const tag = makeUserTag(option.label, option.colour);
+                const active = tagFilters.includes(option.key);
+
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => toggleTagFilter(option.key)}
+                    aria-pressed={active}
+                    title={active ? `Stop including ${option.label}` : `Include posts tagged ${option.label}`}
+                    className={`${tagChipClasses(tag)} cursor-pointer ${
+                      active ? 'outline-2 outline-black' : 'opacity-90 hover:opacity-100'
+                    }`}
+                    style={tagChipStyle(tag)}
+                  >
+                    {option.label}
+                    {option.count > 0 ? ` (${option.count})` : ''}
+                  </button>
+                );
+              })}
+            </div>
+
+            {tagFilters.length === 0 ? (
+              <p className="mt-1 text-[10px] text-black">
+                PICK TAGS ABOVE, OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
+              </p>
+            ) : (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+                <span>INCLUDED:</span>
+                {tagFilters.map((key) => {
+                  const label =
+                    forum.tagVocabulary.find((option) => option.key === key)?.label ?? key.toUpperCase();
+
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleTagFilter(key)}
+                      title={`Stop including ${label}`}
+                      className="cursor-pointer rounded-none border border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                    >
+                      {label} ×
+                    </button>
+                  );
+                })}
+
+                <span>MATCH:</span>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="tag-match"
+                    value="any"
+                    checked={tagMatchMode === 'any'}
+                    onChange={() => {
+                      setTagMatchMode('any');
+                      setPage(1);
+                    }}
+                  />
+                  ANY
+                </label>
+                <label className="flex items-center gap-1">
+                  <input
+                    type="radio"
+                    name="tag-match"
+                    value="all"
+                    checked={tagMatchMode === 'all'}
+                    onChange={() => {
+                      setTagMatchMode('all');
+                      setPage(1);
+                    }}
+                  />
+                  ALL
+                </label>
+
+                <button
+                  type="button"
+                  onClick={clearTagFilters}
+                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                >
+                  [ CLEAR TAGS ]
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <span>TAG KINDS:</span>
             <TagRow tags={TAG_LEGEND} />
-            <span>(every badge is generated automatically from the post text)</span>
+            <span>(COLOURED = CHOSEN BY A POSTER :: GREY = GENERATED FROM THE TEXT :: CLICK A BADGE TO FILTER)</span>
           </div>
 
-          {forum.source === 'mock' ? (
+          {/* Controls live inside the panel, so the threads sit right under it */}
+          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-3">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <fieldset className="rounded-none border border-gray-600 p-2">
+                <legend className="px-1 text-[10px] font-bold text-black">SORT THREADS</legend>
+                <label className="flex items-center gap-2 text-[10px] font-bold text-black">
+                  <input
+                    type="radio"
+                    name="forum-sort"
+                    value="newest"
+                    checked={sortMode === 'newest'}
+                    onChange={() => {
+                      setSortMode('newest');
+                      setPage(1);
+                    }}
+                  />
+                  NEWEST FIRST
+                </label>
+                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-black">
+                  <input
+                    type="radio"
+                    name="forum-sort"
+                    value="replies"
+                    checked={sortMode === 'replies'}
+                    onChange={() => {
+                      setSortMode('replies');
+                      setPage(1);
+                    }}
+                  />
+                  MOST REPLIES
+                </label>
+                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-black">
+                  <input
+                    type="radio"
+                    name="forum-sort"
+                    value="tags"
+                    checked={sortMode === 'tags'}
+                    onChange={() => {
+                      setSortMode('tags');
+                      setPage(1);
+                    }}
+                  />
+                  MOST SELECTED TAGS
+                </label>
+              </fieldset>
+
+              <div>
+                <label htmlFor="forum-source-filter" className="block text-[10px] font-bold text-black">
+                  FILTER SOURCE:
+                </label>
+                <select
+                  id="forum-source-filter"
+                  value={sourceFilter}
+                  onChange={(event) => {
+                    setSourceFilter(event.target.value as SourceFilter);
+                    setPage(1);
+                  }}
+                  className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+                >
+                  {SOURCE_FILTERS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label htmlFor="forum-search" className="block text-[10px] font-bold text-black">
+                  SEARCH TITLE / BODY / TAG:
+                </label>
+                <input
+                  id="forum-search"
+                  type="text"
+                  value={query}
+                  onChange={(event) => {
+                    setQuery(event.target.value);
+                    setPage(1);
+                  }}
+                  placeholder="e.g. LORE, foundry, spoiler"
+                  className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+                />
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExpandAll}
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+              >
+                [ EXPAND ALL ]
+              </button>
+              <button
+                type="button"
+                onClick={handleCollapseAll}
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+              >
+                [ COLLAPSE ALL ]
+              </button>
+              <span className="text-[10px] font-bold text-black">
+                SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
+                {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
+              </span>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={handleReset}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+              onClick={() => setComposerOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={composerOpen}
+              title="Open the composer window to file a new thread"
+              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300"
             >
-              [ PURGE LOCAL POSTS ]
+              + NEW POST...
             </button>
-          ) : null}
+
+            {forum.source === 'mock' ? (
+              <button
+                type="button"
+                onClick={handleReset}
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+              >
+                [ PURGE LOCAL POSTS ]
+              </button>
+            ) : null}
+          </div>
         </div>
       </section>
 
-      {/* Controls */}
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
-        <div className="grid gap-3 sm:grid-cols-3">
-          <fieldset className="rounded-none border border-gray-600 p-2">
-            <legend className="px-1 text-[10px] font-bold text-black">SORT THREADS</legend>
-            <label className="flex items-center gap-2 text-[10px] font-bold text-black">
-              <input
-                type="radio"
-                name="forum-sort"
-                value="newest"
-                checked={sortMode === 'newest'}
-                onChange={() => setSortMode('newest')}
-              />
-              NEWEST FIRST
-            </label>
-            <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-black">
-              <input
-                type="radio"
-                name="forum-sort"
-                value="replies"
-                checked={sortMode === 'replies'}
-                onChange={() => setSortMode('replies')}
-              />
-              MOST REPLIES
-            </label>
-          </fieldset>
-
-          <div>
-            <label htmlFor="forum-source-filter" className="block text-[10px] font-bold text-black">
-              FILTER SOURCE:
-            </label>
-            <select
-              id="forum-source-filter"
-              value={sourceFilter}
-              onChange={(event) => setSourceFilter(event.target.value as SourceFilter)}
-              className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
-            >
-              {SOURCE_FILTERS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="forum-search" className="block text-[10px] font-bold text-black">
-              SEARCH TITLE / BODY / TAG:
-            </label>
-            <input
-              id="forum-search"
-              type="text"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="e.g. LORE, foundry, spoiler"
-              className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
-            />
-          </div>
-        </div>
-
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={handleExpandAll}
-            className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
-          >
-            [ EXPAND ALL ]
-          </button>
-          <button
-            type="button"
-            onClick={handleCollapseAll}
-            className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
-          >
-            [ COLLAPSE ALL ]
-          </button>
-          <span className="text-[10px] font-bold text-black">
-            SHOWING {visibleThreads.length} OF {forum.threads.length} THREADS
-          </span>
-        </div>
-      </section>
-
-      <NewPostForm onCreated={handleCreated} />
-
-      {visibleThreads.length === 0 ? (
-        <p className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-3 text-xs font-bold text-black">
-          NO THREADS MATCH THIS FILTER.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {visibleThreads.map((thread, index) => (
+      <div id="forum-thread-list" className="space-y-3">
+        {visibleThreads.length === 0 ? (
+          <p className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-3 text-xs font-bold text-black">
+            {forum.threads.length === 0
+              ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
+              : 'NO THREADS MATCH THIS FILTER.'}
+          </p>
+        ) : (
+          pageThreads.map((thread, index) => (
             <ForumThreadCard
               key={thread.id}
               thread={thread}
-              position={index + 1}
+              position={pageStart + index + 1}
               isOpen={openThreadIds.includes(thread.id)}
               onToggle={handleToggle}
             />
-          ))}
-        </div>
+          ))
+        )}
+      </div>
+
+      {/* Paging controls, at the foot of the board */}
+      {visibleThreads.length === 0 ? null : (
+        <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold text-black">
+            <span>
+              SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
+              {currentPage} OF {totalPages}
+            </span>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+              >
+                [ &lt;&lt; PREV ]
+              </button>
+
+              <label htmlFor="forum-page">PAGE:</label>
+              <select
+                id="forum-page"
+                value={currentPage}
+                onChange={(event) => goToPage(Number(event.target.value))}
+                className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+              >
+                {pageNumbers.map((number) => (
+                  <option key={number} value={number}>
+                    {number} OF {totalPages}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+              >
+                [ NEXT &gt;&gt; ]
+              </button>
+
+              <label htmlFor="forum-per-page">POSTS PER PAGE:</label>
+              <select
+                id="forum-per-page"
+                value={perPage}
+                onChange={(event) => handlePerPageChange(Number(event.target.value))}
+                className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 ? (
+            <div className="mt-2 flex flex-wrap items-center gap-1">
+              {pageNumbers.map((number) => (
+                <button
+                  key={number}
+                  type="button"
+                  onClick={() => goToPage(number)}
+                  aria-current={number === currentPage ? 'page' : undefined}
+                  className={
+                    number === currentPage
+                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-1 text-[10px] font-bold text-black'
+                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold text-black hover:bg-gray-300'
+                  }
+                >
+                  {number}
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </section>
       )}
+
+      {/* Composer only appears when asked for */}
+      {composerOpen ? (
+        <NewPostForm onClose={() => setComposerOpen(false)} onCreated={handleCreated} />
+      ) : null}
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { createLocalId } from './ids';
-import { SEED_THREADS } from './seed';
-import { deriveTags } from './tags';
+import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
+import { deriveTags, mergeTags } from './tags';
 import type {
   AddCommentResult,
   CreateCommentInput,
@@ -9,6 +9,7 @@ import type {
   ForumAnchor,
   ForumAuthor,
   ForumComment,
+  ForumPreview,
   ForumRepository,
   ForumThread,
 } from './types';
@@ -16,29 +17,29 @@ import type {
 /**
  * In-memory / localStorage repository used while Supabase is not wired up.
  *
- * - Seeded threads ship with the bundle and are read-only reference posts.
- * - Anything filed in the browser is tagged `origin: 'user'` and persisted to
- *   localStorage, so a post made under an asset on the home page still shows up
- *   on /forum after navigation or a reload.
+ * The board ships empty: every row here came from someone using the site, is
+ * tagged `origin: 'user'` and is persisted to localStorage, so a post made
+ * under an asset on the home page still shows up on /forum after navigation or
+ * a reload.
+ *
+ * The storage key is versioned, so anything written by an older,
+ * placeholder-seeded build is ignored instead of being resurrected.
+ *
  * - `subscribe` mimics Supabase Realtime: every mutation pushes a fresh
  *   snapshot to all listeners, which is what keeps several comment boxes on one
  *   page in sync.
  */
 
-const STORAGE_KEY = 'debaser.forum.ugc.v1';
-const STORAGE_VERSION = 1;
+const STORAGE_KEY = 'debaser.forum.ugc.v2';
+const STORAGE_VERSION = 2;
 
 type PersistedState = {
   version: number;
   /** Threads filed in the browser, comments included. */
   threads: ForumThread[];
-  /** Comments added on top of the shipped seed threads. */
-  seedComments: ForumComment[];
 };
 
 type Listener = (threads: ForumThread[]) => void;
-
-const SEED_COMMENT_IDS = new Set(SEED_THREADS.flatMap((thread) => thread.comments.map((comment) => comment.id)));
 
 let state: ForumThread[] | null = null;
 const listeners = new Set<Listener>();
@@ -61,17 +62,6 @@ function isThreadShaped(value: unknown): value is ForumThread {
   );
 }
 
-function isCommentShaped(value: unknown): value is ForumComment {
-  if (typeof value !== 'object' || value === null) return false;
-  const row = value as Partial<ForumComment>;
-  return (
-    typeof row.id === 'string' &&
-    typeof row.threadId === 'string' &&
-    typeof row.body === 'string' &&
-    typeof row.createdAt === 'string'
-  );
-}
-
 function readPersisted(): PersistedState | null {
   if (!hasStorage()) return null;
 
@@ -86,35 +76,14 @@ function readPersisted(): PersistedState | null {
     return {
       version: STORAGE_VERSION,
       threads: Array.isArray(candidate.threads) ? candidate.threads.filter(isThreadShaped) : [],
-      seedComments: Array.isArray(candidate.seedComments) ? candidate.seedComments.filter(isCommentShaped) : [],
     };
   } catch {
     return null;
   }
 }
 
-function cloneSeedThreads(): ForumThread[] {
-  return SEED_THREADS.map((thread) => ({
-    ...thread,
-    author: { ...thread.author },
-    anchor: { ...thread.anchor },
-    tags: [...thread.tags],
-    comments: thread.comments.map((comment) => ({ ...comment, tags: [...comment.tags] })),
-  }));
-}
-
 function loadThreads(): ForumThread[] {
-  const persisted = readPersisted();
-  const seeded = cloneSeedThreads();
-
-  if (persisted === null) return seeded;
-
-  const hydratedSeeds = seeded.map((thread) => {
-    const extra = persisted.seedComments.filter((comment) => comment.threadId === thread.id);
-    return extra.length > 0 ? { ...thread, comments: [...thread.comments, ...extra] } : thread;
-  });
-
-  return [...persisted.threads, ...hydratedSeeds];
+  return readPersisted()?.threads ?? [];
 }
 
 function ensureState(): ForumThread[] {
@@ -133,13 +102,9 @@ function snapshot(): ForumThread[] {
 function persist(): void {
   if (!hasStorage()) return;
 
-  const current = ensureState();
   const payload: PersistedState = {
     version: STORAGE_VERSION,
-    threads: current.filter((thread) => thread.origin === 'user'),
-    seedComments: current
-      .filter((thread) => thread.origin === 'seed')
-      .flatMap((thread) => thread.comments.filter((comment) => !SEED_COMMENT_IDS.has(comment.id))),
+    threads: ensureState(),
   };
 
   try {
@@ -164,14 +129,34 @@ function findThreadByAnchor(threads: ForumThread[], anchor: ForumAnchor): ForumT
   return threads.find((thread) => thread.anchor.kind === anchor.kind && thread.anchor.id === anchor.id);
 }
 
-function makeComment(thread: ForumThread, body: string, author: ForumAuthor, createdAt: string): ForumComment {
+/**
+ * Folds chosen spellings onto tags the board already uses, so "lores" lands on
+ * "LORE" (and keeps its colour) instead of creating a near-duplicate tag.
+ */
+function canonicalUserTags(labels: string[], threads: ForumThread[]): string[] {
+  const known = collectTagLabels(threads);
+
+  return labels
+    .map((label) => canonicalTagLabel(label, known))
+    .filter((label) => label.length > 0);
+}
+
+function makeComment(
+  thread: ForumThread,
+  body: string,
+  author: ForumAuthor,
+  createdAt: string,
+  userTags: string[],
+  media: ForumPreview | undefined,
+): ForumComment {
   return {
     id: createLocalId('comment'),
     threadId: thread.id,
     body,
     author: { ...author },
     createdAt,
-    tags: deriveTags({ text: body, anchor: thread.anchor, maxTags: 3 }),
+    tags: mergeTags(userTags, deriveTags({ text: body, anchor: thread.anchor, maxTags: 3 })),
+    ...(media === undefined ? {} : { media }),
   };
 }
 
@@ -183,6 +168,7 @@ class MockForumRepository implements ForumRepository {
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {
+    const existing = ensureState();
     const thread: ForumThread = {
       id: createLocalId('thread'),
       title: input.title,
@@ -190,12 +176,16 @@ class MockForumRepository implements ForumRepository {
       author: { ...input.author },
       createdAt: new Date().toISOString(),
       anchor: { ...input.anchor },
-      tags: deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor }),
+      tags: mergeTags(
+        canonicalUserTags(input.userTags ?? [], existing),
+        deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor }),
+      ),
       comments: [],
       origin: 'user',
+      ...(input.media === undefined ? {} : { media: input.media }),
     };
 
-    commit([thread, ...ensureState()]);
+    commit([thread, ...existing]);
     return thread;
   }
 
@@ -204,6 +194,7 @@ class MockForumRepository implements ForumRepository {
     const body = input.body.trim();
     const author = { ...input.author };
     const createdAt = new Date().toISOString();
+    const userTags = canonicalUserTags(input.userTags ?? [], threads);
 
     const existing =
       input.threadId !== undefined
@@ -213,7 +204,7 @@ class MockForumRepository implements ForumRepository {
           : undefined;
 
     if (existing !== undefined) {
-      const comment = makeComment(existing, body, author, createdAt);
+      const comment = makeComment(existing, body, author, createdAt, userTags, input.media);
       const nextThread: ForumThread = { ...existing, comments: [...existing.comments, comment] };
       commit(threads.map((thread) => (thread.id === existing.id ? nextThread : thread)));
       return { thread: nextThread, comment, createdThread: false };
@@ -232,12 +223,12 @@ class MockForumRepository implements ForumRepository {
       author,
       createdAt,
       anchor: { ...anchor },
-      tags: deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${body}`, anchor }),
+      tags: mergeTags(userTags, deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${body}`, anchor })),
       comments: [],
       origin: 'user',
     };
 
-    const comment = makeComment(draft, body, author, createdAt);
+    const comment = makeComment(draft, body, author, createdAt, userTags, input.media);
     const nextThread: ForumThread = { ...draft, comments: [comment] };
 
     commit([nextThread, ...threads]);
@@ -260,7 +251,7 @@ class MockForumRepository implements ForumRepository {
       }
     }
 
-    state = cloneSeedThreads();
+    state = [];
     notify();
   }
 }

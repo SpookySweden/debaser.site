@@ -1,7 +1,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { ANONYMOUS_AUTHOR } from '../auth/author';
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
-import { deriveTags } from './tags';
+import { deriveTags, mergeTags } from './tags';
 import type {
   AddCommentResult,
   CreateCommentInput,
@@ -31,6 +31,10 @@ import type {
  *     anchor_id text not null,
  *     anchor_label text not null,
  *     tags jsonb not null default '[]'::jsonb,
+ *     media_src text,
+ *     media_alt text,
+ *     media_width integer,
+ *     media_height integer,
  *     created_at timestamptz not null default now()
  *   );
  *
@@ -41,6 +45,10 @@ import type {
  *     author_id uuid references auth.users (id) on delete set null,
  *     author_label text not null default 'Anonymous',
  *     tags jsonb not null default '[]'::jsonb,
+ *     media_src text,
+ *     media_alt text,
+ *     media_width integer,
+ *     media_height integer,
  *     created_at timestamptz not null default now()
  *   );
  *
@@ -77,6 +85,10 @@ type CommentRow = {
   author_id: string | null;
   author_label: string;
   tags: ForumTag[] | null;
+  media_src?: string | null;
+  media_alt?: string | null;
+  media_width?: number | null;
+  media_height?: number | null;
   created_at: string;
 };
 
@@ -90,6 +102,10 @@ type ThreadRow = {
   anchor_id: string;
   anchor_label: string;
   tags: ForumTag[] | null;
+  media_src?: string | null;
+  media_alt?: string | null;
+  media_width?: number | null;
+  media_height?: number | null;
   created_at: string;
   forum_comments?: CommentRow[] | null;
 };
@@ -106,6 +122,16 @@ function toComment(row: CommentRow, threadId: string): ForumComment {
     author: toAuthor(row.author_id, row.author_label),
     createdAt: row.created_at,
     tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
+    ...(row.media_src === null || row.media_src === undefined
+      ? {}
+      : {
+          media: {
+            src: row.media_src,
+            alt: row.media_alt ?? 'Image attached to a reply',
+            width: row.media_width ?? 0,
+            height: row.media_height ?? 0,
+          },
+        }),
   };
 }
 
@@ -123,6 +149,16 @@ function toThread(row: ThreadRow): ForumThread {
     anchor: { kind: row.anchor_kind, id: row.anchor_id, label: row.anchor_label },
     tags: row.tags ?? deriveTags({ text: `${row.title}\n${row.body}`, maxTags: 6 }),
     comments,
+    ...(row.media_src === null || row.media_src === undefined
+      ? {}
+      : {
+          media: {
+            src: row.media_src,
+            alt: row.media_alt ?? row.title,
+            width: row.media_width ?? 0,
+            height: row.media_height ?? 0,
+          },
+        }),
     origin: 'user',
   };
 }
@@ -140,7 +176,11 @@ function threadPayload(input: CreateThreadInput): ThreadInsert {
     anchor_kind: input.anchor.kind,
     anchor_id: input.anchor.id,
     anchor_label: input.anchor.label,
-    tags: deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor }),
+    tags: mergeTags(input.userTags ?? [], deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor })),
+    media_src: input.media?.src ?? null,
+    media_alt: input.media?.alt ?? null,
+    media_width: input.media?.width ?? null,
+    media_height: input.media?.height ?? null,
   };
 }
 
@@ -150,7 +190,11 @@ function commentPayload(input: CreateCommentInput, threadId: string): CommentIns
     body: input.body.trim(),
     author_id: input.author.id,
     author_label: input.author.displayName,
-    tags: deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 }),
+    tags: mergeTags(input.userTags ?? [], deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 })),
+    media_src: input.media?.src ?? null,
+    media_alt: input.media?.alt ?? null,
+    media_width: input.media?.width ?? null,
+    media_height: input.media?.height ?? null,
   };
 }
 
@@ -246,7 +290,7 @@ class SupabaseForumRepository implements ForumRepository {
 
     const title = autoThreadTitle(anchor);
     const payload = threadPayload({ title, body: AUTO_FILED_BODY, anchor, author: input.author });
-    payload.tags = deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${input.body}`, anchor });
+    payload.tags = mergeTags(input.userTags ?? [], deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${input.body}`, anchor }));
 
     const { data: created, error: createError } = await client
       .from(THREADS_TABLE)

@@ -1,0 +1,127 @@
+'use client';
+
+import { useEffect, useId, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { useWindowDrag } from '../lib/ui/use-window-drag';
+
+type PopoutWindowProps = {
+  title: string;
+  /** Optional right-hand title bar text, e.g. `[ COMPOSE ]`. */
+  badge?: string;
+  onClose: () => void;
+  /** Status bar text, left of the buttons. */
+  status?: string;
+  /** Status bar controls, right of the default close button. */
+  actions?: ReactNode;
+  /** Tailwind max-width class for the window itself. */
+  maxWidth?: string;
+  /** Background class for the window body (white for reading windows). */
+  bodyClassName?: string;
+  children: ReactNode;
+};
+
+/**
+ * The shared Win95 pop-up window shell.
+ *
+ * It renders through a portal into `<body>`, so a pop-up is never part of the
+ * page that opened it: it cannot reflow the page, cannot be clipped by a panel,
+ * and cannot be scrolled by whatever container the trigger happened to sit in.
+ * The page underneath stays a read-only surface.
+ *
+ * ESC, a click on the desktop behind it, the `×` or `[ CLOSE ]` all dismiss it,
+ * and the title bar drags.
+ */
+export default function PopoutWindow({
+  title,
+  badge,
+  onClose,
+  status,
+  actions,
+  maxWidth = 'max-w-2xl',
+  bodyClassName = 'bg-[#c0c0c0]',
+  children,
+}: PopoutWindowProps) {
+  const titleId = useId();
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const { offset, dragHandlers } = useWindowDrag();
+
+  // The portal target is only available in the browser.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setHost(document.body));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  // ESC closes the window.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (host === null) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:p-8"
+      onMouseDown={onClose}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onMouseDown={(event) => event.stopPropagation()}
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] shadow-2xl`}
+      >
+        {/* Draggable title bar */}
+        <div
+          {...dragHandlers}
+          className="flex touch-none cursor-move select-none items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-xs font-bold text-white"
+        >
+          <span id={titleId} className="truncate">
+            {title}
+          </span>
+          <span className="flex items-center gap-2">
+            {badge === undefined ? null : <span>{badge}</span>}
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onClose}
+              aria-label="Close window"
+              className="cursor-pointer rounded-none border border-t-white border-l-white border-r-black border-b-black bg-[#c0c0c0] px-2 text-black"
+            >
+              ×
+            </button>
+          </span>
+        </div>
+
+        {/* Window body */}
+        <div
+          className={`max-h-[70vh] overflow-y-auto border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white p-3 ${bodyClassName}`}
+        >
+          {children}
+        </div>
+
+        {/* Status bar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold text-black">
+          <span>{status ?? 'ESC OR CLICK THE DESKTOP TO CLOSE :: DRAG THE TITLE BAR TO MOVE'}</span>
+          <span className="flex items-center gap-2">
+            {actions}
+            <button
+              type="button"
+              onClick={onClose}
+              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+            >
+              [ CLOSE ]
+            </button>
+          </span>
+        </div>
+      </div>
+    </div>,
+    host,
+  );
+}

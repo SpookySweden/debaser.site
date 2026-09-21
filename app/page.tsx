@@ -1,4 +1,4 @@
-import AssetCommentBox from './components/AssetCommentBox';
+import CommentPopout from './components/CommentPopout';
 import SiteNav from './components/SiteNav';
 import { FORUM_ANCHORS } from './lib/forum/anchors';
 
@@ -35,11 +35,13 @@ export default function Home() {
             </ul>
           </div>
 
-          {/* Comment box: the first comment here opens a thread on the forum board */}
-          <AssetCommentBox
-            anchor={FORUM_ANCHORS.homeSummary}
-            note="Comments filed on this summary box generate a forum thread automatically. Authors post as Anonymous until auth is live."
-          />
+          {/* Comment control: pops an encased window holding this box's forum thread */}
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border border-black bg-[#f0f0f0] p-3">
+            <span className="text-[10px] font-bold">
+              COMMENTS ON THIS SUMMARY OPEN IN A POP-UP WINDOW. AUTHORS POST AS ANONYMOUS UNTIL AUTH IS LIVE.
+            </span>
+            <CommentPopout anchor={FORUM_ANCHORS.homeSummary} />
+          </div>
         </div>
 
         {/* Status Bar */}

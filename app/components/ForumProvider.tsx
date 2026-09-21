@@ -3,12 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useCurrentAuthor } from '../lib/auth/use-current-author';
 import { getForumRepository } from '../lib/forum/repository';
-import { SEED_THREADS } from '../lib/forum/seed';
+import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
+import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
   AddCommentResult,
   ForumAnchor,
   ForumAuthor,
   ForumDataSource,
+  ForumPreview,
   ForumRepository,
   ForumThread,
 } from '../lib/forum/types';
@@ -17,6 +19,10 @@ export type CreateThreadRequest = {
   title: string;
   body: string;
   anchor: ForumAnchor;
+  /** Tags chosen in the colour coded chooser. */
+  userTags?: string[];
+  /** Artwork attached to a general board post. */
+  media?: ForumPreview;
 };
 
 export type AddCommentRequest = {
@@ -25,6 +31,10 @@ export type AddCommentRequest = {
   threadId?: string;
   /** ...or file against an asset / text box (creates its thread when missing). */
   anchor?: ForumAnchor;
+  /** Tags chosen in the colour coded chooser. */
+  userTags?: string[];
+  /** Artwork attached to this reply. */
+  media?: ForumPreview;
 };
 
 export type ForumContextValue = {
@@ -32,6 +42,12 @@ export type ForumContextValue = {
   author: ForumAuthor;
   source: ForumDataSource;
   ready: boolean;
+  /** Ranked tag options: most used first, starter tags always present. */
+  tagVocabulary: TagOption[];
+  /** Colours chosen in the tag picker, keyed by canonical tag key. */
+  tagColours: Record<string, string>;
+  /** Stores a picked colour so the tag always comes back in it. */
+  rememberTagColour: (label: string, colour: string) => void;
   createThread: (request: CreateThreadRequest) => Promise<ForumThread>;
   addComment: (request: AddCommentRequest) => Promise<AddCommentResult>;
   threadForAnchor: (anchor: ForumAnchor) => ForumThread | undefined;
@@ -53,9 +69,10 @@ const ForumContext = createContext<ForumContextValue | null>(null);
 export default function ForumProvider({ children }: { children: React.ReactNode }) {
   const author = useCurrentAuthor();
   const repositoryRef = useRef<ForumRepository | null>(null);
-  // Seeded rows render identically on the server and on the first client pass,
-  // so hydration is clean; localStorage rows arrive in the effect below.
-  const [threads, setThreads] = useState<ForumThread[]>(SEED_THREADS);
+  // The board starts empty and fills from the repository on mount, so the
+  // server render and the first client pass agree and no placeholder posts ever
+  // appear.
+  const [threads, setThreads] = useState<ForumThread[]>([]);
   const [ready, setReady] = useState(false);
   const [source] = useState<ForumDataSource>(() => getForumRepository().source);
 
@@ -85,6 +102,37 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     };
   }, []);
 
+  const [tagColours, setTagColours] = useState<Record<string, string>>({});
+
+  // Colours chosen in the tag picker are kept in localStorage; load them once
+  // after mount (rAF keeps the setState out of the effect body itself).
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setTagColours(readTagColours()));
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  const rememberTagColour = useCallback((label: string, colour: string) => {
+    rememberTagColourInStore(label, colour);
+    setTagColours(readTagColours());
+  }, []);
+
+  const tagVocabulary = useMemo(() => buildTagVocabulary(threads, tagColours), [threads, tagColours]);
+
+  /**
+   * Folds chosen tags onto labels already in use, so a near-duplicate spelling
+   * ("lores") becomes the existing tag ("LORE") and keeps its colour - for the
+   * mock board and for Supabase alike, since this runs before the repository.
+   */
+  const canonicaliseUserTags = useCallback(
+    (labels: string[] | undefined) => {
+      if (labels === undefined || labels.length === 0) return [];
+
+      const known = tagVocabulary.map((option) => option.label);
+      return labels.map((label) => canonicalTagLabel(label, known)).filter((label) => label.length > 0);
+    },
+    [tagVocabulary],
+  );
+
   const createThread = useCallback(
     async (request: CreateThreadRequest) => {
       const repository = repositoryRef.current ?? getForumRepository();
@@ -93,9 +141,11 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         body: request.body.trim(),
         anchor: request.anchor,
         author,
+        userTags: canonicaliseUserTags(request.userTags),
+        media: request.media,
       });
     },
-    [author],
+    [author, canonicaliseUserTags],
   );
 
   const addComment = useCallback(
@@ -106,9 +156,11 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         author,
         threadId: request.threadId,
         anchor: request.anchor,
+        userTags: canonicaliseUserTags(request.userTags),
+        media: request.media,
       });
     },
-    [author],
+    [author, canonicaliseUserTags],
   );
 
   const threadForAnchor = useCallback(
@@ -134,13 +186,29 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       author,
       source,
       ready,
+      tagVocabulary,
+      tagColours,
+      rememberTagColour,
       createThread,
       addComment,
       threadForAnchor,
       commentCountForAnchor,
       clearLocalPosts,
     }),
-    [threads, author, source, ready, createThread, addComment, threadForAnchor, commentCountForAnchor, clearLocalPosts],
+    [
+      threads,
+      author,
+      source,
+      ready,
+      tagVocabulary,
+      tagColours,
+      rememberTagColour,
+      createThread,
+      addComment,
+      threadForAnchor,
+      commentCountForAnchor,
+      clearLocalPosts,
+    ],
   );
 
   return <ForumContext.Provider value={value}>{children}</ForumContext.Provider>;

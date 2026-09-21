@@ -1,7 +1,11 @@
 'use client';
 
 import { authorTag } from '../lib/auth/author';
+import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import type { ForumAuthor, ForumTag } from '../lib/forum/types';
+import { useForum } from './ForumProvider';
+import MediaThumbnail from './MediaThumbnail';
+import TagChooser from './TagChooser';
 import { TagRow } from './TagBadge';
 
 type CommentComposerProps = {
@@ -14,6 +18,12 @@ type CommentComposerProps = {
   author: ForumAuthor;
   /** Live auto-tag preview, so posters can see how their post will be filed. */
   previewTags?: ForumTag[];
+  /** Selected user tags; omit both tag props to hide the chooser. */
+  tags?: string[];
+  onTagsChange?: (labels: string[]) => void;
+  /** Optional image attachment: omit both media props to hide the picker. */
+  mediaId?: string;
+  onMediaIdChange?: (id: string) => void;
   busy?: boolean;
   error?: string | null;
   status?: string | null;
@@ -33,11 +43,20 @@ export default function CommentComposer({
   placeholder,
   author,
   previewTags,
+  tags,
+  onTagsChange,
+  mediaId,
+  onMediaIdChange,
   busy = false,
   error = null,
   status = null,
   rows = 3,
 }: CommentComposerProps) {
+  const { tagVocabulary } = useForum();
+  const showTagChooser = tags !== undefined && onTagsChange !== undefined;
+  const showMediaPicker = mediaId !== undefined && onMediaIdChange !== undefined;
+  const attachedMedia = ARCHIVE_MEDIA.find((item) => item.id === mediaId);
+
   return (
     <form
       onSubmit={(event) => {
@@ -65,6 +84,31 @@ export default function CommentComposer({
         <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
           <span>AUTO TAGS:</span>
           <TagRow tags={previewTags} />
+        </div>
+      ) : null}
+
+      {showTagChooser ? (
+        <TagChooser id={`${id}-tags`} value={tags} onChange={onTagsChange} options={tagVocabulary} />
+      ) : null}
+
+      {showMediaPicker ? (
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+          <label htmlFor={`${id}-media`}>CONTAINING MEDIA:</label>
+          <select
+            id={`${id}-media`}
+            value={mediaId ?? ''}
+            onChange={(event) => onMediaIdChange?.(event.target.value)}
+            className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+          >
+            <option value="">NONE - TEXT ONLY</option>
+            {ARCHIVE_MEDIA.map((item) => (
+              <option key={item.id} value={item.id}>
+                {item.label}
+              </option>
+            ))}
+          </select>
+
+          {attachedMedia === undefined ? null : <MediaThumbnail media={attachedMedia.preview} size={32} />}
         </div>
       ) : null}
 

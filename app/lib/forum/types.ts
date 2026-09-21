@@ -9,17 +9,27 @@
 
 export type ForumDataSource = 'mock' | 'supabase';
 
-export type TagKind = 'category' | 'content' | 'source';
+export type TagKind = 'category' | 'content' | 'source' | 'user';
 
 /** Retro pill badge rendered next to a post. */
 export type ForumTag = {
   id: string;
   kind: TagKind;
   label: string;
+  /** Colour chosen in the picker (user tags only); falls back to a palette hash. */
+  colour?: string;
 };
 
 /** Where a thread came from: the board itself, a hand-drawn asset, or a text box. */
 export type ForumAnchorKind = 'board' | 'asset' | 'text-box';
+
+/** Artwork preview shown when hovering a link back to the item. */
+export type ForumPreview = {
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+};
 
 export type ForumAnchor = {
   kind: ForumAnchorKind;
@@ -27,6 +37,10 @@ export type ForumAnchor = {
   id: string;
   /** Human readable label rendered in the Win95 window chrome. */
   label: string;
+  /** Where the item lives on the site, so a thread can link back to it. */
+  href?: string;
+  /** Present when the item is artwork, so the link can show a preview. */
+  preview?: ForumPreview;
 };
 
 /**
@@ -47,6 +61,8 @@ export type ForumComment = {
   author: ForumAuthor;
   createdAt: string;
   tags: ForumTag[];
+  /** Artwork attached to this reply. */
+  media?: ForumPreview;
 };
 
 export type ForumThread = {
@@ -58,6 +74,8 @@ export type ForumThread = {
   anchor: ForumAnchor;
   tags: ForumTag[];
   comments: ForumComment[];
+  /** Artwork attached to a general board post. */
+  media?: ForumPreview;
   /** 'seed' rows ship with the mock board, 'user' rows were filed in the browser. */
   origin: 'seed' | 'user';
 };
@@ -67,6 +85,10 @@ export type CreateThreadInput = {
   body: string;
   anchor: ForumAnchor;
   author: ForumAuthor;
+  /** Tags the poster picked in the chooser, in display order. */
+  userTags?: string[];
+  /** Artwork attached to a general board post. */
+  media?: ForumPreview;
 };
 
 export type CreateCommentInput = {
@@ -76,6 +98,10 @@ export type CreateCommentInput = {
   threadId?: string;
   /** ...or attach to an asset / text box, creating its thread when missing. */
   anchor?: ForumAnchor;
+  /** Tags the poster picked in the chooser, in display order. */
+  userTags?: string[];
+  /** Artwork attached to this reply. */
+  media?: ForumPreview;
 };
 
 export type AddCommentResult = {

@@ -1,3 +1,5 @@
+import { makeUserTag, tagKey } from './tag-vocabulary';
+import { readTagColours } from './tag-colours';
 import type { ForumAnchor, ForumTag, TagKind } from './types';
 
 /**
@@ -107,3 +109,37 @@ export function deriveTags({ text, anchor, maxTags = DEFAULT_MAX_TAGS }: DeriveT
 }
 
 export const AUTO_TAG_NOTE = 'Tags are generated automatically from the post text and the asset it is attached to.';
+
+/**
+ * Combines the tags a poster picked with the automatic ones.
+ *
+ * Chosen tags come first (they are coloured badges), duplicates are dropped by
+ * canonical key so picking LORE never doubles up with the derived LORE badge.
+ */
+export function mergeTags(
+  userLabels: string[],
+  autoTags: ForumTag[],
+  chosenColours: Record<string, string> = readTagColours(),
+): ForumTag[] {
+  const merged: ForumTag[] = [];
+  const seen = new Set<string>();
+
+  for (const label of userLabels) {
+    const colour = chosenColours[tagKey(label)];
+    const tag = makeUserTag(label, colour);
+    const key = tagKey(tag.label);
+    if (key.length === 0 || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(tag);
+  }
+
+  for (const tag of autoTags) {
+    const key = tagKey(tag.label);
+    if (key.length === 0 || seen.has(key)) continue;
+    seen.add(key);
+    merged.push(tag);
+  }
+
+  return merged;
+}
+

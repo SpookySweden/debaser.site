@@ -1,38 +1,14 @@
 import type { Metadata } from 'next';
-import Image from 'next/image';
-import AssetCommentBox from '../components/AssetCommentBox';
-import ConceptArtWindow from '../components/ConceptArtWindow';
+import CommentPopout from '../components/CommentPopout';
+import ConceptSheetFrame from '../components/ConceptSheetFrame';
 import SiteNav from '../components/SiteNav';
+import { CONCEPT_SHEETS } from '../lib/concepts/sheets';
 import { FORUM_ANCHORS } from '../lib/forum/anchors';
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE - Concept Archive',
   description: 'Concept art and design sheets from the Debaser archive.',
 };
-
-type ConceptSheet = {
-  id: string;
-  asset: string;
-  caption: string;
-};
-
-const CONCEPT_SHEETS: ConceptSheet[] = [
-  {
-    id: 'SHEET_01',
-    asset: '/assets/placeholders/concept-sheet-01.png',
-    caption: '[Concept Sheet Placeholder 01]',
-  },
-  {
-    id: 'SHEET_02',
-    asset: '/assets/placeholders/concept-sheet-02.png',
-    caption: '[Concept Sheet Placeholder 02]',
-  },
-  {
-    id: 'SHEET_03',
-    asset: '/assets/placeholders/concept-sheet-03.png',
-    caption: '[Concept Sheet Placeholder 03]',
-  },
-];
 
 export default function Concepts() {
   return (
@@ -55,44 +31,43 @@ export default function Concepts() {
         {/* Content Body - Concept Art Gallery */}
         <div className="flex-1 bg-white border-inset border-2 border-gray-600 m-2 p-6 overflow-y-auto text-black">
           <h1 className="text-3xl font-bold mb-4">DEBASER.SITE // CONCEPT ARCHIVE</h1>
-          <p className="text-sm mb-4 leading-relaxed">
+          <p className="text-sm mb-2 leading-relaxed">
             Visual development assets for the serialized comic book world. Every sheet in this archive is hand-drawn
-            on a Kamvas tablet and filed here as production reference for characters, environments, and props.
+            on a Kamvas tablet, filed in the project assets folder, and served straight from the repo.
+          </p>
+          <p className="text-[10px] font-bold mb-4">
+            CLICK THE [ COMMENT ] CONTROL UNDER A SHEET TO POP OPEN AN ENCASED WINDOW HOLDING ITS FORUM THREAD.
           </p>
 
-          {/* Main Viewer Window */}
-          <ConceptArtWindow />
-
-          {/* Comment box: comments on this asset open its own forum thread */}
-          <AssetCommentBox
-            anchor={FORUM_ANCHORS.conceptsViewer}
-            note="Notes left on the concept viewer generate a thread on the forum board."
-          />
+          {/* Sheets: each window carries its own comment pop-out underneath the artwork */}
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+            {CONCEPT_SHEETS.map((sheet, index) => (
+              <ConceptSheetFrame key={sheet.id} sheet={sheet} index={index} />
+            ))}
+          </div>
 
           {/* Sheet Index */}
           <div className="border border-black p-4 bg-[#f0f0f0] mt-6">
             <p className="text-xs font-bold mb-2">SHEET INDEX:</p>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {CONCEPT_SHEETS.map((sheet) => (
-                <div key={sheet.id} className="bg-white border border-gray-600 p-2">
-                  <Image
-                    src={sheet.asset}
-                    alt={`${sheet.id} placeholder`}
-                    width={160}
-                    height={120}
-                    className="w-full h-auto"
-                  />
-                  <div className="bg-gray-200 p-1 mt-2 text-xs">{sheet.caption}</div>
-                </div>
+            <ul className="space-y-1">
+              {CONCEPT_SHEETS.map((sheet, index) => (
+                <li
+                  key={sheet.id}
+                  className="flex flex-wrap items-center justify-between gap-2 border border-gray-500 bg-white p-2"
+                >
+                  <span className="text-[10px] font-bold">
+                    {index + 1}. {sheet.title} :: {sheet.src}
+                  </span>
+                  <CommentPopout anchor={sheet.anchor} compact />
+                </li>
               ))}
+            </ul>
+
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-400 pt-2">
+              <span className="text-[10px] font-bold">ARCHIVE HOUSEKEEPING / SHEET REQUESTS:</span>
+              <CommentPopout anchor={FORUM_ANCHORS.conceptsSheetIndex} compact />
             </div>
           </div>
-
-          {/* Comment box on a text box (the sheet index) */}
-          <AssetCommentBox
-            anchor={FORUM_ANCHORS.conceptsSheetIndex}
-            note="Use this box for sheet requests and archive housekeeping notes."
-          />
         </div>
 
         {/* Status Bar */}
