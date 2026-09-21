@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import {
+  canCommentOnElement,
   currentProfileElement,
   profileElementById,
 } from '../lib/profile/elements';
@@ -14,16 +15,18 @@ import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { canCommentOnProfile, profileComments, visibleProfileComments } from '../lib/profile/visibility';
-import { HYPER_ARROW, HYPER_LABEL, HYPER_TEXT } from '../lib/ui/hypertext';
+import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
 import ElementComments from './ElementComments';
 import { useForum } from './ForumProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileBoardActivity from './ProfileBoardActivity';
+import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
 import ProfileCommentWindow from './ProfileCommentWindow';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
+import ProfileWire from './ProfileWire';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { usePresence } from './PresenceProvider';
 import TimeStamp from './TimeStamp';
@@ -83,9 +86,29 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const track = profileElementById(profile, 'track', trackId) ?? currentProfileElement(profile, 'track');
 
   // One window, whichever aspect of the profile was asked about: the drawing, the track,
-  // or the profile itself.
+  // or the profile itself. The menu above both columns is the only way in (see
+  // ./ProfileCommentMenu), so these three options are what it offers.
   const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
+  const commentOptions: ProfileCommentOption[] = [
+    {
+      kind: 'avatar',
+      ...(picture === undefined ? {} : { tag: picture.tag }),
+      available: picture !== undefined && canCommentOnElement(owner, profile.visibility, 'picture'),
+      reason: picture === undefined ? 'nothing filed' : 'switched off',
+    },
+    {
+      kind: 'song',
+      ...(track === undefined ? {} : { tag: track.tag }),
+      available: track !== undefined && canCommentOnElement(owner, profile.visibility, 'track'),
+      reason: track === undefined ? 'nothing filed' : 'switched off',
+    },
+    {
+      kind: 'profile',
+      available: canCommentOnProfile(owner, profile.visibility),
+      reason: 'switched off',
+    },
+  ];
 
 
   return (
@@ -102,6 +125,13 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             </span>
           </span>
           <span>{owner ? '[ YOUR PROFILE ]' : '[ VISITOR VIEW ]'}</span>
+        </div>
+
+        {/* One comment control for the whole profile, above both columns, drawn whether or
+            not anything is filed and whether or not the owner has a thread switched off: the
+            menu is what says which of the three is open. */}
+        <div className="border-b border-gray-500 px-3 py-1">
+          <ProfileCommentMenu options={commentOptions} onChoose={(kind) => setCommentingOn(kind)} />
         </div>
 
         {/* The picture and the track side by side, each with its own thread tucked
@@ -137,7 +167,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 profile={profile}
                 element={picture}
                 owner={owner}
-                onComment={() => setCommentingOn('avatar')}
                 onSelect={setPictureId}
               />
             )}
@@ -151,12 +180,18 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 profile={profile}
                 element={track}
                 owner={owner}
-                onComment={() => setCommentingOn('song')}
                 onSelect={setTrackId}
                 onPlay={(element) => player.play(elementAsTrack(profile, element))}
                 playing={(element) => player.track?.src === element.src && player.playing}
               />
             )}
+
+            {/* The empty room a profile has to the right of the drawing, under the track and
+                its remarks: the board's wire runs across it, transparent, the full width of
+                the column rather than boxed into a panel of its own. */}
+            <div className="pt-1">
+              <ProfileWire />
+            </div>
           </div>
         </div>
 
@@ -256,7 +291,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         visibility={profile.visibility}
         comments={comments}
         hiddenCount={owner ? profileComments(profile).length - comments.length : 0}
-        onComment={() => setCommentingOn('profile')}
       />
     </div>
   );
@@ -268,25 +302,19 @@ type CommentsSectionProps = {
   visibility: ProfileVisibility;
   comments: ReturnType<typeof profileComments>;
   hiddenCount: number;
-  /** Opens the one comment window, on the profile itself. */
-  onComment: () => void;
 };
 
 /**
  * Comments left directly on the profile - not on the picture, and not on the track.
  *
- * The same row the element threads use, and the same two ways in: `comment`, in blue, which
- * opens the profile's comment window on this aspect, and a small arrow carrying the count,
- * which unfolds the list underneath. Folded is the default, because a profile reads as a
- * picture and a track rather than as a comment page.
- *
- * Writing lives in the window rather than in a box standing open here, so the page keeps
- * its shape while somebody is mid-sentence - and so there is one place to write about a
- * profile, whichever part of it the remark is about.
+ * The same row the element threads use, and the same fold: a small arrow carrying the count,
+ * which unfolds the list underneath. There is no box to write in here any more: the profile
+ * has one comment control, above both columns, and `general` is one of its three options, so
+ * this section only reads. Folded is the default, because a profile reads as a picture and a
+ * track rather than as a comment page.
  */
-function CommentsSection({ owner, visibility, comments, hiddenCount, onComment }: CommentsSectionProps) {
+function CommentsSection({ owner, visibility, comments, hiddenCount }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
-  const writable = canCommentOnProfile(owner, visibility);
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
@@ -297,14 +325,6 @@ function CommentsSection({ owner, visibility, comments, hiddenCount, onComment }
 
       <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-black">
         <span className={HYPER_LABEL}>general</span>
-
-        {writable ? (
-          <button type="button" onClick={onComment} className={HYPER_TEXT} title="Comment on this profile">
-            comment
-          </button>
-        ) : (
-          <span className="text-gray-700">comments off</span>
-        )}
 
         <button
           type="button"

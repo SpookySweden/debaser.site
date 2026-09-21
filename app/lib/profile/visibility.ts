@@ -21,14 +21,17 @@ import type {
 /**
  * Profile privacy defaults and the selectors that enforce them.
  *
- * Everything a visitor should not see by default stays off: tags given by other
- * users, and comments left on the profile. Picture comments - and the song's, which
- * sit beside them - default to visible because the picture gallery and the track are
- * the point of the page; the owner can still switch either off in the customiser.
+ * Tags given by other users stay off by default, because a profile's tags are somebody else's
+ * writing about you. Comments are the opposite: a profile is a place to talk, and a reader who
+ * cannot comment without being told to go and switch something on has been given a page that
+ * looks broken. So profile comments - and the picture's, and the track's, which sit beside them
+ * and are the point of the page - are on by default, and the owner switches off whatever they
+ * would rather not read (`showProfileComments` in the customiser, and the same switch in
+ * `supabase/schema.sql` with matching column defaults).
  */
 export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showTags: false,
-  showProfileComments: false,
+  showProfileComments: true,
   showAvatarComments: true,
   showSongComments: true,
 };

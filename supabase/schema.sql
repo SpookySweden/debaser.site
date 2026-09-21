@@ -55,10 +55,13 @@ create table if not exists public.profiles (
   name_colour text check (name_colour is null or name_colour ~ '^#[0-9a-fA-F]{6}$'),
   bio text not null default '',
   location text not null default '',
-  -- What visitors may see. Private by default, exactly like the mock store.
+  -- What visitors may see. Tags are somebody else's writing about you, so they start
+  -- hidden; comments are the reason a profile is a page rather than a card, so they start
+  -- open and the owner closes what they would rather not read. The application defaults
+  -- match these (`DEFAULT_VISIBILITY` in app/lib/profile/visibility.ts).
   show_tags boolean not null default false,
-  show_profile_comments boolean not null default false,
-  show_avatar_comments boolean not null default false,
+  show_profile_comments boolean not null default true,
+  show_avatar_comments boolean not null default true,
   -- The picture on display. Deliberately not a foreign key: the versions table
   -- points at this one, and a circular pair of keys would make deletes awkward.
   current_version_id uuid,
@@ -1037,6 +1040,18 @@ alter table public.profiles add column if not exists show_song_comments boolean 
 -- versions table already points at the profile, and a circular pair would make deletes
 -- awkward.
 alter table public.profiles add column if not exists current_song_version_id uuid;
+
+-- Comments on by default, for the databases that were created when they were off.
+--
+-- The defaults above only decide what a *new* profile row gets, and every row that already
+-- exists kept `false` - which is why a page could say "comments held back by the owner"
+-- without the owner ever having chosen it. Setting the column default fixes accounts made
+-- from here on; the second statement is the one that matters for an archive that is already
+-- running, and it is deliberately a separate statement so it can be left out.
+alter table public.profiles alter column show_profile_comments set default true;
+alter table public.profiles alter column show_avatar_comments set default true;
+
+update public.profiles set show_profile_comments = true where show_profile_comments is not true;
 
 create table if not exists public.profile_song_versions (
   id uuid primary key default gen_random_uuid(),

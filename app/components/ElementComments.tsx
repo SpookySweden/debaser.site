@@ -23,8 +23,6 @@ type ElementCommentsProps = {
   /** The version being read: its thread is the one shown. */
   element: ProfileElement;
   owner: boolean;
-  /** Opens the one comment window for this element. */
-  onComment: () => void;
   /** Picking another version switches the element *and* the thread. */
   onSelect: (versionId: string) => void;
   /** Tracks can be listened to from the history; pictures have nothing to play. */
@@ -45,21 +43,20 @@ type ElementCommentsProps = {
  * the foot of the page.
  *
  * It is also the quietest thing on the page, deliberately. A profile is read for its
- * picture and its track, so asking to add to a thread is a link - `comment`, in blue, the
- * way a page asked for things in 1995 - and the thread itself is behind one small arrow
- * carrying its count (`▸ 3`). A remark needs no plate of its own to be found.
+ * picture and its track, so the thread lives behind one small arrow carrying its count
+ * (`▸ 3`), and the way to add to it is the profile's one comment control rather than a second
+ * button here (see ./ProfileCommentMenu). A remark needs no plate of its own to be found.
  *
- * Folded, and there is something to read, the thread goes past as a single line underneath
- * (`.crawl`, the same crawl the board's wire uses): the whole thread on the width of the
- * column, one remark at a time, instead of a list that buries the drawing above it.
- * Writing happens in a window (see ./ProfileCommentWindow) so the page keeps its shape
- * while somebody is mid-sentence.
+ * Folded, and there is something to read, the thread goes past as a single line underneath -
+ * transparent, with a dashed rule over it, exactly the way the crawl under a comment on the
+ * board is drawn: the whole thread on the width of the column, one remark at a time, instead
+ * of a list that buries the drawing above it. Writing happens in a window (see
+ * ./ProfileCommentWindow) so the page keeps its shape while somebody is mid-sentence.
  */
 export default function ElementComments({
   profile,
   element,
   owner,
-  onComment,
   onSelect,
   onPlay,
   playing,
@@ -80,24 +77,12 @@ export default function ElementComments({
 
   return (
     <div className="min-w-0">
-      {/* The line under the element: what it is, the way in, and the fold. A caption to the
-          drawing rather than a title bar - no box, because a box is what made this read as
-          a button stack. */}
+      {/* The line under the element: what it is, and the fold. A caption to the drawing
+          rather than a title bar - no box, because a box is what made this read as a button
+          stack. Commenting is not asked for here any more: the profile has one comment
+          control, above both columns, so there is one way in rather than three. */}
       <p className="flex flex-wrap items-baseline gap-x-2 text-[10px] font-bold text-black">
         <span className={HYPER_LABEL}>{element.tag}</span>
-
-        {writable ? (
-          <button
-            type="button"
-            onClick={onComment}
-            className={HYPER_TEXT}
-            title={`Leave a comment on ${element.tag}`}
-          >
-            comment
-          </button>
-        ) : (
-          <span className="text-gray-700">comments off</span>
-        )}
 
         <button
           type="button"
@@ -109,6 +94,8 @@ export default function ElementComments({
           {open ? '▾' : '▸'}
           {thread.length === 0 ? '' : ` ${thread.length}`}
         </button>
+
+        {writable ? null : <span className="text-gray-700">comments off</span>}
 
         {versions.length <= 1 ? null : (
           <button
@@ -136,12 +123,13 @@ export default function ElementComments({
         )
       ) : thread.length === 0 ? null : (
         /* Folded with something behind it: the thread crawls past in one line, so a remark
-           can be read without opening anything and the fold never hides what it holds. The
-           run is drawn twice so the loop has no seam (see app/globals.css). */
-        <div className="mt-1 overflow-hidden rounded-none border border-gray-500 bg-black px-1 py-[2px]">
+           can be read without opening anything and the fold never hides what it holds.
+           Transparent, the way the crawl under a comment on the board is: it belongs to the
+           surface it runs across, not to a panel of its own. */
+        <div className="mt-1 overflow-hidden border-t border-dashed border-gray-400 pt-1">
           <div
             className="crawl flex w-max items-center"
-            style={{ animationDuration: `${Math.max(20, thread.length * SECONDS_PER_ITEM)}s` }}
+            style={{ animationDuration: `${Math.max(24, thread.length * SECONDS_PER_ITEM)}s` }}
           >
             {[0, 1].map((copy) => (
               <ul key={copy} className="flex items-center" aria-hidden={copy === 1 ? 'true' : undefined}>
