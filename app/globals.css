@@ -36,13 +36,16 @@ summary::-webkit-details-marker {
   display: none;
 }
 
-/* The hover preview on a collapsed board row: the replies crawl past like the
-   information bar along the foot of a news channel. The track holds the same
-   list twice and slides by exactly half its width, so the second copy lands
-   where the first began and the loop has no seam. The duration is set inline
-   from the number of replies, which keeps the speed steady instead of making a
-   long thread crawl faster than a short one. */
-@keyframes thread-crawl {
+/* A line of text that crawls past, the way the information bar along the foot of a news
+   channel does. The track holds the same run twice and slides by exactly half its width,
+   so the second copy lands where the first began and the loop has no seam. The duration is
+   set inline from the number of rows, which keeps the speed steady instead of making a
+   long run crawl faster than a short one.
+
+   Two things stop it, both deliberate: the pointer resting on the strip (so a row can be
+   read, and the link in it aimed at), and a system that has asked for less motion - in
+   which case the strip becomes a line that can be scrolled by hand. */
+@keyframes crawl {
   from {
     transform: translateX(0);
   }
@@ -52,12 +55,16 @@ summary::-webkit-details-marker {
   }
 }
 
-.thread-crawl {
-  animation: thread-crawl 40s linear infinite;
+.crawl {
+  animation: crawl 40s linear infinite;
+}
+
+.crawl:hover {
+  animation-play-state: paused;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .thread-crawl {
+  .crawl {
     animation: none;
   }
 }

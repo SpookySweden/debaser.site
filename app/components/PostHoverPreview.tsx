@@ -56,7 +56,7 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
         {comments.length === 0 ? null : (
           <div className="shrink-0 overflow-hidden" aria-hidden="true">
             <div
-              className="thread-crawl flex w-max"
+              className="crawl flex w-max"
               style={{ animationDuration: `${Math.max(24, comments.length * SECONDS_PER_REPLY)}s` }}
             >
               {[0, 1].map((copy) => (

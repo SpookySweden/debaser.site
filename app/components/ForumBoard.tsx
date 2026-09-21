@@ -8,6 +8,7 @@ import { paginate } from '../lib/forum/paging';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
+import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
@@ -168,6 +169,11 @@ export default function ForumBoard() {
 
   return (
     <div className="space-y-3">
+      {/* The wire: the board as one line that crawls past. It is the shape this page can
+          afford - a strip across the window - and it reads the same rows the profile
+          threads read, so a post or a reply looks like a comment looks. */}
+      <NewsTicker />
+
       {/* Board status window */}
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">

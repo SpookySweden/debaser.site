@@ -85,7 +85,7 @@ export default function ProfileAvatar({
       )}
 
       {version === undefined || hideVersionLabel ? null : (
-        <p className="mt-1 text-center text-[10px] font-bold text-black">V{version.version}</p>
+        <p className="mt-1 text-center text-[10px] font-bold text-black">P{version.version}</p>
       )}
     </div>
   );

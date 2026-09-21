@@ -24,7 +24,7 @@ export type ProfileCustomiserSongTabProps = {
 };
 
 /**
- * The track tab: choose the audio, say what it is, file it as a version.
+ * The track tab: choose the audio, say what it is, file it as a version (`M1`, `M2`, ...).
  *
  * The twin of the picture tab, one shelf over. Filing never overwrites: the new track
  * becomes the next version and the older ones stay in the history with the comments
@@ -132,7 +132,7 @@ export default function ProfileCustomiserSongTab({
                 disabled={busy || pendingSrc === null || title.trim().length === 0}
                 className={CUSTOMISER_BUTTON}
               >
-                {busy ? '[ WORKING... ]' : `[ FILE AS V${nextVersion} ]`}
+                {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
               </button>
               <p className="text-[10px] text-gray-700">THE PROFILE CHANGES THE MOMENT IT IS FILED.</p>
             </div>
@@ -154,13 +154,13 @@ export default function ProfileCustomiserSongTab({
               >
                 <div className="min-w-0 flex-1 text-[10px] text-black">
                   <p className="font-bold">
-                    V{version.version}
+                    M{version.version}
                     {version.id === profile.song.currentVersionId ? ' [ CURRENT ]' : ''} :: {version.title} ::{' '}
                     <TimeStamp at={version.createdAt} /> :: {commentCountForSongVersion(profile, version)} COMMENTS
                   </p>
                   {version.note.length === 0 ? null : <p className="mt-1">{version.note}</p>}
                   {version.restoredFromVersion === undefined ? null : (
-                    <p className="mt-1">COPIED FROM V{version.restoredFromVersion}</p>
+                    <p className="mt-1">COPIED FROM M{version.restoredFromVersion}</p>
                   )}
                   <p className="mt-1 truncate text-gray-700">{version.src}</p>
                 </div>

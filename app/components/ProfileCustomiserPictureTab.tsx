@@ -78,7 +78,7 @@ export default function ProfileCustomiserPictureTab({
           <div className="min-w-0 flex-1 space-y-2">
             <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
             <p className="text-[10px] text-black">
-              CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS V{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
+              CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
               BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.
             </p>
 
@@ -156,7 +156,7 @@ export default function ProfileCustomiserPictureTab({
             disabled={busy || pendingSrc === null}
             className={CUSTOMISER_BUTTON}
           >
-            {busy ? '[ WORKING... ]' : `[ FILE AS V${nextVersion} ]`}
+            {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
           </button>
           <p className="text-[10px] text-gray-700">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
         </div>
@@ -178,13 +178,13 @@ export default function ProfileCustomiserPictureTab({
 
                 <div className="min-w-0 flex-1 text-[10px] text-black">
                   <p className="font-bold">
-                    V{version.version}
+                    P{version.version}
                     {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}
                     <TimeStamp at={version.createdAt} /> :: {commentCountForVersion(profile, version)} COMMENTS
                   </p>
                   {version.note.length === 0 ? null : <p className="mt-1">{version.note}</p>}
                   {version.restoredFromVersion === undefined ? null : (
-                    <p className="mt-1">COPIED FROM V{version.restoredFromVersion}</p>
+                    <p className="mt-1">COPIED FROM P{version.restoredFromVersion}</p>
                   )}
                 </div>
 
