@@ -99,6 +99,16 @@ makes uploads work on a host with a read-only filesystem (Vercel). The path is
 `<account id>/avatar-v<version>-<stamp>.<ext>`, and the policies read that first
 segment, so one account cannot file into another's folder.
 
+The bucket's own limits mirror the site's: 2MB and PNG/JPG/WEBP/GIF, i.e.
+`MAX_AVATAR_BYTES` and `AVATAR_ACCEPT` in app/lib/profile/avatar-catalogue.ts. The
+form checks those first and says so in plain text ("UP TO 2MB"), so the bucket only
+ever sees a drawing the site has already accepted; it is the backstop, not the rule.
+The scratch check asserts the two agree, so changing the constant without changing
+section 11 fails the check rather than silently drifting.
+
+To change the size limit: change the constant, change section 11, and set the bucket's
+limit (re-run the script, or Storage -> avatars -> Edit bucket in the dashboard).
+
 Two things follow from the bucket being a different host:
 
   - `next.config.ts` has to allow it in `images.remotePatterns` (it does, narrowed

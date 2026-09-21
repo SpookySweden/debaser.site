@@ -595,9 +595,16 @@ create policy "profile_comments admin remove" on public.profile_comments
 -- The path carries the owner's id (`<user id>/avatar-v3-....png`) and every write
 -- policy reads that first segment, which is what keeps one account out of another
 -- account's folder. Account ids are uuids, so the folder name is safe as a path.
+--
+-- The size limit and the accepted types mirror what the site itself insists on
+-- before it will send anything (`MAX_AVATAR_BYTES` and the type list in
+-- app/lib/profile/avatar-catalogue.ts, checked by ./lib/profile/avatar-upload.ts),
+-- so the browser refuses an oversized drawing with a plain message and the bucket
+-- only ever sees files the site has already accepted. Keep the two in step: the
+-- scratch check asserts this number matches the constant.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values ('avatars', 'avatars', true, 4194304, array['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+values ('avatars', 'avatars', true, 2097152, array['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 on conflict (id) do update
   set public = excluded.public,
       file_size_limit = excluded.file_size_limit,
