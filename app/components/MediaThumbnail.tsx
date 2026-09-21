@@ -31,7 +31,7 @@ export default function MediaThumbnail({ media, size = 64 }: MediaThumbnailProps
   }
 
   return (
-    <span className="inline-block rounded-none border border-gray-600 bg-white p-1">
+    <span className="inline-block rounded-none border border-black bg-white">
       <Image
         src={media.src}
         alt={media.alt}

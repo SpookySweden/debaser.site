@@ -63,6 +63,11 @@ export type ForumComment = {
   tags: ForumTag[];
   /** Artwork attached to this reply. */
   media?: ForumPreview;
+  /**
+   * The comment this one replies to. Missing on top-level replies, which answer
+   * the post (or the item the thread is filed under) directly.
+   */
+  parentId?: string;
 };
 
 export type ForumThread = {
@@ -98,6 +103,8 @@ export type CreateCommentInput = {
   threadId?: string;
   /** ...or attach to an asset / text box, creating its thread when missing. */
   anchor?: ForumAnchor;
+  /** Reply to an existing comment instead of the post itself. */
+  parentId?: string;
   /** Tags the poster picked in the chooser, in display order. */
   userTags?: string[];
   /** Artwork attached to this reply. */
@@ -117,9 +124,14 @@ export type AddCommentResult = {
  *   `listThreads`  -> `select *, forum_comments(*) from forum_threads`
  *   `createThread` -> `insert into forum_threads`
  *   `addComment`   -> find-or-insert thread by anchor, then `insert into forum_comments`
+ *                     (`parent_id` carries the comment being replied to, or null)
  *   `subscribe`    -> `supabase.channel('forum').on('postgres_changes', ...)`
  * RLS: every row keeps `author_id`, and policies restrict update/delete to
  * `auth.uid() = author_id` while leaving select public.
+ *
+ * DDL note for the reply threads (additive, so existing rows keep working):
+ *   alter table public.forum_comments
+ *     add column parent_id uuid references public.forum_comments (id) on delete cascade;
  */
 export type ForumRepository = {
   readonly source: ForumDataSource;

@@ -25,9 +25,12 @@ const KIND_CLASSES: Record<ForumTag['kind'], string> = {
 const CHIP_BASE =
   'inline-flex items-center rounded-none border px-2 py-[2px] text-[10px] font-bold uppercase tracking-[0.08em]';
 
+/** Smaller chip for dense rows (post meta lines, left-hand columns). */
+const CHIP_COMPACT = 'px-1 py-0 text-[9px] tracking-[0.04em]';
+
 /** Shared chip styling, so the chooser and the badges look identical. */
-export function tagChipClasses(tag: ForumTag): string {
-  return `${CHIP_BASE} ${KIND_CLASSES[tag.kind]}`;
+export function tagChipClasses(tag: ForumTag, compact = false): string {
+  return `${CHIP_BASE} ${KIND_CLASSES[tag.kind]}${compact ? ` ${CHIP_COMPACT}` : ''}`;
 }
 
 /** Coloured background for user tags; system tags stay grey/navy. */
@@ -44,14 +47,16 @@ type TagBadgeProps = {
   tag: ForumTag;
   /** Optional usage count, shown by the chooser. */
   count?: number;
+  /** Smaller chip for dense rows. */
+  compact?: boolean;
 };
 
-export default function TagBadge({ tag, count }: TagBadgeProps) {
+export default function TagBadge({ tag, count, compact = false }: TagBadgeProps) {
   return (
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`${tagChipClasses(tag)} hover:opacity-90`}
+      className={`${tagChipClasses(tag, compact)} hover:opacity-90`}
       style={tagChipStyle(tag)}
     >
       {tag.label}
@@ -64,20 +69,28 @@ type TagRowProps = {
   tags: ForumTag[];
   className?: string;
   emptyLabel?: string;
+  /** Smaller chips. */
+  compact?: boolean;
+  /** Show only the first N tags, with a "+N" marker for the rest. */
+  limit?: number;
 };
 
-export function TagRow({ tags, className, emptyLabel }: TagRowProps) {
+export function TagRow({ tags, className, emptyLabel, compact = false, limit }: TagRowProps) {
   if (tags.length === 0) {
     return emptyLabel === undefined ? null : (
       <span className="text-[10px] text-gray-700">{emptyLabel}</span>
     );
   }
 
+  const shown = limit === undefined ? tags : tags.slice(0, limit);
+  const hidden = tags.length - shown.length;
+
   return (
     <div className={`flex flex-wrap items-center gap-1 ${className ?? ''}`}>
-      {tags.map((tag) => (
-        <TagBadge key={tag.id} tag={tag} />
+      {shown.map((tag) => (
+        <TagBadge key={tag.id} tag={tag} compact={compact} />
       ))}
+      {hidden > 0 ? <span className="text-[9px] font-bold text-gray-700">+{hidden}</span> : null}
     </div>
   );
 }

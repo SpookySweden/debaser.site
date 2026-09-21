@@ -1,0 +1,155 @@
+'use client';
+
+import Link from 'next/link';
+import { useState } from 'react';
+import { resetMockAuth } from '../lib/auth/mock-auth';
+import { threadDomId } from '../lib/forum/anchors';
+import { formatStamp } from '../lib/forum/format';
+import AccountProfilePanel from './AccountProfilePanel';
+import AccountSecurityPanel from './AccountSecurityPanel';
+import { useAuth } from './AuthProvider';
+import { useForum } from './ForumProvider';
+
+const BUTTON =
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+
+/**
+ * The signed-in half of the account page.
+ *
+ * Section order: the public profile (what visitors see), the account itself
+ * (EDIT ACCOUNT: name, sign-in email, password), the board activity that carries
+ * this account's id, and the session controls in the danger zone.
+ */
+export default function AccountDetails() {
+  const { user, usingMockAuth, backend, signOut, deleteAccount } = useAuth();
+  const forum = useForum();
+
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  if (user === null) return null;
+
+  // Captured after the guard so the handlers below keep a non-null id.
+  const accountId = user.id;
+
+  const myThreads = forum.threads.filter((thread) => thread.author.id === accountId);
+  const myReplies = forum.threads.reduce(
+    (total, thread) => total + thread.comments.filter((comment) => comment.author.id === accountId).length,
+    0,
+  );
+
+  async function handleDelete() {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      setMessage('CLICK AGAIN TO CONFIRM DELETION.');
+      return;
+    }
+
+    setBusy(true);
+    const result = await deleteAccount();
+    setBusy(false);
+    setMessage(result.ok ? 'ACCOUNT DELETED.' : result.error);
+  }
+
+  return (
+    <div className="space-y-3">
+      <div id="public-profile">
+        <AccountProfilePanel userId={accountId} />
+      </div>
+
+      <AccountSecurityPanel />
+
+      <section
+        id="account-summary"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+      >
+        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+          <span>ACCOUNT DETAILS</span>
+          <span>[ READ ONLY ]</span>
+        </div>
+
+        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+          <p>ACCOUNT ID: {user.id}</p>
+          <p>EMAIL: {user.email.length === 0 ? 'NOT PROVIDED' : user.email}</p>
+          <p>CREATED: {formatStamp(user.createdAt)}</p>
+          <p>BACKEND: {backend === 'mock' ? 'MOCK (THIS BROWSER ONLY)' : 'SUPABASE AUTH'}</p>
+
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => void signOut()} disabled={busy} className={BUTTON}>
+              [ SIGN OUT ]
+            </button>
+            <p className="text-gray-700">
+              NEED TO CHANGE THE NAME, EMAIL OR PASSWORD? USE THE EDIT ACCOUNT SECTION BELOW.
+            </p>
+          </div>
+
+          {message === null ? null : <p className="text-[10px] font-bold text-black">{message}</p>}
+        </div>
+      </section>
+
+      <section
+        id="activity"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+      >
+        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+          <span>BOARD ACTIVITY</span>
+          <span>[ {myThreads.length + myReplies} POSTS ]</span>
+        </div>
+
+        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+          <p>
+            THREADS FILED: {myThreads.length} :: REPLIES FILED: {myReplies}
+          </p>
+
+          {myThreads.length === 0 ? (
+            <p>NOTHING FILED YET - POSTS MADE WHILE SIGNED IN ARE LISTED HERE.</p>
+          ) : (
+            <ul className="space-y-1">
+              {myThreads.slice(0, 6).map((thread) => (
+                <li key={thread.id}>
+                  <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-gray-300">
+                    [{formatStamp(thread.createdAt)}] {thread.title}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </section>
+
+      <section
+        id="danger-zone"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+      >
+        <div className="flex items-center justify-between bg-[#800000] px-2 py-1 text-xs font-bold text-white">
+          <span>DANGER ZONE</span>
+          <span>[ CAREFUL ]</span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 p-3 text-[10px] font-bold text-black">
+          {usingMockAuth ? (
+            <>
+              <button type="button" onClick={() => void handleDelete()} disabled={busy} className={BUTTON}>
+                {confirmDelete ? '[ CONFIRM DELETE ACCOUNT ]' : '[ DELETE THIS ACCOUNT ]'}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  resetMockAuth();
+                  setMessage('ALL LOCAL MOCK ACCOUNTS CLEARED.');
+                }}
+                className={BUTTON}
+              >
+                [ CLEAR ALL LOCAL ACCOUNTS ]
+              </button>
+              <p>SIGNS YOU OUT AND REMOVES THE MOCK ACCOUNTS FROM THIS BROWSER.</p>
+            </>
+          ) : (
+            <p>SUPABASE ACCOUNTS ARE DELETED FROM THE SUPABASE DASHBOARD.</p>
+          )}
+        </div>
+      </section>
+    </div>
+  );
+}

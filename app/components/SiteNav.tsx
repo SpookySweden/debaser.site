@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-type NavKey = 'home' | 'concepts' | 'forum';
+type NavKey = 'home' | 'concepts' | 'forum' | 'account';
 
 type NavItem = {
   key: NavKey;
@@ -12,6 +12,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME', href: '/' },
   { key: 'concepts', label: 'CONCEPTS', href: '/concepts' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
+  { key: 'account', label: 'ACCOUNT', href: '/account' },
 ];
 
 function navButtonClass(isActive: boolean): string {

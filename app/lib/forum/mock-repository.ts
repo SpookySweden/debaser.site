@@ -148,6 +148,7 @@ function makeComment(
   createdAt: string,
   userTags: string[],
   media: ForumPreview | undefined,
+  parentId: string | undefined,
 ): ForumComment {
   return {
     id: createLocalId('comment'),
@@ -157,6 +158,7 @@ function makeComment(
     createdAt,
     tags: mergeTags(userTags, deriveTags({ text: body, anchor: thread.anchor, maxTags: 3 })),
     ...(media === undefined ? {} : { media }),
+    ...(parentId === undefined ? {} : { parentId }),
   };
 }
 
@@ -204,7 +206,13 @@ class MockForumRepository implements ForumRepository {
           : undefined;
 
     if (existing !== undefined) {
-      const comment = makeComment(existing, body, author, createdAt, userTags, input.media);
+      // A reply to a comment only makes sense if that comment is still there.
+      if (input.parentId !== undefined) {
+        const parentExists = existing.comments.some((comment) => comment.id === input.parentId);
+        if (!parentExists) throw new Error('The comment being replied to is no longer on this thread.');
+      }
+
+      const comment = makeComment(existing, body, author, createdAt, userTags, input.media, input.parentId);
       const nextThread: ForumThread = { ...existing, comments: [...existing.comments, comment] };
       commit(threads.map((thread) => (thread.id === existing.id ? nextThread : thread)));
       return { thread: nextThread, comment, createdThread: false };
@@ -228,7 +236,7 @@ class MockForumRepository implements ForumRepository {
       origin: 'user',
     };
 
-    const comment = makeComment(draft, body, author, createdAt, userTags, input.media);
+    const comment = makeComment(draft, body, author, createdAt, userTags, input.media, undefined);
     const nextThread: ForumThread = { ...draft, comments: [comment] };
 
     commit([nextThread, ...threads]);

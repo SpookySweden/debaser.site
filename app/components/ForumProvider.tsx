@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { useCurrentAuthor } from '../lib/auth/use-current-author';
+import { authorFromAccount } from '../lib/auth/author';
 import { getForumRepository } from '../lib/forum/repository';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
@@ -14,6 +14,7 @@ import type {
   ForumRepository,
   ForumThread,
 } from '../lib/forum/types';
+import { useAuth } from './AuthProvider';
 
 export type CreateThreadRequest = {
   title: string;
@@ -31,6 +32,8 @@ export type AddCommentRequest = {
   threadId?: string;
   /** ...or file against an asset / text box (creates its thread when missing). */
   anchor?: ForumAnchor;
+  /** Reply to an existing comment instead of the post itself. */
+  parentId?: string;
   /** Tags chosen in the colour coded chooser. */
   userTags?: string[];
   /** Artwork attached to this reply. */
@@ -67,7 +70,10 @@ const ForumContext = createContext<ForumContextValue | null>(null);
  * initial fetch and the realtime subscription already go through the interface.
  */
 export default function ForumProvider({ children }: { children: React.ReactNode }) {
-  const author = useCurrentAuthor();
+  const { user } = useAuth();
+  // Signed in, a post is filed under the account id (auth.users.id on the
+  // Supabase backend); signed out it stays Anonymous with a null id.
+  const author = useMemo(() => authorFromAccount(user), [user]);
   const repositoryRef = useRef<ForumRepository | null>(null);
   // The board starts empty and fills from the repository on mount, so the
   // server render and the first client pass agree and no placeholder posts ever
@@ -156,6 +162,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         author,
         threadId: request.threadId,
         anchor: request.anchor,
+        parentId: request.parentId,
         userTags: canonicaliseUserTags(request.userTags),
         media: request.media,
       });

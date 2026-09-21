@@ -9,6 +9,7 @@ Folder layout
 assets/concepts/     concept sheets shown on /concepts
 assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
+assets/profiles/     public profile pictures (avatar-slot-NN.png) and uploads/
 
 How it is served
 ----------------
@@ -34,3 +35,20 @@ Rules
 - Keep the exported aspect ratio in sync with the width/height in the manifest.
 - 0px border-radius everywhere: framing is done with the Win95 window chrome
   in the components, not baked into the artwork.
+
+Adding a profile picture
+------------------------
+Two ways, both ending in the same place - a file in this folder:
+
+1. Slots: save a square PNG as assets/profiles/avatar-slot-NN.png. The slots are
+   listed in app/lib/profile/avatar-catalogue.ts; until a file exists the picker
+   and the profile page show the standard "[ ARTWORK FILE NOT FOUND ]" notice.
+2. Upload: use the "CUSTOMISE PUBLIC PROFILE" console on /account and pick a
+   file. POST /api/profile/avatar writes it into assets/profiles/uploads/ and
+   returns the path it now serves. Every change is filed as a new avatar version
+   in the profile store, so old drawings are never overwritten and the comments
+   written against them keep pointing at the right one.
+
+Uploads need a writable disk. On a read-only host the route replies with a clear
+message and the picture should live in Supabase Storage instead - only the
+stored `src` changes, nothing in the UI.

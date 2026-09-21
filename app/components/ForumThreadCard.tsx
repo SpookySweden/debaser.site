@@ -1,33 +1,43 @@
 'use client';
 
 import { useState } from 'react';
-import { authorTag } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { isAutoFiledBody, threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
+import { buildPostLayout } from '../lib/forum/post-layout';
 import type { ForumThread } from '../lib/forum/types';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
+import CommentThreadList from './CommentThreadList';
 import { useForum } from './ForumProvider';
 import MediaThumbnail from './MediaThumbnail';
+import PostAuthorRow from './PostAuthorRow';
 import SheetImage from './SheetImage';
 import { TagRow } from './TagBadge';
 
 type ForumThreadCardProps = {
   thread: ForumThread;
-  position: number;
   isOpen: boolean;
   onToggle: (threadId: string, open: boolean) => void;
 };
 
 /**
- * One collapsible thread. Uses native <details>/<summary> so the dropdown works
- * without extra JS chrome, but `open` stays controlled so the board can offer
- * expand all / collapse all and can jump to a specific thread via #thread-<id>.
+ * One collapsible post.
+ *
+ * The header is text, not a bar: collapsed, the title, the stamp, the poster and
+ * the post's tags carry the row, and the drawing plus the poster's picture only
+ * appear when the header is pointed at (`group-hover`). Expanding puts the
+ * picture and the small tags in a left column with the body of the text beside
+ * them - the rules live in app/lib/forum/post-layout.ts.
+ *
+ * Native <details>/<summary> keeps the collapse behaviour (and the board's expand
+ * all / collapse all, plus #thread-<id> jump links) without extra JS.
  */
-export default function ForumThreadCard({ thread, position, isOpen, onToggle }: ForumThreadCardProps) {
+export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThreadCardProps) {
   const forum = useForum();
+  const { profile } = usePublicProfile(thread.author.id);
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -65,149 +75,129 @@ export default function ForumThreadCard({ thread, position, isOpen, onToggle }: 
     }
   }
 
-  const previewTags = thread.tags.slice(0, 4);
-  const hiddenTagCount = thread.tags.length - previewTags.length;
   const images = collectThreadImages(thread);
 
+  const layout = buildPostLayout({
+    thread,
+    isOpen,
+    authorProfile: profile,
+    postedLabel: `POSTED ${formatStamp(thread.createdAt)}`,
+    repliesLabel: countReplies(thread.comments.length),
+    imageSourceLabel: imageSourceLabel(images.source),
+    postImage: images.preview,
+    isAnchorPost: isAutoFiledBody(thread.body),
+  });
+
   return (
-    <article
-      id={threadDomId(thread.id)}
-      className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
-    >
-      <details open={isOpen} onToggle={(event) => onToggle(thread.id, event.currentTarget.open)}>
+    <article id={threadDomId(thread.id)} className="px-2 py-2">
+      <details
+        className="group"
+        open={isOpen}
+        onToggle={(event) => onToggle(thread.id, event.currentTarget.open)}
+      >
         {/*
-          Preview content lives inside <summary>, so a collapsed post still shows
-          the date, the item it belongs to, its tags and the first few lines -
-          only long posts need expanding.
+          Collapsed, only the title, the stamp, the poster and the post's tags are
+          drawn. The poster's picture and the drawing are `group-hover` only, so
+          the list stays tight until somebody points at the title or the name.
         */}
-        <summary className="cursor-pointer select-none">
-          <div className="flex items-start gap-2 bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-            <span className="w-5 shrink-0">{isOpen ? '[-]' : '[+]'}</span>
-            <span className="flex-1">
-              {position}. {thread.title}
-            </span>
-            <span className="shrink-0">{countReplies(thread.comments.length)}</span>
+        <summary className="cursor-pointer select-none list-none">
+          <div className="flex items-baseline gap-2 text-xs font-bold text-black">
+            <span className="shrink-0 text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
+            <span className="min-w-0 flex-1 group-hover:underline">{layout.title}</span>
+            <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
           </div>
 
-          <div className="bg-white px-2 py-2 text-black">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-              <span>
-                POSTED: {formatStamp(thread.createdAt)} :: BY {authorTag(thread.author)}
+          {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-black">
+            <span className="font-bold">{layout.postedLabel}</span>
+
+            <PostAuthorRow
+              author={thread.author}
+              avatar={layout.avatar}
+              avatarSize={56}
+              location={layout.author.location}
+              displayedTags={layout.author.displayedTags}
+            />
+
+            {layout.image === 'hover' && images.preview !== undefined ? (
+              <span className="hidden group-hover:inline-flex" title={layout.left.imageSource}>
+                <MediaThumbnail media={images.preview} size={72} />
               </span>
-              <span>
-                FILED UNDER: {thread.anchor.label} [{thread.anchor.kind}]
-              </span>
-            </div>
-
-            <div className="mt-1" onClick={(event) => event.stopPropagation()}>
-              <TagRow tags={previewTags} emptyLabel="NO TAGS" />
-              {hiddenTagCount <= 0 ? null : (
-                <span className="text-[10px] font-bold text-gray-700"> +{hiddenTagCount} MORE</span>
-              )}
-            </div>
-
-            <div className="mt-1 flex gap-2">
-              <div className="min-w-0 flex-1">
-                {isAutoFiledBody(thread.body) ? (
-                  <div onClick={(event) => event.stopPropagation()}>
-                    <AnchorLink anchor={thread.anchor} />
-                  </div>
-                ) : (
-                  <p
-                    className={`whitespace-pre-line text-xs leading-snug ${
-                      isOpen ? '' : 'line-clamp-3'
-                    }`}
-                  >
-                    {thread.body}
-                  </p>
-                )}
-              </div>
-
-              {/* Minimal image preview, visible before the post is expanded */}
-              {images.preview === undefined ? null : (
-                <div
-                  className="shrink-0 text-center"
-                  onClick={(event) => event.stopPropagation()}
-                  title={imageSourceLabel(images.source)}
-                >
-                  <MediaThumbnail media={images.preview} />
-                  {images.count > 1 ? (
-                    <p className="mt-1 text-[10px] font-bold text-gray-700">+{images.count - 1} IMG</p>
-                  ) : null}
-                </div>
-              )}
-            </div>
-
-            {isOpen ? null : (
-              <p className="mt-1 text-[10px] font-bold text-gray-700">
-                [ CLICK TO EXPAND: FULL POST, ATTACHMENTS AND {countReplies(thread.comments.length)} ]
-              </p>
-            )}
+            ) : null}
           </div>
+
+          {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
         </summary>
 
-        <div className="border-t border-gray-600 bg-white p-2 text-black">
-
-          {thread.media === undefined ? null : (
-            <div className="mt-2 w-full max-w-xs rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1">
-              <SheetImage
-                src={thread.media.src}
-                alt={thread.media.alt}
-                width={thread.media.width}
-                height={thread.media.height}
-                sizes="(max-width: 768px) 100vw, 320px"
-              />
-            </div>
-          )}
-
-          <div className="mt-3 border-t border-gray-400 pt-2">
-            <p className="text-[10px] font-bold">
-              REPLIES: {thread.comments.length} :: ORIGIN: {thread.origin.toUpperCase()}
-            </p>
-
-            {thread.comments.length === 0 ? (
-              <p className="mt-2 text-[10px]">NO REPLIES YET. BE THE FIRST ANONYMOUS POSTER.</p>
-            ) : (
-              <ul className="mt-2 space-y-2">
-                {thread.comments.map((comment, index) => (
-                  <li key={comment.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                      <span>
-                        #{index + 1} {authorTag(comment.author)}
-                      </span>
-                      <span>{formatStamp(comment.createdAt)}</span>
-                    </div>
-                    <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
-
-                    {comment.media === undefined ? null : (
-                      <div className="mt-1">
-                        <MediaThumbnail media={comment.media} />
-                      </div>
-                    )}
-
-                    <TagRow tags={comment.tags} className="mt-1" />
-                  </li>
-                ))}
-              </ul>
+        {/*
+          Expanded: the picture and the small tags down the left, the body of the
+          text and the replies to their right - the text gets the width.
+        */}
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <div className="sm:w-44 sm:shrink-0">
+            {layout.left.image === undefined ? null : (
+              <div className="rounded-none border border-black bg-white" title={layout.left.imageSource}>
+                <SheetImage
+                  src={layout.left.image.src}
+                  alt={layout.left.image.alt}
+                  width={layout.left.image.width}
+                  height={layout.left.image.height}
+                  sizes="(max-width: 768px) 45vw, 176px"
+                />
+              </div>
             )}
 
-            <CommentComposer
-              id={`reply-${thread.id}`}
-              value={reply}
-              onChange={setReply}
-              onSubmit={handleReply}
-              submitLabel="[ FILE REPLY ]"
-              placeholder="Reply to this thread..."
-              author={forum.author}
-              tags={replyTags}
-              onTagsChange={setReplyTags}
-              mediaId={replyMediaId}
-              onMediaIdChange={setReplyMediaId}
-              busy={replyBusy}
-              error={replyError}
-              status={replyStatus}
-              rows={2}
-            />
+            <TagRow tags={layout.left.tags} className="mt-2" compact emptyLabel="NO TAGS" limit={6} />
+
+            {images.count > 1 ? (
+              <p className="mt-1 text-[9px] font-bold text-gray-700">
+                +{images.count - 1} MORE IMAGE(S) IN THE REPLIES
+              </p>
+            ) : null}
+
+            <div className="mt-1 text-[9px] font-bold text-gray-700">
+              <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" />
+              <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
+            </div>
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {layout.right.isAnchorPost ? (
+              <AnchorLink anchor={thread.anchor} />
+            ) : (
+              <p className="whitespace-pre-line text-xs leading-snug text-black">{layout.right.body}</p>
+            )}
+
+            <div className="mt-2 border-t border-gray-300 pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
+                <span>{layout.repliesLabel} ON THIS POST</span>
+                <span>BOARD ID: {thread.id}</span>
+              </div>
+
+              <CommentThreadList
+                thread={thread}
+                avatarSize={48}
+                emptyLabel="NO REPLIES YET. BE THE FIRST ANONYMOUS POSTER."
+              />
+
+              <CommentComposer
+                id={`reply-${thread.id}`}
+                value={reply}
+                onChange={setReply}
+                onSubmit={handleReply}
+                submitLabel="[ FILE REPLY ]"
+                placeholder="Reply to this thread..."
+                author={forum.author}
+                tags={replyTags}
+                onTagsChange={setReplyTags}
+                mediaId={replyMediaId}
+                onMediaIdChange={setReplyMediaId}
+                busy={replyBusy}
+                error={replyError}
+                status={replyStatus}
+                rows={2}
+              />
+            </div>
           </div>
         </div>
       </details>

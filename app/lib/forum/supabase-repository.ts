@@ -70,6 +70,10 @@ import type {
  *   create policy "forum_comments update own" on public.forum_comments for update using (author_id = auth.uid());
  *   create policy "forum_comments delete own" on public.forum_comments for delete using (author_id = auth.uid());
  *
+ *   -- reply threads (additive, so rows written before this still load)
+ *   alter table public.forum_comments
+ *     add column parent_id uuid references public.forum_comments (id) on delete cascade;
+ *
  *   -- realtime
  *   alter publication supabase_realtime add table public.forum_threads, public.forum_comments;
  */
@@ -89,6 +93,8 @@ type CommentRow = {
   media_alt?: string | null;
   media_width?: number | null;
   media_height?: number | null;
+  /** The comment this replies to, null for a reply to the post itself. */
+  parent_id?: string | null;
   created_at: string;
 };
 
@@ -122,6 +128,7 @@ function toComment(row: CommentRow, threadId: string): ForumComment {
     author: toAuthor(row.author_id, row.author_label),
     createdAt: row.created_at,
     tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
+    ...(row.parent_id === null || row.parent_id === undefined ? {} : { parentId: row.parent_id }),
     ...(row.media_src === null || row.media_src === undefined
       ? {}
       : {
@@ -191,6 +198,7 @@ function commentPayload(input: CreateCommentInput, threadId: string): CommentIns
     author_id: input.author.id,
     author_label: input.author.displayName,
     tags: mergeTags(input.userTags ?? [], deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 })),
+    parent_id: input.parentId ?? null,
     media_src: input.media?.src ?? null,
     media_alt: input.media?.alt ?? null,
     media_width: input.media?.width ?? null,

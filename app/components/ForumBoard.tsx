@@ -6,18 +6,12 @@ import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import { paginate } from '../lib/forum/paging';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
-import type { ForumTag, ForumThread } from '../lib/forum/types';
+import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
 import NewPostForm from './NewPostForm';
+import ProfileLink from './ProfileLink';
 import { useForum } from './ForumProvider';
-import { tagChipClasses, tagChipStyle, TagRow } from './TagBadge';
-
-const TAG_LEGEND: ForumTag[] = [
-  { id: 'legend-user', kind: 'user', label: 'YOUR TAG' },
-  { id: 'legend-category', kind: 'category', label: 'AUTO TOPIC' },
-  { id: 'legend-content', kind: 'content', label: 'AUTO CONTENT' },
-  { id: 'legend-source', kind: 'source', label: 'AUTO SOURCE' },
-];
+import { tagChipClasses, tagChipStyle } from './TagBadge';
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'all', label: 'ALL SOURCES' },
@@ -181,16 +175,28 @@ export default function ForumBoard() {
         </div>
 
         <div className="space-y-2 p-3 text-[10px] font-bold text-black">
-          <p>
-            THREADS: {forum.threads.length} :: REPLIES: {totalReplies} :: FILED IN THIS BROWSER: {localThreads}
+          {/* One compact status line instead of a paragraph of housekeeping. */}
+          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span>
+              POSTS: {forum.threads.length} :: REPLIES: {totalReplies} :: FILED HERE: {localThreads}
+            </span>
+            <span>
+              POSTING AS:{' '}
+              <ProfileLink author={forum.author} className="font-bold">
+                {authorTag(forum.author)}
+              </ProfileLink>
+            </span>
+            <span
+              className="text-gray-700"
+              title={
+                forum.source === 'mock'
+                  ? 'Local storage - swap to Supabase in app/lib/forum/repository.ts'
+                  : 'Supabase: forum_threads / forum_comments'
+              }
+            >
+              SOURCE: {forum.source === 'mock' ? 'LOCAL' : 'SUPABASE'}
+            </span>
           </p>
-          <p>
-            DATA SOURCE:{' '}
-            {forum.source === 'mock'
-              ? 'MOCK CLIENT (LOCAL STORAGE) - SWAP TO SUPABASE IN app/lib/forum/repository.ts'
-              : 'SUPABASE (forum_threads / forum_comments)'}
-          </p>
-          <p>POSTING AS: {authorTag(forum.author)}</p>
 
           {/* Tag inclusion: toggle tags in, choose ANY/ALL, and the
               "MOST SELECTED TAGS" sort ranks posts by how many they include. */}
@@ -284,15 +290,14 @@ export default function ForumBoard() {
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span>TAG KINDS:</span>
-            <TagRow tags={TAG_LEGEND} />
-            <span>(COLOURED = CHOSEN BY A POSTER :: GREY = GENERATED FROM THE TEXT :: CLICK A BADGE TO FILTER)</span>
-          </div>
+          {/* Sort / filter / search / paging are collapsed by default: the posts
+              themselves are the practical information on this page. */}
+          <details className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
+            <summary className="cursor-pointer select-none text-[10px] font-bold text-black">
+              [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
+            </summary>
 
-          {/* Controls live inside the panel, so the threads sit right under it */}
-          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-3">
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="mt-2 grid gap-3 sm:grid-cols-3">
               <fieldset className="rounded-none border border-gray-600 p-2">
                 <legend className="px-1 text-[10px] font-bold text-black">SORT THREADS</legend>
                 <label className="flex items-center gap-2 text-[10px] font-bold text-black">
@@ -395,7 +400,7 @@ export default function ForumBoard() {
                 {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
               </span>
             </div>
-          </div>
+          </details>
 
           <div className="flex flex-wrap items-center gap-2">
             <button
@@ -422,19 +427,21 @@ export default function ForumBoard() {
         </div>
       </section>
 
-      <div id="forum-thread-list" className="space-y-3">
+      <div
+        id="forum-thread-list"
+        className="divide-y divide-gray-300 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white text-black"
+      >
         {visibleThreads.length === 0 ? (
-          <p className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-3 text-xs font-bold text-black">
+          <p className="p-3 text-xs font-bold text-black">
             {forum.threads.length === 0
               ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
               : 'NO THREADS MATCH THIS FILTER.'}
           </p>
         ) : (
-          pageThreads.map((thread, index) => (
+          pageThreads.map((thread) => (
             <ForumThreadCard
               key={thread.id}
               thread={thread}
-              position={pageStart + index + 1}
               isOpen={openThreadIds.includes(thread.id)}
               onToggle={handleToggle}
             />

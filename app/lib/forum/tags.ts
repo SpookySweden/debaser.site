@@ -3,9 +3,15 @@ import { readTagColours } from './tag-colours';
 import type { ForumAnchor, ForumTag, TagKind } from './types';
 
 /**
- * Rule based auto-tagging. Every post (and reply) gets its badges from here -
- * tags are never hand written in the UI, so new posts are categorised the
- * moment they are filed.
+ * Rule based auto-tagging, themes only.
+ *
+ * A post's badges come from two places: the tags the poster picked in the
+ * chooser, and the themes detected here from the text. The old housekeeping
+ * badges - where a post was filed (`BOARD`, `ASSET_SRC`, `TEXT_BOX`) and how it
+ * was written (`TEXT_ONLY`, `SHORT`, `LONG_READ`, `LINK`, `MEDIA`) - are
+ * deprecated: the board already states the filing target in its own line and the
+ * length of a post is obvious from looking at it. Rows written by older builds
+ * still carry them, so `displayTags` strips them on the way to the screen.
  *
  * Keeping this pure and framework free also means the same rules can move to a
  * Postgres trigger / edge function when Supabase takes over.
@@ -29,21 +35,19 @@ const CATEGORY_RULES: TagRule[] = [
   { id: 'cat-question', label: 'QUESTION', pattern: /\?/ },
 ];
 
+/** Worth warning about, so these stay. */
 const CONTENT_RULES: TagRule[] = [
   { id: 'content-spoiler', label: 'SPOILER', pattern: /spoiler/i },
 ];
 
-const LINK_PATTERN = /https?:\/\//i;
-const MEDIA_PATTERN = /\.(png|jpe?g|gif|webp|avif)\b|image|artwork|screenshot/i;
-
-const LONG_READ_LENGTH = 480;
-const SHORT_POST_LENGTH = 96;
-
-const SOURCE_LABELS: Record<ForumAnchor['kind'], string> = {
-  board: 'BOARD',
-  asset: 'ASSET_SRC',
-  'text-box': 'TEXT_BOX',
-};
+/** Badge ids retired from the board; hidden on rows written by older builds. */
+const DEPRECATED_TAG_IDS = new Set([
+  'content-link',
+  'content-media',
+  'content-text-only',
+  'content-long-read',
+  'content-short',
+]);
 
 const DEFAULT_MAX_TAGS = 6;
 
@@ -55,47 +59,37 @@ function collect(rule: TagRule, kind: TagKind, haystack: string): ForumTag | nul
   return rule.pattern.test(haystack) ? toTag(rule.id, kind, rule.label) : null;
 }
 
+/** True for the retired housekeeping badges. */
+export function isDeprecatedTag(tag: ForumTag): boolean {
+  return tag.kind === 'source' || DEPRECATED_TAG_IDS.has(tag.id);
+}
+
+/** Tags as the board should show them: themes and spoilers, nothing else. */
+export function displayTags(tags: ForumTag[]): ForumTag[] {
+  return tags.filter((tag) => !isDeprecatedTag(tag));
+}
+
 export type DeriveTagsInput = {
   /** Title + body (or a single comment body) to scan. */
   text: string;
-  /** Anchor the post is attached to, used for the source badge. */
+  /** Kept for call-site compatibility; the filing target is no longer a badge. */
   anchor?: ForumAnchor;
   maxTags?: number;
 };
 
-/**
- * Derives the full badge set for a post: one source badge, up to three
- * category badges, then content descriptors, capped by `maxTags`.
- */
-export function deriveTags({ text, anchor, maxTags = DEFAULT_MAX_TAGS }: DeriveTagsInput): ForumTag[] {
+/** Derives the theme badges for a post: up to three categories, then content warnings. */
+export function deriveTags({ text, maxTags = DEFAULT_MAX_TAGS }: DeriveTagsInput): ForumTag[] {
   const haystack = text.trim();
-
-  const sourceTags: ForumTag[] = anchor
-    ? [toTag(`src-${anchor.kind}`, 'source', SOURCE_LABELS[anchor.kind])]
-    : [];
 
   const categoryTags = CATEGORY_RULES.map((rule) => collect(rule, 'category', haystack))
     .filter((tag): tag is ForumTag => tag !== null)
     .slice(0, 3);
 
-  const contentTags: ForumTag[] = [];
-  const hasLink = LINK_PATTERN.test(haystack);
-  const hasMedia = MEDIA_PATTERN.test(haystack);
-
-  if (hasLink) contentTags.push(toTag('content-link', 'content', 'LINK'));
-  if (hasMedia) contentTags.push(toTag('content-media', 'content', 'MEDIA'));
-  if (!hasLink && !hasMedia) contentTags.push(toTag('content-text-only', 'content', 'TEXT_ONLY'));
-  if (haystack.length >= LONG_READ_LENGTH) contentTags.push(toTag('content-long-read', 'content', 'LONG_READ'));
-  if (haystack.length > 0 && haystack.length < SHORT_POST_LENGTH) {
-    contentTags.push(toTag('content-short', 'content', 'SHORT'));
-  }
-  contentTags.push(
-    ...CONTENT_RULES.map((rule) => collect(rule, 'content', haystack)).filter(
-      (tag): tag is ForumTag => tag !== null,
-    ),
+  const contentTags = CONTENT_RULES.map((rule) => collect(rule, 'content', haystack)).filter(
+    (tag): tag is ForumTag => tag !== null,
   );
 
-  const ordered = [...sourceTags, ...categoryTags, ...contentTags];
+  const ordered = [...categoryTags, ...contentTags];
   const seen = new Set<string>();
   const unique: ForumTag[] = [];
 
@@ -108,7 +102,7 @@ export function deriveTags({ text, anchor, maxTags = DEFAULT_MAX_TAGS }: DeriveT
   return unique.slice(0, maxTags);
 }
 
-export const AUTO_TAG_NOTE = 'Tags are generated automatically from the post text and the asset it is attached to.';
+export const AUTO_TAG_NOTE = 'Theme tags are read from the post text; pick your own to add colour.';
 
 /**
  * Combines the tags a poster picked with the automatic ones.

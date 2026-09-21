@@ -2,16 +2,15 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { authorTag } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
-import { deriveTags } from '../lib/forum/tags';
+import { deriveTags, displayTags } from '../lib/forum/tags';
 import type { ForumAnchor } from '../lib/forum/types';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
+import CommentThreadList from './CommentThreadList';
 import { useForum } from './ForumProvider';
-import MediaThumbnail from './MediaThumbnail';
 import PopoutWindow from './PopoutWindow';
 import { TagRow } from './TagBadge';
 
@@ -117,40 +116,22 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
           ) : (
             <>
               <p className="mt-2 text-xs font-bold">{thread.title}</p>
+              {/*
+                The poster's name and picture already sit on their own reply in
+                the list below, so this line only carries what the list does not.
+              */}
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                <span>
-                  BY {authorTag(thread.author)} :: {formatStamp(thread.createdAt)}
-                </span>
+                <span>FILED {formatStamp(thread.createdAt)}</span>
                 <span>ORIGIN: {thread.origin.toUpperCase()}</span>
               </div>
 
-              <TagRow tags={thread.tags} className="mt-1" />
+              <TagRow tags={displayTags(thread.tags)} className="mt-1" compact />
 
-              {thread.comments.length === 0 ? (
-                <p className="mt-2 text-[10px] font-bold">THREAD IS EMPTY.</p>
-              ) : (
-                <ul className="mt-2 space-y-2">
-                  {thread.comments.map((comment, index) => (
-                    <li key={comment.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                        <span>
-                          #{index + 1} {authorTag(comment.author)}
-                        </span>
-                        <span>{formatStamp(comment.createdAt)}</span>
-                      </div>
-                      <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
-
-                      {comment.media === undefined ? null : (
-                        <div className="mt-1">
-                          <MediaThumbnail media={comment.media} />
-                        </div>
-                      )}
-
-                      <TagRow tags={comment.tags} className="mt-1" />
-                    </li>
-                  ))}
-                </ul>
-              )}
+              <CommentThreadList
+                thread={thread}
+                avatarSize={44}
+                emptyLabel="NO COMMENTS YET. BE THE FIRST TO COMMENT ON THIS ITEM."
+              />
             </>
           )}
 
