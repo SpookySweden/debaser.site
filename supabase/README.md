@@ -75,31 +75,53 @@ only `NEXT_PUBLIC_*` values, which reach the browser in the bundle anyway, and R
 
 5. Let visitors make accounts
 -----------------------------
-Sign-ups are open (`disable_signup: false`) and email sign-in is on, so the only
-question is whether a stranger can *finish* signing up - and with the defaults they
-cannot. "Confirm email" is ON out of the box, which means a new account cannot sign
-in until it opens the link in the confirmation mail, and Supabase's built-in mail
-service only delivers to members of your own organisation and is limited to a couple
-of messages an hour. A visitor signs up, is told to check their inbox, and waits for
-a mail that never arrives.
+Sign-ups are open (`disable_signup: false`) and email sign-in is on. The question is
+whether a stranger can *finish* signing up, and out of the box they cannot: "Confirm
+email" is ON, which means an account cannot sign in until it opens the link in the
+confirmation mail, while Supabase's built-in mail service only delivers to members of
+your own organisation and allows a couple of messages an hour. The visitor signs up,
+is told to check their inbox, and waits for a mail that never comes - or, once a
+custom SMTP is configured but rejected by the provider, the sign-up fails outright.
 
-Either of these fixes it, in Authentication -> Sign In / Providers -> Email:
+**The mail service (Resend).** Authentication -> Emails -> SMTP Settings:
 
-  - turn "Confirm email" off: the account works the moment it is made, which is
-    what a small archive wants, and the site's "check your email" notice simply
-    never appears;
-  - or keep confirmation and add your own SMTP under Authentication -> Emails ->
-    SMTP Settings (Resend, Postmark, SendGrid and so on).
+  host      smtp.resend.com
+  port      465
+  username  resend
+  password  the Resend API key (re_...) - not the SMTP password of any other account
+  sender    an address at a domain verified in Resend, e.g. archive@yourdomain
 
-An address on the site's own domain cannot sign itself up: Supabase refuses any
-address whose domain has no mail records, and `someone@debaser.site` has none. That
-address exists only because it was made by hand in the dashboard - the same reason
-the house account is a dashboard step (step 2).
+Two things bite here, both worth checking before anything else:
 
-Two probes show the state of all of this rather than leaving it to be guessed at:
+  - **Resend will not send from an unverified domain.** Add the domain under Resend ->
+    Domains and copy its SPF/DKIM records into that domain's DNS. Until that is done,
+    sends are rejected, and Supabase answers a sign-up with HTTP 500
+    `Error sending confirmation email`. The site now says that in plain words, and
+    says nothing was created - which is true: Supabase rolls the account back.
+  - **Resend's shared sender (`onboarding@resend.dev`) only delivers to the address
+    the Resend account was created with.** Every other recipient is refused, so
+    sign-ups work only for you and fail for everybody else. That is why a verified
+    domain is not optional once real visitors arrive.
 
-  node Temp/auth-live-probe.cjs      # sign-ups open? confirmation needed? does sign-in work?
+The error itself is easiest to read on the Supabase side: Dashboard -> Logs -> Auth
+shows the SMTP failure with the provider's own words.
+
+If you would rather not run SMTP at all, the other way is to turn "Confirm email" off
+(Authentication -> Sign In / Providers -> Email): the account then works the moment it
+is made, and no mail is involved. Fine for a small archive; a newsletter or a password
+reset later would want the mail service anyway.
+
+An address on the site's own domain can never sign itself up: Supabase refuses any
+address whose domain has no mail records, and `debaser.site` has none (it does not
+resolve at all). That address exists only because it was made by hand in the dashboard
+- the same reason the house account is a dashboard step (step 2).
+
+Four probes show the state of all of this rather than leaving it to be guessed at:
+
+  node Temp/check-resend.cjs         # is the Resend key good, and is a domain verified?
   node Temp/signup-mail-probe.cjs    # a real signup through a throwaway mailbox, and whether its mail arrives
+  node Temp/auth-live-probe.cjs      # sign-ups open? confirmation needed? does sign-in work?
+  node Temp/live-ban-probe.cjs       # ban an account, and check every side of the rule
 
 What lives where
 ----------------

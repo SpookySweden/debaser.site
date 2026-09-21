@@ -1,5 +1,6 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { resolveSignInAddress } from './builtin-account';
+import { describeSignUpFailure } from './failure-messages';
 import type {
   AccountUser,
   AuthRepository,
@@ -95,7 +96,7 @@ class SupabaseAuthRepository implements AuthRepository {
       options: { data: { display_name: input.displayName.trim() } },
     });
 
-    if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+    if (error !== null) return { ok: false, error: describeSignUpFailure(error.message) };
 
     // With email confirmation on, signUp returns no session until the link is used.
     if (data.session === null) {
