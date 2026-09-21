@@ -31,11 +31,26 @@ export type CommsMessage = {
   createdAt: string;
 };
 
+/** A conversation of two (`dm:`) or of any number of accounts (`grp:`). */
+export type CommsThreadKind = 'dm' | 'group';
+
+/** Longest group name the composer accepts. */
+export const MAX_GROUP_NAME_LENGTH = 40;
+
+/** Most accounts one group may hold, the creator included. */
+export const MAX_GROUP_MEMBERS = 12;
+
 export type CommsThread = {
-  /** `dm:<low id>|<high id>`, so both sides agree on it without a lookup. */
+  /** `dm:<low id>|<high id>` or `grp:<id>`, so both sides agree without a lookup. */
   id: string;
-  /** The two accounts, lowest id first. */
+  /**
+   * Who is in it: the two accounts of a dm (lowest id first), or every member of a
+   * group. Sorted, so a name joined from it reads the same everywhere.
+   */
   participants: string[];
+  kind: CommsThreadKind;
+  /** A group's name. Empty for a dm, which is named after the other account. */
+  name: string;
   createdAt: string;
   /** Newest activity: what the conversation list sorts by. */
   updatedAt: string;
@@ -45,14 +60,28 @@ export type CommsThread = {
   readAt: Record<string, string>;
 };
 
+/**
+ * What to send, and where to.
+ *
+ * A message is addressed either to an account (`recipientId`, which derives the
+ * `dm:` id, so a message can never land in a thread its sender is not part of) or to
+ * a conversation that already exists (`threadId`, which is how a group is written
+ * to). Exactly one of the two, which is what the union says.
+ */
 export type SendMessageInput = {
-  /** The two sides of the conversation: the thread id is derived from them, so
-   * a message can never end up in a thread its sender is not part of. */
   authorId: string;
-  recipientId: string;
   /** The sender's name at the time of writing, for names this store cannot resolve. */
   authorName: string;
   body: string;
+} & ({ recipientId: string; threadId?: undefined } | { threadId: string; recipientId?: undefined });
+
+export type CreateGroupInput = {
+  creatorId: string;
+  /** Kept as the byline on the group's first message if one is sent. */
+  creatorName: string;
+  name: string;
+  /** Everybody else who should be in it. The creator is added either way. */
+  memberIds: string[];
 };
 
 /**
@@ -103,6 +132,17 @@ export type CommsRepository = {
   listThreads(userId: string): Promise<CommsThread[]>;
   /** Idempotent: finds the conversation with that account, or opens an empty one. */
   openThread(userId: string, otherId: string): Promise<CommsThread>;
+  /**
+   * Opens a group: any number of accounts, a name, and a membership row each.
+   *
+   * A group has no derived id (there is no pair to derive it from), so the store
+   * mints one, `grp:<id>`. The creator is a member from the start; everybody else
+   * named is added in the same call, so the group is complete before the screen
+   * switches to it.
+   */
+  createGroup(input: CreateGroupInput): Promise<CommsThread>;
+  /** Adds an account to a group. Anybody in it may, which is the RLS rule. */
+  addMember(threadId: string, userId: string): Promise<CommsThread>;
   sendMessage(input: SendMessageInput): Promise<CommsThread>;
   /** Moves that account's read marker to the newest message. */
   markRead(userId: string, threadId: string): Promise<CommsThread>;

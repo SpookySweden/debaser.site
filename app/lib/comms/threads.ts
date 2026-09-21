@@ -13,8 +13,39 @@ export function threadIdFor(a: string, b: string): string {
   return `dm:${low}|${high}`;
 }
 
+/**
+ * A group's id.
+ *
+ * A dm's id can be derived from its pair, which is what makes opening one a lookup;
+ * a group has no pair to derive anything from, so its id is minted once, when it is
+ * created, and stored on the row. The `grp:` prefix is what tells the two apart
+ * without reading the row.
+ */
+export function groupThreadId(): string {
+  const uuid = globalThis.crypto?.randomUUID?.();
+
+  return `grp:${uuid ?? `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`}`;
+}
+
 export function isThreadId(value: string): boolean {
-  return value.startsWith('dm:') && value.includes('|');
+  return (value.startsWith('dm:') && value.includes('|')) || value.startsWith('grp:');
+}
+
+/**
+ * What a conversation is called in a list.
+ *
+ * A dm is named after the other account. A group is named after itself, with its
+ * head count, because how many people are in the room is worth knowing at a glance -
+ * the member list itself is one click away on the thread.
+ */
+export function threadLabel(thread: CommsThread, viewerId: string, nameFor: (userId: string) => string): string {
+  if (thread.kind === 'group') {
+    const name = thread.name.trim();
+
+    return `${name.length === 0 ? 'GROUP' : name.toUpperCase()} [ ${thread.participants.length} ]`;
+  }
+
+  return nameFor(otherParticipant(thread, viewerId));
 }
 
 /** The account on the other side of a conversation. */

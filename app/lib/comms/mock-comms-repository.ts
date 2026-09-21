@@ -1,6 +1,7 @@
 import { createLocalId } from '../forum/ids';
-import { lastMessage, sortThreadsNewestFirst, threadIdFor, validateMessage } from './threads';
-import type { CommsMessage, CommsRepository, CommsThread, SendMessageInput } from './types';
+import { groupThreadId, lastMessage, sortThreadsNewestFirst, threadIdFor, validateMessage } from './threads';
+import type { CommsMessage, CommsRepository, CommsThread, CreateGroupInput, SendMessageInput } from './types';
+import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from './types';
 
 /**
  * Comms storage used while Supabase is not wired up.
@@ -17,11 +18,15 @@ import type { CommsMessage, CommsRepository, CommsThread, SendMessageInput } fro
  *      its next read.
  *
  * `listThreads` filters to the signed-in account, which is the same rule the RLS
- * policies enforce on the real thing.
+ * policies enforce on the real thing. Group conversations are the same shape as
+ * direct ones here: `participants` holds the members either way, so one screen reads
+ * both (`kind` says which it is).
  */
 
-const STORAGE_KEY = 'debaser.comms.mock.v1';
-const STORAGE_VERSION = 1;
+// v2: threads carry `kind` and `name` now. The versioned key is what keeps a payload
+// written by the older build from being read as if it had them.
+const STORAGE_KEY = 'debaser.comms.mock.v2';
+const STORAGE_VERSION = 2;
 
 type PersistedState = {
   version: number;
@@ -57,7 +62,10 @@ function isThreadShaped(value: unknown): value is CommsThread {
   return (
     typeof row.id === 'string' &&
     Array.isArray(row.participants) &&
-    row.participants.length === 2 &&
+    // A dm is a pair; a group is as small as its creator and as large as its limit.
+    row.participants.length >= 1 &&
+    (row.kind === 'dm' || row.kind === 'group') &&
+    typeof row.name === 'string' &&
     typeof row.createdAt === 'string' &&
     typeof row.updatedAt === 'string' &&
     Array.isArray(row.messages)
@@ -141,6 +149,8 @@ class MockCommsRepository implements CommsRepository {
     const thread: CommsThread = {
       id,
       participants: [userId, otherId].sort(),
+      kind: 'dm',
+      name: '',
       createdAt,
       updatedAt: createdAt,
       messages: [],
@@ -152,11 +162,68 @@ class MockCommsRepository implements CommsRepository {
     return thread;
   }
 
+  /**
+   * Opens a group: a name, any number of accounts, and nobody waiting on an invite.
+   *
+   * The mock has no membership table to keep in step - a thread's `participants` are
+   * its members, for both kinds - so a group is simply a thread of `kind: 'group'`
+   * with its own minted id, and adding somebody later is one array append.
+   */
+  async createGroup(input: CreateGroupInput): Promise<CommsThread> {
+    const name = input.name.trim();
+    if (name.length === 0) throw new Error('A GROUP NEEDS A NAME.');
+    if (name.length > MAX_GROUP_NAME_LENGTH) {
+      throw new Error(`GROUP NAMES ARE ${MAX_GROUP_NAME_LENGTH} CHARACTERS OR FEWER.`);
+    }
+
+    const members = [...new Set([input.creatorId, ...input.memberIds])].sort();
+    if (members.length > MAX_GROUP_MEMBERS) {
+      throw new Error(`A GROUP HOLDS ${MAX_GROUP_MEMBERS} ACCOUNTS OR FEWER.`);
+    }
+
+    const createdAt = new Date().toISOString();
+    const thread: CommsThread = {
+      id: groupThreadId(),
+      participants: members,
+      kind: 'group',
+      name,
+      createdAt,
+      updatedAt: createdAt,
+      messages: [],
+      readAt: Object.fromEntries(members.map((id) => [id, createdAt])),
+    };
+
+    commit([...ensureState(), thread]);
+    return thread;
+  }
+
+  async addMember(threadId: string, userId: string): Promise<CommsThread> {
+    const threads = ensureState();
+    const thread = threads.find((item) => item.id === threadId);
+    if (thread === undefined) throw new Error('THAT CONVERSATION IS NOT HERE YET.');
+    if (thread.kind !== 'group') throw new Error('ONLY A GROUP TAKES NEW MEMBERS.');
+    if (thread.participants.includes(userId)) return thread;
+    if (thread.participants.length >= MAX_GROUP_MEMBERS) {
+      throw new Error(`A GROUP HOLDS ${MAX_GROUP_MEMBERS} ACCOUNTS OR FEWER.`);
+    }
+
+    const next: CommsThread = { ...thread, participants: [...thread.participants, userId].sort() };
+    commit(threads.map((item) => (item.id === threadId ? next : item)));
+
+    return next;
+  }
+
   async sendMessage(input: SendMessageInput): Promise<CommsThread> {
     const problem = validateMessage(input.body);
     if (problem !== undefined) throw new Error(problem);
 
-    const thread = await this.openThread(input.authorId, input.recipientId);
+    const thread =
+      input.threadId === undefined
+        ? await this.openThread(input.authorId, input.recipientId)
+        : ensureState().find((item) => item.id === input.threadId);
+
+    if (thread === undefined) throw new Error('THAT CONVERSATION IS NOT HERE YET.');
+
     const createdAt = new Date().toISOString();
     const message: CommsMessage = {
       id: createLocalId('message'),

@@ -1,9 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { resolveAuthor, validateMessage } from '../lib/comms/threads';
+import { insertAtCaret } from '../lib/comms/ascii-emoticons';
+import { otherParticipant, resolveAuthor, threadLabel, validateMessage } from '../lib/comms/threads';
 import { MAX_MESSAGE_LENGTH } from '../lib/comms/types';
 import type { CommsThread } from '../lib/comms/types';
+import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
@@ -11,8 +13,11 @@ type CommsThreadPanelProps = {
   thread: CommsThread;
   /** The signed-in account: its messages are marked as yours. */
   userId: string;
-  /** The account on the other side. */
-  otherId: string;
+  /**
+   * The account on the other side of a direct conversation. A group has no single
+   * other side, so a group panel is given none and names its members instead.
+   */
+  otherId?: string;
   nameById: Map<string, string>;
   onSend: (body: string) => Promise<void>;
   /** Show only the tail of a long conversation (the pop-up window does). */
@@ -47,7 +52,12 @@ export default function CommsThreadPanel({
   const listRef = useRef<HTMLUListElement | null>(null);
 
   const shown = limit === undefined ? thread.messages : thread.messages.slice(-limit);
-  const peer = { id: otherId, displayName: nameById.get(otherId) ?? otherId };
+  const isGroup = thread.kind === 'group';
+  // A direct conversation has one other side; a group has a name and a member list.
+  const peerId = otherId ?? (isGroup ? '' : otherParticipant(thread, userId));
+  const peer = { id: peerId, displayName: nameById.get(peerId) ?? peerId };
+  const heading = threadLabel(thread, userId, (id) => nameById.get(id) ?? id);
+  const others = thread.participants.filter((id) => id !== userId).map((id) => nameById.get(id) ?? id);
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
@@ -80,11 +90,46 @@ export default function CommsThreadPanel({
     }
   }
 
+  /**
+   * Drop an emoticon in at the caret.
+   *
+   * The textarea is the only place that knows where the caret is, so this reads it
+   * there, writes the whole value back through state, and then puts the caret after
+   * what arrived - which is what makes picking two faces in a row feel like typing.
+   */
+  function insertEmoticon(text: string) {
+    const box = boxRef.current;
+
+    if (box === null) {
+      setBody((current) => `${current}${text}`);
+      return;
+    }
+
+    const start = box.selectionStart ?? box.value.length;
+    const end = box.selectionEnd ?? start;
+    const next = insertAtCaret(box.value, start, end, text);
+
+    setBody(next.value);
+    requestAnimationFrame(() => {
+      box.focus();
+      box.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
-        <span className="inline-flex items-center gap-1">
-          TO: <ProfileName author={peer} />
+        <span className="inline-flex flex-wrap items-center gap-1">
+          {isGroup ? (
+            <>
+              IN: {heading}
+              {others.length === 0 ? null : <span className="text-gray-700"> :: {others.join(', ')}</span>}
+            </>
+          ) : (
+            <>
+              TO: <ProfileName author={peer} />
+            </>
+          )}
         </span>
         <span className="text-gray-700">
           {thread.messages.length} MESSAGE{thread.messages.length === 1 ? '' : 'S'}
@@ -116,7 +161,15 @@ export default function CommsThreadPanel({
       <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
           <label htmlFor={`${idPrefix}-body`}>
-            MESSAGE TO <ProfileName author={peer} lamp={false} />:
+            {isGroup ? (
+              <>
+                MESSAGE TO THE GROUP ({others.length} OTHER{others.length === 1 ? '' : 'S'}):
+              </>
+            ) : (
+              <>
+                MESSAGE TO <ProfileName author={peer} lamp={false} />:
+              </>
+            )}
           </label>
           <span>
             {body.trim().length} / {MAX_MESSAGE_LENGTH}
@@ -149,6 +202,9 @@ export default function CommsThreadPanel({
           >
             {busy ? '[ SENDING... ]' : '[ SEND ]'}
           </button>
+
+          <AsciiEmoticonPicker onPick={insertEmoticon} disabled={busy} />
+
           <p className="text-[10px] text-gray-700">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
           {error === null ? null : <p className="text-[10px] font-bold text-[#800000]">{error}</p>}
         </div>

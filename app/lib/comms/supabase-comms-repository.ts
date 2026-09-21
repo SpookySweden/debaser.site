@@ -1,7 +1,8 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
-import { threadIdFor } from './threads';
-import type { CommsMessage, CommsRepository, CommsThread, SendMessageInput } from './types';
+import { groupThreadId, threadIdFor } from './threads';
+import type { CommsMessage, CommsRepository, CommsThread, CreateGroupInput, SendMessageInput } from './types';
+import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from './types';
 
 /**
  * Conversations in Supabase - the production implementation of `CommsRepository`.
@@ -25,9 +26,10 @@ import type { CommsMessage, CommsRepository, CommsThread, SendMessageInput } fro
 const THREADS_TABLE = 'comms_threads';
 const MESSAGES_TABLE = 'comms_messages';
 const READS_TABLE = 'comms_reads';
+const MEMBERS_TABLE = 'comms_members';
 
-/** One read per conversation: the thread, its messages and its read markers. */
-const THREAD_SELECT = `*, ${MESSAGES_TABLE}(*), ${READS_TABLE}(*)`;
+/** One read per conversation: the thread, its members, its messages and its markers. */
+const THREAD_SELECT = `*, ${MEMBERS_TABLE}(user_id), ${MESSAGES_TABLE}(*), ${READS_TABLE}(*)`;
 
 type MessageRow = {
   id: string;
@@ -44,12 +46,19 @@ type ReadRow = {
   last_read_at: string;
 };
 
+type MemberRow = {
+  user_id: string;
+};
+
 type ThreadRow = {
   id: string;
-  participant_a: string;
-  participant_b: string;
+  participant_a: string | null;
+  participant_b: string | null;
+  kind: string | null;
+  name: string | null;
   created_at: string;
   updated_at: string;
+  comms_members?: MemberRow[] | null;
   comms_messages?: MessageRow[] | null;
   comms_reads?: ReadRow[] | null;
 };
@@ -66,9 +75,16 @@ function toMessage(row: MessageRow): CommsMessage {
 }
 
 function toThread(row: ThreadRow): CommsThread {
+  // A group is whoever is in `comms_members`; a dm is its pair, and old direct
+  // conversations - filed before the membership table existed - are simply that.
+  const members = (row.comms_members ?? []).map((member) => member.user_id).sort();
+  const pair = [row.participant_a, row.participant_b].filter((id): id is string => id !== null);
+
   return {
     id: row.id,
-    participants: [row.participant_a, row.participant_b],
+    participants: members.length > 0 ? members : pair,
+    kind: row.kind === 'group' ? 'group' : 'dm',
+    name: row.name ?? '',
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     // Oldest first, the way they are read.
@@ -103,12 +119,15 @@ class SupabaseCommsRepository implements CommsRepository {
   }
 
   async listThreads(userId: string): Promise<CommsThread[]> {
-    // RLS already keeps this to the signed-in account's conversations; the filter
-    // is here so the query states the rule rather than leaning on it.
+    // No filter on the pair any more: a conversation comes back when you are in it,
+    // by membership (a group) or by being one of its pair (a dm), and that rule is
+    // the RLS policy's rather than this query's. `userId` still decides whose read
+    // markers matter, which is why it is read below.
+    void userId;
+
     const { data, error } = await this.client()
       .from(THREADS_TABLE)
       .select(THREAD_SELECT)
-      .or(`participant_a.eq.${userId},participant_b.eq.${userId}`)
       .order('updated_at', { ascending: false });
 
     if (error !== null) this.fail(error.message);
@@ -147,7 +166,7 @@ class SupabaseCommsRepository implements CommsRepository {
     const { error } = await this.client()
       .from(THREADS_TABLE)
       .upsert(
-        { id, participant_a: participantA, participant_b: participantB },
+        { id, kind: 'dm', name: '', participant_a: participantA, participant_b: participantB },
         { onConflict: 'id', ignoreDuplicates: true },
       );
 
@@ -159,8 +178,72 @@ class SupabaseCommsRepository implements CommsRepository {
     return opened;
   }
 
+  /**
+   * Opens a group.
+   *
+   * The row first (with its minted `grp:` id and its name), then the members - the
+   * creator before anybody else, because the membership policy lets you add somebody
+   * to a conversation you are already in. A group stores no pair at all, so
+   * `participant_a` / `participant_b` stay null and membership is the whole answer.
+   */
+  async createGroup(input: CreateGroupInput): Promise<CommsThread> {
+    const name = input.name.trim();
+    if (name.length === 0) throw new Error('A GROUP NEEDS A NAME.');
+    if (name.length > MAX_GROUP_NAME_LENGTH) {
+      throw new Error(`GROUP NAMES ARE ${MAX_GROUP_NAME_LENGTH} CHARACTERS OR FEWER.`);
+    }
+
+    const members = [...new Set([input.creatorId, ...input.memberIds])].sort();
+    if (members.length > MAX_GROUP_MEMBERS) {
+      throw new Error(`A GROUP HOLDS ${MAX_GROUP_MEMBERS} ACCOUNTS OR FEWER.`);
+    }
+
+    const client = this.client();
+    const id = groupThreadId();
+
+    const { error } = await client
+      .from(THREADS_TABLE)
+      .insert({ id, kind: 'group', name, created_by: input.creatorId });
+
+    if (error !== null) this.fail(error.message);
+
+    for (const userId of [input.creatorId, ...members.filter((member) => member !== input.creatorId)]) {
+      const { error: memberError } = await client.from(MEMBERS_TABLE).insert({ thread_id: id, user_id: userId });
+
+      if (memberError !== null) this.fail(memberError.message);
+    }
+
+    const created = await this.getThread(id);
+    if (created === null) this.fail('THAT GROUP COULD NOT BE OPENED.');
+
+    return created;
+  }
+
+  async addMember(threadId: string, userId: string): Promise<CommsThread> {
+    const thread = await this.getThread(threadId);
+    if (thread === null) this.fail('THAT CONVERSATION IS NOT THERE.');
+    if (thread.kind !== 'group') throw new Error('ONLY A GROUP TAKES NEW MEMBERS.');
+    if (thread.participants.includes(userId)) return thread;
+    if (thread.participants.length >= MAX_GROUP_MEMBERS) {
+      throw new Error(`A GROUP HOLDS ${MAX_GROUP_MEMBERS} ACCOUNTS OR FEWER.`);
+    }
+
+    const { error } = await this.client().from(MEMBERS_TABLE).insert({ thread_id: threadId, user_id: userId });
+    if (error !== null) this.fail(error.message);
+
+    const updated = await this.getThread(threadId);
+    if (updated === null) this.fail('THAT CONVERSATION IS NOT THERE.');
+
+    return updated;
+  }
+
   async sendMessage(input: SendMessageInput): Promise<CommsThread> {
-    const thread = await this.openThread(input.authorId, input.recipientId);
+    const thread =
+      input.threadId === undefined
+        ? await this.openThread(input.authorId, input.recipientId)
+        : await this.getThread(input.threadId);
+
+    if (thread === null) this.fail('THAT CONVERSATION IS NOT THERE.');
 
     const { error } = await this.client()
       .from(MESSAGES_TABLE)
@@ -257,6 +340,7 @@ function openChannel(repository: SupabaseCommsRepository): void {
     .on('postgres_changes', { event: '*', schema: 'public', table: MESSAGES_TABLE }, refresh)
     .on('postgres_changes', { event: '*', schema: 'public', table: THREADS_TABLE }, refresh)
     .on('postgres_changes', { event: '*', schema: 'public', table: READS_TABLE }, refresh)
+    .on('postgres_changes', { event: '*', schema: 'public', table: MEMBERS_TABLE }, refresh)
     .subscribe();
 }
 

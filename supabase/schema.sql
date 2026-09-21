@@ -790,7 +790,151 @@ create policy "forum_comments readable" on public.forum_comments
   for select using ((author_id is null or not public.is_banned(author_id)) or public.is_admin());
 
 -- -----------------------------------------------------------------------------
--- 13. check it landed
+-- 13. group conversations
+-- -----------------------------------------------------------------------------
+-- Direct messages are a pair of accounts, and the thread id is derived from the pair
+-- so both sides agree on it without a lookup. A group is everything else: any number
+-- of accounts, a name, and whoever is in it decides who else is. Rather than a second
+-- set of tables, `comms_threads` grew a `kind` and a membership table, so one screen
+-- and one repository read both.
+--
+-- `participant_a` / `participant_b` stay, and stay the rule for a conversation of two
+-- (`dm:` threads keep their derived id and their unique pair); they are simply empty
+-- on a group, which is what `drop not null` is for. Every conversation that already
+-- exists is written into the membership table too, so membership answers for both
+-- kinds from here on - and the policies accept either, so nothing already stored
+-- stops working.
+
+alter table public.comms_threads add column if not exists kind text not null default 'dm';
+alter table public.comms_threads add column if not exists name text not null default '';
+alter table public.comms_threads add column if not exists created_by uuid references auth.users (id) on delete set null;
+alter table public.comms_threads alter column participant_a drop not null;
+alter table public.comms_threads alter column participant_b drop not null;
+
+alter table public.comms_threads drop constraint if exists comms_threads_kind_check;
+alter table public.comms_threads add constraint comms_threads_kind_check check (kind in ('dm', 'group'));
+
+create table if not exists public.comms_members (
+  thread_id text not null references public.comms_threads (id) on delete cascade,
+  user_id uuid not null references auth.users (id) on delete cascade,
+  joined_at timestamptz not null default now(),
+  primary key (thread_id, user_id)
+);
+
+create index if not exists comms_members_user_idx on public.comms_members (user_id);
+
+alter table public.comms_members enable row level security;
+
+-- Who is in a conversation. Definer and stable, so a policy on comms_members - or on
+-- the messages - can ask it without recursing through comms_members' own policy.
+create or replace function public.is_comms_member(thread text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.comms_members m
+    where m.thread_id = thread and m.user_id = auth.uid()
+  );
+$$;
+
+-- Every conversation that already existed becomes a membership row per side.
+insert into public.comms_members (thread_id, user_id)
+  select id, participant_a from public.comms_threads where participant_a is not null
+  on conflict do nothing;
+
+insert into public.comms_members (thread_id, user_id)
+  select id, participant_b from public.comms_threads where participant_b is not null
+  on conflict do nothing;
+
+-- Reading a conversation: you are in it (membership), or you are one of its pair - a
+-- dm: filed before the membership table existed, or by a client that predates it.
+drop policy if exists "comms threads readable by participants" on public.comms_threads;
+create policy "comms threads readable by participants" on public.comms_threads
+  for select using (
+    auth.uid() in (participant_a, participant_b) or public.is_comms_member(id)
+  );
+
+drop policy if exists "comms threads insert by participant" on public.comms_threads;
+create policy "comms threads insert by participant" on public.comms_threads
+  for insert with check (
+    not public.is_banned()
+    and (auth.uid() in (participant_a, participant_b) or created_by = auth.uid())
+  );
+
+drop policy if exists "comms threads update by participant" on public.comms_threads;
+create policy "comms threads update by participant" on public.comms_threads
+  for update using (
+    not public.is_banned()
+    and (auth.uid() in (participant_a, participant_b) or public.is_comms_member(id))
+  )
+  with check (auth.uid() in (participant_a, participant_b) or public.is_comms_member(id));
+
+-- The member list: readable by the people in it, and only they may change it. Adding
+-- yourself is how a group is created; adding anybody else needs you to be in it.
+drop policy if exists "comms members readable by members" on public.comms_members;
+create policy "comms members readable by members" on public.comms_members
+  for select using (public.is_comms_member(thread_id) or user_id = auth.uid());
+
+drop policy if exists "comms members added by members" on public.comms_members;
+create policy "comms members added by members" on public.comms_members
+  for insert with check (
+    not public.is_banned()
+    and (user_id = auth.uid() or public.is_comms_member(thread_id))
+  );
+
+drop policy if exists "comms members leave" on public.comms_members;
+create policy "comms members leave" on public.comms_members
+  for delete using (user_id = auth.uid());
+
+-- Closing a group: whoever opened it can take it down (messages cascade), and either
+-- side of a dm can clear the conversation they are in.
+drop policy if exists "comms threads deleted by the creator" on public.comms_threads;
+create policy "comms threads deleted by the creator" on public.comms_threads
+  for delete using (created_by = auth.uid() or auth.uid() in (participant_a, participant_b));
+
+-- Messages follow the same rule, with the ban check section 12 added.
+drop policy if exists "comms messages readable by participants" on public.comms_messages;
+create policy "comms messages readable by participants" on public.comms_messages
+  for select using (
+    exists (
+      select 1 from public.comms_threads t
+      where t.id = thread_id
+        and (auth.uid() in (t.participant_a, t.participant_b) or public.is_comms_member(t.id))
+    )
+  );
+
+drop policy if exists "comms messages insert own" on public.comms_messages;
+create policy "comms messages insert own" on public.comms_messages
+  for insert with check (
+    author_id = auth.uid()
+    and not public.is_banned()
+    and exists (
+      select 1 from public.comms_threads t
+      where t.id = thread_id
+        and (auth.uid() in (t.participant_a, t.participant_b) or public.is_comms_member(t.id))
+    )
+  );
+
+drop policy if exists "comms reads own" on public.comms_reads;
+create policy "comms reads own" on public.comms_reads
+  for all using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+-- Realtime: a group you are added to should appear without a reload.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'comms_members'
+  ) then
+    alter publication supabase_realtime add table public.comms_members;
+  end if;
+end $$;
+
+-- -----------------------------------------------------------------------------
+-- 14. check it landed
 -- -----------------------------------------------------------------------------
 -- Run these on their own after the script; each should answer without an error.
 --
@@ -802,7 +946,7 @@ create policy "forum_comments readable" on public.forum_comments
 --   select id, public, file_size_limit, allowed_mime_types from storage.buckets;
 --   select policyname, cmd from pg_policies
 --     where schemaname = 'storage' order by policyname;
---   -- which policies carry the ban check (should be fifteen: thirteen writes and
+--   -- which policies carry the ban check (should be sixteen: fourteen writes and
 --   -- the two board read policies):
 --   select policyname, cmd from pg_policies
 --     where schemaname in ('public', 'storage')

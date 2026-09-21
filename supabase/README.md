@@ -19,7 +19,8 @@ It creates:
   profile_comments          comments on a profile, and on one picture version
   forum_threads             the board's posts
   forum_comments            replies, including the auto-filed item threads
-  comms_threads             one row per pair of accounts
+  comms_threads             one row per conversation: a pair of accounts, or a group
+  comms_members             who is in a group; a dm's pair answers for it too
   comms_messages            the messages themselves
   comms_reads               each account's read marker per conversation
 
@@ -188,6 +189,27 @@ Two things worth knowing:
   - deleting an account outright is still a dashboard job (Authentication -> Users ->
     Delete user): removing an auth user needs the service role, which the site is
     never given. A ban is what the site itself can do.
+
+Groups
+------
+A direct conversation is a pair, and its id is derived from the pair, so opening one is
+a lookup. A group is everything else, and section 13 of the script is what makes one
+work: `comms_threads` grew `kind` ('dm' or 'group'), `name` and `created_by`,
+`participant_a` / `participant_b` became optional, and `comms_members` holds who is in
+a group. A dm keeps its pair; a group stores no pair at all, so membership is the whole
+answer for it.
+
+The policies accept membership *or* the pair, so nothing already stored stops working -
+and the section backfills a membership row for each side of the dms that were filed
+before the table existed. Reading a conversation needs you to be in it either way;
+adding somebody needs you to be in it already, which is why a group is created by
+writing the row, then adding yourself, then adding the rest. Whoever opened a group can
+close it (`comms threads deleted by the creator`), and messages cascade with it.
+
+On the page it is one screen for both: `[ + NEW GROUP ]` next to `[ + NEW MESSAGE ]`,
+a `[ GROUP ]` mark and a head count in the conversation list, a member count with
+`[ + ADD MEMBER ]` on an open group, and the panel names members rather than a single
+"TO:". Direct messages are unchanged - same derived id, same two readers.
 
 Tags
 ----

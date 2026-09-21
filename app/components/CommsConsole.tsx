@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { getCommsRepository } from '../lib/comms/repository';
-import { lastMessage, otherParticipant, participantFromThread } from '../lib/comms/threads';
+import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
+import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
 import CommsThreadPanel from './CommsThreadPanel';
 import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
@@ -25,6 +26,13 @@ export default function CommsConsole() {
   const { userId, threads, accounts, nameById, ready, source, markRead } = comms;
   const [picking, setPicking] = useState(false);
   const [testNote, setTestNote] = useState<string | null>(null);
+  // Opening a group, and adding to one that already exists: two forms, one
+  // account list.
+  const [grouping, setGrouping] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupMembers, setGroupMembers] = useState<string[]>([]);
+  const [groupError, setGroupError] = useState<string | null>(null);
+  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   const others = useMemo(
     () => (userId === null ? [] : accounts.filter((account) => account.id !== userId)),
@@ -53,6 +61,32 @@ export default function CommsConsole() {
   async function openWith(otherId: string) {
     setPicking(false);
     await comms.openThreadWith(otherId);
+  }
+
+  const nameFor = (id: string) => nameById.get(id) ?? id;
+
+  async function openGroup() {
+    setGroupError(null);
+
+    try {
+      await comms.createGroup(groupName, groupMembers);
+      setGrouping(false);
+      setGroupName('');
+      setGroupMembers([]);
+    } catch (caught) {
+      setGroupError(caught instanceof Error ? caught.message : 'THAT GROUP COULD NOT BE OPENED.');
+    }
+  }
+
+  async function addToGroup(threadId: string, memberId: string) {
+    setGroupError(null);
+
+    try {
+      await comms.addMember(threadId, memberId);
+      setAddingTo(null);
+    } catch (caught) {
+      setGroupError(caught instanceof Error ? caught.message : 'THAT ACCOUNT COULD NOT BE ADDED.');
+    }
   }
 
   async function simulateIncoming() {
@@ -133,6 +167,65 @@ export default function CommsConsole() {
             </div>
           ) : null}
 
+          <button
+            type="button"
+            onClick={() => setGrouping(!grouping)}
+            className={`ml-1 mt-1 ${SMALL_BUTTON}`}
+          >
+            {grouping ? '[ CANCEL ]' : '[ + NEW GROUP ]'}
+          </button>
+
+          {grouping ? (
+            <div className="mt-2 space-y-1 rounded-none border border-gray-500 bg-[#f0f0f0] p-2 text-[10px] font-bold text-black">
+              <label htmlFor="group-name" className="block">
+                GROUP NAME:
+              </label>
+              <input
+                id="group-name"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                placeholder="e.g. THE WARD"
+                maxLength={MAX_GROUP_NAME_LENGTH}
+                className="w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+              />
+
+              <p className="pt-1">
+                WHO IS IN IT ({groupMembers.length} PICKED) :: YOU ARE ALWAYS IN, AND A GROUP HOLDS {MAX_GROUP_MEMBERS}:
+              </p>
+
+              {others.length === 0 ? (
+                <p className="text-gray-700">NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE.</p>
+              ) : (
+                <ul className="space-y-1">
+                  {others.map((account) => (
+                    <li key={account.id}>
+                      <label className="inline-flex cursor-pointer items-center gap-1">
+                        <input
+                          type="checkbox"
+                          checked={groupMembers.includes(account.id)}
+                          onChange={(event) =>
+                            setGroupMembers((current) =>
+                              event.target.checked
+                                ? [...current, account.id]
+                                : current.filter((id) => id !== account.id),
+                            )
+                          }
+                        />
+                        <ProfileName author={{ id: account.id, displayName: account.displayName }} />
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              <button type="button" onClick={() => void openGroup()} className={`mt-1 ${SMALL_BUTTON}`}>
+                [ OPEN GROUP ]
+              </button>
+
+              {groupError === null ? null : <p className="text-[#800000]">{groupError}</p>}
+            </div>
+          ) : null}
+
           {rows.length === 0 ? (
             <p className="mt-2 text-[10px] font-bold text-black">NO CONVERSATIONS YET. START ONE ABOVE.</p>
           ) : (
@@ -149,7 +242,11 @@ export default function CommsConsole() {
                     }`}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
-                      <ProfileName author={{ id: row.userId, displayName: row.displayName }} />
+                      {thread.kind === 'group' ? (
+                        <span>[ GROUP ] {threadLabel(thread, userId ?? '', nameFor)}</span>
+                      ) : (
+                        <ProfileName author={{ id: row.userId, displayName: row.displayName }} />
+                      )}
                       <TimeStamp at={row.updatedAt} />
                     </span>
                     <span className="mt-1 block truncate font-normal text-gray-700">{row.preview}</span>
@@ -166,12 +263,51 @@ export default function CommsConsole() {
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
           <span>
             COMMS
-            {activeOtherId === null ? '' : ` :: ${nameById.get(activeOtherId) ?? activeOtherId}`}
+            {active === undefined ? '' : ` :: ${threadLabel(active, userId ?? '', nameFor)}`}
           </span>
           <span>[ {ready ? 'LIVE' : 'READING...'} ]</span>
         </div>
 
         <div className="flex min-h-[24rem] flex-1 flex-col p-3">
+          {/* A group's members are part of the conversation: who is in the room, and a
+              way to pull somebody else into it. A dm has no such strip - it is a pair,
+              and a third account would make it a group. */}
+          {active === undefined || active.kind !== 'group' ? null : (
+            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+              <button
+                type="button"
+                onClick={() => setAddingTo(addingTo === active.id ? null : active.id)}
+                className={SMALL_BUTTON}
+              >
+                {addingTo === active.id ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}
+              </button>
+
+              <span className="text-gray-700">
+                {active.participants.length} / {MAX_GROUP_MEMBERS} IN THE GROUP :: ANYBODY IN IT CAN ADD SOMEBODY
+              </span>
+
+              {addingTo === active.id ? (
+                <ul className="w-full space-y-1">
+                  {accounts
+                    .filter((account) => !active.participants.includes(account.id))
+                    .map((account) => (
+                      <li key={account.id}>
+                        <button
+                          type="button"
+                          onClick={() => void addToGroup(active.id, account.id)}
+                          className={`${SMALL_BUTTON} inline-flex items-center gap-1`}
+                        >
+                          [ ADD ] <ProfileName author={{ id: account.id, displayName: account.displayName }} />
+                        </button>
+                      </li>
+                    ))}
+                </ul>
+              ) : null}
+
+              {groupError === null ? null : <span className="text-[#800000]">{groupError}</span>}
+            </div>
+          )}
+
           {active === undefined || activeOtherId === null ? (
             <p className="text-[10px] font-bold text-black">
               PICK A CONVERSATION ON THE LEFT, OR START A NEW ONE. ONE THREAD IS OPEN AT A TIME, WHICH IS THE SAME
@@ -182,9 +318,11 @@ export default function CommsConsole() {
               idPrefix="comms-page"
               thread={active}
               userId={userId}
-              otherId={activeOtherId}
+              otherId={active.kind === 'group' ? undefined : activeOtherId}
               nameById={nameById}
-              onSend={(body) => comms.send(activeOtherId, body)}
+              onSend={(body) =>
+                active.kind === 'group' ? comms.sendToThread(active.id, body) : comms.send(activeOtherId, body)
+              }
             />
           )}
         </div>

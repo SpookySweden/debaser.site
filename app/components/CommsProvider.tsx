@@ -34,7 +34,13 @@ export type CommsContextValue = {
   activeThreadId: string | null;
   setActiveThreadId: (threadId: string | null) => void;
   openThreadWith: (otherId: string) => Promise<CommsThread>;
+  /** Opens a group with those accounts in it, and makes it the open conversation. */
+  createGroup: (name: string, memberIds: string[]) => Promise<CommsThread>;
+  /** Adds an account to a group. Anybody in it may, which is the RLS rule. */
+  addMember: (threadId: string, userId: string) => Promise<CommsThread>;
   send: (otherId: string, body: string) => Promise<void>;
+  /** Writes to a conversation that already exists - which is how a group is written to. */
+  sendToThread: (threadId: string, body: string) => Promise<void>;
   markRead: (threadId: string) => Promise<void>;
   /** Mock-only: file a message from the other side, to see the pop-up work. */
   simulateIncoming: (otherId: string, body: string) => Promise<CommsThread>;
@@ -138,6 +144,32 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     [repository, userId],
   );
 
+  const createGroup = useCallback(
+    async (name: string, memberIds: string[]) => {
+      if (userId === null) throw new Error('SIGN IN TO OPEN A GROUP.');
+
+      const thread = await repository.createGroup({
+        creatorId: userId,
+        creatorName: user?.displayName ?? 'Anonymous',
+        name,
+        memberIds,
+      });
+
+      setActiveThreadId(thread.id);
+      return thread;
+    },
+    [repository, user, userId],
+  );
+
+  const addMember = useCallback(
+    async (threadId: string, memberId: string) => {
+      if (userId === null) throw new Error('SIGN IN TO ADD ANYBODY.');
+
+      return repository.addMember(threadId, memberId);
+    },
+    [repository, userId],
+  );
+
   const send = useCallback(
     async (otherId: string, body: string) => {
       if (userId === null) throw new Error('SIGN IN TO SEND MESSAGES.');
@@ -145,6 +177,21 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       await repository.sendMessage({
         authorId: userId,
         recipientId: otherId,
+        authorName: user?.displayName ?? 'Anonymous',
+        body,
+      });
+    },
+    [repository, user, userId],
+  );
+
+  /** The same write, addressed to a conversation instead of to an account. */
+  const sendToThread = useCallback(
+    async (threadId: string, body: string) => {
+      if (userId === null) throw new Error('SIGN IN TO SEND MESSAGES.');
+
+      await repository.sendMessage({
+        authorId: userId,
+        threadId,
         authorName: user?.displayName ?? 'Anonymous',
         body,
       });
@@ -197,7 +244,10 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       activeThreadId,
       setActiveThreadId,
       openThreadWith,
+      createGroup,
+      addMember,
       send,
+      sendToThread,
       markRead,
       simulateIncoming,
       source: COMMS_DATA_SOURCE,
@@ -212,7 +262,10 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       nameById,
       activeThreadId,
       openThreadWith,
+      createGroup,
+      addMember,
       send,
+      sendToThread,
       markRead,
       simulateIncoming,
     ],
