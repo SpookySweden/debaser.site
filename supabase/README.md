@@ -118,10 +118,20 @@ resolve at all). That address exists only because it was made by hand in the das
 
 Four probes show the state of all of this rather than leaving it to be guessed at:
 
+  node Temp/two-account-probe.cjs    # two accounts: directory, posts, messages, tampering, a ban
   node Temp/check-resend.cjs         # is the Resend key good, and is a domain verified?
   node Temp/signup-mail-probe.cjs    # a real signup through a throwaway mailbox, and whether its mail arrives
   node Temp/auth-live-probe.cjs      # sign-ups open? confirmation needed? does sign-in work?
   node Temp/live-ban-probe.cjs       # ban an account, and check every side of the rule
+
+**With "Confirm email" off, none of the mail setup is needed for sign-ups to work** -
+`two-account-probe` is the run that proves the whole multi-user path with that setting:
+a brand new account appears in the directory for everybody, posts and replies that
+visitors see, holds a conversation with the house account that nobody else can read,
+is refused when it tries to rewrite the house account's post or ban it, and - once
+banned - vanishes from everybody's board but the admin's while still being able to read
+and sign in. The mail service only matters again if confirmation is switched back on,
+or when password resets and newsletters arrive.
 
 What lives where
 ----------------
