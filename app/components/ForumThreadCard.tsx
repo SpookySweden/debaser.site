@@ -32,12 +32,19 @@ type ForumThreadCardProps = {
  * picture and the small tags in a left column with the body of the text beside
  * them - the rules live in app/lib/forum/post-layout.ts.
  *
+ * A thread an item's comment box opened is credited to the item, so its header
+ * names the site and shows the default pfp rather than repeating the account that
+ * commented first; the comment below already carries that account's id.
+ *
  * Native <details>/<summary> keeps the collapse behaviour (and the board's expand
  * all / collapse all, plus #thread-<id> jump links) without extra JS.
  */
 export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThreadCardProps) {
   const forum = useForum();
-  const { profile } = usePublicProfile(thread.author.id);
+  // A post an item's comment box opened is credited to the item - and so to the
+  // site - which means no commenter's profile is read for the header.
+  const itemOwned = isAutoFiledBody(thread.body);
+  const { profile } = usePublicProfile(itemOwned ? null : thread.author.id);
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -85,8 +92,13 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
     repliesLabel: countReplies(thread.comments.length),
     imageSourceLabel: imageSourceLabel(images.source),
     postImage: images.preview,
-    isAnchorPost: isAutoFiledBody(thread.body),
+    isAnchorPost: itemOwned,
   });
+
+  // While the card is open its left column already draws the item's own sheet, so
+  // the links back to that item must not pop a second copy of it on hover: the
+  // preview is kept for the cases where the drawing lives somewhere else.
+  const anchorPreview = isOpen && images.source === 'item' ? 'none' : 'hover';
 
   return (
     <article id={threadDomId(thread.id)} className="px-2 py-2">
@@ -112,9 +124,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
             <span className="font-bold">{layout.postedLabel}</span>
 
             <PostAuthorRow
-              author={thread.author}
+              author={layout.author.credit}
               avatar={layout.avatar}
               avatarSize={56}
+              picture={layout.author.picture}
               location={layout.author.location}
               displayedTags={layout.author.displayedTags}
             />
@@ -156,14 +169,14 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
             ) : null}
 
             <div className="mt-1 text-[9px] font-bold text-gray-700">
-              <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" />
+              <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" preview={anchorPreview} />
               <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
             </div>
           </div>
 
           <div className="min-w-0 flex-1">
             {layout.right.isAnchorPost ? (
-              <AnchorLink anchor={thread.anchor} />
+              <AnchorLink anchor={thread.anchor} preview={anchorPreview} />
             ) : (
               <p className="whitespace-pre-line text-xs leading-snug text-black">{layout.right.body}</p>
             )}

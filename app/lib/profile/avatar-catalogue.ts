@@ -23,6 +23,13 @@ export type AvatarSlot = {
 
 export const AVATAR_SLOT_DIRECTORY = 'assets/profiles';
 
+/**
+ * The house picture, used where a post belongs to the site rather than to a
+ * person (see app/lib/forum/site-author.ts). Not one of the pickable slots,
+ * because nobody picks it - square PNG, dropped in here by hand.
+ */
+export const DEFAULT_AVATAR_SRC = '/assets/profiles/avatar-default.png';
+
 export const AVATAR_SLOTS: AvatarSlot[] = [
   { id: 'slot-01', label: 'SLOT 01 :: STATIC MASK', src: '/assets/profiles/avatar-slot-01.png', width: 256, height: 256 },
   { id: 'slot-02', label: 'SLOT 02 :: LOOPING EYES', src: '/assets/profiles/avatar-slot-02.png', width: 256, height: 256 },

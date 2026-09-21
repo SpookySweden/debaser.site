@@ -9,7 +9,8 @@ Folder layout
 assets/concepts/     concept sheets shown on /concepts
 assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
-assets/profiles/     public profile pictures (avatar-slot-NN.png) and uploads/
+assets/profiles/     public profile pictures (avatar-slot-NN.png, the default pfp
+                     avatar-default.png, and uploads/)
 
 How it is served
 ----------------

@@ -7,6 +7,13 @@ Drawings in here are the public profile pictures accounts can pick.
                                               app/lib/profile/avatar-catalogue.ts
                                               (square, 256x256)
 
+  avatar-default.png                          the DEFAULT PFP: the house picture
+                                              shown on posts that belong to the
+                                              site itself rather than to a person,
+                                              e.g. a thread a concept sheet's
+                                              [ COMMENT ] box opened
+                                              (app/lib/forum/site-author.ts)
+
   uploads/                                    pictures filed through the
                                               "CUSTOMISE PUBLIC PROFILE" console
                                               (POST /api/profile/avatar)

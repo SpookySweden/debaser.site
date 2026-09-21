@@ -6,6 +6,8 @@ import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { GivenTag } from '../lib/profile/types';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
+import { AVATAR_PLAIN_FRAME } from './ProfileAvatar';
+import SheetImage from './SheetImage';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
 
 type PostAuthorRowProps = {
@@ -17,6 +19,12 @@ type PostAuthorRowProps = {
    */
   avatar?: 'shown' | 'hover' | 'hidden';
   avatarSize?: number;
+  /**
+   * Picture slot for a row that is not a person: a post owned by the item itself
+   * is credited to the site, which has no profile to open but does have a default
+   * pfp (`app/lib/forum/site-author.ts`).
+   */
+  picture?: string;
   /** The author's place line, when their profile sets one. */
   location?: string;
   /** Tags other users gave the author, filtered to the ones they display. */
@@ -30,24 +38,48 @@ type PostAuthorRowProps = {
  * picture, the place line, then the tags the author chose to display. Guests
  * fall back to a plain name with no picture, and the whole row drops its
  * decoration when collapsed (`avatar="hover"`).
+ *
+ * `picture` is for rows that are not a person at all: a post owned by the item
+ * itself is credited to the site, so it draws the house default pfp instead of
+ * an account's profile picture.
  */
 export default function PostAuthorRow({
   author,
   avatar = 'shown',
   avatarSize = 56,
+  picture,
   location = '',
   displayedTags = [],
 }: PostAuthorRowProps) {
+  const label = authorLabel(author);
+
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
       {avatar === 'hidden' ? null : (
         <span className={avatar === 'hover' ? 'hidden group-hover:inline-flex' : 'inline-flex'}>
-          <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
+          {picture === undefined ? (
+            <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
+          ) : (
+            <span
+              className={AVATAR_PLAIN_FRAME}
+              style={{ width: avatarSize, height: avatarSize }}
+              title={`Default picture for ${label}: add ${picture} to the project assets folder.`}
+            >
+              <SheetImage
+                src={picture}
+                alt={`${label} default profile picture`}
+                width={avatarSize}
+                height={avatarSize}
+                sizes={`${avatarSize}px`}
+                compact
+              />
+            </span>
+          )}
         </span>
       )}
 
       <ProfileLink author={author} className="text-xs font-bold">
-        {authorLabel(author)}
+        {label}
       </ProfileLink>
 
       {location.length === 0 ? null : (
