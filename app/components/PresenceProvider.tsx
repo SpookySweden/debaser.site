@@ -118,6 +118,21 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
 }
 
+/**
+ * Every account's lamp state at once.
+ *
+ * The users page needs the whole board of them - to sort by who is around and to
+ * count them - so it takes the context value itself rather than one hook per name.
+ * The value is re-derived when a record lands and when the clock ticks, so a page
+ * reading it re-renders exactly when a lamp would change colour.
+ */
+export function usePresenceDirectory(): PresenceContextValue {
+  const value = useContext(PresenceContext);
+  if (value === null) throw new Error('usePresenceDirectory must be used inside <PresenceProvider>.');
+
+  return value;
+}
+
 export type UsePresenceResult = {
   /** Undefined until the first read lands, and for anybody without an account. */
   status: PresenceStatus | undefined;

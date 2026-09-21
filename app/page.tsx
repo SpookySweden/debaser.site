@@ -32,6 +32,7 @@ export default function Home() {
             <ul className="text-xs space-y-1 list-disc list-inside">
               <li><strong>CONCEPTS:</strong> Explore visual concept art and design sheets.</li>
               <li><strong>FORUM:</strong> Join live community discussions and real-time boards.</li>
+              <li><strong>USERS:</strong> Every account on the site, with its online lamp.</li>
             </ul>
           </div>
 

@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useComms } from './CommsProvider';
 
-type NavKey = 'home' | 'concepts' | 'forum' | 'comms' | 'account';
+type NavKey = 'home' | 'concepts' | 'forum' | 'comms' | 'users' | 'account';
 
 type NavItem = {
   key: NavKey;
@@ -16,6 +16,7 @@ const NAV_ITEMS: NavItem[] = [
   { key: 'concepts', label: 'CONCEPTS', href: '/concepts' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'comms', label: 'COMMS', href: '/comms' },
+  { key: 'users', label: 'USERS', href: '/users' },
   { key: 'account', label: 'ACCOUNT', href: '/account' },
 ];
 
