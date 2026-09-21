@@ -1,6 +1,8 @@
+import Link from 'next/link';
 import CommentPopout from './components/CommentPopout';
 import SiteNav from './components/SiteNav';
 import { FORUM_ANCHORS } from './lib/forum/anchors';
+import { ARCHIVE_PROJECTS } from './lib/projects/debaser';
 
 export default function Home() {
   return (
@@ -28,11 +30,32 @@ export default function Home() {
             This platform serves as a retro-styled operating environment dedicated to organizing and showcasing serialized world-building assets, artwork, and collaborative discussions.
           </p>
           <div className="border border-black p-4 bg-[#f0f0f0] mt-6">
+            <p className="text-xs font-bold mb-2">PROJECTS:</p>
+            <ul className="space-y-2">
+              {/* A project is a map entry: it opens its own landing page, and the
+                  shelves of that project live under there rather than on the taskbar. */}
+              {ARCHIVE_PROJECTS.map((project) => (
+                <li key={project.id}>
+                  <Link
+                    href={project.href}
+                    className="block border border-gray-500 bg-white p-2 hover:bg-yellow-100"
+                  >
+                    <span className="block text-xs font-bold">{project.title}</span>
+                    <span className="block text-[10px] font-bold">{project.subtitle}</span>
+                    <span className="block text-[10px] text-black">{project.summary}</span>
+                    <span className="block pt-1 text-[10px] font-bold">[ OPEN {project.href} ]</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="border border-black p-4 bg-[#f0f0f0] mt-4">
             <p className="text-xs font-bold mb-2">QUICK NAVIGATION:</p>
             <ul className="text-xs space-y-1 list-disc list-inside">
-              <li><strong>CONCEPTS:</strong> Explore visual concept art and design sheets.</li>
               <li><strong>FORUM:</strong> Join live community discussions and real-time boards.</li>
               <li><strong>USERS:</strong> Every account on the site, with its online lamp.</li>
+              <li><strong>COMMS:</strong> Direct messages between accounts.</li>
             </ul>
           </div>
 

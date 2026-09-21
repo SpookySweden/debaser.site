@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import CommentPopout from '../components/CommentPopout';
 import ConceptSheetFrame from '../components/ConceptSheetFrame';
+import ProjectSectionNav from '../components/ProjectSectionNav';
 import SiteNav from '../components/SiteNav';
 import { CONCEPT_SHEETS } from '../lib/concepts/sheets';
 import { FORUM_ANCHORS } from '../lib/forum/anchors';
@@ -25,8 +26,9 @@ export default function Concepts() {
           </div>
         </div>
 
-        {/* Taskbar Navigation */}
-        <SiteNav active="concepts" />
+        {/* Taskbar Navigation: the concept archive is a shelf of the debaser project
+            now, so no site tab is marked as current here. */}
+        <SiteNav />
 
         {/* Content Body - Concept Art Gallery */}
         <div className="flex-1 bg-white border-inset border-2 border-gray-600 m-2 p-6 overflow-y-auto text-black">
@@ -38,6 +40,8 @@ export default function Concepts() {
           <p className="text-[10px] font-bold mb-4">
             CLICK THE [ COMMENT ] CONTROL UNDER A SHEET TO POP OPEN AN ENCASED WINDOW HOLDING ITS FORUM THREAD.
           </p>
+
+          <ProjectSectionNav current="concepts" />
 
           {/* Sheets: each window carries its own comment pop-out underneath the artwork */}
           <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">

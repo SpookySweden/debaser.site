@@ -16,6 +16,18 @@ import { readFile, stat } from 'node:fs/promises';
 
 const ASSET_ROOT = path.join(process.cwd(), 'assets');
 
+/**
+ * What the archive may serve.
+ *
+ * Pictures are the bulk of it; the audio types are here for the music shelf, which
+ * plays tracks straight out of `assets/audio/` the same way the sheets are shown
+ * out of `assets/concepts/`. A file whose extension is not on this list is refused
+ * with a 400 rather than guessed at.
+ *
+ * Note: responses are whole-file with a Content-Length and no byte ranges, which is
+ * plenty for a track that is a few megabytes. Range requests are the thing to add
+ * first if a long recording ever needs to scrub before it has buffered.
+ */
 const CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
@@ -25,6 +37,11 @@ const CONTENT_TYPES: Record<string, string> = {
   '.avif': 'image/avif',
   '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
+  '.mp3': 'audio/mpeg',
+  '.m4a': 'audio/mp4',
+  '.ogg': 'audio/ogg',
+  '.wav': 'audio/wav',
+  '.flac': 'audio/flac',
 };
 
 type AssetRouteContext = {

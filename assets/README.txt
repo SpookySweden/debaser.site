@@ -7,6 +7,7 @@ files - artwork is never kept in public/ and never generated in code.
 Folder layout
 -------------
 assets/concepts/     concept sheets shown on /concepts
+assets/audio/        the music shelf's tracks, played on /music
 assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
 assets/profiles/     public profile pictures (avatar-slot-NN.png, the default pfp
@@ -29,6 +30,16 @@ Adding a new concept sheet
    forum thread, which the [ COMMENT ] control under the artwork pops open.
 3. No other wiring needed - the sheet window, the sheet index and the forum
    "FILE UNDER" drop-down all read from that manifest.
+
+Adding a track
+--------------
+1. Save the audio here as assets/audio/<id>.mp3 (MP3, M4A, OGG, WAV and FLAC are
+   served; anything else is refused with a 400).
+2. Add one entry to TRACKS in app/lib/projects/tracks.ts (id, title, credit,
+   length, kind).
+3. /music lists it with a player, and the project page at /projects/debaser
+   counts it. Until the file is there the row shows "[ AWAITING <path> ]" rather
+   than a dead player.
 
 Rules
 -----

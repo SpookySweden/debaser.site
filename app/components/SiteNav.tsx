@@ -3,7 +3,15 @@
 import Link from 'next/link';
 import { useComms } from './CommsProvider';
 
-type NavKey = 'home' | 'concepts' | 'forum' | 'comms' | 'users' | 'account';
+/**
+ * The taskbar keys.
+ *
+ * CONCEPTS is not one of them any more: it is a shelf of the debaser project, and
+ * the project page listed on the home page is what opens it. Pages under a project
+ * (or otherwise off the taskbar) pass no `active` key, which leaves every tab
+ * unlit rather than lighting one that does not own the page.
+ */
+type NavKey = 'home' | 'forum' | 'users' | 'comms' | 'account';
 
 type NavItem = {
   key: NavKey;
@@ -13,10 +21,9 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME', href: '/' },
-  { key: 'concepts', label: 'CONCEPTS', href: '/concepts' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
-  { key: 'comms', label: 'COMMS', href: '/comms' },
   { key: 'users', label: 'USERS', href: '/users' },
+  { key: 'comms', label: 'COMMS', href: '/comms' },
   { key: 'account', label: 'ACCOUNT', href: '/account' },
 ];
 
@@ -32,9 +39,10 @@ function navButtonClass(isActive: boolean): string {
  *
  * Client-side because the comms entry carries the unread count - the one number
  * on the site that has to move without a reload. It is the same count the
- * notification window clears when a message is put on screen.
+ * notification window clears when a message is put on screen. `active` is left out
+ * by pages that are not one of the tabs, so nothing lights up on them.
  */
-export default function SiteNav({ active }: { active: NavKey }) {
+export default function SiteNav({ active }: { active?: NavKey }) {
   const { unreadTotal } = useComms();
 
   return (
