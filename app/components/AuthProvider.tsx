@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   AUTH_BACKEND,
+  GOOGLE_SIGN_IN_AVAILABLE,
   REQUIRES_EMAIL_CONFIRMATION,
   USING_MOCK_AUTH,
   getAuthRepository,
@@ -26,6 +27,10 @@ export type AuthContextValue = {
   backend: AuthBackend;
   usingMockAuth: boolean;
   requiresEmailConfirmation: boolean;
+  /** False while the backend cannot do OAuth, which is the mock's whole story. */
+  googleSignInAvailable: boolean;
+  /** Sends the browser to Google; the session lands through the subscription. */
+  signInWithGoogle: () => Promise<AuthResult>;
   signUp: (input: SignUpInput) => Promise<AuthResult>;
   signIn: (input: SignInInput) => Promise<AuthResult>;
   signOut: () => Promise<void>;
@@ -100,6 +105,24 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     setStatus('anonymous');
   }, []);
 
+  /**
+   * Google sign-in.
+   *
+   * The result is applied like any other, but on Supabase there is no user in it:
+   * the visitor has been sent to Google, and the session arrives through the
+   * subscription above when they come back to /account. The mock backend has no
+   * OAuth and returns the message the button shows.
+   */
+  const signInWithGoogle = useCallback(async (): Promise<AuthResult> => {
+    const repository = repositoryRef.current ?? getAuthRepository();
+
+    if (repository.signInWithGoogle === undefined) {
+      return { ok: false, error: 'THIS BACKEND CANNOT SIGN IN WITH GOOGLE.' };
+    }
+
+    return applyResult(await repository.signInWithGoogle());
+  }, [applyResult]);
+
   const updateDisplayName = useCallback(
     async (displayName: string) =>
       applyResult(await (repositoryRef.current ?? getAuthRepository()).updateDisplayName(displayName)),
@@ -141,6 +164,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       backend: AUTH_BACKEND,
       usingMockAuth: USING_MOCK_AUTH,
       requiresEmailConfirmation: REQUIRES_EMAIL_CONFIRMATION,
+      googleSignInAvailable: GOOGLE_SIGN_IN_AVAILABLE,
+      signInWithGoogle,
       signUp,
       signIn,
       signOut,
@@ -149,7 +174,18 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       updatePassword,
       deleteAccount,
     }),
-    [user, status, signUp, signIn, signOut, updateDisplayName, updateEmail, updatePassword, deleteAccount],
+    [
+      user,
+      status,
+      signInWithGoogle,
+      signUp,
+      signIn,
+      signOut,
+      updateDisplayName,
+      updateEmail,
+      updatePassword,
+      deleteAccount,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

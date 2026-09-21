@@ -27,6 +27,16 @@ export const AUTH_BACKEND: AuthBackend =
 
 export const USING_MOCK_AUTH = AUTH_BACKEND === 'mock';
 
+/**
+ * Whether the backend in use can sign somebody in with Google.
+ *
+ * Supabase only. The provider itself is configured in the Supabase dashboard
+ * (Authentication -> Providers -> Google), so until the backend is switched on the
+ * button says what is missing rather than pretending to work - see
+ * `app/lib/auth/google.ts`.
+ */
+export const GOOGLE_SIGN_IN_AVAILABLE = AUTH_BACKEND === 'supabase';
+
 /** Supabase emails a confirmation link before the first sign-in; the mock does not. */
 export const REQUIRES_EMAIL_CONFIRMATION = AUTH_BACKEND === 'supabase';
 

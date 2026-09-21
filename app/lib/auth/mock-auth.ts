@@ -6,6 +6,7 @@ import {
   SITE_ACCOUNT_PASSWORD,
   resolveSignInAddress,
 } from './builtin-account';
+import { GOOGLE_NEEDS_SUPABASE } from './google';
 import type {
   AccountUser,
   AuthRepository,
@@ -269,6 +270,15 @@ class MockAuthRepository implements AuthRepository {
   async signOut(): Promise<void> {
     writeState({ ...readState(), sessionUserId: null });
     notify();
+  }
+
+  /**
+   * Google sign-in is a Supabase feature: OAuth needs a provider to talk to, and
+   * the mock backend is this browser's localStorage. It answers with that rather
+   * than a dead button, so the UI never claims something happened.
+   */
+  async signInWithGoogle(): Promise<AuthResult> {
+    return { ok: false, error: GOOGLE_NEEDS_SUPABASE };
   }
 
   async updateEmail(input: UpdateEmailInput): Promise<AuthResult> {

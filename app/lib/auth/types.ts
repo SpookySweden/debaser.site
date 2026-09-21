@@ -74,6 +74,17 @@ export type AuthRepository = {
   /** Mock only: wipe the local account. Supabase accounts are removed in the dashboard. */
   deleteAccount?(): Promise<AuthResult>;
   /**
+   * Sign in with a Google account.
+   *
+   * Supabase only, and it leaves the page: the browser is sent to Google and comes
+   * back to the account page, where the session arrives through `subscribe` rather
+   * than through the promise. The mock backend has no OAuth to offer, so it says so
+   * instead of pretending - which is what makes the button honest today and live
+   * the moment `NEXT_PUBLIC_AUTH_BACKEND=supabase` (with Google enabled in the
+   * Supabase dashboard) is set.
+   */
+  signInWithGoogle?(): Promise<AuthResult>;
+  /**
    * The accounts this browser can see, which is what the comms "new message"
    * picker offers. Supabase answers with `select id, display_name from profiles`
    * (a public read: the board already shows these names on every post).

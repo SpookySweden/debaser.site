@@ -8,6 +8,7 @@ Folder layout
 -------------
 assets/concepts/     concept sheets shown on /concepts
 assets/audio/        the music shelf's tracks, played on /music
+assets/icons/        sign-in marks (google-retro.png) and other small marks
 assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
 assets/profiles/     public profile pictures (avatar-slot-NN.png, the default pfp

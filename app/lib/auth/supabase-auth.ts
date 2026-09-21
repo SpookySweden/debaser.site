@@ -125,6 +125,33 @@ class SupabaseAuthRepository implements AuthRepository {
     await this.client().auth.signOut();
   }
 
+  /**
+   * Google sign-in.
+   *
+   * Supabase owns the whole exchange - it sends the browser to Google and brings it
+   * back to /account with a session in the URL - so this only starts it. The
+   * session itself lands through `onAuthStateChange`, which `subscribe` already
+   * wires to the auth provider, so nothing has to await the round trip.
+   *
+   * Setup (Supabase dashboard): Authentication -> Providers -> Google, with the
+   * client id and secret from Google Cloud, and this site's /account added to the
+   * allowed redirect URLs.
+   */
+  async signInWithGoogle(): Promise<AuthResult> {
+    const { error } = await this.client().auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/account`,
+        queryParams: { prompt: 'select_account' },
+      },
+    });
+
+    if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+
+    // ok with no user yet: the visitor is on their way to Google.
+    return { ok: true, user: null };
+  }
+
   async updateDisplayName(displayName: string): Promise<AuthResult> {
     const problem = validateDisplayName(displayName);
     if (problem !== undefined) return { ok: false, error: problem };

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { MIN_PASSWORD_LENGTH, hasErrors, validateSignIn, validateSignUp } from '../lib/auth/validation';
 import type { CredentialErrors } from '../lib/auth/validation';
 import { useAuth } from './AuthProvider';
+import GoogleSignInButton from './GoogleSignInButton';
 
 const FIELD_INPUT =
   'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
@@ -201,6 +202,14 @@ export default function AccountForms() {
             void handleSignIn();
           }}
         >
+          {/* One tap, and no password to remember. Wired to Supabase's provider: on
+              the mock backend the button says what it needs instead of failing quietly. */}
+          <GoogleSignInButton className="mb-3" />
+
+          <p className="mb-3 border-t border-gray-400 pt-2 text-[10px] font-bold text-gray-700">
+            OR SIGN IN WITH THE ACCOUNT&apos;S OWN DETAILS:
+          </p>
+
           <Field
             id="account-signin-email"
             label="EMAIL ADDRESS OR ACCOUNT NAME:"
