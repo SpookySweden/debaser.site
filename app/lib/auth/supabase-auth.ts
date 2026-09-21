@@ -1,4 +1,5 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
+import { resolveSignInAddress } from './builtin-account';
 import type {
   AccountUser,
   AuthRepository,
@@ -109,7 +110,9 @@ class SupabaseAuthRepository implements AuthRepository {
     if (hasErrors(errors)) return { ok: false, error: firstError(errors) };
 
     const { data, error } = await this.client().auth.signInWithPassword({
-      email: input.email.trim(),
+      // The house account is signed into with ADMIN1212 rather than with its
+      // address, so the identifier is resolved before Supabase sees it.
+      email: resolveSignInAddress(input.email),
       password: input.password,
     });
 

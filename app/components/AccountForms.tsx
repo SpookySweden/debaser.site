@@ -203,12 +203,12 @@ export default function AccountForms() {
         >
           <Field
             id="account-signin-email"
-            label="EMAIL ADDRESS:"
-            type="email"
+            label="EMAIL ADDRESS OR ACCOUNT NAME:"
+            type="text"
             value={signInEmail}
             onChange={setSignInEmail}
-            placeholder="you@example.com"
-            autoComplete="email"
+            placeholder="you@example.com - or ADMIN1212"
+            autoComplete="username"
             error={signInErrors.email}
           />
           <Field
@@ -232,7 +232,8 @@ export default function AccountForms() {
           </div>
 
           <p className="mt-2 text-[10px] text-black">
-            READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
+            READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS. THE HOUSE
+            ACCOUNT SIGNS IN WITH ITS OWN NAME, NOT AN EMAIL ADDRESS.
           </p>
         </form>
       </section>

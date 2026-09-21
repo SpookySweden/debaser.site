@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { resetMockAuth } from '../lib/auth/mock-auth';
+import { isSiteAccount } from '../lib/auth/builtin-account';
 import { threadDomId } from '../lib/forum/anchors';
 import AccountProfilePanel from './AccountProfilePanel';
 import AccountSecurityPanel from './AccountSecurityPanel';
@@ -76,6 +77,13 @@ export default function AccountDetails() {
             CREATED: <TimeStamp at={user.createdAt} />
           </p>
           <p>BACKEND: {backend === 'mock' ? 'MOCK (THIS BROWSER ONLY)' : 'SUPABASE AUTH'}</p>
+
+          {isSiteAccount(accountId) ? (
+            <p className="text-[#000080]">
+              HOUSE ACCOUNT: EVERY POST AN ITEM OWNS IS SIGNED debaser.site. ITS PROFILE IS SEEDED WITH
+              ITS DARK BLUE NAME RATHER THAN CUSTOMISED, AND IT CANNOT BE DELETED.
+            </p>
+          ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => void signOut()} disabled={busy} className={BUTTON}>

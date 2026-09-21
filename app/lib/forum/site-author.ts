@@ -1,4 +1,5 @@
 import { isAutoFiledBody } from './anchors';
+import { SITE_ACCOUNT_DISPLAY_NAME, SITE_ACCOUNT_ID } from '../auth/builtin-account';
 import { DEFAULT_AVATAR_SRC } from '../profile/avatar-catalogue';
 import type { ForumAuthor, ForumThread } from './types';
 
@@ -11,16 +12,18 @@ import type { ForumAuthor, ForumThread } from './types';
  * comment - the comment itself already carries that account's id, and repeating
  * it above the item reads as if the commenter had drawn the sheet.
  *
- * Everything on this site is authored by the site, so an item-owned post falls
- * back to the house name and the default picture slot below. An ordinary post
+ * The site's own posts are signed by a real account rather than a bare label:
+ * debaser.site (see app/lib/auth/builtin-account.ts) can be signed into with the
+ * credentials in that file, carries the dark blue name its profile seeds, and
+ * links through to a public profile page like anybody else. An ordinary post
  * written straight onto the board keeps naming the account that filed it.
  *
  * The rule itself lives in `isItemOwnedThread` / `postCredit` so the post layout,
  * the board search and the account filter all read the same answer.
  */
 export const SITE_AUTHOR: ForumAuthor = {
-  id: null,
-  displayName: 'debaser.site',
+  id: SITE_ACCOUNT_ID,
+  displayName: SITE_ACCOUNT_DISPLAY_NAME,
 };
 
 /**

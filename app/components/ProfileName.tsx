@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { authorLabel } from '../lib/auth/author';
+import { showsPresenceLamp } from '../lib/auth/builtin-account';
 import type { ForumAuthor } from '../lib/forum/types';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -34,10 +35,13 @@ export default function ProfileName({ author, children, className, colour }: Pro
   const { profile } = usePublicProfile(author.id);
   const { status, record } = usePresence(author.id);
   const chosen = colour !== undefined && colour.length > 0 ? colour : profileNameColour(profile);
+  // The house account is the archive's byline rather than somebody who steps away,
+  // so `showsPresenceLamp` keeps the dot off it - see ./builtin-account.ts.
+  const showsLamp = showsPresenceLamp(author.id);
 
   return (
     <span className={className} style={chosen === undefined ? undefined : { color: chosen }}>
-      {status === undefined ? null : <StatusDot status={status} record={record} className="mr-1" />}
+      {showsLamp && status !== undefined ? <StatusDot status={status} record={record} className="mr-1" /> : null}
       {children ?? authorLabel(author)}
     </span>
   );

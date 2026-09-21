@@ -14,6 +14,13 @@ import type { AuthBackend, AuthRepository } from './types';
  *
  * Nothing else changes: the account page, the session plumbing and the forum's
  * author attribution all talk to the AuthRepository interface.
+ *
+ * One account exists on both backends - the house account debaser.site (see
+ * `./builtin-account.ts`). The mock seeds it into the browser; Supabase wants it
+ * created in the dashboard (Users -> Add user, address `admin1212@debaser.site`,
+ * the password under "Auto Confirm User"), because Supabase Auth is what signs in
+ * with a real address. Typing the identifier `ADMIN1212` keeps working either way:
+ * `resolveSignInAddress` maps it to that address before sign-in.
  */
 export const AUTH_BACKEND: AuthBackend =
   process.env.NEXT_PUBLIC_AUTH_BACKEND === 'supabase' && isSupabaseConfigured ? 'supabase' : 'mock';

@@ -1,4 +1,11 @@
 import { createLocalId } from '../forum/ids';
+import {
+  SITE_ACCOUNT_ADDRESS,
+  SITE_ACCOUNT_DISPLAY_NAME,
+  SITE_ACCOUNT_ID,
+  SITE_ACCOUNT_PASSWORD,
+  resolveSignInAddress,
+} from './builtin-account';
 import type {
   AccountUser,
   AuthRepository,
@@ -39,6 +46,8 @@ type StoredUser = {
   createdAt: string;
   salt: string;
   secretHash: string;
+  /** True for the house account, which the archive owner signs into. */
+  builtIn?: boolean;
 };
 
 type PersistedAuth = {
@@ -165,15 +174,52 @@ async function hashSecret(secret: string, salt: string): Promise<string> {
   return `fallback:${(hash >>> 0).toString(16)}`;
 }
 
+/**
+ * The house account, planted once per session (see ./builtin-account.ts).
+ *
+ * Storing a password means hashing it, which is async, so this runs on the way
+ * into the first async call instead of at import time. It only ever *adds* an
+ * account that is not already there: a browser that has signed in before keeps
+ * whatever it has, and a house account somebody has deleted stays deleted.
+ */
+let builtInAccount: Promise<void> | null = null;
+
+async function seedBuiltInAccount(): Promise<void> {
+  const current = readState();
+  if (current.users.some((user) => user.id === SITE_ACCOUNT_ID)) return;
+
+  const salt = createLocalId('salt');
+  const user: StoredUser = {
+    id: SITE_ACCOUNT_ID,
+    // The store keeps addresses lower-cased, so ADMIN1212 and
+    // admin1212@debaser.site both find this row (see resolveSignInAddress).
+    email: normaliseEmail(SITE_ACCOUNT_ADDRESS),
+    displayName: SITE_ACCOUNT_DISPLAY_NAME,
+    createdAt: new Date().toISOString(),
+    salt,
+    secretHash: await hashSecret(SITE_ACCOUNT_PASSWORD, salt),
+    builtIn: true,
+  };
+
+  writeState({ ...current, users: [user, ...current.users] });
+}
+
+function ensureBuiltInAccount(): Promise<void> {
+  builtInAccount ??= seedBuiltInAccount();
+  return builtInAccount;
+}
+
 class MockAuthRepository implements AuthRepository {
   readonly backend = 'mock' as const;
   readonly requiresEmailConfirmation = false;
 
   async getCurrentUser(): Promise<AccountUser | null> {
+    await ensureBuiltInAccount();
     return currentAccount();
   }
 
   async signUp(input: SignUpInput): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const errors = validateSignUp(input);
     if (hasErrors(errors)) return { ok: false, error: firstError(errors) };
 
@@ -201,10 +247,11 @@ class MockAuthRepository implements AuthRepository {
   }
 
   async signIn(input: SignInInput): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const errors = validateSignIn(input);
     if (hasErrors(errors)) return { ok: false, error: firstError(errors) };
 
-    const email = normaliseEmail(input.email);
+    const email = normaliseEmail(resolveSignInAddress(input.email));
     const current = readState();
     const user = current.users.find((item) => item.email === email);
 
@@ -225,6 +272,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   async updateEmail(input: UpdateEmailInput): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const errors = validateEmailChange(input);
     if (hasErrors(errors)) return { ok: false, error: firstError(errors) };
 
@@ -253,6 +301,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   async updatePassword(input: UpdatePasswordInput): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const errors = validatePasswordChange(input);
     if (hasErrors(errors)) return { ok: false, error: firstError(errors) };
 
@@ -275,6 +324,7 @@ class MockAuthRepository implements AuthRepository {
   }
 
   async updateDisplayName(displayName: string): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const problem = validateDisplayName(displayName);
     if (problem !== undefined) return { ok: false, error: problem };
 
@@ -293,8 +343,15 @@ class MockAuthRepository implements AuthRepository {
   }
 
   async deleteAccount(): Promise<AuthResult> {
+    await ensureBuiltInAccount();
     const current = readState();
     if (current.sessionUserId === null) return { ok: false, error: 'SIGN IN FIRST.' };
+
+    const user = current.users.find((item) => item.id === current.sessionUserId);
+    // The house account is the archive's own byline: it signs in, it is not deleted.
+    if (user !== undefined && user.builtIn === true) {
+      return { ok: false, error: 'THE HOUSE ACCOUNT CANNOT BE DELETED - IT SIGNS THE ARCHIVE ITSELF.' };
+    }
 
     writeState({
       users: current.users.filter((item) => item.id !== current.sessionUserId),
@@ -307,6 +364,8 @@ class MockAuthRepository implements AuthRepository {
 
   /** Every account this browser holds, so comms can offer somebody to write to. */
   async listAccounts(): Promise<AccountUser[]> {
+    await ensureBuiltInAccount();
+
     return readState()
       .users.map(toAccount)
       .sort((a, b) => a.displayName.localeCompare(b.displayName) || a.id.localeCompare(b.id));
@@ -328,8 +387,16 @@ export function getMockAuthRepository(): AuthRepository {
   return mockAuthRepository;
 }
 
-/** Wipes every account this browser holds (used by the account page's reset). */
+/**
+ * Wipes every account this browser holds (used by the account page's reset).
+ *
+ * The house account is re-planted straight away rather than on the next visit to
+ * the site: without it nobody could sign in again until a reload, and the board's
+ * item-owned posts would lose the account behind their byline.
+ */
 export function resetMockAuth(): void {
   writeState({ users: [], sessionUserId: null });
+  builtInAccount = null;
+  void ensureBuiltInAccount();
   notify();
 }

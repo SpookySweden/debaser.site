@@ -1,4 +1,9 @@
 import { createLocalId } from '../forum/ids';
+import {
+  SITE_ACCOUNT_DISPLAY_NAME,
+  SITE_ACCOUNT_ID,
+  SITE_ACCOUNT_NAME_COLOUR,
+} from '../auth/builtin-account';
 import { isNameColour } from './name-colours';
 import type { PresenceRecord } from './presence';
 import {
@@ -139,7 +144,19 @@ function loadProfiles(): Record<string, PublicProfile> {
 
 function ensureState(): Record<string, PublicProfile> {
   if (state === null) state = loadProfiles();
+  // The house account always has a profile: it is the archive's own face, so its
+  // dark blue name and its byline work before anybody has opened a customiser.
+  // Anything the owner changes wins - this only ever fills a row that is missing.
+  state[SITE_ACCOUNT_ID] ??= houseProfile();
   return state;
+}
+
+/** The house account's profile as it starts out (see ../auth/builtin-account.ts). */
+function houseProfile(): PublicProfile {
+  return {
+    ...emptyProfile(SITE_ACCOUNT_ID, SITE_ACCOUNT_DISPLAY_NAME),
+    nameColour: SITE_ACCOUNT_NAME_COLOUR,
+  };
 }
 
 function persist(): void {

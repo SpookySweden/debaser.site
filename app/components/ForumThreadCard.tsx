@@ -6,7 +6,7 @@ import { threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
 import { buildPostLayout } from '../lib/forum/post-layout';
-import { isItemOwnedThread } from '../lib/forum/site-author';
+import { postCredit } from '../lib/forum/site-author';
 import type { ForumThread } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AnchorLink from './AnchorLink';
@@ -44,10 +44,11 @@ type ForumThreadCardProps = {
  */
 export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThreadCardProps) {
   const forum = useForum();
-  // A post an item's comment box opened is credited to the item - and so to the
-  // site - which means no commenter's profile is read for the header.
-  const itemOwned = isItemOwnedThread(thread);
-  const { profile } = usePublicProfile(itemOwned ? null : thread.author.id);
+  // The header reads the *credit's* profile, not the thread author's: an item's own
+  // post is signed by the house account, so its dark blue name and its picture come
+  // from that account and never from whoever commented first. `postCredit` decides
+  // which of the two applies (app/lib/forum/site-author.ts).
+  const { profile } = usePublicProfile(postCredit(thread).id);
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);

@@ -164,6 +164,12 @@ export type ProfileCommentKind = ProfileComment['kind'];
  * which any signed-in user may insert - the owner included, since tagging and
  * commenting on your own page is the same action as doing it on somebody else's -
  * and only their author may delete.
+ *
+ * Seeding: the house account (see app/lib/auth/builtin-account.ts) needs its
+ * profile row up front, because its dark blue name is drawn on every post an item
+ * owns. The mock store fills a missing row in `ensureState`; on Supabase the same
+ * row is inserted once, with `insert into public.profiles (id, display_name,
+ * name_colour) values ('<the house auth user id>', 'debaser.site', '#000080')`.
  */
 export type ProfileRepository = {
   readonly source: ProfileDataSource;

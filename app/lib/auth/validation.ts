@@ -74,11 +74,28 @@ export function validateSignUp(input: {
   return errors;
 }
 
+/**
+ * What a sign-in identifier may be.
+ *
+ * Signing up still wants a real address, but signing in only has to name an
+ * account that already exists - the house account debaser.site signs in with
+ * `ADMIN1212`, which is deliberately not an address. So: no spaces, sane length.
+ */
+export function validateSignInIdentifier(identifier: string): string | undefined {
+  const value = identifier.trim();
+
+  if (value.length === 0) return 'ENTER YOUR EMAIL ADDRESS OR ACCOUNT NAME.';
+  if (/\s/.test(value)) return 'AN EMAIL ADDRESS OR ACCOUNT NAME CANNOT CONTAIN SPACES.';
+  if (value.length > 254) return 'THAT IS TOO LONG TO BE AN EMAIL ADDRESS OR ACCOUNT NAME.';
+
+  return undefined;
+}
+
 export function validateSignIn(input: { email: string; password: string }): CredentialErrors {
   const errors: CredentialErrors = {};
 
-  const email = validateEmail(input.email);
-  if (email !== undefined) errors.email = email;
+  const identifier = validateSignInIdentifier(input.email);
+  if (identifier !== undefined) errors.email = identifier;
 
   if (input.password.length === 0) errors.password = 'ENTER YOUR PASSWORD.';
 

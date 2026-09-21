@@ -3,7 +3,7 @@ import { displayTags } from './tags';
 import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
 import { profileNameColour } from '../profile/name-colours';
 import type { GivenTag, PublicProfile } from '../profile/types';
-import { visibleGivenTags } from '../profile/visibility';
+import { currentAvatarVersion, visibleGivenTags } from '../profile/visibility';
 
 /**
  * The board's post layout, as data.
@@ -38,10 +38,15 @@ export type PostLayout = {
     name: string;
     /**
      * The colour the account chose for its username (`app/lib/profile/name-colours.ts`),
-     * or undefined for the default. Always undefined for the item-owned credit.
+     * or undefined for the default. The item-owned credit is the house account,
+     * whose seeded profile draws it in dark blue like any other account.
      */
     nameColour: string | undefined;
-    /** Picture slot when the credit is not a person: the site's default pfp. */
+    /**
+     * Picture slot when the credit has no picture of its own: the site's default
+     * pfp, drawn for the archive's own byline. Undefined when the credit's profile
+     * carries a picture, and for a guest with no profile at all.
+     */
     picture: string | undefined;
     location: string;
     /** Tags other users gave the author and the author chose to display. */
@@ -92,9 +97,15 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
   // to the item, so its header never repeats the account that commented first.
   const itemOwned = isItemOwnedThread(thread);
   const credit = postCredit(thread);
-  const displayedTags =
-    itemOwned || authorProfile === null || authorProfile === undefined ? [] : visibleGivenTags(authorProfile);
-  const showsPicture = itemOwned || credit.id !== null;
+  // The credit is a real account either way - the house account on an item's own
+  // post - so its profile answers for the name colour and the picture. Given tags
+  // stay off an item-owned post: they belong to a person, not to the archive.
+  const creditProfile = authorProfile ?? null;
+  const displayedTags = itemOwned || creditProfile === null ? [] : visibleGivenTags(creditProfile);
+  const showsPicture = credit.id !== null;
+  // A picture of its own wins; otherwise the archive's byline falls back to the
+  // hand-drawn default pfp slot, so it is never a bare "?" square.
+  const usesDefaultPicture = itemOwned && currentAvatarVersion(creditProfile) === undefined;
 
   return {
     postedLabel: input.postedLabel,
@@ -102,9 +113,9 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
     author: {
       credit,
       name: displayNameFor(credit),
-      nameColour: itemOwned ? undefined : profileNameColour(authorProfile),
-      picture: itemOwned ? SITE_AUTHOR_PICTURE : undefined,
-      location: itemOwned ? '' : (authorProfile?.location ?? ''),
+      nameColour: profileNameColour(creditProfile),
+      picture: usesDefaultPicture ? SITE_AUTHOR_PICTURE : undefined,
+      location: itemOwned ? '' : (creditProfile?.location ?? ''),
       displayedTags,
     },
     hasProfile: credit.id !== null,
