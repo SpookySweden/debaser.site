@@ -2,12 +2,14 @@
 
 import { useState } from 'react';
 import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
+import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { validateBio, validateLocation } from '../lib/profile/visibility';
+import { validateBio, validateLocation, validateSongCredit, validateSongTitle } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } from './ProfileCustomiserOptionsTabs';
 import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
+import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 
 type TabKey = 'profile' | 'privacy';
@@ -54,6 +56,13 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [pendingSrc, setPendingSrc] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
+
+  // Track drafts: the same shape as the picture's, one shelf over.
+  const [songSrc, setSongSrc] = useState<string | null>(null);
+  const [songTitle, setSongTitle] = useState('');
+  const [songCredit, setSongCredit] = useState('');
+  const [songNote, setSongNote] = useState('');
+  const [songMessage, setSongMessage] = useState<string | null>(null);
 
   // Text and visibility drafts: null / empty means "show what is stored".
   const [nameDraft, setNameDraft] = useState<string | null>(null);
@@ -124,6 +133,64 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       setPendingSrc(null);
       setNote('');
     }, 'NEW PICTURE VERSION FILED - THE OLD ONE STAYS IN THE HISTORY.');
+  }
+
+  /**
+   * Files the track: the audio is uploaded (Supabase Storage, or the project's own
+   * assets folder through the mock route), then the version is written. The upload
+   * happens on choosing the file rather than on filing it, so the version number in
+   * the file name is the one it will be filed as.
+   */
+  async function handleSongUpload(file: File) {
+    setSongMessage(null);
+    setError(null);
+
+    setBusy(true);
+
+    try {
+      const result = await uploadSongFile({ file, userId, version: profile.song.versions.length + 1 });
+
+      if (!result.ok) {
+        setError(result.error);
+        return;
+      }
+
+      setSongSrc(result.src);
+      if (songTitle.trim().length === 0) setSongTitle(file.name.replace(/\.[a-z0-9]+$/i, '').toUpperCase());
+      setSongMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleFileSongVersion() {
+    if (songSrc === null) return;
+
+    const titleProblem = validateSongTitle(songTitle);
+    if (titleProblem !== undefined) {
+      setError(titleProblem);
+      return;
+    }
+
+    const creditProblem = validateSongCredit(songCredit);
+    if (creditProblem !== undefined) {
+      setError(creditProblem);
+      return;
+    }
+
+    await run(async () => {
+      await repository.addSongVersion(userId, {
+        src: songSrc,
+        title: songTitle,
+        credit: songCredit,
+        note: songNote,
+      });
+      setSongSrc(null);
+      setSongTitle('');
+      setSongCredit('');
+      setSongNote('');
+      setSongMessage(null);
+    }, 'NEW TRACK VERSION FILED - THE EARLIER ONES STAY IN THE HISTORY.');
   }
 
   async function handleSaveIdentity() {
@@ -214,6 +281,25 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             }
             busy={busy}
             uploadMessage={uploadMessage}
+          />
+
+          <PanelHeading>THE TRACK BESIDE THE PICTURE</PanelHeading>
+          <ProfileCustomiserSongTab
+            profile={profile}
+            pendingSrc={songSrc}
+            title={songTitle}
+            credit={songCredit}
+            note={songNote}
+            onTitleChange={setSongTitle}
+            onCreditChange={setSongCredit}
+            onNoteChange={setSongNote}
+            onUpload={(file) => void handleSongUpload(file)}
+            onFileVersion={() => void handleFileSongVersion()}
+            onRestore={(versionId) =>
+              void run(() => repository.restoreSongVersion(userId, versionId), 'OLDER TRACK FILED AS A NEW VERSION.')
+            }
+            busy={busy}
+            uploadMessage={songMessage}
           />
 
           <PanelHeading>NAME, NAME COLOUR, PLACE LINE AND BIO</PanelHeading>

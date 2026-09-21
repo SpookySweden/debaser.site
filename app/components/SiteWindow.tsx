@@ -36,8 +36,11 @@ type SiteWindowProps = {
  */
 export default function SiteWindow({ title, active, status = 'Ready', children }: SiteWindowProps) {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#008080] p-2 font-mono select-none sm:p-4">
-      <div className="flex h-[92vh] w-[95vw] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
+    // The bottom padding is the player's: its bar is fixed to the bottom of the
+    // viewport, and the window is short enough that the bar and the status bar do not
+    // fight over the same strip of screen (see ./MusicPlayer.tsx).
+    <main className="flex min-h-screen items-center justify-center bg-[#008080] p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
+      <div className="flex h-[84vh] w-[95vw] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
 
         {/* Title Bar: the window title, and the profile control on a phone. */}
         <div className="flex items-center justify-between gap-2 bg-[#000080] px-3 py-1 text-sm font-bold text-white">

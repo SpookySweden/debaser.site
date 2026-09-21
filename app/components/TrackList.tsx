@@ -1,80 +1,81 @@
 'use client';
 
-import { useState } from 'react';
+import type { AudioTrack } from '../lib/audio/tracks';
 import type { Track } from '../lib/projects/tracks';
+import { useMusicPlayer } from './MusicPlayerProvider';
 
-type TrackPlayerProps = {
-  track: Track;
-};
+const BUTTON =
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
-/**
- * The player for one track.
- *
- * The audio is hand-made and dropped into the project assets folder by hand, like
- * every other asset, so this component is the audio half of the same rule the
- * artwork follows: if the file is there it plays, and if it is not the row says
- * which file it is waiting for instead of leaving a dead control on the page.
- */
-function TrackPlayer({ track }: TrackPlayerProps) {
-  const [missing, setMissing] = useState(false);
-
-  if (missing) {
-    return (
-      <span className="text-[10px] font-bold text-black" title={`${track.src} is not in the assets folder yet`}>
-        [ AWAITING {track.src} ]
-      </span>
-    );
-  }
-
-  return (
-    <audio
-      controls
-      preload="metadata"
-      src={track.src}
-      onError={() => setMissing(true)}
-      className="h-8 w-full max-w-[260px] rounded-none border border-black bg-[#c0c0c0]"
-    >
-      TRACK NOT PLAYABLE - CHECK {track.src}
-    </audio>
-  );
+/** A manifest row as the player sees it: the same track, out of the archive's shelf. */
+function toAudioTrack(track: Track): AudioTrack {
+  return {
+    id: track.id,
+    title: track.title,
+    credit: track.credit,
+    kind: track.kind,
+    src: track.src,
+    length: track.length,
+    shelf: 'archive',
+  };
 }
 
 /**
  * The track list.
  *
- * Numbered rows, the way a record sleeve lists them: title, what kind of cue it
- * is, who it is credited to, how long it runs, and the player. A track is filed by
- * adding the audio to `assets/audio/` and an entry to the manifest in
- * app/lib/projects/tracks.ts, so nothing here has to be edited to add music.
+ * Numbered rows, the way a record sleeve lists them: title, what kind of cue it is,
+ * who it is credited to, how long it runs, and the button that plays it.
+ *
+ * Playing is the site's own player's job (the bar at the bottom of the window), not a
+ * native `<audio>` control per row: one element plays the whole shelf, so a track keeps
+ * going while the reader walks to another page. A row whose file has not been drawn or
+ * uploaded yet is still a row - pressing it puts the path in the player's readout,
+ * which is the same honest "not there yet" the artwork sheets use.
  */
 export default function TrackList({ tracks }: { tracks: Track[] }) {
+  const player = useMusicPlayer();
+
   if (tracks.length === 0) {
     return (
       <p className="border border-gray-500 bg-white p-3 text-[10px] font-bold text-black">
-        NO TRACKS FILED YET - ADD AN ENTRY TO app/lib/projects/tracks.ts.
+        NO TRACKS FILED YET - ADD AN ENTRY TO app/lib/projects/tracks.ts OR FILE ONE BELOW.
       </p>
     );
   }
 
   return (
     <ol className="space-y-2">
-      {tracks.map((track, index) => (
-        <li
-          key={track.id}
-          className="flex flex-wrap items-center gap-x-3 gap-y-2 border border-gray-500 bg-white p-2 text-[10px] font-bold text-black"
-        >
-          <span className="w-6 shrink-0 text-right text-gray-700">{index + 1}.</span>
+      {tracks.map((track, index) => {
+        const audio = toAudioTrack(track);
+        const current = player.track?.src === audio.src;
 
-          <span className="min-w-40 flex-1">
-            <span className="block text-xs">{track.title}</span>
-            <span className="block text-gray-700">
-              {track.kind} :: {track.credit} :: {track.length}
+        return (
+          <li
+            key={track.id}
+            className={`flex flex-wrap items-center gap-x-3 gap-y-2 rounded-none border border-gray-500 p-2 text-[10px] font-bold text-black ${
+              current ? 'bg-[#ffffcc]' : 'bg-white'
+            }`}
+          >
+            <span className="w-6 shrink-0 text-right text-gray-700">{index + 1}.</span>
+
+            <span className="min-w-40 flex-1">
+              <span className="block text-xs">{track.title}</span>
+              <span className="block text-gray-700">
+                {track.kind} :: {track.credit} :: {track.length}
+              </span>
             </span>
-          </span>
 
-          <TrackPlayer track={track} />
-        </li>
-      ))}
+            <button
+              type="button"
+              onClick={() => player.play(audio)}
+              disabled={current && player.playing}
+              className={BUTTON}
+            >
+              {current && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
+            </button>
+          </li>
+        );
+      })}
     </ol>
   );
 }

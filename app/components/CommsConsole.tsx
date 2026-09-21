@@ -23,7 +23,7 @@ const SMALL_BUTTON =
  */
 export default function CommsConsole() {
   const comms = useComms();
-  const { userId, threads, accounts, nameById, ready, source, markRead } = comms;
+  const { userId, threads, accounts, accountsReady, nameById, ready, source, error, retry, markRead } = comms;
   const [picking, setPicking] = useState(false);
   const [testNote, setTestNote] = useState<string | null>(null);
   // Opening a group, and adding to one that already exists: two forms, one
@@ -67,6 +67,13 @@ export default function CommsConsole() {
 
   async function openGroup() {
     setGroupError(null);
+
+    // The store refuses an empty name as well; asking here means the reader is told
+    // before anything is sent, and the name is trimmed once, in one place.
+    if (groupName.trim().length === 0) {
+      setGroupError('A GROUP NEEDS A NAME.');
+      return;
+    }
 
     try {
       await comms.createGroup(groupName, groupMembers);
@@ -128,7 +135,19 @@ export default function CommsConsole() {
   }
 
   return (
-    <div className="flex flex-col gap-3 lg:flex-row">
+    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap">
+      {/* A store that cannot be read is said out loud rather than left looking like an
+          account with nothing in it. On a wide screen it takes the first row to itself. */}
+      {error === null ? null : (
+        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 text-[10px] font-bold text-black lg:basis-full">
+          <span className="border border-black bg-[#800000] px-1 text-white">[ COMMS OFFLINE ]</span>
+          <span className="min-w-0 flex-1 break-words text-[#800000]">{error}</span>
+          <button type="button" onClick={retry} className={SMALL_BUTTON}>
+            [ RETRY ]
+          </button>
+        </div>
+      )}
+
       {/* Conversations rail */}
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] lg:w-64 lg:shrink-0">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
@@ -144,7 +163,9 @@ export default function CommsConsole() {
           {picking ? (
             <div className="mt-2 rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
               <p className="text-[10px] font-bold text-black">MESSAGE AN ACCOUNT:</p>
-              {others.length === 0 ? (
+              {!accountsReady ? (
+                <p className="mt-1 text-[10px] text-gray-700">READING THE ACCOUNT LIST...</p>
+              ) : others.length === 0 ? (
                 <p className="mt-1 text-[10px] text-gray-700">
                   NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE AND IT APPEARS HERE.
                 </p>
@@ -169,7 +190,11 @@ export default function CommsConsole() {
 
           <button
             type="button"
-            onClick={() => setGrouping(!grouping)}
+            onClick={() => {
+              setGrouping(!grouping);
+              // A refusal from the last attempt belongs to that attempt, not to this one.
+              setGroupError(null);
+            }}
             className={`ml-1 mt-1 ${SMALL_BUTTON}`}
           >
             {grouping ? '[ CANCEL ]' : '[ + NEW GROUP ]'}
@@ -193,7 +218,9 @@ export default function CommsConsole() {
                 WHO IS IN IT ({groupMembers.length} PICKED) :: YOU ARE ALWAYS IN, AND A GROUP HOLDS {MAX_GROUP_MEMBERS}:
               </p>
 
-              {others.length === 0 ? (
+              {!accountsReady ? (
+                <p className="text-gray-700">READING THE ACCOUNT LIST...</p>
+              ) : others.length === 0 ? (
                 <p className="text-gray-700">NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE.</p>
               ) : (
                 <ul className="space-y-1">
@@ -285,6 +312,17 @@ export default function CommsConsole() {
               <span className="text-gray-700">
                 {active.participants.length} / {MAX_GROUP_MEMBERS} IN THE GROUP :: ANYBODY IN IT CAN ADD SOMEBODY
               </span>
+
+              {/* Who is in it, by name. A head count is not enough: it cannot show that the
+                  account somebody just added actually landed in the group. */}
+              <ul className="flex w-full flex-wrap items-center gap-1">
+                {active.participants.map((id) => (
+                  <li key={id} className="border border-gray-500 bg-white px-1">
+                    <ProfileName author={{ id, displayName: nameFor(id) }} lamp={false} />
+                    {id === userId ? <span className="ml-1 text-gray-700">[ YOU ]</span> : null}
+                  </li>
+                ))}
+              </ul>
 
               {addingTo === active.id ? (
                 <ul className="w-full space-y-1">

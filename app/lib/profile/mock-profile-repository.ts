@@ -10,19 +10,24 @@ import {
   DEFAULT_VISIBILITY,
   avatarVersionById,
   currentAvatarVersion,
+  currentSongVersion,
   isSelfGivenTag,
+  songVersionById,
   tagArrivesApproved,
   validateAvatarNote,
   validateBio,
   validateLocation,
   validateNameColour,
   validateProfileComment,
+  validateSongCredit,
+  validateSongTitle,
   validateTagLabel,
   withVisibilityDefaults,
 } from './visibility';
 import type {
   AddAvatarVersionInput,
   AddProfileCommentInput,
+  AddSongVersionInput,
   AvatarVersion,
   GiveTagInput,
   GivenTag,
@@ -30,6 +35,7 @@ import type {
   ProfilePatch,
   ProfileRepository,
   PublicProfile,
+  SongVersion,
 } from './types';
 
 /**
@@ -80,8 +86,21 @@ function isCommentShaped(value: unknown): value is ProfileComment {
 
   return (
     typeof row.id === 'string' &&
-    (row.kind === 'profile' || row.kind === 'avatar') &&
+    (row.kind === 'profile' || row.kind === 'avatar' || row.kind === 'song') &&
     typeof row.body === 'string' &&
+    typeof row.createdAt === 'string'
+  );
+}
+
+function isSongVersionShaped(value: unknown): value is SongVersion {
+  if (typeof value !== 'object' || value === null) return false;
+  const row = value as Partial<SongVersion>;
+
+  return (
+    typeof row.id === 'string' &&
+    typeof row.version === 'number' &&
+    typeof row.src === 'string' &&
+    typeof row.title === 'string' &&
     typeof row.createdAt === 'string'
   );
 }
@@ -98,6 +117,7 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
   if (typeof value !== 'object' || value === null) return null;
   const row = value as Partial<PublicProfile>;
   const avatar = row.avatar ?? { versions: [], currentVersionId: null };
+  const song = row.song ?? { versions: [], currentVersionId: null };
 
   return {
     userId,
@@ -110,6 +130,12 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
     avatar: {
       versions: Array.isArray(avatar.versions) ? avatar.versions.filter(isVersionShaped) : [],
       currentVersionId: typeof avatar.currentVersionId === 'string' ? avatar.currentVersionId : null,
+    },
+    // A profile filed before songs existed simply has no song, which is what an empty
+    // history means - so a payload from an older build loads without a migration.
+    song: {
+      versions: Array.isArray(song.versions) ? song.versions.filter(isSongVersionShaped) : [],
+      currentVersionId: typeof song.currentVersionId === 'string' ? song.currentVersionId : null,
     },
     visibility: withVisibilityDefaults(row.visibility),
     tags: Array.isArray(row.tags) ? row.tags.filter(isTagShaped) : [],
@@ -188,6 +214,7 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     bio: '',
     location: '',
     avatar: { versions: [], currentVersionId: null },
+    song: { versions: [], currentVersionId: null },
     visibility: { ...DEFAULT_VISIBILITY },
     tags: [],
     comments: [],
@@ -387,6 +414,61 @@ class MockProfileRepository implements ProfileRepository {
     });
   }
 
+  async addSongVersion(userId: string, input: AddSongVersionInput): Promise<PublicProfile> {
+    const titleProblem = validateSongTitle(input.title);
+    if (titleProblem !== undefined) throw new Error(titleProblem);
+
+    const creditProblem = validateSongCredit(input.credit ?? '');
+    if (creditProblem !== undefined) throw new Error(creditProblem);
+
+    const noteProblem = validateAvatarNote(input.note ?? '');
+    if (noteProblem !== undefined) throw new Error(noteProblem);
+
+    if (input.src.trim().length === 0) throw new Error('NO TRACK WAS CHOSEN.');
+
+    return this.write(userId, (profile) => {
+      const version = profile.song.versions.length + 1;
+      const entry: SongVersion = {
+        id: createLocalId('song-version'),
+        version,
+        src: input.src.trim(),
+        title: input.title.trim(),
+        credit: (input.credit ?? '').trim(),
+        note: (input.note ?? '').trim(),
+        createdAt: new Date().toISOString(),
+      };
+
+      return {
+        ...profile,
+        song: { versions: [...profile.song.versions, entry], currentVersionId: entry.id },
+      };
+    });
+  }
+
+  async restoreSongVersion(userId: string, versionId: string): Promise<PublicProfile> {
+    return this.write(userId, (profile) => {
+      const previous = profile.song.versions.find((version) => version.id === versionId);
+      if (previous === undefined) throw new Error('THAT TRACK IS NOT IN THE HISTORY.');
+
+      const version = profile.song.versions.length + 1;
+      const entry: SongVersion = {
+        id: createLocalId('song-version'),
+        version,
+        src: previous.src,
+        title: previous.title,
+        credit: previous.credit,
+        note: `RESTORED FROM V${previous.version}`,
+        createdAt: new Date().toISOString(),
+        restoredFromVersion: previous.version,
+      };
+
+      return {
+        ...profile,
+        song: { versions: [...profile.song.versions, entry], currentVersionId: entry.id },
+      };
+    });
+  }
+
   async setTagVisibility(userId: string, tagId: string, hidden: boolean): Promise<PublicProfile> {
     return this.write(userId, (profile) => {
       const target = profile.tags.find((tag) => tag.id === tagId);
@@ -444,10 +526,16 @@ class MockProfileRepository implements ProfileRepository {
 
     return this.write(userId, (profile) => {
       let version: AvatarVersion | undefined;
+      let song: SongVersion | undefined;
 
       if (input.kind === 'avatar') {
         version = avatarVersionById(profile, input.avatarVersionId) ?? currentAvatarVersion(profile);
         if (version === undefined) throw new Error('THERE IS NO PICTURE ON THIS PROFILE YET.');
+      }
+
+      if (input.kind === 'song') {
+        song = songVersionById(profile, input.songVersionId) ?? currentSongVersion(profile);
+        if (song === undefined) throw new Error('THERE IS NO SONG ON THIS PROFILE YET.');
       }
 
       const comment: ProfileComment = {
@@ -458,6 +546,7 @@ class MockProfileRepository implements ProfileRepository {
         createdAt: new Date().toISOString(),
         // The version is captured at write time: later changes never re-point it.
         ...(version === undefined ? {} : { avatarVersionId: version.id, avatarVersionNumber: version.version }),
+        ...(song === undefined ? {} : { songVersionId: song.id, songVersionNumber: song.version }),
       };
 
       return { ...profile, comments: [...profile.comments, comment] };

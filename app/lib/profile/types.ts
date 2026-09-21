@@ -20,6 +20,8 @@ export const MAX_BIO_LENGTH = 400;
 export const MAX_COMMENT_LENGTH = 400;
 export const MAX_TAG_LABEL_LENGTH = 24;
 export const MAX_LOCATION_LENGTH = 40;
+export const MAX_SONG_TITLE_LENGTH = 60;
+export const MAX_SONG_CREDIT_LENGTH = 40;
 
 /** What the owner lets visitors see. Everything private is off by default. */
 export type ProfileVisibility = {
@@ -29,6 +31,8 @@ export type ProfileVisibility = {
   showProfileComments: boolean;
   /** Comments left on the picture itself. */
   showAvatarComments: boolean;
+  /** Comments left on the song beside the picture. */
+  showSongComments: boolean;
 };
 
 /**
@@ -59,6 +63,36 @@ export type ProfileAvatar = {
   currentVersionId: string | null;
 };
 
+/**
+ * One track in the profile's song history.
+ *
+ * The same shape as a picture version, and the same rule: the history is append-only,
+ * so a comment about a track keeps pointing at the track it was written about.
+ */
+export type SongVersion = {
+  id: string;
+  /** 1-based and never reused. */
+  version: number;
+  /** The audio file (a storage URL, or the archive's own `/assets/audio/...`). */
+  src: string;
+  title: string;
+  /** Who the track is credited to. */
+  credit: string;
+  /** Why it is there, written by the owner. */
+  note: string;
+  createdAt: string;
+  /** Set when the owner put an older track back. */
+  restoredFromVersion?: number;
+};
+
+/** The one track an account wears, and the history behind it. */
+export type ProfileSong = {
+  /** Oldest first. */
+  versions: SongVersion[];
+  /** The version on display: always the newest entry. */
+  currentVersionId: string | null;
+};
+
 /** A tag another user gave you. Hidden until you choose to show it. */
 export type GivenTag = {
   id: string;
@@ -70,16 +104,19 @@ export type GivenTag = {
   hidden: boolean;
 };
 
-/** A comment left on the profile, or on the picture. */
+/** A comment left on the profile, on the picture, or on the song. */
 export type ProfileComment = {
   id: string;
-  kind: 'profile' | 'avatar';
+  kind: 'profile' | 'avatar' | 'song';
   author: ForumAuthor;
   body: string;
   createdAt: string;
   /** Picture comments record the version they were written against. */
   avatarVersionId?: string;
   avatarVersionNumber?: number;
+  /** The same, for the song beside the picture. */
+  songVersionId?: string;
+  songVersionNumber?: number;
 };
 
 export type PublicProfile = {
@@ -95,6 +132,8 @@ export type PublicProfile = {
   /** Optional place line, shown next to the name on posts and on the profile. */
   location: string;
   avatar: ProfileAvatar;
+  /** The one track beside the picture, with the history behind it. */
+  song: ProfileSong;
   visibility: ProfileVisibility;
   tags: GivenTag[];
   comments: ProfileComment[];
@@ -125,12 +164,21 @@ export type AddAvatarVersionInput = {
   note?: string;
 };
 
+export type AddSongVersionInput = {
+  src: string;
+  title: string;
+  credit?: string;
+  note?: string;
+};
+
 export type AddProfileCommentInput = {
   kind: ProfileComment['kind'];
   author: ForumAuthor;
   body: string;
   /** Picture comments only: the version to attach (defaults to the current one). */
   avatarVersionId?: string;
+  /** Song comments only: the version to attach (defaults to the current one). */
+  songVersionId?: string;
 };
 
 export type GiveTagInput = {
@@ -188,6 +236,15 @@ export type ProfileRepository = {
   addAvatarVersion(userId: string, input: AddAvatarVersionInput): Promise<PublicProfile>;
   /** Append-only restore: keeps the old drawings and their comments intact. */
   restoreAvatarVersion(userId: string, versionId: string): Promise<PublicProfile>;
+  /**
+   * Files the account's song, or the next one.
+   *
+   * Same rule as a picture: the file becomes the newest version and the earlier tracks
+   * stay in the history with the comments written against them.
+   */
+  addSongVersion(userId: string, input: AddSongVersionInput): Promise<PublicProfile>;
+  /** Puts an older track back by filing a version that copies it. */
+  restoreSongVersion(userId: string, versionId: string): Promise<PublicProfile>;
   setTagVisibility(userId: string, tagId: string, hidden: boolean): Promise<PublicProfile>;
   giveTag(userId: string, input: GiveTagInput): Promise<PublicProfile>;
   removeTag(userId: string, tagId: string): Promise<PublicProfile>;

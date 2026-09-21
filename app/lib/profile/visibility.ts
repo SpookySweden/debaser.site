@@ -1,21 +1,36 @@
 import { isSiteAccount } from '../auth/builtin-account';
 import type { ForumAuthor } from '../forum/types';
 import { isNameColour } from './name-colours';
-import { MAX_BIO_LENGTH, MAX_COMMENT_LENGTH, MAX_LOCATION_LENGTH, MAX_TAG_LABEL_LENGTH } from './types';
-import type { AvatarVersion, GivenTag, ProfileComment, ProfileVisibility, PublicProfile } from './types';
+import {
+  MAX_BIO_LENGTH,
+  MAX_COMMENT_LENGTH,
+  MAX_LOCATION_LENGTH,
+  MAX_SONG_CREDIT_LENGTH,
+  MAX_SONG_TITLE_LENGTH,
+  MAX_TAG_LABEL_LENGTH,
+} from './types';
+import type {
+  AvatarVersion,
+  GivenTag,
+  ProfileComment,
+  ProfileVisibility,
+  PublicProfile,
+  SongVersion,
+} from './types';
 
 /**
  * Profile privacy defaults and the selectors that enforce them.
  *
  * Everything a visitor should not see by default stays off: tags given by other
- * users, and comments left on the profile. Picture comments default to visible
- * because the picture gallery is the point of the page - the owner can still
- * switch them off in the customiser.
+ * users, and comments left on the profile. Picture comments - and the song's, which
+ * sit beside them - default to visible because the picture gallery and the track are
+ * the point of the page; the owner can still switch either off in the customiser.
  */
 export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showTags: false,
   showProfileComments: false,
   showAvatarComments: true,
+  showSongComments: true,
 };
 
 export function withVisibilityDefaults(visibility: Partial<ProfileVisibility> | undefined): ProfileVisibility {
@@ -39,6 +54,75 @@ export function currentAvatarVersion(profile: PublicProfile | null): AvatarVersi
 export function avatarVersionById(profile: PublicProfile, versionId: string | undefined): AvatarVersion | undefined {
   if (versionId === undefined) return undefined;
   return profile.avatar.versions.find((version) => version.id === versionId);
+}
+
+/* The song beside the picture: the same selectors, one track instead of one drawing - */
+
+export function songVersionsOldestFirst(profile: PublicProfile): SongVersion[] {
+  return [...profile.song.versions].sort((a, b) => a.version - b.version);
+}
+
+export function songVersionsNewestFirst(profile: PublicProfile): SongVersion[] {
+  return songVersionsOldestFirst(profile).reverse();
+}
+
+export function currentSongVersion(profile: PublicProfile | null): SongVersion | undefined {
+  if (profile === null || profile.song.currentVersionId === null) return undefined;
+
+  return profile.song.versions.find((version) => version.id === profile.song.currentVersionId);
+}
+
+export function songVersionById(profile: PublicProfile, versionId: string | undefined): SongVersion | undefined {
+  if (versionId === undefined) return undefined;
+  return profile.song.versions.find((version) => version.id === versionId);
+}
+
+/** Whether the song may be commented on: the same rule as the picture. */
+export function canCommentOnSong(owner: boolean, visibility: ProfileVisibility): boolean {
+  return owner || visibility.showSongComments;
+}
+
+export function songComments(profile: PublicProfile): ProfileComment[] {
+  return profile.comments.filter((comment) => comment.kind === 'song');
+}
+
+export function visibleSongComments(profile: PublicProfile): ProfileComment[] {
+  return profile.visibility.showSongComments ? songComments(profile) : [];
+}
+
+export function commentsForSongVersion(profile: PublicProfile, version: SongVersion): ProfileComment[] {
+  return songComments(profile).filter((comment) => comment.songVersionId === version.id);
+}
+
+export function commentCountForSongVersion(profile: PublicProfile, version: SongVersion): number {
+  return commentsForSongVersion(profile, version).length;
+}
+
+/** How many comments a song version is holding, for the history rows. */
+export function songVersionLabel(profile: PublicProfile, version: SongVersion): string {
+  return version.id === profile.song.currentVersionId ? `V${version.version} (CURRENT)` : `V${version.version}`;
+}
+
+/**
+ * The one track an account wears, as the player wants it.
+ *
+ * The profile page hands this to the site's player rather than drawing a second audio
+ * element, so pressing play beside a picture plays that track in the bar at the bottom
+ * of the window - and keeps playing it while the reader moves on.
+ */
+export function songAsPlayerTrack(
+  profile: PublicProfile,
+  version: SongVersion,
+): { id: string; title: string; credit: string; kind: string; src: string; length: string; shelf: 'bucket' } {
+  return {
+    id: `profile-song-${version.id}`,
+    title: version.title.length === 0 ? `${profile.displayName}'s TRACK` : version.title,
+    credit: version.credit.length === 0 ? profile.displayName : version.credit,
+    kind: `PROFILE SONG :: V${version.version}`,
+    src: version.src,
+    length: '--:--',
+    shelf: 'bucket',
+  };
 }
 
 /** Tags a visitor is allowed to see: the global switch, then the per-tag switch. */
@@ -178,6 +262,24 @@ export function validateTagLabel(label: string): string | undefined {
 
 export function validateAvatarNote(note: string): string | undefined {
   if (note.length > MAX_COMMENT_LENGTH) return `NOTE MUST BE ${MAX_COMMENT_LENGTH} CHARACTERS OR FEWER.`;
+  return undefined;
+}
+
+export function validateSongTitle(title: string): string | undefined {
+  const trimmed = title.trim();
+  if (trimmed.length === 0) return 'THE TRACK NEEDS A TITLE.';
+  if (trimmed.length > MAX_SONG_TITLE_LENGTH) {
+    return `TITLES MUST BE ${MAX_SONG_TITLE_LENGTH} CHARACTERS OR FEWER.`;
+  }
+
+  return undefined;
+}
+
+export function validateSongCredit(credit: string): string | undefined {
+  if (credit.length > MAX_SONG_CREDIT_LENGTH) {
+    return `CREDITS MUST BE ${MAX_SONG_CREDIT_LENGTH} CHARACTERS OR FEWER.`;
+  }
+
   return undefined;
 }
 

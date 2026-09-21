@@ -25,6 +25,8 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import ProfilePictureCommentWindow from './ProfilePictureCommentWindow';
 import ProfilePicturePanel from './ProfilePicturePanel';
+import ProfileSongCommentWindow from './ProfileSongCommentWindow';
+import ProfileSongPanel from './ProfileSongPanel';
 import ProfileTagList from './ProfileTagList';
 import { usePresence } from './PresenceProvider';
 import TimeStamp from './TimeStamp';
@@ -85,6 +87,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const selectedVersion = avatarVersionById(profile, selectedVersionId) ?? currentAvatarVersion(profile);
   // The comment window, opened from the button beside the version label.
   const [commenting, setCommenting] = useState(false);
+  // ...and the same, for the track beside the picture.
+  const [commentingOnSong, setCommentingOnSong] = useState(false);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
 
   return (
@@ -103,9 +107,10 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
           <span>{owner ? '[ YOUR PROFILE ]' : '[ VISITOR VIEW ]'}</span>
         </div>
 
-        <div className="flex flex-col gap-3 p-3 sm:flex-row">
-          {/* The picture keeps the size it has always been drawn at, and the version
-              being looked at is the one the comments below belong to. */}
+        {/* The picture and the account's track sit side by side: the drawing on the
+            left, the song it comes with in the space beside it. Everything else - the
+            details, the tags, the bio and the conversations - reads underneath. */}
+        <div className="flex flex-col gap-3 p-3 lg:flex-row">
           <div className="shrink-0">
             <ProfileAvatar version={selectedVersion} displayName={displayName} size={176} />
 
@@ -128,8 +133,18 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             )}
           </div>
 
-          {/* Everything about the account sits to the right of it, tags included. */}
-          <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-black">
+          <ProfileSongPanel
+            profile={profile}
+            owner={owner}
+            selectedId={selectedVersionId}
+            onSelect={setSelectedVersionId}
+            onComment={() => setCommentingOnSong(true)}
+          />
+        </div>
+
+        {/* The account's own details, under the picture and the track: they are read
+            once, while the picture and the song are what the page is for. */}
+        <div className="min-w-0 space-y-1 border-t border-gray-500 p-3 text-[10px] font-bold text-black">
             <p>ACCOUNT ID: {userId}</p>
             <p>PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}</p>
             <p>
@@ -169,7 +184,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             <div className="border-t border-gray-500 pt-1">
               <ProfileTagList profile={profile} repository={repository} viewer={viewer} owner={owner} />
             </div>
-          </div>
         </div>
 
         {/* The biography, as a small part of the same window rather than a section of
@@ -212,6 +226,18 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         />
       ) : null}
 
+      {commentingOnSong ? (
+        <ProfileSongCommentWindow
+          profile={profile}
+          repository={repository}
+          viewer={viewer}
+          owner={owner}
+          selectedId={selectedVersionId}
+          onSelect={setSelectedVersionId}
+          onClose={() => setCommentingOnSong(false)}
+        />
+      ) : null}
+
       {/* Board activity first, then the comments on the profile itself: what the
           account has filed reads better before the discussion of it. */}
       <ProfileBoardActivity
@@ -248,74 +274,82 @@ type CommentsSectionProps = {
 
 /** Comments left directly on the profile (not on the picture). */
 function CommentsSection({ userId, owner, viewerId, visibility, comments, hiddenCount, onComment }: CommentsSectionProps) {
+  // Closed until asked: the count is on the title bar, the list and the box are one
+  // click away, and a profile reads as a profile rather than as a comment page.
+  const [open, setOpen] = useState(false);
+
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>COMMENTS ON THIS PROFILE</span>
-        <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>
+        <span className="flex items-center gap-2">
+          <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>
+          <button type="button" onClick={() => setOpen(!open)} className={BUTTON}>
+            {open ? '[ HIDE ]' : '[ SHOW ]'}
+          </button>
+        </span>
       </div>
 
-      <div className="p-3 text-black">
-        {owner && !visibility.showProfileComments ? (
-          <p className="text-[10px] font-bold text-black">
-            VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
-          </p>
-        ) : null}
+      {!open ? null : (
+        <>
+          <div className="p-3 text-black">
+            {owner && !visibility.showProfileComments ? (
+              <p className="text-[10px] font-bold text-black">
+                VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
+              </p>
+            ) : null}
 
-        {owner && hiddenCount > 0 ? (
-          <p className="text-[10px] font-bold text-black">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
-        ) : null}
+            {owner && hiddenCount > 0 ? (
+              <p className="text-[10px] font-bold text-black">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
+            ) : null}
 
-        {comments.length === 0 ? (
-          <p className="text-[10px] font-bold text-black">
-            {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
-          </p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {comments.map((comment) => (
-              <li key={comment.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
-                <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                  <ProfileLink author={comment.author}>
-                    <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
-                  </ProfileLink>
-                  <TimeStamp at={comment.createdAt} />
-                </div>
-                <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+            {comments.length === 0 ? (
+              <p className="text-[10px] font-bold text-black">
+                {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
+              </p>
+            ) : (
+              <ul className="space-y-2">
+                {comments.map((comment) => (
+                  <li key={comment.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
+                      <ProfileLink author={comment.author}>
+                        <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
+                      </ProfileLink>
+                      <TimeStamp at={comment.createdAt} />
+                    </div>
+                    <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-      {/*
-        Everybody gets a box here, the owner included: commenting on your own bio
-        is the same action as commenting on somebody else's. Visitors lose the form
-        (and read the notice instead) while the owner has comments switched off.
-      */}
-      <div className="border-t border-gray-500 p-3">
-        {viewerId === null ? (
-          <p className="text-[10px] font-bold text-black">
-            COMMENTS FROM GUESTS ARE SIGNED ANONYMOUS (GUEST) - LOG IN TO SIGN YOURS.
-          </p>
-        ) : null}
-        <ProfileCommentBox
-          id={`profile-comment-${userId}`}
-          title={owner ? 'COMMENT ON YOUR OWN PROFILE' : 'COMMENT ON THIS PROFILE'}
-          placeholder={owner ? 'Say something on your own profile...' : 'Say something about this profile...'}
-          submitLabel="[ FILE COMMENT ]"
-          closedNotice={
-            canCommentOnProfile(owner, visibility)
-              ? null
-              : 'COMMENTS ON THIS PROFILE ARE SWITCHED OFF BY THE OWNER.'
-          }
-          onSubmit={onComment}
-        />
-      </div>
+          {/*
+            Everybody gets a box here, the owner included: commenting on your own bio
+            is the same action as commenting on somebody else's. Visitors lose the form
+            (and read the notice instead) while the owner has comments switched off.
+          */}
+          <div className="border-t border-gray-500 p-3">
+            {viewerId === null ? (
+              <p className="text-[10px] font-bold text-black">
+                COMMENTS FROM GUESTS ARE SIGNED ANONYMOUS (GUEST) - LOG IN TO SIGN YOURS.
+              </p>
+            ) : null}
+            <ProfileCommentBox
+              id={`profile-comment-${userId}`}
+              title={owner ? 'COMMENT ON YOUR OWN PROFILE' : 'COMMENT ON THIS PROFILE'}
+              placeholder={owner ? 'Say something on your own profile...' : 'Say something about this profile...'}
+              submitLabel="[ FILE COMMENT ]"
+              closedNotice={
+                canCommentOnProfile(owner, visibility)
+                  ? null
+                  : 'COMMENTS ON THIS PROFILE ARE SWITCHED OFF BY THE OWNER.'
+              }
+              onSubmit={onComment}
+            />
+          </div>
+        </>
+      )}
     </section>
   );
 }
-
-/**
- * One section of comments: the profile's own, on the left to the picture's in the
- * window above.
- */

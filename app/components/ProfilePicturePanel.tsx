@@ -45,6 +45,9 @@ export default function ProfilePicturePanel({ profile, owner, selectedId, onSele
   const current = currentAvatarVersion(profile);
   const selected = avatarVersionById(profile, selectedId) ?? current;
   const [historyOpen, setHistoryOpen] = useState(false);
+  // The thread is one summary line until it is asked for: a page whose comments sit
+  // open under both the picture and the track buries the things it is actually for.
+  const [threadOpen, setThreadOpen] = useState(false);
 
   const listed = owner ? avatarComments(profile) : visibleAvatarComments(profile);
   const thread = selected === undefined ? [] : listed.filter((comment) => comment.avatarVersionId === selected.id);
@@ -54,15 +57,23 @@ export default function ProfilePicturePanel({ profile, owner, selectedId, onSele
     <div className="space-y-2">
       {selected === undefined ? null : (
         <div className="space-y-1">
-          <p className="text-[10px] font-bold">
-            COMMENTS ON V{selected.version}
-            {selected.id === profile.avatar.currentVersionId ? ' (CURRENT)' : ''} :: {thread.length}
-            {commentsSwitchedOff ? ' :: HIDDEN BY THE OWNER' : ''}
-          </p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-[10px] font-bold">
+              COMMENTS ON V{selected.version}
+              {selected.id === profile.avatar.currentVersionId ? ' (CURRENT)' : ''} :: {thread.length}
+              {commentsSwitchedOff ? ' :: HIDDEN BY THE OWNER' : ''}
+            </p>
 
-          {commentsSwitchedOff || thread.length === 0 ? (
+            <button type="button" onClick={() => setThreadOpen(!threadOpen)} className={BUTTON}>
+              {threadOpen ? '[ HIDE ]' : '[ SHOW ]'}
+            </button>
+          </div>
+
+          {!threadOpen ? null : commentsSwitchedOff || thread.length === 0 ? (
             <p className="text-[10px] text-gray-700">
-              {commentsSwitchedOff ? 'COMMENTS ON THE PICTURE ARE SWITCHED OFF.' : 'NOTHING HAS BEEN SAID ABOUT THIS ONE YET.'}
+              {commentsSwitchedOff
+                ? 'COMMENTS ON THE PICTURE ARE SWITCHED OFF.'
+                : 'NOTHING HAS BEEN SAID ABOUT THIS ONE YET.'}
             </p>
           ) : (
             <ul className="space-y-1">

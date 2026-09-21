@@ -31,6 +31,16 @@ blue name, and the realtime publication the board and the message pop-up listen 
 The last section of the file has three queries to run afterwards (tables and their
 RLS flag, the policies, and the profile rows) - each should answer without error.
 
+A project that has been running since before section 13 (groups) existed needs that one
+section run on its own: `supabase/migrations/20260921_group_conversations.sql` is section
+13 as a file, safe to re-run. See Groups below for what happens until it has run.
+
+One more catch-up is worth knowing about, because its failure is silent:
+`supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
+`supabase_realtime` publication. A channel bound to a table that is not in it reports
+SUBSCRIBED and then delivers nothing at all - from any of its tables - which reads on
+screen as "nobody has messaged you yet". See Realtime below.
+
 2. Create the house account
 ---------------------------
 Authentication -> Users -> Add user: email `admin1212@debaser.site`, the password
@@ -210,6 +220,70 @@ On the page it is one screen for both: `[ + NEW GROUP ]` next to `[ + NEW MESSAG
 a `[ GROUP ]` mark and a head count in the conversation list, a member count with
 `[ + ADD MEMBER ]` on an open group, and the panel names members rather than a single
 "TO:". Direct messages are unchanged - same derived id, same two readers.
+
+If a project's `comms_*` tables predate section 13, run the catch-up script -
+`supabase/migrations/20260921_group_conversations.sql`, Dashboard -> SQL Editor, safe to
+re-run. Until it has run, the site is honest rather than half-broken: the conversation
+read falls back to the pair-only shape (so the comms page, the unread badge and the
+notification pop-up all work on direct messages), and `[ + NEW GROUP ]` answers with the
+file to run instead of a raw PostgREST error. That message is `GROUPS_NEED_MIGRATION` in
+app/lib/comms/supabase-comms-repository.ts, and the fallback is the `readThreads` method
+beside it.
+
+Realtime
+--------
+Section 9 of the script puts the tables the site listens to in the `supabase_realtime`
+publication, and it has one rule that is easy to get wrong because getting it wrong is
+silent:
+
+  a channel bound to a table that is NOT in the publication reports SUBSCRIBED, and then
+  delivers no event from ANY of its tables. The one unpublishable binding takes the whole
+  channel down.
+
+That is what the comms channel did: it watched `comms_messages`, `comms_threads` and
+`comms_members` (published) plus `comms_reads` (never published), so every event was
+dropped - messages that arrived while a page was open were never shown, a member added to
+a group never appeared, and nothing moved until a reload.
+
+Two things follow, and both are in the repository now:
+
+  - `comms_reads` is not bound any more. The read marker is written by the reader, and
+    every event and every poll re-reads the whole conversation anyway;
+  - `comms_members` is bound only once the group script is known to be there, because a
+    binding for a missing table breaks a channel the same way;
+  - and the channel is no longer the only path: `CommsProvider` re-reads on a timer
+    (`COMMS_POLL_MS`, 15s, only while the tab is visible), so a blocked socket or a quiet
+    channel delays a message by seconds instead of hiding it until a reload. A channel
+    that cannot join now says so in the console rather than looking like an empty inbox.
+
+`supabase/migrations/20260921_comms_realtime.sql` is that publication catch-up as a file
+you can paste on its own - all four tables, safe to re-run. Run it on a project that has
+been live since before `comms_reads` was published.
+
+Music
+-----
+Section 14 puts the audio somewhere it survives a deploy: a public `mp3` bucket, with the
+same folder rule the pictures use (`<user id>/...`), 20MB and the five audio types the
+site itself insists on (`MAX_TRACK_BYTES` and the list in app/lib/audio/catalogue.ts).
+`music_tracks` is what gives a file its title and its credit.
+
+The player reads the *bucket*, not the table: app/lib/audio/supabase-music-repository.ts
+lists it (one level deep, so the per-account folders are found). That is what makes a file
+dropped in by hand play the moment it lands, and it is why the first track in the bucket is
+what the bar at the bottom of the window opens on, looping (`[ LOOP: ON ]` by default). A
+file with no row is titled from its own name, and if the listing is refused the shelf falls
+back to the archive's own hand-filed tracks (app/lib/projects/tracks.ts) rather than
+showing nothing. `Temp/check-music-bucket.cjs` prints what the player will find.
+
+Section 15 is the track beside a picture: `profile_song_versions` (append-only, like the
+drawings), `profiles.current_song_version_id` and `show_song_comments`, and
+`profile_comments` grows `song_version_id` plus a `'song'` kind - so one comments table,
+with one set of read rules, holds all three surfaces (the profile, the picture, the track).
+Filing a song also updates `profiles`, which the profile channel already watches, so an
+open page shows the new track without a reload; nothing new needs publishing.
+
+A project that has been live since before either section needs them run on their own:
+`supabase/migrations/20260921_music_and_profile_songs.sql`, safe to re-run.
 
 Tags
 ----

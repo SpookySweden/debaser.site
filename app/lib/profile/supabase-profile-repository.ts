@@ -9,12 +9,15 @@ import {
   validateLocation,
   validateNameColour,
   validateProfileComment,
+  validateSongCredit,
+  validateSongTitle,
   validateTagLabel,
   withVisibilityDefaults,
 } from './visibility';
 import type {
   AddAvatarVersionInput,
   AddProfileCommentInput,
+  AddSongVersionInput,
   AvatarVersion,
   GiveTagInput,
   GivenTag,
@@ -22,6 +25,7 @@ import type {
   ProfilePatch,
   ProfileRepository,
   PublicProfile,
+  SongVersion,
 } from './types';
 
 /**
@@ -53,11 +57,23 @@ import type {
 
 const PROFILES_TABLE = 'profiles';
 const VERSIONS_TABLE = 'profile_avatar_versions';
+const SONGS_TABLE = 'profile_song_versions';
 const TAGS_TABLE = 'profile_tags';
 const COMMENTS_TABLE = 'profile_comments';
 
 /** One read per profile: the row plus everything that hangs off it. */
-const PROFILE_SELECT = `*, ${VERSIONS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
+const PROFILE_SELECT = `*, ${VERSIONS_TABLE}(*), ${SONGS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
+
+type SongRow = {
+  id: string;
+  version: number;
+  src: string;
+  title: string;
+  credit: string;
+  note: string;
+  restored_from_version: number | null;
+  created_at: string;
+};
 
 type VersionRow = {
   id: string;
@@ -81,8 +97,9 @@ type TagRow = {
 
 type CommentRow = {
   id: string;
-  kind: 'profile' | 'avatar';
+  kind: 'profile' | 'avatar' | 'song';
   avatar_version_id: string | null;
+  song_version_id: string | null;
   author_id: string | null;
   author_label: string;
   body: string;
@@ -98,11 +115,14 @@ type ProfileRow = {
   show_tags: boolean;
   show_profile_comments: boolean;
   show_avatar_comments: boolean;
+  show_song_comments: boolean;
   current_version_id: string | null;
+  current_song_version_id: string | null;
   last_seen_at: string | null;
   is_online: boolean;
   updated_at: string;
   profile_avatar_versions?: VersionRow[] | null;
+  profile_song_versions?: SongRow[] | null;
   profile_tags?: TagRow[] | null;
   profile_comments?: CommentRow[] | null;
 };
@@ -125,6 +145,19 @@ function toVersion(row: VersionRow): AvatarVersion {
   };
 }
 
+function toSong(row: SongRow): SongVersion {
+  return {
+    id: row.id,
+    version: row.version,
+    src: row.src,
+    title: row.title,
+    credit: row.credit,
+    note: row.note,
+    createdAt: row.created_at,
+    ...(row.restored_from_version === null ? {} : { restoredFromVersion: row.restored_from_version }),
+  };
+}
+
 function toTag(row: TagRow): GivenTag {
   return {
     id: row.id,
@@ -139,6 +172,8 @@ function toTag(row: TagRow): GivenTag {
 function toProfile(row: ProfileRow): PublicProfile {
   const versions = (row.profile_avatar_versions ?? []).map(toVersion).sort((a, b) => a.version - b.version);
   const versionById = new Map(versions.map((version) => [version.id, version]));
+  const songs = (row.profile_song_versions ?? []).map(toSong).sort((a, b) => a.version - b.version);
+  const songById = new Map(songs.map((version) => [version.id, version]));
 
   return {
     userId: row.id,
@@ -149,15 +184,18 @@ function toProfile(row: ProfileRow): PublicProfile {
     bio: row.bio,
     location: row.location,
     avatar: { versions, currentVersionId: row.current_version_id },
+    song: { versions: songs, currentVersionId: row.current_song_version_id },
     visibility: withVisibilityDefaults({
       showTags: row.show_tags,
       showProfileComments: row.show_profile_comments,
       showAvatarComments: row.show_avatar_comments,
+      showSongComments: row.show_song_comments,
     }),
     tags: (row.profile_tags ?? []).map(toTag).sort((a, b) => Date.parse(a.givenAt) - Date.parse(b.givenAt)),
     comments: (row.profile_comments ?? [])
       .map((comment): ProfileComment => {
         const attached = comment.avatar_version_id === null ? undefined : versionById.get(comment.avatar_version_id);
+        const attachedSong = comment.song_version_id === null ? undefined : songById.get(comment.song_version_id);
 
         return {
           id: comment.id,
@@ -168,6 +206,9 @@ function toProfile(row: ProfileRow): PublicProfile {
           ...(attached === undefined
             ? {}
             : { avatarVersionId: attached.id, avatarVersionNumber: attached.version }),
+          ...(attachedSong === undefined
+            ? {}
+            : { songVersionId: attachedSong.id, songVersionNumber: attachedSong.version }),
         };
       })
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
@@ -262,6 +303,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       update.show_tags = visibility.showTags;
       update.show_profile_comments = visibility.showProfileComments;
       update.show_avatar_comments = visibility.showAvatarComments;
+      update.show_song_comments = visibility.showSongComments;
     }
 
     if (Object.keys(update).length > 0) {
@@ -341,6 +383,81 @@ class SupabaseProfileRepository implements ProfileRepository {
     });
   }
 
+  /** The track on display, whoever filed it. */
+  private async setCurrentSongVersion(userId: string, versionId: string): Promise<void> {
+    const { error } = await this.client()
+      .from(PROFILES_TABLE)
+      .upsert({ id: userId, current_song_version_id: versionId }, { onConflict: 'id' });
+
+    if (error !== null) this.fail(error.message);
+  }
+
+  async addSongVersion(userId: string, input: AddSongVersionInput): Promise<PublicProfile> {
+    const titleProblem = validateSongTitle(input.title);
+    if (titleProblem !== undefined) throw new Error(titleProblem);
+
+    const creditProblem = validateSongCredit(input.credit ?? '');
+    if (creditProblem !== undefined) throw new Error(creditProblem);
+
+    const noteProblem = validateAvatarNote(input.note ?? '');
+    if (noteProblem !== undefined) throw new Error(noteProblem);
+
+    if (input.src.trim().length === 0) throw new Error('NO TRACK WAS CHOSEN.');
+
+    const { data, error } = await this.client()
+      .from(SONGS_TABLE)
+      .select('version')
+      .eq('user_id', userId)
+      .order('version', { ascending: false })
+      .limit(1);
+
+    if (error !== null) this.fail(error.message);
+
+    const highest = (data ?? [])[0] as { version: number } | undefined;
+    const version = (highest?.version ?? 0) + 1;
+
+    const { data: inserted, error: insertError } = await this.client()
+      .from(SONGS_TABLE)
+      .insert({
+        user_id: userId,
+        version,
+        src: input.src.trim(),
+        title: input.title.trim(),
+        credit: (input.credit ?? '').trim(),
+        note: (input.note ?? '').trim(),
+      })
+      .select('id')
+      .single();
+
+    if (insertError !== null) this.fail(insertError.message);
+
+    await this.setCurrentSongVersion(userId, (inserted as { id: string }).id);
+
+    return this.requireProfile(userId);
+  }
+
+  /** Restoring files a new version that copies the old track's file. */
+  async restoreSongVersion(userId: string, versionId: string): Promise<PublicProfile> {
+    const { data, error } = await this.client()
+      .from(SONGS_TABLE)
+      .select('*')
+      .eq('id', versionId)
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    if (error !== null) this.fail(error.message);
+    if (data === null) throw new Error('THAT TRACK IS NOT IN THE HISTORY.');
+
+    const previous = data as SongRow;
+
+    return this.addSongVersion(userId, {
+      src: previous.src,
+      title: previous.title,
+      credit: previous.credit,
+      note: `RESTORED FROM V${previous.version}`,
+    });
+  }
+
   async giveTag(userId: string, input: GiveTagInput): Promise<PublicProfile> {
     const problem = validateTagLabel(input.label);
     if (problem !== undefined) throw new Error(problem);
@@ -402,12 +519,19 @@ class SupabaseProfileRepository implements ProfileRepository {
     const problem = validateProfileComment(input.body);
     if (problem !== undefined) throw new Error(problem);
 
-    // A comment on the picture is filed against a version: the one the reader was
-    // looking at, or whichever is on display now.
+    // A comment on the picture - or on the song beside it - is filed against a version:
+    // the one the reader was looking at, or whichever is on display now.
     let versionId: string | null = null;
-    if (input.kind === 'avatar') {
+    let songVersionId: string | null = null;
+
+    if (input.kind === 'avatar' || input.kind === 'song') {
       const profile = await this.getProfile(userId);
-      versionId = input.avatarVersionId ?? profile?.avatar.currentVersionId ?? null;
+
+      if (input.kind === 'avatar') {
+        versionId = input.avatarVersionId ?? profile?.avatar.currentVersionId ?? null;
+      } else {
+        songVersionId = input.songVersionId ?? profile?.song.currentVersionId ?? null;
+      }
     }
 
     const { error } = await this.client()
@@ -416,6 +540,7 @@ class SupabaseProfileRepository implements ProfileRepository {
         user_id: userId,
         kind: input.kind,
         avatar_version_id: versionId,
+        song_version_id: songVersionId,
         author_id: input.author.id,
         author_label: input.author.displayName.length > 0 ? input.author.displayName : 'Anonymous',
         body: input.body.trim(),

@@ -8,6 +8,18 @@ import type { CommsMessage, CommsThread } from './types';
  * the store, so both sides compute the same id with no lookup and "message this
  * account" can never open a second conversation by accident.
  */
+
+/**
+ * How often an open page asks the store for the conversations again.
+ *
+ * Realtime is the fast path, not the only one: a socket can be blocked by a network, and
+ * a table that is missing from the `supabase_realtime` publication makes a channel quiet
+ * without failing (see `openChannel` in ./supabase-comms-repository.ts). A timed read is
+ * what makes a message arrive anyway - a few seconds later, and no less real - and it is
+ * the same read the channel and every write already make.
+ */
+export const COMMS_POLL_MS = 15 * 1000;
+
 export function threadIdFor(a: string, b: string): string {
   const [low, high] = a <= b ? [a, b] : [b, a];
   return `dm:${low}|${high}`;

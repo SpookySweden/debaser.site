@@ -22,7 +22,7 @@ import IncomingMessageWindow from './IncomingMessageWindow';
  * conversation is already on screen.
  */
 export default function CommsNotifier() {
-  const { ready, userId, threads, nameById, markRead, send } = useComms();
+  const { ready, userId, threads, nameById, markRead, send, sendToThread } = useComms();
   const compact = useCompactViewport();
   const pathname = usePathname();
   const router = useRouter();
@@ -80,18 +80,36 @@ export default function CommsNotifier() {
 
   if (incomingId === null || userId === null || compact || onCommsPage) return null;
 
-  const thread = threads.find((item) => item.id === incomingId);
-  if (thread === undefined) return null;
+  const incoming = threads.find((item) => item.id === incomingId);
+  if (incoming === undefined) return null;
 
-  const otherId = otherParticipant(thread, userId);
+  // Narrowed into its own bindings, so the reply below can reach them after the guards.
+  const thread = incoming;
+  const viewerId = userId;
+
+  // A group has no single other side, so the pop-up answers the group itself: pointing
+  // it at the member who happened to write last would open a direct conversation with
+  // them instead - a different conversation, and the wrong one to reply in.
+  const isGroup = thread.kind === 'group';
+  const otherId = isGroup ? undefined : otherParticipant(thread, viewerId);
+
+  /** Answering the pop-up writes where the message came from. */
+  async function reply(body: string) {
+    if (isGroup) {
+      await sendToThread(thread.id, body);
+      return;
+    }
+
+    await send(otherParticipant(thread, viewerId), body);
+  }
 
   return (
     <IncomingMessageWindow
       thread={thread}
-      userId={userId}
+      userId={viewerId}
       otherId={otherId}
       nameById={nameById}
-      onSend={(body) => send(otherId, body)}
+      onSend={reply}
       onClose={() => setIncomingId(null)}
     />
   );

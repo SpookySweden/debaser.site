@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
-import { participantFromThread } from '../lib/comms/threads';
+import { participantFromThread, threadLabel } from '../lib/comms/threads';
 import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
@@ -11,14 +11,15 @@ import TimeStamp from './TimeStamp';
 /**
  * The side panel's comms block: the conversations, small.
  *
- * It is a hand-over rather than a second console: a row opens that conversation on
- * /comms (through the same `openThreadWith` the comms picker uses) and the page
- * draws the messages. That keeps one implementation of reading and writing
- * messages, which is the same reason the notification pop-up reuses the panel.
+ * It is a hand-over rather than a second console: a row makes that conversation the
+ * open one (`setActiveThreadId`, the same call the console's own list makes) and
+ * sends the reader to /comms, where the page draws the messages. That keeps one
+ * implementation of reading and writing messages, which is the same reason the
+ * notification pop-up reuses the panel.
  */
 export default function SidebarComms() {
   const comms = useComms();
-  const { userId, threads, nameById, ready } = comms;
+  const { userId, threads, nameById, ready, error } = comms;
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
 
@@ -30,17 +31,19 @@ export default function SidebarComms() {
     [threads, nameById, userId],
   );
 
-  async function openConversation(otherId: string) {
-    setBusyId(otherId);
-
-    try {
-      await comms.openThreadWith(otherId);
-      router.push('/comms');
-    } catch {
-      // Comms asks for an account first, which the block below already says.
-    } finally {
-      setBusyId(null);
-    }
+  /**
+   * Opens a conversation on /comms.
+   *
+   * The row hands over the conversation itself rather than the account it is named
+   * after: a direct message would be re-derived from the pair and come out the same,
+   * but a group is not "with" any single member, so going through the pair would open
+   * the wrong conversation. The page reads the id and draws the messages.
+   */
+  function openConversation(threadId: string) {
+    setBusyId(threadId);
+    comms.setActiveThreadId(threadId);
+    router.push('/comms');
+    setBusyId(null);
   }
 
   return (
@@ -56,6 +59,9 @@ export default function SidebarComms() {
         </p>
       ) : !ready ? (
         <p className="p-2 text-[10px] font-bold text-black">READING THE CONVERSATIONS...</p>
+      ) : error !== null ? (
+        // A store that cannot be read is not the same as an account with nothing in it.
+        <p className="p-2 text-[10px] font-bold text-[#800000]">COMMS OFFLINE :: {error}</p>
       ) : rows.length === 0 ? (
         <p className="p-2 text-[10px] font-bold text-black">
           NO CONVERSATIONS YET. OPEN ONE FROM THE DIRECTORY BELOW OR FROM THE COMMS PAGE.
@@ -66,12 +72,16 @@ export default function SidebarComms() {
             <li key={thread.id}>
               <button
                 type="button"
-                onClick={() => void openConversation(row.userId)}
+                onClick={() => openConversation(thread.id)}
                 disabled={busyId !== null}
                 className="w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-left text-[10px] font-bold text-black hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-60"
               >
                 <span className="flex flex-wrap items-center justify-between gap-1">
-                  <ProfileName author={{ id: row.userId, displayName: row.displayName }} lamp={false} />
+                  {thread.kind === 'group' ? (
+                    <span>[ GROUP ] {threadLabel(thread, userId ?? '', (id) => nameById.get(id) ?? id)}</span>
+                  ) : (
+                    <ProfileName author={{ id: row.userId, displayName: row.displayName }} lamp={false} />
+                  )}
                   <TimeStamp at={row.updatedAt} />
                 </span>
                 <span className="mt-1 block truncate font-normal text-gray-700">{row.preview}</span>

@@ -171,6 +171,11 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
       label: 'SHOW COMMENTS LEFT ON MY PICTURE',
       note: 'ON BY DEFAULT - EVERY COMMENT KEEPS THE VERSION IT WAS WRITTEN AGAINST.',
     },
+    {
+      key: 'showSongComments',
+      label: 'SHOW COMMENTS LEFT ON MY TRACK',
+      note: 'ON BY DEFAULT - THE TRACK BESIDE THE PICTURE, KEEPING ITS OWN VERSION.',
+    },
   ];
 
   return (

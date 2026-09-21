@@ -4,7 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { getAuthRepository } from '../lib/auth/auth-repository';
 import type { AccountUser } from '../lib/auth/types';
 import { COMMS_DATA_SOURCE, getCommsRepository } from '../lib/comms/repository';
-import { sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
+import { COMMS_POLL_MS, sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
 import type { CommsThread } from '../lib/comms/types';
 import { formatStamp } from '../lib/forum/format';
 import { useAuth } from './AuthProvider';
@@ -30,6 +30,15 @@ export type CommsContextValue = {
   accountsReady: boolean;
   /** id -> display name, so a message can be signed with a live name. */
   nameById: Map<string, string>;
+  /**
+   * What the store said when a read failed, in its own words, or null while it is
+   * answering. A comms screen that cannot read has to say so: an empty conversation
+   * list looks exactly like an account with no conversations, and they are not the
+   * same thing at all.
+   */
+  error: string | null;
+  /** Asks the store again after a failure (`[ RETRY ]` on the console). */
+  retry: () => void;
   /** The conversation on screen, if any. */
   activeThreadId: string | null;
   setActiveThreadId: (threadId: string | null) => void;
@@ -65,9 +74,12 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
 
   const [mine, setMine] = useState<CommsThread[]>([]);
   const [ready, setReady] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<AccountUser[]>([]);
   const [accountsReady, setAccountsReady] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  /** Bumped by `retry`: every read below runs again when it changes. */
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     if (userId === null) return;
@@ -76,6 +88,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     const apply = (threads: CommsThread[]) => {
       if (cancelled) return;
       setMine(threads);
+      setError(null);
       setReady(true);
     };
 
@@ -86,15 +99,28 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     repository
       .listThreads(userId)
       .then(apply)
-      .catch(() => {
-        if (!cancelled) setReady(true);
+      .catch((caught: unknown) => {
+        if (cancelled) return;
+        // Kept, not swallowed: the console prints it and offers `[ RETRY ]`.
+        setError(caught instanceof Error ? caught.message : 'THE COMMS STORE DID NOT ANSWER.');
+        setReady(true);
       });
+
+    // And the same read on a timer, so a message arrives even when no event does: a
+    // blocked socket, or a project whose realtime channel is quiet (a table missing from
+    // the publication - see the note on `openChannel`). A poll that fails leaves what is
+    // on screen alone rather than flashing an error over a working page.
+    const poll = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void repository.listThreads(userId).then(apply).catch(() => undefined);
+    }, COMMS_POLL_MS);
 
     return () => {
       cancelled = true;
+      window.clearInterval(poll);
       unsubscribe();
     };
-  }, [repository, userId]);
+  }, [attempt, repository, userId]);
 
   // The picker's names: the accounts this browser can see. Re-read when the
   // signed-in account changes, which is also when a new account is created.
@@ -118,7 +144,10 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     return () => {
       cancelled = true;
     };
-  }, [user]);
+  }, [attempt, user]);
+
+  /** The console's `[ RETRY ]`: run the reads above again, once the store is back. */
+  const retry = useCallback(() => setAttempt((current) => current + 1), []);
 
   // Derived rather than stored, so signing out empties the list with no write.
   const mineForUser = useMemo(
@@ -241,6 +270,8 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       accounts,
       accountsReady,
       nameById,
+      error,
+      retry,
       activeThreadId,
       setActiveThreadId,
       openThreadWith,
@@ -260,6 +291,8 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       accounts,
       accountsReady,
       nameById,
+      error,
+      retry,
       activeThreadId,
       openThreadWith,
       createGroup,
