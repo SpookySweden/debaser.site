@@ -10,6 +10,8 @@ import {
   DEFAULT_VISIBILITY,
   avatarVersionById,
   currentAvatarVersion,
+  isSelfGivenTag,
+  tagArrivesApproved,
   validateAvatarNote,
   validateBio,
   validateLocation,
@@ -386,10 +388,21 @@ class MockProfileRepository implements ProfileRepository {
   }
 
   async setTagVisibility(userId: string, tagId: string, hidden: boolean): Promise<PublicProfile> {
-    return this.write(userId, (profile) => ({
-      ...profile,
-      tags: profile.tags.map((tag) => (tag.id === tagId ? { ...tag, hidden } : tag)),
-    }));
+    return this.write(userId, (profile) => {
+      const target = profile.tags.find((tag) => tag.id === tagId);
+      // Approving a tag the owner gave themselves retires their other self-given
+      // ones: a page may show exactly one of its own (see ./visibility.ts).
+      const retireSelf = !hidden && target !== undefined && isSelfGivenTag(target, userId);
+
+      return {
+        ...profile,
+        tags: profile.tags.map((tag) => {
+          if (tag.id === tagId) return { ...tag, hidden };
+          if (retireSelf && isSelfGivenTag(tag, userId)) return { ...tag, hidden: true };
+          return tag;
+        }),
+      };
+    });
   }
 
   async giveTag(userId: string, input: GiveTagInput): Promise<PublicProfile> {
@@ -409,8 +422,9 @@ class MockProfileRepository implements ProfileRepository {
         colour: input.colour,
         givenBy: input.givenBy,
         givenAt: new Date().toISOString(),
-        // Tags from other users stay hidden until the owner shows them.
-        hidden: true,
+        // The house account's tags arrive approved - the admin does not wait on
+        // anybody - and everything else waits for the owner (see ./visibility.ts).
+        hidden: !tagArrivesApproved(input.givenBy),
       };
 
       return { ...profile, tags: [...profile.tags, tag] };

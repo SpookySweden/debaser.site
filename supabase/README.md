@@ -189,6 +189,24 @@ Two things worth knowing:
     Delete user): removing an auth user needs the service role, which the site is
     never given. A ban is what the site itself can do.
 
+Tags
+----
+A tag is not shown until the profile's owner approves it. `profile_tags.hidden` is that
+flag - it has always meant "not shown", so approving is simply switching it off and no
+schema change was needed. Two rules sit on top of it, both enforced in the profile
+repositories (app/lib/profile/mock-profile-repository.ts and
+supabase-profile-repository.ts) so that every surface agrees:
+
+  - a tag the house account gives arrives approved: the admin does not wait on the
+    approval of the person they are tagging, and may give as many as they like;
+  - the owner may show exactly one tag they gave themselves - approving a second one
+    retires the first, so a page cannot be stacked with its own badges.
+
+The profile page lists the approved tags under the account's details, marks the ones
+still waiting, and gives the owner `[ APPROVE ]` / `[ HIDE ]` / `[ REMOVE ]`. Past six
+tags the list folds behind `[ SHOW ALL n TAGS ]`, and the box for giving one lives
+behind its own `[ ADD TAG ]`.
+
 Profile pictures
 ----------------
 Uploaded drawings go to the public `avatars` bucket (section 11), from the browser,

@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isNameColour } from './name-colours';
 import type { PresenceRecord } from './presence';
 import {
+  tagArrivesApproved,
   validateAvatarNote,
   validateBio,
   validateLocation,
@@ -354,8 +355,9 @@ class SupabaseProfileRepository implements ProfileRepository {
         // shape the board uses for a guest post.
         given_by: input.givenBy.id,
         given_by_label: input.givenBy.displayName.length > 0 ? input.givenBy.displayName : 'Anonymous',
-        // Hidden until the owner decides to show it.
-        hidden: true,
+        // The house account's tags arrive approved - the admin does not wait on
+        // anybody - and everything else waits for the owner (see ./visibility.ts).
+        hidden: !tagArrivesApproved(input.givenBy),
       });
 
     if (error !== null) this.fail(error.message);
@@ -364,13 +366,27 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async setTagVisibility(userId: string, tagId: string, hidden: boolean): Promise<PublicProfile> {
-    const { error } = await this.client()
-      .from(TAGS_TABLE)
-      .update({ hidden })
-      .eq('id', tagId)
-      .eq('user_id', userId);
-
+    const client = this.client();
+    const { error } = await client.from(TAGS_TABLE).update({ hidden }).eq('id', tagId).eq('user_id', userId);
     if (error !== null) this.fail(error.message);
+
+    // Approving a tag the owner gave themselves retires their other self-given ones:
+    // a page may show exactly one of its own (see ./visibility.ts).
+    if (!hidden) {
+      const { data } = await client.from(TAGS_TABLE).select('id, given_by').eq('user_id', userId);
+
+      for (const row of (data ?? []) as { id: string; given_by: string | null }[]) {
+        if (row.id === tagId || row.given_by !== userId) continue;
+
+        const { error: retireError } = await client
+          .from(TAGS_TABLE)
+          .update({ hidden: true })
+          .eq('id', row.id)
+          .eq('user_id', userId);
+
+        if (retireError !== null) this.fail(retireError.message);
+      }
+    }
 
     return this.requireProfile(userId);
   }

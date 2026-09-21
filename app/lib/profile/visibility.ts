@@ -1,6 +1,8 @@
+import { isSiteAccount } from '../auth/builtin-account';
+import type { ForumAuthor } from '../forum/types';
 import { isNameColour } from './name-colours';
 import { MAX_BIO_LENGTH, MAX_COMMENT_LENGTH, MAX_LOCATION_LENGTH, MAX_TAG_LABEL_LENGTH } from './types';
-import type { AvatarVersion, ProfileComment, ProfileVisibility, PublicProfile } from './types';
+import type { AvatarVersion, GivenTag, ProfileComment, ProfileVisibility, PublicProfile } from './types';
 
 /**
  * Profile privacy defaults and the selectors that enforce them.
@@ -43,6 +45,56 @@ export function avatarVersionById(profile: PublicProfile, versionId: string | un
 export function visibleGivenTags(profile: PublicProfile) {
   if (!profile.visibility.showTags) return [];
   return profile.tags.filter((tag) => !tag.hidden);
+}
+
+/**
+ * Tag rules, in one place, because three surfaces have to agree: the profile page's
+ * tag list, the account page's summary and the customiser.
+ *
+ *   - a tag is *pending* until the profile's owner approves it. `hidden` is that
+ *     flag in the store, which is what the database column has always meant, so no
+ *     schema change is needed - approving is simply switching it off;
+ *   - a tag the house account gives arrives approved. The admin does not need the
+ *     approval of the person they are tagging, and may give as many as they like;
+ *   - the owner may show exactly one tag they gave themselves, so a page cannot be
+ *     stacked with its own badges. The store enforces that on approval, in both
+ *     implementations (see the profile repositories), so every surface inherits it.
+ */
+export const TAGS_BEFORE_EXPANDING = 6;
+
+/** The house account's tags: approved on arrival, and unlimited. */
+export function isAdminGivenTag(tag: GivenTag): boolean {
+  return tag.givenBy.id !== null && isSiteAccount(tag.givenBy.id);
+}
+
+/** A tag the profile's own owner gave themselves. */
+export function isSelfGivenTag(tag: GivenTag, ownerId: string): boolean {
+  return tag.givenBy.id === ownerId;
+}
+
+export function isApprovedTag(tag: GivenTag): boolean {
+  return !tag.hidden;
+}
+
+/** Approved tags, oldest first: what the page's tag list shows. */
+export function approvedTags(profile: PublicProfile): GivenTag[] {
+  return profile.tags.filter((tag) => !tag.hidden);
+}
+
+/** Waiting on the owner. Only the owner's view lists these. */
+export function pendingTags(profile: PublicProfile): GivenTag[] {
+  return profile.tags.filter((tag) => tag.hidden);
+}
+
+/**
+ * Whether a tag has to wait for the owner before anybody sees it.
+ *
+ * Everything except the house account's own tags does - including a tag the owner
+ * gives themselves, which still has to be approved (and retires their previous
+ * self-given one when it is).
+ */
+export function tagArrivesApproved(giver: ForumAuthor): boolean {
+  return giver.id !== null && isSiteAccount(giver.id);
 }
 
 /**
