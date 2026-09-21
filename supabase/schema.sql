@@ -19,9 +19,10 @@
 --   forum_comments            replies, including the auto-filed item threads
 --   comms_threads/messages/reads  direct messages between two accounts
 --
--- It also plants the house account's profile row (debaser.site in dark blue) and
--- a trigger that gives every new account - email or Google - a profile of its own,
--- which is what makes "log in with Google" work on a brand new account.
+-- It also plants the house account's profile row (debaser.site in dark blue), gives
+-- every new account - email or Google - a profile and a name of its own, hands the
+-- house account the power to edit or remove anybody's post (`is_admin`), and makes
+-- a public storage bucket for uploaded profile pictures.
 --
 -- After running it:
 --   1. Authentication -> Users -> Add user: email admin1212@debaser.site, the
@@ -533,7 +534,100 @@ begin
 end $$;
 
 -- -----------------------------------------------------------------------------
--- 10. check it landed
+-- 10. moderation: the house account may edit or remove what anybody filed
+-- -----------------------------------------------------------------------------
+-- The board takes posts from guests, so somebody has to be able to take one back
+-- down without opening the SQL editor. That somebody is the house account, and
+-- `is_admin()` is the single answer to "is this visitor the admin" - the policies
+-- read it rather than repeating the address. It has to run `security definer`
+-- because `auth.users` is not readable by the anon or authenticated roles.
+
+create or replace function public.is_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public, auth
+as $$
+  select exists (
+    select 1 from auth.users u
+    where u.id = auth.uid() and lower(u.email) = 'admin1212@debaser.site'
+  );
+$$;
+
+-- These are permissive policies, so they OR with the ones above: an author keeps
+-- their own rights, and the admin gets everybody's.
+
+drop policy if exists "forum_threads moderate" on public.forum_threads;
+create policy "forum_threads moderate" on public.forum_threads
+  for update using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "forum_threads remove" on public.forum_threads;
+create policy "forum_threads remove" on public.forum_threads
+  for delete using (public.is_admin());
+
+drop policy if exists "forum_comments moderate" on public.forum_comments;
+create policy "forum_comments moderate" on public.forum_comments
+  for update using (public.is_admin()) with check (public.is_admin());
+
+drop policy if exists "forum_comments remove" on public.forum_comments;
+create policy "forum_comments remove" on public.forum_comments
+  for delete using (public.is_admin());
+
+-- A tag or a comment on somebody's profile belongs to them, but abuse on it is
+-- still abuse: the admin may take one down, not rewrite it.
+drop policy if exists "profile_tags admin remove" on public.profile_tags;
+create policy "profile_tags admin remove" on public.profile_tags
+  for delete using (public.is_admin());
+
+drop policy if exists "profile_comments admin remove" on public.profile_comments;
+create policy "profile_comments admin remove" on public.profile_comments
+  for delete using (public.is_admin());
+
+-- -----------------------------------------------------------------------------
+-- 11. profile pictures: a storage bucket for the drawings
+-- -----------------------------------------------------------------------------
+-- Uploaded drawings live in Supabase Storage rather than on the site's disk, so
+-- they survive a deploy and work on a host with a read-only filesystem. The bucket
+-- is public - a profile picture is shown to everybody who can see the profile -
+-- served from /storage/v1/object/public/avatars/...
+--
+-- The path carries the owner's id (`<user id>/avatar-v3-....png`) and every write
+-- policy reads that first segment, which is what keeps one account out of another
+-- account's folder. Account ids are uuids, so the folder name is safe as a path.
+
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('avatars', 'avatars', true, 4194304, array['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
+on conflict (id) do update
+  set public = excluded.public,
+      file_size_limit = excluded.file_size_limit,
+      allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "avatars readable" on storage.objects;
+create policy "avatars readable" on storage.objects
+  for select using (bucket_id = 'avatars');
+
+drop policy if exists "avatars filed by owner" on storage.objects;
+create policy "avatars filed by owner" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "avatars replaced by owner" on storage.objects;
+create policy "avatars replaced by owner" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text)
+  with check (bucket_id = 'avatars' and (storage.foldername(name))[1] = auth.uid()::text);
+
+drop policy if exists "avatars removed by owner or admin" on storage.objects;
+create policy "avatars removed by owner or admin" on storage.objects
+  for delete to authenticated
+  using (
+    bucket_id = 'avatars'
+    and ((storage.foldername(name))[1] = auth.uid()::text or public.is_admin())
+  );
+
+-- -----------------------------------------------------------------------------
+-- 12. check it landed
 -- -----------------------------------------------------------------------------
 -- Run these on their own after the script; each should answer without an error.
 --
@@ -542,3 +636,6 @@ end $$;
 --   select tablename, policyname, cmd from pg_policies
 --     where schemaname = 'public' order by tablename, policyname;
 --   select id, display_name, name_colour from public.profiles;
+--   select id, public, file_size_limit, allowed_mime_types from storage.buckets;
+--   select policyname, cmd from pg_policies
+--     where schemaname = 'storage' order by policyname;

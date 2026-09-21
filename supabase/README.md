@@ -72,10 +72,41 @@ What lives where
   board (threads, comments)  app/lib/forum/supabase-repository.ts
   profiles + presence        app/lib/profile/supabase-profile-repository.ts
   direct messages            app/lib/comms/supabase-comms-repository.ts
+  uploaded pictures          app/lib/profile/avatar-upload.ts + the `avatars` bucket
   the switches themselves    app/lib/*/repository.ts (and auth-repository.ts)
 
 Each repository is the only place that knows a table name: no component reads a
 table, and nothing in the UI changes when a switch flips.
+
+Moderation
+----------
+The board takes posts from guests, so somebody has to be able to take one back
+down. That is the house account: `public.is_admin()` is the single test (it checks
+the signed-in account's address), and section 10 of the script gives it update and
+delete on `forum_threads` and `forum_comments` - anything, not just its own rows -
+plus delete on `profile_tags` and `profile_comments`.
+
+The site draws `[ ADMIN ] [ EDIT POST ] [ REMOVE POST ]` on every post and reply
+when that account is signed in (app/components/ForumModerationControls.tsx), and
+nothing at all for anybody else. The controls are a convenience; the rule is the
+database's, so a request forged by hand is refused there rather than in the UI.
+
+Profile pictures
+----------------
+Uploaded drawings go to the public `avatars` bucket (section 11), from the browser,
+under the visitor's own session - which is what the bucket policies check and what
+makes uploads work on a host with a read-only filesystem (Vercel). The path is
+`<account id>/avatar-v<version>-<stamp>.<ext>`, and the policies read that first
+segment, so one account cannot file into another's folder.
+
+Two things follow from the bucket being a different host:
+
+  - `next.config.ts` has to allow it in `images.remotePatterns` (it does, narrowed
+    to `/storage/v1/object/public/**`).
+  - Pictures filed *before* this change are still files in the repo's
+    `assets/profiles/uploads/` folder. Both kinds can live side by side: a version
+    row stores whatever `src` it was filed with, and the upload route is still the
+    path used when profiles are on the mock store.
 
 What the permissions actually allow
 -----------------------------------

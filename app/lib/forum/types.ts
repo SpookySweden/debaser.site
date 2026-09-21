@@ -117,6 +117,17 @@ export type AddCommentResult = {
   createdThread: boolean;
 };
 
+/** What an edit may change on a post. */
+export type ThreadPatch = {
+  title?: string;
+  body?: string;
+};
+
+/** What an edit may change on a reply. */
+export type CommentPatch = {
+  body?: string;
+};
+
 /**
  * Storage contract for the board.
  *
@@ -126,8 +137,12 @@ export type AddCommentResult = {
  *   `addComment`   -> find-or-insert thread by anchor, then `insert into forum_comments`
  *                     (`parent_id` carries the comment being replied to, or null)
  *   `subscribe`    -> `supabase.channel('forum').on('postgres_changes', ...)`
+ *   `updateThread` / `updateComment` -> `update ... where id = $1`
+ *   `deleteThread` / `deleteComment` -> `delete from ... where id = $1`
  * RLS: every row keeps `author_id`, and policies restrict update/delete to
- * `auth.uid() = author_id` while leaving select public.
+ * `auth.uid() = author_id`, while leaving select public. The house account is the
+ * exception: the `is_admin()` policies let it edit or remove anybody's row, which
+ * is what makes the moderation controls on the board work (supabase/schema.sql).
  *
  * DDL note for the reply threads (additive, so existing rows keep working):
  *   alter table public.forum_comments
@@ -138,6 +153,19 @@ export type ForumRepository = {
   listThreads(): Promise<ForumThread[]>;
   createThread(input: CreateThreadInput): Promise<ForumThread>;
   addComment(input: CreateCommentInput): Promise<AddCommentResult>;
+  /**
+   * Editing and removing posts, for the author and for the admin.
+   *
+   * Both are ordinary writes as far as this interface is concerned: who is allowed
+   * to make them is decided by the database (author, or the house account). The
+   * board only offers the controls to the admin - see
+   * app/components/ForumModerationControls.tsx.
+   */
+  updateThread(threadId: string, patch: ThreadPatch): Promise<ForumThread>;
+  deleteThread(threadId: string): Promise<void>;
+  /** Hands back the thread the reply lives on, so the caller can redraw it. */
+  updateComment(commentId: string, patch: CommentPatch): Promise<ForumThread>;
+  deleteComment(commentId: string): Promise<void>;
   /** Realtime hook: fires with a fresh snapshot whenever the board changes. */
   subscribe(listener: (threads: ForumThread[]) => void): () => void;
   /** Mock-only helper so local test posts can be purged. */

@@ -7,12 +7,14 @@ import { readTagColours, rememberTagColour as rememberTagColourInStore } from '.
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
   AddCommentResult,
+  CommentPatch,
   ForumAnchor,
   ForumAuthor,
   ForumDataSource,
   ForumPreview,
   ForumRepository,
   ForumThread,
+  ThreadPatch,
 } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
 
@@ -53,6 +55,18 @@ export type ForumContextValue = {
   rememberTagColour: (label: string, colour: string) => void;
   createThread: (request: CreateThreadRequest) => Promise<ForumThread>;
   addComment: (request: AddCommentRequest) => Promise<AddCommentResult>;
+  /**
+   * Moderation, for the author and for the house account.
+   *
+   * A single write each: the repository hands back the changed thread and the
+   * realtime subscription redraws the board, so there is nothing to keep in step
+   * here. Who may make them is the database's business (see
+   * app/lib/forum/types.ts).
+   */
+  updateThread: (threadId: string, patch: ThreadPatch) => Promise<ForumThread>;
+  deleteThread: (threadId: string) => Promise<void>;
+  updateComment: (commentId: string, patch: CommentPatch) => Promise<ForumThread>;
+  deleteComment: (commentId: string) => Promise<void>;
   threadForAnchor: (anchor: ForumAnchor) => ForumThread | undefined;
   commentCountForAnchor: (anchor: ForumAnchor) => number;
   clearLocalPosts: () => Promise<void>;
@@ -170,6 +184,34 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     [author, canonicaliseUserTags],
   );
 
+  const updateThread = useCallback(async (threadId: string, patch: ThreadPatch) => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    const thread = await repository.updateThread(threadId, patch);
+    setThreads((current) => current.map((item) => (item.id === thread.id ? thread : item)));
+    return thread;
+  }, []);
+
+  const deleteThread = useCallback(async (threadId: string) => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    await repository.deleteThread(threadId);
+    setThreads((current) => current.filter((item) => item.id !== threadId));
+  }, []);
+
+  const updateComment = useCallback(async (commentId: string, patch: CommentPatch) => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    const thread = await repository.updateComment(commentId, patch);
+    setThreads((current) => current.map((item) => (item.id === thread.id ? thread : item)));
+    return thread;
+  }, []);
+
+  const deleteComment = useCallback(async (commentId: string) => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    await repository.deleteComment(commentId);
+    // The replies that answered it went too, so the board is re-read rather than
+    // patched by hand.
+    setThreads(await repository.listThreads());
+  }, []);
+
   const threadForAnchor = useCallback(
     (anchor: ForumAnchor) =>
       threads.find((thread) => thread.anchor.kind === anchor.kind && thread.anchor.id === anchor.id),
@@ -198,6 +240,10 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       rememberTagColour,
       createThread,
       addComment,
+      updateThread,
+      deleteThread,
+      updateComment,
+      deleteComment,
       threadForAnchor,
       commentCountForAnchor,
       clearLocalPosts,
@@ -212,6 +258,10 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       rememberTagColour,
       createThread,
       addComment,
+      updateThread,
+      deleteThread,
+      updateComment,
+      deleteComment,
       threadForAnchor,
       commentCountForAnchor,
       clearLocalPosts,

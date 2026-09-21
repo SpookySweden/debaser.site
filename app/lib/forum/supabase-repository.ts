@@ -4,6 +4,7 @@ import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { deriveTags, mergeTags } from './tags';
 import type {
   AddCommentResult,
+  CommentPatch,
   CreateCommentInput,
   CreateThreadInput,
   ForumAnchorKind,
@@ -12,6 +13,7 @@ import type {
   ForumRepository,
   ForumTag,
   ForumThread,
+  ThreadPatch,
 } from './types';
 
 /**
@@ -267,6 +269,77 @@ class SupabaseForumRepository implements ForumRepository {
     const thread = toThread(threadRow as ThreadRow);
 
     return { thread, comment: toComment(commentRow as CommentRow, thread.id), createdThread };
+  }
+
+  /**
+   * Editing what is already on the board.
+   *
+   * The site offers these controls to the house account only (see
+   * app/components/ForumModerationControls.tsx); the permission itself lives in
+   * Supabase, where the `is_admin()` policies let it past the author check.
+   */
+  async updateThread(threadId: string, patch: ThreadPatch): Promise<ForumThread> {
+    const changes: Record<string, unknown> = {};
+
+    if (patch.title !== undefined) changes.title = patch.title.trim();
+    if (patch.body !== undefined) changes.body = patch.body.trim();
+
+    if (Object.keys(changes).length === 0) return this.fetchThread(threadId);
+
+    const { error } = await this.client().from(THREADS_TABLE).update(changes).eq('id', threadId);
+    if (error !== null) throw new Error(`forum thread update failed: ${error.message}`);
+
+    return this.fetchThread(threadId);
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    const { error } = await this.client().from(THREADS_TABLE).delete().eq('id', threadId);
+    if (error !== null) throw new Error(`forum thread delete failed: ${error.message}`);
+  }
+
+  /** Hands back the whole thread, so the board can redraw the reply in place. */
+  async updateComment(commentId: string, patch: CommentPatch): Promise<ForumThread> {
+    const body = (patch.body ?? '').trim();
+    const threadId = await this.threadIdForComment(commentId);
+
+    if (body.length > 0) {
+      const { error } = await this.client().from(COMMENTS_TABLE).update({ body }).eq('id', commentId);
+      if (error !== null) throw new Error(`forum comment update failed: ${error.message}`);
+    }
+
+    return this.fetchThread(threadId);
+  }
+
+  async deleteComment(commentId: string): Promise<void> {
+    // The replies that answered this one go with it: the foreign key cascades.
+    const { error } = await this.client().from(COMMENTS_TABLE).delete().eq('id', commentId);
+    if (error !== null) throw new Error(`forum comment delete failed: ${error.message}`);
+  }
+
+  /** One thread, by id: what a moderation write hands back to the board. */
+  private async fetchThread(threadId: string): Promise<ForumThread> {
+    const { data, error } = await this.client()
+      .from(THREADS_TABLE)
+      .select(THREAD_SELECT)
+      .eq('id', threadId)
+      .single();
+
+    if (error !== null) throw new Error(`forum thread refresh failed: ${error.message}`);
+
+    return toThread(data as ThreadRow);
+  }
+
+  /** Which thread a reply is filed under, for the refresh above. */
+  private async threadIdForComment(commentId: string): Promise<string> {
+    const { data, error } = await this.client()
+      .from(COMMENTS_TABLE)
+      .select('thread_id')
+      .eq('id', commentId)
+      .single();
+
+    if (error !== null) throw new Error(`forum comment lookup failed: ${error.message}`);
+
+    return (data as { thread_id: string }).thread_id;
   }
 
   /** Resolves (or auto-creates) the thread a comment belongs to. */

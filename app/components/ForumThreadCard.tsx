@@ -13,6 +13,7 @@ import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
 import { useForum } from './ForumProvider';
+import { ThreadModeration } from './ForumModerationControls';
 import MediaThumbnail from './MediaThumbnail';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
@@ -155,6 +156,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
               </div>
 
               {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
+
+              {/* Only drawn for the house account: rewrite the post, or take it down. */}
+              <ThreadModeration thread={thread} />
             </div>
 
             {isOpen ? null : (

@@ -4,6 +4,7 @@ import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
 import { deriveTags, mergeTags } from './tags';
 import type {
   AddCommentResult,
+  CommentPatch,
   CreateCommentInput,
   CreateThreadInput,
   ForumAnchor,
@@ -12,6 +13,7 @@ import type {
   ForumPreview,
   ForumRepository,
   ForumThread,
+  ThreadPatch,
 } from './types';
 
 /**
@@ -248,6 +250,77 @@ class MockForumRepository implements ForumRepository {
     return () => {
       listeners.delete(listener);
     };
+  }
+
+  async updateThread(threadId: string, patch: ThreadPatch): Promise<ForumThread> {
+    const threads = ensureState();
+    const thread = threads.find((item) => item.id === threadId);
+    if (thread === undefined) throw new Error('THAT POST IS NOT ON THE BOARD.');
+
+    const title = patch.title === undefined ? thread.title : patch.title.trim();
+    const body = patch.body === undefined ? thread.body : patch.body.trim();
+    if (title.length === 0) throw new Error('A POST NEEDS A TITLE.');
+
+    // The housekeeping tags are read back out of the new text, exactly as they are
+    // when the post is first filed.
+    const next: ForumThread = {
+      ...thread,
+      title,
+      body,
+      tags: mergeTags(
+        canonicalUserTags(
+          thread.tags.map((tag) => tag.label),
+          threads,
+        ),
+        deriveTags({ text: `${title}\n${body}`, anchor: thread.anchor }),
+      ),
+    };
+
+    commit(threads.map((item) => (item.id === threadId ? next : item)));
+    return next;
+  }
+
+  async deleteThread(threadId: string): Promise<void> {
+    // Replies to the post go with it, the way the foreign key cascades in Supabase.
+    commit(ensureState().filter((item) => item.id !== threadId));
+  }
+
+  async updateComment(commentId: string, patch: CommentPatch): Promise<ForumThread> {
+    const threads = ensureState();
+    const thread = threads.find((item) => item.comments.some((comment) => comment.id === commentId));
+    if (thread === undefined) throw new Error('THAT REPLY IS NOT ON THE BOARD.');
+
+    const body = (patch.body ?? '').trim();
+    if (body.length === 0) throw new Error('A REPLY NEEDS SOMETHING IN IT.');
+
+    const next: ForumThread = {
+      ...thread,
+      comments: thread.comments.map((comment) =>
+        comment.id === commentId
+          ? {
+              ...comment,
+              body,
+              tags: mergeTags(
+                comment.tags.map((tag) => tag.label),
+                deriveTags({ text: body, anchor: thread.anchor, maxTags: 3 }),
+              ),
+            }
+          : comment,
+      ),
+    };
+
+    commit(threads.map((item) => (item.id === thread.id ? next : item)));
+    return next;
+  }
+
+  async deleteComment(commentId: string): Promise<void> {
+    // The replies that answered this one go too, as they do in Supabase.
+    commit(
+      ensureState().map((thread) => ({
+        ...thread,
+        comments: thread.comments.filter((comment) => comment.id !== commentId && comment.parentId !== commentId),
+      })),
+    );
   }
 
   async clearLocalPosts(): Promise<void> {

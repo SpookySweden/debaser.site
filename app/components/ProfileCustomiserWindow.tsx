@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { MAX_AVATAR_BYTES } from '../lib/profile/avatar-catalogue';
+import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { validateBio, validateLocation } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
@@ -81,30 +81,24 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     setUploadMessage(null);
     setError(null);
 
-    if (file.size > MAX_AVATAR_BYTES) {
-      setError(`THAT DRAWING IS TOO BIG - ${Math.round(MAX_AVATAR_BYTES / 1024)}KB MAX.`);
-      return;
-    }
-
     setBusy(true);
 
     try {
-      const form = new FormData();
-      form.append('file', file);
-      form.append('userId', userId);
+      // Which store it lands in is the upload module's business: Supabase Storage
+      // when profiles live there, the project's own assets folder otherwise.
+      const result = await uploadAvatarDrawing({
+        file,
+        userId,
+        version: profile.avatar.versions.length + 1,
+      });
 
-      const response = await fetch('/api/profile/avatar', { method: 'POST', body: form });
-      const payload = (await response.json()) as { ok?: boolean; src?: string; error?: string };
-
-      if (payload.ok !== true || payload.src === undefined) {
-        setError(payload.error ?? 'THE UPLOAD WAS REFUSED.');
+      if (!result.ok) {
+        setError(result.error);
         return;
       }
 
-      setPendingSrc(payload.src);
-      setUploadMessage(`UPLOADED TO ${payload.src} - FILE IT AS A VERSION BELOW.`);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'UPLOAD FAILED.');
+      setPendingSrc(result.src);
+      setUploadMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
     } finally {
       setBusy(false);
     }

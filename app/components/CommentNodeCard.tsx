@@ -6,6 +6,7 @@ import { countReplies } from '../lib/forum/format';
 import { displayTags } from '../lib/forum/tags';
 import type { ForumAuthor, ForumComment } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
+import { CommentModeration } from './ForumModerationControls';
 import MediaThumbnail from './MediaThumbnail';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
@@ -113,6 +114,9 @@ export default function CommentNodeCard({
             </button>
           )}
         </div>
+
+        {/* Only drawn for the house account: rewrite the reply, or take it down. */}
+        <CommentModeration comment={comment} />
 
         {replyOpen ? (
           <CommentComposer

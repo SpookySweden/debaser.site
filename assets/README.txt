@@ -51,17 +51,26 @@ Rules
 
 Adding a profile picture
 ------------------------
-Two ways, both ending in the same place - a file in this folder:
+Two ways, both ending in the same place - a file the site can serve:
 
 1. Slots: save a square PNG as assets/profiles/avatar-slot-NN.png. The slots are
    listed in app/lib/profile/avatar-catalogue.ts; until a file exists the picker
    and the profile page show the standard "[ ARTWORK FILE NOT FOUND ]" notice.
-2. Upload: use the "CUSTOMISE PUBLIC PROFILE" console on /account and pick a
-   file. POST /api/profile/avatar writes it into assets/profiles/uploads/ and
-   returns the path it now serves. Every change is filed as a new avatar version
-   in the profile store, so old drawings are never overwritten and the comments
-   written against them keep pointing at the right one.
+2. Upload: use the "CUSTOMISE PUBLIC PROFILE" console on /account and pick a file.
 
-Uploads need a writable disk. On a read-only host the route replies with a clear
-message and the picture should live in Supabase Storage instead - only the
-stored `src` changes, nothing in the UI.
+Where an upload lands depends on where profiles live (app/lib/profile/avatar-upload.ts):
+
+- Profiles on Supabase: the drawing goes to the public `avatars` storage bucket,
+  from the browser, under the visitor's own session. The path is
+  `<account id>/avatar-v<version>-<stamp>.<ext>` and the bucket's policies read
+  that first segment, so an account can only file into its own folder. Nothing
+  lands on disk, which is what makes uploads work on a read-only host.
+- Profiles on the mock store: POST /api/profile/avatar writes it into
+  assets/profiles/uploads/ and returns the path it now serves, exactly as before.
+
+Either way every change is filed as a new avatar version in the profile store, so
+old drawings are never overwritten and the comments written against them keep
+pointing at the right one.
+
+The upload route needs a writable disk. On a read-only host it replies with a clear
+message - and that is the case the storage bucket exists for.
