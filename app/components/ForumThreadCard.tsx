@@ -15,6 +15,7 @@ import CommentThreadList from './CommentThreadList';
 import { useForum } from './ForumProvider';
 import MediaThumbnail from './MediaThumbnail';
 import PostAuthorRow from './PostAuthorRow';
+import PostHoverPreview from './PostHoverPreview';
 import SheetImage from './SheetImage';
 import { TagRow } from './TagBadge';
 import TimeStamp from './TimeStamp';
@@ -114,37 +115,51 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
           the list stays tight until somebody points at the title or the name.
         */}
         <summary className="cursor-pointer select-none list-none">
-          <div className="flex items-baseline gap-2 text-xs font-bold text-black">
-            <span className="shrink-0 text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
-            <span className="min-w-0 flex-1 group-hover:underline">{layout.title}</span>
-            <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
+          {/*
+            Two columns: the row itself on the left, and the space that stays empty
+            until somebody points at the row on the right - which is where the
+            writing and the reply crawl show themselves. The space is held open in
+            both states, so hovering never reflows the list.
+          */}
+          <div className="flex items-stretch gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 text-xs font-bold text-black">
+                <span className="shrink-0 text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
+                <span className="min-w-0 flex-1 group-hover:underline">{layout.title}</span>
+                <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
+              </div>
+
+              {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-black">
+                {/* The instant is the one blue thing in the header: POSTED stays black. */}
+                <span className="font-bold">
+                  POSTED <TimeStamp at={thread.createdAt} />
+                </span>
+
+                <PostAuthorRow
+                  author={layout.author.credit}
+                  avatar={layout.avatar}
+                  avatarSize={56}
+                  nameColour={layout.author.nameColour}
+                  picture={layout.author.picture}
+                  location={layout.author.location}
+                  displayedTags={layout.author.displayedTags}
+                />
+
+                {layout.image === 'hover' && images.preview !== undefined ? (
+                  <span className="hidden group-hover:inline-flex" title={layout.left.imageSource}>
+                    <MediaThumbnail media={images.preview} size={72} />
+                  </span>
+                ) : null}
+              </div>
+
+              {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
+            </div>
+
+            {isOpen ? null : (
+              <PostHoverPreview body={layout.right.body} comments={thread.comments} />
+            )}
           </div>
-
-          {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
-          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-black">
-            {/* The instant is the one blue thing in the header: POSTED stays black. */}
-            <span className="font-bold">
-              POSTED <TimeStamp at={thread.createdAt} />
-            </span>
-
-            <PostAuthorRow
-              author={layout.author.credit}
-              avatar={layout.avatar}
-              avatarSize={56}
-              nameColour={layout.author.nameColour}
-              picture={layout.author.picture}
-              location={layout.author.location}
-              displayedTags={layout.author.displayedTags}
-            />
-
-            {layout.image === 'hover' && images.preview !== undefined ? (
-              <span className="hidden group-hover:inline-flex" title={layout.left.imageSource}>
-                <MediaThumbnail media={images.preview} size={72} />
-              </span>
-            ) : null}
-          </div>
-
-          {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
         </summary>
 
         {/*

@@ -35,3 +35,29 @@ summary {
 summary::-webkit-details-marker {
   display: none;
 }
+
+/* The hover preview on a collapsed board row: the replies crawl past like the
+   information bar along the foot of a news channel. The track holds the same
+   list twice and slides by exactly half its width, so the second copy lands
+   where the first began and the loop has no seam. The duration is set inline
+   from the number of replies, which keeps the speed steady instead of making a
+   long thread crawl faster than a short one. */
+@keyframes thread-crawl {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.thread-crawl {
+  animation: thread-crawl 40s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .thread-crawl {
+    animation: none;
+  }
+}

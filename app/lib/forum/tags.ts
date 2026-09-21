@@ -131,7 +131,10 @@ export function mergeTags(
     const key = tagKey(tag.label);
     if (key.length === 0 || seen.has(key)) continue;
     seen.add(key);
-    merged.push(tag);
+    // A colour chosen for this label wins on theme tags too, so the badge on a
+    // post is painted exactly like the badge in the picker.
+    const colour = tag.colour ?? chosenColours[key];
+    merged.push(colour === undefined ? tag : { ...tag, colour });
   }
 
   return merged;
