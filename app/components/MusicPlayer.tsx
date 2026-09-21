@@ -3,67 +3,88 @@
 import { useState, useSyncExternalStore } from 'react';
 import { formatClock, formatClockOrNothing } from '../lib/audio/format';
 import { trackCaption } from '../lib/audio/tracks';
+import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 
 /**
- * The station: a Win95 bar pinned to the bottom of every page.
+ * The station: the site's player, pinned to the bottom of every page.
  *
  * It is the face of `MusicPlayerProvider`, which owns the audio element up in
  * `app/layout.tsx` - so the bar can be drawn, hidden and re-drawn by any page without
  * the music ever noticing. Nothing here starts playing by itself: browsers require a
- * gesture, so the bar opens on a loaded track with `[ ▶ ]` waiting to be pressed.
+ * gesture, so the bar opens on a loaded track with `[ ▶ ]` waiting to be pressed (the
+ * account page asks for one exception, and the provider arms it - see
+ * ./MusicPlayerProvider.tsx).
  *
- * Left to right: the shelf badge, the LED display (track, running time, where it came
- * from), the transport, the volume slider, the loop switch and the shelf list.
- * `[ HIDE ]` folds the whole thing down to one button in the corner; the choice is
- * remembered.
+ * Two shapes, because a wide bar and a phone are not the same instrument:
+ *
+ * - A wide window gets the Win95 bar: the shelf badge, the LED display (track, running
+ *   time, where it came from), the transport, the volume slider, the loop switch, the
+ *   shelf and the fold.
+ * - A phone gets a small card in the corner shaped the way a phone's player is shaped -
+ *   what is playing at the top, a bar you can drag to seek, one big play button with the
+ *   two skips beside it, repeat and volume under it - in the same retro chrome, because
+ *   the shape is the part that has to be a phone player and the colour is the part that
+ *   has to be this site. It is folded away to a `♪` button until it is asked for: a card
+ *   sitting over the page it is playing to is not what a phone wants first.
  */
 
 const BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
+/** The card's buttons: thumb-sized, because a phone is what is pressing them. */
+const TAP_BUTTON =
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-2 text-sm font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+
 /** Where the bar remembers whether it is folded down. */
 const BAR_KEY = 'debaser.audio.bar.v1';
 
+/** What that setting can say: open, folded, or nothing said yet. */
+type BarSetting = 'open' | 'closed';
+
 /**
- * Whether the bar is open, read the way the side panel reads its own setting.
+ * What the listener last said about the bar, read the way the side panel reads its own
+ * setting: a tiny external store rather than state in an effect, so React never renders a
+ * component twice to find that out (see ./DesktopSidebar.tsx, which does the same).
  *
- * A tiny external store rather than state in an effect: the server renders the bar
- * open, the browser swaps in what it remembered, and React never renders a component
- * twice to find that out (see ./DesktopSidebar.tsx, which does the same for the panel).
+ * Nothing said yet is kept as `null` rather than guessed at here, because the answer
+ * differs by window: a wide one starts with the bar showing, a phone starts with it folded
+ * away. Whoever draws the bar knows which it is; this only remembers what was chosen.
  */
 const listeners = new Set<() => void>();
 
-function readStoredOpen(): boolean {
+function readStoredSetting(): BarSetting | null {
   try {
-    return window.localStorage.getItem(BAR_KEY) !== 'closed';
+    const stored = window.localStorage.getItem(BAR_KEY);
+    return stored === 'open' || stored === 'closed' ? stored : null;
   } catch {
-    // No storage (private mode, blocked cookies): the bar just starts open.
-    return true;
+    // No storage (private mode, blocked cookies): the window's own default stands.
+    return null;
   }
 }
 
-let barOpen = typeof window === 'undefined' ? true : readStoredOpen();
+let barSetting: BarSetting | null = typeof window === 'undefined' ? null : readStoredSetting();
 
 function subscribeBar(listener: () => void): () => void {
   listeners.add(listener);
   return () => void listeners.delete(listener);
 }
 
-function getBarSnapshot(): boolean {
-  return barOpen;
+function getBarSnapshot(): BarSetting | null {
+  return barSetting;
 }
 
-function getBarServerSnapshot(): boolean {
-  return true;
+/** The server render is the wide-window answer, which is also what hydration matches. */
+function getBarServerSnapshot(): BarSetting {
+  return 'open';
 }
 
 function setBarOpen(next: boolean): void {
-  barOpen = next;
+  barSetting = next ? 'open' : 'closed';
 
   try {
-    window.localStorage.setItem(BAR_KEY, next ? 'open' : 'closed');
+    window.localStorage.setItem(BAR_KEY, barSetting);
   } catch {
     // Storage blocked: the bar still folds for this visit.
   }
@@ -73,11 +94,13 @@ function setBarOpen(next: boolean): void {
 
 export default function MusicPlayer() {
   const player = useMusicPlayer();
-  const open = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
+  const compact = useCompactViewport();
+  const setting = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
   const [shelfOpen, setShelfOpen] = useState(false);
 
-  const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
-  const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
+  // What the listener chose, or - if they have never touched it - what this window wants:
+  // showing in a wide one, folded away on a phone.
+  const open = setting === null ? !compact : setting === 'open';
 
   if (!open) {
     return (
@@ -87,15 +110,46 @@ export default function MusicPlayer() {
         title="Open the player"
         className={`fixed bottom-2 left-2 z-50 ${BUTTON}`}
       >
-        ♪ {playing ? 'PLAYING' : 'PLAYER'}
+        ♪ {player.playing ? 'PLAYING' : 'PLAYER'}
       </button>
     );
   }
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-[#c0c0c0] px-2 py-1 font-mono text-black shadow-[0_-2px_0_#808080]">
-        <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
+      {compact ? (
+        <CompactBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} />
+      ) : (
+        <DockedBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} />
+      )}
+
+      {shelfOpen ? <ShelfWindow onClose={() => setShelfOpen(false)} /> : null}
+    </>
+  );
+}
+
+/** What either shape of bar needs from the component that draws it. */
+type BarControls = {
+  onHide: () => void;
+  onShelf: () => void;
+};
+
+/**
+ * The wide window's bar.
+ *
+ * One line, left to right: the badge, the LED display, the transport, the volume, the loop,
+ * the shelf and the fold. The display carries the track, where it came from, the running
+ * time and a bar that shows how far in it is - everything a reader wants to know about what
+ * is coming out of the speakers, at a glance, without leaving the page they are reading.
+ */
+function DockedBar({ onHide, onShelf }: BarControls) {
+  const player = useMusicPlayer();
+  const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
+  const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
+
+  return (
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-[#c0c0c0] px-2 py-1 font-mono text-black shadow-[0_-2px_0_#808080]">
+      <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#000080] px-2 py-[2px] text-[10px] font-bold text-white">
             ♪ DEBASER PLAYER
           </span>
@@ -156,72 +210,201 @@ export default function MusicPlayer() {
             {loop ? '[ LOOP: ON ]' : '[ LOOP: OFF ]'}
           </button>
 
-          <button type="button" onClick={() => setShelfOpen(true)} className={BUTTON}>
+          <button type="button" onClick={onShelf} className={BUTTON}>
             [ SHELF ({player.queue.length}) ]
           </button>
 
-          <button
-            type="button"
-            onClick={() => setBarOpen(false)}
-            className={BUTTON}
-            title="Fold the player away"
-          >
+          <button type="button" onClick={onHide} className={BUTTON} title="Fold the player away">
             [ HIDE ]
           </button>
         </div>
       </div>
+    );
+}
 
-      {shelfOpen ? (
-        <PopoutWindow
-          title="THE SHELF"
-          badge={`[ ${player.queue.length} TRACKS ]`}
-          onClose={() => setShelfOpen(false)}
-          maxWidth="max-w-2xl"
-          status="A ROW PLAYS IT :: RELOAD AFTER DROPPING A FILE INTO THE mp3 BUCKET"
-          actions={
-            <button type="button" onClick={player.refresh} className={BUTTON}>
-              [ RELOAD SHELF ]
-            </button>
-          }
-        >
-          {player.queue.length === 0 ? (
-            <p className="text-[10px] font-bold text-black">
-              NOTHING ON THE SHELF YET - UPLOAD A TRACK ON THE MUSIC PAGE, OR DROP A FILE INTO THE mp3 BUCKET.
-            </p>
-          ) : (
-            <ol className="space-y-1">
-              {player.queue.map((entry, position) => {
-                const playingThis = position === player.index;
+/**
+ * The shelf: everything the player can play, in the order it will play it.
+ *
+ * A window rather than a list in the bar, because the bar is a line - and a phone's card
+ * is smaller than a line. Reload after dropping a file into the `mp3` bucket and it is on
+ * the shelf, which is the whole point of reading the bucket rather than a fixed list.
+ */
+function ShelfWindow({ onClose }: { onClose: () => void }) {
+  const player = useMusicPlayer();
 
-                return (
-                  <li
-                    key={`${entry.id}-${position}`}
-                    className={`flex flex-wrap items-center gap-2 rounded-none border border-gray-500 p-2 text-[10px] font-bold text-black ${
-                      playingThis ? 'bg-[#ffffcc]' : 'bg-white'
-                    }`}
-                  >
-                    <span className="w-5 shrink-0 text-right text-gray-700">{position + 1}.</span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate">{entry.title}</span>
-                      <span className="block truncate text-gray-700">
-                        {entry.kind} :: {entry.credit} :: {entry.length}
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => player.playAt(position)}
-                      disabled={playingThis && player.playing}
-                      className={BUTTON}
-                    >
-                      {playingThis && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
-        </PopoutWindow>
-      ) : null}
-    </>
+  return (
+    <PopoutWindow
+      title="THE SHELF"
+      badge={`[ ${player.queue.length} TRACKS ]`}
+      onClose={onClose}
+      maxWidth="max-w-2xl"
+      status="A ROW PLAYS IT :: RELOAD AFTER DROPPING A FILE INTO THE mp3 BUCKET"
+      actions={
+        <button type="button" onClick={player.refresh} className={BUTTON}>
+          [ RELOAD SHELF ]
+        </button>
+      }
+    >
+      {player.queue.length === 0 ? (
+        <p className="text-[10px] font-bold text-black">
+          NOTHING ON THE SHELF YET - UPLOAD A TRACK ON THE MUSIC PAGE, OR DROP A FILE INTO THE mp3 BUCKET.
+        </p>
+      ) : (
+        <ol className="space-y-1">
+          {player.queue.map((entry, position) => {
+            const playingThis = position === player.index;
+
+            return (
+              <li
+                key={`${entry.id}-${position}`}
+                className={`flex flex-wrap items-center gap-2 rounded-none border border-gray-500 p-2 text-[10px] font-bold text-black ${
+                  playingThis ? 'bg-[#ffffcc]' : 'bg-white'
+                }`}
+              >
+                <span className="w-5 shrink-0 text-right text-gray-700">{position + 1}.</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{entry.title}</span>
+                  <span className="block truncate text-gray-700">
+                    {entry.kind} :: {entry.credit} :: {entry.length}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => player.playAt(position)}
+                  disabled={playingThis && player.playing}
+                  className={BUTTON}
+                >
+                  {playingThis && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
+                </button>
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </PopoutWindow>
+  );
+}
+
+/**
+ * The phone's player.
+ *
+ * Shaped the way a phone's player is shaped rather than shrunk down from the bar: what is
+ * playing at the top, a bar that can be dragged to seek, one big play button with the two
+ * skips either side of it, and repeat and volume underneath. Every control is a thumb wide,
+ * and the card is as narrow as the corner it sits in - a player that has to be hunted
+ * through is a player nobody uses.
+ *
+ * The retro part is kept where it does not cost anything: the readout is the same green
+ * LED on black the bar has, because that is what this site's music looks like, and the
+ * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
+ * phone's player is a solved shape.
+ */
+function CompactBar({ onHide, onShelf }: BarControls) {
+  const player = useMusicPlayer();
+  const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
+  const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
+  const seekable = lengthSeconds > 0;
+
+  return (
+    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] font-mono text-black shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+      <div className="flex items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-[10px] font-bold text-white">
+        <span className="truncate">♪ DEBASER PLAYER</span>
+
+        <span className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onShelf}
+            className="cursor-pointer underline underline-offset-2 hover:bg-[#ffffcc] hover:text-[#000080]"
+          >
+            shelf ({player.queue.length})
+          </button>
+
+          <button
+            type="button"
+            onClick={onHide}
+            className="cursor-pointer px-1 leading-none hover:bg-[#ffffcc] hover:text-[#000080]"
+            title="Fold the player away"
+          >
+            ▾
+          </button>
+        </span>
+      </div>
+
+      <div className="p-2">
+        {/* The readout, the same green on black the bar has. */}
+        <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-black px-2 py-1">
+          <p className="truncate text-[12px] font-bold text-[#33ff33]">
+            {loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
+          </p>
+          <p className="truncate text-[9px] text-[#1f9f1f]">
+            {error ?? trackCaption(track)}
+            {loop ? ' :: LOOPING' : ''}
+          </p>
+        </div>
+
+        {/* Draggable: a phone expects to be able to scrub, so the bar is the control. */}
+        <input
+          type="range"
+          min={0}
+          max={seekable ? lengthSeconds : 1}
+          step={1}
+          value={Math.min(Math.floor(elapsed), seekable ? lengthSeconds : 1)}
+          onChange={(event) => player.seek(Number(event.target.value))}
+          disabled={!seekable}
+          className="mt-2 h-5 w-full cursor-pointer disabled:opacity-60"
+          style={{ accentColor: '#000080' }}
+          aria-label="Seek"
+        />
+
+        <div className="flex items-center justify-between text-[10px] font-bold text-gray-700">
+          <span>{formatClock(elapsed)}</span>
+          <span>{formatClockOrNothing(seekable ? duration : undefined)}</span>
+        </div>
+
+        <div className="mt-1 flex items-center justify-center gap-2">
+          <button type="button" onClick={player.previous} className={TAP_BUTTON} title="Previous track">
+            ⏮
+          </button>
+
+          <button
+            type="button"
+            onClick={player.toggle}
+            className={`${TAP_BUTTON} px-6 text-base`}
+            title={playing ? 'Pause' : 'Play'}
+          >
+            {playing ? '❚❚' : '▶'}
+          </button>
+
+          <button type="button" onClick={player.next} className={TAP_BUTTON} title="Next track">
+            ⏭
+          </button>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => player.setLoop(!loop)}
+            className={TAP_BUTTON}
+            title="Repeat this track when it ends"
+          >
+            ↻ {loop ? 'on' : 'off'}
+          </button>
+
+          <label className="ml-auto flex items-center gap-1 text-[10px] font-bold text-gray-700">
+            VOL
+            <input
+              type="range"
+              min={0}
+              max={100}
+              value={Math.round(volume * 100)}
+              onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
+              className="h-5 w-20 cursor-pointer"
+              style={{ accentColor: '#000080' }}
+              aria-label="Volume"
+            />
+          </label>
+        </div>
+      </div>
+    </section>
   );
 }

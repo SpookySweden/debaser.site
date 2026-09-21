@@ -3,33 +3,30 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
+import { elementAsTrack } from '../lib/audio/profile-track';
 import {
   currentProfileElement,
   profileElementById,
-  type ProfileElement,
 } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { presenceLabel } from '../lib/profile/presence';
 import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
-import type { ProfileVisibility } from '../lib/profile/types';
+import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { canCommentOnProfile, profileComments, visibleProfileComments } from '../lib/profile/visibility';
+import { HYPER_ARROW, HYPER_LABEL, HYPER_TEXT } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
 import ElementComments from './ElementComments';
-import ElementCommentWindow, { elementAsTrack } from './ElementCommentWindow';
 import { useForum } from './ForumProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileBoardActivity from './ProfileBoardActivity';
-import ProfileCommentBox from './ProfileCommentBox';
+import ProfileCommentWindow from './ProfileCommentWindow';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { usePresence } from './PresenceProvider';
 import TimeStamp from './TimeStamp';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -85,8 +82,9 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const picture = profileElementById(profile, 'picture', pictureId) ?? currentProfileElement(profile, 'picture');
   const track = profileElementById(profile, 'track', trackId) ?? currentProfileElement(profile, 'track');
 
-  // One window, whichever element was asked about.
-  const [commentingOn, setCommentingOn] = useState<ProfileElement | null>(null);
+  // One window, whichever aspect of the profile was asked about: the drawing, the track,
+  // or the profile itself.
+  const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
 
 
@@ -139,28 +137,21 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 profile={profile}
                 element={picture}
                 owner={owner}
-                onComment={() => setCommentingOn(picture)}
+                onComment={() => setCommentingOn('avatar')}
                 onSelect={setPictureId}
               />
             )}
           </div>
 
           <div className="min-w-0 flex-1 space-y-2">
-            <ProfileTrackPanel
-              profile={profile}
-              element={track}
-              owner={owner}
-              onComment={() => {
-                if (track !== undefined) setCommentingOn(track);
-              }}
-            />
+            <ProfileTrackPanel profile={profile} element={track} owner={owner} />
 
             {track === undefined ? null : (
               <ElementComments
                 profile={profile}
                 element={track}
                 owner={owner}
-                onComment={() => setCommentingOn(track)}
+                onComment={() => setCommentingOn('song')}
                 onSelect={setTrackId}
                 onPlay={(element) => player.play(elementAsTrack(profile, element))}
                 playing={(element) => player.track?.src === element.src && player.playing}
@@ -233,15 +224,18 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       </section>
 
       {commentingOn === null ? null : (
-        <ElementCommentWindow
+        <ProfileCommentWindow
           profile={profile}
           repository={repository}
           viewer={viewer}
+          viewerId={user?.id ?? null}
           owner={owner}
-          element={commentingOn}
-          onSelect={(versionId) => {
-            // Whichever element was opened, the version chosen becomes the one on screen.
-            if (commentingOn.kind === 'picture') setPictureId(versionId);
+          initial={commentingOn}
+          picture={picture}
+          track={track}
+          onSelect={(kind, versionId) => {
+            // Whichever version was chosen in the window becomes the one on screen behind it.
+            if (kind === 'avatar') setPictureId(versionId);
             else setTrackId(versionId);
           }}
           onClose={() => setCommentingOn(null)}
@@ -258,15 +252,11 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       />
 
       <CommentsSection
-        userId={userId}
         owner={owner}
-        viewerId={user?.id ?? null}
         visibility={profile.visibility}
         comments={comments}
         hiddenCount={owner ? profileComments(profile).length - comments.length : 0}
-        onComment={async (body) => {
-          await repository.addComment(userId, { kind: 'profile', author: viewer, body });
-        }}
+        onComment={() => setCommentingOn('profile')}
       />
     </div>
   );
@@ -274,97 +264,84 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
 
 
 type CommentsSectionProps = {
-  userId: string;
   owner: boolean;
-  viewerId: string | null;
   visibility: ProfileVisibility;
   comments: ReturnType<typeof profileComments>;
   hiddenCount: number;
-  onComment: (body: string) => Promise<void>;
+  /** Opens the one comment window, on the profile itself. */
+  onComment: () => void;
 };
 
 /**
  * Comments left directly on the profile - not on the picture, and not on the track.
  *
- * The same row the element threads use, and the same shape of box: a title bar with the
- * count and the way in, the list behind it, and the box to write in. Closed until it is
- * asked for, because a profile reads as a picture and a track rather than as a comment
- * page; the two element threads are the ones that sit open beside their subjects.
+ * The same row the element threads use, and the same two ways in: `comment`, in blue, which
+ * opens the profile's comment window on this aspect, and a small arrow carrying the count,
+ * which unfolds the list underneath. Folded is the default, because a profile reads as a
+ * picture and a track rather than as a comment page.
+ *
+ * Writing lives in the window rather than in a box standing open here, so the page keeps
+ * its shape while somebody is mid-sentence - and so there is one place to write about a
+ * profile, whichever part of it the remark is about.
  */
-function CommentsSection({
-  userId,
-  owner,
-  viewerId,
-  visibility,
-  comments,
-  hiddenCount,
-  onComment,
-}: CommentsSectionProps) {
+function CommentsSection({ owner, visibility, comments, hiddenCount, onComment }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
+  const writable = canCommentOnProfile(owner, visibility);
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>COMMENTS ON THIS PROFILE</span>
-        <span className="flex items-center gap-2">
-          <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>
-          <button type="button" onClick={() => setOpen(!open)} className={BUTTON}>
-            {open ? '[ HIDE ]' : '[ SHOW ]'}
+        <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-black">
+        <span className={HYPER_LABEL}>general</span>
+
+        {writable ? (
+          <button type="button" onClick={onComment} className={HYPER_TEXT} title="Comment on this profile">
+            comment
           </button>
-        </span>
+        ) : (
+          <span className="text-gray-700">comments off</span>
+        )}
+
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className={HYPER_ARROW}
+          aria-expanded={open}
+          title={open ? 'Fold the comments away' : 'Show the comments'}
+        >
+          {open ? '▾' : '▸'}
+          {comments.length === 0 ? '' : ` ${comments.length}`}
+        </button>
       </div>
 
       {!open ? null : (
-        <>
-          <div className="p-3 text-black">
-            {owner && !visibility.showProfileComments ? (
-              <p className="text-[10px] font-bold text-black">
-                VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
-              </p>
-            ) : null}
+        <div className="border-t border-gray-500 p-2 text-black">
+          {owner && !visibility.showProfileComments ? (
+            <p className="text-[10px] font-bold text-black">
+              VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
+            </p>
+          ) : null}
 
-            {owner && hiddenCount > 0 ? (
-              <p className="text-[10px] font-bold text-black">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
-            ) : null}
+          {owner && hiddenCount > 0 ? (
+            <p className="text-[10px] font-bold text-black">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
+          ) : null}
 
-            {comments.length === 0 ? (
-              <p className="text-[10px] font-bold text-black">
-                {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
-              </p>
-            ) : (
-              <ul className="space-y-2">
-                {comments.map((comment) => (
-                  <CommentRow key={comment.id} data={commentRowData(comment)} />
-                ))}
-              </ul>
-            )}
-          </div>
-
-          {/*
-            Everybody gets a box here, the owner included: commenting on your own bio is the
-            same action as commenting on somebody else's. Visitors lose the form (and read
-            the notice instead) while the owner has comments switched off.
-          */}
-          <div className="border-t border-gray-500 p-3">
-            {viewerId === null ? (
-              <p className="text-[10px] font-bold text-black">
-                COMMENTS FROM GUESTS ARE SIGNED ANONYMOUS (GUEST) - LOG IN TO SIGN YOURS.
-              </p>
-            ) : null}
-            <ProfileCommentBox
-              id={`profile-comment-${userId}`}
-              title={owner ? 'COMMENT ON YOUR OWN PROFILE' : 'COMMENT ON THIS PROFILE'}
-              placeholder={owner ? 'Say something on your own profile...' : 'Say something about this profile...'}
-              submitLabel="[ FILE COMMENT ]"
-              closedNotice={
-                canCommentOnProfile(owner, visibility)
-                  ? null
-                  : 'COMMENTS ON THIS PROFILE ARE SWITCHED OFF BY THE OWNER.'
-              }
-              onSubmit={onComment}
-            />
-          </div>
-        </>
+          {comments.length === 0 ? (
+            <p className="text-[10px] font-bold text-black">
+              {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {comments.map((comment) => (
+                <CommentRow key={comment.id} data={commentRowData(comment)} />
+              ))}
+            </ul>
+          )}
+        </div>
       )}
     </section>
   );

@@ -47,6 +47,11 @@ export type MusicPlayerValue = {
   previous: () => void;
   /** Plays a track, queueing it if the shelf does not hold it (a profile's song). */
   play: (track: AudioTrack) => void;
+  /**
+   * Hands over one track and leaves it there: the account page's own song, queued, set to
+   * repeat, and - with `autoplay` - started at the first opportunity the browser allows.
+   */
+  assign: (track: AudioTrack, options?: { loop?: boolean; autoplay?: boolean }) => void;
   playAt: (index: number) => void;
   setVolume: (value: number) => void;
   setLoop: (value: boolean) => void;
@@ -104,6 +109,13 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const playingSrc = useRef<string | undefined>(undefined);
   /** The track the last visit ended on, so this one opens there. */
   const storedSrc = useRef<string | null>(null);
+  /**
+   * True while a track was handed over with `autoplay` and the browser has not let it start
+   * yet, so the first gesture can be spent on it (see `armAutoplay`).
+   */
+  const autoplayWanted = useRef(false);
+  /** True once that first-gesture listener is in place, so there is only ever one. */
+  const autoplayArmed = useRef(false);
 
   const [queue, setQueue] = useState<AudioTrack[]>(LOCAL_TRACKS);
   const [index, setIndex] = useState(0);
@@ -207,6 +219,35 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     playingSrc.current = track?.src;
   }, [track]);
 
+  /**
+   * Spends the first gesture on a track that asked to start by itself.
+   *
+   * A page may not make a sound until the listener has touched it, which is why nothing here
+   * plays on its own. A track handed over with `autoplay` - the account page's own song, on a
+   * phone whose player is folded away - is the one case where waiting for a button press
+   * loses the point of it, so the first touch or keypress anywhere starts it instead. The
+   * listeners are one-shot and put in place at most once.
+   */
+  const armAutoplay = useCallback(() => {
+    const audio = audioRef.current;
+    if (autoplayArmed.current || audio === null) return;
+
+    autoplayArmed.current = true;
+
+    const start = () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+      autoplayArmed.current = false;
+      autoplayWanted.current = false;
+      // Inside the gesture, so this one is allowed.
+      void audio.play().catch(() => setPlaying(false));
+      setPlaying(true);
+    };
+
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+  }, []);
+
   // Loading a track, and keeping the element in step with what the bar says.
   useEffect(() => {
     const audio = audioRef.current;
@@ -224,8 +265,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     audio.play().catch(() => {
-      // Autoplay refused, or the file is not playable: say so instead of showing a
-      // pause button over silence.
+      // A track that was handed over to be started by itself is the one case where a
+      // refusal is not the end of it: browsers allow sound after the listener has touched
+      // the page, so the first touch or keypress is spent starting it (see `armAutoplay`).
+      if (autoplayWanted.current) {
+        setPlaying(false);
+        armAutoplay();
+        return;
+      }
+
+      // Otherwise: autoplay refused, or the file is not playable. Say so instead of showing
+      // a pause button over silence.
       setPlaying(false);
       setError(
         track === undefined
@@ -233,7 +283,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
           : `THE BROWSER WOULD NOT START "${track.title}" - PRESS PLAY AGAIN, OR CHECK THE FILE.`,
       );
     });
-  }, [playing, track]);
+  }, [armAutoplay, playing, track]);
 
   // Ending: repeat this one, or walk on to the next. Looping is done here rather than
   // with the element's own `loop` attribute, because the switch means "repeat this
@@ -350,6 +400,39 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
   const setLoop = useCallback((value: boolean) => setLoopState(value), []);
 
+  /**
+   * Hands the player one track and leaves it there: the account page's own song, on a phone
+   * that has the bar folded away.
+   *
+   * The track is queued if the shelf does not hold it, `loop` sets the repeat switch, and
+   * `autoplay` asks for it to start on its own. A browser will not make a sound before the
+   * listener has touched the page, so a refusal is not reported as an error here: it is
+   * remembered, and the first touch or keypress anywhere starts it (see `armAutoplay`).
+   */
+  const assign = useCallback(
+    (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean }) => {
+      setError(null);
+
+      if (options?.loop !== undefined) setLoopState(options.loop);
+
+      const found = queue.findIndex((entry) => entry.src === wanted.src);
+
+      if (found === -1) {
+        const nextQueue = [...queue, wanted];
+        setQueue(nextQueue);
+        setIndex(nextQueue.length - 1);
+      } else {
+        setIndex(found);
+      }
+
+      if (options?.autoplay === true) {
+        autoplayWanted.current = true;
+        setPlaying(true);
+      }
+    },
+    [queue],
+  );
+
   const seek = useCallback((seconds: number) => {
     const audio = audioRef.current;
     if (audio === null || !Number.isFinite(seconds)) return;
@@ -376,6 +459,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       next,
       previous,
       play,
+      assign,
       playAt,
       setVolume,
       setLoop,
@@ -397,6 +481,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       next,
       previous,
       play,
+      assign,
       playAt,
       setVolume,
       setLoop,

@@ -1,10 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { elementAsTrack } from '../lib/audio/profile-track';
+import { currentProfileElement } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { avatarComments, currentAvatarVersion, profileComments, visibleGivenTags } from '../lib/profile/visibility';
+import { useCompactViewport } from '../lib/ui/use-compact-viewport';
+import { useMusicPlayer } from './MusicPlayerProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
@@ -17,12 +21,31 @@ const LINK_BUTTON =
  *
  * Shows the public face as it stands, and opens the customiser pop-up - the
  * self-contained console where the picture, bio, tags and visibility are set.
+ *
+ * On a phone it also hands the account's own song to the player, which is folded away
+ * there: the music still plays, and the page is not covered by a bar to make it play.
  */
 export default function AccountProfilePanel({ userId }: { userId: string }) {
   const { profile, ready, source } = usePublicProfile(userId);
   const [customising, setCustomising] = useState(false);
+  const player = useMusicPlayer();
+  const compact = useCompactViewport();
 
   const visibleTags = visibleGivenTags(profile).length;
+  const ownTrack = currentProfileElement(profile, 'track');
+  /** The src already handed over, so the song is not re-assigned on every render. */
+  const assigned = useRef<string | null>(null);
+
+  useEffect(() => {
+    // A phone, the profile read, and a track of its own: the track becomes what the player
+    // is holding, set to repeat, and it starts at the first touch of the page - a browser
+    // will not make a sound before one, so that is as automatic as automatic can be.
+    if (!compact || !ready || ownTrack === undefined) return;
+    if (assigned.current === ownTrack.src) return;
+
+    assigned.current = ownTrack.src;
+    player.assign(elementAsTrack(profile, ownTrack), { loop: true, autoplay: true });
+  }, [compact, ownTrack, player, profile, ready]);
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
