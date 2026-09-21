@@ -3,14 +3,9 @@
 import { useState } from 'react';
 import { isSiteAccount } from '../lib/auth/builtin-account';
 import type { ForumAuthor, ForumComment, ForumThread } from '../lib/forum/types';
+import { FIELD, PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
-
-const FIELD =
-  'w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 text-xs text-black outline-none';
 
 /**
  * Who may edit or remove what is already on the board.
@@ -95,11 +90,11 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
       ) : null}
 
       {author.banned === true ? (
-        <button type="button" onClick={() => void lift()} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => void lift()} disabled={busy} className={PLATE}>
           {busy ? '[ WORKING... ]' : '[ UNBAN ]'}
         </button>
       ) : (
-        <button type="button" onClick={() => setNaming(!naming)} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => setNaming(!naming)} disabled={busy} className={PLATE}>
           {naming ? '[ CANCEL BAN ]' : '[ BAN ]'}
         </button>
       )}
@@ -115,7 +110,7 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void ban()} disabled={busy} className={BUTTON}>
+          <button type="button" onClick={() => void ban()} disabled={busy} className={PLATE}>
             {busy ? '[ BANNING... ]' : '[ CONFIRM BAN ]'}
           </button>
 
@@ -180,11 +175,11 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
 
-        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT POST ]'}
         </button>
 
-        <button type="button" onClick={() => void remove()} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => void remove()} disabled={busy} className={PLATE}>
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE POST ]'}
         </button>
 
@@ -216,7 +211,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void save()} disabled={busy} className={BUTTON}>
+          <button type="button" onClick={() => void save()} disabled={busy} className={PLATE}>
             {busy ? '[ SAVING... ]' : '[ SAVE POST ]'}
           </button>
         </div>
@@ -276,11 +271,11 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
 
-        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT REPLY ]'}
         </button>
 
-        <button type="button" onClick={() => void remove()} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => void remove()} disabled={busy} className={PLATE}>
           {busy ? '[ WORKING... ]' : confirming ? '[ CONFIRM REMOVE ]' : '[ REMOVE REPLY ]'}
         </button>
 
@@ -305,7 +300,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
             className={FIELD}
           />
 
-          <button type="button" onClick={() => void save()} disabled={busy} className={BUTTON}>
+          <button type="button" onClick={() => void save()} disabled={busy} className={PLATE}>
             {busy ? '[ SAVING... ]' : '[ SAVE REPLY ]'}
           </button>
         </div>

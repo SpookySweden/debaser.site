@@ -8,15 +8,13 @@ import { isSiteAccount } from '../lib/auth/builtin-account';
 import { threadDomId } from '../lib/forum/anchors';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PLATE_LARGE } from '../lib/ui/controls';
 import AccountProfilePanel from './AccountProfilePanel';
 import AccountSecurityPanel from './AccountSecurityPanel';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /**
  * The signed-in half of the account page.
@@ -100,7 +98,7 @@ export default function AccountDetails() {
           ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void signOut()} disabled={busy} className={BUTTON}>
+            <button type="button" onClick={() => void signOut()} disabled={busy} className={PLATE_LARGE}>
               [ SIGN OUT ]
             </button>
             <p className="text-gray-700">
@@ -154,7 +152,7 @@ export default function AccountDetails() {
         <div className="flex flex-wrap items-center gap-2 p-3 text-[10px] font-bold text-black">
           {usingMockAuth ? (
             <>
-              <button type="button" onClick={() => void handleDelete()} disabled={busy} className={BUTTON}>
+              <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>
                 {confirmDelete ? '[ CONFIRM DELETE ACCOUNT ]' : '[ DELETE THIS ACCOUNT ]'}
               </button>
               <button
@@ -163,7 +161,7 @@ export default function AccountDetails() {
                   resetMockAuth();
                   setMessage('ALL LOCAL MOCK ACCOUNTS CLEARED.');
                 }}
-                className={BUTTON}
+                className={PLATE_LARGE}
               >
                 [ CLEAR ALL LOCAL ACCOUNTS ]
               </button>

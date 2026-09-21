@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { formatClock, formatClockOrNothing } from '../lib/audio/format';
 import { trackCaption } from '../lib/audio/tracks';
+import { PLATE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
@@ -30,13 +31,7 @@ import PopoutWindow from './PopoutWindow';
  *   sitting over the page it is playing to is not what a phone wants first.
  */
 
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
-
 /** The card's buttons: thumb-sized, because a phone is what is pressing them. */
-const TAP_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-2 text-sm font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
-
 /** Where the bar remembers whether it is folded down. */
 const BAR_KEY = 'debaser.audio.bar.v1';
 
@@ -108,7 +103,7 @@ export default function MusicPlayer() {
         type="button"
         onClick={() => setBarOpen(true)}
         title="Open the player"
-        className={`fixed bottom-2 left-2 z-50 ${BUTTON}`}
+        className={`fixed bottom-2 left-2 z-50 ${PLATE}`}
       >
         ♪ {player.playing ? 'PLAYING' : 'PLAYER'}
       </button>
@@ -175,13 +170,13 @@ function DockedBar({ onHide, onShelf }: BarControls) {
           </span>
 
           <span className="flex items-center gap-1">
-            <button type="button" onClick={player.previous} className={BUTTON} title="Previous track">
+            <button type="button" onClick={player.previous} className={PLATE} title="Previous track">
               [ ‹‹ ]
             </button>
-            <button type="button" onClick={player.toggle} className={BUTTON} title={playing ? 'Pause' : 'Play'}>
+            <button type="button" onClick={player.toggle} className={PLATE} title={playing ? 'Pause' : 'Play'}>
               {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
             </button>
-            <button type="button" onClick={player.next} className={BUTTON} title="Next track">
+            <button type="button" onClick={player.next} className={PLATE} title="Next track">
               [ ›› ]
             </button>
           </span>
@@ -204,17 +199,17 @@ function DockedBar({ onHide, onShelf }: BarControls) {
           <button
             type="button"
             onClick={() => player.setLoop(!loop)}
-            className={BUTTON}
+            className={PLATE}
             title="Repeat this track when it ends"
           >
             {loop ? '[ LOOP: ON ]' : '[ LOOP: OFF ]'}
           </button>
 
-          <button type="button" onClick={onShelf} className={BUTTON}>
+          <button type="button" onClick={onShelf} className={PLATE}>
             [ SHELF ({player.queue.length}) ]
           </button>
 
-          <button type="button" onClick={onHide} className={BUTTON} title="Fold the player away">
+          <button type="button" onClick={onHide} className={PLATE} title="Fold the player away">
             [ HIDE ]
           </button>
         </div>
@@ -240,7 +235,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
       maxWidth="max-w-2xl"
       status="A ROW PLAYS IT :: RELOAD AFTER DROPPING A FILE INTO THE mp3 BUCKET"
       actions={
-        <button type="button" onClick={player.refresh} className={BUTTON}>
+        <button type="button" onClick={player.refresh} className={PLATE}>
           [ RELOAD SHELF ]
         </button>
       }
@@ -272,7 +267,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
                   type="button"
                   onClick={() => player.playAt(position)}
                   disabled={playingThis && player.playing}
-                  className={BUTTON}
+                  className={PLATE}
                 >
                   {playingThis && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
                 </button>
@@ -362,20 +357,20 @@ function CompactBar({ onHide, onShelf }: BarControls) {
         </div>
 
         <div className="mt-1 flex items-center justify-center gap-2">
-          <button type="button" onClick={player.previous} className={TAP_BUTTON} title="Previous track">
+          <button type="button" onClick={player.previous} className={PLATE_TAP} title="Previous track">
             ⏮
           </button>
 
           <button
             type="button"
             onClick={player.toggle}
-            className={`${TAP_BUTTON} px-6 text-base`}
+            className={`${PLATE_TAP} px-6 text-base`}
             title={playing ? 'Pause' : 'Play'}
           >
             {playing ? '❚❚' : '▶'}
           </button>
 
-          <button type="button" onClick={player.next} className={TAP_BUTTON} title="Next track">
+          <button type="button" onClick={player.next} className={PLATE_TAP} title="Next track">
             ⏭
           </button>
         </div>
@@ -384,7 +379,7 @@ function CompactBar({ onHide, onShelf }: BarControls) {
           <button
             type="button"
             onClick={() => player.setLoop(!loop)}
-            className={TAP_BUTTON}
+            className={PLATE_TAP}
             title="Repeat this track when it ends"
           >
             ↻ {loop ? 'on' : 'off'}

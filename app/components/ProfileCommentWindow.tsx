@@ -13,14 +13,12 @@ import {
 import type { ProfileCommentKind, ProfileRepository, PublicProfile } from '../lib/profile/types';
 import { canCommentOnProfile } from '../lib/profile/visibility';
 import { HYPER_LABEL, HYPER_MARK, HYPER_STRIP, HYPER_TEXT } from '../lib/ui/hypertext';
+import { PLATE_MEDIUM } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCommentBox from './ProfileCommentBox';
 import SheetImage from './SheetImage';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /** The size the drawing is previewed at, so what is on screen is what is commented on. */
 const PICTURE_SIZE = 176;
@@ -153,7 +151,7 @@ function AspectPreview({
           <button
             type="button"
             onClick={() => (playing ? player.toggle() : player.play(elementAsTrack(profile, shown)))}
-            className={BUTTON}
+            className={PLATE_MEDIUM}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>

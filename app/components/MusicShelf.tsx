@@ -3,10 +3,8 @@
 import { useEffect, useState } from 'react';
 import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
+import { PLATE } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /**
  * What the shelf actually holds, read from the store rather than from a list in the
@@ -77,7 +75,7 @@ export default function MusicShelf() {
                     type="button"
                     onClick={() => player.play(track)}
                     disabled={current && player.playing}
-                    className={BUTTON}
+                    className={PLATE}
                   >
                     {current && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
                   </button>

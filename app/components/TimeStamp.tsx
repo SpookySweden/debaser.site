@@ -12,8 +12,8 @@ import { formatStamp } from '../lib/forum/format';
 export const TIME_STAMP_CLASS = 'text-[#0000ff]';
 
 type TimeStampProps = {
-  /** The stored ISO instant. */
-  at: string;
+  /** The stored ISO instant; missing or blank prints as `--:--` rather than failing. */
+  at: string | null | undefined;
   /** Extra classes for the surrounding row (size, weight). */
   className?: string;
 };

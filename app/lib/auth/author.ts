@@ -22,8 +22,18 @@ export function authorFromAccount(user: AccountUser | null): ForumAuthor {
   return { id: user.id, displayName: user.displayName };
 }
 
+/**
+ * What to call an author.
+ *
+ * A row read back from a store can arrive with no name at all - a hand-made row, a column
+ * that was added after the fact, a select that skipped it - and `displayName` is typed as a
+ * string that such a row does not have. Anything that is not a name reads as the anonymous
+ * default rather than taking the page down with it.
+ */
 export function authorLabel(author: ForumAuthor): string {
-  return author.displayName.length > 0 ? author.displayName : ANONYMOUS_AUTHOR.displayName;
+  const name: unknown = author.displayName;
+
+  return typeof name === 'string' && name.trim().length > 0 ? name : ANONYMOUS_AUTHOR.displayName;
 }
 
 /** Compact "who wrote this" line for thread chrome, e.g. `Anonymous (guest)`. */

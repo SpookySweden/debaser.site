@@ -3,14 +3,9 @@
 import { useState } from 'react';
 import { MIN_PASSWORD_LENGTH, hasErrors, validateSignIn, validateSignUp } from '../lib/auth/validation';
 import type { CredentialErrors } from '../lib/auth/validation';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import GoogleSignInButton from './GoogleSignInButton';
-
-const FIELD_INPUT =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 type FieldProps = {
   id: string;
@@ -36,7 +31,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
         autoComplete={autoComplete}
-        className={FIELD_INPUT}
+        className={FIELD}
       />
       {error === undefined ? null : <p className="mt-1 text-[10px] font-bold text-[#800000]">{error}</p>}
     </div>
@@ -171,7 +166,7 @@ export default function AccountForms() {
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={signUpBusy} className={BUTTON}>
+            <button type="submit" disabled={signUpBusy} className={PLATE_LARGE}>
               {signUpBusy ? '[ WORKING... ]' : '[ CREATE ACCOUNT ]'}
             </button>
             {signUpMessage === null ? null : (
@@ -232,7 +227,7 @@ export default function AccountForms() {
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={signInBusy} className={BUTTON}>
+            <button type="submit" disabled={signInBusy} className={PLATE_LARGE}>
               {signInBusy ? '[ WORKING... ]' : '[ LOG IN ]'}
             </button>
             {signInMessage === null ? null : (

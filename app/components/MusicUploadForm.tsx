@@ -3,14 +3,9 @@
 import { useRef, useState } from 'react';
 import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
 import { getMusicRepository } from '../lib/audio/repository';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
-
-const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /**
  * Filing a track onto the shelf.
@@ -124,7 +119,7 @@ export default function MusicUploadForm() {
       />
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ UPLOADING... ]' : '[ FILE THE TRACK ]'}
         </button>
         {error === null ? null : <p className="text-[10px] font-bold text-[#800000]">{error}</p>}

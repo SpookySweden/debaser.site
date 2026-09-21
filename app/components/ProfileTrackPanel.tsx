@@ -3,10 +3,8 @@
 import { elementAsTrack } from '../lib/audio/profile-track';
 import type { ProfileElement } from '../lib/profile/elements';
 import type { PublicProfile } from '../lib/profile/types';
+import { PLATE_MEDIUM } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 type ProfileTrackPanelProps = {
   profile: PublicProfile;
@@ -56,7 +54,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
           <button
             type="button"
             onClick={() => (playing ? player.toggle() : player.play(elementAsTrack(profile, element)))}
-            className={BUTTON}
+            className={PLATE_MEDIUM}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>

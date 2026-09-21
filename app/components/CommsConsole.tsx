@@ -5,13 +5,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCommsRepository } from '../lib/comms/repository';
 import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
+import { PLATE } from '../lib/ui/controls';
 import CommsThreadPanel from './CommsThreadPanel';
 import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-
-const SMALL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /**
  * The comms console: conversations down the left, the open one on the right.
@@ -142,7 +140,7 @@ export default function CommsConsole() {
         <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 text-[10px] font-bold text-black lg:basis-full">
           <span className="border border-black bg-[#800000] px-1 text-white">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words text-[#800000]">{error}</span>
-          <button type="button" onClick={retry} className={SMALL_BUTTON}>
+          <button type="button" onClick={retry} className={PLATE}>
             [ RETRY ]
           </button>
         </div>
@@ -156,7 +154,7 @@ export default function CommsConsole() {
         </div>
 
         <div className="p-2">
-          <button type="button" onClick={() => setPicking(!picking)} className={SMALL_BUTTON}>
+          <button type="button" onClick={() => setPicking(!picking)} className={PLATE}>
             {picking ? '[ CANCEL ]' : '[ + NEW MESSAGE ]'}
           </button>
 
@@ -176,7 +174,7 @@ export default function CommsConsole() {
                       <button
                         type="button"
                         onClick={() => void openWith(account.id)}
-                        className={`${SMALL_BUTTON} inline-flex items-center gap-1`}
+                        className={`${PLATE} inline-flex items-center gap-1`}
                       >
                         [ MESSAGE ]{' '}
                         <ProfileName author={{ id: account.id, displayName: account.displayName }} />
@@ -195,7 +193,7 @@ export default function CommsConsole() {
               // A refusal from the last attempt belongs to that attempt, not to this one.
               setGroupError(null);
             }}
-            className={`ml-1 mt-1 ${SMALL_BUTTON}`}
+            className={`ml-1 mt-1 ${PLATE}`}
           >
             {grouping ? '[ CANCEL ]' : '[ + NEW GROUP ]'}
           </button>
@@ -245,7 +243,7 @@ export default function CommsConsole() {
                 </ul>
               )}
 
-              <button type="button" onClick={() => void openGroup()} className={`mt-1 ${SMALL_BUTTON}`}>
+              <button type="button" onClick={() => void openGroup()} className={`mt-1 ${PLATE}`}>
                 [ OPEN GROUP ]
               </button>
 
@@ -304,7 +302,7 @@ export default function CommsConsole() {
               <button
                 type="button"
                 onClick={() => setAddingTo(addingTo === active.id ? null : active.id)}
-                className={SMALL_BUTTON}
+                className={PLATE}
               >
                 {addingTo === active.id ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}
               </button>
@@ -333,7 +331,7 @@ export default function CommsConsole() {
                         <button
                           type="button"
                           onClick={() => void addToGroup(active.id, account.id)}
-                          className={`${SMALL_BUTTON} inline-flex items-center gap-1`}
+                          className={`${PLATE} inline-flex items-center gap-1`}
                         >
                           [ ADD ] <ProfileName author={{ id: account.id, displayName: account.displayName }} />
                         </button>
@@ -370,10 +368,10 @@ export default function CommsConsole() {
             <span className="text-gray-700">
               MOCK STORE: THIS BROWSER ONLY, SO A SECOND BROWSER CANNOT REACH YOU YET.
             </span>
-            <button type="button" onClick={() => void simulateIncoming()} className={SMALL_BUTTON}>
+            <button type="button" onClick={() => void simulateIncoming()} className={PLATE}>
               [ SIMULATE INCOMING ]
             </button>
-            <button type="button" onClick={() => void purgeLocal()} className={SMALL_BUTTON}>
+            <button type="button" onClick={() => void purgeLocal()} className={PLATE}>
               [ PURGE LOCAL COMMS ]
             </button>
             {testNote === null ? null : <span className="text-[#800000]">{testNote}</span>}

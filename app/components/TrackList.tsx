@@ -2,10 +2,8 @@
 
 import type { AudioTrack } from '../lib/audio/tracks';
 import type { Track } from '../lib/projects/tracks';
+import { PLATE } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 /** A manifest row as the player sees it: the same track, out of the archive's shelf. */
 function toAudioTrack(track: Track): AudioTrack {
@@ -69,7 +67,7 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
               type="button"
               onClick={() => player.play(audio)}
               disabled={current && player.playing}
-              className={BUTTON}
+              className={PLATE}
             >
               {current && player.playing ? '[ PLAYING ]' : '[ ▶ PLAY ]'}
             </button>

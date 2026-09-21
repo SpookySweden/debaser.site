@@ -2,6 +2,7 @@
 
 import { useCallback, useState } from 'react';
 import type { ForumAnchor } from '../lib/forum/types';
+import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import CommentWindow from './CommentWindow';
 import { useForum } from './ForumProvider';
 
@@ -33,9 +34,7 @@ export default function CommentPopout({ anchor, compact = false }: CommentPopout
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         title={`Open the comment window for ${anchor.label}`}
-        className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] font-bold text-black hover:bg-gray-300 ${
-          compact ? 'px-2 py-[2px] text-[10px]' : 'px-3 py-1 text-xs'
-        }`}
+        className={compact ? PLATE : PLATE_LARGE}
       >
         [ COMMENT{commentCount > 0 ? ` (${commentCount})` : ''} ]
       </button>

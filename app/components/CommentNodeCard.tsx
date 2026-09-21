@@ -14,8 +14,7 @@ import ProfileName from './ProfileName';
 import { TagRow } from './TagBadge';
 import TimeStamp from './TimeStamp';
 
-export const COMMENT_SMALL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+import { PLATE } from '../lib/ui/controls';
 
 type CommentNodeCardProps = {
   comment: ForumComment;
@@ -104,12 +103,12 @@ export default function CommentNodeCard({
         <TagRow tags={displayTags(comment.tags)} className="mt-1" compact />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={onToggleReply} title="Comment on this reply" className={COMMENT_SMALL_BUTTON}>
+          <button type="button" onClick={onToggleReply} title="Comment on this reply" className={PLATE}>
             {replyOpen ? '[ CANCEL ]' : '[ COMMENT ]'}
           </button>
 
           {children === undefined ? null : (
-            <button type="button" onClick={onToggleReplies} className={COMMENT_SMALL_BUTTON}>
+            <button type="button" onClick={onToggleReplies} className={PLATE}>
               {repliesHidden ? `[ SHOW ${countReplies(replyCount)} ]` : `[ HIDE ${countReplies(replyCount)} ]`}
             </button>
           )}

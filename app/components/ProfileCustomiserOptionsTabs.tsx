@@ -3,13 +3,7 @@
 import { LOW_CONTRAST_NAME_COLOURS, NAME_COLOURS, nameColourLabel } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
-
-/** Shared Win95 field styling for the customiser tabs. */
-export const CUSTOMISER_FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
-
-export const CUSTOMISER_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 
 export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-black';
 
@@ -60,7 +54,7 @@ export function ProfileIdentityTab({
         value={name}
         onChange={(event) => onNameChange(event.target.value)}
         placeholder={profile.displayName}
-        className={CUSTOMISER_FIELD}
+        className={FIELD}
       />
 
       <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE SIXTEEN SWATCHES</p>
@@ -107,7 +101,7 @@ export function ProfileIdentityTab({
         value={location}
         onChange={(event) => onLocationChange(event.target.value)}
         placeholder="e.g. Sweden"
-        className={CUSTOMISER_FIELD}
+        className={FIELD}
       />
       {locationProblem === undefined ? null : (
         <p className="mt-1 text-[10px] font-bold text-[#800000]">{locationProblem}</p>
@@ -127,12 +121,12 @@ export function ProfileIdentityTab({
         onChange={(event) => onBioChange(event.target.value)}
         rows={5}
         placeholder="Who is behind this account?"
-        className={CUSTOMISER_FIELD}
+        className={FIELD}
       />
       {bioProblem === undefined ? null : <p className="mt-1 text-[10px] font-bold text-[#800000]">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={CUSTOMISER_BUTTON}>
+        <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
         </button>
         <p className="text-[10px] text-gray-700">
@@ -204,7 +198,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
       </ul>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={CUSTOMISER_BUTTON}>
+        <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
         </button>
         <p className="text-[10px] text-gray-700">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>

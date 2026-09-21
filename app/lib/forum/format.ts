@@ -30,7 +30,17 @@ function toInstant(iso: string): string {
     .replace(/([+-]\d{2})(\d{2})$/, '$1:$2');
 }
 
-export function formatStamp(iso: string): string {
+/**
+ * A posting stamp, in UTC and to the minute.
+ *
+ * A row written by hand, or a select that skipped the column, hands this an undefined where
+ * the type promised a string - and a page that dies on one blank column is worse than a page
+ * that admits it does not know when. So a stamp that is missing or blank prints as `--:--`,
+ * and one that is unparseable still prints as it was stored rather than as a wrong date.
+ */
+export function formatStamp(iso: string | null | undefined): string {
+  if (iso === null || iso === undefined || iso.trim() === '') return '--:--';
+
   const date = new Date(toInstant(iso));
   if (Number.isNaN(date.getTime())) return iso;
 

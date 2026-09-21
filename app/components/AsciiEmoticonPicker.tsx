@@ -2,9 +2,7 @@
 
 import { useState } from 'react';
 import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+import { PLATE } from '../lib/ui/controls';
 
 const CHIP =
   'cursor-pointer rounded-none border border-gray-500 bg-white px-1 py-[1px] font-mono text-[11px] text-black hover:bg-[#ffffcc]';
@@ -29,7 +27,7 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
 
   return (
     <div className="relative">
-      <button type="button" onClick={() => setOpen(!open)} disabled={disabled} className={BUTTON}>
+      <button type="button" onClick={() => setOpen(!open)} disabled={disabled} className={PLATE}>
         {open ? '[ CLOSE SHELF ]' : '[ :) EMOTICONS ]'}
       </button>
 

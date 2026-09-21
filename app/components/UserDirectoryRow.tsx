@@ -2,14 +2,12 @@
 
 import type { UserDirectoryRow as DirectoryRow } from '../lib/profile/directory';
 import { presenceLabel, presenceTooltip } from '../lib/profile/presence';
+import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 type UserDirectoryRowProps = {
   row: DirectoryRow;
@@ -81,7 +79,7 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
           type="button"
           onClick={() => onMessage?.(row.account.id)}
           disabled={busy}
-          className={`ml-auto ${BUTTON}`}
+          className={`ml-auto ${PLATE}`}
         >
           {busy ? '[ OPENING... ]' : '[ MESSAGE ]'}
         </button>

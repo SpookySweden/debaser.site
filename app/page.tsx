@@ -1,8 +1,15 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import CommentPopout from './components/CommentPopout';
 import SiteWindow from './components/SiteWindow';
 import { FORUM_ANCHORS } from './lib/forum/anchors';
 import { ARCHIVE_PROJECTS } from './lib/projects/debaser';
+
+export const metadata: Metadata = {
+  title: 'DEBASER.SITE - Portal Archive',
+  description:
+    'The central hub for Debaser comic book lore, concept art and the debaser project shelves: a board, an account directory, comms and the archive.',
+};
 
 export default function Home() {
   return (

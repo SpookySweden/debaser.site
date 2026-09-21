@@ -3,7 +3,8 @@
 import { MUSIC_ACCEPT, MAX_TRACK_BYTES } from '../lib/audio/catalogue';
 import type { PublicProfile } from '../lib/profile/types';
 import { commentCountForSongVersion, currentSongVersion, songVersionsNewestFirst } from '../lib/profile/visibility';
-import { CUSTOMISER_BUTTON, CUSTOMISER_FIELD, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import TimeStamp from './TimeStamp';
 
 export type ProfileCustomiserSongTabProps = {
@@ -99,7 +100,7 @@ export default function ProfileCustomiserSongTab({
               value={title}
               onChange={(event) => onTitleChange(event.target.value)}
               placeholder="e.g. WARD THEME"
-              className={CUSTOMISER_FIELD}
+              className={FIELD}
             />
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-credit">
@@ -110,7 +111,7 @@ export default function ProfileCustomiserSongTab({
               value={credit}
               onChange={(event) => onCreditChange(event.target.value)}
               placeholder={profile.displayName}
-              className={CUSTOMISER_FIELD}
+              className={FIELD}
             />
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-note">
@@ -122,7 +123,7 @@ export default function ProfileCustomiserSongTab({
               onChange={(event) => onNoteChange(event.target.value)}
               rows={2}
               placeholder="e.g. the rough mix that goes with issue three"
-              className={CUSTOMISER_FIELD}
+              className={FIELD}
             />
 
             <div className="flex flex-wrap items-center gap-2">
@@ -130,7 +131,7 @@ export default function ProfileCustomiserSongTab({
                 type="button"
                 onClick={onFileVersion}
                 disabled={busy || pendingSrc === null || title.trim().length === 0}
-                className={CUSTOMISER_BUTTON}
+                className={PLATE_LARGE}
               >
                 {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
               </button>
@@ -170,7 +171,7 @@ export default function ProfileCustomiserSongTab({
                     type="button"
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
-                    className={CUSTOMISER_BUTTON}
+                    className={PLATE_LARGE}
                     title="Files a new version that copies this track"
                   >
                     [ USE THIS ONE ]

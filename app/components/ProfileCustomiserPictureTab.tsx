@@ -3,8 +3,9 @@
 import { AVATAR_ACCEPT, MAX_AVATAR_BYTES, SITE_PICTURES } from '../lib/profile/avatar-catalogue';
 import type { PublicProfile } from '../lib/profile/types';
 import { avatarVersionsNewestFirst, commentCountForVersion, currentAvatarVersion } from '../lib/profile/visibility';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import ProfileAvatar from './ProfileAvatar';
-import { CUSTOMISER_BUTTON, CUSTOMISER_FIELD, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
 
@@ -146,7 +147,7 @@ export default function ProfileCustomiserPictureTab({
           onChange={(event) => onNoteChange(event.target.value)}
           rows={2}
           placeholder="e.g. reworked the eyes after the third read-through"
-          className={CUSTOMISER_FIELD}
+          className={FIELD}
         />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -154,7 +155,7 @@ export default function ProfileCustomiserPictureTab({
             type="button"
             onClick={onFileVersion}
             disabled={busy || pendingSrc === null}
-            className={CUSTOMISER_BUTTON}
+            className={PLATE_LARGE}
           >
             {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
           </button>
@@ -193,7 +194,7 @@ export default function ProfileCustomiserPictureTab({
                     type="button"
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
-                    className={CUSTOMISER_BUTTON}
+                    className={PLATE_LARGE}
                     title="Files a new version that copies this drawing"
                   >
                     [ USE THIS ONE ]

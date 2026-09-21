@@ -2,7 +2,8 @@
 
 import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { PublicProfile } from '../lib/profile/types';
-import { CUSTOMISER_BUTTON, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import { PLATE_LARGE } from '../lib/ui/controls';
+import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import ProfileName from './ProfileName';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
 import TimeStamp from './TimeStamp';
@@ -31,10 +32,10 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
       ) : (
         <>
           <div className="mt-2 flex flex-wrap gap-1">
-            <button type="button" onClick={() => onSetAllHidden(false)} disabled={busy} className={CUSTOMISER_BUTTON}>
+            <button type="button" onClick={() => onSetAllHidden(false)} disabled={busy} className={PLATE_LARGE}>
               [ SHOW ALL ]
             </button>
-            <button type="button" onClick={() => onSetAllHidden(true)} disabled={busy} className={CUSTOMISER_BUTTON}>
+            <button type="button" onClick={() => onSetAllHidden(true)} disabled={busy} className={PLATE_LARGE}>
               [ HIDE ALL ]
             </button>
           </div>
@@ -65,11 +66,11 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
                     type="button"
                     onClick={() => onSetHidden(tag.id, !tag.hidden)}
                     disabled={busy}
-                    className={CUSTOMISER_BUTTON}
+                    className={PLATE_LARGE}
                   >
                     {tag.hidden ? '[ SHOW THIS TAG ]' : '[ HIDE THIS TAG ]'}
                   </button>
-                  <button type="button" onClick={() => onRemove(tag.id)} disabled={busy} className={CUSTOMISER_BUTTON}>
+                  <button type="button" onClick={() => onRemove(tag.id)} disabled={busy} className={PLATE_LARGE}>
                     [ REMOVE ]
                   </button>
                 </div>

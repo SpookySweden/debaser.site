@@ -7,14 +7,12 @@ import { currentProfileElement } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { avatarComments, currentAvatarVersion, profileComments, visibleGivenTags } from '../lib/profile/visibility';
+import { PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
-
-const LINK_BUTTON =
-  'rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-gray-300';
 
 /**
  * The account page's profile section.
@@ -82,10 +80,10 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
           </p>
 
           <div className="flex flex-wrap items-center gap-1 pt-1">
-            <button type="button" onClick={() => setCustomising(true)} className={LINK_BUTTON}>
+            <button type="button" onClick={() => setCustomising(true)} className={PLATE_LINK}>
               [ CUSTOMISE PUBLIC PROFILE ]
             </button>
-            <Link href={`/profile/${encodeURIComponent(userId)}`} className={LINK_BUTTON}>
+            <Link href={`/profile/${encodeURIComponent(userId)}`} className={PLATE_LINK}>
               [ VIEW PUBLIC PROFILE ]
             </Link>
           </div>

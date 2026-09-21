@@ -4,13 +4,8 @@ import { useState } from 'react';
 import { hasErrors, validateEmailChange, validatePasswordChange } from '../lib/auth/validation';
 import type { CredentialErrors } from '../lib/auth/validation';
 import { getProfileRepository } from '../lib/profile/repository';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
-
-const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
 
 const NOTE = 'text-[10px] font-bold text-black';
 
@@ -181,7 +176,7 @@ export default function AccountSecurityPanel() {
             error={nameState.errors.displayName}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handleName()} disabled={nameState.busy} className={BUTTON}>
+            <button type="button" onClick={() => void handleName()} disabled={nameState.busy} className={PLATE_LARGE}>
               {nameState.busy ? '[ WORKING... ]' : '[ SAVE NAME ]'}
             </button>
             {nameState.message === null ? null : <p className={NOTE}>{nameState.message}</p>}
@@ -212,7 +207,7 @@ export default function AccountSecurityPanel() {
             error={emailState.errors.currentPassword}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handleEmail()} disabled={emailState.busy} className={BUTTON}>
+            <button type="button" onClick={() => void handleEmail()} disabled={emailState.busy} className={PLATE_LARGE}>
               {emailState.busy ? '[ WORKING... ]' : '[ CHANGE EMAIL ]'}
             </button>
             {emailState.message === null ? null : <p className={NOTE}>{emailState.message}</p>}
@@ -260,7 +255,7 @@ export default function AccountSecurityPanel() {
             error={passwordState.errors.confirmPassword}
           />
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => void handlePassword()} disabled={passwordState.busy} className={BUTTON}>
+            <button type="button" onClick={() => void handlePassword()} disabled={passwordState.busy} className={PLATE_LARGE}>
               {passwordState.busy ? '[ WORKING... ]' : '[ CHANGE PASSWORD ]'}
             </button>
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}

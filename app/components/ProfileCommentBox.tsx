@@ -2,12 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { validateProfileComment } from '../lib/profile/visibility';
-
-const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none';
-
-const BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 
 type ProfileCommentBoxProps = {
   /** Unique id for the textarea, so the window can focus it on open. */
@@ -94,7 +89,7 @@ export default function ProfileCommentBox({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={BUTTON}>
+        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
         <span className="text-[10px] text-gray-700">{body.trim().length} CHARS</span>
