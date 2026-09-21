@@ -468,6 +468,16 @@ set name_colour = coalesce(name_colour, '#000080'),
 where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site')
   and display_name = 'debaser.site';
 
+-- The name the site *signs posts* with comes from the account itself, not from the
+-- profile row: app/lib/auth/supabase-auth.ts reads `user_metadata.display_name`, and
+-- an account made in the dashboard has none, so a post would be signed with the
+-- address. Google and email sign-ups set it themselves; this is for the house.
+update auth.users
+set raw_user_meta_data = coalesce(raw_user_meta_data, '{}'::jsonb)
+  || jsonb_build_object('display_name', 'debaser.site')
+where lower(email) = 'admin1212@debaser.site'
+  and coalesce(raw_user_meta_data ->> 'display_name', '') <> 'debaser.site';
+
 -- -----------------------------------------------------------------------------
 -- 9. realtime
 -- -----------------------------------------------------------------------------

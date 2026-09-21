@@ -36,7 +36,8 @@ Authentication -> Users -> Add user: email `admin1212@debaser.site`, the passwor
 you want for it, "Auto Confirm User" on. The trigger gives it a profile named
 `debaser.site` in `#000080` whether the account is created before or after the
 script runs, and section 8 is the backfill for one made before this trigger
-existed.
+existed - including the `display_name` in the account's own metadata, which is what
+a post is signed with.
 
 Signing in from the site uses the identifier `ADMIN1212` (see
 app/lib/auth/builtin-account.ts): `resolveSignInAddress` maps it to that address
