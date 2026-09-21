@@ -212,7 +212,12 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         }}
       />
 
-      <ProfileBoardActivity userId={userId} displayName={displayName} threads={theirThreads} />
+      <ProfileBoardActivity
+        userId={userId}
+        displayName={displayName}
+        nameColour={nameColour}
+        threads={theirThreads}
+      />
     </div>
   );
 }

@@ -4,16 +4,24 @@ import Link from 'next/link';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import type { ForumThread } from '../lib/forum/types';
+import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
 type ProfileBoardActivityProps = {
   userId: string;
   displayName: string;
+  /** The swatch the account picked, so its name reads the same here as on the board. */
+  nameColour?: string;
   threads: ForumThread[];
 };
 
 /** Public board activity: the threads this account filed, newest first. */
-export default function ProfileBoardActivity({ userId, displayName, threads }: ProfileBoardActivityProps) {
+export default function ProfileBoardActivity({
+  userId,
+  displayName,
+  nameColour,
+  threads,
+}: ProfileBoardActivityProps) {
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
@@ -24,7 +32,10 @@ export default function ProfileBoardActivity({ userId, displayName, threads }: P
       <div className="p-3 text-black">
         {threads.length === 0 ? (
           <p className="text-[10px] font-bold text-black">
-            {displayName.toUpperCase()} HAS NOT FILED ANYTHING ON THE BOARD YET.
+            <ProfileName author={{ id: userId, displayName }} colour={nameColour} lamp={false}>
+              {displayName.toUpperCase()}
+            </ProfileName>{' '}
+            HAS NOT FILED ANYTHING ON THE BOARD YET.
           </p>
         ) : (
           <ul className="space-y-1">

@@ -20,24 +20,32 @@ type ProfileNameProps = {
    * from the author's own profile, which is where every other caller gets it.
    */
   colour?: string;
+  /**
+   * False for a list entry rather than a post: the name still wears its account's
+   * colour, and the lamp - which is about being around, not about identity - is
+   * left off. The account page's own lines and the board activity list use it.
+   */
+  lamp?: boolean;
 };
 
 /**
- * A username: the lamp beside it, and the colour its account picked.
+ * A username: the colour its account picked, and the lamp beside it.
  *
  * Reading the profile here means the colour follows the name everywhere it is
- * printed, and a visitor's browser sees a change as soon as the owner saves it.
- * The lamp comes from `usePresence`, so green / yellow / red follow presence the
- * same way. Guests have neither: an anonymous post has no profile and no account
- * to be online with.
+ * printed - the board, the comments, the comms page, the account page - and a
+ * visitor's browser sees a change as soon as the owner saves it. The lamp comes
+ * from `usePresence`, so green / yellow / red follow presence the same way, and
+ * `lamp={false}` drops it where presence is not the point. Guests have neither:
+ * an anonymous post has no profile to read a colour from and no account to be
+ * online with.
  */
-export default function ProfileName({ author, children, className, colour }: ProfileNameProps) {
+export default function ProfileName({ author, children, className, colour, lamp = true }: ProfileNameProps) {
   const { profile } = usePublicProfile(author.id);
   const { status, record } = usePresence(author.id);
   const chosen = colour !== undefined && colour.length > 0 ? colour : profileNameColour(profile);
   // The house account is the archive's byline rather than somebody who steps away,
   // so `showsPresenceLamp` keeps the dot off it - see ./builtin-account.ts.
-  const showsLamp = showsPresenceLamp(author.id);
+  const showsLamp = lamp && showsPresenceLamp(author.id);
 
   return (
     <span className={className} style={chosen === undefined ? undefined : { color: chosen }}>

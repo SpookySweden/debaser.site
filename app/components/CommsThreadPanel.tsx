@@ -115,7 +115,9 @@ export default function CommsThreadPanel({
 
       <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
-          <label htmlFor={`${idPrefix}-body`}>MESSAGE TO {peer.displayName.toUpperCase()}:</label>
+          <label htmlFor={`${idPrefix}-body`}>
+            MESSAGE TO <ProfileName author={peer} lamp={false} />:
+          </label>
           <span>
             {body.trim().length} / {MAX_MESSAGE_LENGTH}
           </span>

@@ -2,10 +2,12 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { avatarComments, currentAvatarVersion, profileComments, visibleGivenTags } from '../lib/profile/visibility';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
+import ProfileName from './ProfileName';
 
 const LINK_BUTTON =
   'rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-gray-300';
@@ -33,7 +35,14 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
         <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-black">
-          <p>NAME ON THE PROFILE: {profile.displayName}</p>
+          <p>
+            NAME ON THE PROFILE:{' '}
+            <ProfileName
+              author={{ id: userId, displayName: profile.displayName }}
+              colour={profileNameColour(profile)}
+              lamp={false}
+            />
+          </p>
           <p>BIO: {profile.bio.length === 0 ? 'NOT WRITTEN YET' : `${profile.bio.length} CHARACTERS`}</p>
           <p>
             PICTURE VERSIONS: {profile.avatar.versions.length} :: TAGS GIVEN:{' '}

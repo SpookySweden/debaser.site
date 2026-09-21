@@ -2,13 +2,17 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
+import { authorFromAccount } from '../lib/auth/author';
 import { resetMockAuth } from '../lib/auth/mock-auth';
 import { isSiteAccount } from '../lib/auth/builtin-account';
 import { threadDomId } from '../lib/forum/anchors';
+import { profileNameColour } from '../lib/profile/name-colours';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AccountProfilePanel from './AccountProfilePanel';
 import AccountSecurityPanel from './AccountSecurityPanel';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
 const BUTTON =
@@ -24,6 +28,8 @@ const BUTTON =
 export default function AccountDetails() {
   const { user, usingMockAuth, backend, signOut, deleteAccount } = useAuth();
   const forum = useForum();
+  // The account's own swatch, so its name reads here exactly as it does on the board.
+  const { profile } = usePublicProfile(user?.id ?? null);
 
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -71,6 +77,14 @@ export default function AccountDetails() {
         </div>
 
         <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+          <p>
+            NAME:{' '}
+            <ProfileName
+              author={authorFromAccount(user)}
+              colour={profileNameColour(profile)}
+              lamp={false}
+            />
+          </p>
           <p>ACCOUNT ID: {user.id}</p>
           <p>EMAIL: {user.email.length === 0 ? 'NOT PROVIDED' : user.email}</p>
           <p>

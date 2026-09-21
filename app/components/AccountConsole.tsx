@@ -3,6 +3,8 @@
 import AccountDetails from './AccountDetails';
 import AccountForms from './AccountForms';
 import { useAuth } from './AuthProvider';
+import ProfileName from './ProfileName';
+import { authorFromAccount } from '../lib/auth/author';
 
 /** The sections that appear on this page once somebody is signed in. */
 const SECTIONS = [
@@ -36,7 +38,14 @@ export default function AccountConsole() {
 
         <div className="space-y-1 p-3 text-[10px] font-bold text-black">
           <p>
-            SIGNED IN AS: {user === null ? 'Anonymous (guest)' : `${user.displayName} (account)`}
+            SIGNED IN AS:{' '}
+            {user === null ? (
+              'Anonymous (guest)'
+            ) : (
+              <>
+                <ProfileName author={authorFromAccount(user)} lamp={false} /> (account)
+              </>
+            )}
           </p>
           <p>
             BACKEND:{' '}
