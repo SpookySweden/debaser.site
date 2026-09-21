@@ -8,7 +8,10 @@ import type { ForumAnchor, ForumPreview } from '../forum/types';
  * is on disk so the page and the comment windows can point at it.
  *
  * Every sheet owns a forum anchor, which is what makes each picture's comment
- * control pop open its own thread on the board.
+ * control pop open its own thread on the board. The sheets are also where a
+ * profile gets a picture it does not have to upload: the ones whose shape suits a
+ * profile picture are offered in the customiser's picker, through
+ * `SITE_PICTURES` in app/lib/profile/avatar-catalogue.ts.
  */
 export type ConceptSheet = {
   /** File name stem; also the anchor id, so it must stay stable. */

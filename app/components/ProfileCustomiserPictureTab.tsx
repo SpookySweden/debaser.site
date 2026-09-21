@@ -1,10 +1,11 @@
 'use client';
 
-import { AVATAR_ACCEPT, AVATAR_SLOTS, MAX_AVATAR_BYTES } from '../lib/profile/avatar-catalogue';
+import { AVATAR_ACCEPT, MAX_AVATAR_BYTES, SITE_PICTURES } from '../lib/profile/avatar-catalogue';
 import type { PublicProfile } from '../lib/profile/types';
 import { avatarVersionsNewestFirst, commentCountForVersion, currentAvatarVersion } from '../lib/profile/visibility';
 import ProfileAvatar from './ProfileAvatar';
 import { CUSTOMISER_BUTTON, CUSTOMISER_FIELD, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
 
 export type ProfileCustomiserPictureTabProps = {
@@ -77,12 +78,12 @@ export default function ProfileCustomiserPictureTab({
           <div className="min-w-0 flex-1 space-y-2">
             <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
             <p className="text-[10px] text-black">
-              DRAW IT ON THE TABLET, UPLOAD THE PNG, THEN FILE IT AS V{nextVersion}. THE OLD DRAWINGS STAY IN THE
-              HISTORY BELOW TOGETHER WITH THE COMMENTS WRITTEN AGAINST THEM.
+              CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS V{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
+              BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.
             </p>
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-upload">
-              UPLOAD A DRAWING (PNG / JPG / WEBP / GIF, UP TO {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
+              UPLOAD A PICTURE (PNG / JPG / WEBP / GIF, UP TO {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
             </label>
             <input
               id="customise-upload"
@@ -100,20 +101,41 @@ export default function ProfileCustomiserPictureTab({
       </div>
 
       <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
-        <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE HAND-DRAWN SLOTS (assets/profiles):</p>
-        <div className="mt-2 flex flex-wrap gap-1">
-          {AVATAR_SLOTS.map((slot) => (
-            <button
-              key={slot.id}
-              type="button"
-              onClick={() => onSelectSrc(slot.src)}
-              className={`${CUSTOMISER_BUTTON} ${pendingSrc === slot.src ? 'bg-[#000080] text-white hover:bg-[#000080]' : ''}`}
-              title={slot.src}
-            >
-              {slot.label}
-            </button>
-          ))}
-        </div>
+        <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
+
+        {SITE_PICTURES.length === 0 ? (
+          <p className="mt-2 text-[10px] text-gray-700">
+            NONE OF THE DRAWINGS ON THE SITE IS THE RIGHT SHAPE FOR A PROFILE PICTURE YET.
+          </p>
+        ) : (
+          <ul className="mt-2 flex flex-wrap gap-2">
+            {SITE_PICTURES.map((picture) => (
+              <li key={picture.id}>
+                <button
+                  type="button"
+                  onClick={() => onSelectSrc(picture.src)}
+                  className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[10px] font-bold ${
+                    pendingSrc === picture.src
+                      ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#000080] text-white'
+                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] text-black hover:bg-gray-300'
+                  }`}
+                  title={picture.src}
+                >
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-black bg-white">
+                    <SheetImage
+                      src={picture.src}
+                      alt={picture.alt}
+                      width={picture.width}
+                      height={picture.height}
+                      sizes="48px"
+                    />
+                  </span>
+                  {picture.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <label className={`${CUSTOMISER_NOTE} mt-3 block`} htmlFor="customise-note">
           WHAT CHANGED? (KEPT AS THE NOTE FOR THIS VERSION)
@@ -136,10 +158,7 @@ export default function ProfileCustomiserPictureTab({
           >
             {busy ? '[ WORKING... ]' : `[ FILE AS V${nextVersion} ]`}
           </button>
-          <p className="text-[10px] text-gray-700">
-            UPLOADS GO THROUGH /api/profile/avatar INTO assets/profiles/uploads. ON A READ-ONLY DEPLOY, USE SUPABASE
-            STORAGE.
-          </p>
+          <p className="text-[10px] text-gray-700">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
         </div>
       </div>
 

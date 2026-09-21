@@ -10,14 +10,22 @@ import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } fr
 import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 
-type TabKey = 'picture' | 'identity' | 'privacy' | 'tags';
+type TabKey = 'profile' | 'privacy';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'picture', label: '[ PROFILE PICTURE ]' },
-  { key: 'identity', label: '[ BIO ]' },
+  { key: 'profile', label: '[ PICTURE, BIO & TAGS ]' },
   { key: 'privacy', label: '[ SHOW / HIDE ]' },
-  { key: 'tags', label: '[ TAGS GIVEN TO YOU ]' },
 ];
+
+/**
+ * A heading inside the merged tab.
+ *
+ * The three panels that used to be three tabs still read as three things, without
+ * the reader having to click between them to see the page they are dressing.
+ */
+function PanelHeading({ children }: { children: React.ReactNode }) {
+  return <p className="bg-[#808080] px-2 py-1 text-[10px] font-bold text-white">{children}</p>;
+}
 
 type ProfileCustomiserWindowProps = {
   userId: string;
@@ -37,7 +45,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const { profile, repository } = usePublicProfile(userId);
   const auth = useAuth();
 
-  const [tab, setTab] = useState<TabKey>('picture');
+  const [tab, setTab] = useState<TabKey>('profile');
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -181,47 +189,68 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         ))}
       </div>
 
-      {tab === 'picture' ? (
-        <ProfileCustomiserPictureTab
-          profile={profile}
-          pendingSrc={pendingSrc}
-          onSelectSrc={(src) => {
-            setPendingSrc(src);
-            setUploadMessage(null);
-          }}
-          note={note}
-          onNoteChange={setNote}
-          onUpload={(file) => void handleUpload(file)}
-          onFileVersion={() => void handleFileVersion()}
-          onRestore={(versionId) =>
-            void run(
-              () => repository.restoreAvatarVersion(userId, versionId),
-              'OLDER DRAWING FILED AS A NEW VERSION.',
-            )
-          }
-          busy={busy}
-          uploadMessage={uploadMessage}
-        />
+      {/* The tab that dresses the page: the picture, then the name and bio, then the
+          tags other people gave. They were three tabs; seeing them together is what
+          makes the page they add up to visible while you work on it. */}
+      {tab === 'profile' ? (
+        <div className="space-y-3">
+          <PanelHeading>PICTURE</PanelHeading>
+          <ProfileCustomiserPictureTab
+            profile={profile}
+            pendingSrc={pendingSrc}
+            onSelectSrc={(src) => {
+              setPendingSrc(src);
+              setUploadMessage(null);
+            }}
+            note={note}
+            onNoteChange={setNote}
+            onUpload={(file) => void handleUpload(file)}
+            onFileVersion={() => void handleFileVersion()}
+            onRestore={(versionId) =>
+              void run(
+                () => repository.restoreAvatarVersion(userId, versionId),
+                'OLDER DRAWING FILED AS A NEW VERSION.',
+              )
+            }
+            busy={busy}
+            uploadMessage={uploadMessage}
+          />
+
+          <PanelHeading>NAME, NAME COLOUR, PLACE LINE AND BIO</PanelHeading>
+          <ProfileIdentityTab
+            profile={profile}
+            name={name}
+            bio={bio}
+            location={location}
+            nameColour={nameColour}
+            onNameChange={setNameDraft}
+            onBioChange={setBioDraft}
+            onLocationChange={setLocationDraft}
+            onNameColourChange={setNameColourDraft}
+            onSave={() => void handleSaveIdentity()}
+            busy={busy}
+            bioProblem={bioProblem}
+            locationProblem={locationProblem}
+          />
+
+          <PanelHeading>TAGS GIVEN TO YOU</PanelHeading>
+          <ProfileTagsTab
+            profile={profile}
+            busy={busy}
+            onSetHidden={(tagId, hidden) =>
+              void run(
+                () => repository.setTagVisibility(userId, tagId, hidden),
+                hidden ? 'TAG HIDDEN FROM VISITORS.' : 'TAG SHOWN TO VISITORS.',
+              )
+            }
+            onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId), 'TAG REMOVED.')}
+            onSetAllHidden={(hidden) => void handleSetAllHidden(hidden)}
+          />
+        </div>
       ) : null}
 
-      {tab === 'identity' ? (
-        <ProfileIdentityTab
-          profile={profile}
-          name={name}
-          bio={bio}
-          location={location}
-          nameColour={nameColour}
-          onNameChange={setNameDraft}
-          onBioChange={setBioDraft}
-          onLocationChange={setLocationDraft}
-          onNameColourChange={setNameColourDraft}
-          onSave={() => void handleSaveIdentity()}
-          busy={busy}
-          bioProblem={bioProblem}
-          locationProblem={locationProblem}
-        />
-      ) : null}
-
+      {/* Its own tab: these switches are about what other people get to see, not about
+          the page you are dressing. */}
       {tab === 'privacy' ? (
         <ProfilePrivacyTab
           profile={profile}
@@ -229,21 +258,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           onToggle={(key, value) => setVisibilityDraft((current) => ({ ...current, [key]: value }))}
           onSave={() => void handleSavePrivacy()}
           busy={busy}
-        />
-      ) : null}
-
-      {tab === 'tags' ? (
-        <ProfileTagsTab
-          profile={profile}
-          busy={busy}
-          onSetHidden={(tagId, hidden) =>
-            void run(
-              () => repository.setTagVisibility(userId, tagId, hidden),
-              hidden ? 'TAG HIDDEN FROM VISITORS.' : 'TAG SHOWN TO VISITORS.',
-            )
-          }
-          onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId), 'TAG REMOVED.')}
-          onSetAllHidden={(hidden) => void handleSetAllHidden(hidden)}
         />
       ) : null}
 

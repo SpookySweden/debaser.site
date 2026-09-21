@@ -61,7 +61,15 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       .flatMap((thread) => thread.comments)
       .find((comment) => comment.author.id === userId)?.author.displayName;
 
-  const displayName = profile.displayName !== 'Anonymous' ? profile.displayName : (forumName ?? 'Anonymous');
+  // The name the page is headed with. A profile row that has never been named - an
+  // account made by hand, or one created while the sign-up trigger was missing - says
+  // 'Anonymous', which is not a name anybody chose: the account's own name is, and so
+  // is the byline on anything they have posted.
+  const accountName = owner && user !== null ? user.displayName : undefined;
+  const displayName =
+    profile.displayName !== 'Anonymous'
+      ? profile.displayName
+      : (accountName ?? forumName ?? 'Anonymous');
   // The swatch the owner picked for their username, if any.
   const nameColour = profileNameColour(profile);
   // The lamp beside that name: green / yellow / red, straight from the store.
@@ -74,9 +82,11 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
           <span>
-            {/* White nameplate: any of the sixteen swatches stays readable on navy. */}
+            {/* The name in its own colour, or the title bar's white when the account
+                has not chosen one: no plate behind it, so a name is never drawn the
+                same colour as the thing it sits on. */}
             PUBLIC PROFILE ::{' '}
-            <span className="bg-white px-1" style={nameColour === undefined ? undefined : { color: nameColour }}>
+            <span style={nameColour === undefined ? undefined : { color: nameColour }}>
               {displayName.toUpperCase()}
             </span>
           </span>
@@ -120,9 +130,13 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             </p>
           ) : null}
         </div>
-      </section>
 
-      <ProfilePictureHistory profile={profile} repository={repository} viewer={viewer} owner={owner} />
+        {/* The picture belongs in the same window as the profile it dresses: one read
+            instead of three stacked panels that each say PUBLIC PROFILE. */}
+        <div className="border-t border-gray-500 p-3">
+          <ProfilePictureHistory profile={profile} repository={repository} viewer={viewer} owner={owner} />
+        </div>
+      </section>
 
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">

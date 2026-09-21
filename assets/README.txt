@@ -51,12 +51,16 @@ Rules
 
 Adding a profile picture
 ------------------------
-Two ways, both ending in the same place - a file the site can serve:
+Two ways, both ending in the same place - a picture the site can serve:
 
-1. Slots: save a square PNG as assets/profiles/avatar-slot-NN.png. The slots are
-   listed in app/lib/profile/avatar-catalogue.ts; until a file exists the picker
-   and the profile page show the standard "[ ARTWORK FILE NOT FOUND ]" notice.
-2. Upload: use the "CUSTOMISE PUBLIC PROFILE" console on /account and pick a file.
+1. Upload: use the "[ CUSTOMISE PUBLIC PROFILE ]" console on /account, in the
+   PICTURE, BIO & TAGS tab, and pick a file.
+2. Pick one the site already holds: the same tab offers the drawings on the site
+   whose shape suits a profile picture (`SITE_PICTURES` in
+   app/lib/profile/avatar-catalogue.ts, which offers a concept sheet when its
+   exported size is within `PROFILE_PICTURE_SLACK` of square). Add a sheet to
+   assets/concepts/ with an entry in the manifest and it appears there by itself if
+   its shape fits.
 
 Where an upload lands depends on where profiles live (app/lib/profile/avatar-upload.ts):
 
@@ -69,8 +73,12 @@ Where an upload lands depends on where profiles live (app/lib/profile/avatar-upl
   assets/profiles/uploads/ and returns the path it now serves, exactly as before.
 
 Either way every change is filed as a new avatar version in the profile store, so
-old drawings are never overwritten and the comments written against them keep
+old pictures are never overwritten and the comments written against them keep
 pointing at the right one.
 
 The upload route needs a writable disk. On a read-only host it replies with a clear
 message - and that is the case the storage bucket exists for.
+
+The fixed slots (assets/profiles/avatar-slot-NN.png) are gone: a profile that was
+filed against one still shows it, because a version stores whatever src it was filed
+with, but nobody can pick a slot any more.
