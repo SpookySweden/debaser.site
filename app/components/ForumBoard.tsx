@@ -10,6 +10,7 @@ import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
 import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { tagChipClasses, tagChipStyle } from './TagBadge';
 
@@ -183,7 +184,7 @@ export default function ForumBoard() {
             <span>
               POSTING AS:{' '}
               <ProfileLink author={forum.author} className="font-bold">
-                {authorTag(forum.author)}
+                <ProfileName author={forum.author}>{authorTag(forum.author)}</ProfileName>
               </ProfileLink>
             </span>
             <span

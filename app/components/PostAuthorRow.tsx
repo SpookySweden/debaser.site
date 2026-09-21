@@ -20,6 +20,11 @@ type PostAuthorRowProps = {
   avatar?: 'shown' | 'hover' | 'hidden';
   avatarSize?: number;
   /**
+   * The colour the account chose for its username (`app/lib/profile/name-colours.ts`).
+   * Left out, the name is drawn in the page's own black.
+   */
+  nameColour?: string;
+  /**
    * Picture slot for a row that is not a person: a post owned by the item itself
    * is credited to the site, which has no profile to open but does have a default
    * pfp (`app/lib/forum/site-author.ts`).
@@ -41,12 +46,14 @@ type PostAuthorRowProps = {
  *
  * `picture` is for rows that are not a person at all: a post owned by the item
  * itself is credited to the site, so it draws the house default pfp instead of
- * an account's profile picture.
+ * an account's profile picture. `nameColour` is the swatch the account picked in
+ * the customiser, so a username looks the same here as it does everywhere else.
  */
 export default function PostAuthorRow({
   author,
   avatar = 'shown',
   avatarSize = 56,
+  nameColour,
   picture,
   location = '',
   displayedTags = [],
@@ -79,7 +86,7 @@ export default function PostAuthorRow({
       )}
 
       <ProfileLink author={author} className="text-xs font-bold">
-        {label}
+        <span style={nameColour === undefined ? undefined : { color: nameColour }}>{label}</span>
       </ProfileLink>
 
       {location.length === 0 ? null : (

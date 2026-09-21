@@ -1,6 +1,7 @@
 import type { ForumAuthor, ForumPreview, ForumTag, ForumThread } from './types';
 import { displayTags } from './tags';
 import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
+import { profileNameColour } from '../profile/name-colours';
 import type { GivenTag, PublicProfile } from '../profile/types';
 import { visibleGivenTags } from '../profile/visibility';
 
@@ -35,6 +36,11 @@ export type PostLayout = {
     credit: ForumAuthor;
     /** `credit`'s display name, resolved to the fallback when it is blank. */
     name: string;
+    /**
+     * The colour the account chose for its username (`app/lib/profile/name-colours.ts`),
+     * or undefined for the default. Always undefined for the item-owned credit.
+     */
+    nameColour: string | undefined;
     /** Picture slot when the credit is not a person: the site's default pfp. */
     picture: string | undefined;
     location: string;
@@ -96,6 +102,7 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
     author: {
       credit,
       name: displayNameFor(credit),
+      nameColour: itemOwned ? undefined : profileNameColour(authorProfile),
       picture: itemOwned ? SITE_AUTHOR_PICTURE : undefined,
       location: itemOwned ? '' : (authorProfile?.location ?? ''),
       displayedTags,

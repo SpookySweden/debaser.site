@@ -53,9 +53,6 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
             <button type="button" onClick={() => setCustomising(true)} className={LINK_BUTTON}>
               [ CUSTOMISE PUBLIC PROFILE ]
             </button>
-            <Link href="/account/customise" className={LINK_BUTTON}>
-              [ OPEN CUSTOMISATION PAGE ]
-            </Link>
             <Link href={`/profile/${encodeURIComponent(userId)}`} className={LINK_BUTTON}>
               [ VIEW PUBLIC PROFILE ]
             </Link>

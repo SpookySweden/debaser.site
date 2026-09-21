@@ -1,4 +1,5 @@
 import { createLocalId } from '../forum/ids';
+import { isNameColour } from './name-colours';
 import {
   DEFAULT_VISIBILITY,
   avatarVersionById,
@@ -6,6 +7,7 @@ import {
   validateAvatarNote,
   validateBio,
   validateLocation,
+  validateNameColour,
   validateProfileComment,
   validateTagLabel,
   withVisibilityDefaults,
@@ -92,6 +94,9 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
   return {
     userId,
     displayName: typeof row.displayName === 'string' ? row.displayName : 'Anonymous',
+    // Only a swatch hex is kept, so an older or hand-edited row cannot smuggle
+    // an arbitrary colour onto a username.
+    ...(typeof row.nameColour === 'string' && isNameColour(row.nameColour) ? { nameColour: row.nameColour } : {}),
     bio: typeof row.bio === 'string' ? row.bio : '',
     location: typeof row.location === 'string' ? row.location : '',
     avatar: {
@@ -196,6 +201,11 @@ class MockProfileRepository implements ProfileRepository {
       if (problem !== undefined) throw new Error(problem);
     }
 
+    if (patch.nameColour !== undefined) {
+      const problem = validateNameColour(patch.nameColour);
+      if (problem !== undefined) throw new Error(problem);
+    }
+
     return this.write(userId, (profile) => {
       const displayName = patch.displayName === undefined ? profile.displayName : patch.displayName.trim();
 
@@ -204,6 +214,12 @@ class MockProfileRepository implements ProfileRepository {
         displayName: displayName.length === 0 ? profile.displayName : displayName,
         bio: patch.bio === undefined ? profile.bio : patch.bio.trim(),
         location: patch.location === undefined ? profile.location : patch.location.trim(),
+        // An empty string is a real choice here: it means "back to the default".
+        ...(patch.nameColour === undefined
+          ? {}
+          : patch.nameColour.length === 0
+            ? { nameColour: undefined }
+            : { nameColour: patch.nameColour }),
         visibility: withVisibilityDefaults({ ...profile.visibility, ...patch.visibility }),
       };
     });

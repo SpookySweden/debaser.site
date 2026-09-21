@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { authorTag } from '../lib/auth/author';
-import { formatStamp } from '../lib/forum/format';
 import type { ForumAuthor } from '../lib/forum/types';
 import type { ProfileRepository, PublicProfile } from '../lib/profile/types';
 import {
@@ -15,6 +14,8 @@ import {
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCommentBox from './ProfileCommentBox';
 import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
+import TimeStamp from './TimeStamp';
 
 type ProfilePictureHistoryProps = {
   profile: PublicProfile;
@@ -62,7 +63,7 @@ export default function ProfilePictureHistory({ profile, repository, viewer, own
           ) : (
             <>
               <p>
-                CURRENT: V{current.version} :: FILED {formatStamp(current.createdAt)}
+                CURRENT: V{current.version} :: FILED <TimeStamp at={current.createdAt} />
               </p>
               {current.restoredFromVersion === undefined ? null : <p>RESTORED FROM V{current.restoredFromVersion}</p>}
               <p className="mt-1 whitespace-pre-line text-xs font-normal">
@@ -91,7 +92,7 @@ export default function ProfilePictureHistory({ profile, repository, viewer, own
                     <span>
                       V{version.version}
                       {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}
-                      {formatStamp(version.createdAt)}
+                      <TimeStamp at={version.createdAt} />
                     </span>
                     <span>{attached.length} COMMENTS</span>
                   </div>
@@ -106,12 +107,14 @@ export default function ProfilePictureHistory({ profile, repository, viewer, own
                         <li key={comment.id} className="rounded-none border border-gray-400 bg-white p-1">
                           <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
                             <span>
-                              <ProfileLink author={comment.author}>{authorTag(comment.author)}</ProfileLink>{' '}
+                              <ProfileLink author={comment.author}>
+                                <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
+                              </ProfileLink>{' '}
                               <span className="text-gray-700">
                                 [ AT V{comment.avatarVersionNumber ?? version.version} ]
                               </span>
                             </span>
-                            <span>{formatStamp(comment.createdAt)}</span>
+                            <TimeStamp at={comment.createdAt} />
                           </div>
                           <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
                         </li>

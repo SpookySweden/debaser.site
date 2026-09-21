@@ -1,5 +1,6 @@
 'use client';
 
+import { LOW_CONTRAST_NAME_COLOURS, NAME_COLOURS, nameColourLabel } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 
@@ -19,29 +20,36 @@ export type ProfileIdentityTabProps = {
   name: string;
   bio: string;
   location: string;
+  /** Swatch hex for the username, or '' for the default black. */
+  nameColour: string;
   onNameChange: (value: string) => void;
   onBioChange: (value: string) => void;
   onLocationChange: (value: string) => void;
+  onNameColourChange: (hex: string) => void;
   onSave: () => void;
   busy: boolean;
   bioProblem: string | undefined;
   locationProblem: string | undefined;
 };
 
-/** Public name, place line and bio: the text half of the public face. */
+/** Public name, its colour, place line and bio: the text half of the public face. */
 export function ProfileIdentityTab({
   profile,
   name,
   bio,
   location,
+  nameColour,
   onNameChange,
   onBioChange,
   onLocationChange,
+  onNameColourChange,
   onSave,
   busy,
   bioProblem,
   locationProblem,
 }: ProfileIdentityTabProps) {
+  const preview = name.trim().length === 0 ? profile.displayName : name;
+
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
@@ -54,6 +62,42 @@ export function ProfileIdentityTab({
         placeholder={profile.displayName}
         className={CUSTOMISER_FIELD}
       />
+
+      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE SIXTEEN SWATCHES</p>
+      <div className="mt-1 flex flex-wrap items-center gap-1">
+        {NAME_COLOURS.map((colour) => {
+          const chosen = nameColour === colour.hex;
+
+          return (
+            <button
+              key={colour.id}
+              type="button"
+              onClick={() => onNameColourChange(colour.hex)}
+              aria-pressed={chosen}
+              title={
+                LOW_CONTRAST_NAME_COLOURS.includes(colour.hex)
+                  ? `${colour.label} - HARD TO READ ON THE WHITE PAGES`
+                  : colour.label
+              }
+              style={{ backgroundColor: colour.hex }}
+              className={`h-6 w-6 shrink-0 cursor-pointer rounded-none border border-black ${
+                chosen ? 'outline-2 outline-black' : 'hover:outline-1 hover:outline-gray-600'
+              }`}
+            />
+          );
+        })}
+
+        <span
+          className="ml-2 text-xs font-bold"
+          style={nameColour.length === 0 ? undefined : { color: nameColour }}
+        >
+          {preview}
+        </span>
+      </div>
+      <p className="mt-1 text-[10px] text-gray-700">
+        PREVIEW :: {nameColourLabel(nameColour)}. WHITE, SILVER, LIME AND YELLOW SIT CLOSE TO THE PAGE
+        BACKGROUND - PICK ONE OF THOSE AND THE NAME IS MEANT TO BE HARD TO READ.
+      </p>
 
       <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-location">
         PLACE LINE: SHOWN NEXT TO YOUR NAME ON YOUR POSTS (LEAVE EMPTY TO HIDE IT)
@@ -89,7 +133,7 @@ export function ProfileIdentityTab({
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={onSave} disabled={busy} className={CUSTOMISER_BUTTON}>
-          {busy ? '[ WORKING... ]' : '[ SAVE NAME AND BIO ]'}
+          {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
         </button>
         <p className="text-[10px] text-gray-700">
           THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.

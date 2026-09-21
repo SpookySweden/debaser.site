@@ -5,6 +5,7 @@ import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import type { ForumAuthor, ForumTag } from '../lib/forum/types';
 import { useForum } from './ForumProvider';
 import MediaThumbnail from './MediaThumbnail';
+import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import { TagRow } from './TagBadge';
 
@@ -66,7 +67,9 @@ export default function CommentComposer({
       className="mt-2 border border-gray-600 bg-[#c0c0c0] p-2"
     >
       <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-black">
-        <span>AUTHOR: {authorTag(author)}</span>
+        <span>
+          AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
+        </span>
         <span>{value.trim().length} CHARS</span>
       </div>
 

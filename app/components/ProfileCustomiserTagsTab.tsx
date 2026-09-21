@@ -1,10 +1,11 @@
 'use client';
 
-import { formatStamp } from '../lib/forum/format';
 import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { PublicProfile } from '../lib/profile/types';
 import { CUSTOMISER_BUTTON, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import ProfileName from './ProfileName';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import TimeStamp from './TimeStamp';
 
 export type ProfileTagsTabProps = {
   profile: PublicProfile;
@@ -54,7 +55,9 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
                 </div>
 
                 <p className="mt-1 text-[10px] text-gray-700">
-                  GIVEN BY {tag.givenBy.displayName.toUpperCase()} ON {formatStamp(tag.givenAt)}
+                  GIVEN BY{' '}
+                  <ProfileName author={tag.givenBy}>{tag.givenBy.displayName.toUpperCase()}</ProfileName> ON{' '}
+                  <TimeStamp at={tag.givenAt} />
                 </p>
 
                 <div className="mt-1 flex flex-wrap gap-1">

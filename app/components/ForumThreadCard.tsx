@@ -17,6 +17,7 @@ import MediaThumbnail from './MediaThumbnail';
 import PostAuthorRow from './PostAuthorRow';
 import SheetImage from './SheetImage';
 import { TagRow } from './TagBadge';
+import TimeStamp from './TimeStamp';
 
 type ForumThreadCardProps = {
   thread: ForumThread;
@@ -121,12 +122,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
 
           {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-black">
-            <span className="font-bold">{layout.postedLabel}</span>
+            {/* The instant is the one blue thing in the header: POSTED stays black. */}
+            <span className="font-bold">
+              POSTED <TimeStamp at={thread.createdAt} />
+            </span>
 
             <PostAuthorRow
               author={layout.author.credit}
               avatar={layout.avatar}
               avatarSize={56}
+              nameColour={layout.author.nameColour}
               picture={layout.author.picture}
               location={layout.author.location}
               displayedTags={layout.author.displayedTags}

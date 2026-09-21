@@ -85,6 +85,11 @@ export type PublicProfile = {
   userId: string;
   /** Public label; the account name signs posts, this signs the profile page. */
   displayName: string;
+  /**
+   * One of the 16 hexes in name-colours.ts, drawn on this account's username
+   * wherever it appears. Missing means the default: the page's own black.
+   */
+  nameColour?: string;
   bio: string;
   /** Optional place line, shown next to the name on posts and on the profile. */
   location: string;
@@ -99,6 +104,8 @@ export type ProfilePatch = {
   displayName?: string;
   bio?: string;
   location?: string;
+  /** A swatch hex from name-colours.ts; an empty string clears it to the default. */
+  nameColour?: string;
   visibility?: Partial<ProfileVisibility>;
 };
 
@@ -129,7 +136,7 @@ export type ProfileCommentKind = ProfileComment['kind'];
  *
  * Supabase swap-in plan (build order step 3, alongside the forum tables):
  *   `getProfile`          -> `select *, profile_avatar_versions(*), profile_tags(*), profile_comments(*)`
- *   `saveProfile`         -> `update profiles set display_name, bio, show_* where id = auth.uid()`
+ *   `saveProfile`         -> `update profiles set display_name, name_colour, bio, show_* where id = auth.uid()`
  *   `addAvatarVersion`    -> insert into profile_avatar_versions + set profiles.current_version_id
  *   `restoreAvatarVersion`-> insert a new version row that copies the old `src`
  *   `giveTag`             -> insert into profile_tags (given_by = auth.uid())

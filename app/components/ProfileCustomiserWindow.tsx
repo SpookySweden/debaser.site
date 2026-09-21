@@ -21,24 +21,19 @@ const TABS: { key: TabKey; label: string }[] = [
 
 type ProfileCustomiserWindowProps = {
   userId: string;
-  /** 'popup' opens the Win95 window; 'inline' renders the panel on its own page. */
-  variant?: 'popup' | 'inline';
-  onClose?: () => void;
+  /** Called when the window is closed (ESC, the title bar, or a click behind it). */
+  onClose: () => void;
 };
 
 /**
  * The customisation console for the public face of an account.
  *
  * Opened as a self-contained pop-up from the account page ("CUSTOMISE PUBLIC
- * PROFILE") and mounted inline at /account/customise so the same panel can be
- * linked to directly. Nothing here writes to the board: it only styles the
- * profile page visitors reach from a username or a picture.
+ * PROFILE"), which is the only way in: the console is a window, not a page.
+ * Nothing here writes to the board: it only styles the profile page visitors
+ * reach from a username or a picture.
  */
-export default function ProfileCustomiserWindow({
-  userId,
-  variant = 'popup',
-  onClose,
-}: ProfileCustomiserWindowProps) {
+export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCustomiserWindowProps) {
   const { profile, repository } = usePublicProfile(userId);
   const auth = useAuth();
 
@@ -56,11 +51,14 @@ export default function ProfileCustomiserWindow({
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [bioDraft, setBioDraft] = useState<string | null>(null);
   const [locationDraft, setLocationDraft] = useState<string | null>(null);
+  const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
   const name = nameDraft ?? profile.displayName;
   const bio = bioDraft ?? profile.bio;
   const location = locationDraft ?? profile.location;
+  // Empty means the default: usernames are drawn in the page's own black.
+  const nameColour = nameColourDraft ?? profile.nameColour ?? '';
   const bioProblem = validateBio(bio);
   const locationProblem = validateLocation(location);
 
@@ -138,7 +136,7 @@ export default function ProfileCustomiserWindow({
     }
 
     await run(async () => {
-      await repository.saveProfile(userId, { displayName: name, bio, location });
+      await repository.saveProfile(userId, { displayName: name, bio, location, nameColour });
 
       // The public name and the account name stay in step, so posts and the
       // profile page never disagree about who wrote something.
@@ -150,7 +148,8 @@ export default function ProfileCustomiserWindow({
       setNameDraft(null);
       setBioDraft(null);
       setLocationDraft(null);
-    }, 'NAME, PLACE LINE AND BIO SAVED.');
+      setNameColourDraft(null);
+    }, 'NAME, NAME COLOUR, PLACE LINE AND BIO SAVED.');
   }
 
   async function handleSavePrivacy() {
@@ -217,9 +216,11 @@ export default function ProfileCustomiserWindow({
           name={name}
           bio={bio}
           location={location}
+          nameColour={nameColour}
           onNameChange={setNameDraft}
           onBioChange={setBioDraft}
           onLocationChange={setLocationDraft}
+          onNameColourChange={setNameColourDraft}
           onSave={() => void handleSaveIdentity()}
           busy={busy}
           bioProblem={bioProblem}
@@ -266,13 +267,11 @@ export default function ProfileCustomiserWindow({
     </div>
   );
 
-  if (variant === 'inline') return panel;
-
   return (
     <PopoutWindow
       title="CUSTOMISE PUBLIC PROFILE"
       badge="[ ACCOUNT ]"
-      onClose={onClose ?? (() => undefined)}
+      onClose={onClose}
       maxWidth="max-w-3xl"
       status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC CLOSES"
       actions={

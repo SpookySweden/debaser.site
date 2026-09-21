@@ -3,8 +3,8 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { authorFromAccount, authorLabel, authorTag } from '../lib/auth/author';
-import { formatStamp } from '../lib/forum/format';
 import { tagColour } from '../lib/forum/tag-vocabulary';
+import { profileNameColour } from '../lib/profile/name-colours';
 import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
 import type { ProfileComment, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -22,7 +22,9 @@ import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileCommentBox from './ProfileCommentBox';
 import ProfilePictureHistory from './ProfilePictureHistory';
 import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
 import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import TimeStamp from './TimeStamp';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -58,6 +60,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
       .find((comment) => comment.author.id === userId)?.author.displayName;
 
   const displayName = profile.displayName !== 'Anonymous' ? profile.displayName : (forumName ?? 'Anonymous');
+  // The swatch the owner picked for their username, if any.
+  const nameColour = profileNameColour(profile);
   const tags = owner ? profile.tags : visibleGivenTags(profile);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
 
@@ -65,7 +69,13 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
     <div className="space-y-3">
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-          <span>PUBLIC PROFILE :: {displayName.toUpperCase()}</span>
+          <span>
+            {/* White nameplate: any of the sixteen swatches stays readable on navy. */}
+            PUBLIC PROFILE ::{' '}
+            <span className="bg-white px-1" style={nameColour === undefined ? undefined : { color: nameColour }}>
+              {displayName.toUpperCase()}
+            </span>
+          </span>
           <span>{owner ? '[ YOUR PROFILE ]' : '[ VISITOR VIEW ]'}</span>
         </div>
 
@@ -143,11 +153,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                     {tag.label}
                   </span>
                   <span className="text-[10px] font-bold text-black">
-                    {owner && tag.hidden
-                      ? '[ HIDDEN ]'
-                      : `FROM ${
-                          tag.givenBy.id !== null && tag.givenBy.id === userId ? 'YOU' : authorLabel(tag.givenBy)
-                        }`}
+                    {owner && tag.hidden ? (
+                      '[ HIDDEN ]'
+                    ) : (
+                      <>
+                        FROM{' '}
+                        <ProfileName author={tag.givenBy}>
+                          {tag.givenBy.id !== null && tag.givenBy.id === userId ? 'YOU' : authorLabel(tag.givenBy)}
+                        </ProfileName>
+                      </>
+                    )}
                   </span>
                 </li>
               ))}
@@ -227,8 +242,10 @@ function CommentsSection({ userId, owner, viewerId, visibility, comments, hidden
             {comments.map((comment) => (
               <li key={comment.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                  <ProfileLink author={comment.author}>{authorTag(comment.author)}</ProfileLink>
-                  <span>{formatStamp(comment.createdAt)}</span>
+                  <ProfileLink author={comment.author}>
+                    <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
+                  </ProfileLink>
+                  <TimeStamp at={comment.createdAt} />
                 </div>
                 <p className="mt-1 whitespace-pre-line text-xs">{comment.body}</p>
               </li>

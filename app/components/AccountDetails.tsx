@@ -4,11 +4,11 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { resetMockAuth } from '../lib/auth/mock-auth';
 import { threadDomId } from '../lib/forum/anchors';
-import { formatStamp } from '../lib/forum/format';
 import AccountProfilePanel from './AccountProfilePanel';
 import AccountSecurityPanel from './AccountSecurityPanel';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import TimeStamp from './TimeStamp';
 
 const BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
@@ -72,7 +72,9 @@ export default function AccountDetails() {
         <div className="space-y-2 p-3 text-[10px] font-bold text-black">
           <p>ACCOUNT ID: {user.id}</p>
           <p>EMAIL: {user.email.length === 0 ? 'NOT PROVIDED' : user.email}</p>
-          <p>CREATED: {formatStamp(user.createdAt)}</p>
+          <p>
+            CREATED: <TimeStamp at={user.createdAt} />
+          </p>
           <p>BACKEND: {backend === 'mock' ? 'MOCK (THIS BROWSER ONLY)' : 'SUPABASE AUTH'}</p>
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -109,7 +111,7 @@ export default function AccountDetails() {
               {myThreads.slice(0, 6).map((thread) => (
                 <li key={thread.id}>
                   <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-gray-300">
-                    [{formatStamp(thread.createdAt)}] {thread.title}
+                    [<TimeStamp at={thread.createdAt} />] {thread.title}
                   </Link>
                 </li>
               ))}

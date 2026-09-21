@@ -1,3 +1,4 @@
+import { isNameColour } from './name-colours';
 import { MAX_BIO_LENGTH, MAX_COMMENT_LENGTH, MAX_LOCATION_LENGTH, MAX_TAG_LABEL_LENGTH } from './types';
 import type { AvatarVersion, ProfileComment, ProfileVisibility, PublicProfile } from './types';
 
@@ -121,4 +122,10 @@ export function validateTagLabel(label: string): string | undefined {
 export function validateAvatarNote(note: string): string | undefined {
   if (note.length > MAX_COMMENT_LENGTH) return `NOTE MUST BE ${MAX_COMMENT_LENGTH} CHARACTERS OR FEWER.`;
   return undefined;
+}
+
+/** A name colour is either empty (the default) or one of the sixteen swatches. */
+export function validateNameColour(colour: string): string | undefined {
+  if (colour.length === 0) return undefined;
+  return isNameColour(colour) ? undefined : 'THAT COLOUR IS NOT ON THE SWATCH.';
 }

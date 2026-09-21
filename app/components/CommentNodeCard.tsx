@@ -2,14 +2,16 @@
 
 import type { ReactNode } from 'react';
 import { authorTag } from '../lib/auth/author';
-import { countReplies, formatStamp } from '../lib/forum/format';
+import { countReplies } from '../lib/forum/format';
 import { displayTags } from '../lib/forum/tags';
 import type { ForumAuthor, ForumComment } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import MediaThumbnail from './MediaThumbnail';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
 import { TagRow } from './TagBadge';
+import TimeStamp from './TimeStamp';
 
 export const COMMENT_SMALL_BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60';
@@ -83,9 +85,11 @@ export default function CommentNodeCard({
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
           <span className="inline-flex flex-wrap items-center gap-1">
             #{index + 1}
-            <ProfileLink author={comment.author}>{authorTag(comment.author)}</ProfileLink>
+            <ProfileLink author={comment.author}>
+              <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
+            </ProfileLink>
           </span>
-          <span>{formatStamp(comment.createdAt)}</span>
+          <TimeStamp at={comment.createdAt} />
         </div>
 
         <p className="mt-1 whitespace-pre-line text-xs text-black">{comment.body}</p>

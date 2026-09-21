@@ -1,11 +1,11 @@
 'use client';
 
 import { AVATAR_ACCEPT, AVATAR_SLOTS, MAX_AVATAR_BYTES } from '../lib/profile/avatar-catalogue';
-import { formatStamp } from '../lib/forum/format';
 import type { PublicProfile } from '../lib/profile/types';
 import { avatarVersionsNewestFirst, commentCountForVersion, currentAvatarVersion } from '../lib/profile/visibility';
 import ProfileAvatar from './ProfileAvatar';
 import { CUSTOMISER_BUTTON, CUSTOMISER_FIELD, CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import TimeStamp from './TimeStamp';
 
 export type ProfileCustomiserPictureTabProps = {
   profile: PublicProfile;
@@ -161,7 +161,7 @@ export default function ProfileCustomiserPictureTab({
                   <p className="font-bold">
                     V{version.version}
                     {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}
-                    {formatStamp(version.createdAt)} :: {commentCountForVersion(profile, version)} COMMENTS
+                    <TimeStamp at={version.createdAt} /> :: {commentCountForVersion(profile, version)} COMMENTS
                   </p>
                   {version.note.length === 0 ? null : <p className="mt-1">{version.note}</p>}
                   {version.restoredFromVersion === undefined ? null : (

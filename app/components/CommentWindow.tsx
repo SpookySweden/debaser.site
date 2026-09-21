@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { threadDomId } from '../lib/forum/anchors';
-import { countReplies, formatStamp } from '../lib/forum/format';
+import { countReplies } from '../lib/forum/format';
 import { deriveTags, displayTags } from '../lib/forum/tags';
 import type { ForumAnchor } from '../lib/forum/types';
 import AnchorLink from './AnchorLink';
@@ -13,6 +13,7 @@ import CommentThreadList from './CommentThreadList';
 import { useForum } from './ForumProvider';
 import PopoutWindow from './PopoutWindow';
 import { TagRow } from './TagBadge';
+import TimeStamp from './TimeStamp';
 
 type CommentWindowProps = {
   anchor: ForumAnchor;
@@ -121,7 +122,9 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
                 the list below, so this line only carries what the list does not.
               */}
               <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
-                <span>FILED {formatStamp(thread.createdAt)}</span>
+                <span>
+                  FILED <TimeStamp at={thread.createdAt} />
+                </span>
                 <span>ORIGIN: {thread.origin.toUpperCase()}</span>
               </div>
 
