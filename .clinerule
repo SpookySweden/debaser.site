@@ -1,0 +1,6 @@
+### Environment & Shell Rules
+- **OS / Shell:** You are running exclusively in a **Windows PowerShell** environment. 
+- **Banned Commands:** Never use Linux/Bash-style syntax, such as `dir /s /b` or brace expansion like `*.{ts,tsx,js,jsx}`. These will fail with ParserErrors.
+- **File Searching:** Always use native PowerShell cmdlets for file operations. For example, to find files recursively by multiple extensions, use:
+  `Get-ChildItem -Path "G:\debaser.site\app" -Recurse -Include *.tsx,*.ts,*.jsx,*.js -File | Select-Object FullName`
+- **Avoid Loops:** If a command fails due to syntax, do not repeatedly retry variations of it. Stop, analyze the PowerShell syntax error, and use the correct cmdlet immediately.

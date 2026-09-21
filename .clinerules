@@ -1,0 +1,46 @@
+# Cline Rules for Windows PowerShell Environment
+
+## Environment & Shell Rules
+- **OS / Shell:** You are running exclusively in a **Windows PowerShell** environment.
+- **Banned Commands:** Never use Linux/Bash-style syntax, such as `dir /s /b` or brace expansion like `*.{ts,tsx,js,jsx}`. These will fail with ParserErrors.
+- **File Searching:** Always use native PowerShell cmdlets for file operations. For example, to find files recursively by multiple extensions, use:
+  `Get-ChildItem -Path "G:\debaser.site\app" -Recurse -Include *.tsx,*.ts,*.jsx,*.js -File | Select-Object FullName`
+- **Avoid Loops:** If a command fails due to syntax, do not repeatedly retry variations of it. Stop, analyze the PowerShell syntax error, and use the correct cmdlet immediately.
+
+## File Operations
+- Use absolute paths for all file operations (e.g., `g:\debaser.site\app\page.tsx`).
+- When reading files, prefer `Get-Content` or `Select-String` for PowerShell.
+- For editing files, use `Set-Content` or `Out-File` with proper encoding (UTF-8).
+
+## Codebase Navigation
+- Use `Get-ChildItem` for directory listings and file searches.
+- For recursive searches, combine with `-Recurse` and `-Include` filters.
+
+## Command Execution
+- Run commands sequentially unless they are independent and safe to parallelize.
+- Always quote paths and arguments in PowerShell (e.g., `"G:\path\file.txt"`).
+- Use `;` to sequence multiple commands in a single call.
+
+## Error Handling
+- If a command fails, analyze the error message and correct the PowerShell syntax.
+- Do not assume Linux/Bash commands will work in PowerShell.
+
+## Best Practices
+- Prefer native PowerShell cmdlets over shell commands.
+- Use `Where-Object` for filtering instead of piping to `findstr`.
+- For large outputs, use `-NoTypeInformation` with `Get-Content` to avoid clutter.
+
+## Example Commands
+```powershell
+# List all .tsx files in a directory
+Get-ChildItem -Path "G:\debaser.site\app" -Recurse -Include *.tsx -File | Select-Object FullName
+
+# Read a file
+Get-Content -Path "G:\debaser.site\app\page.tsx"
+
+# Search for a pattern in files
+Select-String -Path "G:\debaser.site\app" -Pattern "use client" -Recurse
+
+# Edit a file
+Set-Content -Path "G:\debaser.site\app\page.tsx" -Value "New content"
+```

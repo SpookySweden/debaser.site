@@ -1,0 +1,292 @@
+import { getSupabaseBrowserClient } from '../supabase/client';
+import { ANONYMOUS_AUTHOR } from '../auth/author';
+import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
+import { deriveTags } from './tags';
+import type {
+  AddCommentResult,
+  CreateCommentInput,
+  CreateThreadInput,
+  ForumAnchorKind,
+  ForumAuthor,
+  ForumComment,
+  ForumRepository,
+  ForumTag,
+  ForumThread,
+} from './types';
+
+/**
+ * Supabase backed repository - the production implementation of
+ * `ForumRepository`. It stays dormant until the tables below exist and
+ * `NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase` is set (see ./repository.ts).
+ *
+ * Schema this code expects:
+ *
+ *   create table public.forum_threads (
+ *     id uuid primary key default gen_random_uuid(),
+ *     title text not null,
+ *     body text not null,
+ *     author_id uuid references auth.users (id) on delete set null,
+ *     author_label text not null default 'Anonymous',
+ *     anchor_kind text not null,
+ *     anchor_id text not null,
+ *     anchor_label text not null,
+ *     tags jsonb not null default '[]'::jsonb,
+ *     created_at timestamptz not null default now()
+ *   );
+ *
+ *   create table public.forum_comments (
+ *     id uuid primary key default gen_random_uuid(),
+ *     thread_id uuid not null references public.forum_threads (id) on delete cascade,
+ *     body text not null,
+ *     author_id uuid references auth.users (id) on delete set null,
+ *     author_label text not null default 'Anonymous',
+ *     tags jsonb not null default '[]'::jsonb,
+ *     created_at timestamptz not null default now()
+ *   );
+ *
+ *   -- one auto-generated thread per asset / text box
+ *   create unique index forum_threads_anchor_key
+ *     on public.forum_threads (anchor_kind, anchor_id)
+ *     where anchor_kind <> 'board';
+ *
+ *   alter table public.forum_threads enable row level security;
+ *   alter table public.forum_comments enable row level security;
+ *
+ *   -- public read, but authors may only edit or delete their own rows
+ *   create policy "forum_threads readable" on public.forum_threads for select using (true);
+ *   create policy "forum_threads insert own" on public.forum_threads for insert with check (author_id is null or author_id = auth.uid());
+ *   create policy "forum_threads update own" on public.forum_threads for update using (author_id = auth.uid());
+ *   create policy "forum_threads delete own" on public.forum_threads for delete using (author_id = auth.uid());
+ *   create policy "forum_comments readable" on public.forum_comments for select using (true);
+ *   create policy "forum_comments insert own" on public.forum_comments for insert with check (author_id is null or author_id = auth.uid());
+ *   create policy "forum_comments update own" on public.forum_comments for update using (author_id = auth.uid());
+ *   create policy "forum_comments delete own" on public.forum_comments for delete using (author_id = auth.uid());
+ *
+ *   -- realtime
+ *   alter publication supabase_realtime add table public.forum_threads, public.forum_comments;
+ */
+
+const THREADS_TABLE = 'forum_threads';
+const COMMENTS_TABLE = 'forum_comments';
+const THREAD_SELECT = `*, ${COMMENTS_TABLE}(*)`;
+
+type CommentRow = {
+  id: string;
+  thread_id: string;
+  body: string;
+  author_id: string | null;
+  author_label: string;
+  tags: ForumTag[] | null;
+  created_at: string;
+};
+
+type ThreadRow = {
+  id: string;
+  title: string;
+  body: string;
+  author_id: string | null;
+  author_label: string;
+  anchor_kind: ForumAnchorKind;
+  anchor_id: string;
+  anchor_label: string;
+  tags: ForumTag[] | null;
+  created_at: string;
+  forum_comments?: CommentRow[] | null;
+};
+
+function toAuthor(id: string | null, label: string): ForumAuthor {
+  return { id, displayName: label.length > 0 ? label : ANONYMOUS_AUTHOR.displayName };
+}
+
+function toComment(row: CommentRow, threadId: string): ForumComment {
+  return {
+    id: row.id,
+    threadId,
+    body: row.body,
+    author: toAuthor(row.author_id, row.author_label),
+    createdAt: row.created_at,
+    tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
+  };
+}
+
+function toThread(row: ThreadRow): ForumThread {
+  const comments = (row.forum_comments ?? [])
+    .map((comment) => toComment(comment, row.id))
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
+
+  return {
+    id: row.id,
+    title: row.title,
+    body: row.body,
+    author: toAuthor(row.author_id, row.author_label),
+    createdAt: row.created_at,
+    anchor: { kind: row.anchor_kind, id: row.anchor_id, label: row.anchor_label },
+    tags: row.tags ?? deriveTags({ text: `${row.title}\n${row.body}`, maxTags: 6 }),
+    comments,
+    origin: 'user',
+  };
+}
+
+/** Row shape for an insert: the database supplies `id` and `created_at`. */
+type ThreadInsert = Omit<ThreadRow, 'id' | 'created_at' | 'forum_comments'>;
+type CommentInsert = Omit<CommentRow, 'id' | 'created_at'>;
+
+function threadPayload(input: CreateThreadInput): ThreadInsert {
+  return {
+    title: input.title,
+    body: input.body,
+    author_id: input.author.id,
+    author_label: input.author.displayName,
+    anchor_kind: input.anchor.kind,
+    anchor_id: input.anchor.id,
+    anchor_label: input.anchor.label,
+    tags: deriveTags({ text: `${input.title}\n${input.body}`, anchor: input.anchor }),
+  };
+}
+
+function commentPayload(input: CreateCommentInput, threadId: string): CommentInsert {
+  return {
+    thread_id: threadId,
+    body: input.body.trim(),
+    author_id: input.author.id,
+    author_label: input.author.displayName,
+    tags: deriveTags({ text: input.body, anchor: input.anchor, maxTags: 3 }),
+  };
+}
+
+class SupabaseForumRepository implements ForumRepository {
+  readonly source = 'supabase' as const;
+
+  private client() {
+    const client = getSupabaseBrowserClient();
+
+    if (client === null) {
+      throw new Error(
+        'Supabase is not configured: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.',
+      );
+    }
+
+    return client;
+  }
+
+  async listThreads(): Promise<ForumThread[]> {
+    const { data, error } = await this.client()
+      .from(THREADS_TABLE)
+      .select(THREAD_SELECT)
+      .order('created_at', { ascending: false });
+
+    if (error !== null) throw new Error(`forum thread select failed: ${error.message}`);
+
+    return ((data ?? []) as ThreadRow[]).map(toThread);
+  }
+
+  async createThread(input: CreateThreadInput): Promise<ForumThread> {
+    const { data, error } = await this.client()
+      .from(THREADS_TABLE)
+      .insert(threadPayload(input))
+      .select(THREAD_SELECT)
+      .single();
+
+    if (error !== null) throw new Error(`forum thread insert failed: ${error.message}`);
+
+    return toThread(data as ThreadRow);
+  }
+
+  async addComment(input: CreateCommentInput): Promise<AddCommentResult> {
+    const client = this.client();
+    const { threadId, createdThread } = await this.resolveThreadId(input);
+
+    const { data: commentRow, error: commentError } = await client
+      .from(COMMENTS_TABLE)
+      .insert(commentPayload(input, threadId))
+      .select('*')
+      .single();
+
+    if (commentError !== null) throw new Error(`forum comment insert failed: ${commentError.message}`);
+
+    const { data: threadRow, error: threadError } = await client
+      .from(THREADS_TABLE)
+      .select(THREAD_SELECT)
+      .eq('id', threadId)
+      .single();
+
+    if (threadError !== null) throw new Error(`forum thread refresh failed: ${threadError.message}`);
+
+    const thread = toThread(threadRow as ThreadRow);
+
+    return { thread, comment: toComment(commentRow as CommentRow, thread.id), createdThread };
+  }
+
+  /** Resolves (or auto-creates) the thread a comment belongs to. */
+  private async resolveThreadId(input: CreateCommentInput): Promise<{ threadId: string; createdThread: boolean }> {
+    if (input.threadId !== undefined) {
+      return { threadId: input.threadId, createdThread: false };
+    }
+
+    if (input.anchor === undefined) {
+      throw new Error('addComment needs either a threadId or an anchor.');
+    }
+
+    const client = this.client();
+    const anchor = input.anchor;
+
+    const { data: existing, error: lookupError } = await client
+      .from(THREADS_TABLE)
+      .select('id')
+      .eq('anchor_kind', anchor.kind)
+      .eq('anchor_id', anchor.id)
+      .maybeSingle();
+
+    if (lookupError !== null) throw new Error(`forum thread lookup failed: ${lookupError.message}`);
+
+    const existingId = (existing as { id: string } | null)?.id;
+    if (existingId !== undefined) {
+      return { threadId: existingId, createdThread: false };
+    }
+
+    const title = autoThreadTitle(anchor);
+    const payload = threadPayload({ title, body: AUTO_FILED_BODY, anchor, author: input.author });
+    payload.tags = deriveTags({ text: `${title}\n${AUTO_FILED_BODY}\n${input.body}`, anchor });
+
+    const { data: created, error: createError } = await client
+      .from(THREADS_TABLE)
+      .insert(payload)
+      .select('id')
+      .single();
+
+    if (createError !== null) throw new Error(`auto thread insert failed: ${createError.message}`);
+
+    return { threadId: (created as { id: string }).id, createdThread: true };
+  }
+
+  subscribe(listener: (threads: ForumThread[]) => void): () => void {
+    const client = this.client();
+
+    const refresh = () => {
+      void this.listThreads()
+        .then((threads) => listener(threads))
+        .catch(() => undefined);
+    };
+
+    const channel = client
+      .channel('forum-board')
+      .on('postgres_changes', { event: '*', schema: 'public', table: THREADS_TABLE }, refresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: COMMENTS_TABLE }, refresh)
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }
+
+  async clearLocalPosts(): Promise<void> {
+    // Supabase owns the rows; nothing to purge client side.
+  }
+}
+
+let supabaseRepository: SupabaseForumRepository | null = null;
+
+export function getSupabaseForumRepository(): ForumRepository {
+  if (supabaseRepository === null) supabaseRepository = new SupabaseForumRepository();
+  return supabaseRepository;
+}

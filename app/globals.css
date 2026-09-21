@@ -24,3 +24,14 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Retro OS primitives -------------------------------------------------------
+   Collapsible forum threads use native <details>/<summary>; the stock marker
+   is replaced with the Win95 [+]/[-] text indicator rendered in JSX. */
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
