@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
+# .env.production holds only NEXT_PUBLIC_* values, which reach the browser anyway,
+# so the deploy can run on Supabase without a dashboard step (see its header).
+!.env.production
 
 # vercel
 .vercel

@@ -66,6 +66,41 @@ Restart `npm run dev`. Each switch is independent and each falls back to the loc
 mock store when it is missing, so the site runs with no backend at all - and one
 part can be moved over at a time if something needs checking.
 
+The deployed site reads the same names from `.env.production`, which is committed.
+Next.js loads that file for `next build`, which is what Vercel runs, so a deploy
+lands on Supabase with no dashboard step at all; names set in the Vercel project
+take precedence over it, so it can also be deleted once they are set there. It holds
+only `NEXT_PUBLIC_*` values, which reach the browser in the bundle anyway, and RLS in
+`schema.sql` is what protects the data.
+
+5. Let visitors make accounts
+-----------------------------
+Sign-ups are open (`disable_signup: false`) and email sign-in is on, so the only
+question is whether a stranger can *finish* signing up - and with the defaults they
+cannot. "Confirm email" is ON out of the box, which means a new account cannot sign
+in until it opens the link in the confirmation mail, and Supabase's built-in mail
+service only delivers to members of your own organisation and is limited to a couple
+of messages an hour. A visitor signs up, is told to check their inbox, and waits for
+a mail that never arrives.
+
+Either of these fixes it, in Authentication -> Sign In / Providers -> Email:
+
+  - turn "Confirm email" off: the account works the moment it is made, which is
+    what a small archive wants, and the site's "check your email" notice simply
+    never appears;
+  - or keep confirmation and add your own SMTP under Authentication -> Emails ->
+    SMTP Settings (Resend, Postmark, SendGrid and so on).
+
+An address on the site's own domain cannot sign itself up: Supabase refuses any
+address whose domain has no mail records, and `someone@debaser.site` has none. That
+address exists only because it was made by hand in the dashboard - the same reason
+the house account is a dashboard step (step 2).
+
+Two probes show the state of all of this rather than leaving it to be guessed at:
+
+  node Temp/auth-live-probe.cjs      # sign-ups open? confirmation needed? does sign-in work?
+  node Temp/signup-mail-probe.cjs    # a real signup through a throwaway mailbox, and whether its mail arrives
+
 What lives where
 ----------------
   accounts + sessions        app/lib/auth/supabase-auth.ts
