@@ -10,7 +10,7 @@ import { formatStamp } from '../lib/forum/format';
 import { useAuth } from './AuthProvider';
 
 export type CommsContextValue = {
-  /** False until the first read lands. */
+  /** False until the read lands. */
   ready: boolean;
   /** Null while nobody is signed in: comms is an accounts-only place. */
   userId: string | null;
@@ -20,6 +20,14 @@ export type CommsContextValue = {
   unreadTotal: number;
   /** Every account this browser can see, for the "new message" picker. */
   accounts: AccountUser[];
+  /**
+   * False until the account list has been read.
+   *
+   * Separate from `ready`, which follows the signed-in account's conversations and
+   * so stays false for a visitor who is not signed in - the users page lists
+   * accounts for guests too, and needs to know when that read is done.
+   */
+  accountsReady: boolean;
   /** id -> display name, so a message can be signed with a live name. */
   nameById: Map<string, string>;
   /** The conversation on screen, if any. */
@@ -52,6 +60,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
   const [mine, setMine] = useState<CommsThread[]>([]);
   const [ready, setReady] = useState(false);
   const [accounts, setAccounts] = useState<AccountUser[]>([]);
+  const [accountsReady, setAccountsReady] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -92,9 +101,13 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     auth
       .listAccounts()
       .then((next) => {
-        if (!cancelled) setAccounts(next);
+        if (cancelled) return;
+        setAccounts(next);
+        setAccountsReady(true);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setAccountsReady(true);
+      });
 
     return () => {
       cancelled = true;
@@ -179,6 +192,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       threads,
       unreadTotal,
       accounts,
+      accountsReady,
       nameById,
       activeThreadId,
       setActiveThreadId,
@@ -194,6 +208,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       threads,
       unreadTotal,
       accounts,
+      accountsReady,
       nameById,
       activeThreadId,
       openThreadWith,

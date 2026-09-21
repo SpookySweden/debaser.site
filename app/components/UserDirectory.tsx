@@ -26,7 +26,7 @@ import UserDirectoryRow from './UserDirectoryRow';
  */
 export default function UserDirectory() {
   const { user } = useAuth();
-  const { accounts, ready, source, openThreadWith } = useComms();
+  const { accounts, accountsReady, source, openThreadWith } = useComms();
   const presence = usePresenceDirectory();
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -64,7 +64,7 @@ export default function UserDirectory() {
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
           <span>ACCOUNT DIRECTORY</span>
           <span>
-            [ {ready ? `${rows.length} ACCOUNT${rows.length === 1 ? '' : 'S'}` : 'READING...'} ::{' '}
+            [ {accountsReady ? `${rows.length} ACCOUNT${rows.length === 1 ? '' : 'S'}` : 'READING...'} ::{' '}
             {counts.online} ONLINE ]
           </span>
         </div>
@@ -74,7 +74,7 @@ export default function UserDirectory() {
           THE HOUSE ACCOUNT IS LISTED FIRST
         </p>
 
-        {!ready ? (
+        {!accountsReady ? (
           <p className="p-3 text-[10px] font-bold text-black">READING THE ACCOUNT LIST...</p>
         ) : rows.length === 0 ? (
           <p className="p-3 text-[10px] font-bold text-black">
