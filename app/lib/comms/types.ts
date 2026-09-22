@@ -51,6 +51,17 @@ export type CommsThread = {
   kind: CommsThreadKind;
   /** A group's name. Empty for a dm, which is named after the other account. */
   name: string;
+  /**
+   * Who opened the conversation: a group's owner. Null for a dm filed before the column
+   * existed, and for a database that has not had the ownership script run.
+   *
+   * The owner is the only account that may rename the group, hand it to somebody else, or
+   * take a member out - and ownership only moves two ways: the owner hands it over, or the
+   * owner leaves and it passes to whoever has been in the group longest. The database
+   * enforces that (see `supabase/migrations/20260922_group_ownership.sql`); this field is
+   * how the screen knows whether to draw the controls at all.
+   */
+  ownerId: string | null;
   createdAt: string;
   /** Newest activity: what the conversation list sorts by. */
   updatedAt: string;
@@ -141,8 +152,30 @@ export type CommsRepository = {
    * switches to it.
    */
   createGroup(input: CreateGroupInput): Promise<CommsThread>;
-  /** Adds an account to a group. Anybody in it may, which is the RLS rule. */
-  addMember(threadId: string, userId: string): Promise<CommsThread>;
+  /**
+   * Adds an account to a group.
+   *
+   * Anybody in it may add somebody else; adding *yourself* only works in a conversation you
+   * opened, which is what gets a new group's creator into their own group. `actorId` is who is
+   * asking: the Supabase store ignores it - the session says who is asking, and the database
+   * checks that - while the mock, which has no session, applies the same rules with it.
+   */
+  addMember(threadId: string, userId: string, actorId?: string): Promise<CommsThread>;
+  /**
+   * The owner's four, and each store checks it for itself.
+   *
+   * A group's metadata belongs to whoever opened it. Renaming, handing the group over and
+   * taking a member out are the owner's alone; leaving any member may do, and an owner who
+   * leaves hands the group on - to whoever has been in it longest, or to nobody at all, in
+   * which case the empty group goes with them.
+   */
+  renameGroup(threadId: string, name: string, actorId?: string): Promise<CommsThread>;
+  /** Hands the group to somebody who is in it. Owner only. */
+  transferGroupOwnership(threadId: string, toUserId: string, actorId?: string): Promise<CommsThread>;
+  /** Takes somebody else out of the group. Owner only. */
+  removeMember(threadId: string, userId: string, actorId?: string): Promise<CommsThread>;
+  /** Leaves the group. Null when that was the last member and the group is gone. */
+  leaveGroup(threadId: string, actorId?: string): Promise<CommsThread | null>;
   sendMessage(input: SendMessageInput): Promise<CommsThread>;
   /** Moves that account's read marker to the newest message. */
   markRead(userId: string, threadId: string): Promise<CommsThread>;

@@ -60,6 +60,16 @@ export const GROUPS_NEED_MIGRATION =
   'GROUPS NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260921_group_conversations.sql (OR SECTION 13 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. DIRECT MESSAGES ARE UNAFFECTED.';
 
 /**
+ * What the ownership controls are told when this database has not had section 15.
+ *
+ * The four functions that may change a group are a later script than the group tables
+ * themselves, so a project can have groups and no way to rename one. Groups keep working;
+ * only the owner's controls need the file.
+ */
+export const GROUP_OWNERSHIP_NEED_MIGRATION =
+  'RENAMING AND HANDING GROUPS OVER NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260922_group_ownership.sql (OR SECTION 16 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. TALKING IN THE GROUP IS UNAFFECTED.';
+
+/**
  * The codes PostgREST and Postgres answer with when the database is behind the code
  * rather than the request being wrong: a missing table, a missing column, or a
  * relationship the schema cache has never heard of.
@@ -103,6 +113,8 @@ type ThreadRow = {
   participant_b: string | null;
   kind: string | null;
   name: string | null;
+  /** The account that opened it. Absent on a database without the group script. */
+  created_by?: string | null;
   created_at: string;
   updated_at: string;
   comms_members?: MemberRow[] | null;
@@ -132,6 +144,7 @@ function toThread(row: ThreadRow): CommsThread {
     participants: members.length > 0 ? members : pair,
     kind: row.kind === 'group' ? 'group' : 'dm',
     name: row.name ?? '',
+    ownerId: row.created_by ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     // Oldest first, the way they are read.
@@ -350,6 +363,67 @@ class SupabaseCommsRepository implements CommsRepository {
     await this.publish();
     return updated;
   }
+  /**
+   * The owner's four, reached through the database's own functions.
+   *
+   * Nothing here writes `comms_threads` directly. A client may only write `updated_at` on a
+   * conversation - the stamp `sendMessage` puts on it - because a member PATCHing `name` or
+   * `created_by` is exactly how a group gets renamed and claimed by somebody who was only
+   * invited to it. `rename_group`, `transfer_group_ownership`, `remove_group_member` and
+   * `leave_group` check who is asking before they touch anything, so the rule lives in one
+   * place and this store cannot be the thing that gets it wrong.
+   */
+  private async callOwnerFunction(name: string, args: Record<string, unknown>): Promise<void> {
+    const { error } = await this.client().rpc(name, args);
+
+    if (error !== null) {
+      // A project that has not run section 16 answers "no such function": a deployment step,
+      // so it is named rather than passed on as a PostgREST code.
+      if (isMissingSchema(error)) throw new Error(GROUP_OWNERSHIP_NEED_MIGRATION);
+
+      this.fail(error.message);
+    }
+  }
+
+  private async afterOwnerChange(threadId: string): Promise<CommsThread> {
+    const updated = await this.getThread(threadId);
+    if (updated === null) this.fail('THAT GROUP IS NOT THERE ANY MORE.');
+
+    await this.publish();
+    return updated;
+  }
+
+  async renameGroup(threadId: string, name: string): Promise<CommsThread> {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) throw new Error('A GROUP NEEDS A NAME.');
+    if (trimmed.length > MAX_GROUP_NAME_LENGTH) {
+      throw new Error(`GROUP NAMES ARE ${MAX_GROUP_NAME_LENGTH} CHARACTERS OR FEWER.`);
+    }
+
+    await this.callOwnerFunction('rename_group', { thread: threadId, new_name: trimmed });
+    return this.afterOwnerChange(threadId);
+  }
+
+  async transferGroupOwnership(threadId: string, toUserId: string): Promise<CommsThread> {
+    await this.callOwnerFunction('transfer_group_ownership', { thread: threadId, to_user: toUserId });
+    return this.afterOwnerChange(threadId);
+  }
+
+  async removeMember(threadId: string, userId: string): Promise<CommsThread> {
+    await this.callOwnerFunction('remove_group_member', { thread: threadId, user_id: userId });
+    return this.afterOwnerChange(threadId);
+  }
+
+  async leaveGroup(threadId: string): Promise<CommsThread | null> {
+    await this.callOwnerFunction('leave_group', { thread: threadId });
+
+    const updated = await this.getThread(threadId);
+    await this.publish();
+
+    return updated;
+  }
+
+
 
   async sendMessage(input: SendMessageInput): Promise<CommsThread> {
     const thread =

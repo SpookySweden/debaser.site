@@ -285,6 +285,45 @@ open page shows the new track without a reload; nothing new needs publishing.
 A project that has been live since before either section needs them run on their own:
 `supabase/migrations/20260921_music_and_profile_songs.sql`, safe to re-run.
 
+Groups and who owns them
+------------------------
+Section 13 lets any member of a group change the group's row, which is how a group gets its
+name and how it is renamed - and it is also how somebody who was only *invited* to a group
+could rename it and hand himself ownership, with one PATCH to `comms_threads`. Both of those
+are a write to `name` and to `created_by`, and the policy asked only whether the writer was in
+the conversation.
+
+Section 16 is the fix, in three layers:
+
+- **one writable column**: `revoke update on public.comms_threads` and
+  `grant update (updated_at)`, so a client can stamp the conversation when it sends a message
+  and nothing else. `name`, `created_by`, `kind` and the pair columns are refused by the table
+  itself, before any policy is looked at;
+- **a trigger** (`comms_threads_guard_metadata`) that refuses a change to the metadata unless
+  the caller is the owner - so a policy re-created by hand later cannot quietly re-open it -
+  while still letting the house account repair what it must;
+- **four functions**, and they are the only door: `rename_group`, `transfer_group_ownership`
+  (to somebody already in it), `remove_group_member`, and `leave_group`, which passes the
+  group to whoever has been in it longest and closes it when the last member goes.
+
+Ownership therefore moves two ways and no others: the owner hands it over, or the owner leaves.
+Nothing a member can call changes it.
+
+The section also puts back the `created_by = auth.uid()` case on the insert policy, which
+section 12 had re-created without it - a group has no pair to be "in", so without that clause
+no group could be opened at all from a client - and tightens the membership insert policy so
+that adding *yourself* is only allowed in a conversation you opened, rather than to any group
+whose id you happen to know.
+
+A project that has been live since before section 16 needs it on its own:
+`supabase/migrations/20260922_group_ownership.sql`, safe to re-run. Until it is run, groups
+work and only the owner's controls (rename, hand over, remove) say they need the update.
+
+`Temp/probe-group-metadata-write.cjs` is the probe that found it and the one to run afterwards:
+as a member, it writes the values that are *already there*, so a success proves write access and
+changes nothing. Before section 16 it answers `ALLOWED` for the name and the ownership column;
+after it, `refused` for both.
+
 Tags
 ----
 A tag is not shown until the profile's owner approves it. `profile_tags.hidden` is that

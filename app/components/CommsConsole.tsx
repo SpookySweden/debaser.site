@@ -6,6 +6,7 @@ import { getCommsRepository } from '../lib/comms/repository';
 import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
 import { PLATE } from '../lib/ui/controls';
+import CommsGroupBar from './CommsGroupBar';
 import CommsThreadPanel from './CommsThreadPanel';
 import { useComms } from './CommsProvider';
 import ProfileName from './ProfileName';
@@ -24,13 +25,13 @@ export default function CommsConsole() {
   const { userId, threads, accounts, accountsReady, nameById, ready, source, error, retry, markRead } = comms;
   const [picking, setPicking] = useState(false);
   const [testNote, setTestNote] = useState<string | null>(null);
-  // Opening a group, and adding to one that already exists: two forms, one
-  // account list.
+  // Opening a group: one form and one account list. What is done to a group once it
+  // exists - renaming, handing it on, removing a member, leaving - is the strip under the
+  // open conversation's own business (see ./CommsGroupBar).
   const [grouping, setGrouping] = useState(false);
   const [groupName, setGroupName] = useState('');
   const [groupMembers, setGroupMembers] = useState<string[]>([]);
   const [groupError, setGroupError] = useState<string | null>(null);
-  const [addingTo, setAddingTo] = useState<string | null>(null);
 
   const others = useMemo(
     () => (userId === null ? [] : accounts.filter((account) => account.id !== userId)),
@@ -80,17 +81,6 @@ export default function CommsConsole() {
       setGroupMembers([]);
     } catch (caught) {
       setGroupError(caught instanceof Error ? caught.message : 'THAT GROUP COULD NOT BE OPENED.');
-    }
-  }
-
-  async function addToGroup(threadId: string, memberId: string) {
-    setGroupError(null);
-
-    try {
-      await comms.addMember(threadId, memberId);
-      setAddingTo(null);
-    } catch (caught) {
-      setGroupError(caught instanceof Error ? caught.message : 'THAT ACCOUNT COULD NOT BE ADDED.');
     }
   }
 
@@ -294,54 +284,22 @@ export default function CommsConsole() {
         </div>
 
         <div className="flex min-h-[24rem] flex-1 flex-col p-3">
-          {/* A group's members are part of the conversation: who is in the room, and a
-              way to pull somebody else into it. A dm has no such strip - it is a pair,
-              and a third account would make it a group. */}
-          {active === undefined || active.kind !== 'group' ? null : (
-            <div className="mb-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
-              <button
-                type="button"
-                onClick={() => setAddingTo(addingTo === active.id ? null : active.id)}
-                className={PLATE}
-              >
-                {addingTo === active.id ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}
-              </button>
-
-              <span className="text-gray-700">
-                {active.participants.length} / {MAX_GROUP_MEMBERS} IN THE GROUP :: ANYBODY IN IT CAN ADD SOMEBODY
-              </span>
-
-              {/* Who is in it, by name. A head count is not enough: it cannot show that the
-                  account somebody just added actually landed in the group. */}
-              <ul className="flex w-full flex-wrap items-center gap-1">
-                {active.participants.map((id) => (
-                  <li key={id} className="border border-gray-500 bg-white px-1">
-                    <ProfileName author={{ id, displayName: nameFor(id) }} lamp={false} />
-                    {id === userId ? <span className="ml-1 text-gray-700">[ YOU ]</span> : null}
-                  </li>
-                ))}
-              </ul>
-
-              {addingTo === active.id ? (
-                <ul className="w-full space-y-1">
-                  {accounts
-                    .filter((account) => !active.participants.includes(account.id))
-                    .map((account) => (
-                      <li key={account.id}>
-                        <button
-                          type="button"
-                          onClick={() => void addToGroup(active.id, account.id)}
-                          className={`${PLATE} inline-flex items-center gap-1`}
-                        >
-                          [ ADD ] <ProfileName author={{ id: account.id, displayName: account.displayName }} />
-                        </button>
-                      </li>
-                    ))}
-                </ul>
-              ) : null}
-
-              {groupError === null ? null : <span className="text-[#800000]">{groupError}</span>}
-            </div>
+          {/* A group's members are part of the conversation: who is in the room, who owns it,
+              a way to pull somebody else in, and - for the owner alone - the controls that
+              belong to whoever opened it. A dm has no such strip: it is a pair, and a third
+              account would make it a group. */}
+          {active === undefined || active.kind !== 'group' || userId === null ? null : (
+            <CommsGroupBar
+              thread={active}
+              userId={userId}
+              nameFor={nameFor}
+              accounts={accounts}
+              onAdd={(memberId) => comms.addMember(active.id, memberId).then(() => undefined)}
+              onRename={(name) => comms.renameGroup(active.id, name).then(() => undefined)}
+              onHandOver={(toUserId) => comms.transferGroupOwnership(active.id, toUserId).then(() => undefined)}
+              onRemove={(memberId) => comms.removeMember(active.id, memberId).then(() => undefined)}
+              onLeave={() => comms.leaveGroup(active.id).then(() => undefined)}
+            />
           )}
 
           {active === undefined || activeOtherId === null ? (

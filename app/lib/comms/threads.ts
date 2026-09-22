@@ -103,6 +103,38 @@ export function threadsWithNewMessages(threads: CommsThread[], userId: string, k
     ),
   );
 }
+/**
+ * Who owns a group, and what the screen may offer them.
+ *
+ * A conversation's owner is the account that opened it (`ownerId`). It is the owner's group to
+ * name, to hand on, and to take members out of; everybody in it may leave, and an owner who
+ * leaves passes it to the next member rather than leaving a group with nobody in charge.
+ *
+ * These are the *rules the screens read* - what to draw, and what to say when a control is not
+ * the caller's to press. The database enforces the same rules where it matters, because a rule
+ * that lives only in a component is a rule that anybody with the API key can ignore
+ * (`supabase/migrations/20260922_group_ownership.sql`).
+ */
+export function isGroupOwner(thread: CommsThread, userId: string | null): boolean {
+  return userId !== null && thread.kind === 'group' && thread.ownerId === userId;
+}
+
+/** True when this account opened the conversation (either kind), which is who may add themselves to it. */
+export function openedThread(thread: CommsThread, userId: string | null): boolean {
+  return userId !== null && thread.ownerId === userId;
+}
+
+/**
+ * Who the group belongs to once its owner leaves.
+ *
+ * The next account in the store's own membership order: `comms_members` is ordered by when
+ * each member joined, which is the fair reading of "longest in the group", and the mock keeps
+ * its members in a stable sorted order. Null when nobody is left, which is when the group
+ * itself goes.
+ */
+export function nextGroupOwner(participants: string[], leaverId: string): string | null {
+  return participants.find((id) => id !== leaverId) ?? null;
+}
 
 export function threadWith(threads: CommsThread[], userId: string, otherId: string): CommsThread | undefined {
   const wanted = threadIdFor(userId, otherId);

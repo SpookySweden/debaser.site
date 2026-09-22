@@ -47,6 +47,16 @@ export type CommsContextValue = {
   createGroup: (name: string, memberIds: string[]) => Promise<CommsThread>;
   /** Adds an account to a group. Anybody in it may, which is the RLS rule. */
   addMember: (threadId: string, userId: string) => Promise<CommsThread>;
+  /**
+   * The owner's four. A group belongs to whoever opened it: renaming, handing it on and taking
+   * a member out are theirs alone; anybody may leave, and an owner who leaves passes the group
+   * on. The database is what enforces it (`supabase/migrations/20260922_group_ownership.sql`);
+   * these are how the screen asks.
+   */
+  renameGroup: (threadId: string, name: string) => Promise<CommsThread>;
+  transferGroupOwnership: (threadId: string, toUserId: string) => Promise<CommsThread>;
+  removeMember: (threadId: string, memberId: string) => Promise<CommsThread>;
+  leaveGroup: (threadId: string) => Promise<CommsThread | null>;
   send: (otherId: string, body: string) => Promise<void>;
   /** Writes to a conversation that already exists - which is how a group is written to. */
   sendToThread: (threadId: string, body: string) => Promise<void>;
@@ -194,7 +204,56 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     async (threadId: string, memberId: string) => {
       if (userId === null) throw new Error('SIGN IN TO ADD ANYBODY.');
 
-      return repository.addMember(threadId, memberId);
+      // `userId` is passed so the browser store can apply the same rule the database does:
+      // adding somebody else is anybody's, adding yourself is the group's opener's.
+      return repository.addMember(threadId, memberId, userId);
+    },
+    [repository, userId],
+  );
+
+  /**
+   * The owner's four, through the store.
+   *
+   * Each one hands the account asking to the store as well: the project decides that from the
+   * session, and the in-browser store has no session to decide it from. Nothing here checks
+   * whether the caller owns the group - the screen does not draw the controls for anybody else,
+   * and the database refuses the write if it is tried anyway.
+   */
+  const renameGroup = useCallback(
+    async (threadId: string, name: string) => {
+      if (userId === null) throw new Error('SIGN IN TO RENAME A GROUP.');
+
+      return repository.renameGroup(threadId, name, userId);
+    },
+    [repository, userId],
+  );
+
+  const transferGroupOwnership = useCallback(
+    async (threadId: string, toUserId: string) => {
+      if (userId === null) throw new Error('SIGN IN TO HAND A GROUP OVER.');
+
+      return repository.transferGroupOwnership(threadId, toUserId, userId);
+    },
+    [repository, userId],
+  );
+
+  const removeMember = useCallback(
+    async (threadId: string, memberId: string) => {
+      if (userId === null) throw new Error('SIGN IN TO CHANGE A GROUP.');
+
+      return repository.removeMember(threadId, memberId, userId);
+    },
+    [repository, userId],
+  );
+
+  const leaveGroup = useCallback(
+    async (threadId: string) => {
+      if (userId === null) throw new Error('SIGN IN TO LEAVE A GROUP.');
+
+      const thread = await repository.leaveGroup(threadId, userId);
+      if (thread === null) setActiveThreadId(null);
+
+      return thread;
     },
     [repository, userId],
   );
@@ -277,6 +336,10 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       openThreadWith,
       createGroup,
       addMember,
+      renameGroup,
+      transferGroupOwnership,
+      removeMember,
+      leaveGroup,
       send,
       sendToThread,
       markRead,
@@ -297,6 +360,10 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       openThreadWith,
       createGroup,
       addMember,
+      renameGroup,
+      transferGroupOwnership,
+      removeMember,
+      leaveGroup,
       send,
       sendToThread,
       markRead,

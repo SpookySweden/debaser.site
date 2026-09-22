@@ -1,6 +1,7 @@
 import { createLocalId } from '../forum/ids';
 import { groupThreadId, lastMessage, sortThreadsNewestFirst, threadIdFor, validateMessage } from './threads';
 import type { CommsMessage, CommsRepository, CommsThread, CreateGroupInput, SendMessageInput } from './types';
+import { isGroupOwner, nextGroupOwner, openedThread } from './threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from './types';
 
 /**
@@ -151,6 +152,8 @@ class MockCommsRepository implements CommsRepository {
       participants: [userId, otherId].sort(),
       kind: 'dm',
       name: '',
+      // A dm has no owner: it belongs to both sides equally, and either may clear it.
+      ownerId: null,
       createdAt,
       updatedAt: createdAt,
       messages: [],
@@ -187,6 +190,8 @@ class MockCommsRepository implements CommsRepository {
       participants: members,
       kind: 'group',
       name,
+      // Whoever opened it owns it, and only they may rename it or hand it on.
+      ownerId: input.creatorId,
       createdAt,
       updatedAt: createdAt,
       messages: [],
@@ -197,12 +202,20 @@ class MockCommsRepository implements CommsRepository {
     return thread;
   }
 
-  async addMember(threadId: string, userId: string): Promise<CommsThread> {
+  async addMember(threadId: string, userId: string, actorId?: string): Promise<CommsThread> {
     const threads = ensureState();
     const thread = threads.find((item) => item.id === threadId);
     if (thread === undefined) throw new Error('THAT CONVERSATION IS NOT HERE YET.');
     if (thread.kind !== 'group') throw new Error('ONLY A GROUP TAKES NEW MEMBERS.');
     if (thread.participants.includes(userId)) return thread;
+
+    // Adding yourself is how a group's creator gets into the group they just opened, and
+    // nothing else: anybody else in it may add somebody, but not add themselves to a room
+    // they were never invited to.
+    if (actorId !== undefined && userId === actorId && !openedThread(thread, actorId)) {
+      throw new Error('ONLY THE ACCOUNT THAT OPENED A GROUP CAN ADD ITSELF.');
+    }
+
     if (thread.participants.length >= MAX_GROUP_MEMBERS) {
       throw new Error(`A GROUP HOLDS ${MAX_GROUP_MEMBERS} ACCOUNTS OR FEWER.`);
     }
@@ -210,6 +223,96 @@ class MockCommsRepository implements CommsRepository {
     const next: CommsThread = { ...thread, participants: [...thread.participants, userId].sort() };
     commit(threads.map((item) => (item.id === threadId ? next : item)));
 
+    return next;
+  }
+
+  /**
+   * The owner's four, enforced in the browser as they are in the database.
+   *
+   * The mock keeps a thread's `ownerId` the same way the project keeps `created_by`, and holds
+   * the same line: only the owner renames, hands over or removes; anybody may leave; the owner
+   * leaving passes the group to the next member, and the last member out takes it with them.
+   * `actorId` is the account asking, because the mock has no session to ask.
+   */
+  private groupFor(threadId: string, actorId: string | undefined): CommsThread {
+    const thread = ensureState().find((item) => item.id === threadId);
+
+    if (thread === undefined) throw new Error('THAT GROUP IS NOT HERE YET.');
+    if (thread.kind !== 'group') throw new Error('THAT IS NOT A GROUP.');
+    if (actorId === undefined) throw new Error('AN ACCOUNT HAS TO BE SIGNED IN TO CHANGE A GROUP.');
+    if (!thread.participants.includes(actorId)) throw new Error('YOU ARE NOT IN THIS GROUP.');
+
+    return thread;
+  }
+
+  private requireOwner(thread: CommsThread, actorId: string): void {
+    if (!isGroupOwner(thread, actorId)) throw new Error('ONLY THE OWNER MAY CHANGE THIS GROUP.');
+  }
+
+  async renameGroup(threadId: string, name: string, actorId?: string): Promise<CommsThread> {
+    const thread = this.groupFor(threadId, actorId);
+    this.requireOwner(thread, actorId as string);
+
+    const trimmed = name.trim();
+    if (trimmed.length === 0) throw new Error('A GROUP NEEDS A NAME.');
+    if (trimmed.length > MAX_GROUP_NAME_LENGTH) {
+      throw new Error(`GROUP NAMES ARE ${MAX_GROUP_NAME_LENGTH} CHARACTERS OR FEWER.`);
+    }
+
+    return this.replace({ ...thread, name: trimmed, updatedAt: new Date().toISOString() });
+  }
+
+  async transferGroupOwnership(threadId: string, toUserId: string, actorId?: string): Promise<CommsThread> {
+    const thread = this.groupFor(threadId, actorId);
+    this.requireOwner(thread, actorId as string);
+
+    if (!thread.participants.includes(toUserId)) throw new Error('A GROUP CAN ONLY BE HANDED TO SOMEBODY IN IT.');
+
+    return this.replace({ ...thread, ownerId: toUserId, updatedAt: new Date().toISOString() });
+  }
+
+  async removeMember(threadId: string, userId: string, actorId?: string): Promise<CommsThread> {
+    const thread = this.groupFor(threadId, actorId);
+
+    // Taking yourself out is leaving, which anybody may do.
+    if (userId === actorId) {
+      const left = await this.leaveGroup(threadId, actorId);
+      if (left === null) throw new Error('THE GROUP IS GONE.');
+      return left;
+    }
+
+    this.requireOwner(thread, actorId as string);
+
+    return this.replace({
+      ...thread,
+      participants: thread.participants.filter((id) => id !== userId),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async leaveGroup(threadId: string, actorId?: string): Promise<CommsThread | null> {
+    const thread = this.groupFor(threadId, actorId as string);
+    const remaining = thread.participants.filter((id) => id !== actorId);
+
+    // The last one out closes the group: nobody could read it after this anyway.
+    if (remaining.length === 0) {
+      commit(ensureState().filter((item) => item.id !== threadId));
+      return null;
+    }
+
+    return this.replace({
+      ...thread,
+      participants: remaining,
+      ownerId: isGroupOwner(thread, actorId ?? null)
+        ? nextGroupOwner(thread.participants, actorId as string)
+        : thread.ownerId,
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  /** One changed thread, written back and handed to the caller. */
+  private replace(next: CommsThread): CommsThread {
+    commit(ensureState().map((item) => (item.id === next.id ? next : item)));
     return next;
   }
 
