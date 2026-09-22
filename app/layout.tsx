@@ -6,6 +6,7 @@ import CommsProvider from './components/CommsProvider';
 import ForumProvider from './components/ForumProvider';
 import MusicPlayer from './components/MusicPlayer';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
+import NotificationsProvider from './components/NotificationsProvider';
 import PresenceProvider from './components/PresenceProvider';
 import './globals.css';
 
@@ -39,15 +40,19 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
           <PresenceProvider>
             <ForumProvider>
               <CommsProvider>
-                {/* The station: one audio element for the whole site, so a track keeps
-                    playing while the reader moves from page to page. */}
-                <MusicPlayerProvider>
-                  {children}
-                  {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
-                  <CommsNotifier />
-                  {/* ...and the player's bar sits over every page, docked to the bottom. */}
-                  <MusicPlayer />
-                </MusicPlayerProvider>
+                {/* Tags and replies: the bell in the side panel and the pop-up menu read this,
+                    and the composers write to it when a post names somebody. */}
+                <NotificationsProvider>
+                  {/* The station: one audio element for the whole site, so a track keeps
+                      playing while the reader moves from page to page. */}
+                  <MusicPlayerProvider>
+                    {children}
+                    {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
+                    <CommsNotifier />
+                    {/* ...and the player's bar sits over every page, docked to the bottom. */}
+                    <MusicPlayer />
+                  </MusicPlayerProvider>
+                </NotificationsProvider>
               </CommsProvider>
             </ForumProvider>
           </PresenceProvider>

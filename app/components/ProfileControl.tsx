@@ -7,6 +7,7 @@ import type { AvatarVersion } from '../lib/profile/types';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
+import { NotificationMenuButton } from './NotificationBell';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
@@ -86,6 +87,9 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
             <Link href="/comms" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
               [ COMMS{unreadTotal === 0 ? '' : ` (${unreadTotal})`} ]
             </Link>
+            {/* Tags and replies, one row above the account: on a phone this is where the
+                notification button lives, listed with the other buttons. */}
+            <NotificationMenuButton />
             <Link href="/account" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
               [ ACCOUNT ]
             </Link>

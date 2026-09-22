@@ -3,9 +3,12 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { buildCommentTree, type CommentNode } from '../lib/forum/comment-tree';
+import { answeredAuthor, mentionsIn } from '../lib/forum/mentions';
 import type { ForumThread } from '../lib/forum/types';
 import CommentNodeCard from './CommentNodeCard';
+import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
+import { useNotifications } from './NotificationsProvider';
 
 type CommentThreadListProps = {
   thread: ForumThread;
@@ -35,6 +38,8 @@ export default function CommentThreadList({
   emptyLabel = 'NO REPLIES YET.',
 }: CommentThreadListProps) {
   const forum = useForum();
+  const { accounts } = useComms();
+  const notifications = useNotifications();
   const nodes = useMemo(() => buildCommentTree(thread.comments), [thread.comments]);
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
@@ -58,6 +63,17 @@ export default function CommentThreadList({
 
     try {
       await forum.addComment({ body, threadId: thread.id, parentId });
+
+      // Answering a reply tags whoever wrote it (app/lib/forum/mentions.ts), and the words may
+      // tag accounts of their own: both are filed from the same call.
+      await notifications.notifyTagged({
+        threadId: thread.id,
+        threadTitle: thread.title,
+        body,
+        mentions: mentionsIn(body, accounts),
+        autoTagId: answeredAuthor(thread, parentId).id,
+      });
+
       setDrafts((current) => ({ ...current, [parentId]: '' }));
       setOpenReplyId(null);
       setStatus({ id: parentId, message: 'COMMENT FILED.' });
@@ -87,6 +103,7 @@ export default function CommentThreadList({
         replyCount={children.length}
         replyOpen={replyOpen}
         repliesHidden={repliesHidden}
+        accounts={accounts}
         busy={busyId === comment.id}
         error={error !== null && error.id === comment.id ? error.message : null}
         status={status !== null && status.id === comment.id ? status.message : null}

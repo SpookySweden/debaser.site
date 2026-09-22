@@ -23,6 +23,7 @@ It creates:
   comms_members             who is in a group; a dm's pair answers for it too
   comms_messages            the messages themselves
   comms_reads               each account's read marker per conversation
+  forum_notifications       who tagged you, and who replied to you (section 17)
 
 plus the Row Level Security that makes each of those safe to read from a browser,
 a trigger that gives every new account a profile row, the house account's dark
@@ -34,6 +35,13 @@ RLS flag, the policies, and the profile rows) - each should answer without error
 A project that has been running since before section 13 (groups) existed needs that one
 section run on its own: `supabase/migrations/20260921_group_conversations.sql` is section
 13 as a file, safe to re-run. See Groups below for what happens until it has run.
+
+The same goes for two later sections, each with its own file: section 16 (which stops a
+group member renaming a group and claiming it) is
+`supabase/migrations/20260922_group_ownership.sql`, and section 17 (tags and replies) is
+`supabase/migrations/20260923_notifications.sql`. Both are safe to re-run. Until section
+17 is in, the bell is empty rather than broken: posting, replying and tagging all still
+work, and the tag is simply not delivered - see Notifications below.
 
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
@@ -323,6 +331,36 @@ work and only the owner's controls (rename, hand over, remove) say they need the
 as a member, it writes the values that are *already there*, so a success proves write access and
 changes nothing. Before section 16 it answers `ALLOWED` for the name and the ownership column;
 after it, `refused` for both.
+
+Notifications
+-------------
+Section 17 adds `forum_notifications`, one row per account told, and it is what the bell at the
+top of the side panel's comms block reads. Two things write to it:
+
+  - a `@name` in a post or a reply is a tag: the words are matched against the account list
+    (case-insensitively, with `_` standing in for a space), and every account named gets a row;
+  - answering somebody is a tag too, and arrives without being asked: a reply under a post is
+    addressed to whoever wrote it, and a reply to a reply to whoever wrote that. Those are the
+    rows marked as replies rather than tags.
+
+The menu shows both in one list, newest first, because recency is the only order that matters
+when what you want to know is who is waiting on you. Unread rows draw white with a filled
+square; opening one marks it seen and takes the reader to the post.
+
+The rules are worth restating because they are the whole point of the table being separate
+from the board: a row is readable, updatable and deletable by exactly one account - the one it
+names - while an insert is allowed for any signed-in, unbanned account as long as it is signed
+by its author (`actor_id = auth.uid()`, so a tag cannot claim to be somebody else's words) and
+is addressed to somebody other than themselves. Nobody can read somebody else's feed, and the
+house account is no exception.
+
+Until section 17 is in, nothing is lost but the delivery: a post files, the tag is simply not
+written, and the bell says the feed needs the update rather than pretending the list is empty
+(`NOTIFICATIONS_NEED_MIGRATION`, see app/lib/notifications/supabase-notifications-repository.ts).
+
+The feed follows the board's data source, so a project with
+`NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase` needs nothing else;
+`NEXT_PUBLIC_NOTIFICATIONS_DATA_SOURCE=mock` (or `supabase`) overrides it on its own.
 
 Tags
 ----

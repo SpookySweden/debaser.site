@@ -3,11 +3,13 @@
 import type { ReactNode } from 'react';
 import { authorTag } from '../lib/auth/author';
 import { countReplies } from '../lib/forum/format';
+import { type Mentionable } from '../lib/forum/mentions';
 import { displayTags } from '../lib/forum/tags';
 import type { ForumAuthor, ForumComment } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import { CommentModeration } from './ForumModerationControls';
 import MediaThumbnail from './MediaThumbnail';
+import MentionRow from './MentionRow';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
@@ -35,6 +37,8 @@ type CommentNodeCardProps = {
   status: string | null;
   draft: string;
   onDraftChange: (value: string) => void;
+  /** Accounts that may be tagged in this reply; empty hides the tagger. */
+  accounts?: Mentionable[];
   onToggleReply: () => void;
   onToggleReplies: () => void;
   onSubmit: () => void;
@@ -65,6 +69,7 @@ export default function CommentNodeCard({
   status,
   draft,
   onDraftChange,
+  accounts = [],
   onToggleReply,
   onToggleReplies,
   onSubmit,
@@ -93,6 +98,9 @@ export default function CommentNodeCard({
         </div>
 
         <p className="mt-1 whitespace-pre-line text-xs text-black">{comment.body}</p>
+
+        {/* Whoever the reply names: the tags are in the words, said plainly here. */}
+        <MentionRow body={comment.body} accounts={accounts} />
 
         {comment.media === undefined ? null : (
           <div className="mt-1">
@@ -126,6 +134,8 @@ export default function CommentNodeCard({
             submitLabel="[ FILE COMMENT ]"
             placeholder="Add to this reply thread..."
             author={viewer}
+            accounts={accounts}
+            autoTag={comment.author}
             busy={busy}
             error={error}
             status={status}

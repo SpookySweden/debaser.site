@@ -2,9 +2,11 @@
 
 import { authorTag } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
+import { type Mentionable } from '../lib/forum/mentions';
 import type { ForumAuthor, ForumTag } from '../lib/forum/types';
 import { useForum } from './ForumProvider';
-import MediaThumbnail from './MediaThumbnail';
+import MediaPicker from './MediaPicker';
+import MentionPicker from './MentionPicker';
 import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import { TagRow } from './TagBadge';
@@ -22,6 +24,13 @@ type CommentComposerProps = {
   /** Selected user tags; omit both tag props to hide the chooser. */
   tags?: string[];
   onTagsChange?: (labels: string[]) => void;
+  /**
+   * Accounts that can be tagged with `@`. Omitted (or empty) where there is nobody to tag -
+   * a guest's reply box, or a page that has no account list to hand.
+   */
+  accounts?: Mentionable[];
+  /** The author this box answers: tagged without being asked, and said so. */
+  autoTag?: Mentionable | null;
   /** Optional image attachment: omit both media props to hide the picker. */
   mediaId?: string;
   onMediaIdChange?: (id: string) => void;
@@ -34,6 +43,10 @@ type CommentComposerProps = {
 /**
  * Shared Win95 textarea + submit block. Used by the New Post form, the reply
  * forms inside threads, and every comment box dropped under a site asset.
+ *
+ * Artwork is picked the way the new-post window picks it - a pane of thumbnails with the chosen
+ * sheet shown beside it (see ./MediaPicker.tsx) - because a reply can carry a picture too, and
+ * two different media controls in one window is one too many.
  */
 export default function CommentComposer({
   id,
@@ -46,6 +59,8 @@ export default function CommentComposer({
   previewTags,
   tags,
   onTagsChange,
+  accounts = [],
+  autoTag = null,
   mediaId,
   onMediaIdChange,
   busy = false,
@@ -56,7 +71,6 @@ export default function CommentComposer({
   const { tagVocabulary } = useForum();
   const showTagChooser = tags !== undefined && onTagsChange !== undefined;
   const showMediaPicker = mediaId !== undefined && onMediaIdChange !== undefined;
-  const attachedMedia = ARCHIVE_MEDIA.find((item) => item.id === mediaId);
 
   return (
     <form
@@ -94,24 +108,22 @@ export default function CommentComposer({
         <TagChooser id={`${id}-tags`} value={tags} onChange={onTagsChange} options={tagVocabulary} />
       ) : null}
 
-      {showMediaPicker ? (
-        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
-          <label htmlFor={`${id}-media`}>CONTAINING MEDIA:</label>
-          <select
-            id={`${id}-media`}
-            value={mediaId ?? ''}
-            onChange={(event) => onMediaIdChange?.(event.target.value)}
-            className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
-          >
-            <option value="">NONE - TEXT ONLY</option>
-            {ARCHIVE_MEDIA.map((item) => (
-              <option key={item.id} value={item.id}>
-                {item.label}
-              </option>
-            ))}
-          </select>
+      {/* Tagging an account: the same strip the new-post window uses, so a reply can name
+          somebody - and says so when the reply answers somebody and tags them by itself. */}
+      <MentionPicker id={`${id}-mentions`} accounts={accounts} body={value} onChange={onChange} autoTag={autoTag} />
 
-          {attachedMedia === undefined ? null : <MediaThumbnail media={attachedMedia.preview} size={32} />}
+      {showMediaPicker ? (
+        <div className="mt-2">
+          <p className="text-[10px] font-bold text-black">CONTAINING MEDIA:</p>
+          <div className="mt-1">
+            <MediaPicker
+              id={`${id}-media`}
+              items={ARCHIVE_MEDIA}
+              value={mediaId ?? ''}
+              onChange={onMediaIdChange ?? (() => undefined)}
+              heightClass="h-24"
+            />
+          </div>
         </div>
       ) : null}
 

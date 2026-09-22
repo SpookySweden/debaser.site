@@ -5,6 +5,7 @@ import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
+import { mentionsIn } from '../lib/forum/mentions';
 import { buildPostLayout } from '../lib/forum/post-layout';
 import { postCredit } from '../lib/forum/site-author';
 import type { ForumThread } from '../lib/forum/types';
@@ -12,9 +13,12 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
+import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { ThreadModeration } from './ForumModerationControls';
 import MediaThumbnail from './MediaThumbnail';
+import MentionRow from './MentionRow';
+import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
 import SheetImage from './SheetImage';
@@ -50,6 +54,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
   // from that account and never from whoever commented first. `postCredit` decides
   // which of the two applies (app/lib/forum/site-author.ts).
   const { profile } = usePublicProfile(postCredit(thread).id);
+  const { accounts } = useComms();
+  const notifications = useNotifications();
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -76,6 +82,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
         userTags: replyTags,
         media: ARCHIVE_MEDIA.find((item) => item.id === replyMediaId)?.preview,
       });
+
+      // A reply to the post tags whoever wrote it, plus anybody the words name.
+      await notifications.notifyTagged({
+        threadId: thread.id,
+        threadTitle: thread.title,
+        body,
+        mentions: mentionsIn(body, accounts),
+        autoTagId: thread.author.id,
+      });
+
       setReply('');
       setReplyTags([]);
       setReplyMediaId('');
@@ -206,6 +222,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
               <p className="whitespace-pre-line text-xs leading-snug text-black">{layout.right.body}</p>
             )}
 
+            {/* The accounts this post names, said plainly, so a tag reads as a tag. */}
+            <MentionRow body={thread.body} accounts={accounts} />
+
             <div className="mt-2 border-t border-gray-300 pt-2">
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
                 <span>{layout.repliesLabel} ON THIS POST</span>
@@ -226,6 +245,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
                 submitLabel="[ FILE REPLY ]"
                 placeholder="Reply to this thread..."
                 author={forum.author}
+                accounts={accounts}
+                autoTag={thread.author}
                 tags={replyTags}
                 onTagsChange={setReplyTags}
                 mediaId={replyMediaId}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { participantFromThread, threadLabel } from '../lib/comms/threads';
 import { useComms } from './CommsProvider';
+import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
@@ -48,9 +49,14 @@ export default function SidebarComms() {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <div className="flex items-center justify-between gap-1 bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>COMMS</span>
-        <span>[ {comms.unreadTotal === 0 ? `${threads.length} OPEN` : `${comms.unreadTotal} NEW`} ]</span>
+        <span className="flex items-center gap-1">
+          {/* The bell sits at the top of the comms block: tags and replies are board news, but
+              this is where a reader looks when they want to know who is waiting on them. */}
+          <NotificationBell />
+          <span>[ {comms.unreadTotal === 0 ? `${threads.length} OPEN` : `${comms.unreadTotal} NEW`} ]</span>
+        </span>
       </div>
 
       {userId === null ? (

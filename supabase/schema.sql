@@ -1120,7 +1120,7 @@ create policy "profile comments readable" on public.profile_comments
 --   select id, public, file_size_limit, allowed_mime_types from storage.buckets;
 --   select policyname, cmd from pg_policies
 --     where schemaname = 'storage' order by policyname;
---   -- which policies carry the ban check (should be sixteen: fourteen writes and
+--   -- which policies carry the ban check (should be seventeen: fifteen writes and
 --   -- the two board read policies):
 --   select policyname, cmd from pg_policies
 --     where schemaname in ('public', 'storage')
@@ -1383,3 +1383,70 @@ grant execute on function public.remove_group_member(text, uuid) to authenticate
 --
 -- The house account can also do it from the app once this file is in, through
 -- `transfer_group_ownership()`, which accepts it as the moderator.
+
+-- -----------------------------------------------------------------------------
+-- 17. Notifications: who was tagged, and who was answered.
+-- -----------------------------------------------------------------------------
+-- Also shipped on its own as supabase/migrations/20260923_notifications.sql, for a project that
+-- has already had the rest of this file run against it.
+--
+-- One table, `public.forum_notifications`, one row per account told: a post that names somebody
+-- with `@name` files a `'tag'`, and a reply files a `'reply'` for whoever wrote the post or the
+-- comment it answers. The row carries enough to draw the whole menu - who did it, which post, a
+-- snippet of the words, and when - so the bell never has to read the board to explain itself.
+--
+-- Why it is its own table rather than a column on the board: a post is read by everybody, a
+-- notification is read by one account. A tag has to be a row that exactly one account can list,
+-- mark seen and delete - which is what RLS is for. Read by
+-- app/lib/notifications/supabase-notifications-repository.ts.
+
+create table if not exists public.forum_notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users (id) on delete cascade,
+  -- 'tag': somebody named them. 'reply': somebody answered them.
+  kind text not null check (kind in ('tag', 'reply')),
+  actor_id uuid references auth.users (id) on delete set null,
+  actor_name text not null default 'Anonymous',
+  thread_id uuid references public.forum_threads (id) on delete cascade,
+  thread_title text not null default '',
+  body text not null default '',
+  created_at timestamptz not null default now(),
+  -- Null while unread: that is the dot on the bell, and the row that draws white.
+  read_at timestamptz
+);
+
+create index if not exists forum_notifications_user_idx
+  on public.forum_notifications (user_id, created_at desc);
+
+alter table public.forum_notifications enable row level security;
+
+drop policy if exists "forum_notifications readable by recipient" on public.forum_notifications;
+create policy "forum_notifications readable by recipient" on public.forum_notifications
+  for select using (user_id = auth.uid());
+
+drop policy if exists "forum_notifications inserted by actor" on public.forum_notifications;
+create policy "forum_notifications inserted by actor" on public.forum_notifications
+  for insert with check (
+    not public.is_banned()
+    and actor_id = auth.uid()
+    and user_id <> auth.uid()
+  );
+
+drop policy if exists "forum_notifications marked read by recipient" on public.forum_notifications;
+create policy "forum_notifications marked read by recipient" on public.forum_notifications
+  for update using (user_id = auth.uid()) with check (user_id = auth.uid());
+
+drop policy if exists "forum_notifications deleted by recipient" on public.forum_notifications;
+create policy "forum_notifications deleted by recipient" on public.forum_notifications
+  for delete using (user_id = auth.uid());
+
+-- Realtime, guarded the way section 9 does it, so this block stays safe to re-run.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'forum_notifications'
+  ) then
+    alter publication supabase_realtime add table public.forum_notifications;
+  end if;
+end $$;

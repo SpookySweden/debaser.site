@@ -64,6 +64,28 @@ export function postTargetGroups(): { group: string; targets: ForumTarget[] }[] 
   return groups;
 }
 
+/**
+ * The same destinations, folded into folders for the composer's file tree.
+ *
+ * A page is a folder and an item is a file in it, which is the shape a Windows file dialog has
+ * and the reason the composer can offer forty destinations without a forty-line drop-down: the
+ * board leads as its own folder, and everything else is one click open. `note` is the small grey
+ * [ BOARD ] / [ ASSET ] / [ TEXT BOX ] tag beside a leaf, so the page an item lives on is not the
+ * only thing that tells them apart.
+ */
+export function postTargetTree(): { label: string; items: { key: string; label: string; note?: string }[] }[] {
+  const folder = (label: string, targets: ForumTarget[]) => ({
+    label,
+    items: targets.map((target) => ({
+      key: target.key,
+      label: target.anchor.label,
+      note: target.anchor.kind,
+    })),
+  });
+
+  return [folder(BOARD_TARGET.group, [BOARD_TARGET]), ...postTargetGroups().map((entry) => folder(entry.group, entry.targets))];
+}
+
 export function threadDomId(threadId: string): string {
   return `thread-${threadId}`;
 }

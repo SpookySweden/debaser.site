@@ -1,0 +1,90 @@
+/**
+ * Notifications: who was tagged, and who was answered.
+ *
+ * A notification is written by the account that did the tagging or the replying, and read by
+ * exactly one account - the one it names. Everything the menu shows is a column here: who did
+ * it, what kind it was, which post it happened on, a snippet of the words, and when. Whatever
+ * the screen needs to say, it reads rather than re-derives, so the menu cannot drift from what
+ * happened.
+ *
+ * Like the board, the profiles and comms, this is storage agnostic: the mock repository in this
+ * folder works today and the Supabase one drops in behind the same interface.
+ */
+
+export type NotificationsDataSource = 'mock' | 'supabase';
+
+/** A tag is somebody naming you; a reply is somebody answering you. */
+export type NotificationKind = 'tag' | 'reply';
+
+/** How much of the post a notification carries into the menu. */
+export const MAX_NOTIFICATION_SNIPPET = 120;
+
+/** How often the feed is re-read when realtime says nothing; see ./feed.ts and the provider. */
+export const NOTIFICATIONS_POLL_MS = 30_000;
+
+export type AppNotification = {
+  id: string;
+  /** The account being told - the only one that may read this row. */
+  userId: string;
+  kind: NotificationKind;
+  /** Who did it. Null once that account is gone, which is why the name is stored too. */
+  actorId: string | null;
+  /** The tagger's name at the time they wrote it. */
+  actorName: string;
+  /** The post the tag or the reply lives on; null if that post has since been removed. */
+  threadId: string | null;
+  /** The post's title at the time of writing, so the menu can name it without a second read. */
+  threadTitle: string;
+  /** The words themselves, shortened (see `snippet`). */
+  body: string;
+  createdAt: string;
+  /** Null until the recipient has seen it: that is what the unread dot is. */
+  readAt: string | null;
+};
+
+/** One account to notify, and why. */
+export type NotifyTarget = {
+  userId: string;
+  kind: NotificationKind;
+};
+
+export type NotifyInput = {
+  /** The account doing the tagging or the replying; never notified about its own words. */
+  actorId: string | null;
+  actorName: string;
+  threadId: string;
+  threadTitle: string;
+  /** The post or reply itself; the store keeps a snippet of it. */
+  body: string;
+  targets: NotifyTarget[];
+};
+
+/**
+ * Storage contract for the notification feed.
+ *
+ * Supabase swap-in plan (the table is section 17 of `supabase/schema.sql`):
+ *   `list`        -> `select * from forum_notifications where user_id = $1 order by created_at desc`
+ *   `notify`      -> `insert into forum_notifications (user_id, kind, actor_id, ...)`, one row per
+ *                    target, which the policy only allows signed by the actor themselves
+ *   `markRead`    -> `update forum_notifications set read_at = now() where id = $1`
+ *   `markAllRead` -> `update ... set read_at = now() where user_id = $1 and read_at is null`
+ *   `subscribe`   -> `supabase.channel('forum_notifications').on('postgres_changes', ...)`
+ * RLS: a row is readable, updatable and deletable only by the account it names
+ * (`auth.uid() = user_id`), while an insert is allowed for any signed-in, unbanned account as
+ * long as it is signed by its author (`actor_id = auth.uid()`) and is not addressed to them.
+ */
+export type NotificationsRepository = {
+  readonly source: NotificationsDataSource;
+  /** The signed-in account's feed, newest first. */
+  list(userId: string): Promise<AppNotification[]>;
+  /** Files one row per target; the actor is skipped, so nobody is told what they wrote. */
+  notify(input: NotifyInput): Promise<AppNotification[]>;
+  /** Marks one notification as seen. */
+  markRead(userId: string, id: string): Promise<void>;
+  /** Marks the whole feed as seen; the menu's [ MARK ALL READ ]. */
+  markAllRead(userId: string): Promise<void>;
+  /** Realtime hook: fires with the account's fresh feed whenever it moves. */
+  subscribe(userId: string, listener: (items: AppNotification[]) => void): () => void;
+  /** Mock-only helper so a local feed can be purged. */
+  clearLocalNotifications?(): Promise<void>;
+};

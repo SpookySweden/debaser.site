@@ -2,16 +2,20 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
-import { BOARD_TARGET, POST_TARGETS, postTargetGroups } from '../lib/forum/anchors';
+import { BOARD_TARGET, POST_TARGETS, postTargetTree } from '../lib/forum/anchors';
+import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags } from '../lib/forum/tags';
 import type { ForumThread } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
+import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
+import MediaPicker from './MediaPicker';
+import { useNotifications } from './NotificationsProvider';
 import PopoutWindow from './PopoutWindow';
-import SheetImage from './SheetImage';
+import TreePicker from './TreePicker';
 
-/** Page sub-menus for the drop-down; a plain board post leads the list. */
-const TARGET_GROUPS = postTargetGroups();
+/** Destinations as folders and items, the shape a file dialog draws. */
+const TARGET_TREE = postTargetTree();
 
 type NewPostFormProps = {
   onClose: () => void;
@@ -21,13 +25,20 @@ type NewPostFormProps = {
 /**
  * The composer, presented as a Win95 pop-up window.
  *
- * It stays out of the way until the board's [+ NEW POST...] control opens it: a
- * post can be filed straight onto the board (with attached media) or onto any
- * item on the site, which is how "comments under an asset" and "new threads"
- * end up in the same list.
+ * It stays out of the way until the board's [+ NEW POST...] control opens it: a post can be
+ * filed straight onto the board (with attached media) or onto any item on the site, which is how
+ * "comments under an asset" and "new threads" end up in the same list.
+ *
+ * The window is organised the way a file dialog is, in two columns rather than two long
+ * drop-downs: the destination is a tree of pages you open and click into, the artwork is a pane
+ * of thumbnails with the chosen sheet beside it, and the line under both restates the choice in
+ * words. Nothing here draws artwork - a sheet is a file in the project assets folder, and the
+ * picker only points at it (AGENTS.md).
  */
 export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
   const forum = useForum();
+  const { accounts } = useComms();
+  const notifications = useNotifications();
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [tags, setTags] = useState<string[]>([]);
@@ -42,6 +53,8 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
   const isBoardPost = target.key === BOARD_TARGET.key;
   const media = ARCHIVE_MEDIA.find((item) => item.id === mediaId);
   const previewTags = useMemo(() => deriveTags({ text: `${title}\n${body}`, anchor }), [title, body, anchor]);
+  /** Whoever the words name with `@`: tagging them is what files a notification. */
+  const mentions = useMemo(() => mentionsIn(body, accounts), [accounts, body]);
 
   // Focus the title field as the window opens.
   useEffect(() => {
@@ -75,6 +88,16 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
         userTags: tags,
         media: media?.preview,
       });
+
+      // Whoever the post names is told, after the post itself is filed: a tag that could not be
+      // delivered must not lose the post (see `notifyTagged`).
+      await notifications.notifyTagged({
+        threadId: thread.id,
+        threadTitle: thread.title,
+        body: trimmedBody,
+        mentions,
+      });
+
       setTitle('');
       setBody('');
       setTags([]);
@@ -107,80 +130,38 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
             <label htmlFor="new-post-target" className="block text-[10px] font-bold text-black">
               FILE UNDER:
             </label>
-            <select
-              id="new-post-target"
-              value={targetKey}
-              onChange={(event) => setTargetKey(event.target.value)}
-              className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
-            >
-              <option value={BOARD_TARGET.key}>
-                {BOARD_TARGET.anchor.label} - GENERAL FORUM POST
-              </option>
-              {TARGET_GROUPS.map((entry) => (
-                <optgroup key={entry.group} label={entry.group}>
-                  {entry.targets.map((option) => (
-                    <option key={option.key} value={option.key}>
-                      {option.anchor.label} [{option.anchor.kind}]
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </div>
-
-          {isBoardPost ? (
-            <div>
-              <label htmlFor="new-post-media" className="block text-[10px] font-bold text-black">
-                CONTAINING MEDIA:
-              </label>
-              <select
-                id="new-post-media"
-                value={mediaId}
-                onChange={(event) => setMediaId(event.target.value)}
-                className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
-              >
-                <option value="">NONE - TEXT ONLY</option>
-                {ARCHIVE_MEDIA.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : (
-            <div className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2 text-[10px] font-bold text-black">
-              FILED AGAINST: {anchor.label}
-              <br />
-              SHOWS UP UNDER THAT ITEM ON ITS PAGE.
-            </div>
-          )}
-        </div>
-
-        {media === undefined ? null : (
-          <div className="mt-2 flex flex-wrap items-center gap-2 border border-gray-500 bg-[#f0f0f0] p-2">
-            <span className="text-[10px] font-bold text-black">ATTACHED:</span>
-            <span className="w-20 border border-gray-600 bg-white p-1">
-              <SheetImage
-                src={media.preview.src}
-                alt={media.preview.alt}
-                width={media.preview.width}
-                height={media.preview.height}
-                sizes="80px"
+            <div className="mt-1">
+              <TreePicker
+                id="new-post-target"
+                groups={TARGET_TREE}
+                value={targetKey}
+                onChange={setTargetKey}
+                openInitially={[BOARD_TARGET.group]}
               />
-            </span>
-            <span className="text-[10px] font-bold text-black">{media.label}</span>
-            <button
-              type="button"
-              onClick={() => setMediaId('')}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[3px] text-[10px] font-bold text-black hover:bg-gray-300"
-            >
-              [ REMOVE MEDIA ]
-            </button>
+            </div>
           </div>
-        )}
+
+          <div>
+            <span className="block text-[10px] font-bold text-black">CONTAINING MEDIA:</span>
+            {isBoardPost ? (
+              <div className="mt-1">
+                <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
+              </div>
+            ) : (
+              <div className="mt-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 text-[10px] font-bold text-black">
+                FILED AGAINST: {anchor.label}
+                <br />
+                <span className="font-normal text-gray-700">
+                  SHOWS UP UNDER THAT ITEM ON ITS PAGE, AND TAKES NO PICTURE OF ITS OWN.
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
 
         <p className="mt-2 text-[10px] font-bold text-black">
           FILING INTO: {target.group} :: {anchor.label} [{anchor.kind}]
+          {media === undefined ? '' : ` :: ${media.label}`}
         </p>
 
         <CommentComposer
@@ -189,8 +170,9 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
           onChange={setBody}
           onSubmit={handleSubmit}
           submitLabel="[ FILE POST ]"
-          placeholder="Write the post..."
+          placeholder="Write the post... tag somebody with @name."
           author={forum.author}
+          accounts={accounts}
           previewTags={previewTags}
           tags={tags}
           onTagsChange={setTags}

@@ -5,12 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
+import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags, displayTags } from '../lib/forum/tags';
 import type { ForumAnchor } from '../lib/forum/types';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
+import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
+import { useNotifications } from './NotificationsProvider';
 import PopoutWindow from './PopoutWindow';
 import { TagRow } from './TagBadge';
 import TimeStamp from './TimeStamp';
@@ -29,6 +32,8 @@ type CommentWindowProps = {
  */
 export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
   const forum = useForum();
+  const { accounts } = useComms();
+  const notifications = useNotifications();
   const thread = forum.threadForAnchor(anchor);
 
   const [body, setBody] = useState('');
@@ -65,6 +70,17 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         userTags: commentTags,
         media: ARCHIVE_MEDIA.find((item) => item.id === commentMediaId)?.preview,
       });
+
+      // A comment under an item answers the thread already filed for it, if there is one:
+      // whoever opened that thread is told, and so is anybody the words name.
+      await notifications.notifyTagged({
+        threadId: result.thread.id,
+        threadTitle: result.thread.title,
+        body: trimmed,
+        mentions: mentionsIn(trimmed, accounts),
+        autoTagId: thread?.author.id ?? null,
+      });
+
       setBody('');
       setCommentTags([]);
       setCommentMediaId('');
@@ -146,6 +162,8 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
             submitLabel="[ FILE COMMENT ]"
             placeholder="Type the comment for this item..."
             author={forum.author}
+            accounts={accounts}
+            autoTag={thread?.author ?? null}
             previewTags={previewTags}
             tags={commentTags}
             onTagsChange={setCommentTags}
