@@ -11,7 +11,6 @@ import {
 } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { presenceLabel } from '../lib/profile/presence';
-import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PROFILE_COMMENTS_ANCHOR } from '../lib/profile/feed';
@@ -57,7 +56,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const { user } = useAuth();
   const forum = useForum();
   const player = useMusicPlayer();
-  const { profile, ready, repository } = usePublicProfile(userId);
+  const { profile, repository } = usePublicProfile(userId);
 
   const owner = user !== null && user.id === userId;
   const viewer = authorFromAccount(user);
@@ -210,7 +209,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 <TimeStamp at={presence.record.lastSeenAt} />
               </>
             )}
-            {PROFILE_DATA_SOURCE === 'mock' ? ' :: THE MOCK STORE ONLY KNOWS THIS BROWSER' : ''}
           </p>
           <p>
             PICTURE VERSIONS: {profile.avatar.versions.length} :: TRACK VERSIONS: {profile.song.versions.length} ::
@@ -222,11 +220,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             {profile.visibility.showAvatarComments ? 'VISIBLE' : 'HIDDEN'} :: TRACK COMMENTS:{' '}
             {profile.visibility.showSongComments ? 'VISIBLE' : 'HIDDEN'}
           </p>
-          <p>
-            PROFILE STORE: {PROFILE_DATA_SOURCE === 'mock' ? 'MOCK (THIS BROWSER)' : 'SUPABASE'}
-            {ready ? '' : ' :: READING...'}
-          </p>
-
           {owner && !compact ? (
             <p>
               THIS IS YOUR PROFILE.{' '}

@@ -176,9 +176,9 @@ export default function AccountForms() {
 
           <p className="mt-2 text-[10px] text-black">
             {requiresEmailConfirmation
-              ? 'SUPABASE EMAILS A CONFIRMATION LINK BEFORE THE FIRST SIGN IN.'
+              ? 'NEW ACCOUNTS CONFIRM BY EMAIL BEFORE THE FIRST SIGN IN.'
               : usingMockAuth
-                ? 'MOCK ACCOUNTS LIVE IN THIS BROWSER ONLY - NOT REAL SECURITY.'
+                ? 'ACCOUNTS HERE ARE HELD ONLY IN THIS BROWSER.'
                 : ''}
           </p>
         </form>
@@ -211,7 +211,7 @@ export default function AccountForms() {
             type="text"
             value={signInEmail}
             onChange={setSignInEmail}
-            placeholder="you@example.com - or ADMIN1212"
+            placeholder="you@example.com"
             autoComplete="username"
             error={signInErrors.email}
           />
@@ -236,8 +236,7 @@ export default function AccountForms() {
           </div>
 
           <p className="mt-2 text-[10px] text-black">
-            READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS. THE HOUSE
-            ACCOUNT SIGNS IN WITH ITS OWN NAME, NOT AN EMAIL ADDRESS.
+            READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
           </p>
         </form>
       </section>

@@ -55,6 +55,12 @@ export type MusicPlayerValue = {
   playAt: (index: number) => void;
   setVolume: (value: number) => void;
   setLoop: (value: boolean) => void;
+  /** Whether a profile's track starts on its own (the options pop-up's switch). */
+  playByDefault: boolean;
+  setPlayByDefault: (value: boolean) => void;
+  /** True once the visitor has dismissed the options pop-up. */
+  promptDismissed: boolean;
+  dismissPrompt: () => void;
   seek: (seconds: number) => void;
   /** Reads the shelf again, after an upload or a track dropped into the bucket. */
   refresh: () => void;
@@ -70,10 +76,14 @@ type StoredSettings = {
   loop: boolean;
   /** The track that was on the display, so coming back lands on the same one. */
   src: string | null;
+  /** Whether a profile's track starts on its own. */
+  playByDefault: boolean;
+  /** True once the visitor has dismissed the options pop-up. */
+  promptDismissed: boolean;
 };
 
 function loadSettings(): StoredSettings {
-  const fallback: StoredSettings = { volume: 0.8, loop: true, src: null };
+  const fallback: StoredSettings = { volume: 0.8, loop: true, src: null, playByDefault: false, promptDismissed: false };
 
   if (typeof window === 'undefined') return fallback;
 
@@ -87,6 +97,8 @@ function loadSettings(): StoredSettings {
       volume: clampVolume(typeof parsed.volume === 'number' ? parsed.volume : fallback.volume),
       loop: typeof parsed.loop === 'boolean' ? parsed.loop : fallback.loop,
       src: typeof parsed.src === 'string' ? parsed.src : null,
+      playByDefault: typeof parsed.playByDefault === 'boolean' ? parsed.playByDefault : fallback.playByDefault,
+      promptDismissed: typeof parsed.promptDismissed === 'boolean' ? parsed.promptDismissed : fallback.promptDismissed,
     };
   } catch {
     return fallback;
@@ -126,6 +138,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [duration, setDuration] = useState(Number.NaN);
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
+  const [playByDefault, setPlayByDefaultState] = useState(() => loadSettings().playByDefault);
+  const [promptDismissed, setPromptDismissedState] = useState(() => loadSettings().promptDismissed);
   /** Bumped by `refresh()`: the shelf is read again when it changes. */
   const [attempt, setAttempt] = useState(0);
 
@@ -310,8 +324,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   useEffect(() => {
     if (audioRef.current !== null) audioRef.current.volume = volume;
-    persistSettings({ volume, loop, src: track?.src ?? null });
-  }, [loop, track, volume]);
+    persistSettings({ volume, loop, src: track?.src ?? null, playByDefault, promptDismissed });
+  }, [loop, track, volume, playByDefault, promptDismissed]);
 
   /**
    * The system's own controls: media keys, a headset's buttons, and whatever a phone
@@ -399,6 +413,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
   const setLoop = useCallback((value: boolean) => setLoopState(value), []);
+  const setPlayByDefault = useCallback((value: boolean) => setPlayByDefaultState(value), []);
+  const dismissPrompt = useCallback(() => setPromptDismissedState(true), []);
 
   /**
    * Hands the player one track and leaves it there: the account page's own song, on a phone
@@ -463,6 +479,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       playAt,
       setVolume,
       setLoop,
+      playByDefault,
+      setPlayByDefault,
+      promptDismissed,
+      dismissPrompt,
       seek,
       refresh,
     }),
@@ -485,6 +505,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       playAt,
       setVolume,
       setLoop,
+      playByDefault,
+      setPlayByDefault,
+      promptDismissed,
+      dismissPrompt,
       seek,
       refresh,
     ],

@@ -80,8 +80,8 @@ export default function MusicUploadForm() {
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
       <p className="text-[10px] font-bold text-black">FILE A TRACK ONTO THE SHELF</p>
       <p className="mt-1 text-[10px] text-gray-700">
-        THE AUDIO IS STORED IN THE mp3 BUCKET AND APPEARS IN THE PLAYER AT THE BOTTOM OF THE WINDOW. MP3, M4A, OGG,
-        WAV AND FLAC, UP TO {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB.
+        THE TRACK APPEARS IN THE PLAYER AT THE BOTTOM OF THE WINDOW. MP3, M4A, OGG, WAV AND FLAC, UP TO{' '}
+        {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB.
       </p>
 
       <label className="mt-2 block text-[10px] font-bold text-black" htmlFor="music-title">

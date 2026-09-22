@@ -51,7 +51,7 @@ class SupabaseMusicRepository implements MusicRepository {
     const client = getSupabaseBrowserClient();
 
     if (client === null) {
-      throw new Error('Supabase is not configured: set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+      throw new Error('THE SHELF IS NOT AVAILABLE.');
     }
 
     return client;
@@ -152,7 +152,7 @@ class SupabaseMusicRepository implements MusicRepository {
 
     if (error !== null) {
       throw new Error(
-        `${error.message.toUpperCase()} - CHECK THE ${MUSIC_BUCKET} BUCKET POLICIES (supabase/schema.sql, section 14).`,
+        `${error.message.toUpperCase()} - THE TRACK COULD NOT BE SAVED TO THE SHELF.`,
       );
     }
 
@@ -173,8 +173,7 @@ class SupabaseMusicRepository implements MusicRepository {
     // than pretending the whole upload failed: the file plays, its title is missing.
     if (rowError !== null) {
       throw new Error(
-        `THE TRACK IS IN THE BUCKET (${path}) BUT THE SHELF COULD NOT RECORD IT: ${rowError.message.toUpperCase()} ` +
-          '- RUN supabase/migrations/20260921_music_and_profile_songs.sql.',
+        `THE TRACK WAS SAVED, BUT ITS TITLE COULD NOT BE RECORDED: ${rowError.message.toUpperCase()}.`,
       );
     }
 

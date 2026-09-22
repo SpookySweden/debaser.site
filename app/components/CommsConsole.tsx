@@ -324,7 +324,7 @@ export default function CommsConsole() {
         {source === 'mock' ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-gray-500 p-2 text-[10px] font-bold text-black">
             <span className="text-gray-700">
-              MOCK STORE: THIS BROWSER ONLY, SO A SECOND BROWSER CANNOT REACH YOU YET.
+              LOCAL MODE: MESSAGES STAY IN THIS BROWSER.
             </span>
             <button type="button" onClick={() => void simulateIncoming()} className={PLATE}>
               [ SIMULATE INCOMING ]

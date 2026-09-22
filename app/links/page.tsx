@@ -62,8 +62,7 @@ export default function LinksPage() {
         <div className="space-y-2 p-3 text-[10px] font-bold text-black">
           <p>NOTHING FILED ON THIS SHELF YET.</p>
           <p className="text-gray-700">
-            ADD A LINK IN app/lib/projects/links.ts WITH A LABEL, ITS FULL ADDRESS AND A LINE SAYING WHAT
-            IS THERE - THE PAGE PRINTS WHATEVER IS IN THAT LIST, IN ORDER.
+            LINKS ARE ADDED BY HAND - EACH ONE WITH A LABEL, ITS ADDRESS AND A LINE SAYING WHAT IS THERE.
           </p>
         </div>
       ) : (

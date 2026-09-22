@@ -1,5 +1,5 @@
 import { threadDomId } from './anchors';
-import { isPinLive, pinLabel } from './pins';
+import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumThread, ThreadPin } from './types';
 
 /**
@@ -77,16 +77,11 @@ export type NewsFeedOptions = {
 };
 
 /**
- * Posts and replies as one run of items, with the pinned post in front.
+ * The wire is the pinned posts, and nothing else for now.
  *
- * A post says what it is with a `POST` tag and a reply with `REPLY`, which is the same
- * idea as the `P2` / `M1` tags on a profile: three characters that say what you are
- * looking at before you read a word of it.
- *
- * A pinned post leads whatever else was filed after it - that is what pinning is for - and it is
- * marked, so the wire can draw it as the highlighted row rather than as one more line. Only the
- * post is lifted: the replies underneath it are conversation, and a pin that dragged them along
- * would be a pin on the whole thread rather than on the announcement.
+ * Each live pin becomes one row - its post, marked and stamped with how long is left - so the
+ * strip reads as the archive's standing announcements rather than as the whole board. Newest
+ * pin first. A pin whose post is no longer on the board is skipped.
  */
 export function buildNewsFeed(
   threads: ForumThread[],
@@ -94,11 +89,12 @@ export function buildNewsFeed(
   options: NewsFeedOptions = {},
 ): NewsItem[] {
   const at = options.at ?? new Date();
-  const live = (options.pins ?? []).filter((pin) => isPinLive(pin, at));
+  const live = livePins(options.pins, at);
   const items: NewsItem[] = [];
 
-  for (const thread of threads) {
-    const pin = live.find((entry) => entry.threadId === thread.id);
+  for (const pin of live) {
+    const thread = threads.find((entry) => entry.id === pin.threadId);
+    if (thread === undefined) continue;
 
     items.push({
       id: `news-post-${thread.id}`,
@@ -111,33 +107,10 @@ export function buildNewsFeed(
       hrefTitle: `Open "${thread.title}"`,
       threadId: thread.id,
       threadTitle: thread.title,
-      ...(pin === undefined
-        ? {}
-        : { pinned: true, pinLabel: pinLabel(pin, at) }),
+      pinned: true,
+      pinLabel: pinLabel(pin, at),
     });
-
-    for (const comment of thread.comments) {
-      items.push({
-        id: `news-reply-${comment.id}`,
-        kind: 'reply',
-        tag: 'REPLY',
-        author: comment.author,
-        text: clipForNews(comment.body),
-        createdAt: comment.createdAt,
-        href: newsHref(thread.id),
-        hrefTitle: `Open "${thread.title}"`,
-        threadId: thread.id,
-        threadTitle: thread.title,
-      });
-    }
   }
 
-  return items
-    .sort((left, right) => {
-      // Pinned first, then newest first, inside each group.
-      if (left.pinned !== right.pinned) return left.pinned === true ? -1 : 1;
-
-      return Date.parse(right.createdAt) - Date.parse(left.createdAt);
-    })
-    .slice(0, Math.max(0, limit));
+  return items.slice(0, Math.max(0, limit));
 }

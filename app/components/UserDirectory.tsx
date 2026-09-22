@@ -37,7 +37,7 @@ const COMPACT_LIMIT = 6;
  */
 export default function UserDirectory({ compact = false }: UserDirectoryProps) {
   const { user } = useAuth();
-  const { accounts, accountsReady, source, openThreadWith } = useComms();
+  const { accounts, accountsReady, openThreadWith } = useComms();
   const presence = usePresenceDirectory();
   const router = useRouter();
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -120,19 +120,14 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
       {compact ? null : (
         <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
           <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-            <span>HOW THIS LIST IS BUILT</span>
-            <span>[ {source === 'mock' ? 'LOCAL ACCOUNTS' : 'SUPABASE AUTH'} ]</span>
+            <span>THE LAMP</span>
+            <span>[ LEGEND ]</span>
           </div>
 
           <div className="space-y-1 p-3 text-[10px] font-bold text-black">
             <p>
               THE LAMP IS THE ONE THAT SITS BESIDE A USERNAME EVERYWHERE ELSE: GREEN WHILE A TAB OF THAT
               ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS PASSED.
-            </p>
-            <p>
-              {source === 'mock'
-                ? 'THE MOCK ACCOUNT STORE ONLY KNOWS THE ACCOUNTS MADE IN THIS BROWSER, SO THE FULL DIRECTORY ARRIVES WITH SUPABASE AUTH.'
-                : 'READ FROM THE ACCOUNTS TABLE, SO EVERY ACCOUNT ON THE SITE APPEARS HERE.'}
             </p>
             <p>
               {user === null

@@ -10,6 +10,7 @@ import { avatarComments, currentAvatarVersion, profileComments, visibleGivenTags
 import { PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import MusicOptionsPrompt from './MusicOptionsPrompt';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
@@ -24,8 +25,9 @@ import ProfileName from './ProfileName';
  * there: the music still plays, and the page is not covered by a bar to make it play.
  */
 export default function AccountProfilePanel({ userId }: { userId: string }) {
-  const { profile, ready, source } = usePublicProfile(userId);
+  const { profile, ready } = usePublicProfile(userId);
   const [customising, setCustomising] = useState(false);
+  const [showOptions, setShowOptions] = useState(false);
   const player = useMusicPlayer();
   const compact = useCompactViewport();
 
@@ -35,14 +37,25 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
   const assigned = useRef<string | null>(null);
 
   useEffect(() => {
-    // A phone, the profile read, and a track of its own: the track becomes what the player
-    // is holding, set to repeat, and it starts at the first touch of the page - a browser
-    // will not make a sound before one, so that is as automatic as automatic can be.
-    if (!compact || !ready || ownTrack === undefined) return;
+    if (!ready || ownTrack === undefined) return;
     if (assigned.current === ownTrack.src) return;
 
     assigned.current = ownTrack.src;
-    player.assign(elementAsTrack(profile, ownTrack), { loop: true, autoplay: true });
+
+    // No autoplay by default: a phone's player is folded away, so "play by default" is
+    // the one way a profile's track starts on its own there. Otherwise the options
+    // pop-up asks how it should behave - once - until the visitor says not to show it
+    // again (the player's gear reopens it later).
+    if (player.playByDefault && compact) {
+      player.assign(elementAsTrack(profile, ownTrack), { loop: true, autoplay: true });
+      return;
+    }
+
+    if (player.promptDismissed) return;
+
+    // Deferred a frame so the pop-up does not set state synchronously in the effect.
+    const frame = window.requestAnimationFrame(() => setShowOptions(true));
+    return () => window.cancelAnimationFrame(frame);
   }, [compact, ownTrack, player, profile, ready]);
 
   return (
@@ -89,13 +102,13 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
           </div>
 
           <p className="pt-1 text-gray-700">
-            STORE: {source === 'mock' ? 'MOCK (THIS BROWSER ONLY)' : 'SUPABASE'} :: VISITORS REACH THIS PAGE FROM ANY
-            USERNAME OR PICTURE YOU POST UNDER.
+            VISITORS REACH THIS PAGE FROM ANY USERNAME OR PICTURE YOU POST UNDER.
           </p>
         </div>
       </div>
 
       {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
+      {showOptions ? <MusicOptionsPrompt onClose={() => setShowOptions(false)} /> : null}
     </section>
   );
 }

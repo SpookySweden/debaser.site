@@ -351,8 +351,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
         {error === null ? null : <p className="text-[#800000]">PROBLEM: {error}</p>}
         <p className="mt-1 text-gray-700">
-          PROFILE STORE: {repository.source === 'mock' ? 'MOCK (THIS BROWSER, NOT SHARED)' : 'SUPABASE'} :: PICTURE
-          FILES: {profile.avatar.versions.length} :: VISIBLE TO VISITORS: TAGS{' '}
+          PICTURE FILES: {profile.avatar.versions.length} :: VISIBLE TO VISITORS: TAGS{' '}
           {profile.visibility.showTags ? 'YES' : 'NO'}, PROFILE COMMENTS{' '}
           {profile.visibility.showProfileComments ? 'YES' : 'NO'}, PICTURE COMMENTS{' '}
           {profile.visibility.showAvatarComments ? 'YES' : 'NO'}

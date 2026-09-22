@@ -37,8 +37,7 @@ export default function DebaserProjectPage() {
     <h1 className="text-3xl font-bold mb-2">DEBASER.SITE // {DEBASER_PROJECT.title}</h1>
     <p className="text-sm mb-2 leading-relaxed">{DEBASER_PROJECT.summary}</p>
     <p className="text-[10px] font-bold mb-4 text-gray-700">
-      {DEBASER_PROJECT.subtitle} :: THE CONCEPT ARCHIVE USED TO SIT ON THE TASKBAR - IT LIVES HERE NOW, ONE
-      SHELF OF FOUR.
+      {DEBASER_PROJECT.subtitle}
     </p>
 
     <ProjectSectionNav />

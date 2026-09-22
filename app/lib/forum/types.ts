@@ -83,7 +83,7 @@ export type ForumComment = {
  * `forever` is the standing notice; the rest are the numbered windows. It lives here rather than
  * in ./pins so that the storage contract can name it without importing the rules.
  */
-export type PinDurationKey = 'hour' | 'day' | 'week' | 'month' | 'forever';
+export type PinDurationKey = 'hour' | 'day' | 'week' | 'forever';
 
 /**
  * A pinned post.

@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
   const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
   const fileName = `${slugFromFileName(file.name)}-${stamp}${extension}`;
-  const directory = path.join(process.cwd(), MUSIC_UPLOAD_DIRECTORY);
+  const directory = path.join(/* turbopackIgnore: true */ process.cwd(), MUSIC_UPLOAD_DIRECTORY);
 
   try {
     await mkdir(directory, { recursive: true });
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
     return json(
       {
         ok: false,
-        error: 'THIS DEPLOYMENT CANNOT STORE UPLOADS (READ-ONLY DISK) - USE THE SUPABASE mp3 BUCKET FOR TRACKS.',
+        error: 'TRACKS CANNOT BE STORED ON THIS DEPLOYMENT - TRY AGAIN LATER.',
       },
       501,
     );

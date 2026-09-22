@@ -13,8 +13,7 @@ export default function Account() {
     <h1 className="text-3xl font-bold mb-2">DEBASER.SITE // ACCOUNT MANAGER</h1>
     <p className="text-xs mb-4 leading-relaxed">
       Create an account, log in, and manage how your posts are signed on the board. Reading and posting stay open
-      to guests - an account attaches your name and id to whatever you file, which is what the rows already store
-      for the day Supabase Auth takes over.
+      to guests - an account just attaches your name to whatever you file.
     </p>
 
     <AccountConsole />

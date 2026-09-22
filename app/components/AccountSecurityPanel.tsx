@@ -60,7 +60,6 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
 export default function AccountSecurityPanel() {
   const {
     user,
-    backend,
     usingMockAuth,
     requiresEmailConfirmation,
     updateDisplayName,
@@ -153,7 +152,7 @@ export default function AccountSecurityPanel() {
     >
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>EDIT ACCOUNT</span>
-        <span>[ {backend === 'mock' ? 'MOCK BACKEND' : 'SUPABASE AUTH'} ]</span>
+        <span>[ EDIT ]</span>
       </div>
 
       <div className="p-3">
@@ -214,9 +213,9 @@ export default function AccountSecurityPanel() {
           </div>
           <p className="mt-1 text-[10px] text-gray-700">
             {requiresEmailConfirmation
-              ? 'SUPABASE SENDS A CONFIRMATION LINK TO THE NEW ADDRESS BEFORE THE CHANGE TAKES EFFECT.'
+              ? 'A CONFIRMATION LINK IS SENT TO THE NEW ADDRESS BEFORE THE CHANGE TAKES EFFECT.'
               : usingMockAuth
-                ? 'THE MOCK BACKEND CHANGES THE ADDRESS STRAIGHT AWAY - IT LIVES IN THIS BROWSER ONLY.'
+                ? 'THE ADDRESS CHANGES STRAIGHT AWAY.'
                 : ''}
           </p>
         </div>
@@ -262,8 +261,8 @@ export default function AccountSecurityPanel() {
           </div>
           <p className="mt-1 text-[10px] text-gray-700">
             {usingMockAuth
-              ? 'MOCK PASSWORDS ARE SALTED AND HASHED IN THIS BROWSER - CONVENIENT, NOT SECURE.'
-              : 'SUPABASE MAY ASK YOU TO SIGN IN AGAIN IF THE SESSION IS OLD.'}
+              ? 'PASSWORDS ARE HELD ONLY IN THIS BROWSER.'
+              : 'YOU MAY BE ASKED TO SIGN IN AGAIN.'}
           </p>
         </div>
       </div>

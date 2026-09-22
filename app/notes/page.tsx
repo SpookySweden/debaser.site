@@ -19,8 +19,7 @@ export default function NotesPage() {
     <h1 className="text-3xl font-bold mb-2">DEBASER.SITE // NOTES</h1>
     <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
     <p className="text-[10px] font-bold mb-4 text-gray-700">
-      NOTES ARE WRITTEN RATHER THAN DRAWN, SO THEY ARE FILED AS TEXT: ONE ENTRY EACH IN
-      app/lib/projects/notes.ts.
+      NOTES ARE WRITTEN RATHER THAN DRAWN, SO THEY ARE FILED AS TEXT.
     </p>
 
     <ProjectSectionNav current="notes" />

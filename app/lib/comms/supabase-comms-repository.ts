@@ -57,7 +57,7 @@ const THREAD_SELECT_PAIRS_ONLY = `*, ${MESSAGES_TABLE}(*), ${READS_TABLE}(*)`;
  * this button not work" when the code is ahead of the database.
  */
 export const GROUPS_NEED_MIGRATION =
-  'GROUPS NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260921_group_conversations.sql (OR SECTION 13 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. DIRECT MESSAGES ARE UNAFFECTED.';
+  'GROUPS ARE NOT SET UP YET - DIRECT MESSAGES STILL WORK.';
 
 /**
  * What the ownership controls are told when this database has not had section 15.
@@ -67,7 +67,7 @@ export const GROUPS_NEED_MIGRATION =
  * only the owner's controls need the file.
  */
 export const GROUP_OWNERSHIP_NEED_MIGRATION =
-  'RENAMING AND HANDING GROUPS OVER NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260922_group_ownership.sql (OR SECTION 16 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. TALKING IN THE GROUP IS UNAFFECTED.';
+  'RENAMING AND HANDING GROUPS OVER IS NOT SET UP YET - CHAT STILL WORKS.';
 
 /**
  * The codes PostgREST and Postgres answer with when the database is behind the code

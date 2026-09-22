@@ -78,7 +78,7 @@ export default function SidebarProfile() {
           </div>
 
           {usingMockAuth ? (
-            <p className="text-[10px] text-gray-700">MOCK ACCOUNTS LIVE IN THIS BROWSER ONLY - NOT REAL SECURITY.</p>
+            <p className="text-[10px] text-gray-700">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
           ) : null}
         </div>
       )}

@@ -23,14 +23,14 @@ const SECTIONS = [
  * controls - so the page is navigable instead of one long scroll.
  */
 export default function AccountConsole() {
-  const { user, status, backend, usingMockAuth, requiresEmailConfirmation } = useAuth();
+  const { user, status } = useAuth();
   const signedIn = status === 'signed-in';
 
   return (
     <div className="space-y-3">
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-          <span>ACCOUNT TERMINAL // {backend === 'mock' ? 'LOCAL ACCOUNTS' : 'SUPABASE AUTH'}</span>
+          <span>ACCOUNT TERMINAL</span>
           <span>
             {status === 'loading' ? '[ READING... ]' : signedIn ? '[ SIGNED IN ]' : '[ GUEST ]'}
           </span>
@@ -46,19 +46,6 @@ export default function AccountConsole() {
                 <ProfileName author={authorFromAccount(user)} lamp={false} /> (account)
               </>
             )}
-          </p>
-          <p>
-            BACKEND:{' '}
-            {usingMockAuth
-              ? 'MOCK CLIENT (THIS BROWSER) - SWITCH TO SUPABASE IN app/lib/auth/auth-repository.ts'
-              : 'SUPABASE AUTH'}
-          </p>
-          <p>
-            {usingMockAuth
-              ? 'MOCK ACCOUNTS ARE STORED LOCALLY AND ARE NOT SECURE. THEY EXIST SO THE ACCOUNT UI AND THE FORUM SIGNATURE CAN BE BUILT BEFORE AUTH IS SWITCHED ON.'
-              : requiresEmailConfirmation
-                ? 'NEW ACCOUNTS MUST CONFIRM THEIR EMAIL ADDRESS BEFORE THE FIRST SIGN IN.'
-                : 'SUPABASE AUTH IS LIVE.'}
           </p>
         </div>
       </section>

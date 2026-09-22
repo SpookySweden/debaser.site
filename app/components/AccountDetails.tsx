@@ -24,7 +24,7 @@ import TimeStamp from './TimeStamp';
  * this account's id, and the session controls in the danger zone.
  */
 export default function AccountDetails() {
-  const { user, usingMockAuth, backend, signOut, deleteAccount } = useAuth();
+  const { user, usingMockAuth, signOut, deleteAccount } = useAuth();
   const forum = useForum();
   // The account's own swatch, so its name reads here exactly as it does on the board.
   const { profile } = usePublicProfile(user?.id ?? null);
@@ -88,12 +88,9 @@ export default function AccountDetails() {
           <p>
             CREATED: <TimeStamp at={user.createdAt} />
           </p>
-          <p>BACKEND: {backend === 'mock' ? 'MOCK (THIS BROWSER ONLY)' : 'SUPABASE AUTH'}</p>
-
           {isSiteAccount(accountId) ? (
             <p className="text-[#000080]">
-              HOUSE ACCOUNT: EVERY POST AN ITEM OWNS IS SIGNED debaser.site. ITS PROFILE IS SEEDED WITH
-              ITS DARK BLUE NAME RATHER THAN CUSTOMISED, AND IT CANNOT BE DELETED.
+              HOUSE ACCOUNT: SIGNS EVERY POST AN ITEM OWNS, AND CANNOT BE DELETED.
             </p>
           ) : null}
 
@@ -165,10 +162,10 @@ export default function AccountDetails() {
               >
                 [ CLEAR ALL LOCAL ACCOUNTS ]
               </button>
-              <p>SIGNS YOU OUT AND REMOVES THE MOCK ACCOUNTS FROM THIS BROWSER.</p>
+              <p>SIGNS YOU OUT AND CLEARS THE ACCOUNTS HELD IN THIS BROWSER.</p>
             </>
           ) : (
-            <p>SUPABASE ACCOUNTS ARE DELETED FROM THE SUPABASE DASHBOARD.</p>
+            <p>ACCOUNT DELETION IS HANDLED BY THE ARCHIVE OWNER.</p>
           )}
         </div>
       </section>

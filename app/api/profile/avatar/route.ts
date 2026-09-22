@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   const safeUserId = userId.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 48) || 'local';
   const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
   const fileName = `${safeUserId}-${stamp}${extension}`;
-  const directory = path.join(process.cwd(), AVATAR_UPLOAD_DIRECTORY);
+  const directory = path.join(/* turbopackIgnore: true */ process.cwd(), AVATAR_UPLOAD_DIRECTORY);
 
   try {
     await mkdir(directory, { recursive: true });
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     return json(
       {
         ok: false,
-        error: 'THIS DEPLOYMENT CANNOT STORE UPLOADS (READ-ONLY DISK) - USE SUPABASE STORAGE FOR PROFILE PICTURES.',
+        error: 'DRAWINGS CANNOT BE STORED ON THIS DEPLOYMENT - TRY AGAIN LATER.',
       },
       501,
     );

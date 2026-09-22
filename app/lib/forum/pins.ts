@@ -20,20 +20,21 @@ export type PinDuration = {
   key: PinDurationKey;
   /** What the control says. */
   label: string;
+  /** The compact form the cycling selector shows: `6H`, `1D`, `1W`, `∞`. */
+  short: string;
   /** How long it lasts in minutes; null for a pin that never runs out. */
   minutes: number | null;
 };
 
 export const PIN_DURATIONS: PinDuration[] = [
-  { key: 'hour', label: '1 HOUR', minutes: 60 },
-  { key: 'day', label: '1 DAY', minutes: 60 * 24 },
-  { key: 'week', label: '1 WEEK', minutes: 60 * 24 * 7 },
-  { key: 'month', label: '1 MONTH', minutes: 60 * 24 * 30 },
-  { key: 'forever', label: 'FOREVER', minutes: null },
+  { key: 'hour', label: '6 HOURS', short: '6H', minutes: 6 * 60 },
+  { key: 'day', label: '1 DAY', short: '1D', minutes: 60 * 24 },
+  { key: 'week', label: '1 WEEK', short: '1W', minutes: 60 * 24 * 7 },
+  { key: 'forever', label: 'FOREVER', short: '∞', minutes: null },
 ];
 
-/** What the panel offers first: a day is long enough to be seen and short enough to forget. */
-export const DEFAULT_PIN_DURATION: PinDurationKey = 'day';
+/** What the selector offers first: six hours is long enough to be seen, short enough to forget. */
+export const DEFAULT_PIN_DURATION: PinDurationKey = 'hour';
 
 export function pinDuration(key: string): PinDuration | undefined {
   return PIN_DURATIONS.find((duration) => duration.key === key);

@@ -1,7 +1,6 @@
 'use client';
 
 import { buildNewsFeed } from '../lib/forum/news-feed';
-import { pinnedCount } from '../lib/forum/pins';
 import { useForum } from './ForumProvider';
 import NewsCrawl from './NewsCrawl';
 
@@ -30,29 +29,23 @@ import NewsCrawl from './NewsCrawl';
 export default function NewsTicker() {
   const forum = useForum();
   const items = buildNewsFeed(forum.threads, undefined, { pins: forum.pins });
-  const pinned = pinnedCount(forum.pins);
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-[10px] font-bold text-white">
-        <span>NEWSWIRE :: THE BOARD AS IT IS FILED</span>
-        <span>
-          [ {items.length === 0 ? 'NOTHING YET' : `${items.length} ITEMS`}
-          {pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]
-        </span>
+        <span>NEWSWIRE :: PINNED POSTS</span>
+        <span>[ {items.length === 0 ? 'NOTHING PINNED' : `${items.length} PINNED`} ]</span>
       </div>
 
       <NewsCrawl
         items={items}
         className="overflow-hidden px-1 py-[3px]"
-        emptyLabel="NOTHING ON THE WIRE YET - A POST OR A REPLY APPEARS HERE AS SOON AS IT IS FILED."
+        emptyLabel="NOTHING PINNED YET - A POST APPEARS HERE ONCE A MODERATOR PINS IT."
       />
 
       {items.length === 0 ? null : (
         <p className="px-2 py-1 text-[9px] font-bold text-gray-700">
-          {pinned === 0
-            ? 'POINT AT IT TO STOP THE CRAWL :: A ROW OPENS THE THREAD IT CAME FROM'
-            : 'PINNED POSTS LEAD THE CRAWL :: POINT AT IT TO STOP IT, AND CLICK A ROW TO OPEN THE THREAD'}
+          POINT AT IT TO STOP THE CRAWL :: CLICK A ROW TO OPEN THE POST
         </p>
       )}
     </section>

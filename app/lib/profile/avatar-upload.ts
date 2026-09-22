@@ -61,7 +61,7 @@ export async function uploadAvatarDrawing(input: {
 
   if (PROFILE_DATA_SOURCE === 'supabase') {
     const client = getSupabaseBrowserClient();
-    if (client === null) return { ok: false, error: 'SUPABASE IS NOT CONFIGURED.' };
+    if (client === null) return { ok: false, error: 'THE DRAWING UPLOAD IS NOT AVAILABLE.' };
 
     const path = avatarStoragePath(input.userId, input.version, extension);
     const { error } = await client.storage.from(AVATAR_BUCKET).upload(path, input.file, {
@@ -73,13 +73,13 @@ export async function uploadAvatarDrawing(input: {
     if (error !== null) {
       return {
         ok: false,
-        error: `${error.message.toUpperCase()} - CHECK SECTION 11 OF supabase/schema.sql.`,
+        error: `${error.message.toUpperCase()} - THE DRAWING COULD NOT BE SAVED.`,
       };
     }
 
     const { data } = client.storage.from(AVATAR_BUCKET).getPublicUrl(path);
 
-    return { ok: true, src: data.publicUrl, note: `UPLOADED TO SUPABASE STORAGE (${AVATAR_BUCKET}/${path})` };
+    return { ok: true, src: data.publicUrl, note: 'DRAWING FILED.' };
   }
 
   try {
@@ -94,7 +94,7 @@ export async function uploadAvatarDrawing(input: {
       return { ok: false, error: payload.error ?? 'THE UPLOAD WAS REFUSED.' };
     }
 
-    return { ok: true, src: payload.src, note: `UPLOADED TO ${payload.src}` };
+    return { ok: true, src: payload.src, note: 'DRAWING FILED.' };
   } catch {
     return { ok: false, error: 'UPLOAD FAILED.' };
   }

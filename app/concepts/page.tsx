@@ -16,8 +16,7 @@ export default function Concepts() {
     <SiteWindow title="DEBASER_OS - v1.0 [CONCEPT ARCHIVE]" status="Concept Archive Active">
     <h1 className="text-3xl font-bold mb-4">DEBASER.SITE // CONCEPT ARCHIVE</h1>
     <p className="text-sm mb-2 leading-relaxed">
-      Visual development assets for the serialized comic book world. Every sheet in this archive is hand-drawn
-      on a Kamvas tablet, filed in the project assets folder, and served straight from the repo.
+      Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet.
     </p>
     <p className="text-[10px] font-bold mb-4">
       CLICK THE [ COMMENT ] CONTROL UNDER A SHEET TO POP OPEN AN ENCASED WINDOW HOLDING ITS FORUM THREAD.

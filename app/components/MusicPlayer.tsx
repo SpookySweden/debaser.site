@@ -6,6 +6,7 @@ import { trackCaption } from '../lib/audio/tracks';
 import { PLATE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
 
 /**
@@ -92,6 +93,7 @@ export default function MusicPlayer() {
   const compact = useCompactViewport();
   const setting = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
   const [shelfOpen, setShelfOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // What the listener chose, or - if they have never touched it - what this window wants:
   // showing in a wide one, folded away on a phone.
@@ -113,12 +115,13 @@ export default function MusicPlayer() {
   return (
     <>
       {compact ? (
-        <CompactBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} />
+        <CompactBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} onSettings={() => setSettingsOpen(true)} />
       ) : (
-        <DockedBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} />
+        <DockedBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} onSettings={() => setSettingsOpen(true)} />
       )}
 
       {shelfOpen ? <ShelfWindow onClose={() => setShelfOpen(false)} /> : null}
+      {settingsOpen ? <MusicOptionsPrompt onClose={() => setSettingsOpen(false)} /> : null}
     </>
   );
 }
@@ -127,6 +130,7 @@ export default function MusicPlayer() {
 type BarControls = {
   onHide: () => void;
   onShelf: () => void;
+  onSettings: () => void;
 };
 
 /**
@@ -137,7 +141,7 @@ type BarControls = {
  * time and a bar that shows how far in it is - everything a reader wants to know about what
  * is coming out of the speakers, at a glance, without leaving the page they are reading.
  */
-function DockedBar({ onHide, onShelf }: BarControls) {
+function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
@@ -205,6 +209,10 @@ function DockedBar({ onHide, onShelf }: BarControls) {
             {loop ? '[ LOOP: ON ]' : '[ LOOP: OFF ]'}
           </button>
 
+          <button type="button" onClick={onSettings} className={PLATE} title="Player options">
+            [ ⚙ ]
+          </button>
+
           <button type="button" onClick={onShelf} className={PLATE}>
             [ SHELF ({player.queue.length}) ]
           </button>
@@ -233,7 +241,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
       badge={`[ ${player.queue.length} TRACKS ]`}
       onClose={onClose}
       maxWidth="max-w-2xl"
-      status="A ROW PLAYS IT :: RELOAD AFTER DROPPING A FILE INTO THE mp3 BUCKET"
+      status="PICK A ROW TO PLAY IT"
       actions={
         <button type="button" onClick={player.refresh} className={PLATE}>
           [ RELOAD SHELF ]
@@ -242,7 +250,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
     >
       {player.queue.length === 0 ? (
         <p className="text-[10px] font-bold text-black">
-          NOTHING ON THE SHELF YET - UPLOAD A TRACK ON THE MUSIC PAGE, OR DROP A FILE INTO THE mp3 BUCKET.
+          NOTHING ON THE SHELF YET - FILE A TRACK ON THE MUSIC PAGE.
         </p>
       ) : (
         <ol className="space-y-1">
@@ -294,7 +302,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
  * phone's player is a solved shape.
  */
-function CompactBar({ onHide, onShelf }: BarControls) {
+function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
@@ -306,6 +314,15 @@ function CompactBar({ onHide, onShelf }: BarControls) {
         <span className="truncate">♪ DEBASER PLAYER</span>
 
         <span className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={onSettings}
+            className="cursor-pointer px-1 leading-none hover:bg-[#ffffcc] hover:text-[#000080]"
+            title="Player options"
+          >
+            ⚙
+          </button>
+
           <button
             type="button"
             onClick={onShelf}

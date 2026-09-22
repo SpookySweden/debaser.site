@@ -48,7 +48,7 @@ export default function MusicShelf() {
           <p className="text-[10px] font-bold text-black">READING THE SHELF...</p>
         ) : tracks.length === 0 ? (
           <p className="text-[10px] font-bold text-black">
-            THE BUCKET IS EMPTY AND THE ARCHIVE&apos;S OWN FILES ARE NOT THERE YET - FILE A TRACK BELOW.
+            NOTHING ON THE SHELF YET - FILE A TRACK BELOW.
           </p>
         ) : (
           <ul className="space-y-1">
@@ -67,7 +67,7 @@ export default function MusicShelf() {
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{track.title}</span>
                     <span className="block truncate text-gray-700">
-                      {track.kind} :: {track.credit} :: {track.shelf === 'bucket' ? 'mp3 BUCKET' : 'ARCHIVE'}
+                      {track.kind} :: {track.credit} :: {track.shelf === 'bucket' ? 'UPLOADED' : 'ARCHIVE'}
                     </span>
                   </span>
 

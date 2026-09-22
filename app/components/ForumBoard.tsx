@@ -206,16 +206,6 @@ export default function ForumBoard() {
                 <ProfileName author={forum.author}>{authorTag(forum.author)}</ProfileName>
               </ProfileLink>
             </span>
-            <span
-              className="text-gray-700"
-              title={
-                forum.source === 'mock'
-                  ? 'Local storage - swap to Supabase in app/lib/forum/repository.ts'
-                  : 'Supabase: forum_threads / forum_comments'
-              }
-            >
-              SOURCE: {forum.source === 'mock' ? 'LOCAL' : 'SUPABASE'}
-            </span>
           </p>
 
           {/* Tag inclusion: toggle tags in, choose ANY/ALL, and the

@@ -36,7 +36,7 @@ export default function TrackList({ tracks }: { tracks: Track[] }) {
   if (tracks.length === 0) {
     return (
       <p className="border border-gray-500 bg-white p-3 text-[10px] font-bold text-black">
-        NO TRACKS FILED YET - ADD AN ENTRY TO app/lib/projects/tracks.ts OR FILE ONE BELOW.
+        NO TRACKS FILED YET - FILE ONE BELOW.
       </p>
     );
   }

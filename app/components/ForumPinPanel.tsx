@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
-import { PIN_DURATIONS, livePins, pinLabel, pinSummary } from '../lib/forum/pins';
+import { DEFAULT_PIN_DURATION, PIN_DURATIONS, livePins, pinLabel, pinSummary } from '../lib/forum/pins';
 import type { ForumThread, PinDurationKey } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
 import { useForum } from './ForumProvider';
@@ -11,6 +11,42 @@ import { useAdmin } from './ForumModerationControls';
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof Error ? caught.message : fallback;
+}
+
+/** One shared audio context for the selector's beep, made lazily on the first click. */
+let beepContext: AudioContext | null = null;
+
+/**
+ * A short, low-volume, high-pitched beep for the duration selector.
+ *
+ * Sound is optional: if the browser has no audio (or refuses it) the number still cycles, so
+ * this swallows every failure and never blocks the click.
+ */
+function playPinTick(): void {
+  try {
+    const Ctx = typeof AudioContext !== 'undefined' ? AudioContext : undefined;
+    if (Ctx === undefined) return;
+
+    beepContext ??= new Ctx();
+    const context = beepContext;
+    const now = context.currentTime;
+
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.type = 'square';
+    oscillator.frequency.setValueAtTime(1400, now);
+    gain.gain.setValueAtTime(0.03, now);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.07);
+
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+
+    oscillator.start(now);
+    oscillator.stop(now + 0.07);
+  } catch {
+    // No audio available: the selector still cycles.
+  }
 }
 
 /**
@@ -25,20 +61,20 @@ function failure(caught: unknown, fallback: string): string {
 export function ThreadPinControl({ thread }: { thread: ForumThread }) {
   const forum = useForum();
   const admin = useAdmin();
-  const [choosing, setChoosing] = useState(false);
+  const [duration, setDuration] = useState<PinDurationKey>(DEFAULT_PIN_DURATION);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const pin = forum.pinForThread(thread.id);
+  const durationChoice = PIN_DURATIONS.find((entry) => entry.key === duration);
   if (!admin) return null;
 
-  async function pinFor(duration: PinDurationKey) {
+  async function pinFor() {
     setBusy(true);
     setError(null);
 
     try {
       await forum.pinThread(thread.id, duration);
-      setChoosing(false);
     } catch (caught) {
       setError(failure(caught, 'THAT POST COULD NOT BE PINNED.'));
     } finally {
@@ -52,12 +88,20 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
 
     try {
       await forum.unpinThread(thread.id);
-      setChoosing(false);
     } catch (caught) {
       setError(failure(caught, 'THAT PIN COULD NOT BE TAKEN OFF.'));
     } finally {
       setBusy(false);
     }
+  }
+
+  function cycleDuration() {
+    playPinTick();
+    setDuration((current) => {
+      const index = PIN_DURATIONS.findIndex((entry) => entry.key === current);
+      const next = PIN_DURATIONS[(index + 1) % PIN_DURATIONS.length];
+      return next.key;
+    });
   }
 
   return (
@@ -70,34 +114,25 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
         </span>
       )}
 
-      <button type="button" onClick={() => setChoosing(!choosing)} disabled={busy} className={PLATE}>
-        {choosing ? '[ CANCEL ]' : pin === undefined ? '[ PIN POST ]' : '[ CHANGE PIN ]'}
+      <button type="button" onClick={() => void pinFor()} disabled={busy} className={PLATE}>
+        {busy ? '[ WORKING... ]' : pin === undefined ? '[ PIN POST ]' : '[ CHANGE PIN ]'}
+      </button>
+
+      <button
+        key={duration}
+        type="button"
+        onClick={cycleDuration}
+        disabled={busy}
+        title={`Pin for ${durationChoice?.label.toLowerCase() ?? ''} - click to cycle`}
+        className={`${PLATE} pin-tick`}
+      >
+        [ {durationChoice?.short ?? duration} ]
       </button>
 
       {pin === undefined ? null : (
         <button type="button" onClick={() => void unpin()} disabled={busy} className={PLATE}>
           {busy ? '[ WORKING... ]' : '[ UNPIN ]'}
         </button>
-      )}
-
-      {!choosing ? null : (
-        <span className="flex w-full flex-wrap items-center gap-1 border border-gray-500 bg-[#f0f0f0] p-1">
-          <span>PIN FOR:</span>
-          {PIN_DURATIONS.map((duration) => (
-            <button
-              key={duration.key}
-              type="button"
-              onClick={() => void pinFor(duration.key)}
-              disabled={busy}
-              className={PLATE}
-            >
-              {duration.label}
-            </button>
-          ))}
-          <span className="font-normal text-gray-700">
-            IT SITS AT THE TOP OF THE BOARD AND LEADS THE WIRE.
-          </span>
-        </span>
       )}
 
       {error === null ? null : <span className="text-[#800000]">{error}</span>}

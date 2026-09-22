@@ -43,7 +43,7 @@ export async function uploadSongFile(input: {
 
   if (PROFILE_DATA_SOURCE === 'supabase') {
     const client = getSupabaseBrowserClient();
-    if (client === null) return { ok: false, error: 'SUPABASE IS NOT CONFIGURED.' };
+    if (client === null) return { ok: false, error: 'THE TRACK UPLOAD IS NOT AVAILABLE.' };
 
     const path = songStoragePath(input.userId, input.version, extension);
     const { error } = await client.storage.from(MUSIC_BUCKET).upload(path, input.file, {
@@ -55,13 +55,13 @@ export async function uploadSongFile(input: {
     if (error !== null) {
       return {
         ok: false,
-        error: `${error.message.toUpperCase()} - CHECK THE ${MUSIC_BUCKET} BUCKET POLICIES (supabase/schema.sql, section 14).`,
+        error: `${error.message.toUpperCase()} - THE TRACK COULD NOT BE SAVED.`,
       };
     }
 
     const { data } = client.storage.from(MUSIC_BUCKET).getPublicUrl(path);
 
-    return { ok: true, src: data.publicUrl, note: `UPLOADED TO SUPABASE STORAGE (${MUSIC_BUCKET}/${path})` };
+    return { ok: true, src: data.publicUrl, note: 'TRACK FILED.' };
   }
 
   try {
@@ -75,7 +75,7 @@ export async function uploadSongFile(input: {
       return { ok: false, error: payload.error ?? 'THE UPLOAD WAS REFUSED.' };
     }
 
-    return { ok: true, src: payload.src, note: `UPLOADED TO ${payload.src}` };
+    return { ok: true, src: payload.src, note: 'TRACK FILED.' };
   } catch {
     return { ok: false, error: 'UPLOAD FAILED.' };
   }
