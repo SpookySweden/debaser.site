@@ -5,9 +5,11 @@ import { authorTag } from '../lib/auth/author';
 import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import { paginate } from '../lib/forum/paging';
+import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
+import ForumPinPanel from './ForumPinPanel';
 import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
@@ -46,14 +48,20 @@ export default function ForumBoard() {
 
   const visibleThreads = useMemo(
     () =>
-      selectBoardThreads(forum.threads, {
-        query,
-        sourceFilter,
-        tagKeys: tagFilters,
-        tagMatchMode,
-        sortMode,
-      }),
-    [forum.threads, query, sourceFilter, tagFilters, tagMatchMode, sortMode],
+      // A pinned post leads whatever the filters say: the point of a pin is that it is seen, and
+      // a pin that vanished the moment somebody searched would not be one. It is lifted inside
+      // the filtered list rather than added to it, so a search that excludes it still excludes it.
+      sortThreadsPinnedFirst(
+        selectBoardThreads(forum.threads, {
+          query,
+          sourceFilter,
+          tagKeys: tagFilters,
+          tagMatchMode,
+          sortMode,
+        }),
+        forum.pins,
+      ),
+    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode],
   );
 
   const totalReplies = useMemo(
@@ -171,8 +179,13 @@ export default function ForumBoard() {
     <div className="space-y-3">
       {/* The wire: the board as one line that crawls past. It is the shape this page can
           afford - a strip across the window - and it reads the same rows the profile
-          threads read, so a post or a reply looks like a comment looks. */}
+          threads read, so a post or a reply looks like a comment looks. A pinned post leads
+          it, which is how the announcement is seen without anybody opening it. */}
       <NewsTicker />
+
+      {/* The moderators' panel: what is pinned, by whom, and for how much longer. Drawn for
+          the house account alone - everybody else sees the pins themselves. */}
+      <ForumPinPanel />
 
       {/* Board status window */}
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">

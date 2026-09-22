@@ -1,6 +1,8 @@
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { locallyBannedAccountIds } from '../auth/mock-auth';
+import { isSiteAccount } from '../auth/builtin-account';
 import { createLocalId } from './ids';
+import { pinExpiry } from './pins';
 import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
 import { deriveTags, mergeTags } from './tags';
 import type {
@@ -14,7 +16,9 @@ import type {
   ForumPreview,
   ForumRepository,
   ForumThread,
+  PinThreadInput,
   ThreadPatch,
+  ThreadPin,
 } from './types';
 
 /**
@@ -40,12 +44,17 @@ type PersistedState = {
   version: number;
   /** Threads filed in the browser, comments included. */
   threads: ForumThread[];
+  /** Pins taken from the browser. Absent in a payload written before pins existed. */
+  pins?: ThreadPin[];
 };
 
 type Listener = (threads: ForumThread[]) => void;
+type PinListener = (pins: ThreadPin[]) => void;
 
 let state: ForumThread[] | null = null;
+let pinState: ThreadPin[] | null = null;
 const listeners = new Set<Listener>();
+const pinListeners = new Set<PinListener>();
 
 function hasStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -65,6 +74,14 @@ function isThreadShaped(value: unknown): value is ForumThread {
   );
 }
 
+/** Defensive read: a pin row that no longer makes sense is dropped rather than drawn. */
+function isPinShaped(value: unknown): value is ThreadPin {
+  if (typeof value !== 'object' || value === null) return false;
+  const row = value as Partial<ThreadPin>;
+
+  return typeof row.threadId === 'string' && typeof row.pinnedAt === 'string';
+}
+
 function readPersisted(): PersistedState | null {
   if (!hasStorage()) return null;
 
@@ -79,6 +96,7 @@ function readPersisted(): PersistedState | null {
     return {
       version: STORAGE_VERSION,
       threads: Array.isArray(candidate.threads) ? candidate.threads.filter(isThreadShaped) : [],
+      pins: Array.isArray(candidate.pins) ? candidate.pins.filter(isPinShaped) : [],
     };
   } catch {
     return null;
@@ -89,9 +107,18 @@ function loadThreads(): ForumThread[] {
   return readPersisted()?.threads ?? [];
 }
 
+function loadPins(): ThreadPin[] {
+  return readPersisted()?.pins ?? [];
+}
+
 function ensureState(): ForumThread[] {
   if (state === null) state = loadThreads();
   return state;
+}
+
+function ensurePins(): ThreadPin[] {
+  if (pinState === null) pinState = loadPins();
+  return pinState;
 }
 
 function sortNewestFirst(threads: ForumThread[]): ForumThread[] {
@@ -128,6 +155,7 @@ function persist(): void {
   const payload: PersistedState = {
     version: STORAGE_VERSION,
     threads: ensureState(),
+    pins: ensurePins(),
   };
 
   try {
@@ -142,10 +170,26 @@ function notify(): void {
   for (const listener of listeners) listener(next);
 }
 
+function notifyPins(): void {
+  const next = pinSnapshot();
+  for (const listener of pinListeners) listener(next);
+}
+
+/** The pins as read: newest first, lapsed ones left in so a screen can say when they went. */
+function pinSnapshot(): ThreadPin[] {
+  return [...ensurePins()].sort((left, right) => Date.parse(right.pinnedAt) - Date.parse(left.pinnedAt));
+}
+
 function commit(next: ForumThread[]): void {
   state = next;
   persist();
   notify();
+}
+
+function commitPins(next: ThreadPin[]): void {
+  pinState = next;
+  persist();
+  notifyPins();
 }
 
 function findThreadByAnchor(threads: ForumThread[], anchor: ForumAnchor): ForumThread | undefined {
@@ -277,6 +321,50 @@ class MockForumRepository implements ForumRepository {
     };
   }
 
+  async listPins(): Promise<ThreadPin[]> {
+    return pinSnapshot();
+  }
+
+  /**
+   * Pins a post, as a moderator.
+   *
+   * The same rule the database's `is_admin()` policies keep: only the house account may pin,
+   * because a pin is the archive speaking rather than a post. Pinning a post that is already
+   * pinned replaces the pin - which is how a deadline is extended without unpinning first.
+   */
+  async pinThread(input: PinThreadInput): Promise<ThreadPin[]> {
+    if (!isSiteAccount(input.moderator.id)) {
+      throw new Error('ONLY A MODERATOR MAY PIN A POST.');
+    }
+
+    if (!ensureState().some((thread) => thread.id === input.threadId)) {
+      throw new Error('THAT POST IS NOT ON THE BOARD.');
+    }
+
+    const pin: ThreadPin = {
+      threadId: input.threadId,
+      pinnedById: input.moderator.id,
+      pinnedByName: input.moderator.displayName,
+      pinnedAt: new Date().toISOString(),
+      expiresAt: pinExpiry(input.duration),
+    };
+
+    commitPins([pin, ...ensurePins().filter((entry) => entry.threadId !== input.threadId)]);
+    return pinSnapshot();
+  }
+
+  async unpinThread(threadId: string): Promise<ThreadPin[]> {
+    commitPins(ensurePins().filter((entry) => entry.threadId !== threadId));
+    return pinSnapshot();
+  }
+
+  subscribePins(listener: PinListener): () => void {
+    pinListeners.add(listener);
+    return () => {
+      pinListeners.delete(listener);
+    };
+  }
+
   async updateThread(threadId: string, patch: ThreadPatch): Promise<ForumThread> {
     const threads = ensureState();
     const thread = threads.find((item) => item.id === threadId);
@@ -359,6 +447,10 @@ class MockForumRepository implements ForumRepository {
 
     state = [];
     notify();
+
+    // A pin only means something while the post it marks is there, so clearing the local board
+    // clears its pins with it - the same cascade the table keeps with `on delete cascade`.
+    commitPins([]);
   }
 }
 

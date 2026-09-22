@@ -24,6 +24,7 @@ It creates:
   comms_messages            the messages themselves
   comms_reads               each account's read marker per conversation
   forum_notifications       who tagged you, and who replied to you (section 17)
+  forum_pins                the posts a moderator has pinned, and for how long (section 18)
 
 plus the Row Level Security that makes each of those safe to read from a browser,
 a trigger that gives every new account a profile row, the house account's dark
@@ -36,12 +37,15 @@ A project that has been running since before section 13 (groups) existed needs t
 section run on its own: `supabase/migrations/20260921_group_conversations.sql` is section
 13 as a file, safe to re-run. See Groups below for what happens until it has run.
 
-The same goes for two later sections, each with its own file: section 16 (which stops a
+The same goes for three later sections, each with its own file: section 16 (which stops a
 group member renaming a group and claiming it) is
-`supabase/migrations/20260922_group_ownership.sql`, and section 17 (tags and replies) is
-`supabase/migrations/20260923_notifications.sql`. Both are safe to re-run. Until section
-17 is in, the bell is empty rather than broken: posting, replying and tagging all still
-work, and the tag is simply not delivered - see Notifications below.
+`supabase/migrations/20260922_group_ownership.sql`, section 17 (tags and replies) is
+`supabase/migrations/20260923_notifications.sql`, and section 18 (pinned posts, and the test
+pin that comes with it) is `supabase/migrations/20260924_forum_pins.sql`. All three are safe
+to re-run. Until section 17 is in, the bell is empty rather than broken: posting, replying and
+tagging all still work, and the tag is simply not delivered - see Notifications below. Until
+section 18 is in, the board works and nothing can be pinned: the pin controls and the
+moderators' panel answer with the store's own words rather than half-working.
 
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
@@ -361,6 +365,37 @@ written, and the bell says the feed needs the update rather than pretending the 
 The feed follows the board's data source, so a project with
 `NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase` needs nothing else;
 `NEXT_PUBLIC_NOTIFICATIONS_DATA_SOURCE=mock` (or `supabase`) overrides it on its own.
+
+Pinned posts
+------------
+Section 18 adds `forum_pins`: one row per post a moderator has lifted to the top of the board and
+to the front of the newswire. A pin is *not* a column on the thread, because it is not part of
+what was written - it is the archive's decision about somebody's post, and it comes off without
+touching the post.
+
+  - **Who.** The house account and only it, the same `is_admin()` that lets it edit or remove a
+    post. The row is signed with the account that took it (`pinned_by = auth.uid()`, which the
+    insert policy checks), and the label beside the pin is that name as it was then. Reading is
+    open, like the board: a pin has to be visible to the visitors it is meant for.
+  - **How long.** `expires_at` is null for a pin that never runs out, and anything else is the
+    moment it stops. Nothing sweeps a lapsed pin up - `app/lib/forum/pins.ts` simply stops
+    counting it, so a pin never depends on a scheduled job to stop working. Re-pinning a post
+    extends it; the one-row-per-post key (`thread_id` is the primary key) is what makes that a
+    single write rather than an unpin and a pin.
+  - **Where it shows.** The post sits at the top of the board whatever else has been filed, with
+    a `PINNED ...` badge and an `[ UNPIN ]` on it for the moderator; on the newswire the pinned
+    post leads the crawl wearing the same badge; and for the moderator there is a panel at the
+    top of the board - `PINNED POSTS :: MODERATORS` - saying what is held, by whom, how long is
+    left, and how to let it go. Nobody else is handed the panel or the control.
+
+The file also writes **one test pin**, so the feature has something in it: a post titled
+`PINNED TO THE TOP`, authored by the house account and pinned forever. It is guarded by title, so
+re-running the file will not leave two of them, and it can be taken away either from the panel in
+the app or with
+
+  delete from public.forum_threads where title = 'PINNED TO THE TOP' and anchor_kind = 'board';
+
+(which takes the pin with it, by the same cascade the table keeps).
 
 Tags
 ----

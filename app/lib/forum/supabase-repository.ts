@@ -2,6 +2,7 @@ import { getSupabaseBrowserClient } from '../supabase/client';
 import { ANONYMOUS_AUTHOR } from '../auth/author';
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { deriveTags, mergeTags } from './tags';
+import { pinExpiry } from './pins';
 import type {
   AddCommentResult,
   CommentPatch,
@@ -13,7 +14,9 @@ import type {
   ForumRepository,
   ForumTag,
   ForumThread,
+  PinThreadInput,
   ThreadPatch,
+  ThreadPin,
 } from './types';
 
 /**
@@ -82,6 +85,7 @@ import type {
 
 const THREADS_TABLE = 'forum_threads';
 const COMMENTS_TABLE = 'forum_comments';
+const PINS_TABLE = 'forum_pins';
 const THREAD_SELECT = `*, ${COMMENTS_TABLE}(*)`;
 
 type CommentRow = {
@@ -118,6 +122,15 @@ type ThreadRow = {
   forum_comments?: CommentRow[] | null;
 };
 
+/** A pin row, as `forum_pins` has it. `expires_at` null is a pin that never runs out. */
+type PinRow = {
+  thread_id: string;
+  pinned_by: string | null;
+  pinned_by_label: string;
+  pinned_at: string;
+  expires_at: string | null;
+};
+
 function toAuthor(id: string | null, label: string, banned = false): ForumAuthor {
   return {
     id,
@@ -127,6 +140,17 @@ function toAuthor(id: string | null, label: string, banned = false): ForumAuthor
 }
 
 /** `banned` holds the ids the admin has banned, so a row can be marked on sight. */
+/** A pin row as the screen reads it. */
+function toPin(row: PinRow): ThreadPin {
+  return {
+    threadId: row.thread_id,
+    pinnedById: row.pinned_by,
+    pinnedByName: row.pinned_by_label,
+    pinnedAt: row.pinned_at,
+    expiresAt: row.expires_at,
+  };
+}
+
 function toComment(row: CommentRow, threadId: string, banned: ReadonlySet<string> = new Set()): ForumComment {
   return {
     id: row.id,
@@ -430,6 +454,72 @@ class SupabaseForumRepository implements ForumRepository {
 
   async clearLocalPosts(): Promise<void> {
     // Supabase owns the rows; nothing to purge client side.
+  }
+
+  /** The pins as the table has them: newest first, lapsed ones included. */
+  async listPins(): Promise<ThreadPin[]> {
+    const { data, error } = await this.client()
+      .from(PINS_TABLE)
+      .select('*')
+      .order('pinned_at', { ascending: false });
+
+    if (error !== null) throw new Error(`forum pin select failed: ${error.message}`);
+
+    return ((data ?? []) as PinRow[]).map(toPin);
+  }
+
+  /**
+   * Pins a post for that long, replacing whatever pin it had.
+   *
+   * The row is signed with the moderator who took it (`pinned_by = auth.uid()`, which the insert
+   * policy checks along with `is_admin()`), so a pin always names the account that decided. One
+   * pin per post - `thread_id` is the primary key - so extending a deadline is the same write as
+   * taking the pin in the first place.
+   */
+  async pinThread(input: PinThreadInput): Promise<ThreadPin[]> {
+    const { error } = await this.client()
+      .from(PINS_TABLE)
+      .upsert(
+        {
+          thread_id: input.threadId,
+          pinned_by: input.moderator.id,
+          pinned_by_label: input.moderator.displayName,
+          pinned_at: new Date().toISOString(),
+          expires_at: pinExpiry(input.duration),
+        },
+        { onConflict: 'thread_id' },
+      );
+
+    if (error !== null) throw new Error(`forum pin write failed: ${error.message}`);
+
+    return this.listPins();
+  }
+
+  async unpinThread(threadId: string): Promise<ThreadPin[]> {
+    const { error } = await this.client().from(PINS_TABLE).delete().eq('thread_id', threadId);
+
+    if (error !== null) throw new Error(`forum pin delete failed: ${error.message}`);
+
+    return this.listPins();
+  }
+
+  subscribePins(listener: (pins: ThreadPin[]) => void): () => void {
+    const client = this.client();
+
+    const refresh = () => {
+      void this.listPins()
+        .then((pins) => listener(pins))
+        .catch(() => undefined);
+    };
+
+    const channel = client
+      .channel('forum-pins')
+      .on('postgres_changes', { event: '*', schema: 'public', table: PINS_TABLE }, refresh)
+      .subscribe();
+
+    return () => {
+      void client.removeChannel(channel);
+    };
   }
 }
 

@@ -77,6 +77,37 @@ export type ForumComment = {
   parentId?: string;
 };
 
+/**
+ * How long a pin lasts: the choices the moderator's panel offers.
+ *
+ * `forever` is the standing notice; the rest are the numbered windows. It lives here rather than
+ * in ./pins so that the storage contract can name it without importing the rules.
+ */
+export type PinDurationKey = 'hour' | 'day' | 'week' | 'month' | 'forever';
+
+/**
+ * A pinned post.
+ *
+ * A pin is a moderator's mark on somebody's post: it puts the post at the top of the board and
+ * leads the wire, until a set time runs out or forever. It is a row of its own rather than a
+ * column on the thread, because it is not part of what was written - it is the archive's
+ * decision about it, and it can be taken back without touching the post.
+ *
+ * `expiresAt` is null for a pin that never runs out ("forever"); anything else is the moment it
+ * stops counting. Nothing has to be swept up when one lapses: `isPinLive` in ./pins decides
+ * whether a pin is still doing anything, and the database's read policy hides the ones that are
+ * not (supabase/schema.sql, section 18).
+ */
+export type ThreadPin = {
+  threadId: string;
+  /** Who pinned it. Null if that account is gone; the label is what to print. */
+  pinnedById: string | null;
+  pinnedByName: string;
+  pinnedAt: string;
+  /** When the pin lapses, or null for one that never does. */
+  expiresAt: string | null;
+};
+
 export type ForumThread = {
   id: string;
   title: string;
@@ -175,6 +206,30 @@ export type ForumRepository = {
   deleteComment(commentId: string): Promise<void>;
   /** Realtime hook: fires with a fresh snapshot whenever the board changes. */
   subscribe(listener: (threads: ForumThread[]) => void): () => void;
+  /**
+   * The pins: which posts a moderator has lifted to the top, and for how long.
+   *
+   * Read separately from the board because they change for a different reason - a moderator
+   * decides, nobody writes - and because the board is public while a pin is an act of
+   * moderation. Only the house account may change one; both stores check, and the database
+   * checks again (`is_admin()`, section 18). `listPins` hands back the pins that still count,
+   * lapsed ones included, so a screen can say when one runs out.
+   */
+  listPins(): Promise<ThreadPin[]>;
+  /** Pins a post for that long (or forever), replacing whatever pin it had. */
+  pinThread(input: PinThreadInput): Promise<ThreadPin[]>;
+  /** Takes a pin back off. Nothing happens to the post itself. */
+  unpinThread(threadId: string): Promise<ThreadPin[]>;
+  /** Realtime hook for the pins, alongside `subscribe` for the board. */
+  subscribePins(listener: (pins: ThreadPin[]) => void): () => void;
   /** Mock-only helper so local test posts can be purged. */
   clearLocalPosts?(): Promise<void>;
+};
+
+/** What a moderator asks for: that post, that long, and who is asking. */
+export type PinThreadInput = {
+  threadId: string;
+  duration: PinDurationKey;
+  /** The moderator taking the pin: the row is signed with their name. */
+  moderator: ForumAuthor;
 };

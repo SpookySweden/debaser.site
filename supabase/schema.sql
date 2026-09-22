@@ -1450,3 +1450,57 @@ begin
     alter publication supabase_realtime add table public.forum_notifications;
   end if;
 end $$;
+
+-- -----------------------------------------------------------------------------
+-- 18. Pinned posts: the moderator's mark, and how long it lasts.
+-- -----------------------------------------------------------------------------
+-- Also shipped on its own as supabase/migrations/20260924_forum_pins.sql, for a project that has
+-- already had the rest of this file run against it.
+--
+-- A pin holds one post at the top of the board and leads the wire, until a set time runs out or
+-- forever. It is a row of its own rather than a column on the thread because it is not part of
+-- what was written - it is the archive's decision about somebody's post. `expires_at` null means
+-- forever; nothing sweeps a lapsed pin up, the client simply stops counting it
+-- (app/lib/forum/pins.ts), so a pin does not depend on a scheduled job to stop working.
+--
+-- Who may pin: the house account, and only it - the same `is_admin()` that lets it edit or remove
+-- a post - and the row is signed with the account that took it. Read by
+-- app/lib/forum/supabase-repository.ts.
+
+create table if not exists public.forum_pins (
+  thread_id uuid primary key references public.forum_threads (id) on delete cascade,
+  pinned_by uuid references auth.users (id) on delete set null,
+  pinned_by_label text not null default 'debaser.site',
+  pinned_at timestamptz not null default now(),
+  expires_at timestamptz
+);
+
+create index if not exists forum_pins_active_idx on public.forum_pins (pinned_at desc);
+
+alter table public.forum_pins enable row level security;
+
+drop policy if exists "forum_pins readable" on public.forum_pins;
+create policy "forum_pins readable" on public.forum_pins
+  for select using (true);
+
+drop policy if exists "forum_pins pinned by admin" on public.forum_pins;
+create policy "forum_pins pinned by admin" on public.forum_pins
+  for insert with check (public.is_admin() and pinned_by = auth.uid());
+
+drop policy if exists "forum_pins changed by admin" on public.forum_pins;
+create policy "forum_pins changed by admin" on public.forum_pins
+  for update using (public.is_admin()) with check (public.is_admin() and pinned_by = auth.uid());
+
+drop policy if exists "forum_pins removed by admin" on public.forum_pins;
+create policy "forum_pins removed by admin" on public.forum_pins
+  for delete using (public.is_admin());
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'forum_pins'
+  ) then
+    alter publication supabase_realtime add table public.forum_pins;
+  end if;
+end $$;

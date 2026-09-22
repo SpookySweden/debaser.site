@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { getForumRepository } from '../lib/forum/repository';
+import { pinForThread as livePinForThread } from '../lib/forum/pins';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
@@ -14,7 +15,9 @@ import type {
   ForumPreview,
   ForumRepository,
   ForumThread,
+  PinDurationKey,
   ThreadPatch,
+  ThreadPin,
 } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
 
@@ -44,6 +47,15 @@ export type AddCommentRequest = {
 
 export type ForumContextValue = {
   threads: ForumThread[];
+  /**
+   * The pins, newest first, lapsed ones included.
+   *
+   * Read with the board and updated in the same way, so a pin taken on one screen is at the top
+   * of the board on every other. Screens ask `pinForThread` / `livePins` (app/lib/forum/pins.ts)
+   * rather than reading this list directly, because a lapsed pin is still *in* the list - it is
+   * history - while it is no longer doing anything.
+   */
+  pins: ThreadPin[];
   author: ForumAuthor;
   source: ForumDataSource;
   ready: boolean;
@@ -67,6 +79,17 @@ export type ForumContextValue = {
   deleteThread: (threadId: string) => Promise<void>;
   updateComment: (commentId: string, patch: CommentPatch) => Promise<ForumThread>;
   deleteComment: (commentId: string) => Promise<void>;
+  /**
+   * Pinning, for the house account alone.
+   *
+   * The board's way of saying "read this one": a pinned post sits at the top of the list and
+   * leads the wire, for a set time or forever. Both stores refuse anybody but the moderator, and
+   * the database refuses again - so this pair is only what the screen calls, not what decides.
+   */
+  pinThread: (threadId: string, duration: PinDurationKey) => Promise<void>;
+  unpinThread: (threadId: string) => Promise<void>;
+  /** The live pin on that post, if a moderator has one on it. */
+  pinForThread: (threadId: string) => ThreadPin | undefined;
   threadForAnchor: (anchor: ForumAnchor) => ForumThread | undefined;
   commentCountForAnchor: (anchor: ForumAnchor) => number;
   clearLocalPosts: () => Promise<void>;
@@ -93,6 +116,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
   // server render and the first client pass agree and no placeholder posts ever
   // appear.
   const [threads, setThreads] = useState<ForumThread[]>([]);
+  const [pins, setPins] = useState<ThreadPin[]>([]);
   const [ready, setReady] = useState(false);
   const [source] = useState<ForumDataSource>(() => getForumRepository().source);
 
@@ -112,13 +136,27 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         if (!cancelled) setReady(true);
       });
 
+    // The pins come in beside the board: the same read, the same failure policy (a board that
+    // cannot be read is not made worse by an empty list of pins).
+    void repository
+      .listPins()
+      .then((next) => {
+        if (!cancelled) setPins(next);
+      })
+      .catch(() => undefined);
+
     const unsubscribe = repository.subscribe((next) => {
       if (!cancelled) setThreads(next);
+    });
+
+    const unsubscribePins = repository.subscribePins((next) => {
+      if (!cancelled) setPins(next);
     });
 
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribePins();
     };
   }, []);
 
@@ -212,6 +250,25 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     setThreads(await repository.listThreads());
   }, []);
 
+  /**
+   * Pinning, as the moderator's request. The store checks who is asking and the database checks
+   * again, so nothing here decides anything - it only files the ask and keeps what comes back.
+   */
+  const pinThread = useCallback(
+    async (threadId: string, duration: PinDurationKey) => {
+      const repository = repositoryRef.current ?? getForumRepository();
+      setPins(await repository.pinThread({ threadId, duration, moderator: author }));
+    },
+    [author],
+  );
+
+  const unpinThread = useCallback(async (threadId: string) => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    setPins(await repository.unpinThread(threadId));
+  }, []);
+
+  const pinForThread = useCallback((threadId: string) => livePinForThread(pins, threadId), [pins]);
+
   const threadForAnchor = useCallback(
     (anchor: ForumAnchor) =>
       threads.find((thread) => thread.anchor.kind === anchor.kind && thread.anchor.id === anchor.id),
@@ -232,6 +289,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
   const value = useMemo<ForumContextValue>(
     () => ({
       threads,
+      pins,
       author,
       source,
       ready,
@@ -244,12 +302,16 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       deleteThread,
       updateComment,
       deleteComment,
+      pinThread,
+      unpinThread,
+      pinForThread,
       threadForAnchor,
       commentCountForAnchor,
       clearLocalPosts,
     }),
     [
       threads,
+      pins,
       author,
       source,
       ready,
@@ -262,6 +324,9 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       deleteThread,
       updateComment,
       deleteComment,
+      pinThread,
+      unpinThread,
+      pinForThread,
       threadForAnchor,
       commentCountForAnchor,
       clearLocalPosts,

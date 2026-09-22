@@ -1,7 +1,6 @@
 'use client';
 
-import { threadDomId } from '../lib/forum/anchors';
-import { newsTag, type NewsItem } from '../lib/forum/news-feed';
+import type { NewsRow } from '../lib/forum/news-feed';
 import CommentRow from './CommentRow';
 
 /** Seconds of crawl per item, so a long wire does not scroll any faster than a short one. */
@@ -11,13 +10,12 @@ const SECONDS_PER_ITEM = 6;
 const SECONDS_FLOOR = 24;
 
 type NewsCrawlProps = {
-  items: NewsItem[];
+  items: NewsRow[];
   /**
    * The strip's own classes, and the only thing the caller has to decide about its looks:
    * it needs `overflow-hidden` to clip, and it is **transparent** unless the caller gives
-   * it a background. The profile's wire and the crawl under a comment on the board are
-   * transparent, so the surface they sit on shows through; the board's ticker box is black
-   * because there it is meant to read as a display.
+   * it a background - both the board's ticker and a profile's wire are transparent, so the
+   * surface they sit on shows through.
    */
   className?: string;
   /** Shown instead of nothing when the wire is empty. */
@@ -27,10 +25,14 @@ type NewsCrawlProps = {
 /**
  * The wire's crawl: one line of rows going past, held twice so the loop has no seam.
  *
- * Both places the site shows a wire use this - the board's ticker and the profile's feed -
+ * Both places the site shows a wire use this - the board's ticker and a profile's feed -
  * because they are the same thing seen from two pages, and the rows are the site's one
  * comment row in its compact shape: the little picture, the name, `[ POST ]` or `[ REPLY ]`,
- * the time, and the words. Each row links to the thread it came from.
+ * the time, and the words. Each row links to wherever it came from.
+ *
+ * A *pinned* row - the post a moderator has lifted - is drawn as a highlight: a plate of its own
+ * around the row, the `PINNED` label a reader can see going past, and the row is at the front of
+ * the run, because the crawl is what makes a pin visible in the first place.
  *
  * The second copy is hidden from assistive tech: it is there to make the loop seamless, not
  * to say everything twice. A reader who has asked their system for less motion gets a still
@@ -60,11 +62,11 @@ export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCra
                   author: item.author,
                   body: item.text,
                   createdAt: item.createdAt,
-                  tag: newsTag(item),
+                  tag: item.tag,
                 }}
                 variant="compact"
-                href={`/forum#${threadDomId(item.threadId)}`}
-                hrefTitle={`Open "${item.threadTitle}"`}
+                {...(item.href === undefined ? {} : { href: item.href, hrefTitle: item.hrefTitle })}
+                {...(item.pinLabel === undefined ? {} : { pinnedLabel: item.pinLabel })}
               />
             ))}
           </ul>

@@ -6,6 +6,7 @@ import { threadDomId } from '../lib/forum/anchors';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
 import { mentionsIn } from '../lib/forum/mentions';
+import { pinLabel, pinSummary } from '../lib/forum/pins';
 import { buildPostLayout } from '../lib/forum/post-layout';
 import { postCredit } from '../lib/forum/site-author';
 import type { ForumThread } from '../lib/forum/types';
@@ -15,6 +16,7 @@ import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
 import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
+import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
 import MediaThumbnail from './MediaThumbnail';
 import MentionRow from './MentionRow';
@@ -56,6 +58,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
   const { profile } = usePublicProfile(postCredit(thread).id);
   const { accounts } = useComms();
   const notifications = useNotifications();
+  /** The moderator's pin on this post, if it has one: the card says so in its title row. */
+  const pin = forum.pinForThread(thread.id);
   const [reply, setReply] = useState('');
   const [replyBusy, setReplyBusy] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
@@ -144,6 +148,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
               <div className="flex items-baseline gap-2 text-xs font-bold text-black">
                 <span className="shrink-0 text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
                 <span className="min-w-0 flex-1 group-hover:underline">{layout.title}</span>
+                {/* Pinned posts say so before anything else about them, because being pinned is
+                    why this row is at the top of the list. */}
+                {pin === undefined ? null : (
+                  <span
+                    className="shrink-0 border border-black bg-[#800000] px-1 text-[9px] font-bold text-white"
+                    title={pinSummary(pin)}
+                  >
+                    {pinLabel(pin)}
+                  </span>
+                )}
                 <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
               </div>
 
@@ -175,6 +189,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
 
               {/* Only drawn for the house account: rewrite the post, or take it down. */}
               <ThreadModeration thread={thread} />
+
+              {/* ...and the moderator's pin, for the same account only. */}
+              <ThreadPinControl thread={thread} />
             </div>
 
             {isOpen ? null : (

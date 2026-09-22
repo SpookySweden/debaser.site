@@ -14,6 +14,7 @@ import { presenceLabel } from '../lib/profile/presence';
 import { PROFILE_DATA_SOURCE } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PROFILE_COMMENTS_ANCHOR } from '../lib/profile/feed';
 import { canCommentOnProfile, profileComments, visibleProfileComments } from '../lib/profile/visibility';
 import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
@@ -186,11 +187,11 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               />
             )}
 
-            {/* The empty room a profile has to the right of the drawing, under the track and
-                its remarks: the board's wire runs across it, transparent, the full width of
-                the column rather than boxed into a panel of its own. */}
+          {/* The empty room a profile has to the right of the drawing, under the track and
+              its remarks: this profile's own comments run across it, transparent, the full
+              width of the column rather than boxed into a panel of its own. */}
             <div className="pt-1">
-              <ProfileWire />
+              <ProfileWire userId={userId} comments={comments} />
             </div>
           </div>
         </div>
@@ -317,7 +318,10 @@ function CommentsSection({ owner, visibility, comments, hiddenCount }: CommentsS
   const [open, setOpen] = useState(false);
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
+    <section
+      id={PROFILE_COMMENTS_ANCHOR}
+      className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+    >
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>COMMENTS ON THIS PROFILE</span>
         <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>

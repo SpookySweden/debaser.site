@@ -53,6 +53,13 @@ type CommentRowProps = {
    */
   href?: string;
   hrefTitle?: string;
+  /**
+   * Set on the row a moderator has pinned: `PINNED`, `PINNED FOREVER`, `PINNED 3H LEFT`. It is
+   * drawn as a dark plate at the front of the row, and the row itself is tinted, so a pinned
+   * message is the thing the eye lands on as the wire goes past - which is the whole point of
+   * pinning it.
+   */
+  pinnedLabel?: string;
 };
 
 /**
@@ -64,17 +71,27 @@ type CommentRowProps = {
  * those places, which is the point of settling on it rather than writing a second one per
  * surface.
  */
-export default function CommentRow({ data, variant = 'full', href, hrefTitle }: CommentRowProps) {
+export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel }: CommentRowProps) {
   const author = data.author;
+  const pinned = pinnedLabel === undefined ? null : (
+    <span className="border border-black bg-[#800000] px-1 text-[9px] font-bold text-white">
+      [ {pinnedLabel} ]
+    </span>
+  );
 
   if (variant === 'compact') {
     return (
-      <li className="flex items-center gap-1 whitespace-nowrap pr-5 text-[10px]">
+      <li
+        className={`flex items-center gap-1 whitespace-nowrap text-[10px] ${
+          pinned === null ? 'pr-5' : 'mr-2 border border-black bg-[#ffffcc] px-1'
+        }`}
+      >
         <ProfileAvatarLink author={author} size={20} showName={false} variant="plain" />
         <ProfileName author={author} className="font-bold" />
         {data.tag === undefined ? null : (
           <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
         )}
+        {pinned}
         <TimeStamp at={data.createdAt} className="text-[9px]" />
 
         {href === undefined ? (
@@ -89,7 +106,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle }: 
   }
 
   return (
-    <li className="rounded-none border border-gray-500 bg-white p-1">
+    <li className={`rounded-none border border-gray-500 p-1 ${pinned === null ? 'bg-white' : 'bg-[#ffffcc]'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
         <span className="flex flex-wrap items-center gap-1">
           <ProfileLink author={author}>
@@ -98,6 +115,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle }: 
           {data.tag === undefined ? null : (
             <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
           )}
+          {pinned}
         </span>
         <TimeStamp at={data.createdAt} />
       </div>
