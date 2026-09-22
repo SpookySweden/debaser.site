@@ -88,17 +88,29 @@ export function remainingLabel(expiresAt: string, at: Date = new Date()): string
   return `${Math.ceil(hours / 24)}D LEFT`;
 }
 
-/** What a pinned post is stamped with: `PINNED` or `PINNED FOREVER`, and how long is left. */
+/**
+ * What a pinned post is stamped with.
+ *
+ * A pin that never runs out is simply `PINNED` - the badge is there to say why the post is at the
+ * top, and "forever" is a duration nobody reading the board needs; the panel is where the length
+ * of a pin is stated. A pin with time left says so, because that is information a reader can act
+ * on ("this is still the notice of the day").
+ */
 export function pinLabel(pin: ThreadPin, at: Date = new Date()): string {
-  if (pin.expiresAt === null) return 'PINNED FOREVER';
+  if (pin.expiresAt === null) return 'PINNED';
 
   return `PINNED ${remainingLabel(pin.expiresAt, at)}`;
 }
 
-/** The long version, for the panel: who did it, and until when. */
+/**
+ * The long version, for the panel: who took it, and how long is left.
+ *
+ * The duration is dropped for a pin that never runs out rather than spelled out - the panel is
+ * read by the moderator, who chose it.
+ */
 export function pinSummary(pin: ThreadPin, at: Date = new Date()): string {
   const who = `BY ${pin.pinnedByName.toUpperCase()}`;
-  if (pin.expiresAt === null) return `${who} :: FOREVER`;
+  if (pin.expiresAt === null) return who;
 
   return `${who} :: ${remainingLabel(pin.expiresAt, at)}`;
 }

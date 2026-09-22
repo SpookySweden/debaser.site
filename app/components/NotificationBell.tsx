@@ -7,25 +7,28 @@ import PopoutWindow from './PopoutWindow';
 import { useNotifications } from './NotificationsProvider';
 
 /** The square that says "there is something here you have not read". */
-function UnreadDot({ count }: { count: number }) {
+function UnreadDot() {
   return (
     <span
-      aria-label={`${count} unread`}
-      title={`${count} unread`}
-      className="ml-1 inline-block h-2 w-2 shrink-0 border border-black bg-[#ff0000] align-middle"
+      aria-hidden
+      className="ml-[2px] inline-block h-[6px] w-[6px] shrink-0 border border-black bg-[#ff0000] align-middle"
     />
   );
 }
 
+/** The bell's plate: small enough to sit in a title bar without crowding it. */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300';
 
 /**
  * The bell at the top of the side panel's comms block.
  *
- * It says how many tags and replies are waiting before it is opened - the dot is unread, the
- * number is the count - and the pop-up under it is the menu itself. Clicking anywhere else
- * closes it, the way a Win95 pop-up behaves.
+ * It is the one control in that bar, so it stays small: the glyph and the count, no word. What it
+ * is says itself in the accessible name - `Notifications: 4 NEW` - which is also what the pointer
+ * reads on hover, so nothing is lost by dropping the label from the plate.
+ *
+ * The unread count rides on it (with the red square while anything is new) and the pop-up under it
+ * is the menu itself. Clicking anywhere else closes it, the way a Win95 pop-up behaves.
  */
 export default function NotificationBell() {
   const notifications = useNotifications();
@@ -41,16 +44,11 @@ export default function NotificationBell() {
         aria-expanded={open}
         aria-haspopup="menu"
         aria-label={`Notifications: ${notifications.summary}`}
-        title={signedIn ? notifications.summary : 'Sign in to be tagged'}
+        title={signedIn ? `Notifications: ${notifications.summary}` : 'Sign in to be tagged'}
         className={BELL_BUTTON}
       >
-        [ ! ] NOTIFICATIONS
-        {unread === 0 ? null : (
-          <>
-            <span className="text-[#800000]">{unread}</span>
-            <UnreadDot count={unread} />
-          </>
-        )}
+        [ ! ]{unread === 0 ? null : <span className="ml-[2px] text-[#800000]">{unread}</span>}
+        {unread === 0 ? null : <UnreadDot />}
       </button>
 
       {!open ? null : (
@@ -85,7 +83,7 @@ export function NotificationMenuButton({ className = MENU_ITEM }: { className?: 
     <>
       <button type="button" onClick={() => setOpen(true)} role="menuitem" className={`${className} cursor-pointer`}>
         [ NOTIFICATIONS{unread === 0 ? '' : ` (${unread})`} ]
-        {unread === 0 ? null : <UnreadDot count={unread} />}
+        {unread === 0 ? null : <UnreadDot />}
       </button>
 
       {!open ? null : (
