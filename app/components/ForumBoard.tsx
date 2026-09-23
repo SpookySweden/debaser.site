@@ -7,6 +7,7 @@ import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
+import { openArcade } from '../lib/games/arcade-window';
 import TagWindow from './TagWindow';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
@@ -218,6 +219,15 @@ export default function ForumBoard() {
               className={TITLE_BAR_BUTTON}
             >
               + NEW POST...
+            </button>
+            <button
+              type="button"
+              onClick={() => openArcade()}
+              aria-haspopup="dialog"
+              title="Open the arcade window: play solo, or ask an account for a game"
+              className={TITLE_BAR_BUTTON}
+            >
+              [ ARCADE ]
             </button>
             <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
           </span>

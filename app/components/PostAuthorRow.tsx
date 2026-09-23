@@ -1,5 +1,6 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import { authorLabel } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { tagColour } from '../lib/forum/tag-vocabulary';
@@ -35,6 +36,13 @@ type PostAuthorRowProps = {
   location?: string;
   /** Tags other users gave the author, filtered to the ones they display. */
   displayedTags?: GivenTag[];
+  /**
+   * Room for a verb about this account - a `[ CHALLENGE ]` on a post, say.
+   *
+   * The same slot `UserDirectoryRow` carries, and for the same reason: a screen with its own
+   * question to ask an account adds it here rather than writing the row again.
+   */
+  actions?: ReactNode;
 };
 
 /**
@@ -58,6 +66,7 @@ export default function PostAuthorRow({
   picture,
   location = '',
   displayedTags = [],
+  actions,
 }: PostAuthorRowProps) {
   const label = authorLabel(author);
 
@@ -112,6 +121,8 @@ export default function PostAuthorRow({
           ))}
         </span>
       )}
+
+      {actions}
     </span>
   );
 }

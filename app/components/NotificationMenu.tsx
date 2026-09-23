@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { threadDomId } from '../lib/forum/anchors';
+import { openArcade } from '../lib/games/arcade-window';
 import {
   notificationBreakdown,
   notificationLabel,
@@ -66,11 +67,12 @@ function NotificationRow({
   // A row written before the arcade exists has no `inviteId` at all, so absence means "no game".
   const inviteId = item.inviteId ?? null;
   const isInvite = item.kind === 'invite' && inviteId !== null;
-  // Where the row goes: the invitation's match (which answers it as it opens), or the post itself
-  // via the same `#thread-<id>` anchor the board's own links use.
+  // Where the row goes: an invitation's address is the arcade's own - `/forum?invite=<id>`, which
+  // the arcade window reads on arrival (`lib/games/arcade-window.ts`) - and anything else is the post
+  // itself, via the same `#thread-<id>` anchor the board's own links use.
   const target =
     inviteId !== null
-      ? `/games?invite=${encodeURIComponent(inviteId)}`
+      ? `/forum?invite=${encodeURIComponent(inviteId)}`
       : item.threadId === null
         ? null
         : `/forum#${threadDomId(item.threadId)}`;
@@ -142,7 +144,15 @@ function NotificationRow({
       <Link
         href={target}
         className={`${className} cursor-pointer`}
-        onClick={() => {
+        onClick={(event) => {
+          // An invitation opens the arcade *here*, over whatever is being read: walking the reader to
+          // `/forum` would cost them their place to answer a knock. The address stays on the row, so
+          // a middle click, a copy or a reload still means exactly what it says.
+          if (isInvite && inviteId !== null) {
+            event.preventDefault();
+            openArcade({ kind: 'invite', inviteId });
+          }
+
           onOpen(item);
           onDismiss();
         }}

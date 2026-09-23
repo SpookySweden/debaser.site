@@ -17,6 +17,7 @@ import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE } from '../lib/ui/controls';
 import AnchorLink from './AnchorLink';
+import ChallengeControl from './ChallengeControl';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
 import { useComms } from './CommsProvider';
@@ -29,6 +30,7 @@ import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
+import { usePresenceDirectory } from './PresenceProvider';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
@@ -77,6 +79,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   // which of the two applies (app/lib/forum/site-author.ts).
   const { profile } = usePublicProfile(postCredit(thread).id);
   const { accounts } = useComms();
+  /** The lamps, so `[ CHALLENGE ]` can say whether the account is on before it is pressed. */
+  const presence = usePresenceDirectory();
   const notifications = useNotifications();
   /** The moderator's pin on this post, if it has one: the card says so in its title row. */
   const pin = forum.pinForThread(thread.id);
@@ -240,6 +244,17 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   picture={layout.author.picture}
                   location={layout.author.location}
                   displayedTags={layout.author.displayedTags}
+                  actions={
+                    // A post credited to the item itself has no account to ask; a post by an account
+                    // carries the verb that asks it for a game, right where the account is named.
+                    layout.author.picture === undefined ? (
+                      <ChallengeControl
+                        author={layout.author.credit}
+                        status={presence.statusFor(layout.author.credit.id ?? '')}
+                        viewerId={forum.author.id}
+                      />
+                    ) : undefined
+                  }
                 />
 
                 {layout.image === 'hover' && images.preview !== undefined ? (

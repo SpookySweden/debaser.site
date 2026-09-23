@@ -53,7 +53,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME', href: '/', mobile: 'tabs' },
   { key: 'forum', label: 'FORUM', href: '/forum', mobile: 'tabs' },
-  { key: 'games', label: 'GAMES', href: '/games', mobile: 'start' },
+  { key: 'games', label: 'ARCADE', href: '/forum?arcade=1', mobile: 'start' },
   { key: 'users', label: 'USERS', href: '/users', mobile: 'start' },
   { key: 'comms', label: 'COMMS', href: '/comms', mobile: 'start' },
   { key: 'account', label: 'ACCOUNT', href: '/account', mobile: 'account' },

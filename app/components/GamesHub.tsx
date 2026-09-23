@@ -1,12 +1,14 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ARCADE_DEFAULT_GAME, type ArcadeFocus } from '../lib/games/arcade-window';
 import { gameById, GAME_CATALOGUE } from '../lib/games/catalogue';
+import { challengeRefusal, sendChallenge } from '../lib/games/challenges';
 import { inviteSummary, opponentOf, splitInvites } from '../lib/games/invites';
 import { getGamesRepository } from '../lib/games/repository';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { buildUserDirectory } from '../lib/profile/directory';
-import { FIELD_TIGHT, PANEL, PLATE, PLATE_PRESSED, STATUS_BAR, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_LARGE, PLATE_PRESSED, STATUS_BAR, TITLE_BAR, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import GameMatch from './GameMatch';
@@ -14,20 +16,33 @@ import { useNotifications } from './NotificationsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
 import UserDirectoryRow from './UserDirectoryRow';
 
+/** What the arcade window was opened to do. */
+type GamesHubProps = {
+  /** The floor, unless it was opened for an invitation or for an account to ask. */
+  focus?: ArcadeFocus;
+};
+
 /**
  * The arcade floor: what there is to play, who is around to play it with, and the invitations
  * between the two.
  *
- * Three panels and a game, stacked on a phone and in one column here on purpose - the page is read
+ * This is the screen inside the arcade window (./ArcadeWindow.tsx), and the window is the only way
+ * in: the arcade is not a page any more, because asking somebody for a game should not cost a reader
+ * the thread they were reading. `focus` is what the window was opened to do, and when it is an
+ * account to ask, a `CHALLENGE` panel leads the screen - that is what the reader pressed for, and
+ * the invitation is the next press.
+ *
+ * Three panels and a game, stacked on a phone and in one column here on purpose - the screen is read
  * top to bottom in the order it is used (pick a game, pick a player, answer a knock, play), and a
  * phone gets exactly that order with nothing beside anything. Every control is a plate from
  * `lib/ui/controls`, so the arcade is the same furniture as the rest of the site.
  *
  * The two stores meet here and nowhere else: the invitation is written to the arcade's own table
  * (section 23) and the alert to the notification feed, in that order, so the row exists before
- * anything tells anybody about it.
+ * anything tells anybody about it. That pair lives in `lib/games/challenges.ts`, so this screen and
+ * the plate that opened it cannot file an invitation two different ways.
  */
-export default function GamesHub() {
+export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   const { user } = useAuth();
   const { accounts } = useComms();
   const presence = usePresenceDirectory();
@@ -42,7 +57,8 @@ export default function GamesHub() {
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
-  const [chosen, setChosen] = useState<GameId>('tic-tac-toe');
+  /** The game a press would send: the one the window was opened on, or the catalogue's first. */
+  const [chosen, setChosen] = useState<GameId>(focus.kind === 'challenge' ? focus.game : ARCADE_DEFAULT_GAME);
   /** The match on screen: an invitation, or null. `solo` is the same screen without one. */
   const [match, setMatch] = useState<GameInvite | null>(null);
   const [solo, setSolo] = useState<GameId | null>(null);
@@ -79,14 +95,17 @@ export default function GamesHub() {
     [me.id, repository, userId],
   );
 
+  /** The invitation the window was opened on, if it was opened from a link that names one. */
+  const wantedInviteId = focus.kind === 'invite' ? focus.inviteId : null;
+
   /**
    * The read, the subscription, and the two ways a match opens by itself.
    *
    * Everything that writes state here does it in a callback rather than in the effect body: the
-   * invitation that answers the bell's `?invite=<id>` link opens on the first read, and one that is
-   * answered while this page is open opens when the answer arrives over realtime - which is the half
-   * that makes an invitation a game rather than a message. A signed-out reader is left with nothing
-   * to read instead of an empty list written into state.
+   * invitation the window was opened on (the bell's link, or a `?invite=<id>` address) opens on the
+   * first read, and one that is answered while the window is open opens when the answer arrives over
+   * realtime - which is the half that makes an invitation a game rather than a message. A signed-out
+   * reader is left with nothing to read instead of an empty list written into state.
    */
   useEffect(() => {
     if (userId === null) return;
@@ -101,10 +120,9 @@ export default function GamesHub() {
         setInvites(next);
         setReady(true);
 
-        if (answered.current) return;
+        if (answered.current || wantedInviteId === null) return;
 
-        const wanted = new URLSearchParams(window.location.search).get('invite');
-        const found = next.find((row) => row.id === wanted);
+        const found = next.find((row) => row.id === wantedInviteId);
         if (found === undefined) return;
 
         answered.current = true;
@@ -137,40 +155,37 @@ export default function GamesHub() {
       cancelled = true;
       stop();
     };
-  }, [answer, repository, userId]);
+  }, [answer, repository, userId, wantedInviteId]);
 
   /** A signed-out reader has no invitations to read, whatever the last store answer said. */
   const visible = useMemo(() => (userId === null ? [] : invites), [invites, userId]);
   const loaded = ready || userId === null;
 
-  /** Asks one account for a game, and tells them through the bell every other row uses. */
+  /**
+   * Asks one account for a game.
+   *
+   * The invitation and the bell are one act, so both halves live in `lib/games/challenges`: this
+   * decides which game and who, and reports what came of it - which is what keeps this roster's
+   * button and the `[ CHALLENGE ]` a post carries (./ForumThreadCard.tsx) the same press.
+   */
   async function invitePlayer(player: { id: string; displayName: string }) {
-    if (userId === null) {
-      setError('SIGN IN FIRST: AN INVITATION IS FROM ONE ACCOUNT TO ANOTHER.');
-      return;
-    }
-
-    const entry = gameById(chosen);
     setBusy(player.id);
     setError(null);
 
     try {
-      const invite = await repository.create({
-        game: chosen,
-        from: { id: userId, displayName: me.displayName },
+      const outcome = await sendChallenge({
+        repository,
+        notify: notifyInvited,
+        from: userId === null ? null : { id: userId, displayName: me.displayName },
         to: { id: player.id, displayName: player.displayName },
+        game: chosen,
       });
 
-      setNotice(`${entry.title} SENT TO ${player.displayName.toUpperCase()}.`);
-      await notifyInvited({
-        inviteId: invite.id,
-        gameId: chosen,
-        gameTitle: entry.title,
-        body: entry.tagline,
-        toUserId: player.id,
-      });
-    } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : 'THE ARCADE STORE DID NOT ANSWER.');
+      // `=== false` rather than `!outcome.ok`: a plain negation only narrows a union when the
+      // compiler is in strict mode, and several of this project's checks compile without it (the
+      // same reason `attachLink` reads its refusal back this way).
+      if (outcome.ok === false) setError(outcome.error);
+      else setNotice(outcome.notice);
     } finally {
       setBusy(null);
     }
@@ -205,6 +220,33 @@ export default function GamesHub() {
     [accounts, presence.recordFor, presence.statusFor, userId],
   );
 
+  /**
+   * The account the window was opened to ask, or null when it was not opened for one.
+   *
+   * The name is read from the directory rather than from the address, so a hand-written
+   * `?challenge=<id>` link cannot label somebody as somebody else. An id the directory has never
+   * heard of is still askable - the store knows both accounts - and falls back to the id itself.
+   */
+  const challengeOpponent = useMemo(() => {
+    if (focus.kind !== 'challenge') return null;
+
+    return {
+      id: focus.opponentId,
+      displayName: accounts.find((account) => account.id === focus.opponentId)?.displayName ?? focus.opponentId,
+    };
+  }, [accounts, focus]);
+
+  /** Why the invitation cannot be sent yet, or null when it can: `lib/games/challenges.ts` decides. */
+  const challengeRefusalText =
+    challengeOpponent === null
+      ? null
+      : challengeRefusal({
+          viewerId: userId,
+          targetId: challengeOpponent.id,
+          targetName: challengeOpponent.displayName,
+          status: presence.statusFor(challengeOpponent.id),
+        });
+
   return (
     <div className="space-y-3">
       {error === null ? null : (
@@ -212,6 +254,46 @@ export default function GamesHub() {
       )}
       {notice === null ? null : (
         <p className="rounded-none border-2 border-black bg-white px-2 py-1 text-[10px] font-bold text-black">{notice}</p>
+      )}
+
+      {/* What the window was opened to do, when a post's `[ CHALLENGE ]` opened it: the account is
+          already addressed and the game is already chosen, so the reader's next press is the
+          invitation itself. The panel is navy because it is the thing being done, the same rule the
+          match window keeps. */}
+      {challengeOpponent === null ? null : (
+        <section className={PANEL}>
+          <div className={TITLE_BAR}>
+            <span className="truncate">CHALLENGE // {challengeOpponent.displayName.toUpperCase()}</span>
+            <span>{challengeRefusalText === null ? '[ READY ]' : '[ NOT YET ]'}</span>
+          </div>
+
+          <div className="space-y-2 p-2 text-[10px] font-bold text-black">
+            <p className="leading-relaxed">
+              ASK {challengeOpponent.displayName.toUpperCase()} FOR A GAME. THE BOARD OPENS ON BOTH SCREENS THE
+              MOMENT THEY ANSWER, AND THE BELL TELLS THEM IT IS WAITING.
+            </p>
+
+            <p className="flex flex-wrap items-center gap-2">
+              PLAYING:
+              <GameChoice value={chosen} onChange={setChosen} />
+            </p>
+
+            <p className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={PLATE_LARGE}
+                disabled={busy !== null || challengeRefusalText !== null}
+                onClick={() => void invitePlayer(challengeOpponent)}
+              >
+                {busy === challengeOpponent.id ? '[ ASKING... ]' : '[ SEND INVITATION ]'}
+              </button>
+
+              {challengeRefusalText === null ? null : (
+                <span className="text-[#800000]">{challengeRefusalText}</span>
+              )}
+            </p>
+          </div>
+        </section>
       )}
 
       {solo === null && match === null ? null : (
@@ -341,20 +423,11 @@ export default function GamesHub() {
         </div>
 
         <div className="space-y-2 p-2">
+          {/* Two plates rather than a drop-down: a choice this small is made by pressing it, and a
+              menu would hide what the arcade carries behind one more press. */}
           <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
             INVITE THEM TO:
-            <select
-              className={FIELD_TIGHT}
-              value={chosen}
-              onChange={(event) => setChosen(event.target.value as GameId)}
-              aria-label="Which game to invite somebody to"
-            >
-              {GAME_CATALOGUE.map((game) => (
-                <option key={game.id} value={game.id}>
-                  {game.title}
-                </option>
-              ))}
-            </select>
+            <GameChoice value={chosen} onChange={setChosen} />
           </p>
 
           {userId === null ? (
@@ -423,5 +496,31 @@ function InviteLine({
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * The games as plates: a choice made by pressing it.
+ *
+ * A drop-down was what this screen had, and it asked a reader to open a menu to find out what the
+ * arcade carries. The plates say it out loud, and the chosen one is drawn pressed and taken out of
+ * the tab order - the same shape the account page's own tab strip uses (`PLATE_PRESSED`).
+ */
+function GameChoice({ value, onChange }: { value: GameId; onChange: (game: GameId) => void }) {
+  return (
+    <span className="inline-flex flex-wrap items-center gap-2">
+      {GAME_CATALOGUE.map((game) => (
+        <button
+          key={game.id}
+          type="button"
+          onClick={() => onChange(game.id)}
+          aria-pressed={value === game.id}
+          disabled={value === game.id}
+          className={value === game.id ? PLATE_PRESSED : PLATE}
+        >
+          {game.title}
+        </button>
+      ))}
+    </span>
   );
 }

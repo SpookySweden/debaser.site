@@ -132,14 +132,14 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             <p>
               {user === null
                 ? 'SIGN IN TO SEND SOMEBODY A MESSAGE.'
-                : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE.'}
+                : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
             </p>
             <p className="text-gray-700">
               <Link href="/forum" className="underline hover:bg-gray-300">
                 [ BOARD ]
               </Link>{' '}
-              <Link href="/games" className="underline hover:bg-gray-300">
-                [ GAMES ]
+              <Link href="/forum?arcade=1" className="underline hover:bg-gray-300">
+                [ ARCADE ]
               </Link>{' '}
               <Link href="/comms" className="underline hover:bg-gray-300">
                 [ COMMS ]

@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { Silkscreen } from 'next/font/google';
+import { Suspense } from 'react';
+import ArcadeWindow from './components/ArcadeWindow';
 import AuthProvider from './components/AuthProvider';
 import CommsNotifier from './components/CommsNotifier';
 import CommsProvider from './components/CommsProvider';
@@ -61,6 +63,13 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     <CommsNotifier />
                     {/* ...and the player's bar sits over every page, docked to the bottom. */}
                     <MusicPlayer />
+                    {/* The arcade is a window rather than a page: a post's `[ CHALLENGE ]`, the
+                        header's key and the bell's invitation all open it over whatever the reader
+                        was on (see ./components/ArcadeWindow.tsx). It reads the address, so it is
+                        drawn behind a boundary: the layout stays static, the window catches up. */}
+                    <Suspense fallback={null}>
+                      <ArcadeWindow />
+                    </Suspense>
                   </MusicPlayerProvider>
                 </NotificationsProvider>
               </CommsProvider>
