@@ -117,6 +117,17 @@ export type ProfileComment = {
   /** The same, for the song beside the picture. */
   songVersionId?: string;
   songVersionNumber?: number;
+  /**
+   * Set when the profile's owner has pinned the comment.
+   *
+   * A pin does not change a word of what was written: it decides that this is one of the
+   * remarks the page wants read, so the wire leads a run of three with it (see ./feed). Only a
+   * comment on the profile *itself* can be pinned, because the picture's and the track's
+   * threads have crawls of their own under the element they belong to.
+   */
+  pinned?: boolean;
+  /** When the pin was taken, so the newest pin takes the first of the three-row turns. */
+  pinnedAt?: string;
 };
 
 export type PublicProfile = {
@@ -200,6 +211,9 @@ export type ProfileCommentKind = ProfileComment['kind'];
  *   `giveTag`             -> insert into profile_tags (given_by = auth.uid())
  *   `setTagVisibility`    -> update profile_tags set hidden where the owner matches
  *   `addComment`          -> insert into profile_comments (kind, avatar_version_id)
+ *   `setCommentPin`       -> update profile_comments set pinned, pinned_at where the owner matches
+ *                            (`user_id = auth.uid()`, and the guard trigger in supabase/schema.sql
+ *                            section 19 refuses any change to the words themselves)
  *   `subscribe`           -> `supabase.channel('profiles').on('postgres_changes', ...)`
  *   `markSeen`            -> `update profiles set last_seen_at = now(), is_online = true where id = auth.uid()`
  *   `markOffline`         -> `update profiles set is_online = false where id = auth.uid()`
@@ -220,7 +234,9 @@ export type ProfileCommentKind = ProfileComment['kind'];
  * only by the owner (`auth.uid() = user_id`) except `giveTag` / `addComment`,
  * which any signed-in user may insert - the owner included, since tagging and
  * commenting on your own page is the same action as doing it on somebody else's -
- * and only their author may delete.
+ * and only their author may delete. A pinned comment is the one place the two
+ * meet: the profile's owner may take a pin on and off a comment somebody else
+ * wrote, and nothing else about it (section 19's trigger refuses the rest).
  *
  * Seeding: the house account (see app/lib/auth/builtin-account.ts) needs its
  * profile row up front, because its dark blue name is drawn on every post an item
@@ -249,6 +265,16 @@ export type ProfileRepository = {
   giveTag(userId: string, input: GiveTagInput): Promise<PublicProfile>;
   removeTag(userId: string, tagId: string): Promise<PublicProfile>;
   addComment(userId: string, input: AddProfileCommentInput): Promise<PublicProfile>;
+  /**
+   * Pin, or unpin, a comment left on the profile itself.
+   *
+   * The owner's mark, and the board's pinned post in miniature: it changes nothing about what
+   * was written, it decides which remark the page wants read - so the wire leads its next run
+   * of three with it (see ./feed), and the comments list says `PINNED` beside it. Only the
+   * profile's owner can take one, and only on a comment on the profile itself (the picture's
+   * and the track's remarks are read in their own crawls, under the element they belong to).
+   */
+  setCommentPin(userId: string, commentId: string, pinned: boolean): Promise<PublicProfile>;
   /** Realtime hook: fires with a fresh snapshot whenever a profile changes. */
   subscribe(listener: (profile: PublicProfile) => void): () => void;
 

@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import type { ReactNode } from 'react';
 import { authorTag } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { commentTag } from '../lib/profile/elements';
@@ -60,6 +61,16 @@ type CommentRowProps = {
    * pinning it.
    */
   pinnedLabel?: string;
+  /**
+   * A control the caller hangs on the row: the profile's pin, at the moment.
+   *
+   * It is drawn at the end of the line that names who wrote the comment - after the tag and the
+   * plate a pinned one wears - so whatever a row can be asked to do sits with the row's own
+   * facts rather than floating beside it. The row does not know what it is: the same control is
+   * drawn on the comments list and nowhere else, because a wire going past is not a place
+   * anything can be pressed.
+   */
+  action?: ReactNode;
 };
 
 /**
@@ -71,7 +82,7 @@ type CommentRowProps = {
  * those places, which is the point of settling on it rather than writing a second one per
  * surface.
  */
-export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel }: CommentRowProps) {
+export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
     <span className="border border-black bg-[#800000] px-1 text-[9px] font-bold text-white">
@@ -92,6 +103,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
           <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
         )}
         {pinned}
+        {action}
         <TimeStamp at={data.createdAt} className="text-[9px]" />
 
         {href === undefined ? (
@@ -116,6 +128,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
             <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
           )}
           {pinned}
+          {action}
         </span>
         <TimeStamp at={data.createdAt} />
       </div>

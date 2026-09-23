@@ -553,6 +553,37 @@ class MockProfileRepository implements ProfileRepository {
     });
   }
 
+  /**
+   * The owner's pin on a comment left on the profile itself.
+   *
+   * Nothing about the comment changes but the mark and the moment it was taken: the words, the
+   * byline and the time stay exactly as their author filed them, which is the whole point of a
+   * pin being a separate thing rather than an edit. Only a comment on the profile *itself* can
+   * carry one - the picture's and the track's remarks are read in the crawls under those
+   * elements, so a pin on one of them would have nowhere to lead.
+   */
+  async setCommentPin(userId: string, commentId: string, pinned: boolean): Promise<PublicProfile> {
+    return this.write(userId, (profile) => {
+      const target = profile.comments.find((comment) => comment.id === commentId);
+      if (target === undefined) throw new Error('THAT COMMENT IS NOT ON THIS PROFILE.');
+      if (target.kind !== 'profile') {
+        throw new Error('ONLY A COMMENT ON THE PROFILE ITSELF CAN BE PINNED.');
+      }
+
+      return {
+        ...profile,
+        comments: profile.comments.map((comment) =>
+          comment.id === commentId
+            ? {
+                ...comment,
+                ...(pinned ? { pinned: true, pinnedAt: new Date().toISOString() } : { pinned: false, pinnedAt: undefined }),
+              }
+            : comment,
+        ),
+      };
+    });
+  }
+
   subscribe(listener: Listener): () => void {
     listeners.add(listener);
 

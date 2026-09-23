@@ -1504,3 +1504,91 @@ begin
     alter publication supabase_realtime add table public.forum_pins;
   end if;
 end $$;
+
+-- -----------------------------------------------------------------------------
+-- 19. Pinned comments on a profile: the owner's mark, and what it may not touch.
+-- -----------------------------------------------------------------------------
+-- Also shipped on its own as supabase/migrations/20260926_profile_comment_pins.sql, for a
+-- project that has already had the rest of this file run against it.
+--
+-- The board's pin in miniature, and without a deadline. Pinning a comment on your own profile does
+-- one thing: it takes the leading row of every run of three on that profile's wire
+-- (app/lib/profile/feed.ts), so a remark the page wants read keeps coming back round as the strip
+-- goes past. Nothing sweeps a pin up - it stays until the owner takes it off.
+--
+-- It is a pair of columns on the comment rather than a table of its own, which is the opposite of
+-- what `forum_pins` does above, deliberately. A board pin is the *archive's* decision about
+-- somebody else's post and outlives edits to it, while a profile pin is the page owner's own mark
+-- on a comment that lives on that page and dies with it: one row per comment, two columns, nothing
+-- to join. `pinned_at` is there because pins lead the wire in turn and the newest takes the first
+-- turn.
+--
+-- Who may pin: the profile's owner, on a comment on the profile *itself* (kind = 'profile'). The
+-- update policy below is what lets that write through, and the guard trigger is what keeps it a
+-- pin rather than an edit - a policy cannot say which columns a write may touch, and without the
+-- trigger the owner could rewrite what somebody said about them.
+
+alter table public.profile_comments
+  add column if not exists pinned boolean not null default false;
+
+alter table public.profile_comments
+  add column if not exists pinned_at timestamptz;
+
+-- The wire reads a profile's comments with the pinned ones to hand, newest pin first.
+create index if not exists profile_comments_pinned_idx
+  on public.profile_comments (user_id, pinned_at desc) where pinned;
+
+drop policy if exists "profile comments pinned by owner" on public.profile_comments;
+create policy "profile comments pinned by owner" on public.profile_comments
+  for update using (user_id = auth.uid() and kind = 'profile')
+  with check (user_id = auth.uid() and kind = 'profile');
+
+-- The guard. `auth.uid()` inside a trigger is still the caller's, whoever's privileges the body
+-- runs with (the same note section 16 makes), and a null caller is the SQL editor or the service
+-- role - the way a repair is made - and is left alone.
+create or replace function public.profile_comments_guard_pin()
+returns trigger
+language plpgsql
+set search_path = public
+as $$
+declare
+  caller uuid := auth.uid();
+begin
+  if new.user_id is distinct from old.user_id
+     or new.kind is distinct from old.kind
+     or new.author_id is distinct from old.author_id
+     or new.author_label is distinct from old.author_label
+     or new.body is distinct from old.body
+     or new.created_at is distinct from old.created_at
+     or new.avatar_version_id is distinct from old.avatar_version_id
+     or new.song_version_id is distinct from old.song_version_id then
+    if caller is not null and caller is distinct from old.author_id then
+      raise exception 'only the author may change a comment - the profile owner may take its pin on and off'
+        using errcode = 'insufficient_privilege';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists profile_comments_guard_pin on public.profile_comments;
+create trigger profile_comments_guard_pin
+  before update on public.profile_comments
+  for each row execute function public.profile_comments_guard_pin();
+
+-- `profile_comments` had never been published, so a comment on a profile has never appeared on an
+-- open page without a reload - the profile channel subscribes to it
+-- (app/lib/profile/supabase-profile-repository.ts) and a channel bound to a table that is not in
+-- the publication reports SUBSCRIBED and then delivers nothing. Guarded like every other entry, so
+-- this stays re-runnable.
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'profile_comments'
+  ) then
+    alter publication supabase_realtime add table public.profile_comments;
+  end if;
+end $$;
+

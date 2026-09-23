@@ -17,6 +17,7 @@ It creates:
   profile_avatar_versions   the append-only picture history
   profile_tags              tags other accounts gave somebody
   profile_comments          comments on a profile, and on one picture version
+                            (the owner pins one to the wire - section 19)
   forum_threads             the board's posts
   forum_comments            replies, including the auto-filed item threads
   comms_threads             one row per conversation: a pair of accounts, or a group
@@ -46,6 +47,13 @@ to re-run. Until section 17 is in, the bell is empty rather than broken: posting
 tagging all still work, and the tag is simply not delivered - see Notifications below. Until
 section 18 is in, the board works and nothing can be pinned: the pin controls and the
 moderators' panel answer with the store's own words rather than half-working.
+
+Section 19 (pinned comments on a profile) is `supabase/migrations/20260926_profile_comment_pins.sql`,
+safe to re-run too. Until it is in, the profile page is exactly as it was: comments read and file
+as normal, the pin button beside each one answers with the database's own words rather than
+half-working, and the wire draws every comment in its scattered order with no `PINNED` plate. The
+same file also publishes `profile_comments` to Realtime, which it never was - see Pinned comments
+on a profile below.
 
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
@@ -396,6 +404,42 @@ the app or with
   delete from public.forum_threads where title = 'PINNED TO THE TOP' and anchor_kind = 'board';
 
 (which takes the pin with it, by the same cascade the table keeps).
+
+Pinned comments on a profile
+----------------------------
+Section 19 adds two columns to `profile_comments` - `pinned` and `pinned_at` - and they are the
+board's pin in miniature, without a deadline. Pinning a comment on your own profile does one thing:
+it takes the leading row of every run of three on that profile's wire, so a remark the page wants
+read keeps coming back round as the strip goes past. A pin never lapses; it stays until the owner
+takes it off.
+
+  - **Two columns, not a table.** Which is the opposite of what section 18 does, deliberately: a
+    board pin is the *archive's* decision about somebody else's post and outlives edits to it,
+    while a profile pin is the page owner's own mark on a comment that lives on that page and dies
+    with it. One row per comment, two columns, nothing to join.
+  - **Who.** The profile's owner, and only on a comment on the profile *itself* (`kind =
+    'profile'`): the picture's and the track's remarks are read in the crawls under those elements,
+    so a pin on one of them would have nowhere to lead. Both stores refuse anybody else, and the
+    policy refuses again.
+  - **What it may not touch.** The update policy is written for the owner's own page, but a policy
+    cannot say *which* columns a write may touch - on its own it would hand an owner the right to
+    rewrite what somebody said about them. The `profile_comments_guard_pin` trigger is what closes
+    that: it lets a change to `pinned` / `pinned_at` through and refuses any change to the words,
+    the byline, the time, the element a comment was written about, or whose page it is on, unless
+    the writer is the comment's own author. A null caller - the SQL editor, the service role - is
+    left alone, the way section 16's guard does it.
+  - **Where it shows.** A small blue pushpin beside each comment in the `COMMENTS ON THIS PROFILE`
+    list, drawn for the owner and nobody else; a comment that is pinned wears the same `PINNED`
+    plate the wire draws, and the panel's title bar counts them (`[ 3 VISIBLE :: 1 PINNED ]`). On
+    the wire under the two columns, one row in every three is a pinned comment, the pins taking the
+    leading row in turn and everything else filling the two behind them
+    (app/lib/profile/feed.ts). Nothing pinned means every comment in its scattered order.
+
+The same file puts `profile_comments` in the `supabase_realtime` publication, which it had never
+been in: the profile channel has always subscribed to that table, and a channel bound to a table
+that is not published reports SUBSCRIBED and then delivers nothing at all - from any of its tables.
+So this section is also what makes a comment left on a profile appear on an open page without a
+reload, pins included.
 
 Tags
 ----

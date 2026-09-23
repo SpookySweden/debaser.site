@@ -11,9 +11,10 @@ import {
 } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { presenceLabel } from '../lib/profile/presence';
+import { getProfileRepository } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { PROFILE_COMMENTS_ANCHOR } from '../lib/profile/feed';
+import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
 import { canCommentOnProfile, profileComments, visibleProfileComments } from '../lib/profile/visibility';
 import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
@@ -23,6 +24,7 @@ import { useForum } from './ForumProvider';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
+import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
@@ -185,15 +187,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 playing={(element) => player.track?.src === element.src && player.playing}
               />
             )}
-
-          {/* The empty room a profile has to the right of the drawing, under the track and
-              its remarks: this profile's own comments run across it, transparent, the full
-              width of the column rather than boxed into a panel of its own. */}
-            <div className="pt-1">
-              <ProfileWire userId={userId} comments={comments} />
-            </div>
           </div>
         </div>
+
+        {/* The profile's own comments, crawling the whole width of the window under both
+            columns. It used to sit in the wide column beside the drawing, under the track and
+            its remarks, which meant the wire crossed a third of the page; a wire is a line, and
+            this is the one line this page has, so it gets the width. It draws nothing at all
+            until somebody has commented - the panel at the foot of the page is where a reader
+            goes to say something, and the crawl is where it is read back. */}
+        <ProfileWire userId={userId} comments={comments} />
 
 
         {/* The account's own details, under the two columns: they are read once, while the
@@ -285,6 +288,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         visibility={profile.visibility}
         comments={comments}
         hiddenCount={owner ? profileComments(profile).length - comments.length : 0}
+        userId={userId}
+        repository={repository}
       />
     </div>
   );
@@ -296,6 +301,9 @@ type CommentsSectionProps = {
   visibility: ProfileVisibility;
   comments: ReturnType<typeof profileComments>;
   hiddenCount: number;
+  /** The account whose page this is, and the store the pin is taken on. */
+  userId: string;
+  repository: ReturnType<typeof getProfileRepository>;
 };
 
 /**
@@ -306,9 +314,24 @@ type CommentsSectionProps = {
  * has one comment control, above both columns, and `general` is one of its three options, so
  * this section only reads. Folded is the default, because a profile reads as a picture and a
  * track rather than as a comment page.
+ *
+ * It is also where a pin is taken, and only the owner is handed the control: a small blue
+ * pushpin beside each comment, which pins it to the wire's every-third row and unpins it again
+ * (see ./ProfileCommentPin, and ../lib/profile/feed on the run of threes). A comment that is
+ * already pinned wears the same `PINNED` plate the wire draws, so the list and the strip agree
+ * about which remarks have been lifted.
  */
-function CommentsSection({ owner, visibility, comments, hiddenCount }: CommentsSectionProps) {
+function CommentsSection({
+  owner,
+  visibility,
+  comments,
+  hiddenCount,
+  userId,
+  repository,
+}: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
+  const pinned = comments.filter((comment) => comment.pinned === true).length;
+  const visible = visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER';
 
   return (
     <section
@@ -317,7 +340,7 @@ function CommentsSection({ owner, visibility, comments, hiddenCount }: CommentsS
     >
       <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
         <span>COMMENTS ON THIS PROFILE</span>
-        <span>[ {visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER'} ]</span>
+        <span>[ {visible}{pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]</span>
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-black">
@@ -354,7 +377,23 @@ function CommentsSection({ owner, visibility, comments, hiddenCount }: CommentsS
           ) : (
             <ul className="space-y-1">
               {comments.map((comment) => (
-                <CommentRow key={comment.id} data={commentRowData(comment)} />
+                <CommentRow
+                  key={comment.id}
+                  data={commentRowData(comment)}
+                  {...(comment.pinned === true ? { pinnedLabel: PROFILE_PIN_LABEL } : {})}
+                  {...(owner
+                    ? {
+                        action: (
+                          <ProfileCommentPin
+                            userId={userId}
+                            commentId={comment.id}
+                            pinned={comment.pinned === true}
+                            repository={repository}
+                          />
+                        ),
+                      }
+                    : {})}
+                />
               ))}
             </ul>
           )}

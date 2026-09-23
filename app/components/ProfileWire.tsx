@@ -20,28 +20,30 @@ type ProfileWireProps = {
  * as the board's strip, but the material is the conversation the page is actually about, and a row
  * opens the comments panel underneath it.
  *
- * It is drawn the way the crawl under a comment on the board is: **transparent**, no box of its
- * own, so it reads as a line running across the surface the profile is already made of rather than
- * as another panel stacked on it. It is meant to fill the empty room a profile has to the right of
- * the drawing, under the track and its remarks, and to reach the full width of that space instead
- * of sitting in a column.
+ * It is one full-width line and nothing else: **no heading and no placeholder**. A strip of text
+ * saying "NEWSWIRE :: COMMENTS ON THIS PROFILE - NOTHING YET" told a reader what the line was
+ * before there was a line to read, and stood in the middle of the page doing it; the crawl says
+ * what it is by crawling, and a profile nobody has commented on simply has no wire. It ran in the
+ * column beside the drawing, which gave it a third of the page to cross - it now spans the window
+ * under both columns, since a wire is a line and a line wants the width.
+ *
+ * One row in every three is a comment the owner pinned, drawn with the `PINNED` plate the board's
+ * pinned posts wear, so the strip goes past as a run of threes rather than a list (see
+ * ../lib/profile/feed on why).
  */
 export default function ProfileWire({ userId, comments }: ProfileWireProps) {
   const items = buildProfileNewsFeed(comments, { userId });
 
-  return (
-    <div className="min-w-0 flex-1">
-      <div className="flex flex-wrap items-baseline justify-between gap-x-2 text-[10px] font-bold text-gray-700">
-        <span>NEWSWIRE :: COMMENTS ON THIS PROFILE</span>
-        <span>{items.length === 0 ? 'NOTHING YET' : `${items.length} ITEMS`}</span>
-      </div>
+  // Nothing said yet, so nothing to draw: an empty crawl with a caption under it would be a
+  // placeholder for a conversation, and the panel at the foot of the page is where a reader who
+  // wants to leave one goes.
+  if (items.length === 0) return null;
 
-      {/* A dashed rule, the way the crawl under a comment is separated from what is above it. */}
-      <NewsCrawl
-        items={items}
-        className="mt-1 overflow-hidden border-t border-dashed border-gray-400 pt-1"
-        emptyLabel="NOBODY HAS COMMENTED ON THIS PROFILE YET - WHAT THEY SAY APPEARS HERE AS SOON AS THEY DO."
-      />
+  return (
+    // The dashed rule spans the whole window, the way the crawl under a comment is separated from
+    // what is above it; the crawl itself is clipped to the window's own padding.
+    <div className="border-t border-dashed border-gray-400 px-3 py-1">
+      <NewsCrawl items={items} className="overflow-hidden" />
     </div>
   );
 }

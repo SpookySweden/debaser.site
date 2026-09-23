@@ -104,6 +104,14 @@ type CommentRow = {
   author_label: string;
   body: string;
   created_at: string;
+  /**
+   * The owner's pin (section 19 of supabase/schema.sql). Optional in this shape so a project
+   * that has not run that section yet answers `undefined` rather than breaking the whole read
+   * of the profile: an unpinned comment and a profile that does not know about pins look the
+   * same, which is what it should do.
+   */
+  pinned?: boolean | null;
+  pinned_at?: string | null;
 };
 
 type ProfileRow = {
@@ -209,6 +217,10 @@ function toProfile(row: ProfileRow): PublicProfile {
           ...(attachedSong === undefined
             ? {}
             : { songVersionId: attachedSong.id, songVersionNumber: attachedSong.version }),
+          ...(comment.pinned === true ? { pinned: true } : {}),
+          ...(comment.pinned_at === null || comment.pinned_at === undefined
+            ? {}
+            : { pinnedAt: comment.pinned_at }),
         };
       })
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
@@ -547,6 +559,33 @@ class SupabaseProfileRepository implements ProfileRepository {
       });
 
     if (error !== null) this.fail(error.message);
+
+    return this.requireProfile(userId);
+  }
+
+  /**
+   * The owner's pin on a comment left on the profile itself.
+   *
+   * One update, and only the two columns the pin owns: `pinned` and the moment it was taken. The
+   * words stay as their author filed them - the database's guard trigger (section 19) refuses a
+   * write from anybody but the author that touches anything else, so an owner can lift a comment
+   * to the front of the wire without being able to rewrite it.
+   *
+   * `kind = 'profile'` and `user_id` are both in the filter, so the owner can only pin a comment
+   * on their own page, and only one on the profile itself. A filter that matches nothing is an
+   * error rather than a silent success - the screen should say so rather than pretend.
+   */
+  async setCommentPin(userId: string, commentId: string, pinned: boolean): Promise<PublicProfile> {
+    const { data, error } = await this.client()
+      .from(COMMENTS_TABLE)
+      .update({ pinned, pinned_at: pinned ? new Date().toISOString() : null })
+      .eq('id', commentId)
+      .eq('user_id', userId)
+      .eq('kind', 'profile')
+      .select('id');
+
+    if (error !== null) this.fail(error.message);
+    if ((data ?? []).length === 0) throw new Error('THAT COMMENT IS NOT ON THIS PROFILE.');
 
     return this.requireProfile(userId);
   }
