@@ -100,13 +100,20 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
     setReplyError(null);
 
     try {
-      await forum.addComment({
-        body,
-        threadId: thread.id,
-        userTags: replyTags,
-        media: ARCHIVE_MEDIA.find((item) => item.id === replyMediaId)?.preview,
-        ...(replyTrack === null ? {} : { track: replyTrack }),
-      });
+      // A thread read off a profile is that page collecting its comments: the words belong in the
+      // profile store (where the owner's switch and a pinned remark live), so the reply is filed
+      // there and read back as this same thread. Everything else is a board reply as usual.
+      if (thread.anchor.kind === 'profile') {
+        await forum.addProfileComment(thread.anchor, body);
+      } else {
+        await forum.addComment({
+          body,
+          threadId: thread.id,
+          userTags: replyTags,
+          media: ARCHIVE_MEDIA.find((item) => item.id === replyMediaId)?.preview,
+          ...(replyTrack === null ? {} : { track: replyTrack }),
+        });
+      }
 
       // A reply to the post tags whoever wrote it, plus anybody the words name.
       await notifications.notifyTagged({

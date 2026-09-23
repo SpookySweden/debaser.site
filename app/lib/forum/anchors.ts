@@ -1,4 +1,5 @@
 import { CONCEPT_SHEETS } from '../concepts/sheets';
+import type { ProfileCommentKind } from '../profile/types';
 import type { ForumAnchor, ForumPreview } from './types';
 
 /**
@@ -91,6 +92,89 @@ export function threadDomId(threadId: string): string {
 }
 
 /**
+ * A profile is a board anchor too.
+ *
+ * Everything on this site that can be commented on files into one thread per subject, and a profile
+ * is commentable in three places: the profile itself, one of its pictures, and the track beside the
+ * picture. Each of those is its own subject - a remark on somebody's drawing is not a remark on
+ * their page - so each is its own thread, and the anchor id says which one, including *which
+ * version* of a picture or track it was written against (a new drawing is a new thread, and the
+ * comments on the old one never silently re-point at it).
+ *
+ * The comment itself lives in the profile store, where the owner's comments switch and a pinned
+ * remark already work; these anchors are what lets the board read the same comments as threads and
+ * file an answer back (see app/lib/forum/profile-threads.ts and ForumProvider.addProfileComment).
+ */
+export type ProfileAnchorTarget = {
+  userId: string;
+  /** Which of the three: the page itself, the picture, or the track. */
+  kind: ProfileCommentKind;
+  /** Picture and track comments only: the version they were written against. */
+  versionId?: string;
+  /** The version's own number, for the label: `PICTURE v3 // SWEDEN`. */
+  versionNumber?: number;
+  /** Whose page it is, as the label spells it. */
+  displayName: string;
+};
+
+/** The stable id of the thread for that subject: `profile:<user>[:<aspect>[:<version>]]`. */
+export function profileAnchorId(target: ProfileAnchorTarget): string {
+  if (target.kind === 'profile') return `profile:${target.userId}`;
+
+  const aspect = target.kind === 'avatar' ? 'picture' : 'track';
+
+  // A comment from before pictures carried versions still belongs to the picture, not to the page:
+  // it files under `profile:<user>:<aspect>`, which is a thread of its own.
+  return target.versionId === undefined
+    ? `profile:${target.userId}:${aspect}`
+    : `profile:${target.userId}:${aspect}:${target.versionId}`;
+}
+
+/** What the thread is called on the board: the subject first, then whose page it is. */
+export function profileAnchorLabel(target: ProfileAnchorTarget): string {
+  const name = target.displayName.trim().length === 0 ? 'AN ACCOUNT' : target.displayName.toUpperCase();
+
+  if (target.kind === 'profile') return `PROFILE // ${name}`;
+
+  const aspect = target.kind === 'avatar' ? 'PICTURE' : 'TRACK';
+  const version = target.versionNumber === undefined ? '' : ` v${target.versionNumber}`;
+
+  return `${aspect}${version} // ${name}`;
+}
+
+/** The anchor the board files that subject under. */
+export function profileAnchor(target: ProfileAnchorTarget): ForumAnchor {
+  return {
+    kind: 'profile',
+    id: profileAnchorId(target),
+    label: profileAnchorLabel(target),
+    href: `/profile/${encodeURIComponent(target.userId)}`,
+  };
+}
+
+/**
+ * The subject an anchor was built from, so a reply knows what to write and where.
+ *
+ * Null for anything that is not a profile anchor, which is what every caller asks first: an answer
+ * on a profile thread is filed as a profile comment (in the profile store), and an answer anywhere
+ * else is a board comment.
+ */
+export function profileAnchorTarget(anchor: ForumAnchor): Omit<ProfileAnchorTarget, 'displayName'> | null {
+  if (anchor.kind !== 'profile') return null;
+
+  const parts = anchor.id.split(':');
+  const userId = parts[1];
+  if (userId === undefined || userId.length === 0) return null;
+
+  const aspect = parts[2];
+  const versionId = parts.slice(3).join(':');
+
+  if (aspect === 'picture') return { userId, kind: 'avatar', ...(versionId.length === 0 ? {} : { versionId }) };
+  if (aspect === 'track') return { userId, kind: 'song', ...(versionId.length === 0 ? {} : { versionId }) };
+
+  return { userId, kind: 'profile' };
+}
+/**
  * DOM id of one reply, so a post can be opened straight onto the reply somebody came for.
  *
  * That is what the board does when a tag filter matched a reply rather than the post itself: a
@@ -124,6 +208,9 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   board: '/forum',
   asset: '/concepts',
   'text-box': '/',
+  // A profile anchor always carries its own href (`profileAnchor` builds it); this is the fallback
+  // for a row written by hand, and the directory is where an account is looked up.
+  profile: '/users',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {

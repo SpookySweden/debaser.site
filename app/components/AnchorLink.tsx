@@ -44,7 +44,13 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
         {label}
       </Link>
 
-      {preview === 'none' ? null : (
+      {/*
+        A page is not an artwork slot. Everywhere else the hover box is either the drawing itself
+        or the `[ KIND ] ITEM` notice that says a drawing is expected there - and a profile has
+        neither, so its link stays a link. A board thread filed under a page still carries the page
+        label and still opens it; there is simply nothing to pop over it.
+      */}
+      {preview === 'none' || anchor.kind === 'profile' ? null : (
         <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-48 border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-1 group-hover/link:block">
           {target.preview === undefined ? (
             <span className="block border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 text-[10px] font-bold text-black">

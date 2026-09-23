@@ -20,8 +20,8 @@ export type ForumTag = {
   colour?: string;
 };
 
-/** Where a thread came from: the board itself, a hand-drawn asset, or a text box. */
-export type ForumAnchorKind = 'board' | 'asset' | 'text-box';
+/** Where a thread came from: the board itself, a hand-drawn asset, a text box, or a profile. */
+export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile';
 
 /** Artwork preview shown when hovering a link back to the item. */
 export type ForumPreview = {

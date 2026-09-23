@@ -202,6 +202,21 @@ export type GiveTagInput = {
 export type ProfileCommentKind = ProfileComment['kind'];
 
 /**
+ * One comment as the board reads it: the comment, and whose page carries it.
+ *
+ * The board shows profile comments as threads of their own (see app/lib/forum/profile-threads.ts),
+ * so it needs them as a list rather than one page at a time - with the name to label the thread by,
+ * and only from pages whose owner has left comments on.
+ */
+export type ProfileCommentEntry = {
+  comment: ProfileComment;
+  /** The account whose page carries it. */
+  userId: string;
+  /** That account's name, for the thread's label. */
+  displayName: string;
+};
+
+/**
  * Storage contract for profiles.
  *
  * Supabase swap-in plan (build order step 3, alongside the forum tables):
@@ -266,6 +281,14 @@ export type ProfileRepository = {
   giveTag(userId: string, input: GiveTagInput): Promise<PublicProfile>;
   removeTag(userId: string, tagId: string): Promise<PublicProfile>;
   addComment(userId: string, input: AddProfileCommentInput): Promise<PublicProfile>;
+  /**
+   * Every comment the store holds, newest first, with the page it was left on.
+   *
+   * The board reads this and shows each page's comments as its own threads; a page whose owner has
+   * switched comments off is left out, so the switch still means what it says. One read rather than
+   * one per profile: the board is one page and cannot ask a thousand pages for their comments.
+   */
+  listCommentFeed(limit?: number): Promise<ProfileCommentEntry[]>;
   /**
    * Pin, or unpin, a comment left on the profile.
    *

@@ -67,6 +67,20 @@ export const PROJECT_NOTES: ProjectNote[] = [
     hrefLabel: '[ FORUM BOARD ]',
   },
   {
+    id: 'note-profile-comments-on-the-board',
+    title: 'PROFILE COMMENTS ON THE BOARD',
+    kinds: ['BOARD', 'ACCOUNTS'],
+    filed: '2026-09-23T14:00:00.000Z',
+    body: [
+      'A profile can be commented on in three places - the page itself, one of its pictures, and the track beside the picture - and each of those is a subject of its own on the board: a remark on somebody`s drawing is not a remark on their page, and a remark on v3 of a drawing is not a remark on v7 of it. So each files as its own thread, labelled with what it is: `PROFILE // [name]`, `PICTURE v3 // [name]`, `TRACK v2 // [name]`.',
+      'The words stay where they were written, in the profile`s own comment list, which is what keeps two things that a board comment has no place for: the owner`s switch (this page does not carry comments) and the owner`s pin on a single remark. The board shows exactly what the page shows the reader and nothing wider, because the same row-level rules decide what arrives - and a reply written on the board is filed as a profile comment, against the same version, so both surfaces read the same row back.',
+      'On the board they behave like any other thread: `PROFILE COMMENTS` on the source filter, tags read out of the words so the tag filter and the search reach them, the header crediting the site as it does for an asset`s own thread, and the card linking back to the page it came from. Answering one from the board is answering it on the page.',
+    ],
+    href: '/forum',
+    hrefLabel: '[ FORUM BOARD ]',
+  },
+
+  {
     id: 'note-who-may-write-a-lore-page',
     title: 'WHO MAY WRITE A LORE PAGE',
     kinds: ['LORE', 'HOUSE RULES'],

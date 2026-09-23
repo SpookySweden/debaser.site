@@ -22,6 +22,7 @@ import type {
   GiveTagInput,
   GivenTag,
   ProfileComment,
+  ProfileCommentEntry,
   ProfilePatch,
   ProfileRepository,
   PublicProfile,
@@ -564,7 +565,91 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   /**
-   * The owner's pin on a comment the page carries.
+   * Every comment the store holds that this reader may see, newest first, with the page it was left
+   * on (see ProfileRepository.listCommentFeed).
+   *
+   * Two reads rather than a join: the comments, then the pages they belong to. What comes back is
+   * what the row-level policy allows - a comment is readable by the account whose page carries it,
+   * by whoever wrote it, and otherwise when the page's own switch for that aspect is on - so the
+   * board shows what the profile page would show a visitor and nothing wider. A third read, only
+   * when a comment is attached to a picture, names the version so two drawings are two threads.
+   */
+  async listCommentFeed(limit = 200): Promise<ProfileCommentEntry[]> {
+    // `*` rather than a column list, for the same reason the profile page reads its comments the
+    // same way: a project that has not run the sections which added `pinned`, `pinned_at` or
+    // `song_version_id` must still hand back the comments it does have, not an error about the ones
+    // it does not. Every column below is therefore read as absent-able.
+    const { data: commentRows, error } = await this.client()
+      .from(COMMENTS_TABLE)
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error !== null) this.fail(error.message);
+
+    const rows = (commentRows ?? []) as (CommentRow & { user_id: string })[];
+    const userIds = [...new Set(rows.map((row) => row.user_id))];
+
+    if (userIds.length === 0) return [];
+
+    const { data: pageRows, error: pageError } = await this.client()
+      .from(PROFILES_TABLE)
+      .select('id,display_name,show_profile_comments,show_avatar_comments,show_song_comments')
+      .in('id', userIds);
+
+    if (pageError !== null) this.fail(pageError.message);
+
+    const pages = new Map((pageRows ?? []).map((row) => [row.id, row]));
+    const versionIds = [
+      ...new Set(rows.map((row) => row.avatar_version_id).filter((id): id is string => id != null)),
+    ];
+    const numbers = new Map<string, number>();
+
+    if (versionIds.length > 0) {
+      const { data: versionRows } = await this.client().from(VERSIONS_TABLE).select('id,version').in('id', versionIds);
+
+      for (const version of versionRows ?? []) numbers.set(version.id, version.version);
+    }
+
+    return rows
+      .filter((row) => {
+        const page = pages.get(row.user_id);
+        if (page === undefined) return false;
+
+        // The same switches the profile page itself reads, per aspect.
+        if (row.kind === 'avatar') return page.show_avatar_comments;
+        if (row.kind === 'song') return page.show_song_comments;
+
+        return page.show_profile_comments;
+      })
+      .map((row) => {
+        const version = row.avatar_version_id == null ? undefined : numbers.get(row.avatar_version_id);
+
+        return {
+          comment: {
+            id: row.id,
+            kind: row.kind,
+            author: { id: row.author_id, displayName: row.author_label },
+            body: row.body,
+            createdAt: row.created_at,
+            ...(row.avatar_version_id == null
+              ? {}
+              : {
+                  avatarVersionId: row.avatar_version_id,
+                  ...(version === undefined ? {} : { avatarVersionNumber: version }),
+                }),
+            ...(row.song_version_id == null ? {} : { songVersionId: row.song_version_id }),
+            ...(row.pinned === true ? { pinned: true } : {}),
+            ...(row.pinned_at == null ? {} : { pinnedAt: row.pinned_at }),
+          },
+          userId: row.user_id,
+          displayName: pages.get(row.user_id)?.display_name ?? '',
+        };
+      });
+  }
+
+  /**
+   * Pin, or unpin, a comment the page carries.
    *
    * One update, and only the two columns the pin owns: `pinned` and the moment it was taken. The
    * words stay as their author filed them - the database's guard trigger (section 19) refuses a

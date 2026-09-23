@@ -17,7 +17,8 @@ It creates:
   profile_avatar_versions   the append-only picture history
   profile_tags              tags other accounts gave somebody
   profile_comments          comments on a profile, and on one picture version
-                            (the owner pins one to the wire - section 19)
+                            (the owner pins one to the wire - section 19; the board
+                            reads them as threads of its own - see below)
   profile_song_versions     the one track beside a picture (section 15)
   forum_threads             the board's posts, each able to carry an MP3 (section 5)
   forum_comments            replies, including the auto-filed item threads
@@ -354,6 +355,52 @@ drawings), `profiles.current_song_version_id` and `show_song_comments`, and
 with one set of read rules, holds all three surfaces (the profile, the picture, the track).
 Filing a song also updates `profiles`, which the profile channel already watches, so an
 open page shows the new track without a reload; nothing new needs publishing.
+
+### Those comments on the board
+
+The board shows them without a second copy of anything. `ForumProvider` reads
+`profile_comments` once (`listCommentFeed`), and `app/lib/forum/profile-threads.ts` files
+what comes back as one thread per subject - the page, each picture version, each track
+version - with tags read out of the words, the header crediting the house account as an
+asset's thread does, and the source filter offering them as `PROFILE COMMENTS`. Replying on
+such a thread is a profile write (`ForumProvider.addProfileComment`), so the owner's
+`show_*_comments` switches and a pinned remark keep working, and the profile page and the
+board read the same rows.
+
+No policy change was needed for this, and that is the point of doing it this way: the read
+policy on `profile_comments` already decides what a visitor may see - the row's own author,
+the page's owner, and otherwise the page's switch for that aspect. The board therefore shows
+exactly what the profile page shows a visitor, and nothing wider.
+
+**One gap in that policy, found while wiring this up.** The clause list in section 4 covers
+`kind = 'profile'` and `kind = 'avatar'`; section 15 added a `'song'` kind to the same table
+but no clause for it, so a track comment is readable only by whoever wrote it and by the
+account whose page carries it - a visitor reading somebody else's profile sees none of the
+comments left on their track, and so does the board. If track comments should be as public as
+picture comments, it is one clause (add it to the policy, or run this on its own):
+
+```sql
+drop policy if exists "profile comments readable" on public.profile_comments;
+create policy "profile comments readable" on public.profile_comments
+  for select using (
+    user_id = auth.uid()
+    or author_id = auth.uid()
+    or (kind = 'profile' and exists (
+      select 1 from public.profiles p where p.id = user_id and p.show_profile_comments
+    ))
+    or (kind = 'avatar' and exists (
+      select 1 from public.profiles p where p.id = user_id and p.show_avatar_comments
+    ))
+    or (kind = 'song' and exists (
+      select 1 from public.profiles p where p.id = user_id and p.show_song_comments
+    ))
+  );
+```
+
+It is left to the owner of the data to run: it is a visibility decision, not a bug fix.
+
+Section 19's pin columns are read too: a pinned remark still leads the profile's wire, and it
+is the same row the board draws.
 
 A project that has been live since before either section needs them run on their own:
 `supabase/migrations/20260921_music_and_profile_songs.sql`, safe to re-run.

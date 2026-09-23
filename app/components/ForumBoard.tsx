@@ -24,6 +24,9 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'board', label: 'BOARD THREADS' },
   { value: 'asset', label: 'ASSET THREADS' },
   { value: 'text-box', label: 'TEXT BOX THREADS' },
+  // Comments left on a profile, a picture, or the track beside it: the board reads them as threads
+  // of their own (app/lib/forum/profile-threads.ts), so they can be filtered like everything else.
+  { value: 'profile', label: 'PROFILE COMMENTS' },
 ];
 
 /** Posts-per-page choices offered at the foot of the board. */

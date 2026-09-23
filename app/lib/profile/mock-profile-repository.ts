@@ -32,6 +32,7 @@ import type {
   GiveTagInput,
   GivenTag,
   ProfileComment,
+  ProfileCommentEntry,
   ProfilePatch,
   ProfileRepository,
   PublicProfile,
@@ -551,6 +552,29 @@ class MockProfileRepository implements ProfileRepository {
 
       return { ...profile, comments: [...profile.comments, comment] };
     });
+  }
+
+  /**
+   * Every comment the store holds, newest first, with the page it was left on.
+   *
+   * The board shows these as threads of their own (app/lib/forum/profile-threads.ts), so this is the
+   * one read that feeds it. A page whose owner has switched comments off is left out: the switch is
+   * about the page carrying comments at all, and the board is a reading of those pages.
+   */
+  async listCommentFeed(limit = 200): Promise<ProfileCommentEntry[]> {
+    const profiles = ensureState();
+
+    return Object.values(profiles)
+      .filter((profile) => profile.visibility.showProfileComments)
+      .flatMap((profile) =>
+        profile.comments.map((comment) => ({
+          comment,
+          userId: profile.userId,
+          displayName: profile.displayName,
+        })),
+      )
+      .sort((a, b) => b.comment.createdAt.localeCompare(a.comment.createdAt))
+      .slice(0, limit);
   }
 
   /**

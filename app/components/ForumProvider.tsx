@@ -1,8 +1,13 @@
 'use client';
 
+import { usePathname } from 'next/navigation';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
 import { getForumRepository } from '../lib/forum/repository';
+import { getProfileRepository } from '../lib/profile/repository';
+import { profileAnchorTarget } from '../lib/forum/anchors';
+import { profileCommentThreads } from '../lib/forum/profile-threads';
+import type { ProfileCommentEntry } from '../lib/profile/types';
 import { pinForThread as livePinForThread } from '../lib/forum/pins';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
@@ -97,6 +102,14 @@ export type ForumContextValue = {
   pinForThread: (threadId: string) => ThreadPin | undefined;
   threadForAnchor: (anchor: ForumAnchor) => ForumThread | undefined;
   commentCountForAnchor: (anchor: ForumAnchor) => number;
+  /**
+   * Files a comment on a profile, a picture, or the track beside it.
+   *
+   * The board draws those comments as threads of their own, and their reply box calls this instead
+   * of `addComment`: the words belong in the profile store, where the owner's comments switch and a
+   * pinned remark already live, and where the profile page is reading them from.
+   */
+  addProfileComment: (anchor: ForumAnchor, body: string) => Promise<void>;
   clearLocalPosts: () => Promise<void>;
 };
 
@@ -121,6 +134,15 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
   // server render and the first client pass agree and no placeholder posts ever
   // appear.
   const [threads, setThreads] = useState<ForumThread[]>([]);
+  /**
+   * The comments the profile store holds, read once beside the board.
+   *
+   * They are shown as threads of their own (`profileCommentThreads`): a profile, one of its
+   * pictures and the track beside it are each a subject somebody can comment on, and the board is
+   * where everything is read. The writing stays a profile write - see `addProfileComment` - so the
+   * owner's comments switch and a pinned remark keep working.
+   */
+  const [profileComments, setProfileComments] = useState<ProfileCommentEntry[]>([]);
   const [pins, setPins] = useState<ThreadPin[]>([]);
   const [ready, setReady] = useState(false);
   const [source] = useState<ForumDataSource>(() => getForumRepository().source);
@@ -150,6 +172,11 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       })
       .catch(() => undefined);
 
+    // And the profile store's comments: one read for the whole site (the repository docs explain
+    // why it is a list rather than a page at a time). A board that cannot be read is not made worse
+    // by a board without profile comments, so a failure here is silent too - see the effect below,
+    // which keeps that read fresh as the reader moves around.
+
     const unsubscribe = repository.subscribe((next) => {
       if (!cancelled) setThreads(next);
     });
@@ -167,6 +194,31 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
 
   const [tagColours, setTagColours] = useState<Record<string, string>>({});
 
+  /**
+   * The profile store's comments, read again whenever the reader arrives somewhere.
+   *
+   * One read, for the whole site: a comment filed on a profile page has to be on the board by the
+   * time the reader gets there, and somebody who has been reading one page while a comment landed
+   * should not have to reload to see it. It is a cheap read and a silent failure - a board without
+   * profile comments is still a board.
+   */
+  const pathname = usePathname();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    void getProfileRepository()
+      .listCommentFeed()
+      .then((next) => {
+        if (!cancelled) setProfileComments(next);
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
+
   // Colours chosen in the tag picker are kept in localStorage; load them once
   // after mount (rAF keeps the setState out of the effect body itself).
   useEffect(() => {
@@ -179,7 +231,20 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     setTagColours(readTagColours());
   }, []);
 
-  const tagVocabulary = useMemo(() => buildTagVocabulary(threads, tagColours), [threads, tagColours]);
+  /**
+   * The board everything reads: its own threads, then one more for every profile subject that
+   * carries comments.
+   *
+   * Folding them in here rather than at each call site means the whole board already works on them -
+   * the source filter, the tag filter, the search, the sort, the wire, the account pages - without
+   * any of those knowing where a profile comment is stored.
+   */
+  const boardThreads = useMemo(
+    () => [...profileCommentThreads(profileComments), ...threads],
+    [profileComments, threads],
+  );
+
+  const tagVocabulary = useMemo(() => buildTagVocabulary(boardThreads, tagColours), [boardThreads, tagColours]);
 
   /**
    * Folds chosen tags onto labels already in use, so a near-duplicate spelling
@@ -278,8 +343,8 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
 
   const threadForAnchor = useCallback(
     (anchor: ForumAnchor) =>
-      threads.find((thread) => thread.anchor.kind === anchor.kind && thread.anchor.id === anchor.id),
-    [threads],
+      boardThreads.find((thread) => thread.anchor.kind === anchor.kind && thread.anchor.id === anchor.id),
+    [boardThreads],
   );
 
   const commentCountForAnchor = useCallback(
@@ -293,9 +358,38 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     setThreads(await repository.listThreads());
   }, []);
 
+  /**
+   * Filing a comment on a profile, a picture, or the track beside it.
+   *
+   * One write, in the profile store, whichever page asked for it: the board's reply box on a profile
+   * thread and the profile's own comment window both land in that store, so a remark is written once
+   * and read back in both places. The anchor says which of the three subjects it is and which version
+   * of it, so a comment filed from the board attaches exactly as one filed on the page does.
+   */
+  const addProfileComment = useCallback(
+    async (anchor: ForumAnchor, body: string) => {
+      const target = profileAnchorTarget(anchor);
+      if (target === null) throw new Error('THAT IS NOT A PROFILE TO COMMENT ON.');
+
+      const profiles = getProfileRepository();
+      await profiles.addComment(target.userId, {
+        kind: target.kind,
+        author,
+        body,
+        ...(target.kind === 'avatar' && target.versionId !== undefined ? { avatarVersionId: target.versionId } : {}),
+        ...(target.kind === 'song' && target.versionId !== undefined ? { songVersionId: target.versionId } : {}),
+      });
+
+      // Read the feed back rather than patching it here: the store is what knows which version a
+      // picture comment was attached to, and it is also what the profile page itself is reading.
+      setProfileComments(await profiles.listCommentFeed());
+    },
+    [author],
+  );
+
   const value = useMemo<ForumContextValue>(
     () => ({
-      threads,
+      threads: boardThreads,
       pins,
       author,
       source,
@@ -314,10 +408,11 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       pinForThread,
       threadForAnchor,
       commentCountForAnchor,
+      addProfileComment,
       clearLocalPosts,
     }),
     [
-      threads,
+      boardThreads,
       pins,
       author,
       source,
@@ -336,6 +431,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       pinForThread,
       threadForAnchor,
       commentCountForAnchor,
+      addProfileComment,
       clearLocalPosts,
     ],
   );
