@@ -19,11 +19,14 @@ export const MAX_AUDIO_TAGS = 4;
 export const STARTER_AUDIO_TAGS: string[] = [
   'HIP HOP',
   'LO FI',
-  'AMBIENT',
-  'EXPERIMENTAL',
-  'BREAKCORE',
+  'TRIP HOP',
   'DOWNTEMPO',
+  'AMBIENT',
+  'DRONE',
+  'IDM',
+  'BREAKCORE',
   'NOISE',
+  'EXPERIMENTAL',
   'SPOKEN WORD',
 ];
 

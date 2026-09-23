@@ -81,7 +81,6 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
 
       {tags.length === 0 ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <span className="text-[9px] font-bold text-gray-700">TAGS:</span>
           {tags.map((tag) => (
             <AudioTagPill key={tag} tag={tag} compact />
           ))}

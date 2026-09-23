@@ -1,4 +1,4 @@
-import { TRACKS } from '../projects/tracks';
+import { TRACKS, archiveDisplayName } from '../projects/tracks';
 
 /**
  * What the player plays, and where it comes from.
@@ -34,6 +34,19 @@ export type AudioTrack = {
   length: string;
   /** Audio tags: how it sounds, read by the /music directory's filter. */
   tags: string[];
+  /**
+   * The release the file was filed on, and where it sits on it.
+   *
+   * Only the archive's own catalogue has these: a file dropped into the bucket by hand, an
+   * upload from the shelf and an MP3 attached to a post are single files with no release
+   * behind them, so the directory lists those under LOOSE FILES rather than inventing an
+   * album for them.
+   */
+  album?: string;
+  /** The year the release carries. */
+  year?: string;
+  /** Position on the release, so a listing keeps the running order. */
+  trackNumber?: number;
   /** Where it came from, which is what the player's display calls out. */
   shelf: 'archive' | 'bucket';
 };
@@ -42,19 +55,23 @@ export type AudioTrack = {
 export const AUDIO_FOLDER = '/assets/audio';
 
 /**
- * The hand-filed shelf: the project manifest, read as the player sees it.
+ * The hand-filed shelf: the project's catalogue, read as the player sees it.
  *
- * The first entry is the theme, exactly as the music page says, so that is what the
- * queue starts on when the bucket has nothing in it.
+ * The catalogue names each file by its three parts - `[TRACK TITLE] - [ALBUM NAME] -
+ * [ARTIST NAME]` - and that is the title the player shows, so a track pulled out of the
+ * archive onto a post reads exactly as it does in the listing.
  */
 export const LOCAL_TRACKS: AudioTrack[] = TRACKS.map((track) => ({
   id: track.id,
-  title: track.title,
-  credit: track.credit,
-  kind: track.kind,
+  title: archiveDisplayName(track),
+  credit: track.artist,
+  kind: `${track.album} :: ${track.year}`,
   src: track.src,
   length: track.length,
   tags: track.tags,
+  album: track.album,
+  year: track.year,
+  trackNumber: track.trackNumber,
   shelf: 'archive',
 }));
 

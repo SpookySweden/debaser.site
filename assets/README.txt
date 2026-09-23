@@ -35,12 +35,16 @@ Adding a new concept sheet
 Adding a track
 --------------
 1. Save the audio here as assets/audio/<id>.mp3 (MP3, M4A, OGG, WAV and FLAC are
-   served; anything else is refused with a 400).
-2. Add one entry to TRACKS in app/lib/projects/tracks.ts (id, title, credit,
-   length, kind).
-3. /music lists it with a player, and the project page at /projects/debaser
-   counts it. Until the file is there the row shows "[ AWAITING <path> ]" rather
-   than a dead player.
+   served; anything else is refused with a 400). The id is
+   `<artist>-<album>-<number>`, built from the release in the catalogue.
+2. Add the release to RELEASES in app/lib/projects/tracks.ts (artist, album, year,
+   tags, and the track list with a running time each).
+3. /music lists it under its artist and release, and the project page at
+   /projects/debaser counts it. Until the file is there, pressing play answers with
+   the player's own words rather than a dead button.
+
+A track reads as `[TRACK TITLE] - [ALBUM NAME] - [ARTIST NAME]` everywhere it is
+listed, and the same three parts are what the directory sorts and searches on.
 
 Rules
 -----

@@ -56,10 +56,7 @@ export default function MusicUploadForm() {
   if (user === null) {
     return (
       <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
-        <p className="text-[10px] font-bold text-black">
-          FILING A TRACK TAKES AN ACCOUNT - SIGN IN ON THE ACCOUNT PAGE. PLAYING WHAT IS ALREADY ON THE SHELF TAKES
-          NOTHING.
-        </p>
+        <p className="text-[10px] font-bold text-black">FILING A TRACK TAKES AN ACCOUNT.</p>
       </section>
     );
   }
@@ -108,11 +105,7 @@ export default function MusicUploadForm() {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
-      <p className="text-[10px] font-bold text-black">FILE A TRACK ONTO THE SHELF</p>
-      <p className="mt-1 text-[10px] text-gray-700">
-        THE TRACK APPEARS IN THE PLAYER AT THE BOTTOM OF THE WINDOW. MP3, M4A, OGG, WAV AND FLAC, UP TO{' '}
-        {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB.
-      </p>
+      <p className="text-[10px] font-bold text-black">FILE A TRACK</p>
 
       <label className="mt-2 block text-[10px] font-bold text-black" htmlFor="music-title">
         TITLE
@@ -121,12 +114,12 @@ export default function MusicUploadForm() {
         id="music-title"
         value={title}
         onChange={(event) => setTitle(event.target.value)}
-        placeholder="e.g. WARD THEME (ROUGH)"
+        placeholder="TRACK TITLE"
         className={FIELD}
       />
 
       <label className="mt-2 block text-[10px] font-bold text-black" htmlFor="music-credit">
-        CREDITED TO (LEAVE EMPTY FOR YOUR OWN NAME)
+        CREDITED TO
       </label>
       <input
         id="music-credit"
@@ -137,7 +130,7 @@ export default function MusicUploadForm() {
       />
 
       <label className="mt-2 block text-[10px] font-bold text-black" htmlFor="music-file">
-        THE AUDIO FILE
+        THE AUDIO FILE (MP3, M4A, OGG, WAV, FLAC - {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB MAX)
       </label>
       <input
         id="music-file"

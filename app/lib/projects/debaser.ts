@@ -59,7 +59,7 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     label: 'MUSIC',
     href: '/music',
     summary: 'The score, and the rough mixes.',
-    note: 'Every file the archive holds, in one directory: the tracks filed by hand, what has been uploaded to the shelf, and every MP3 attached to a post on the board - sorted by audio tag and played from the bar at the foot of the window.',
+    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag.',
   },
   {
     id: 'notes',
