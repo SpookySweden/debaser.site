@@ -60,8 +60,9 @@ type ForumThreadCardProps = {
  * names the site and shows the default pfp rather than repeating the account that
  * commented first; the comment below already carries that account's id.
  *
- * Native <details>/<summary> keeps the collapse behaviour (and the board's expand
- * all / collapse all, plus #thread-<id> jump links) without extra JS.
+ * Native <details>/<summary> keeps the collapse behaviour (and the #thread-<id>
+ * jump links) without extra JS. The board offers no expand-all: a reader opens
+ * the post they want to read, and a row is one click either way.
  *
  * While the board has a tag filter on, the card also carries a `FILTER MATCH` line saying which of
  * its tags the filter matched and whether they sit on the post or on a reply - and a `[ OPEN THE
@@ -313,9 +314,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               </div>
             )}
 
-            {/* The open post's left column: every tag it carries, one token a line where the column
-                is narrow, in the same `namespace:name` form the collapsed row uses. */}
-            <TagStrip tags={layout.left.tags} className="mt-2" emptyLabel="NO TAGS" />
+            {/* The open post's left column: its tags, folded to one line of tokens like the
+                collapsed row's, with the rest behind the strip's own `[+n]`. The column is narrow and
+                a post with nine tags would otherwise be nine lines of reading before the text. */}
+            <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
 
             {images.count > 1 ? (
               <p className="mt-1 text-[9px] font-bold text-gray-700">

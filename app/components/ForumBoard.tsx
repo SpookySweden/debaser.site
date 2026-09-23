@@ -50,6 +50,8 @@ export default function ForumBoard() {
   const [musicOnly, setMusicOnly] = useState(false);
   const [musicTagKeys, setMusicTagKeys] = useState<string[]>([]);
   const [tagWindowOpen, setTagWindowOpen] = useState(false);
+  /** The tag filter's own chip wall: the whole vocabulary starts folded away. */
+  const [tagWallOpen, setTagWallOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [perPage, setPerPage] = useState<number>(PAGE_SIZES[0]);
   const [page, setPage] = useState(1);
@@ -135,14 +137,6 @@ export default function ForumBoard() {
       if (open) return current.includes(threadId) ? current : [...current, threadId];
       return current.filter((id) => id !== threadId);
     });
-  }, []);
-
-  const handleExpandAll = useCallback(() => {
-    setOpenThreadIds(pageThreads.map((thread) => thread.id));
-  }, [pageThreads]);
-
-  const handleCollapseAll = useCallback(() => {
-    setOpenThreadIds([]);
   }, []);
 
   const handleCreated = useCallback((thread: ForumThread) => {
@@ -261,6 +255,18 @@ export default function ForumBoard() {
                 [ ALL TAGS... ]
               </button>
 
+              {/* The wall of chips is a question asked once or twice and in the way the rest of the
+                  time, so the board opens with it folded and this plate is the way in. */}
+              <button
+                type="button"
+                onClick={() => setTagWallOpen((open) => !open)}
+                aria-expanded={tagWallOpen}
+                title={tagWallOpen ? 'Fold the tag list away' : 'Show every tag in use, most used first'}
+                className={PLATE}
+              >
+                {tagWallOpen ? '[ - TAGS ]' : '[ + TAGS ]'}
+              </button>
+
               {musicOnly ? (
                 <span className="border border-black bg-[#000080] px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
               ) : null}
@@ -271,39 +277,44 @@ export default function ForumBoard() {
               )}
             </div>
 
-            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-[3px] text-[10px]">
-              {forum.tagVocabulary.map((option) => {
-                const tag = makeUserTag(option.label, option.colour);
-                const active = tagFilters.includes(option.key);
+            {/* The wall itself: every tag the board is using, ranked. Folded away until `[ + TAGS ]`
+                is pressed, because a filter is a question a reader has once or twice and a hundred
+                chips is what the threads have to be read past the rest of the time. */}
+            {tagWallOpen ? (
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-[3px] text-[10px]">
+                {forum.tagVocabulary.map((option) => {
+                  const tag = makeUserTag(option.label, option.colour);
+                  const active = tagFilters.includes(option.key);
 
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => toggleTagFilter(option.key)}
-                    aria-pressed={active}
-                    title={
-                      active
-                        ? `Stop including ${option.label}`
-                        : `Include posts tagged ${option.label} (${option.count} in use)`
-                    }
-                    className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                      active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
-                    }`}
-                  >
-                    <TagMark colour={tagMarkColour(tag)} compact />
-                    {option.key}
-                    {option.count > 0 ? (
-                      <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>
+                  return (
+                    <button
+                      key={option.key}
+                      type="button"
+                      onClick={() => toggleTagFilter(option.key)}
+                      aria-pressed={active}
+                      title={
+                        active
+                          ? `Stop including ${option.label}`
+                          : `Include posts tagged ${option.label} (${option.count} in use)`
+                      }
+                      className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                        active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                      }`}
+                    >
+                      <TagMark colour={tagMarkColour(tag)} compact />
+                      {option.key}
+                      {option.count > 0 ? (
+                        <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
+                      ) : null}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : null}
 
             {tagFilters.length === 0 ? (
               <p className="mt-1 text-[10px] text-black">
-                PICK TAGS ABOVE, OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
+                PICK TAGS WITH [+ TAGS], OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
               </p>
             ) : (
               <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
@@ -458,20 +469,6 @@ export default function ForumBoard() {
 
         {/* List controls: always on screen, one row above the threads. */}
         <div className="flex flex-wrap items-center gap-2 border-t-2 border-gray-600 bg-[#c0c0c0] px-2 py-[3px]">
-          <button
-            type="button"
-            onClick={handleExpandAll}
-            className={PLATE}
-          >
-            [ EXPAND ALL ]
-          </button>
-          <button
-            type="button"
-            onClick={handleCollapseAll}
-            className={PLATE}
-          >
-            [ COLLAPSE ALL ]
-          </button>
           <span className="text-[10px] font-bold text-black">
             SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
             {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
