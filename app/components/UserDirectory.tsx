@@ -79,7 +79,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
           <span>ACCOUNT DIRECTORY</span>
           <span>
             {compact ? (
-              <Link href="/users" className="underline hover:bg-gray-300">
+              <Link href="/users" className="underline hover:bg-ice">
                 [ {rows.length} :: ALL ]
               </Link>
             ) : (
@@ -135,16 +135,16 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
             </p>
             <p className="text-gray-700">
-              <Link href="/forum" className="underline hover:bg-gray-300">
+              <Link href="/forum" className="underline hover:bg-ice">
                 [ BOARD ]
               </Link>{' '}
-              <Link href="/forum?arcade=1" className="underline hover:bg-gray-300">
+              <Link href="/forum?arcade=1" className="underline hover:bg-ice">
                 [ ARCADE ]
               </Link>{' '}
-              <Link href="/comms" className="underline hover:bg-gray-300">
+              <Link href="/comms" className="underline hover:bg-ice">
                 [ COMMS ]
               </Link>{' '}
-              <Link href="/account" className="underline hover:bg-gray-300">
+              <Link href="/account" className="underline hover:bg-ice">
                 [ ACCOUNT ]
               </Link>
             </p>

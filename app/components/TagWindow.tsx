@@ -457,7 +457,7 @@ export default function TagWindow({
             onClick={() => setTab(entry.key)}
             aria-pressed={tab === entry.key}
             className={`inline-flex cursor-pointer items-center px-2 py-[3px] text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
-              tab === entry.key ? 'bg-ena text-white' : 'text-black hover:bg-gray-300'
+              tab === entry.key ? 'bg-ena text-white' : 'text-black hover:bg-ice'
             }`}
           >
             {entry.label}

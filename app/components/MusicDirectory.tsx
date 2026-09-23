@@ -52,7 +52,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {

@@ -41,7 +41,7 @@ export default function ProfileBoardActivity({
           <ul className="space-y-1">
             {threads.slice(0, 8).map((thread) => (
               <li key={thread.id} className="text-[10px] font-bold">
-                <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-gray-300">
+                <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                   [<TimeStamp at={thread.createdAt} />] {thread.title}
                 </Link>
                 <span className="ml-1 text-gray-700">:: {countReplies(thread.comments.length)}</span>

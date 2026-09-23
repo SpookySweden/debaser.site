@@ -201,7 +201,7 @@ export default function ForumPinPanel() {
                   {thread === undefined ? (
                     <span className="text-gray-700">A POST THAT IS NO LONGER ON THE BOARD</span>
                   ) : (
-                    <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-gray-300">
+                    <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                       {thread.title}
                     </Link>
                   )}

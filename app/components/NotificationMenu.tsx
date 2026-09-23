@@ -120,7 +120,7 @@ function NotificationRow({
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
     unread ? 'border-gray-500 bg-white text-black' : 'border-gray-400 bg-bubble-pale text-gray-700'
-  } hover:bg-yellow-100 max-sm:min-h-11`;
+  } hover:bg-ice-pale max-sm:min-h-11`;
 
   if (target === null) {
     return (
@@ -252,7 +252,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice"
           >
             [ RETRY ]
           </button>
@@ -276,14 +276,14 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice"
         >
           [ OPEN THE BOARD ]
         </Link>

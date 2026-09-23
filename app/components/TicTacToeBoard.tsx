@@ -49,7 +49,7 @@ export default function TicTacToeBoard({
                 inWinningLine
                   ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-yellow-100'
                   : open
-                    ? 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale hover:bg-yellow-100'
+                    ? 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale hover:bg-ice-pale'
                     : 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
             >

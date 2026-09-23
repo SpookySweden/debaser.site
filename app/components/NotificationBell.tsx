@@ -18,7 +18,7 @@ function UnreadDot() {
 
 /** The bell's plate: small enough to sit in a title bar without crowding it. */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-ice';
 
 /**
  * The bell at the top of the side panel's comms block.
@@ -65,7 +65,7 @@ export default function NotificationBell() {
 }
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left text-[10px] font-bold text-black hover:bg-yellow-100';
+  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left text-[10px] font-bold text-black hover:bg-ice-pale';
 
 /**
  * The same menu, as a phone does it: one row among the other buttons in the profile pop-up.

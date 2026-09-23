@@ -49,7 +49,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               aria-checked={value === ''}
               onClick={() => onChange('')}
               className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                value === '' ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-yellow-100'
+                value === '' ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-ice-pale'
               }`}
             >
               <span className="flex h-12 items-center justify-center border border-gray-600 bg-white text-[9px] font-bold text-black">
@@ -70,7 +70,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   title={item.label}
                   onClick={() => onChange(item.id)}
                   className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                    picked ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-yellow-100'
+                    picked ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-ice-pale'
                   }`}
                 >
                   <span className="flex h-12 items-center justify-center overflow-hidden border border-gray-600 bg-white">
@@ -107,7 +107,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300"
+                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-ice"
                 >
                   [ CLEAR ]
                 </button>

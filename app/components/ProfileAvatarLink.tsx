@@ -54,7 +54,7 @@ export default function ProfileAvatarLink({
     <Link
       href={`/profile/${encodeURIComponent(author.id)}`}
       title={`Open ${label}'s public profile`}
-      className={`inline-flex shrink-0 items-center gap-1 align-middle hover:bg-yellow-100 ${className ?? ''}`}
+      className={`inline-flex shrink-0 items-center gap-1 align-middle hover:bg-ice-pale ${className ?? ''}`}
     >
       <ProfileAvatar
         version={currentAvatarVersion(profile)}

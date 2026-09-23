@@ -118,7 +118,7 @@ export default function ProfileCustomiserPictureTab({
                   className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[10px] font-bold ${
                     pendingSrc === picture.src
                       ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ena text-white'
-                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale text-black hover:bg-gray-300'
+                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale text-black hover:bg-ice'
                   }`}
                   title={picture.src}
                 >

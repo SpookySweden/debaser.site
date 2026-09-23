@@ -60,7 +60,7 @@ export default function AccountConsole() {
           {SECTIONS.map((section) => (
             <li key={section.id}>
               {signedIn ? (
-                <a href={`#${section.id}`} className="underline hover:bg-gray-300">
+                <a href={`#${section.id}`} className="underline hover:bg-ice">
                   [{section.index}] {section.label} :: {section.note}
                 </a>
               ) : (

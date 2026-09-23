@@ -116,7 +116,7 @@ export default function CommsConsole() {
         <div className="space-y-2 p-3 text-[10px] font-bold text-black">
           <p>MESSAGES TRAVEL BETWEEN ACCOUNTS, SO THERE IS NO ANONYMOUS INBOX.</p>
           <p>
-            <Link href="/account" className="underline hover:bg-gray-300">
+            <Link href="/account" className="underline hover:bg-ice">
               [ GO TO THE ACCOUNT PAGE ]
             </Link>{' '}
             TO SIGN IN OR CREATE ONE.
@@ -287,7 +287,7 @@ export default function CommsConsole() {
             <button
               type="button"
               onClick={() => setMobileView('list')}
-              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 lg:hidden"
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold leading-none text-black hover:bg-ice lg:hidden"
             >
               ← LIST
             </button>

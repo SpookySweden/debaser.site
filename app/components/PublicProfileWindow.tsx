@@ -217,7 +217,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             {owner && !compact ? (
               <>
                 {' [ '}
-                <Link href="/account" className="underline hover:bg-gray-300">
+                <Link href="/account" className="underline hover:bg-ice">
                   CHANGE IT
                 </Link>
                 {' ]'}

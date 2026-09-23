@@ -13,7 +13,7 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 
 const RAIL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -95,7 +95,7 @@ export default function DesktopSidebar() {
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-black hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-black hover:bg-ice"
         >
           {'>'}
         </button>

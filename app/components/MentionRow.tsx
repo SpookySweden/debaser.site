@@ -38,7 +38,7 @@ export default function MentionRow({ body, accounts, className }: MentionRowProp
           <ProfileLink
             key={account.id}
             author={{ id: account.id, displayName: account.displayName }}
-            className="border border-gray-500 bg-white px-1 hover:bg-yellow-100"
+            className="border border-gray-500 bg-white px-1 hover:bg-ice-pale"
           >
             {label}
           </ProfileLink>

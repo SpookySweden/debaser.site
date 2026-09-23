@@ -56,7 +56,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
         <p className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-3 text-[10px] font-bold text-black">
           NO PAGE LIVES AT /lore/{slug}. IT MAY HAVE BEEN RENAMED, OR NEVER OPENED AT ALL.
         </p>
-        <Link href="/lore" className="text-[10px] font-bold underline hover:bg-yellow-100">
+        <Link href="/lore" className="text-[10px] font-bold underline hover:bg-ice-pale">
           [ &lt; BACK TO THE LORE SHELF ]
         </Link>
       </div>

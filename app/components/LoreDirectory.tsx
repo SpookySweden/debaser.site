@@ -100,7 +100,7 @@ export default function LoreDirectory() {
             >
               <span className="w-4 shrink-0 text-right text-[10px] font-bold text-gray-700">{position + 1}.</span>
 
-              <Link href={lorePagePath(page.slug)} className="text-xs font-bold underline hover:bg-yellow-100">
+              <Link href={lorePagePath(page.slug)} className="text-xs font-bold underline hover:bg-ice-pale">
                 {page.title}
               </Link>
 

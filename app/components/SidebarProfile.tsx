@@ -11,7 +11,7 @@ import TimeStamp from './TimeStamp';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice';
 
 /**
  * The side panel's top block: who is signed in.

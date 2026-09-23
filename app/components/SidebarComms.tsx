@@ -79,7 +79,7 @@ export default function SidebarComms() {
                 type="button"
                 onClick={() => openConversation(thread.id)}
                 disabled={busyId !== null}
-                className="w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-left text-[10px] font-bold text-black hover:bg-yellow-100 disabled:cursor-wait disabled:opacity-60"
+                className="w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-left text-[10px] font-bold text-black hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
               >
                 <span className="flex flex-wrap items-center justify-between gap-1">
                   {thread.kind === 'group' ? (
@@ -100,7 +100,7 @@ export default function SidebarComms() {
       <div className="p-2 pt-0">
         <Link
           href="/comms"
-          className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+          className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice"
         >
           [ OPEN COMMS ]
         </Link>

@@ -61,7 +61,7 @@ export default function IncomingMessageWindow({
       actions={
         <Link
           href="/comms"
-          className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-gray-300"
+          className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice"
         >
           [ OPEN COMMS ]
         </Link>

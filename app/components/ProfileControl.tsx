@@ -13,13 +13,13 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left hover:bg-yellow-100';
+  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left hover:bg-ice-pale';
 
 const LOG_IN_BUTTON =
-  'lg:hidden shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold text-black hover:bg-gray-300';
+  'lg:hidden shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold text-black hover:bg-ice';
 
 const PICTURE_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale p-[2px] text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale p-[2px] text-black hover:bg-ice';
 
 /**
  * Signed out: one large log-in button, where the window buttons used to be.

@@ -78,7 +78,7 @@ function tabClass(isActive: boolean): string {
 
   return isActive
     ? `${base} ${phone} max-sm:bg-ena max-sm:text-white px-3 py-[3px] text-[11px] bg-gray-300 border-t-2 border-l-2 border-black border-r border-b border-white`
-    : `${base} ${phone} max-sm:bg-transparent px-3 py-[3px] text-[11px] bg-sun-pale border-t border-l border-white border-r-2 border-b-2 border-black hover:bg-gray-300`;
+    : `${base} ${phone} max-sm:bg-transparent px-3 py-[3px] text-[11px] bg-sun-pale border-t border-l border-white border-r-2 border-b-2 border-black hover:bg-ice`;
 }
 
 /**

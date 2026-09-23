@@ -149,7 +149,7 @@ export default function TagChooser({
           type="button"
           onClick={() => setCreatorOpen(true)}
           title="Open the tag editor to create and colour a new tag"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[3px] text-[10px] font-bold text-black underline hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[3px] text-[10px] font-bold text-black underline hover:bg-ice"
         >
           + NEW TAG...
         </button>

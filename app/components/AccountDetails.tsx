@@ -126,7 +126,7 @@ export default function AccountDetails() {
             <ul className="space-y-1">
               {myThreads.slice(0, 6).map((thread) => (
                 <li key={thread.id}>
-                  <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-gray-300">
+                  <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                     [<TimeStamp at={thread.createdAt} />] {thread.title}
                   </Link>
                 </li>

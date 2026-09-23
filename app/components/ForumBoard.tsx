@@ -349,7 +349,7 @@ export default function ForumBoard() {
                       type="button"
                       onClick={() => toggleTagFilter(key)}
                       title={`Stop including ${label}`}
-                      className="cursor-pointer rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                      className="cursor-pointer rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-ice"
                     >
                       {label} ×
                     </button>
@@ -387,7 +387,7 @@ export default function ForumBoard() {
                 <button
                   type="button"
                   onClick={clearTagFilters}
-                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-ice"
                 >
                   [ CLEAR TAGS ]
                 </button>
@@ -542,7 +542,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-ice disabled:cursor-default disabled:opacity-50"
               >
                 [ &lt;&lt; PREV ]
               </button>
@@ -565,7 +565,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-ice disabled:cursor-default disabled:opacity-50"
               >
                 [ NEXT &gt;&gt; ]
               </button>
@@ -597,7 +597,7 @@ export default function ForumBoard() {
                   className={
                     number === currentPage
                       ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-1 text-[10px] font-bold text-black'
-                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-black hover:bg-gray-300'
+                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-black hover:bg-ice'
                   }
                 >
                   {number}
