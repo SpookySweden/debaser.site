@@ -44,6 +44,38 @@ export function closeMusic(): void {
   if (slot.state().open) slot.set(SHUT);
 }
 
+/**
+ * A press on the archive's own key: opening when shut, closing when open.
+ *
+ * The board's plate and the side panel's key are *switches*, not links - both sit on the screen the
+ * archive is drawn over, so a reader who has finished with it presses the same key again rather than
+ * hunting for the window's `[ X CLOSE ]`. This is that answer, in one place, so the two doors cannot
+ * disagree about what a second press does.
+ *
+ * What it deliberately is not is the behaviour of a *link* into the archive. A tag badge, the Start
+ * menu's MUSIC shelf and a post's `♪ MP3` plate are addresses a reader follows from somewhere else -
+ * possibly from a screen with no key of its own - and a link that closed the window when it was
+ * already open would be a link that sometimes does nothing visible. Those keep `openMusic`, which
+ * only ever opens. The distinction is the same one the arcade keeps between its header key and its
+ * invitations, and `Temp/check-flows.cjs` holds both to it.
+ */
+export function toggleMusic(): void {
+  if (slot.state().open) closeMusic();
+  else openMusic();
+}
+
+/**
+ * Whether the address still needs spending when the window closes.
+ *
+ * The board plate opens the archive without touching the URL, so a press that closes it has nothing
+ * to clear. The side panel's key opens it by *following the address* (`/forum?music=1`), so once the
+ * window is shut that address is a lie - and worse, it is one the effect below would read again the
+ * next time anything re-ran it. Clearing it is what keeps the same key working twice.
+ */
+export function musicAddressSpentByClose(search: string): boolean {
+  return musicRequested(search);
+}
+
 /** Whether an address asks for the archive. A query about anything else opens nothing. */
 export function musicRequested(search: string): boolean {
   return new URLSearchParams(search).get('music') !== null;

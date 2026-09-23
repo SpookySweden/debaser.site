@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { openMusic } from '../lib/audio/music-window';
+import { toggleMusic } from '../lib/audio/music-window';
 import { authorTag } from '../lib/auth/author';
 import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
@@ -242,9 +242,9 @@ export default function ForumBoard() {
               </button>
               <button
                 type="button"
-                onClick={() => openMusic()}
+                onClick={() => toggleMusic()}
                 aria-haspopup="dialog"
-                title="Open the music archive beside this page: play a file, or inject one into a post"
+                title="Open or close the music archive beside this page: play a file, or inject one into a post"
                 className={`${TITLE_BAR_BUTTON} ${WINDOW_KEY}`}
                 aria-label="Open the music archive"
               >

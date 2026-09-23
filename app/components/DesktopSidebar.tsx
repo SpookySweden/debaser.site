@@ -1,11 +1,17 @@
 'use client';
 
-import { useSyncExternalStore } from 'react';
-import Link from 'next/link';
+import { useCallback, useSyncExternalStore } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
 import { SIDE_MUSIC } from './SiteNav';
+import {
+  musicAddressSpentByClose,
+  musicWindowState,
+  subscribeToMusicWindow,
+  toggleMusic,
+} from '../lib/audio/music-window';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
@@ -77,6 +83,33 @@ function setSidebarOpen(next: boolean): void {
  */
 export default function DesktopSidebar() {
   const isOpen = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const musicState = useSyncExternalStore(subscribeToMusicWindow, musicWindowState, musicWindowState);
+  const musicOpen = musicState.open;
+  const pathname = usePathname();
+  const router = useRouter();
+
+  /**
+   * The archive's key: a press opens it, and a second press shuts it.
+   *
+   * It is a button rather than a link because it is a switch on the screen the archive is drawn over
+   * - pressing `♪` twice should leave the window shut, the same way pressing the board's plate twice
+   * does. The address is spent with it: this key opens the window by *following* `/forum?music=1`, so
+   * leaving that in the URL would make the shut window disagree with where the reader is, and the
+   * window's own effect would read it and open the thing straight back up.
+   *
+   * The query is read off `window.location` here rather than through `useSearchParams`, and that is
+   * deliberate: `useSearchParams` opts the whole page out of static prerendering, which is a cost the
+   * sidebar should not impose on every screen for a value it only wants at the moment of a press. A
+   * click handler runs in the browser by definition, so the address is right there to read.
+   */
+  const pressMusic = useCallback(() => {
+    const asked = window.location.search;
+    const wasOpen = musicWindowState().open;
+
+    toggleMusic();
+
+    if (wasOpen && musicAddressSpentByClose(asked)) router.replace(pathname);
+  }, [pathname, router]);
 
   if (!isOpen) {
     return (
@@ -121,16 +154,28 @@ export default function DesktopSidebar() {
           </div>
 
           <div className="p-2">
-            <Link
-              href={SIDE_MUSIC.href}
-              title="Open the music archive: play a file, or inject one into a post"
-              className="flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-1 text-[10px] font-bold text-ink hover:animate-bump hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble active:text-ink"
+            <button
+              type="button"
+              onClick={pressMusic}
+              aria-haspopup="dialog"
+              aria-pressed={musicOpen}
+              title={
+                musicOpen
+                  ? 'Close the music archive'
+                  : 'Open the music archive: play a file, or inject one into a post'
+              }
+              className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold ${
+                musicOpen
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
+                  : 'border-t-white border-l-white border-black bg-sun text-ink hover:animate-bump hover:bg-ena hover:text-sun'
+              }`}
             >
               <span aria-hidden="true" className="text-[13px] leading-none">
                 {SIDE_MUSIC.mark}
               </span>
-              <span>{SIDE_MUSIC.label}</span>
-            </Link>
+              <span className="min-w-0 flex-1 truncate text-left">{SIDE_MUSIC.label}</span>
+              <span aria-hidden="true">{musicOpen ? '[ ON ]' : '[ ▶ ]'}</span>
+            </button>
           </div>
         </section>
 

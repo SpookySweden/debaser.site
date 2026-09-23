@@ -16,6 +16,13 @@ import MarqueeText from './MarqueeText';
  * The line crawls because a fixed banner is furniture a reader stops seeing by the second page.
  * The marquee measures first (see ./MarqueeText.tsx), so a line that fits on a wide screen sits
  * still; and the whole thing goes quiet under `prefers-reduced-motion`.
+ *
+ * It is drawn only when the session has been read *and* came back empty. The guard is written the
+ * long way round - `status !== 'anonymous'` rather than `user === null` - because `user` is null
+ * while the session is still being read, so the shorter test would flash the offer at a visitor who
+ * is already signed in. Nothing appears during `loading`; the banner is an offer, and an offer that
+ * appears before the question has been answered is just noise. `./SidebarProfile.tsx` makes the same
+ * distinction for the same reason, and `Temp/check-shell.cjs` holds both to it.
  */
 export default function GuestPrompt() {
   const { status } = useAuth();

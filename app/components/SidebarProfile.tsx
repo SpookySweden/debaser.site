@@ -20,6 +20,14 @@ const SMALL =
  * beside them - because on a wide screen there is room to offer both without a
  * visitor having to go looking. Signed in it is the visitor's own card: picture,
  * name in its own colour, the lamp, and the two places it leads.
+ *
+ * The three states are told apart by `status` rather than by `user === null`, and that distinction
+ * is the whole point of this component. `user` is null while the session is still being read, so a
+ * branch on it alone renders the *sign-in offer* to somebody who is already signed in - a log-in
+ * button that flickers on the first paint and goes away, which reads as a bug even to a reader who
+ * never notices why. `status` is the field that knows the difference between "nobody is signed in"
+ * and "we have not finished asking", so while it is `loading` this draws neither card: it says it is
+ * reading, and nothing else.
  */
 export default function SidebarProfile() {
   const { user, status, usingMockAuth } = useAuth();
@@ -29,24 +37,12 @@ export default function SidebarProfile() {
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
-        <span>[ {status === 'loading' ? 'READING...' : user === null ? 'GUEST' : 'SIGNED IN'} ]</span>
+        <span>[ {status === 'loading' ? 'READING...' : status === 'signed-in' ? 'SIGNED IN' : 'GUEST'} ]</span>
       </div>
 
-      {user === null ? (
-        <div className="space-y-2 p-2">
-          <p className="text-[10px] font-bold text-ink">
-            {status === 'loading'
-              ? 'READING THE LOCAL SESSION...'
-              : 'NOBODY IS SIGNED IN. READING THE BOARD TAKES NO ACCOUNT - AN ACCOUNT IS WHAT SIGNS YOUR POSTS AND OPENS YOUR MESSAGES.'}
-          </p>
-
-          <Link href="/account" className={`${SMALL} w-full justify-center py-1`}>
-            [ LOG IN OR CREATE AN ACCOUNT ]
-          </Link>
-
-          <GoogleSignInButton />
-        </div>
-      ) : (
+      {status === 'loading' ? (
+        <p className="p-2 text-[10px] font-bold text-ink">READING THE LOCAL SESSION...</p>
+      ) : status === 'signed-in' && user !== null ? (
         <div className="space-y-2 p-2">
           <div className="flex items-center gap-2">
             <ProfileAvatar
@@ -81,6 +77,19 @@ export default function SidebarProfile() {
           {usingMockAuth ? (
             <p className="text-[10px] text-ink">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
           ) : null}
+        </div>
+      ) : (
+        <div className="space-y-2 p-2">
+          <p className="text-[10px] font-bold text-ink">
+            NOBODY IS SIGNED IN. READING THE BOARD TAKES NO ACCOUNT - AN ACCOUNT IS WHAT SIGNS YOUR
+            POSTS AND OPENS YOUR MESSAGES.
+          </p>
+
+          <Link href="/account" className={`${SMALL} w-full justify-center py-1`}>
+            [ LOG IN OR CREATE AN ACCOUNT ]
+          </Link>
+
+          <GoogleSignInButton />
         </div>
       )}
     </section>
