@@ -6,7 +6,8 @@ import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
-import { groupByNamespace, makeUserTag } from '../lib/forum/tag-vocabulary';
+import { makeUserTag } from '../lib/forum/tag-vocabulary';
+import TagWindow from './TagWindow';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
 import ForumPinPanel from './ForumPinPanel';
@@ -42,6 +43,10 @@ export default function ForumBoard() {
   const [query, setQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [tagMatchMode, setTagMatchMode] = useState<TagMatchMode>('any');
+  /** The board's music half: the switch, the sounds, and whether the whole index is open. */
+  const [musicOnly, setMusicOnly] = useState(false);
+  const [musicTagKeys, setMusicTagKeys] = useState<string[]>([]);
+  const [tagWindowOpen, setTagWindowOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [perPage, setPerPage] = useState<number>(PAGE_SIZES[0]);
   const [page, setPage] = useState(1);
@@ -59,10 +64,12 @@ export default function ForumBoard() {
           tagKeys: tagFilters,
           tagMatchMode,
           sortMode,
+          musicOnly,
+          musicTagKeys,
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode],
+    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, musicOnly, musicTagKeys],
   );
 
   const totalReplies = useMemo(
@@ -87,6 +94,18 @@ export default function ForumBoard() {
 
   const clearTagFilters = useCallback(() => {
     setTagFilters([]);
+    setPage(1);
+  }, []);
+
+  const toggleMusicTag = useCallback((key: string) => {
+    setMusicTagKeys((current) => (current.includes(key) ? current.filter((item) => item !== key) : [...current, key]));
+    setPage(1);
+  }, []);
+
+  /** The music switch off is the music tags off: one question, one answer. */
+  const handleMusicOnly = useCallback((value: boolean) => {
+    setMusicOnly(value);
+    if (!value) setMusicTagKeys([]);
     setPage(1);
   }, []);
 
@@ -221,56 +240,62 @@ export default function ForumBoard() {
             </span>
           </p>
 
-          {/* Tag inclusion, filed by namespace: toggle tags in, choose ANY/ALL, and the
-              "MOST SELECTED TAGS" sort ranks posts by how many they include.
-
-              The list is grouped the way the tags themselves are written (`theme:design`,
-              `user:mechanics`) rather than poured into one row of chips: the namespace is what tells
-              a reader whether a word is a theme, a warning or something somebody typed, so the
-              filter says it too - and a text row per namespace holds more tags in less height than a
-              chip did. Selecting one is a Win95 list selection: the navy this site selects in. */}
+          {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
+              music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
+              a board's tags are *for* is telling you what is on it, and that is a count. */}
           <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-              <p className="text-[10px] font-bold text-black">TAG FILTER ({tagFilters.length} INCLUDED):</p>
-              <p className="text-[10px] text-gray-700">
-                THEME = READ FROM THE POST :: WARN = BEFORE YOU OPEN IT :: USER = TYPED BY THE POSTER
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-[10px] font-bold text-black">
+                TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
               </p>
+
+              <button
+                type="button"
+                onClick={() => setTagWindowOpen(true)}
+                title="Every tag the board has, ranked, with the music filed on it"
+                className={PLATE}
+              >
+                [ ALL TAGS... ]
+              </button>
+
+              {musicOnly ? (
+                <span className="border border-black bg-[#000080] px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
+              ) : null}
+              {musicTagKeys.length === 0 ? null : (
+                <span className="border border-black bg-[#e8e8e8] px-1 text-[10px] font-bold text-black">
+                  {musicTagKeys.length} MUSIC TAG(S)
+                </span>
+              )}
             </div>
 
-            <div className="mt-1 space-y-[2px]">
-              {groupByNamespace(forum.tagVocabulary).map((group) => (
-                <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-[3px] text-[10px]">
-                  <span className="w-12 shrink-0 font-bold text-gray-700">{group.namespace}:</span>
+            <div className="mt-1 flex flex-wrap gap-x-3 gap-y-[3px] text-[10px]">
+              {forum.tagVocabulary.map((option) => {
+                const tag = makeUserTag(option.label, option.colour);
+                const active = tagFilters.includes(option.key);
 
-                  {group.items.map((option) => {
-                    const tag = makeUserTag(option.label, option.colour);
-                    const active = tagFilters.includes(option.key);
-
-                    return (
-                      <button
-                        key={option.key}
-                        type="button"
-                        onClick={() => toggleTagFilter(option.key)}
-                        aria-pressed={active}
-                        title={
-                          active
-                            ? `Stop including ${option.label}`
-                            : `Include posts tagged ${option.label} (${option.count} in use)`
-                        }
-                        className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                          active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
-                        }`}
-                      >
-                        <TagMark colour={tagMarkColour(tag)} compact />
-                        {option.key}
-                        {option.count > 0 ? (
-                          <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
-                        ) : null}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => toggleTagFilter(option.key)}
+                    aria-pressed={active}
+                    title={
+                      active
+                        ? `Stop including ${option.label}`
+                        : `Include posts tagged ${option.label} (${option.count} in use)`
+                    }
+                    className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                      active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                    }`}
+                  >
+                    <TagMark colour={tagMarkColour(tag)} compact />
+                    {option.key}
+                    {option.count > 0 ? (
+                      <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
+                    ) : null}
+                  </button>
+                );
+              })}
             </div>
 
             {tagFilters.length === 0 ? (
@@ -566,6 +591,25 @@ export default function ForumBoard() {
       {/* Composer only appears when asked for */}
       {composerOpen ? (
         <NewPostForm onClose={() => setComposerOpen(false)} onCreated={handleCreated} />
+      ) : null}
+
+      {/* The whole tag index, and the board's music, in a window of its own. It sets the same filter
+          the rows above do - one state, two places to reach it from. */}
+      {tagWindowOpen ? (
+        <TagWindow
+          onClose={() => setTagWindowOpen(false)}
+          tagKeys={tagFilters}
+          onToggleTag={toggleTagFilter}
+          onClearTags={clearTagFilters}
+          matchMode={tagMatchMode}
+          onMatchMode={setTagMatchMode}
+          musicOnly={musicOnly}
+          onMusicOnly={handleMusicOnly}
+          musicTagKeys={musicTagKeys}
+          onToggleMusicTag={toggleMusicTag}
+          showing={visibleThreads.length}
+          total={forum.threads.length}
+        />
       ) : null}
     </div>
   );

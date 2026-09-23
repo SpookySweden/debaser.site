@@ -1,6 +1,7 @@
 import type { ForumThread } from '../forum/types';
 import { collectFiledTracks } from './forum-tracks';
 import { audioTagKey, trackHasTag } from './tags';
+import type { TrackSort } from './sorts';
 import type { AudioTrack } from './tracks';
 
 /**
@@ -63,6 +64,16 @@ export type ArchiveRow = {
   /** The post it was filed on, when it came from the board. */
   href?: string;
   threadTitle?: string;
+  /**
+   * When the newest post carrying this file was filed.
+   *
+   * Undefined for a file that exists only on the shelf or in the catalogue: there is no post to
+   * date it by, and a hand-written catalogue entry given an invented date would sit above
+   * somebody's actual post in a "newest first" listing.
+   */
+  filedAt?: string;
+  /** How many posts and replies carry this file: what "popular" counts for a file. */
+  filedCount: number;
 };
 
 /** One folder of the directory: its subfolders, and the files filed directly in it. */
@@ -211,6 +222,24 @@ export function releaseFolderPath(artist: string, album?: string | null): Folder
 export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): ArchiveRow[] {
   const filed = collectFiledTracks(threads);
   const bySrc = new Map(filed.map((entry) => [entry.track.src, entry]));
+  // `collectFiledTracks` is newest first, so the first entry for a file is when it was last posted,
+  // and every entry is one more time it was filed.
+  const newest = new Map<string, string>();
+  const filings = new Map<string, number>();
+
+  for (const entry of filed) {
+    const src = entry.track.src;
+    if (!newest.has(src)) newest.set(src, entry.filedAt);
+    filings.set(src, (filings.get(src) ?? 0) + 1);
+  }
+
+  /** When it was last posted and how many times: what the two orderings that ask are read from. */
+  const dated = (src: string): { filedCount: number; filedAt?: string } => {
+    const at = newest.get(src);
+
+    return { filedCount: filings.get(src) ?? 0, ...(at === undefined ? {} : { filedAt: at }) };
+  };
+
   const rows: ArchiveRow[] = [];
   const seen = new Set<string>();
 
@@ -228,6 +257,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
       folderPath: track.folderPath ?? null,
       href: entry.href,
       threadTitle: entry.threadTitle,
+      ...dated(src),
     };
   };
 
@@ -241,6 +271,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
         tags: track.tags ?? [],
         source: track.shelf === 'bucket' ? 'SHELF' : 'ARCHIVE',
         folderPath: track.folderPath ?? null,
+        ...dated(track.src),
       },
     );
   }
@@ -257,6 +288,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
       folderPath: entry.track.folderPath ?? null,
       href: entry.href,
       threadTitle: entry.threadTitle,
+      ...dated(entry.track.src),
     });
   }
 
@@ -339,6 +371,36 @@ export function sortByTrackNumber(rows: ArchiveRow[]): ArchiveRow[] {
  */
 export function sortByDisplayName(rows: ArchiveRow[]): ArchiveRow[] {
   return [...rows].sort((a, b) => a.track.title.localeCompare(b.track.title));
+}
+
+/** Who a file is filed under: the poster when the board knows one, else the track's own credit. */
+export function rowUploader(row: ArchiveRow): string {
+  const poster = row.poster.trim();
+
+  return poster.length === 0 ? row.track.credit : poster;
+}
+
+/** The same rows in the order that was asked for. Ties always fall back to the name. */
+export function sortArchiveRows(rows: ArchiveRow[], sort: TrackSort): ArchiveRow[] {
+  const byName = (a: ArchiveRow, b: ArchiveRow) => a.track.title.localeCompare(b.track.title);
+
+  if (sort === 'recent') {
+    // An ISO stamp compares as text, and the empty one sorts lowest - so a file with no post on it
+    // lands after every file that has one, which is the honest place for it.
+    return [...rows].sort((a, b) => (b.filedAt ?? '').localeCompare(a.filedAt ?? '') || byName(a, b));
+  }
+
+  if (sort === 'popular') {
+    return [...rows].sort((a, b) => b.filedCount - a.filedCount || byName(a, b));
+  }
+
+  if (sort === 'uploader') {
+    return [...rows].sort(
+      (a, b) => rowUploader(a).toLowerCase().localeCompare(rowUploader(b).toLowerCase()) || byName(a, b),
+    );
+  }
+
+  return sortByDisplayName(rows);
 }
 
 /** What the search bar and the filter row are asking for. */

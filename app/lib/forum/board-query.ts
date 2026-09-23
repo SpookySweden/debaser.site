@@ -1,6 +1,6 @@
 import { tagKey } from './tag-vocabulary';
 import { postCredit } from './site-author';
-import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread } from './types';
+import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack } from './types';
 
 /**
  * Board query: filtering and ordering of the thread list.
@@ -38,6 +38,21 @@ export type BoardQuery = {
   tagKeys: string[];
   tagMatchMode: TagMatchMode;
   sortMode: SortMode;
+  /**
+   * Keep only posts that carry music: a track filed with the post, or one filed with a reply to it.
+   *
+   * The board is where an MP3 gets filed (the composer attaches one), so "the music on the board" is
+   * a reading of the board rather than a second shelf - and a post with a reply that carries a track
+   * is a post somebody came to the music through, which is why a reply's track counts.
+   */
+  musicOnly?: boolean;
+  /**
+   * Music tag keys to include: keep posts whose tracks wear at least one of them.
+   *
+   * These are the sound's own vocabulary (`app/lib/audio/tags.ts`), not the board's - a music tag
+   * sits on a track, so choosing one asks a question about the music rather than about the writing.
+   */
+  musicTagKeys?: string[];
 };
 
 /** Canonical keys of the tags on the post itself. */
@@ -143,12 +158,48 @@ export function matchesTagFilter(thread: ForumThread, tagKeys: string[], mode: T
   return mode === 'all' ? hits === keys.length : hits > 0;
 }
 
+/**
+ * Every track filed on a thread: the post's own first, then those of its replies, in the order a
+ * reader meets them.
+ */
+export function threadTracks(thread: ForumThread): ForumTrack[] {
+  const tracks: ForumTrack[] = [];
+
+  if (thread.track !== undefined) tracks.push(thread.track);
+  for (const comment of thread.comments) if (comment.track !== undefined) tracks.push(comment.track);
+
+  return tracks;
+}
+
+/** True when a post carries music at all - its own track, or one a reply came with. */
+export function carriesMusic(thread: ForumThread): boolean {
+  return thread.track !== undefined || thread.comments.some((comment) => comment.track !== undefined);
+}
+
+/**
+ * True when the thread's tracks wear any of the chosen music tags; no choice takes everything.
+ *
+ * A track's tags are written in the site's one tag grammar (`app/lib/audio/tags.ts`), so they are
+ * compared by canonical key here exactly as the board's own tags are - `LO-FI` in a tag list and
+ * `lo fi` in a filter are the same tag.
+ */
+export function matchesMusicTags(thread: ForumThread, musicTagKeys: string[] = []): boolean {
+  const wanted = normaliseKeys(musicTagKeys);
+  if (wanted.length === 0) return true;
+
+  return threadTracks(thread).some((track) =>
+    (track.tags ?? []).some((tag) => wanted.includes(tagKey(tag))),
+  );
+}
+
 export function selectBoardThreads(threads: ForumThread[], options: BoardQuery): ForumThread[] {
   const needle = options.query.trim().toLowerCase();
 
   const filtered = threads.filter((thread) => {
     if (options.sourceFilter !== 'all' && thread.anchor.kind !== options.sourceFilter) return false;
     if (!matchesTagFilter(thread, options.tagKeys, options.tagMatchMode)) return false;
+    if (options.musicOnly === true && !carriesMusic(thread)) return false;
+    if (!matchesMusicTags(thread, options.musicTagKeys)) return false;
     if (needle.length === 0) return true;
 
     return (

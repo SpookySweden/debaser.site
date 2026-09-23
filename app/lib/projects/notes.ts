@@ -54,6 +54,19 @@ export const PROJECT_NOTES: ProjectNote[] = [
     hrefLabel: '[ FORUM BOARD ]',
   },
   {
+    id: 'note-the-tag-window',
+    title: 'THE TAG WINDOW',
+    kinds: ['BOARD', 'HOUSE RULES'],
+    filed: '2026-09-23T13:00:00.000Z',
+    body: [
+      'Every tag the board has is one list, ranked by how much it is used, and that list is a window of its own: `[ ALL TAGS... ]` opens it, it drags about the desktop, and closing it leaves the board exactly as it was. The ranking is the point. What a list of tags is *for* is telling you what is on the board, and that is a count - so nothing is filed by kind, and the same word is not shown twice for being two sorts of thing.',
+      'The window has three tabs. MAIN is the index. MUSIC is the board`s own music: a switch that narrows the whole board to posts carrying a track, the sounds the filed files wear - tick one and only the posts whose music wears it stay - and a searcher over the files themselves, by title, artist, sound or poster, in the order you ask for: recently posted, most posted, or by uploader. TEST runs the rules this board is built on against the board as it is right now, one line each, PASS or FAIL: the same promises the scratch checks in `Temp/` hold, asked where the data lives.',
+      'A file is "popular" when more posts carry it, and RECENT is when it was last posted. Both are read off the board rather than kept in a column, which is why a hand-written catalogue entry with no post behind it sorts last instead of claiming to be new - and why the /music browser can offer the same three orders (a to z, recent, popular, uploader) without a second source of truth to drift away from.',
+    ],
+    href: '/forum',
+    hrefLabel: '[ FORUM BOARD ]',
+  },
+  {
     id: 'note-who-may-write-a-lore-page',
     title: 'WHO MAY WRITE A LORE PAGE',
     kinds: ['LORE', 'HOUSE RULES'],

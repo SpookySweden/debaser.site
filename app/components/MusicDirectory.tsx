@@ -11,12 +11,13 @@ import {
   filterArchiveRows,
   folderAncestors,
   isFiltering,
-  sortByDisplayName,
+  sortArchiveRows,
   type ArchiveFolder,
   type ArchiveRow,
   type FolderPath,
 } from '../lib/audio/archive-tree';
 import { formatClock } from '../lib/audio/format';
+import { TRACK_SORTS, type TrackSort } from '../lib/audio/sorts';
 import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
@@ -247,6 +248,8 @@ export default function MusicDirectory() {
   const tagKeys = useMemo(() => parseTagKeys(search.get('tag')), [search]);
   const [query, setQuery] = useState('');
   const [matchAll, setMatchAll] = useState(false);
+  /** The order the search comes back in: the directory's own to begin with. */
+  const [sort, setSort] = useState<TrackSort>('name');
   /** Folded away by default; opened by the toggle, by the search box, or by a tag in the address. */
   const [tagsOpen, setTagsOpen] = useState(() => tagKeys.length > 0);
   /** Which folders are open, by path: the directory is folded until it is asked for. */
@@ -263,7 +266,9 @@ export default function MusicDirectory() {
     () => filterArchiveRows(rows, { query, tagKeys, matchAll }),
     [rows, query, tagKeys, matchAll],
   );
-  const flat = useMemo(() => sortByDisplayName(matches), [matches]);
+  // The search comes back in the order that was asked for: by name (the directory's own order), by
+  // when a file was last posted, by how many posts carry it, or by whoever filed it.
+  const flat = useMemo(() => sortArchiveRows(matches, sort), [matches, sort]);
   const filtering = isFiltering({ query, tagKeys, matchAll });
 
   function toggleTag(key: string) {
@@ -344,6 +349,25 @@ export default function MusicDirectory() {
           <button type="button" onClick={() => setTagsOpen(!tagsOpen)} aria-expanded={tagsOpen} className={PLATE}>
             {tagsOpen ? '[ FILTER ▴ ]' : '[ FILTER ▾ ]'}
           </button>
+
+          {/* The order the search comes back in: the same three questions the tag window's music tab
+              asks (./TagWindow.tsx), answered off the same two facts the board holds - when a file was
+              last posted, and how many posts carry it. */}
+          <label htmlFor="music-sort" className="text-[10px] font-bold text-black">
+            ORDER:
+          </label>
+          <select
+            id="music-sort"
+            value={sort}
+            onChange={(event) => setSort(event.target.value as TrackSort)}
+            className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none max-sm:p-2"
+          >
+            {TRACK_SORTS.map((entry) => (
+              <option key={entry.value} value={entry.value} title={entry.hint}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
 
           <button type="button" onClick={clearAll} disabled={!filtering} className={PLATE}>
             [ CLEAR ]

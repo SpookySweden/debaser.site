@@ -1,5 +1,6 @@
 import type { ForumAuthor, ForumThread, ForumTrack } from '../forum/types';
 import { threadDomId } from '../forum/anchors';
+import type { TrackSort } from './sorts';
 import type { AudioTrack } from './tracks';
 
 /**
@@ -98,4 +99,98 @@ export function collectFiledTracks(threads: ForumThread[]): FiledTrack[] {
   }
 
   return filed.sort((a, b) => Date.parse(b.filedAt) - Date.parse(a.filedAt));
+}
+
+/** One post a file is on: where to read it, and who put it there. */
+export type Filing = {
+  poster: string;
+  threadId: string;
+  threadTitle: string;
+  href: string;
+  filedAt: string;
+  origin: 'POST' | 'REPLY';
+};
+
+/**
+ * The board's music as *files* rather than as postings.
+ *
+ * The same MP3 can be filed by more than one post, and the question somebody asks about music ("how
+ * much is this one around?") is about the file, not about the post that happened to be in front of
+ * them. So the postings are folded by `src`: one entry per file, how many posts carry it, who filed
+ * it, and when it was last posted - the three orderings the listings offer, each read off the same
+ * grouping so they can never disagree.
+ */
+export type FiledFile = {
+  track: AudioTrack;
+  /** How many posts and replies carry this file: what "popular" counts. */
+  count: number;
+  /** Who filed it, newest first, once each. */
+  posters: string[];
+  /** When it was last posted. */
+  newest: string;
+  /** Every post it is on, newest first. */
+  filings: Filing[];
+};
+
+export function groupFiledTracks(filed: FiledTrack[]): FiledFile[] {
+  const files = new Map<string, FiledFile>();
+
+  for (const entry of filed) {
+    const existing = files.get(entry.track.src);
+
+    if (existing === undefined) {
+      files.set(entry.track.src, {
+        track: entry.track,
+        count: 1,
+        posters: [entry.poster],
+        newest: entry.filedAt,
+        filings: [
+          {
+            poster: entry.poster,
+            threadId: entry.threadId,
+            threadTitle: entry.threadTitle,
+            href: entry.href,
+            filedAt: entry.filedAt,
+            origin: entry.origin,
+          },
+        ],
+      });
+
+      continue;
+    }
+
+    existing.count += 1;
+    if (!existing.posters.includes(entry.poster)) existing.posters.push(entry.poster);
+    existing.filings.push({
+      poster: entry.poster,
+      threadId: entry.threadId,
+      threadTitle: entry.threadTitle,
+      href: entry.href,
+      filedAt: entry.filedAt,
+      origin: entry.origin,
+    });
+  }
+
+  return [...files.values()];
+}
+
+/** Who a file is filed under: the first name it arrived with, or the site for an unsigned file. */
+export function filedFileUploader(file: FiledFile): string {
+  return file.posters[0] ?? (file.track.credit.length === 0 ? 'DEBASER.SITE' : file.track.credit);
+}
+
+/** The same files in the order that was asked for. Ties always fall back to the title. */
+export function sortFiledFiles(files: FiledFile[], sort: TrackSort): FiledFile[] {
+  const byTitle = (a: FiledFile, b: FiledFile) => a.track.title.localeCompare(b.track.title);
+
+  if (sort === 'popular') return [...files].sort((a, b) => b.count - a.count || byTitle(a, b));
+  if (sort === 'uploader') {
+    return [...files].sort(
+      (a, b) => filedFileUploader(a).toLowerCase().localeCompare(filedFileUploader(b).toLowerCase()) || byTitle(a, b),
+    );
+  }
+  if (sort === 'name') return [...files].sort(byTitle);
+
+  // Recent: an ISO stamp compares as text, newest first.
+  return [...files].sort((a, b) => b.newest.localeCompare(a.newest) || byTitle(a, b));
 }
