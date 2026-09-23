@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { STATUS_BAR, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
@@ -45,11 +45,18 @@ export default function PopoutWindow({
 }: PopoutWindowProps) {
   const titleId = useId();
   const [host, setHost] = useState<HTMLElement | null>(null);
+  const windowRef = useRef<HTMLDivElement | null>(null);
   const { offset, dragHandlers } = useWindowDrag();
 
-  // The portal target is only available in the browser.
+  // The portal target is only available in the browser. The window also takes focus as it opens: a
+  // dialogue nobody is standing in lets a keyboard user tab straight into the page behind it, which
+  // is the page the dialogue is covering.
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => setHost(document.body));
+    const frame = window.requestAnimationFrame(() => {
+      setHost(document.body);
+      windowRef.current?.focus();
+    });
+
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
@@ -71,6 +78,8 @@ export default function PopoutWindow({
       onMouseDown={onClose}
     >
       <div
+        ref={windowRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

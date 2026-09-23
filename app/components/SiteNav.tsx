@@ -59,7 +59,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
   const { unreadTotal } = useComms();
 
   return (
-    <div className="flex min-w-0 flex-1 flex-wrap gap-1">
+    <nav aria-label="Site keys" className="flex min-w-0 flex-1 flex-wrap gap-1">
       {NAV_ITEMS.map((item) => {
         const unread = item.key === 'comms' ? unreadTotal : 0;
 
@@ -72,7 +72,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }
 

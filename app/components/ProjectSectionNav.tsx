@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import { DEBASER_PROJECT, PROJECT_SECTIONS } from '../lib/projects/debaser';
+import { SHELF_CHIP } from '../lib/ui/controls';
 
-const LINK = 'cursor-pointer rounded-none border border-gray-500 bg-white px-2 py-[2px] hover:bg-yellow-100';
-const CURRENT = 'rounded-none border border-black bg-[#000080] px-2 py-[2px] text-white';
+const CURRENT =
+  'rounded-none border border-black bg-[#000080] px-2 py-[2px] text-white max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 type ProjectSectionNavProps = {
   /** The section this page is, so it is marked rather than linked. */
@@ -20,7 +21,7 @@ type ProjectSectionNavProps = {
 export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
   return (
     <div className="mb-4 flex flex-wrap items-center gap-1 border border-gray-500 bg-[#f0f0f0] p-2 text-[10px] font-bold text-black">
-      <Link href={DEBASER_PROJECT.href} className={LINK}>
+      <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP}>
         [ &lt; {DEBASER_PROJECT.title} ]
       </Link>
 
@@ -32,13 +33,13 @@ export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
             [ {section.label} ]
           </span>
         ) : (
-          <Link key={section.id} href={section.href} className={LINK} title={section.summary}>
+          <Link key={section.id} href={section.href} className={SHELF_CHIP} title={section.summary}>
             [ {section.label} ]
           </Link>
         ),
       )}
 
-      <Link href="/" className={`ml-auto ${LINK}`}>
+      <Link href="/" className={`ml-auto ${SHELF_CHIP}`}>
         [ HOME ]
       </Link>
     </div>

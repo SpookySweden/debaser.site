@@ -3,7 +3,8 @@ import Link from 'next/link';
 import CommentPopout from './components/CommentPopout';
 import SiteWindow from './components/SiteWindow';
 import { FORUM_ANCHORS } from './lib/forum/anchors';
-import { ARCHIVE_PROJECTS } from './lib/projects/debaser';
+import { ARCHIVE_PROJECTS, PROJECT_SECTIONS } from './lib/projects/debaser';
+import { SHELF_CHIP } from './lib/ui/controls';
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE - Portal Archive',
@@ -46,6 +47,23 @@ export default function Home() {
         <li><strong>FORUM:</strong> Join live community discussions and real-time boards.</li>
         <li><strong>USERS:</strong> Every account on the site, with its online lamp.</li>
         <li><strong>COMMS:</strong> Direct messages between accounts.</li>
+      </ul>
+
+      {/* The project's shelves, one click from the map: on a phone the Start menu carries them, and
+          a map that only names the project would make a reader open it to find out what is inside. */}
+      <p className="mt-3 text-xs font-bold mb-1">SHELVES:</p>
+      <ul className="flex flex-wrap gap-1 text-[10px] font-bold">
+        {PROJECT_SECTIONS.map((section) => (
+          <li key={section.id}>
+            <Link
+              href={section.href}
+              title={section.summary}
+              className={SHELF_CHIP}
+            >
+              [ {section.label} ]
+            </Link>
+          </li>
+        ))}
       </ul>
     </div>
 

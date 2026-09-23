@@ -8,9 +8,12 @@ import { NAV_ITEMS } from './SiteNav';
 /**
  * A row in the menu: flat until the pointer is on it, the way a desktop menu reads - a column of
  * bevelled plates would look like a toolbar lying on its side.
+ *
+ * The small-screen height is deliberate: on a phone the menu is the whole of the site's navigation,
+ * so every row is thumb-sized there even though it is a line of text on a wide screen.
  */
 const MENU_ROW =
-  'block w-full cursor-pointer px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-[#000080] hover:text-white';
+  'flex w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-[#000080] hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */
@@ -54,10 +57,13 @@ export default function StartMenu({ onDismiss }: StartMenuProps) {
   }, [onDismiss]);
 
   return (
-    <div
+    // A nav rather than a `role="menu"`: this holds two short lists of links, tabbed through like
+    // any other list, and a menu role promises arrow-key focus handling that nothing here does.
+    // Claiming to be a menu without behaving like one is worse for a screen reader than being what
+    // it is.
+    <nav
       ref={frame}
-      role="menu"
-      aria-label="Start menu"
+      aria-label="Site menu"
       className="absolute bottom-full left-0 z-[70] mb-1 flex w-64 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] shadow-2xl"
     >
       {/* The spine: the name, read the way a Win95 menu's was - bottom to top. */}
@@ -69,19 +75,18 @@ export default function StartMenu({ onDismiss }: StartMenuProps) {
 
       <div className="min-w-0 flex-1 py-1">
         {NAV_ITEMS.map((item) => (
-          <Link key={item.key} href={item.href} role="menuitem" onClick={onDismiss} className={MENU_ROW}>
+          <Link key={item.key} href={item.href} onClick={onDismiss} className={MENU_ROW}>
             {item.label}
           </Link>
         ))}
 
         <div className="mt-1 border-t border-gray-500 pt-1">
-          <p className="px-2 pb-1 text-[9px] font-bold text-gray-700">PROJECT SHELVES</p>
+          <p className="px-2 pb-1 text-[10px] font-bold text-gray-700">PROJECT SHELVES</p>
 
           {PROJECT_SECTIONS.map((section) => (
             <Link
               key={section.id}
               href={section.href}
-              role="menuitem"
               onClick={onDismiss}
               title={section.summary}
               className={MENU_ROW}
@@ -91,6 +96,6 @@ export default function StartMenu({ onDismiss }: StartMenuProps) {
           ))}
         </div>
       </div>
-    </div>
+    </nav>
   );
 }

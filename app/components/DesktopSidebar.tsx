@@ -82,7 +82,7 @@ export default function DesktopSidebar() {
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
-        <span className="text-[9px] font-bold text-gray-700 [writing-mode:vertical-rl]">SIDE PANEL</span>
+        <span className="text-[10px] font-bold text-gray-700 [writing-mode:vertical-rl]">SIDE PANEL</span>
       </div>
     );
   }

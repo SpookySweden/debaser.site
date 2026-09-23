@@ -34,11 +34,11 @@ export const PLATE_LINK =
 
 /** An inset field: white, monospace, with the room it needs under its label. */
 export const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none max-sm:p-3';
+  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-[#000080] max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 text-xs text-black outline-none max-sm:p-2';
+  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 text-xs text-black outline-none focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-[#000080] max-sm:p-2';
 
 /* The chrome: title bars, panels and status bars, in one place. ------------------
    Every window and panel on the site wears the same navy title bar and the same
@@ -55,6 +55,14 @@ export const WINDOW_TITLE_BAR =
 /** A raised grey plate: light top-left edge, dark bottom-right edge, no radius. */
 export const PANEL =
   'rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]';
+
+/**
+ * The small white chip a shelf is linked with: the project strip across a page, and the same list on
+ * the landing page. Two places, one chip - and a thumb-sized one, because on a phone the strip is
+ * how anybody moves between shelves.
+ */
+export const SHELF_CHIP =
+  'cursor-pointer rounded-none border border-gray-500 bg-white px-2 py-[2px] hover:bg-yellow-100 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 /** An inset surface pressed into a plate: dark top-left, light bottom-right. */
 export const PANEL_INSET =

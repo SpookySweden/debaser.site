@@ -37,6 +37,10 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
     // The bottom padding is the player's: its bar is fixed to the bottom of the viewport, and the
     // window is short enough that the bar and the taskbar do not fight over the same strip of
     // screen (see ./MusicPlayer.tsx). The surface behind the window is the desktop's own tile.
+    //
+    // `select-none` is the chrome's, not the archive's: a page of writing is meant to be quoted
+    // from, so the panel below turns selection back on for what it holds (and the taskbar, which is
+    // no writing at all, keeps the window's).
     <main className="desktop-tile flex min-h-screen items-center justify-center p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
       <div className="flex h-[84vh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
 
@@ -46,17 +50,26 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
           <ProfileControl />
         </div>
 
+        {/*
+         * Taskbar: the Start menu, the open page's key, and the tray.
+         *
+         * Written before the page and pulled to the foot with `order-last`, which is the difference
+         * between a keyboard user reaching the site's navigation in one press and tabbing through
+         * every link on the page to find it. The window is the thing that looks like the desktop;
+         * this is the thing that has to behave like one.
+         */}
+        <Taskbar active={active} status={status} />
+
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">
-          <div className={`m-2 min-w-0 flex-1 overflow-y-auto ${PANEL_INSET} bg-white p-4 text-black sm:p-6`}>
+          <div
+            className={`m-2 min-w-0 flex-1 overflow-y-auto ${PANEL_INSET} bg-white p-4 text-black select-text sm:p-6`}
+          >
             {children}
           </div>
 
           <DesktopSidebar />
         </div>
-
-        {/* Taskbar: the Start menu, the open page's key, and the tray. */}
-        <Taskbar active={active} status={status} />
 
       </div>
     </main>

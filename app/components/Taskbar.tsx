@@ -32,12 +32,18 @@ export default function Taskbar({ active, status }: TaskbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="relative flex flex-wrap items-center gap-1 border-t-2 border-white bg-[#c0c0c0] px-1 py-[3px] text-[10px] font-bold text-black">
+    // `order-last` puts the bar at the foot of the window while leaving it first in the document,
+    // where a keyboard user and a screen reader will find it before the page (see ./SiteWindow.tsx).
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-[#c0c0c0] px-1 py-[3px] text-[10px] font-bold text-black">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
+        // The only navigation a phone has: it has to say what it opens, and the name it is read
+        // with still starts with the word on the plate.
+        aria-label="START :: the site menu"
+        title="The site menu: every page, and the debaser project's shelves"
         // Pressed in while its menu is open, which is what a Start button does.
         className={
           menuOpen
@@ -51,7 +57,7 @@ export default function Taskbar({ active, status }: TaskbarProps) {
       <SiteNav active={active} />
 
       {/* The tray: the page's own status line, and what the window is encoded in. */}
-      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[9px] text-gray-700">
+      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[10px] text-gray-700">
         <span>Status: {status}</span>
         <span aria-hidden="true">::</span>
         <span>UTF-8</span>

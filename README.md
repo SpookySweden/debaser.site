@@ -72,6 +72,17 @@ the wire's rows to the Yjs handshake between two editors. Each compiles the modu
 whole run. The live probes beside them need a Supabase project and credentials, and are run by hand
 against the deployed one.
 
+One pass is not part of that suite, because it needs a capture of the built site:
+
+    node Temp/qa-audit.cjs
+
+It reads the HTML `next start` serves - one file per route, the same bytes a visitor's browser gets
+before any JavaScript runs, which is also what a screen reader sees - and reports what a person
+meets: fields with no name, controls too small for a thumb, text too small to read, colour pairs
+below the contrast floor. It also lists the handful of things no script can answer and somebody
+should walk through by hand. `Temp/check-ux.cjs` is the part of that pass the ordinary suite can
+hold, so a regression is caught without a server.
+
 Deploying
 ---------
 Vercel, straight from this repository. `next build` is what runs there, `.env.production` is what
