@@ -4,7 +4,7 @@ import { useSyncExternalStore } from 'react';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { TITLE_BAR } from '../lib/ui/controls';
+import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
  * Where the panel remembers whether it is open. Named like the store keys so the
@@ -89,7 +89,7 @@ export default function DesktopSidebar() {
 
   return (
     <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-gray-600 bg-[#c0c0c0] lg:flex">
-      <div className={TITLE_BAR}>
+      <div className={TITLE_BAR_INACTIVE}>
         <span>SIDE PANEL</span>
         <button
           type="button"

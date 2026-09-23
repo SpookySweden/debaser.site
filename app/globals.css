@@ -237,3 +237,55 @@ summary::-webkit-details-marker {
     font-size: 16px !important;
   }
 }
+
+/* The artless surface --------------------------------------------------------
+   Three rules that hold the whole GUI to one era, and none of them draws anything: a scrollbar is
+   a bevel with a grip on it, a selection is two flat colours, and artwork is scaled in whole pixels
+   rather than resampled into a blur. Nothing here is an illustration - see AGENTS.md, Asset Rules. */
+
+/* A scrollbar is a 16px grey trough with a bevelled thumb, and it inverts while it is dragged. The
+   standard property is what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read.
+   Both are given the same values, so a scrollbar is the same scrollbar wherever the site is opened. */
+html {
+  scrollbar-color: #c0c0c0 #d4d0c8;
+}
+
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+  background: #d4d0c8;
+}
+
+::-webkit-scrollbar-track {
+  background-image: linear-gradient(45deg, #ffffff 25%, transparent 25%, transparent 75%, #ffffff 75%),
+    linear-gradient(45deg, #ffffff 25%, transparent 25%, transparent 75%, #ffffff 75%);
+  background-position: 0 0, 2px 2px;
+  background-size: 4px 4px;
+  background-color: #d4d0c8;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c0c0c0;
+  border: 2px solid;
+  border-color: #ffffff #000000 #000000 #ffffff;
+}
+
+/* Held down, the grip is pressed in like every other control on this site. */
+::-webkit-scrollbar-thumb:active {
+  border-color: #000000 #ffffff #ffffff #000000;
+}
+
+::-webkit-scrollbar-corner {
+  background: #d4d0c8;
+}
+
+/* Selected text is a flat navy block with white letters, the way a text-mode editor marked it. */
+::selection {
+  background: #000080;
+  color: #ffffff;
+}
+
+/* Artwork is hand-drawn at its own size and scaled in whole pixels, never resampled. */
+img {
+  image-rendering: pixelated;
+}

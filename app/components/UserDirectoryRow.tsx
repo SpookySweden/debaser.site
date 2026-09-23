@@ -53,7 +53,7 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-gray-500 p-2 text-[10px] font-bold last:border-b-0 ${
+      className={`flex flex-wrap items-center gap-x-3 border-b border-gray-500 p-1 text-[10px] font-bold last:border-b-0 ${
         row.admin ? 'bg-[#dcdcdc]' : ''
       }`}
     >

@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from 'react';
 import { formatClock, formatClockOrNothing } from '../lib/audio/format';
 import { trackCaption } from '../lib/audio/tracks';
-import { PLATE, PLATE_TAP } from '../lib/ui/controls';
+import { PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
@@ -173,16 +173,35 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
             </span>
           </span>
 
-          <span className="flex items-center gap-1">
-            <button type="button" onClick={player.previous} className={PLATE} title="Previous track">
-              [ ‹‹ ]
-            </button>
-            <button type="button" onClick={player.toggle} className={PLATE} title={playing ? 'Pause' : 'Play'}>
-              {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
-            </button>
-            <button type="button" onClick={player.next} className={PLATE} title="Next track">
-              [ ›› ]
-            </button>
+          {/* The transport, in a recess: keys bolted into the panel rather than plates floating on
+              it, and the word written out on every one of them - a row of bare triangles is a
+              puzzle, and the house rule is that a mark is only ever drawn beside its own name. */}
+          <span className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#c0c0c0] p-1">
+            <span className="flex flex-wrap items-center gap-1">
+              <button type="button" onClick={player.previous} className={PLATE_HARDWARE} title="Previous track">
+                [ PREV ]
+              </button>
+              <button
+                type="button"
+                onClick={player.toggle}
+                className={`${PLATE_HARDWARE} min-w-[7rem]`}
+                title={playing ? 'Pause' : 'Play'}
+              >
+                {playing ? '[ PAUSE ]' : '[ PLAY ]'}
+              </button>
+              <button type="button" onClick={player.next} className={PLATE_HARDWARE} title="Next track">
+                [ NEXT ]
+              </button>
+              <button
+                type="button"
+                onClick={() => player.setLoop(!loop)}
+                className={`${PLATE_HARDWARE} ${loop ? 'border-t-2 border-l-2 border-black border-r-2 border-b-2 border-white' : ''}`}
+                title="Repeat this track when it ends"
+                aria-pressed={loop}
+              >
+                {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
+              </button>
+            </span>
           </span>
 
           <label className="flex items-center gap-1 text-[10px] font-bold text-black">
@@ -200,24 +219,15 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
             <span className="w-7 text-right">{Math.round(volume * 100)}</span>
           </label>
 
-          <button
-            type="button"
-            onClick={() => player.setLoop(!loop)}
-            className={PLATE}
-            title="Repeat this track when it ends"
-          >
-            {loop ? '[ LOOP: ON ]' : '[ LOOP: OFF ]'}
+          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} title="Player options">
+            [ OPTIONS ]
           </button>
 
-          <button type="button" onClick={onSettings} className={PLATE} title="Player options">
-            [ ⚙ ]
-          </button>
-
-          <button type="button" onClick={onShelf} className={PLATE}>
+          <button type="button" onClick={onShelf} className={PLATE_HARDWARE}>
             [ SHELF ({player.queue.length}) ]
           </button>
 
-          <button type="button" onClick={onHide} className={PLATE} title="Fold the player away">
+          <button type="button" onClick={onHide} className={PLATE_HARDWARE} title="Fold the player away">
             [ HIDE ]
           </button>
         </div>
@@ -373,33 +383,34 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
           <span>{formatClockOrNothing(seekable ? duration : undefined)}</span>
         </div>
 
-        <div className="mt-1 flex items-center justify-center gap-2">
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
           <button type="button" onClick={player.previous} className={PLATE_TAP} title="Previous track">
-            ⏮
+            [ PREV ]
           </button>
 
           <button
             type="button"
             onClick={player.toggle}
-            className={`${PLATE_TAP} px-6 text-base`}
+            className={`${PLATE_TAP} min-w-[8rem] text-base`}
             title={playing ? 'Pause' : 'Play'}
           >
-            {playing ? '❚❚' : '▶'}
+            {playing ? '[ PAUSE ]' : '[ PLAY ]'}
           </button>
 
           <button type="button" onClick={player.next} className={PLATE_TAP} title="Next track">
-            ⏭
+            [ NEXT ]
           </button>
         </div>
 
-        <div className="mt-2 flex items-center gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
             onClick={() => player.setLoop(!loop)}
             className={PLATE_TAP}
             title="Repeat this track when it ends"
+            aria-pressed={loop}
           >
-            ↻ {loop ? 'on' : 'off'}
+            {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
           </button>
 
           <label className="ml-auto flex items-center gap-1 text-[10px] font-bold text-gray-700">

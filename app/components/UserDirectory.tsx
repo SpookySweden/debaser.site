@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/directory';
-import { PANEL, TITLE_BAR } from '../lib/ui/controls';
+import { PANEL, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
@@ -75,7 +75,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
   return (
     <div className="space-y-3">
       <section className={PANEL}>
-        <div className={TITLE_BAR}>
+        <div className={TITLE_BAR_INACTIVE}>
           <span>ACCOUNT DIRECTORY</span>
           <span>
             {compact ? (
@@ -92,7 +92,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
         </div>
 
         {compact ? null : (
-          <p className="border-b border-gray-500 px-3 py-2 text-[10px] font-bold text-black">
+          <p className="border-b border-gray-500 px-2 py-1 text-[10px] font-bold text-black">
             {counts.online} ONLINE :: {counts.recent} SEEN THIS HOUR :: {counts.offline} ELSEWHERE :: THE HOUSE
             ACCOUNT FIRST
           </p>
@@ -119,7 +119,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
 
       {compact ? null : (
         <section className={PANEL}>
-          <div className={TITLE_BAR}>
+          <div className={TITLE_BAR_INACTIVE}>
             <span>THE LAMP</span>
             <span>[ LEGEND ]</span>
           </div>

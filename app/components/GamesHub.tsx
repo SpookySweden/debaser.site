@@ -6,7 +6,7 @@ import { inviteSummary, opponentOf, splitInvites } from '../lib/games/invites';
 import { getGamesRepository } from '../lib/games/repository';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { buildUserDirectory } from '../lib/profile/directory';
-import { FIELD_TIGHT, PANEL, PLATE, STATUS_BAR, TITLE_BAR } from '../lib/ui/controls';
+import { FIELD_TIGHT, PANEL, PLATE, PLATE_PRESSED, STATUS_BAR, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import GameMatch from './GameMatch';
@@ -228,7 +228,7 @@ export default function GamesHub() {
       )}
 
       <section className={PANEL}>
-        <div className={TITLE_BAR}>
+        <div className={TITLE_BAR_INACTIVE}>
           <span>ARCADE</span>
           <span>
             {GAME_CATALOGUE.length} GAME{GAME_CATALOGUE.length === 1 ? '' : 'S'}
@@ -263,7 +263,7 @@ export default function GamesHub() {
                 >
                   [ PLAY SOLO ]
                 </button>
-                <button type="button" className={PLATE} disabled={chosen === game.id} onClick={() => setChosen(game.id)}>
+                <button type="button" className={chosen === game.id ? PLATE_PRESSED : PLATE} disabled={chosen === game.id} onClick={() => setChosen(game.id)}>
                   {chosen === game.id ? '[ PICKED ]' : '[ INVITE SOMEONE ]'}
                 </button>
               </div>
@@ -274,7 +274,7 @@ export default function GamesHub() {
 
 
       <section className={PANEL}>
-        <div className={TITLE_BAR}>
+        <div className={TITLE_BAR_INACTIVE}>
           <span>INVITATIONS</span>
           <span>
             {split.incoming.length > 0 ? `${split.incoming.length} WAITING ON YOU` : split.sent.length > 0 ? `${split.sent.length} WAITING` : 'NOTHING WAITING'}
@@ -335,7 +335,7 @@ export default function GamesHub() {
       </section>
 
       <section className={PANEL}>
-        <div className={TITLE_BAR}>
+        <div className={TITLE_BAR_INACTIVE}>
           <span>WHO IS AROUND</span>
           <span>{around.length} ONLINE</span>
         </div>
