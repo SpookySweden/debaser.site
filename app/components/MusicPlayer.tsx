@@ -6,6 +6,7 @@ import { trackCaption } from '../lib/audio/tracks';
 import { PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import MarqueeText from './MarqueeText';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
 
@@ -147,27 +148,30 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-[#c0c0c0] px-2 py-1 font-mono text-black shadow-[0_-2px_0_#808080]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-sun-pale px-2 py-1 font-mono text-black shadow-[0_-2px_0_#808080]">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
-          <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#000080] px-2 py-[2px] text-[10px] font-bold text-white">
+          <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[2px] text-[10px] font-bold text-white">
             ♪ DEBASER PLAYER
           </span>
 
           {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
           <span className="min-w-0 flex-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-black px-2 py-1">
             <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] font-bold text-[#33ff33]">
-              <span className="truncate">
-                {loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
-              </span>
+              <MarqueeText
+                className="min-w-0 flex-1"
+                text={loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
+              />
               <span className="shrink-0">
-                {playing ? '▶' : '❚❚'} {formatClock(elapsed)} /{' '}
+                <span className={playing ? 'animate-blip' : undefined}>{playing ? '▶' : '❚❚'}</span>{' '}
+                {formatClock(elapsed)} /{' '}
                 {formatClockOrNothing(Number.isFinite(duration) ? duration : undefined)}
               </span>
             </span>
-            <span className="mt-1 block truncate text-[9px] text-[#1f9f1f]">
-              {error ?? trackCaption(track)}
-              {loop ? ' :: LOOPING THIS ONE' : ''}
-            </span>
+            <MarqueeText
+              className="mt-1 block text-[9px] text-[#1f9f1f]"
+              durationSeconds={22}
+              text={`${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
+            />
             <span className="mt-1 block h-1 w-full bg-[#0b2b0b]">
               <span className="block h-1 bg-[#33ff33]" style={{ width: `${Math.round(progress * 100)}%` }} />
             </span>
@@ -176,7 +180,7 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
           {/* The transport, in a recess: keys bolted into the panel rather than plates floating on
               it, and the word written out on every one of them - a row of bare triangles is a
               puzzle, and the house rule is that a mark is only ever drawn beside its own name. */}
-          <span className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#c0c0c0] p-1">
+          <span className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-sun-pale p-1">
             <span className="flex flex-wrap items-center gap-1">
               <button type="button" onClick={player.previous} className={PLATE_HARDWARE} title="Previous track">
                 [ PREV ]
@@ -213,7 +217,7 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
               value={Math.round(volume * 100)}
               onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
               className="h-4 w-20 cursor-pointer"
-              style={{ accentColor: '#000080' }}
+              style={{ accentColor: '#0000cc' }}
               aria-label="Volume"
             />
             <span className="w-7 text-right">{Math.round(volume * 100)}</span>
@@ -271,7 +275,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
               <li
                 key={`${entry.id}-${position}`}
                 className={`flex flex-wrap items-center gap-2 rounded-none border border-gray-500 p-2 text-[10px] font-bold text-black ${
-                  playingThis ? 'bg-[#ffffcc]' : 'bg-white'
+                  playingThis ? 'bg-sun-pale' : 'bg-white'
                 }`}
               >
                 <span className="w-5 shrink-0 text-right text-gray-700">{position + 1}.</span>
@@ -319,15 +323,15 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
   const seekable = lengthSeconds > 0;
 
   return (
-    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] font-mono text-black shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-[10px] font-bold text-white">
+    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale font-mono text-black shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-white">
         <span className="truncate">♪ DEBASER PLAYER</span>
 
         <span className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onSettings}
-            className="cursor-pointer px-1 leading-none hover:bg-[#ffffcc] hover:text-[#000080]"
+            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-ena"
             title="Player options"
           >
             ⚙
@@ -336,7 +340,7 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onShelf}
-            className="cursor-pointer underline underline-offset-2 hover:bg-[#ffffcc] hover:text-[#000080]"
+            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-ena"
           >
             shelf ({player.queue.length})
           </button>
@@ -344,7 +348,7 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onHide}
-            className="cursor-pointer px-1 leading-none hover:bg-[#ffffcc] hover:text-[#000080]"
+            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-ena"
             title="Fold the player away"
           >
             ▾
@@ -374,7 +378,7 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
           onChange={(event) => player.seek(Number(event.target.value))}
           disabled={!seekable}
           className="mt-2 h-5 w-full cursor-pointer disabled:opacity-60"
-          style={{ accentColor: '#000080' }}
+          style={{ accentColor: '#0000cc' }}
           aria-label="Seek"
         />
 
@@ -422,7 +426,7 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
               value={Math.round(volume * 100)}
               onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
               className="h-5 w-20 cursor-pointer"
-              style={{ accentColor: '#000080' }}
+              style={{ accentColor: '#0000cc' }}
               aria-label="Volume"
             />
           </label>

@@ -76,7 +76,7 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
         {row.admin ? (
-          <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
+          <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
         ) : null}
         {row.you ? <span className="border border-black bg-white px-1">[ YOU ]</span> : null}
         {/* Banned is worth saying out loud: their posts are hidden from everybody

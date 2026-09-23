@@ -161,7 +161,7 @@ export default function ElementComments({
             return (
               <li
                 key={version.id}
-                className="flex flex-wrap items-baseline justify-between gap-x-2 bg-[#f0f0f0] px-1 text-[10px] font-bold text-black"
+                className="flex flex-wrap items-baseline justify-between gap-x-2 bg-ice-pale px-1 text-[10px] font-bold text-black"
               >
                 <span className="min-w-0 truncate">
                   <span className={HYPER_LABEL}>{version.tag}</span>

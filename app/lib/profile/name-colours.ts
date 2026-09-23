@@ -52,7 +52,7 @@ export const DEFAULT_NAME_COLOUR = '';
  * are the two backgrounds the arithmetic below asks about. Grey is the stricter of the two, which is
  * why a swatch can pass on a post and still be hard to find in a list.
  */
-const NAME_BACKGROUNDS = ['#ffffff', '#f0f0f0'];
+const NAME_BACKGROUNDS = ['#ffffff', '#ffffcc'];
 
 /** How well a swatch reads as a name on the page: the worst of those two, as a ratio from 1 to 21. */
 export function nameColourContrast(hex: string): number {

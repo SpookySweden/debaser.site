@@ -34,7 +34,7 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
     }
 
     return (
-      <div className="flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-4 text-center">
+      <div className="flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-4 text-center">
         <span className="text-[10px] font-bold text-black">[ ARTWORK FILE NOT FOUND ]</span>
         <span className="text-[10px] text-black">CHECK THE PROJECT assets/ FOLDER FOR THIS SHEET</span>
       </div>

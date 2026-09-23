@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
 import { useComms } from './CommsProvider';
 import NotificationBell from './NotificationBell';
+import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
 
 type TaskbarProps = {
@@ -33,7 +34,7 @@ export default function Taskbar({ status }: TaskbarProps) {
   const { unreadTotal } = useComms();
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-[#c0c0c0] px-1 py-[3px] text-[10px] font-bold text-black">
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-sun-pale px-1 py-[3px] text-[10px] font-bold text-black">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
@@ -46,12 +47,23 @@ export default function Taskbar({ status }: TaskbarProps) {
         // Pressed in while its menu is open, which is what a Start button does.
         className={
           menuOpen
-            ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-[2px] text-[10px] font-bold text-black'
+            ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-ice px-2 py-[2px] text-[10px] font-bold text-ink'
             : PLATE
         }
       >
         [ START ]
       </button>
+
+      {/* The space a hand-drawn sprite walks in: a looping GIF, 24x24, beside the Start button
+          (see assets/sprites/README.txt). Nothing is drawn here - a slot is the room left for
+          artwork, and it keeps its size and its dither until the file lands. */}
+      <SpriteSlot
+        src="/assets/sprites/walk-cycle.gif"
+        alt="A little figure pacing the length of the taskbar"
+        width={24}
+        height={24}
+        title="A pixel sprite loops here once assets/sprites/walk-cycle.gif is drawn"
+      />
 
       {/* The tray: the page's own status line, and what the window is encoded in. */}
       <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[10px] text-gray-700">

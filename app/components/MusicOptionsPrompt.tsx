@@ -33,7 +33,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
             value={Math.round(player.volume * 100)}
             onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
             className="h-4 flex-1 cursor-pointer"
-            style={{ accentColor: '#000080' }}
+            style={{ accentColor: '#0000cc' }}
             aria-label="Default volume"
           />
           <span className="w-7 text-right">{Math.round(player.volume * 100)}</span>

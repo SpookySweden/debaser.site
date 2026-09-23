@@ -260,7 +260,7 @@ export default function ForumBoard() {
           {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
               music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
               a board's tags are *for* is telling you what is on it, and that is a count. */}
-          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
+          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-[10px] font-bold text-black">
                 TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
@@ -288,10 +288,10 @@ export default function ForumBoard() {
               </button>
 
               {musicOnly ? (
-                <span className="border border-black bg-[#000080] px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
+                <span className="border border-black bg-ena px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
               ) : null}
               {musicTagKeys.length === 0 ? null : (
-                <span className="border border-black bg-[#e8e8e8] px-1 text-[10px] font-bold text-black">
+                <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-black">
                   {musicTagKeys.length} MUSIC TAG(S)
                 </span>
               )}
@@ -318,7 +318,7 @@ export default function ForumBoard() {
                           : `Include posts tagged ${option.label} (${option.count} in use)`
                       }
                       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                        active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                        active ? 'bg-ena text-white' : 'text-black hover:underline'
                       }`}
                     >
                       <TagMark colour={tagMarkColour(tag)} compact />
@@ -349,7 +349,7 @@ export default function ForumBoard() {
                       type="button"
                       onClick={() => toggleTagFilter(key)}
                       title={`Stop including ${label}`}
-                      className="cursor-pointer rounded-none border border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                      className="cursor-pointer rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
                     >
                       {label} ×
                     </button>
@@ -387,7 +387,7 @@ export default function ForumBoard() {
                 <button
                   type="button"
                   onClick={clearTagFilters}
-                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
+                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-gray-300"
                 >
                   [ CLEAR TAGS ]
                 </button>
@@ -397,7 +397,7 @@ export default function ForumBoard() {
 
           {/* Sort / filter / search / paging are collapsed by default: the posts
               themselves are the practical information on this page. */}
-          <details className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
+          <details className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2">
             <summary className="cursor-pointer select-none text-[10px] font-bold text-black">
               [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
             </summary>
@@ -488,7 +488,7 @@ export default function ForumBoard() {
         </div>
 
         {/* List controls: always on screen, one row above the threads. */}
-        <div className="flex flex-wrap items-center gap-2 border-t-2 border-gray-600 bg-[#c0c0c0] px-2 py-[3px]">
+        <div className="flex flex-wrap items-center gap-2 border-t-2 border-gray-600 bg-sun-pale px-2 py-[3px]">
           <span className="text-[10px] font-bold text-black">
             SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
             {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
@@ -530,7 +530,7 @@ export default function ForumBoard() {
 
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (
-        <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+        <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold text-black">
             <span>
               SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
@@ -542,7 +542,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
               >
                 [ &lt;&lt; PREV ]
               </button>
@@ -565,7 +565,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[10px] font-bold hover:bg-gray-300 disabled:cursor-default disabled:opacity-50"
               >
                 [ NEXT &gt;&gt; ]
               </button>
@@ -597,7 +597,7 @@ export default function ForumBoard() {
                   className={
                     number === currentPage
                       ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-1 text-[10px] font-bold text-black'
-                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold text-black hover:bg-gray-300'
+                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-black hover:bg-gray-300'
                   }
                 >
                   {number}

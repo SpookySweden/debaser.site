@@ -20,7 +20,7 @@ export default function Home() {
       Welcome to the central digital hub for comic book lore, design concepts, and interactive community message boards. 
       This platform serves as a retro-styled operating environment dedicated to organizing and showcasing serialized world-building assets, artwork, and collaborative discussions.
     </p>
-    <div className="border border-black p-4 bg-[#f0f0f0] mt-6">
+    <div className="border border-black p-4 bg-ice-pale mt-6">
       <p className="text-xs font-bold mb-2">PROJECTS:</p>
       <ul className="space-y-2">
         {/* A project is a map entry: it opens its own landing page, and the
@@ -41,7 +41,7 @@ export default function Home() {
       </ul>
     </div>
 
-    <div className="border border-black p-4 bg-[#f0f0f0] mt-4">
+    <div className="border border-black p-4 bg-ice-pale mt-4">
       <p className="text-xs font-bold mb-2">QUICK NAVIGATION:</p>
       <ul className="text-xs space-y-1 list-disc list-inside">
         <li><strong>FORUM:</strong> Join live community discussions and real-time boards.</li>
@@ -68,7 +68,7 @@ export default function Home() {
     </div>
 
     {/* Comment control: pops an encased window holding this box's forum thread */}
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border border-black bg-[#f0f0f0] p-3">
+    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border border-black bg-ice-pale p-3">
       <span className="text-[10px] font-bold">
         COMMENTS ON THIS SUMMARY OPEN IN A POP-UP WINDOW. AUTHORS POST AS ANONYMOUS UNTIL AUTH IS LIVE.
       </span>

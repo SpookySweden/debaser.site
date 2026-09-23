@@ -63,7 +63,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         <button
           type="button"
           onClick={handleCreate}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold hover:bg-gray-300"
         >
           [ CREATE TAG ]
         </button>
@@ -96,10 +96,10 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 key={swatch}
                 type="button"
                 onClick={() => setColour(swatch)}
-                title={`${swatch.toUpperCase()} :: ${contrastRatio(swatch, '#e8e8e8').toFixed(1)}:1 against the chip it sits on`}
+                title={`${swatch.toUpperCase()} :: ${contrastRatio(swatch, '#ffffcc').toFixed(1)}:1 against the chip it sits on`}
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
-                className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#e8e8e8] py-1 ${
+                className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale py-1 ${
                   colour === swatch ? 'outline-2 outline-black' : 'hover:bg-gray-200'
                 }`}
               >
@@ -108,7 +108,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
             ))}
           </div>
 
-          <div className="mt-3 rounded-none border border-gray-600 bg-[#f0f0f0] p-2">
+          <div className="mt-3 rounded-none border border-gray-600 bg-ice-pale p-2">
             <p className="text-[10px] font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={tagChipClasses(makeUserTag(previewLabel))}>

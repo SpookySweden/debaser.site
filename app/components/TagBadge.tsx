@@ -26,10 +26,10 @@ const CHIP_BASE =
  * housekeeping tag and stays inset, which is how a reader can still tell the two apart at a glance.
  */
 const KIND_CLASSES: Record<ForumTag['kind'], string> = {
-  user: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  category: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  content: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  source: 'bg-[#f0f0f0] text-black border-t-[#808080] border-l-[#808080] border-r-white border-b-white',
+  user: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
+  category: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
+  content: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
+  source: 'bg-ice-pale text-black border-t-[#808080] border-l-[#808080] border-r-white border-b-white',
 };
 
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */

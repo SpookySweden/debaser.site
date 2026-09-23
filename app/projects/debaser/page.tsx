@@ -47,9 +47,9 @@ export default function DebaserProjectPage() {
         <Link
           key={section.id}
           href={section.href}
-          className="block rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] hover:bg-gray-300"
+          className="block rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale hover:bg-gray-300"
         >
-          <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+          <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
             <span>{section.label}</span>
             <span>[ {SECTION_COUNTS[section.id] ?? 'OPEN'} ]</span>
           </div>
@@ -62,7 +62,7 @@ export default function DebaserProjectPage() {
       ))}
     </div>
 
-    <div className="border border-black p-4 bg-[#f0f0f0] mt-6">
+    <div className="border border-black p-4 bg-ice-pale mt-6">
       <p className="text-xs font-bold mb-2">AROUND THE ARCHIVE:</p>
       <ul className="space-y-1">
         {ARCHIVE_LINKS.filter((link) => SITE_ROOMS.includes(link.id)).map((link) => (

@@ -69,12 +69,12 @@ export default function ProfileAvatar({
 
   return (
     <div
-      className={`shrink-0 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-1 ${className ?? ''}`}
+      className={`shrink-0 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-1 ${className ?? ''}`}
       style={{ width: size }}
     >
       {version === undefined ? (
         <div
-          className="flex items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0]"
+          className="flex items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale"
           style={{ height: size - 10 }}
         >
           <span className="text-[10px] font-bold text-black">{size >= NOTICE_MIN_SIZE ? 'NO PICTURE' : '?'}</span>

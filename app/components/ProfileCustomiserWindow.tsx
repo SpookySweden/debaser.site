@@ -248,7 +248,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             type="button"
             onClick={() => setTab(entry.key)}
             className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold ${
-              tab === entry.key ? 'bg-[#000080] text-white' : 'bg-[#c0c0c0] text-black hover:bg-gray-300'
+              tab === entry.key ? 'bg-ena text-white' : 'bg-sun-pale text-black hover:bg-gray-300'
             }`}
           >
             {entry.label}
@@ -347,7 +347,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 text-[10px] font-bold">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 text-[10px] font-bold">
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
         {error === null ? null : <p className="text-[#800000]">PROBLEM: {error}</p>}
         <p className="mt-1 text-gray-700">
@@ -370,7 +370,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       actions={
         <a
           href={`/profile/${encodeURIComponent(userId)}`}
-          className="rounded-none border border-black bg-[#c0c0c0] px-2 py-[2px] underline hover:bg-gray-300"
+          className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-gray-300"
         >
           [ VIEW PUBLIC PAGE ]
         </a>

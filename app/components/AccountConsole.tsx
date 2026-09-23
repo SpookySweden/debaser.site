@@ -28,8 +28,8 @@ export default function AccountConsole() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>ACCOUNT TERMINAL</span>
           <span>
             {status === 'loading' ? '[ READING... ]' : signedIn ? '[ SIGNED IN ]' : '[ GUEST ]'}
@@ -50,8 +50,8 @@ export default function AccountConsole() {
         </div>
       </section>
 
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>WHAT LIVES UNDER THIS TAB</span>
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
         </div>

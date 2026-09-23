@@ -18,7 +18,7 @@ function UnreadDot() {
 
 /** The bell's plate: small enough to sit in a title bar without crowding it. */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300';
 
 /**
  * The bell at the top of the side panel's comms block.

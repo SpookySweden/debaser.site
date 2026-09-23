@@ -29,7 +29,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
   const playing = element !== undefined && player.track?.src === element.src && player.playing;
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2">
       <div className="flex items-baseline justify-between gap-2 text-[10px] font-bold text-black">
         <span className="text-gray-700">{owner ? 'your track' : 'their track'}</span>
         <span className="text-gray-700">{element === undefined ? 'nothing filed' : element.tag}</span>

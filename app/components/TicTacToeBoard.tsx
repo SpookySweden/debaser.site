@@ -32,7 +32,7 @@ export default function TicTacToeBoard({
   const sealed = disabled || winner !== null || draw;
 
   return (
-    <div className={`${PANEL_INSET} bg-[#c0c0c0] p-1`}>
+    <div className={`${PANEL_INSET} bg-sun-pale p-1`}>
       <div className="grid aspect-square w-full grid-cols-3 gap-1">
         {board.map((cell, index) => {
           const inWinningLine = winning !== null && winning.includes(index);
@@ -49,11 +49,11 @@ export default function TicTacToeBoard({
                 inWinningLine
                   ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-yellow-100'
                   : open
-                    ? 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] hover:bg-yellow-100'
+                    ? 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale hover:bg-yellow-100'
                     : 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
             >
-              <span className={cell === 'X' ? 'text-[#000080]' : 'text-[#800000]'}>
+              <span className={cell === 'X' ? 'text-ena' : 'text-[#800000]'}>
                 {cell === null ? (open ? '' : '·') : cell}
               </span>
             </button>

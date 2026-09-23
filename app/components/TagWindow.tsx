@@ -76,7 +76,7 @@ function TagTick({
       aria-pressed={active}
       title={active ? `Stop including ${tag.label}` : `Include posts tagged ${tag.label}`}
       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 text-[10px] font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-        active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+        active ? 'bg-ena text-white' : 'text-black hover:underline'
       }`}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
@@ -351,7 +351,7 @@ export default function TagWindow({
               aria-pressed={fileSort === entry.value}
               title={entry.hint}
               className={`cursor-pointer px-1 font-bold ${
-                fileSort === entry.value ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                fileSort === entry.value ? 'bg-ena text-white' : 'text-black hover:underline'
               }`}
             >
               {entry.label}
@@ -449,7 +449,7 @@ export default function TagWindow({
       }
     >
       {/* The tabs: three plates, the open one filled with the navy this site selects in. */}
-      <div className="flex flex-wrap items-center gap-1 border-b-2 border-gray-600 bg-[#c0c0c0] px-2 py-[3px]">
+      <div className="flex flex-wrap items-center gap-1 border-b-2 border-gray-600 bg-sun-pale px-2 py-[3px]">
         {TABS.map((entry) => (
           <button
             key={entry.key}
@@ -457,7 +457,7 @@ export default function TagWindow({
             onClick={() => setTab(entry.key)}
             aria-pressed={tab === entry.key}
             className={`inline-flex cursor-pointer items-center px-2 py-[3px] text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
-              tab === entry.key ? 'bg-[#000080] text-white' : 'text-black hover:bg-gray-300'
+              tab === entry.key ? 'bg-ena text-white' : 'text-black hover:bg-gray-300'
             }`}
           >
             {entry.label}

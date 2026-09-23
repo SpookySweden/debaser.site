@@ -60,7 +60,7 @@ export default function PaddleDuelCourt({
     return (
       <span
         aria-hidden
-        className={`absolute border ${mine ? 'border-[#000080] bg-[#000080]' : 'border-[#800000] bg-[#800000]'}`}
+        className={`absolute border ${mine ? 'border-ena bg-ena' : 'border-[#800000] bg-[#800000]'}`}
         style={{
           left: side === 'left' ? `${(PADDLE_INSET / COURT_WIDTH) * 100}%` : undefined,
           right: side === 'right' ? `${(PADDLE_INSET / COURT_WIDTH) * 100}%` : undefined,
@@ -108,12 +108,12 @@ export default function PaddleDuelCourt({
         />
 
         {scoresHidden ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-[#c0c0c0]/85 px-2 text-center text-xs font-bold text-black">
+          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-xs font-bold text-black">
             WAITING FOR THE OTHER PLAYER. THE BALL HOLDS STILL UNTIL THEY ARE HERE.
           </span>
         ) : null}
 
-        <span className="absolute bottom-1 left-1 bg-[#c0c0c0] px-1 text-[10px] font-bold text-black">
+        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[10px] font-bold text-black">
           {state.leftScore} - {state.rightScore}
         </span>
       </div>

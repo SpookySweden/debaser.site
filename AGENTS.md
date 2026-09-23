@@ -14,7 +14,21 @@ A responsive, single-page Next.js dashboard serving as an exploratory site for c
 
 Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
 
-- **Shapes & borders**: 0px border-radius on every element, no exceptions. Thick, grey, bevelled borders mimicking classic Windows 95 pop-up windows.
+- **Shapes & borders**: 0px border-radius on every element, no exceptions. Thick, bevelled borders -
+  a light top-left edge and a dark bottom-right one - mimicking classic Windows 95 pop-up windows.
+  Nothing fades, lifts or casts a soft shadow.
+- **Colours**: one swatch, in the `@theme` block of `app/globals.css`: fifteen web-safe colours (deep
+  ENA blue, sun yellow, ice cyan, magenta, lime) plus the two Win95 greys that survive as the bevel's
+  shade and the quiet furniture. Every fill and every ink comes from `app/lib/ui/controls.ts`, which is
+  written in those tokens - no component writes a hex of its own (`Temp/check-surreal.cjs` fails on
+  one), and every pair that carries text clears 4.5:1 contrast by arithmetic.
+- **Reactivity**: six animations (`wobble`, `bump`, `shake`, `flash`, `marquee`, `blip`), all of them
+  `steps()` rather than eased so they move in whole pixel frames; plates invert on hover and flash
+  magenta on press; prose links wear a 3px dotted pixel bar that changes colour on hover. All of it
+  goes quiet under `prefers-reduced-motion`.
+- **Artwork**: sprites, sheets, avatars and cursors are hand-drawn files, pointed at from a slot
+  (`SpriteSlot`, `assets/sprites/README.txt`) - code never draws a character, an icon or an
+  illustration, though repeating tile patterns, dithers and dotted rules are fine.
 - **Typography**: heavily pixelated monospace fonts (e.g. Courier or MS Sans Serif equivalents).
 - **Layout & backgrounds**: CSS repeating tile patterns. A sticky retro taskbar (footer) with a Start-menu layout holding looping avatar sprites.
 - **Interactivity**: custom CSS cursors using retro pixel-art images on hover.

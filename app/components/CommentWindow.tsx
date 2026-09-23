@@ -112,7 +112,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         thread === undefined ? null : (
           <Link
             href={`/forum#${threadDomId(thread.id)}`}
-            className="rounded-none border border-black bg-[#c0c0c0] px-2 py-[2px] underline hover:bg-gray-300"
+            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-gray-300"
           >
             [ OPEN FULL THREAD ON THE BOARD ]
           </Link>
@@ -155,7 +155,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
 
               {/* A thread with audio in it says so: the players are in the replies below. */}
               {filedTracks === 0 ? null : (
-                <p className="mt-1 text-[10px] font-bold text-[#000080]">
+                <p className="mt-1 text-[10px] font-bold text-ena">
                   {filedTracks} MP3{filedTracks === 1 ? '' : 'S'} FILED HERE - PRESS PLAY ON ONE TO HEAR IT.
                 </p>
               )}

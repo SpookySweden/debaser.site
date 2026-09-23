@@ -13,7 +13,7 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 
 const RAIL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -78,7 +78,7 @@ export default function DesktopSidebar() {
 
   if (!isOpen) {
     return (
-      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-gray-600 bg-[#c0c0c0] py-2 lg:flex">
+      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-gray-600 bg-sun-pale py-2 lg:flex">
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
@@ -88,14 +88,14 @@ export default function DesktopSidebar() {
   }
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-gray-600 bg-[#c0c0c0] lg:flex">
+    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-gray-600 bg-sun-pale lg:flex">
       <div className={TITLE_BAR_INACTIVE}>
         <span>SIDE PANEL</span>
         <button
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 text-[10px] font-bold text-black hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-black hover:bg-gray-300"
         >
           {'>'}
         </button>

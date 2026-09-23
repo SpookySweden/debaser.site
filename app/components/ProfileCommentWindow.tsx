@@ -92,7 +92,7 @@ function VersionStrip({
           </Choice>
 
           {version.kind !== 'picture' ? null : (
-            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-1 group-hover:block">
+            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-1 group-hover:block">
               <SheetImage
                 src={version.src}
                 alt={version.credit}

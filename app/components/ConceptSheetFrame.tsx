@@ -14,8 +14,8 @@ type ConceptSheetFrameProps = {
  */
 export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFrameProps) {
   return (
-    <article className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+    <article className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>{sheet.title}</span>
         <span>F{index + 1}</span>
       </div>
@@ -24,12 +24,12 @@ export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFramePro
         <SheetImage src={sheet.src} alt={sheet.caption} width={sheet.width} height={sheet.height} />
       </div>
 
-      <div className="mt-2 bg-[#f0f0f0] p-2 text-[10px] font-bold text-black">
+      <div className="mt-2 bg-ice-pale p-2 text-[10px] font-bold text-black">
         CAPTION: {sheet.caption}
       </div>
 
       {/* Comment control sits directly under the artwork */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-[#c0c0c0] p-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 bg-sun-pale p-2">
         <span className="text-[10px] font-bold text-black">
           ARCHIVE FILE: {sheet.src}
         </span>

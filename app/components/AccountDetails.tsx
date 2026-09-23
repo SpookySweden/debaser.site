@@ -67,9 +67,9 @@ export default function AccountDetails() {
 
       <section
         id="account-summary"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>ACCOUNT DETAILS</span>
           <span>[ READ ONLY ]</span>
         </div>
@@ -88,7 +88,7 @@ export default function AccountDetails() {
             CREATED: <TimeStamp at={user.createdAt} />
           </p>
           {isSiteAccount(accountId) ? (
-            <p className="text-[#000080]">
+            <p className="text-ena">
               HOUSE ACCOUNT: SIGNS EVERY POST AN ITEM OWNS, AND CANNOT BE DELETED.
             </p>
           ) : null}
@@ -108,9 +108,9 @@ export default function AccountDetails() {
 
       <section
         id="activity"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>BOARD ACTIVITY</span>
           <span>[ {myThreads.length + myReplies} POSTS ]</span>
         </div>
@@ -138,7 +138,7 @@ export default function AccountDetails() {
 
       <section
         id="danger-zone"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]"
+        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
       >
         <div className="flex items-center justify-between bg-[#800000] px-2 py-1 text-xs font-bold text-white">
           <span>DANGER ZONE</span>

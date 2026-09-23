@@ -32,7 +32,7 @@ export default function Concepts() {
     </div>
 
     {/* Sheet Index */}
-    <div className="border border-black p-4 bg-[#f0f0f0] mt-6">
+    <div className="border border-black p-4 bg-ice-pale mt-6">
       <p className="text-xs font-bold mb-2">SHEET INDEX:</p>
       <ul className="space-y-1">
         {CONCEPT_SHEETS.map((sheet, index) => (

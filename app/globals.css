@@ -32,15 +32,15 @@ body {
 }
 
 /* The desktop surface --------------------------------------------------------
-   The teal behind the window is a two-tone dither rather than a flat colour: 4px squares, the
+   The surface behind the window is the site's deep blue with a magenta dither through it: 4px
    way a Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in
    the sense AGENTS.md asks for - and not an illustration: nothing here draws a character, an
    icon or a scene, which is what the artwork rule is about. */
 .desktop-tile {
-  background-color: #008080;
+  background-color: #0000cc;
   background-image:
-    linear-gradient(45deg, #007070 25%, transparent 25%, transparent 75%, #007070 75%),
-    linear-gradient(45deg, #007070 25%, transparent 25%, transparent 75%, #007070 75%);
+    linear-gradient(45deg, #ff00ff 25%, transparent 25%, transparent 75%, #ff00ff 75%),
+    linear-gradient(45deg, #ff00ff 25%, transparent 25%, transparent 75%, #ff00ff 75%);
   background-position:
     0 0,
     2px 2px;
@@ -123,13 +123,13 @@ body {
 
 .lore-document blockquote {
   border-left: 4px solid #808080;
-  background: #f0f0f0;
+  background: #ccffff;
   padding: 0.4rem 0.6rem;
 }
 
 .lore-document code {
   border: 1px solid #808080;
-  background: #f0f0f0;
+  background: #ccffff;
   padding: 0 0.2rem;
 }
 
@@ -281,11 +281,195 @@ html {
 
 /* Selected text is a flat navy block with white letters, the way a text-mode editor marked it. */
 ::selection {
-  background: #000080;
-  color: #ffffff;
+  background: var(--color-bubble);
+  color: var(--color-ink);
 }
 
 /* Artwork is hand-drawn at its own size and scaled in whole pixels, never resampled. */
 img {
   image-rendering: pixelated;
 }
+/* The surreal swatch ----------------------------------------------------------
+   The strict structure above stays: a light top-left edge, a dark bottom-right one, no radius, and
+   nothing that fades. What changed is what the surfaces are *filled* with - fifteen web-safe colours,
+   declared once here, so `bg-sun`, `text-ena`, `border-bubble` and the rest are usable anywhere
+   without a component ever inventing a value, and so the contrast between any two of them can be
+   checked rather than eyeballed (Temp/check-surreal.cjs reads this block and does the arithmetic).
+
+   Two Win95 greys survive deliberately: `chrome` and `chrome-dark`. They are the bevel's shade and
+   the furniture that says "this bar is not the window you are working in" (see TITLE_BAR_INACTIVE in
+   lib/ui/controls.ts) - a distinction the site made on purpose, which has to stay quiet to keep
+   meaning it.
+
+   Black ink is readable on every pale surface (13.6:1 at worst, on `bubble-pale`) and on the
+   saturated ice, acid and sun; the one blood red takes white (5.25:1). The *pairs* are what the check
+   holds to the arithmetic, not the colours on their own. */
+@theme {
+  --color-ink: #000000;
+  --color-paper: #ffffff;
+
+  /* The two greys that are left, and what they are for. */
+  --color-chrome: #d4d0c8;
+  --color-chrome-dark: #808080;
+
+  /* Deep ENA blue: the desktop, the title bar of the window you are in, anything pressed. */
+  --color-ena: #0000cc;
+  --color-ena-deep: #000066;
+
+  /* Bright yellow: every plate's face, and the field the panels and the player are read on. */
+  --color-sun: #ffff00;
+  --color-sun-pale: #ffffcc;
+
+  /* Cyan: hovers, insets, the second body tone. */
+  --color-ice: #00ffff;
+  --color-ice-pale: #ccffff;
+
+  /* Magenta: title-bar accents, one-shot flashes, the dither on the desktop. */
+  --color-bubble: #ff00ff;
+  --color-bubble-pale: #ffccff;
+
+  /* Lime: status bars, the online lamp, anything that is a "go". */
+  --color-acid: #00ff00;
+  --color-acid-pale: #ccffcc;
+
+  --color-blood: #ff0000;
+  --color-flame: #ff6600;
+
+  /* The reactivity, as Tailwind utilities: `animate-wobble` on a plate's hover, `animate-marquee`
+     on a ticker, `animate-flash` on the press. */
+  --animate-wobble: wobble 150ms steps(2, jump-none) infinite;
+  --animate-bump: bump 220ms steps(2, jump-none) infinite;
+  --animate-shake: shake 120ms steps(2, jump-none) infinite;
+  --animate-flash: flash 260ms steps(2, jump-none) 1;
+  --animate-marquee: marquee 16s linear infinite;
+  --animate-blip: blip 1s steps(2, jump-none) infinite;
+}
+
+
+/* The reactivity: four verbs, and every one of them is steps() ---------------------------------
+   A pixel face moves in whole frames, so a wobble is two frames of one pixel and a ticker travels in
+   the same chunky way a Web 1.0 marquee did. The durations are short on purpose: the point is that
+   the page answers the pointer, not that it performs. */
+@keyframes wobble {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(-1px, 1px);
+  }
+}
+
+/* A label leaning towards wherever the pointer came from. */
+@keyframes bump {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(1px);
+  }
+}
+
+/* The press: two pixels, fast, while the plate is held down. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-2px, 0);
+  }
+
+  75% {
+    transform: translate(2px, 0);
+  }
+}
+
+/* The click: a plate flashes a colour it is not before it settles into being pressed. CSS cannot
+   delay the action a press runs - and would be lying about responsiveness if it did - so the flash is
+   the pressed state itself, bright enough to read as a hit (see `PLATE` in lib/ui/controls.ts). */
+@keyframes flash {
+  from {
+    background-color: var(--color-sun);
+  }
+
+  to {
+    background-color: var(--color-bubble);
+  }
+}
+
+/* A ticker travelling one full copy of its own text, so the loop has no seam. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Slow, low-frame-rate blinking: for the one glyph that says something is alive. */
+@keyframes blip {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+
+/* The dotted link -------------------------------------------------------------
+   Text links wear a 3px bar of 2-on/2-off dashes rather than a hairline, drawn with a repeating
+   gradient so the dashes are pixels and not a smooth rule. Hovering turns the dashes magenta and
+   flips the text to blue on yellow - the same inversion a plate does, because on this site a link is
+   a control, and a control answers the pointer. */
+.link-pixel {
+  padding-bottom: 3px;
+  background-image: repeating-linear-gradient(to right, var(--color-ena) 0 2px, transparent 2px 4px);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 4px 3px;
+  text-decoration: none;
+}
+
+.link-pixel:hover,
+.link-pixel:focus-visible {
+  background-color: var(--color-sun);
+  background-image: repeating-linear-gradient(to right, var(--color-bubble) 0 2px, transparent 2px 4px);
+  color: var(--color-ena);
+}
+
+/* The sprite slot -------------------------------------------------------------
+   The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
+   same tile language as the desktop, so the space reads as *waiting for artwork* rather than as a
+   hole. Nothing is drawn in it - see AGENTS.md, Asset Rules, and assets/sprites/README.txt for the
+   files that go in. */
+.sprite-slot {
+  background-color: #000000;
+  background-image: repeating-linear-gradient(45deg, #000066 0 2px, #000000 2px 4px);
+}
+
+/* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like
+   they came off a 1998 "under construction" page without saying so. */
+.sun-stripe {
+  background-image: repeating-linear-gradient(45deg, var(--color-sun) 0 4px, var(--color-flame) 4px 8px);
+}
+
+/* Everything above, off for anybody who has asked for less motion - the wobble, the ticker, the
+   blinking glyph. The colours, the presses and the dotted links stay: they are how the site looks,
+   not how it moves. */
+@media (prefers-reduced-motion: reduce) {
+  [class*='animate-'] {
+    animation: none !important;
+  }
+}
+
+

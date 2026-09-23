@@ -5,7 +5,7 @@ import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
 import { PLATE } from '../lib/ui/controls';
 
 const CHIP =
-  'cursor-pointer rounded-none border border-gray-500 bg-white px-1 py-[1px] font-mono text-[11px] text-black hover:bg-[#ffffcc]';
+  'cursor-pointer rounded-none border border-gray-500 bg-white px-1 py-[1px] font-mono text-[11px] text-black hover:bg-sun-pale';
 
 type AsciiEmoticonPickerProps = {
   /** Where the emoticon goes: the caller knows its own caret. */
@@ -32,7 +32,7 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-[22rem] rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 shadow-none">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-[22rem] rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 shadow-none">
           <p className="text-[10px] font-bold text-black">
             TEXT FACES :: CLICK ONE TO DROP IT IN WHERE THE CARET IS
           </p>

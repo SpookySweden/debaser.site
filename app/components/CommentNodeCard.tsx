@@ -93,7 +93,7 @@ export default function CommentNodeCard({
   const indent = depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-2 border-gray-300 pl-2' : 'ml-2';
   // A matched reply is ringed, so the eye finds it once the post it answers is open. `scroll-mt`
   // keeps the marker clear of the window's own chrome when the board scrolls to it.
-  const marker = matched ? ' scroll-mt-24 outline-2 outline-[#000080] outline-offset-2' : '';
+  const marker = matched ? ' scroll-mt-24 outline-2 outline-ena outline-offset-2' : '';
 
   return (
     <li id={commentDomId(comment.id)} className={`flex items-start gap-2 ${indent}${marker}`}>

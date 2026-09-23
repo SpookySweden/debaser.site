@@ -54,7 +54,7 @@ export default function SiteWindow({ title, active, status = 'Ready', closeHref,
     // from, so the panel below turns selection back on for what it holds (and the taskbar, which is
     // no writing at all, keeps the window's).
     <main className="desktop-tile flex min-h-screen items-center justify-center p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
-      <div className="flex h-[84vh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
+      <div className="flex h-[84vh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-sun-pale shadow-2xl">
 
         {/* Title Bar: the window title, the close plate when this is a window over the desktop, and
             the profile control on a phone. */}

@@ -77,8 +77,8 @@ function tabClass(isActive: boolean): string {
   const phone = 'max-sm:min-h-11 max-sm:min-w-[5.5rem] max-sm:border-none max-sm:px-3 max-sm:text-xs';
 
   return isActive
-    ? `${base} ${phone} max-sm:bg-[#000080] max-sm:text-white px-3 py-[3px] text-[11px] bg-gray-300 border-t-2 border-l-2 border-black border-r border-b border-white`
-    : `${base} ${phone} max-sm:bg-transparent px-3 py-[3px] text-[11px] bg-[#c0c0c0] border-t border-l border-white border-r-2 border-b-2 border-black hover:bg-gray-300`;
+    ? `${base} ${phone} max-sm:bg-ena max-sm:text-white px-3 py-[3px] text-[11px] bg-gray-300 border-t-2 border-l-2 border-black border-r border-b border-white`
+    : `${base} ${phone} max-sm:bg-transparent px-3 py-[3px] text-[11px] bg-sun-pale border-t border-l border-white border-r-2 border-b-2 border-black hover:bg-gray-300`;
 }
 
 /**
@@ -102,7 +102,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
   return (
     <nav
       aria-label="Site keys"
-      className="flex min-w-0 flex-wrap items-center gap-1 border-b-2 border-gray-600 bg-[#c0c0c0] px-2 py-[3px] max-sm:gap-[3px] max-sm:px-1 max-sm:py-[2px]"
+      className="flex min-w-0 flex-wrap items-center gap-1 border-b-2 border-gray-600 bg-sun-pale px-2 py-[3px] max-sm:gap-[3px] max-sm:px-1 max-sm:py-[2px]"
     >
       {NAV_ITEMS.map((item) => {
         const unread = item.key === 'comms' ? unreadTotal : 0;

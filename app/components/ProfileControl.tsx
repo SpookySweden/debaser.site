@@ -16,10 +16,10 @@ const MENU_ITEM =
   'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left hover:bg-yellow-100';
 
 const LOG_IN_BUTTON =
-  'lg:hidden shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300';
+  'lg:hidden shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold text-black hover:bg-gray-300';
 
 const PICTURE_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] p-[2px] text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale p-[2px] text-black hover:bg-gray-300';
 
 /**
  * Signed out: one large log-in button, where the window buttons used to be.
@@ -96,7 +96,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
 
           <div
-            className="absolute right-0 top-full z-20 mt-1 w-56 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 text-[10px] font-bold text-black"
+            className="absolute right-0 top-full z-20 mt-1 w-56 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 text-[10px] font-bold text-black"
             role="menu"
           >
             <p className="border-b border-gray-500 pb-1">

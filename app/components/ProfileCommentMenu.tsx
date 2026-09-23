@@ -48,7 +48,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
   return (
     <ul
       role="menu"
-      className="w-full max-w-md rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] py-[2px] shadow-[2px_2px_0_rgba(0,0,0,0.35)]"
+      className="w-full max-w-md rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale py-[2px] shadow-[2px_2px_0_rgba(0,0,0,0.35)]"
     >
       {options.map((option) => {
         const label = ASPECTS.find((aspect) => aspect.kind === option.kind)?.label ?? option.kind;
@@ -62,7 +62,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               onClick={() => onChoose(option.kind)}
               className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[10px] font-bold ${
                 option.available
-                  ? 'cursor-pointer text-black hover:bg-[#000080] hover:text-white'
+                  ? 'cursor-pointer text-black hover:bg-ena hover:text-white'
                   : 'cursor-default text-gray-600'
               }`}
               title={option.reason}

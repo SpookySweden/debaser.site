@@ -56,7 +56,7 @@ export default function ProfileCustomiserSongTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-64">
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
@@ -141,7 +141,7 @@ export default function ProfileCustomiserSongTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>TRACK HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
@@ -151,7 +151,7 @@ export default function ProfileCustomiserSongTab({
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex flex-wrap items-start gap-3 rounded-none border border-gray-500 bg-[#f0f0f0] p-2"
+                className="flex flex-wrap items-start gap-3 rounded-none border border-gray-500 bg-ice-pale p-2"
               >
                 <div className="min-w-0 flex-1 text-[10px] text-black">
                   <p className="font-bold">

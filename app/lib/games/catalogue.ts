@@ -27,7 +27,7 @@ export const GAME_CATALOGUE: GameEntry[] = [
     tagline: 'Three in a row on a nine-plate board.',
     players: '1 OR 2 PLAYERS',
     controls: 'TAP A PLATE. X STARTS. THE COMPUTER BLOCKS.',
-    badge: 'bg-[#000080]',
+    badge: 'bg-ena',
   },
   {
     id: 'paddle-duel',

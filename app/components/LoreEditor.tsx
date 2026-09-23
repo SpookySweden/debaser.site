@@ -133,14 +133,14 @@ export default function LoreEditor({
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>THE PAGE :: {peers.length === 1 ? '1 EDITOR' : `${peers.length} EDITORS`}</span>
         <span>{LORE_STATUS_LINES[status]}</span>
       </div>
 
       {/* Whose carets are in it, in the colours those names wear everywhere else. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-500 bg-[#f0f0f0] px-2 py-1 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-center gap-2 border-b border-gray-500 bg-ice-pale px-2 py-1 text-[10px] font-bold text-black">
         <span>IN THE ROOM:</span>
         {peers.map((peer) => (
           <span key={peer.clientId} className="border border-black bg-white px-1" style={{ color: peer.colour }}>

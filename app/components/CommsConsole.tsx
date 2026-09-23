@@ -107,8 +107,8 @@ export default function CommsConsole() {
 
   if (userId === null) {
     return (
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>COMMS</span>
           <span>[ NOBODY SIGNED IN ]</span>
         </div>
@@ -131,7 +131,7 @@ export default function CommsConsole() {
       {/* A store that cannot be read is said out loud rather than left looking like an
           account with nothing in it. On a wide screen it takes the first row to itself. */}
       {error === null ? null : (
-        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2 text-[10px] font-bold text-black lg:basis-full">
+        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 text-[10px] font-bold text-black lg:basis-full">
           <span className="border border-black bg-[#800000] px-1 text-white">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words text-[#800000]">{error}</span>
           <button type="button" onClick={retry} className={PLATE}>
@@ -141,8 +141,8 @@ export default function CommsConsole() {
       )}
 
       {/* Conversations rail */}
-      <section className={`rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className={`rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
         </div>
@@ -153,7 +153,7 @@ export default function CommsConsole() {
           </button>
 
           {picking ? (
-            <div className="mt-2 rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
+            <div className="mt-2 rounded-none border border-gray-500 bg-ice-pale p-2">
               <p className="text-[10px] font-bold text-black">MESSAGE AN ACCOUNT:</p>
               {!accountsReady ? (
                 <p className="mt-1 text-[10px] text-gray-700">READING THE ACCOUNT LIST...</p>
@@ -193,7 +193,7 @@ export default function CommsConsole() {
           </button>
 
           {grouping ? (
-            <div className="mt-2 space-y-1 rounded-none border border-gray-500 bg-[#f0f0f0] p-2 text-[10px] font-bold text-black">
+            <div className="mt-2 space-y-1 rounded-none border border-gray-500 bg-ice-pale p-2 text-[10px] font-bold text-black">
               <label htmlFor="group-name" className="block">
                 GROUP NAME:
               </label>
@@ -260,7 +260,7 @@ export default function CommsConsole() {
                     className={`w-full cursor-pointer rounded-none border p-2 text-left text-[10px] font-bold max-sm:p-3 max-sm:text-xs ${
                       thread.id === active?.id
                         ? 'border-black bg-gray-300'
-                        : 'border-gray-500 bg-[#f0f0f0] hover:bg-gray-200'
+                        : 'border-gray-500 bg-ice-pale hover:bg-gray-200'
                     }`}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
@@ -281,13 +281,13 @@ export default function CommsConsole() {
         </div>
       </section>
       {/* The open conversation */}
-      <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
+        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-xs font-bold text-white">
           <span className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setMobileView('list')}
-              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 lg:hidden"
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 lg:hidden"
             >
               ← LIST
             </button>

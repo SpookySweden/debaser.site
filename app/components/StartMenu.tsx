@@ -15,7 +15,7 @@ import { NAV_ITEMS } from './SiteNav';
  * a `flex` in here.
  */
 const MENU_ROW =
-  'w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-[#000080] hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-ena hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */
@@ -72,10 +72,10 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
     <nav
       ref={frame}
       aria-label="Site menu"
-      className="absolute bottom-full left-0 z-[70] mb-1 flex w-64 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] shadow-2xl"
+      className="absolute bottom-full left-0 z-[70] mb-1 flex w-64 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale shadow-2xl"
     >
       {/* The spine: the name, read the way a Win95 menu's was - bottom to top. */}
-      <div className="flex w-6 shrink-0 items-end justify-center bg-[#000080] py-2">
+      <div className="flex w-6 shrink-0 items-end justify-center bg-ena py-2">
         <span className="rotate-180 text-[10px] font-bold text-white [writing-mode:vertical-rl]">
           {DEBASER_PROJECT.title}
         </span>

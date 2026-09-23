@@ -40,7 +40,7 @@ export default function PopoutWindow({
   status,
   actions,
   maxWidth = 'max-w-2xl',
-  bodyClassName = 'bg-[#c0c0c0]',
+  bodyClassName = 'bg-sun-pale',
   children,
 }: PopoutWindowProps) {
   const titleId = useId();
@@ -85,7 +85,7 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] shadow-2xl`}
+        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale shadow-2xl`}
       >
         {/* Draggable title bar */}
         <div
@@ -124,7 +124,7 @@ export default function PopoutWindow({
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300 max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-sm"
+              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold hover:bg-gray-300 max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-sm"
             >
               [ CLOSE ]
             </button>

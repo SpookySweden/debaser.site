@@ -22,7 +22,7 @@ import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
  * row you can act on in one press should not look like the two you can only read.
  */
 const KIND_BADGE: Record<AppNotification['kind'], string> = {
-  tag: 'bg-[#000080]',
+  tag: 'bg-ena',
   reply: 'bg-[#800000]',
   invite: 'bg-[#005000]',
 };
@@ -35,7 +35,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-gray-500 bg-[#e8e8e8] px-1 py-[2px] text-[9px] font-bold text-gray-700';
+const GROUP_HEAD = 'border-y border-gray-500 bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-gray-700';
 
 /**
  * One line of the feed.
@@ -84,7 +84,7 @@ function NotificationRow({
         <span
           {...(unread ? { 'aria-label': 'Unread', title: 'Unread' } : { 'aria-hidden': true })}
           className={`inline-block h-2 w-2 shrink-0 border ${
-            unread ? 'border-black bg-[#000080]' : 'border-gray-400 bg-[#c0c0c0]'
+            unread ? 'border-black bg-ena' : 'border-gray-400 bg-sun-pale'
           }`}
         />
         <span
@@ -110,7 +110,7 @@ function NotificationRow({
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-1 text-[9px] font-bold text-black">
+          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[9px] font-bold text-black">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -119,7 +119,7 @@ function NotificationRow({
   );
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
-    unread ? 'border-gray-500 bg-white text-black' : 'border-gray-400 bg-[#e8e8e8] text-gray-700'
+    unread ? 'border-gray-500 bg-white text-black' : 'border-gray-400 bg-bubble-pale text-gray-700'
   } hover:bg-yellow-100 max-sm:min-h-11`;
 
   if (target === null) {
@@ -224,7 +224,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   };
 
   return (
-    <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]' : 'w-full'}>
+    <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale' : 'w-full'}>
       {!chrome ? null : (
         <div className={TITLE_BAR}>
           <span>NOTIFICATIONS :: {summary}</span>
@@ -252,7 +252,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
           >
             [ RETRY ]
           </button>
@@ -276,14 +276,14 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
         >
           [ OPEN THE BOARD ]
         </Link>

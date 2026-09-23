@@ -86,7 +86,7 @@ export default function CommentComposer({
         event.preventDefault();
         onSubmit();
       }}
-      className="mt-2 border border-gray-600 bg-[#c0c0c0] p-2"
+      className="mt-2 border border-gray-600 bg-sun-pale p-2"
     >
       <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-black">
         <span>

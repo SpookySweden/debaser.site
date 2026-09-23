@@ -24,7 +24,7 @@ import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib
 import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { pluralise } from '../lib/forum/format';
-import { PANEL, PLATE, PLATE_ACCENT, TITLE_BAR } from '../lib/ui/controls';
+import { LINK_PIXEL, PANEL, PLATE, PLATE_ACCENT, TITLE_BAR } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
@@ -52,7 +52,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -110,7 +110,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
   }
 
   return (
-    <li className={`border-b border-dotted border-gray-400 px-2 py-1 ${current ? 'bg-[#ffffcc]' : 'bg-white'}`}>
+    <li className={`border-b border-dotted border-gray-400 px-2 py-1 hover:bg-sun ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
       <div className={ROW_GRID}>
         <span className="text-[10px] text-gray-700">{String(index + 1).padStart(2, '0')}.</span>
 
@@ -127,7 +127,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             <Link
               href={row.href}
               title={row.threadTitle}
-              className="block truncate text-[9px] font-bold text-[#000080] underline hover:bg-[#ffffcc]"
+              className={`${LINK_PIXEL} block truncate text-[9px] font-bold text-ena`}
             >
               OPEN THE POST
             </Link>
@@ -224,7 +224,7 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-gray-400">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-[#e8e8e8] px-2 py-1 text-[10px] font-bold text-black hover:bg-[#ffffcc]">
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-black hover:bg-sun-pale">
           <span className="w-4 shrink-0 text-gray-700">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
           <span className="shrink-0 text-gray-700">
@@ -513,7 +513,7 @@ export default function MusicDirectory() {
         <div className="mt-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white">
           {/* The directory's own column labels, and nothing else. */}
           <div
-            className={`${ROW_GRID} hidden border-b border-gray-500 bg-[#e8e8e8] px-2 py-1 text-[9px] font-bold text-gray-700 sm:grid`}
+            className={`${ROW_GRID} hidden border-b border-gray-500 bg-bubble-pale px-2 py-1 text-[9px] font-bold text-gray-700 sm:grid`}
           >
             <span>#</span>
             <span>NAME</span>

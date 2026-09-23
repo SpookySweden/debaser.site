@@ -23,8 +23,8 @@ export default function ProfileBoardActivity({
   threads,
 }: ProfileBoardActivityProps) {
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>BOARD ACTIVITY</span>
         <span>[ {threads.length} THREADS ]</span>
       </div>

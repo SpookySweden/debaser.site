@@ -37,7 +37,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
   const selected = items.find((item) => item.id === value);
 
   return (
-    <div id={id} className="rounded-none border border-gray-600 bg-[#f0f0f0] p-1">
+    <div id={id} className="rounded-none border border-gray-600 bg-ice-pale p-1">
       <div className="flex flex-col gap-1 sm:flex-row">
         <div
           className={`w-full overflow-y-auto rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 sm:w-3/5 ${heightClass}`}
@@ -49,7 +49,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               aria-checked={value === ''}
               onClick={() => onChange('')}
               className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                value === '' ? 'border-black bg-[#000080] text-white' : 'border-gray-400 bg-[#c0c0c0] text-black hover:bg-yellow-100'
+                value === '' ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-yellow-100'
               }`}
             >
               <span className="flex h-12 items-center justify-center border border-gray-600 bg-white text-[9px] font-bold text-black">
@@ -70,7 +70,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   title={item.label}
                   onClick={() => onChange(item.id)}
                   className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                    picked ? 'border-black bg-[#000080] text-white' : 'border-gray-400 bg-[#c0c0c0] text-black hover:bg-yellow-100'
+                    picked ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-yellow-100'
                   }`}
                 >
                   <span className="flex h-12 items-center justify-center overflow-hidden border border-gray-600 bg-white">
@@ -89,7 +89,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
           </div>
         </div>
 
-        <div className={`flex w-full items-center gap-2 border border-gray-500 bg-[#e8e8e8] p-1 sm:flex-1 ${heightClass}`}>
+        <div className={`flex w-full items-center gap-2 border border-gray-500 bg-bubble-pale p-1 sm:flex-1 ${heightClass}`}>
           {selected === undefined ? (
             <p className="text-[10px] font-bold text-black">
               {NONE}
@@ -107,7 +107,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300"
+                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300"
                 >
                   [ CLEAR ]
                 </button>

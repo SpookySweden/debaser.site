@@ -198,7 +198,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
           drawn. The poster's picture and the drawing are `group-hover` only, so
           the list stays tight until somebody points at the title or the name.
         */}
-        <summary className="cursor-pointer select-none list-none">
+        <summary className="cursor-pointer select-none list-none hover:bg-sun">
           {/*
             Two columns: the row itself on the left, and the space that stays empty
             until somebody points at the row on the right - which is where the
@@ -223,7 +223,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
-                  <span className="shrink-0 border border-black bg-[#000080] px-1 text-[9px] font-bold text-white" title="An MP3 is filed with this post">
+                  <span className="shrink-0 border border-black bg-ena px-1 text-[9px] font-bold text-white" title="An MP3 is filed with this post">
                     ♪ MP3
                   </span>
                 )}

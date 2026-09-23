@@ -94,13 +94,13 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
     return (
       <li
         className={`flex items-center gap-1 whitespace-nowrap text-[10px] ${
-          pinned === null ? 'pr-5' : 'mr-2 border border-black bg-[#ffffcc] px-1'
+          pinned === null ? 'pr-5' : 'mr-2 border border-black bg-sun-pale px-1'
         }`}
       >
         <ProfileAvatarLink author={author} size={20} showName={false} variant="plain" />
         <ProfileName author={author} className="font-bold" />
         {data.tag === undefined ? null : (
-          <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
+          <span className="border border-black bg-ena px-1 text-white">[ {data.tag} ]</span>
         )}
         {pinned}
         {action}
@@ -109,7 +109,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         {href === undefined ? (
           <span className="text-black">&quot;{data.body}&quot;</span>
         ) : (
-          <Link href={href} title={hrefTitle} className="text-black hover:bg-[#000080]">
+          <Link href={href} title={hrefTitle} className="text-black hover:bg-ena">
             &quot;{data.body}&quot;
           </Link>
         )}
@@ -118,14 +118,14 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
   }
 
   return (
-    <li className={`rounded-none border border-gray-500 p-1 ${pinned === null ? 'bg-white' : 'bg-[#ffffcc]'}`}>
+    <li className={`rounded-none border border-gray-500 p-1 ${pinned === null ? 'bg-white' : 'bg-sun-pale'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
         <span className="flex flex-wrap items-center gap-1">
           <ProfileLink author={author}>
             <ProfileName author={author}>{authorTag(author)}</ProfileName>
           </ProfileLink>
           {data.tag === undefined ? null : (
-            <span className="border border-black bg-[#000080] px-1 text-white">[ {data.tag} ]</span>
+            <span className="border border-black bg-ena px-1 text-white">[ {data.tag} ]</span>
           )}
           {pinned}
           {action}

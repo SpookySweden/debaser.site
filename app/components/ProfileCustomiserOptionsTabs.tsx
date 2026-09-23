@@ -21,7 +21,7 @@ export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-black';
  * the name drawn in the colour that was picked - which is the only part that has to be loud.
  */
 const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#e8e8e8] px-1.5 py-[1px] text-[10px] font-bold text-black uppercase hover:bg-gray-200 max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-black uppercase hover:bg-gray-200 max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [
@@ -67,7 +67,7 @@ export function ProfileIdentityTab({
   const preview = name.trim().length === 0 ? profile.displayName : name;
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
         PUBLIC NAME: SIGNS YOUR PROFILE PAGE AND YOUR ACCOUNT
       </label>
@@ -201,10 +201,10 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
   ];
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
       <ul className="space-y-2">
         {rows.map((row) => (
-          <li key={row.key} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
+          <li key={row.key} className="rounded-none border border-gray-500 bg-ice-pale p-2">
             <label className="flex items-start gap-2 text-[10px] font-bold text-black">
               <input
                 type="checkbox"

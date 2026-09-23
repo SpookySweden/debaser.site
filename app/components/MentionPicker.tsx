@@ -36,7 +36,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
   if (accounts.length === 0) return null;
 
   return (
-    <div className="mt-2 border border-gray-600 bg-[#f0f0f0] p-1">
+    <div className="mt-2 border border-gray-600 bg-ice-pale p-1">
       <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
         <label htmlFor={`${id}-mention`}>TAG A USER:</label>
         <select
@@ -63,7 +63,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
             onChange(insertMention(body, account.displayName));
             setPicked('');
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] font-bold hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] font-bold hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ TAG ]
         </button>
@@ -86,7 +86,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
                 title="Remove this tag"
-                className="cursor-pointer border border-gray-500 bg-[#c0c0c0] px-1 text-[9px] font-bold text-black hover:bg-gray-300"
+                className="cursor-pointer border border-gray-500 bg-sun-pale px-1 text-[9px] font-bold text-black hover:bg-gray-300"
               >
                 x
               </button>

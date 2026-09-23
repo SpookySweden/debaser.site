@@ -29,45 +29,63 @@ export const PRESSED =
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-[#d4d0c8] active:bg-[#c0c0c0] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The largest: a control that has its line to itself, or carries the form's weight. */
 export const PLATE_LARGE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-[#d4d0c8] active:bg-[#c0c0c0] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-xs font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-[#d4d0c8] active:bg-[#c0c0c0] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-3 py-2 text-sm font-bold text-black hover:bg-[#d4d0c8] active:bg-[#c0c0c0] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080]`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-2 text-sm font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark`;
 
 /**
  * The deck's own controls: the transport keys on the docked player.
  *
- * Bigger than any plate in a row of text, with the label always written out - `[ ▶ PLAY ]`
- * rather than a triangle - because a row of icon-only keys is a puzzle. They are also the
- * one place the site allows a dark face: a transport key on a physical deck is not the same
- * grey as the panel it is bolted to.
+ * Bigger than any plate in a row of text, with the label always written out - `[ ▶ PLAY ]` rather than
+ * a triangle - because a row of icon-only keys is a puzzle. They are also the one place the site
+ * allows a black face: a transport key on a physical deck is not the same surface as the panel it is
+ * bolted to, so these are black with a lime label, and a press turns them magenta.
  */
 export const PLATE_HARDWARE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-3 py-2 text-[11px] font-bold text-black hover:bg-[#d4d0c8] active:bg-[#808080] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-ink px-3 py-2 text-[11px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
 /** A plate already pressed in: the tab you are standing on, the switch that is on. */
-export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black`;
+export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[10px] font-bold text-sun`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `rounded-none ${BEVEL_OUT} bg-[#c0c0c0] px-3 py-1 text-[10px] font-bold text-black hover:bg-[#d4d0c8] active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** An inset field: white, monospace, with the room it needs under its label. */
 export const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-[6px] font-mono text-xs text-black outline-none focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-[#000080] max-sm:p-3';
+  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-paper p-[6px] font-mono text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 text-xs text-black outline-none focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-[#000080] max-sm:p-2';
+  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-paper p-1 text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
+
+/**
+ * A link in a page of writing: the dashed 3px bar, and the inversion on hover.
+ *
+ * The dashes are a repeating gradient rather than a border, so the rule under a word is made of
+ * pixels like everything else here (see `.link-pixel` in app/globals.css). It is a shared string for
+ * the same reason the plates are: a link in a post and a link in the archive should underline the
+ * same way, and one of them drifting is how a site stops looking like one site.
+ */
+export const LINK_PIXEL = 'link-pixel cursor-pointer';
+
+/**
+ * The dark dithered field a hand-drawn GIF or walking avatar loops in.
+ *
+ * The site draws no artwork of its own (AGENTS.md, Asset Rules), so a slot like this is the space
+ * *for* artwork: an empty room with the right size and the right floor, waiting for a file.
+ */
+export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-black';
 
 /* The chrome: title bars, panels and status bars, in one place. ------------------
    Every window and panel on the site wears the same navy title bar and the same
@@ -75,7 +93,7 @@ export const FIELD_TIGHT =
 
 /** A panel's navy title bar: one slim line, the same height everywhere. */
 export const TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-[#000080] px-2 py-[3px] text-[11px] font-bold leading-none text-white';
+  'flex items-center justify-between gap-2 bg-ena px-2 py-[3px] text-[11px] font-bold leading-none text-sun';
 
 /**
  * The same bar, in the grey of a window that is not the one being worked in.
@@ -86,19 +104,19 @@ export const TITLE_BAR =
  * only thing that says which box the keyboard belongs to without a line of explanation.
  */
 export const TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-[#808080] px-2 py-[3px] text-[11px] font-bold leading-none text-white';
+  'flex items-center justify-between gap-2 bg-chrome-dark px-2 py-[3px] text-[11px] font-bold leading-none text-ink';
 
 /** A window's navy title bar: the same line, a step up for the OS frame. */
 export const WINDOW_TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-[#000080] px-3 py-[4px] text-[13px] font-bold leading-none text-white';
+  'flex items-center justify-between gap-2 bg-ena px-3 py-[4px] text-[13px] font-bold leading-none text-sun';
 
 /** The frame's own bar when its window has been put aside: same line, grey. */
 export const WINDOW_TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-[#808080] px-3 py-[4px] text-[13px] font-bold leading-none text-white';
+  'flex items-center justify-between gap-2 bg-chrome-dark px-3 py-[4px] text-[13px] font-bold leading-none text-ink';
 
 /** A raised grey plate: light top-left edge, dark bottom-right edge, no radius. */
 export const PANEL =
-  'rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]';
+  'rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale';
 
 /**
  * The small white chip a shelf is linked with: the project strip across a page, and the same list on
@@ -106,7 +124,7 @@ export const PANEL =
  * how anybody moves between shelves.
  */
 export const SHELF_CHIP =
-  'cursor-pointer rounded-none border border-gray-500 bg-white px-2 py-[2px] hover:bg-yellow-100 max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'cursor-pointer rounded-none border border-ink bg-sun-pale px-2 py-[2px] text-ink hover:animate-bump hover:bg-ice hover:text-ena max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 /** An inset surface pressed into a plate: dark top-left, light bottom-right. */
 export const PANEL_INSET =
@@ -114,22 +132,22 @@ export const PANEL_INSET =
 
 /** A bevelled button small enough to sit in a navy title bar. */
 export const TITLE_BAR_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
+  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ice hover:text-ena active:animate-flash active:bg-bubble active:text-ink max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
 /**
- * The plate that carries a verb onto the board: navy, the colour the site gives a post.
+ * The plate that carries a verb onto the board: the one magenta face on the site.
  *
- * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate on the site
- * that is not the grey of the furniture. That is deliberate: every other control in that row acts on
- * the archive (play this, filter by that), and the one that acts on *the board* has to be findable at
- * a glance from across a list. Navy rather than the maroon of a warning, because it is the same thing
- * the `♪ MP3` badge on a post is: this file belongs to a thread.
+ * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not
+ * the yellow of the furniture. That is deliberate: every other control in that row acts on the archive
+ * (play this, filter by that), and the one that acts on *the board* has to be findable at a glance
+ * from across a list. Magenta rather than the blood red of a warning, because nothing is wrong - it is
+ * the same thing the `♪ MP3` badge on a post is: this file belongs to a thread.
  */
 export const PLATE_ACCENT =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#000080] px-2 py-[2px] text-[10px] font-bold text-white hover:bg-[#0000a0] active:bg-[#000080] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * The status bar along the foot of a window: one slim grey line.
  */
 export const STATUS_BAR =
-  'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-[#c0c0c0] px-2 py-[3px] text-[10px] font-bold leading-none text-black';
+  'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-acid px-2 py-[3px] text-[10px] font-bold leading-none text-ink';

@@ -321,7 +321,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           {GAME_CATALOGUE.map((game) => (
             <div
               key={game.id}
-              className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2"
+              className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2"
             >
               <p className="flex items-center gap-2 text-xs font-bold text-black">
                 <span className={`px-1 text-[9px] text-white ${game.badge}`}>
@@ -484,8 +484,8 @@ function InviteLine({
     tone === 'firm'
       ? 'border-black bg-white text-black'
       : tone === 'plain'
-        ? 'border-gray-500 bg-[#e8e8e8] text-black'
-        : 'border-gray-400 bg-[#e8e8e8] text-gray-700';
+        ? 'border-gray-500 bg-bubble-pale text-black'
+        : 'border-gray-400 bg-bubble-pale text-gray-700';
 
   return (
     <div className={`flex flex-wrap items-center gap-2 rounded-none border px-2 py-1 text-[10px] font-bold ${frame}`}>

@@ -5,6 +5,7 @@ import { STATUS_BAR } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { useComms } from './CommsProvider';
 import { usePresence } from './PresenceProvider';
+import SpriteSlot from './SpriteSlot';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
 
@@ -43,6 +44,14 @@ export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
   return (
     <div className={STATUS_BAR}>
       <span className="flex min-w-0 items-center gap-1">
+        {/* The room for a looping sprite: a hand-drawn GIF, 24x24 (assets/sprites/README.txt). */}
+        <SpriteSlot
+          src="/assets/sprites/profile.gif"
+          alt="A looping sprite for this account"
+          width={24}
+          height={24}
+          title="A pixel sprite loops here once assets/sprites/profile.gif is drawn"
+        />
         <StatusDot status={presence.status ?? 'offline'} record={presence.record} />
         {/* The server and the browser read the clock at render and agree to the second, and the label
             is minute-resolution, so the only way the two can differ is a request that crosses a

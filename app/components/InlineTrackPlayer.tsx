@@ -52,7 +52,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
 
   return (
     <div
-      className={`rounded-none border border-gray-500 bg-[#c0c0c0] ${compact ? 'p-1' : 'p-[5px]'}`}
+      className={`rounded-none border border-gray-500 bg-sun-pale ${compact ? 'p-1' : 'p-[5px]'}`}
       title={`MP3 filed by ${poster}`}
     >
       <div className="flex items-center gap-2">

@@ -11,7 +11,7 @@ import TimeStamp from './TimeStamp';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300';
 
 /**
  * The side panel's top block: who is signed in.
@@ -26,7 +26,7 @@ export default function SidebarProfile() {
   const { profile } = usePublicProfile(user?.id ?? null);
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
         <span>[ {status === 'loading' ? 'READING...' : user === null ? 'GUEST' : 'SIGNED IN'} ]</span>

@@ -33,8 +33,8 @@ export default function LinksPage() {
 
     <ProjectSectionNav current="links" />
 
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>THE ARCHIVE</span>
         <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
       </div>
@@ -52,8 +52,8 @@ export default function LinksPage() {
       </ul>
     </section>
 
-    <section className="mt-4 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+    <section className="mt-4 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>OUTBOUND</span>
         <span>[ {OUTBOUND_LINKS.length} LINKS ]</span>
       </div>

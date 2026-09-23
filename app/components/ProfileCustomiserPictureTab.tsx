@@ -47,7 +47,7 @@ export default function ProfileCustomiserPictureTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div>
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
@@ -57,7 +57,7 @@ export default function ProfileCustomiserPictureTab({
           <div>
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
             {pendingSrc === null ? (
-              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2 text-center">
+              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2 text-center">
                 <span className="text-[10px] font-bold text-black">NOTHING CHOSEN</span>
               </div>
             ) : (
@@ -101,7 +101,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
 
         {SITE_PICTURES.length === 0 ? (
@@ -117,8 +117,8 @@ export default function ProfileCustomiserPictureTab({
                   onClick={() => onSelectSrc(picture.src)}
                   className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[10px] font-bold ${
                     pendingSrc === picture.src
-                      ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#000080] text-white'
-                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] text-black hover:bg-gray-300'
+                      ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ena text-white'
+                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale text-black hover:bg-gray-300'
                   }`}
                   title={picture.src}
                 >
@@ -163,7 +163,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
@@ -173,7 +173,7 @@ export default function ProfileCustomiserPictureTab({
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex flex-wrap items-start gap-3 rounded-none border border-gray-500 bg-[#f0f0f0] p-2"
+                className="flex flex-wrap items-start gap-3 rounded-none border border-gray-500 bg-ice-pale p-2"
               >
                 <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel />
 

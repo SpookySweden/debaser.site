@@ -145,7 +145,7 @@ export default function CommsThreadPanel({
           <li className="text-[10px] font-bold text-black">NO MESSAGES YET - SAY SOMETHING.</li>
         ) : (
           shown.map((message) => (
-            <li key={message.id} className="rounded-none border border-gray-400 bg-[#f0f0f0] p-2">
+            <li key={message.id} className="rounded-none border border-gray-400 bg-ice-pale p-2">
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
                 <span className="inline-flex items-center gap-1">
                   <ProfileName author={resolveAuthor(message, nameById)} />
@@ -159,7 +159,7 @@ export default function CommsThreadPanel({
         )}
       </ul>
 
-      <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] p-2">
+      <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
           <label htmlFor={`${idPrefix}-body`}>
             {isGroup ? (

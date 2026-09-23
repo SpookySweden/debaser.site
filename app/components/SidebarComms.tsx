@@ -48,7 +48,7 @@ export default function SidebarComms() {
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>COMMS</span>
         <span className="flex items-center gap-1">
@@ -100,7 +100,7 @@ export default function SidebarComms() {
       <div className="p-2 pt-0">
         <Link
           href="/comms"
-          className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
+          className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-gray-300"
         >
           [ OPEN COMMS ]
         </Link>

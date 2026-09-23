@@ -173,7 +173,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
   return (
     <div className="mt-1 space-y-1 text-[10px] font-bold text-black">
       <div className="flex flex-wrap items-center gap-1">
-        <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
+        <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
 
         <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT POST ]'}
@@ -189,7 +189,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
       </div>
 
       {editing ? (
-        <div className="space-y-1 border border-gray-500 bg-[#f0f0f0] p-2">
+        <div className="space-y-1 border border-gray-500 bg-ice-pale p-2">
           <label htmlFor={`moderate-title-${thread.id}`} className="block">
             TITLE:
           </label>
@@ -269,7 +269,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
   return (
     <div className="mt-1 space-y-1 text-[10px] font-bold text-black">
       <div className="flex flex-wrap items-center gap-1">
-        <span className="border border-black bg-[#000080] px-1 text-white">[ ADMIN ]</span>
+        <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
 
         <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT REPLY ]'}
@@ -288,7 +288,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
       </div>
 
       {editing ? (
-        <div className="space-y-1 border border-gray-500 bg-[#f0f0f0] p-2">
+        <div className="space-y-1 border border-gray-500 bg-ice-pale p-2">
           <label htmlFor={`moderate-comment-${comment.id}`} className="block">
             REPLY:
           </label>

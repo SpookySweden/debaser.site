@@ -106,7 +106,7 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
 
   return (
     <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
-      <span className="border border-black bg-[#000080] px-1 text-white">[ MOD ]</span>
+      <span className="border border-black bg-ena px-1 text-white">[ MOD ]</span>
 
       {pin === undefined ? null : (
         <span className="border border-black bg-[#800000] px-1 text-white" title={pinSummary(pin)}>
@@ -172,8 +172,8 @@ export default function ForumPinPanel() {
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-[10px] font-bold text-white">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[10px] font-bold text-white">
         <span>PINNED POSTS :: MODERATORS</span>
         <span>[ {pins.length === 0 ? 'NOTHING PINNED' : `${pins.length} PINNED`} ]</span>
       </div>
