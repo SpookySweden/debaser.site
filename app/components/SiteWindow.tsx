@@ -3,6 +3,7 @@
 import type { ReactNode } from 'react';
 import DesktopSidebar from './DesktopSidebar';
 import ProfileControl from './ProfileControl';
+import SiteNav from './SiteNav';
 import Taskbar from './Taskbar';
 import type { NavKey } from './SiteNav';
 import { PANEL_INSET, WINDOW_TITLE_BAR } from '../lib/ui/controls';
@@ -50,15 +51,16 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
           <ProfileControl />
         </div>
 
+        {/* The page tabs: the header, and the first thing under the title bar. */}
+        <SiteNav active={active} />
+
         {/*
-         * Taskbar: the Start menu, the open page's key, and the tray.
+         * Taskbar: the Start menu and the tray, at the foot of the window.
          *
-         * Written before the page and pulled to the foot with `order-last`, which is the difference
-         * between a keyboard user reaching the site's navigation in one press and tabbing through
-         * every link on the page to find it. The window is the thing that looks like the desktop;
-         * this is the thing that has to behave like one.
+         * Written before the page and pulled to the foot with `order-last`, so a keyboard user reads
+         * the page before the tray while the window still looks like a desktop.
          */}
-        <Taskbar active={active} status={status} />
+        <Taskbar status={status} />
 
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">

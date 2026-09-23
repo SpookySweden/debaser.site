@@ -2,46 +2,38 @@
 
 import { useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
-import type { NavKey } from './SiteNav';
-import SiteNav from './SiteNav';
 import StartMenu from './StartMenu';
 
 type TaskbarProps = {
-  /** The key whose page is open, when the page is one of them. */
-  active?: NavKey;
   /** What the status strip says: the page's own line. */
   status: string;
 };
 
 /**
- * The taskbar along the foot of the window.
+ * The taskbar along the foot of the window: the Start button, and the tray.
  *
- * A desktop of this era kept its Start button, the buttons for its open windows and its tray on
- * one strip at the bottom, and this is that strip: `[ START ]` on the left, the site's keys as
- * task buttons beside it (the open page's pressed in), and the status and the encoding in the
- * tray on the right. It replaces a nav strip along the top plus a status line along the foot,
- * which were the same information drawn twice in two places.
+ * The page tabs are the window's header (see ./SiteNav.tsx), so the foot strip holds the two things
+ * a desktop keeps at the foot of the screen and nowhere else: the way into everything - the Start
+ * menu, which lists the same five keys as the header *and* the debaser project's shelves - and the
+ * tray, which is the page's status line and the encoding this window is written in.
  *
- * Nothing here scrolls away: the window is a fixed height with the page scrolling inside it, so
- * the strip is always at the foot of the screen the window draws. On a phone the task buttons
- * fold into the Start menu beside them - the same five keys, one list (see ./StartMenu.tsx).
+ * It is drawn with `order-last` while being written before the page, so a keyboard user meets the
+ * page's own content first and the tray last, which is the order they read in.
  *
  * Client-side because the menu opens: that is the only piece of state in the chrome.
  */
-export default function Taskbar({ active, status }: TaskbarProps) {
+export default function Taskbar({ status }: TaskbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    // `order-last` puts the bar at the foot of the window while leaving it first in the document,
-    // where a keyboard user and a screen reader will find it before the page (see ./SiteWindow.tsx).
     <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-[#c0c0c0] px-1 py-[3px] text-[10px] font-bold text-black">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        // The only navigation a phone has: it has to say what it opens, and the name it is read
-        // with still starts with the word on the plate.
+        // On a phone this button holds every destination there is, so it has to say what it opens -
+        // and the name it is read with still starts with the word on the plate.
         aria-label="START :: the site menu"
         title="The site menu: every page, and the debaser project's shelves"
         // Pressed in while its menu is open, which is what a Start button does.
@@ -53,8 +45,6 @@ export default function Taskbar({ active, status }: TaskbarProps) {
       >
         [ START ]
       </button>
-
-      <SiteNav active={active} />
 
       {/* The tray: the page's own status line, and what the window is encoded in. */}
       <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[10px] text-gray-700">
