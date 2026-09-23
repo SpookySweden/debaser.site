@@ -6,14 +6,13 @@ import { inviteSummary, opponentOf, splitInvites } from '../lib/games/invites';
 import { getGamesRepository } from '../lib/games/repository';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { buildUserDirectory } from '../lib/profile/directory';
-import { presenceDotColour, presenceLabel } from '../lib/profile/presence';
 import { FIELD_TIGHT, PANEL, PLATE, STATUS_BAR, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import GameMatch from './GameMatch';
 import { useNotifications } from './NotificationsProvider';
-import ProfileName from './ProfileName';
 import { usePresenceDirectory } from './PresenceProvider';
+import UserDirectoryRow from './UserDirectoryRow';
 
 /**
  * The arcade floor: what there is to play, who is around to play it with, and the invitations
@@ -366,25 +365,27 @@ export default function GamesHub() {
             <p className="text-[10px] text-gray-700">Nobody else is on. Both players have to be here, so try solo meanwhile.</p>
           ) : null}
 
-          {around.map((row) => (
-            <div key={row.account.id} className="flex flex-wrap items-center gap-2 border border-gray-500 bg-white px-2 py-1">
-              <span
-                aria-hidden
-                className="inline-block h-2 w-2 shrink-0 border border-black"
-                style={{ backgroundColor: presenceDotColour(row.status) }}
-                title={presenceLabel(row.status)}
-              />
-              <ProfileName author={{ id: row.account.id, displayName: row.account.displayName }} />
-              <button
-                type="button"
-                className={`${PLATE} ml-auto`}
-                disabled={busy === row.account.id}
-                onClick={() => void invitePlayer({ id: row.account.id, displayName: row.account.displayName })}
-              >
-                [ INVITE TO GAME ]
-              </button>
-            </div>
-          ))}
+          {around.length === 0 ? null : (
+            <ul className="overflow-hidden rounded-none border border-gray-500 bg-white text-black">
+              {around.map((row) => (
+                <UserDirectoryRow
+                  key={row.account.id}
+                  row={row}
+                  viewerId={userId}
+                  actions={
+                    <button
+                      type="button"
+                      className={PLATE}
+                      disabled={busy === row.account.id}
+                      onClick={() => void invitePlayer({ id: row.account.id, displayName: row.account.displayName })}
+                    >
+                      {busy === row.account.id ? '[ ASKING... ]' : '[ INVITE TO GAME ]'}
+                    </button>
+                  }
+                />
+              ))}
+            </ul>
+          )}
         </div>
 
         <div className={STATUS_BAR}>

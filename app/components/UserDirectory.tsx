@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/directory';
+import { PANEL, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
@@ -27,8 +28,9 @@ const COMPACT_LIMIT = 6;
  * call the comms picker makes) and the lamps come from the presence provider, so a
  * row is exactly what the rest of the site means by a username - picture, the name
  * in the colour that account chose, and the green / yellow / red lamp beside it.
- * A name opens the account's public profile, and `[ MESSAGE ]` opens the
- * conversation with them on the comms page.
+ * One row component serves this page, the side panel and the arcade (`./UserDirectoryRow`),
+ * so the lamp, the marks and the name are the same wherever an account is listed;
+ * what differs between the screens is only the verb offered at the end of the row.
  *
  * The house account is pinned to the top by `buildUserDirectory`, and it does draw
  * a lamp here: the rule that leaves the lamp off `debaser.site` on the board is
@@ -72,8 +74,8 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <section className={PANEL}>
+        <div className={TITLE_BAR}>
           <span>ACCOUNT DIRECTORY</span>
           <span>
             {compact ? (
@@ -91,17 +93,15 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
 
         {compact ? null : (
           <p className="border-b border-gray-500 px-3 py-2 text-[10px] font-bold text-black">
-            {counts.online} ONLINE NOW :: {counts.recent} SEEN WITHIN THE HOUR :: {counts.offline} OFFLINE ::
-            THE HOUSE ACCOUNT IS LISTED FIRST
+            {counts.online} ONLINE :: {counts.recent} SEEN THIS HOUR :: {counts.offline} ELSEWHERE :: THE HOUSE
+            ACCOUNT FIRST
           </p>
         )}
 
         {!accountsReady ? (
           <p className="p-3 text-[10px] font-bold text-black">READING THE ACCOUNT LIST...</p>
         ) : rows.length === 0 ? (
-          <p className="p-3 text-[10px] font-bold text-black">
-            NO ACCOUNTS YET - CREATE ONE ON THE ACCOUNT PAGE AND IT APPEARS HERE.
-          </p>
+          <p className="p-3 text-[10px] font-bold text-black">NO ACCOUNTS YET.</p>
         ) : (
           <ul className="text-black">
             {shown.map((row) => (
@@ -118,25 +118,28 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
       </section>
 
       {compact ? null : (
-        <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-          <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+        <section className={PANEL}>
+          <div className={TITLE_BAR}>
             <span>THE LAMP</span>
             <span>[ LEGEND ]</span>
           </div>
 
           <div className="space-y-1 p-3 text-[10px] font-bold text-black">
             <p>
-              THE LAMP IS THE ONE THAT SITS BESIDE A USERNAME EVERYWHERE ELSE: GREEN WHILE A TAB OF THAT
-              ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS PASSED.
+              GREEN WHILE A TAB OF THAT ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS
+              PASSED.
             </p>
             <p>
               {user === null
-                ? 'READING THIS PAGE TAKES NO ACCOUNT - SIGN IN TO SEND SOMEBODY A MESSAGE.'
-                : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE.'}
+                ? 'SIGN IN TO SEND SOMEBODY A MESSAGE.'
+                : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE.'}
             </p>
             <p className="text-gray-700">
               <Link href="/forum" className="underline hover:bg-gray-300">
                 [ BOARD ]
+              </Link>{' '}
+              <Link href="/games" className="underline hover:bg-gray-300">
+                [ GAMES ]
               </Link>{' '}
               <Link href="/comms" className="underline hover:bg-gray-300">
                 [ COMMS ]
@@ -151,3 +154,4 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
     </div>
   );
 }
+
