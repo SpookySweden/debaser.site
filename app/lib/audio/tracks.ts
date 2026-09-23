@@ -1,4 +1,5 @@
-import { TRACKS, archiveDisplayName } from '../projects/tracks';
+import { archiveDisplayName, releaseFolderPath, type FolderPath } from './archive-tree';
+import { TRACKS } from '../projects/tracks';
 
 /**
  * What the player plays, and where it comes from.
@@ -35,15 +36,12 @@ export type AudioTrack = {
   /** Audio tags: how it sounds, read by the /music directory's filter. */
   tags: string[];
   /**
-   * The release the file was filed on, and where it sits on it.
-   *
-   * Only the archive's own catalogue has these: a file dropped into the bucket by hand, an
-   * upload from the shelf and an MP3 attached to a post are single files with no release
-   * behind them, so the directory lists those under LOOSE FILES rather than inventing an
-   * album for them.
+   * The folder the file is filed in, written artist first the way a path is: `HEXHAM`,
+   * `HEXHAM/GRIDLOCK`. Absent for a file at the root of the archive - an upload nobody has
+   * filed away yet, or an MP3 attached to a post.
    */
-  album?: string;
-  /** The year the release carries. */
+  folderPath?: FolderPath | null;
+  /** The year the release carries, when the catalogue filed one. */
   year?: string;
   /** Position on the release, so a listing keeps the running order. */
   trackNumber?: number;
@@ -55,25 +53,29 @@ export type AudioTrack = {
 export const AUDIO_FOLDER = '/assets/audio';
 
 /**
- * The hand-filed shelf: the project's catalogue, read as the player sees it.
+ * The hand-filed shelf: the project's catalogue, read as the directory sees it.
  *
- * The catalogue names each file by its three parts - `[TRACK TITLE] - [ALBUM NAME] -
- * [ARTIST NAME]` - and that is the title the player shows, so a track pulled out of the
- * archive onto a post reads exactly as it does in the listing.
+ * Each catalogue release sits in a folder of its own - `SLEEP STATIC/TAPE DECK SUMMER` - and its
+ * files are named the archive's way from where they are, so the catalogue and the files anybody
+ * files from the page are the same kind of thing in the same listing.
  */
-export const LOCAL_TRACKS: AudioTrack[] = TRACKS.map((track) => ({
-  id: track.id,
-  title: archiveDisplayName(track),
-  credit: track.artist,
-  kind: `${track.album} :: ${track.year}`,
-  src: track.src,
-  length: track.length,
-  tags: track.tags,
-  album: track.album,
-  year: track.year,
-  trackNumber: track.trackNumber,
-  shelf: 'archive',
-}));
+export const LOCAL_TRACKS: AudioTrack[] = TRACKS.map((track) => {
+  const folderPath = releaseFolderPath(track.artist, track.album);
+
+  return {
+    id: track.id,
+    title: archiveDisplayName(track.title, folderPath),
+    credit: track.artist,
+    kind: `${track.album} :: ${track.year}`,
+    src: track.src,
+    length: track.length,
+    tags: track.tags,
+    folderPath,
+    year: track.year,
+    trackNumber: track.trackNumber,
+    shelf: 'archive',
+  };
+});
 
 /** The track the player starts on: the theme, which is the manifest's first entry. */
 export const THEME_TRACK_ID = TRACKS[0]?.id ?? '';
@@ -131,6 +133,8 @@ export type DescribedAudio = {
   length?: string;
   /** Audio tags filed with the row; a file with no row simply has none. */
   tags?: string[];
+  /** The folder the row is filed in, when somebody filed it somewhere. */
+  folderPath?: FolderPath | null;
 };
 
 /**
@@ -155,6 +159,7 @@ export function tracksFromStorage(objects: StoredAudio[], described: DescribedAu
       src: object.src,
       length: row?.length ?? '--:--',
       tags: row?.tags ?? [],
+      folderPath: row?.folderPath ?? null,
       shelf: 'bucket' as const,
     };
   });

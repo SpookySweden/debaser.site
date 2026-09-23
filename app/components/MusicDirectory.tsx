@@ -4,42 +4,51 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import {
-  LOOSE_FILES,
   SOURCE_LABEL,
   buildArchiveRows,
   buildArchiveTree,
   fileLabel,
   filterArchiveRows,
+  folderAncestors,
   isFiltering,
   sortByDisplayName,
+  type ArchiveFolder,
   type ArchiveRow,
+  type FolderPath,
 } from '../lib/audio/archive-tree';
 import { formatClock } from '../lib/audio/format';
 import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
+import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { pluralise } from '../lib/forum/format';
 import { PANEL, PLATE, TITLE_BAR } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
+import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import NewArchiveFileWindow from './NewArchiveFileWindow';
+import NewArchiveFolderWindow from './NewArchiveFolderWindow';
 
 /**
- * The archive directory.
+ * The archive, as a file browser.
  *
- * A file listing: a search bar, a tag filter that stays folded away until it is asked for,
- * and the shelf as a tree - artist, then release, then the files on it - with anything that
- * has no release behind it (an upload, or an MP3 somebody attached to a post) under LOOSE
- * FILES. Searching or choosing a tag turns the tree into a flat run of what matched,
- * ordered by the name it is filed under; clearing either puts the tree back.
+ * A directory of folders with files in them: the catalogue's own releases, the folders anybody
+ * signed in has made, and every file that has been filed into them - including the MP3s people
+ * attached to posts on the board. Each row is a file or a folder, a click on play hands the file
+ * to the player at the bottom of the window, and the toolbar makes new ones.
  *
- * Playing never leaves the page: a row hands its file to the player at the bottom of the
- * window (see ./MusicPlayerProvider.tsx), which keeps going while the reader carries on
- * down the list.
+ * Where a file is filed is the whole of its name, so the browser is the place the archive's
+ * naming convention comes from: filing `GLASS CORRIDOR` into `HEXHAM/GRIDLOCK` lists it as
+ * `GLASS CORRIDOR - GRIDLOCK - HEXHAM`.
  */
 
 /** The row grid shared by the column header and every file row, so the columns line up. */
 const ROW_GRID =
   'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_4rem_minmax(0,14rem)_6.5rem]';
+
+/** A control small enough to sit on a folder row, beside the folder's name. */
+const ROW_BUTTON =
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-1 py-[1px] text-[9px] font-bold text-black hover:bg-gray-300 disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -59,8 +68,9 @@ function tagHref(keys: string[]): string {
 /**
  * One file.
  *
- * The name is the archive's own - `[TRACK TITLE] - [ALBUM NAME] - [ARTIST NAME]` - printed
- * whole, because that is how the file is filed and how it reads anywhere else on the site.
+ * The name is the archive's own - `[TRACK TITLE] - [ALBUM NAME] - [ARTIST NAME]`, which is
+ * where it is filed - printed whole, because that is how it is filed and how it reads anywhere
+ * else on the site.
  */
 function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
   const player = useMusicPlayer();
@@ -80,9 +90,7 @@ function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
   }
 
   return (
-    <li
-      className={`border-b border-dotted border-gray-400 px-2 py-1 ${current ? 'bg-[#ffffcc]' : 'bg-white'}`}
-    >
+    <li className={`border-b border-dotted border-gray-400 px-2 py-1 ${current ? 'bg-[#ffffcc]' : 'bg-white'}`}>
       <div className={ROW_GRID}>
         <span className="text-[10px] text-gray-700">{String(index + 1).padStart(2, '0')}.</span>
 
@@ -134,62 +142,104 @@ function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
   );
 }
 
+type FolderBranchProps = {
+  folder: ArchiveFolder;
+  /** Folders the reader has opened, by path. */
+  openNodes: FolderPath[];
+  onToggle: (path: FolderPath, open: boolean) => void;
+  /** Asks for a new file or folder inside this one. */
+  onCreate: (kind: 'file' | 'folder', parent: FolderPath) => void;
+  /** True for a signed-in reader; a guest is offered the rows without the buttons. */
+  canCreate: boolean;
+};
+
 /**
- * A folder: an artist, or one of their releases.
+ * One folder, and everything under it.
  *
- * Folded until it is opened, and drawn the way a file manager draws one - the marker, the
- * name, and how many files are inside - so the listing opens as a shelf outline rather than
- * as sixty rows at once.
+ * Folded until it is opened, drawn the way a file manager draws one - the marker, the name, how
+ * many files are inside, and what can be made in it - and it nests to whatever depth the archive
+ * has, because a folder is only a path.
  */
-function Folder({
-  id,
-  label,
-  count,
-  open,
-  onToggle,
-  nested = false,
-  children,
-}: {
-  id: string;
-  label: string;
-  /** How many files are inside, already written out. */
-  count: string;
-  open: boolean;
-  onToggle: (id: string, open: boolean) => void;
-  /** True for a release inside an artist, which is indented one step. */
-  nested?: boolean;
-  children: React.ReactNode;
-}) {
+function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate }: FolderBranchProps) {
+  const path = folder.path ?? '';
+  const open = openNodes.includes(path);
+  const empty = folder.folders.length === 0 && folder.files.length === 0;
+
   return (
     <li className="border-b border-dotted border-gray-400">
-      <details open={open} onToggle={(event) => onToggle(id, event.currentTarget.open)}>
-        <summary
-          className={`flex cursor-pointer select-none items-center gap-2 py-1 text-[10px] font-bold text-black hover:bg-[#ffffcc] ${
-            nested ? 'pl-6 pr-2' : 'bg-[#e8e8e8] px-2'
-          }`}
-        >
+      <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-[#e8e8e8] px-2 py-1 text-[10px] font-bold text-black hover:bg-[#ffffcc]">
           <span className="w-4 shrink-0 text-gray-700">{open ? '[-]' : '[+]'}</span>
-          <span className="min-w-0 flex-1 truncate">{label}</span>
-          <span className="shrink-0 text-gray-700">{count}</span>
+          <span className="min-w-0 flex-1 truncate">{folder.name}</span>
+          <span className="shrink-0 text-gray-700">
+            {folder.fileCount} {pluralise(folder.fileCount, 'FILE')}
+          </span>
+
+          {canCreate ? (
+            <span className="flex shrink-0 items-center gap-1">
+              <button
+                type="button"
+                title={`File a new track in ${folder.name}`}
+                onClick={(event) => {
+                  // The summary would otherwise fold the folder instead of the button working.
+                  event.preventDefault();
+                  onCreate('file', path);
+                }}
+                className={ROW_BUTTON}
+              >
+                [ + FILE ]
+              </button>
+              <button
+                type="button"
+                title={`Make a folder in ${folder.name}`}
+                onClick={(event) => {
+                  event.preventDefault();
+                  onCreate('folder', path);
+                }}
+                className={ROW_BUTTON}
+              >
+                [ + FOLDER ]
+              </button>
+            </span>
+          ) : null}
         </summary>
 
-        {children}
+        <ul>
+          {folder.folders.map((child) => (
+            <FolderBranch
+              key={child.path}
+              folder={child}
+              openNodes={openNodes}
+              onToggle={onToggle}
+              onCreate={onCreate}
+              canCreate={canCreate}
+            />
+          ))}
+
+          {folder.files.map((row, index) => (
+            <FileRow key={row.track.src} row={row} index={index} />
+          ))}
+
+          {empty ? <li className="px-2 py-1 pl-6 text-[10px] font-bold text-gray-700">EMPTY.</li> : null}
+        </ul>
       </details>
     </li>
   );
 }
 
 /**
- * The whole shelf, listed.
+ * The archive, open on the page.
  *
- * The search box is the one control that is always in reach, and the tag filter lives behind
- * `[ FILTER ]` (or behind the search box being used) so the directory opens on the shelf
- * outline alone. Nothing here holds a track of its own: every play action hands the file to
- * the site's player.
+ * The toolbar is the browser's: what can be made, the box that finds things, the tags that stay
+ * folded away until they are asked for, and a reload. Everything a row does goes through the one
+ * player at the bottom of the window, and everything that makes a file goes through the same
+ * store the shelf has always used.
  */
 export default function MusicDirectory() {
   const player = useMusicPlayer();
   const forum = useForum();
+  const { user } = useAuth();
+  const folders = useArchiveFolders();
   const router = useRouter();
   const search = useSearchParams();
 
@@ -199,12 +249,16 @@ export default function MusicDirectory() {
   const [matchAll, setMatchAll] = useState(false);
   /** Folded away by default; opened by the toggle, by the search box, or by a tag in the address. */
   const [tagsOpen, setTagsOpen] = useState(() => tagKeys.length > 0);
-  /** Which folders are open, by id: the tree is folded until it is asked for. */
-  const [openNodes, setOpenNodes] = useState<string[]>([]);
+  /** Which folders are open, by path: the directory is folded until it is asked for. */
+  const [openNodes, setOpenNodes] = useState<FolderPath[]>([]);
+  /** The window on screen: a new file or a new folder, and where it was asked for from. */
+  const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
+
+  const signedIn = user !== null;
 
   const rows = useMemo(() => buildArchiveRows(player.queue, forum.threads), [player.queue, forum.threads]);
+  const tree = useMemo(() => buildArchiveTree(rows, folders.folders), [rows, folders.folders]);
   const vocabulary = useMemo(() => buildAudioTagVocabulary(rows), [rows]);
-  const tree = useMemo(() => buildArchiveTree(rows), [rows]);
   const matches = useMemo(
     () => filterArchiveRows(rows, { query, tagKeys, matchAll }),
     [rows, query, tagKeys, matchAll],
@@ -222,26 +276,58 @@ export default function MusicDirectory() {
     router.replace('/music', { scroll: false });
   }
 
-  function toggleFolder(id: string, open: boolean) {
+  function toggleFolder(path: FolderPath, open: boolean) {
     setOpenNodes((current) =>
-      open ? (current.includes(id) ? current : [...current, id]) : current.filter((item) => item !== id),
+      open ? (current.includes(path) ? current : [...current, path]) : current.filter((item) => item !== path),
     );
   }
 
-  const isOpen = (id: string) => openNodes.includes(id);
+  /** Opens a folder and everything above it, so something just filed can be seen. */
+  function reveal(path: FolderPath | null) {
+    if (path === null) return;
+
+    setOpenNodes((current) => [...new Set([...current, ...folderAncestors(path)])]);
+  }
+
+  /** Reads the shelf and the folders again, after anything was filed. */
+  function refreshAll() {
+    player.refresh();
+    void folders.refresh();
+  }
 
   return (
     <section className={PANEL}>
       <div className={TITLE_BAR}>
         <span>DEBASER NETLABEL :: FILE DIRECTORY</span>
         <span>
-          [ {rows.length} {pluralise(rows.length, 'FILE')} ]
+          [ {tree.paths.length} {pluralise(tree.paths.length, 'FOLDER')} :: {rows.length}{' '}
+          {pluralise(rows.length, 'FILE')} ]
         </span>
       </div>
 
       <div className="p-2">
-        {/* FIND: the one control that is always in reach. */}
+        {/* The toolbar: what can be made, and the box that finds it. */}
         <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setCreating({ kind: 'file', parent: null })}
+            disabled={!signedIn}
+            className={PLATE}
+            title={signedIn ? 'File a new track in the archive' : 'Filing a track takes an account'}
+          >
+            [ NEW FILE ]
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setCreating({ kind: 'folder', parent: null })}
+            disabled={!signedIn}
+            className={PLATE}
+            title={signedIn ? 'Make a new folder at the top of the archive' : 'Making a folder takes an account'}
+          >
+            [ NEW FOLDER ]
+          </button>
+
           <label htmlFor="music-search" className="text-[10px] font-bold text-black">
             FIND:
           </label>
@@ -251,7 +337,7 @@ export default function MusicDirectory() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => setTagsOpen(true)}
-            placeholder="TRACK, RELEASE, ARTIST OR TAG"
+            placeholder="TRACK, FOLDER, ARTIST OR TAG"
             className="min-w-40 flex-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-xs text-black outline-none max-sm:p-2"
           />
 
@@ -263,10 +349,16 @@ export default function MusicDirectory() {
             [ CLEAR ]
           </button>
 
-          <button type="button" onClick={player.refresh} className={PLATE}>
+          <button type="button" onClick={refreshAll} className={PLATE}>
             [ REFRESH ]
           </button>
         </div>
+
+        {signedIn ? null : (
+          <p className="mt-1 text-[9px] font-bold text-gray-700">
+            SIGNED OUT - SIGN IN ON THE ACCOUNT PAGE TO ADD FILES AND FOLDERS. PLAYING TAKES NOTHING.
+          </p>
+        )}
 
         {/* The tag filter, folded until it is asked for. */}
         <div
@@ -325,12 +417,11 @@ export default function MusicDirectory() {
           </div>
         </div>
 
-        {/* How much is listed: the count only speaks up about filtering when something is filtered. */}
-        <p className="mt-2 text-[10px] font-bold text-black">
-          {filtering
-            ? `${flat.length} OF ${rows.length} FILES`
-            : `${tree.artists.length} ${pluralise(tree.artists.length, 'ARTIST')} :: ${rows.length} ${pluralise(rows.length, 'FILE')}`}
-        </p>
+        {filtering ? (
+          <p className="mt-2 text-[10px] font-bold text-black">
+            {flat.length} OF {rows.length} FILES
+          </p>
+        ) : null}
 
         <div className="mt-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white">
           {/* The directory's own column labels, and nothing else. */}
@@ -344,9 +435,7 @@ export default function MusicDirectory() {
             <span className="text-right">PLAY</span>
           </div>
 
-          {rows.length === 0 ? (
-            <p className="p-2 text-[10px] font-bold text-black">NO FILES.</p>
-          ) : filtering ? (
+          {filtering ? (
             flat.length === 0 ? (
               <p className="p-2 text-[10px] font-bold text-black">NO MATCHES.</p>
             ) : (
@@ -356,62 +445,62 @@ export default function MusicDirectory() {
                 ))}
               </ul>
             )
+          ) : rows.length === 0 && tree.paths.length === 0 ? (
+            <p className="p-2 text-[10px] font-bold text-black">
+              NOTHING HERE YET. {signedIn ? '[ NEW FILE ] AND [ NEW FOLDER ] MAKE SOMETHING.' : ''}
+            </p>
           ) : (
             <ul>
-              {tree.artists.map((artist) => (
-                <Folder
-                  key={artist.name}
-                  id={`artist:${artist.name}`}
-                  label={`${artist.name} (${artist.albums.length} ${pluralise(artist.albums.length, 'RELEASE')})`}
-                  count={`${artist.trackCount} ${pluralise(artist.trackCount, 'FILE')}`}
-                  open={isOpen(`artist:${artist.name}`)}
+              {tree.root.folders.map((folder) => (
+                <FolderBranch
+                  key={folder.path}
+                  folder={folder}
+                  openNodes={openNodes}
                   onToggle={toggleFolder}
-                >
-                  <ul>
-                    {artist.albums.map((release) => {
-                      const id = `album:${artist.name}:${release.name}:${release.year}`;
-
-                      return (
-                        <Folder
-                          key={id}
-                          id={id}
-                          label={`${release.name} (${release.year})`}
-                          count={`${release.rows.length} ${pluralise(release.rows.length, 'FILE')}`}
-                          open={isOpen(id)}
-                          onToggle={toggleFolder}
-                          nested
-                        >
-                          <ul>
-                            {release.rows.map((row, index) => (
-                              <FileRow key={row.track.src} row={row} index={index} />
-                            ))}
-                          </ul>
-                        </Folder>
-                      );
-                    })}
-                  </ul>
-                </Folder>
+                  onCreate={(kind, parent) => setCreating({ kind, parent })}
+                  canCreate={signedIn}
+                />
               ))}
 
-              {tree.loose.length === 0 ? null : (
-                <Folder
-                  id="loose"
-                  label={LOOSE_FILES}
-                  count={`${tree.loose.length} ${pluralise(tree.loose.length, 'FILE')}`}
-                  open={isOpen('loose')}
-                  onToggle={toggleFolder}
-                >
-                  <ul>
-                    {tree.loose.map((row, index) => (
-                      <FileRow key={row.track.src} row={row} index={index} />
-                    ))}
-                  </ul>
-                </Folder>
-              )}
+              {/* Files at the root: what nobody has filed into a folder yet. */}
+              {tree.root.files.map((row, index) => (
+                <FileRow key={row.track.src} row={row} index={index} />
+              ))}
             </ul>
           )}
         </div>
       </div>
+
+      {creating !== null && creating.kind === 'file' ? (
+        <NewArchiveFileWindow
+          parent={creating.parent}
+          folders={tree.paths.map((path) => ({ path }))}
+          author={forum.author}
+          createFolder={folders.create}
+          onClose={() => setCreating(null)}
+          onCreated={(track) => {
+            setCreating(null);
+            reveal(track.folderPath ?? null);
+            refreshAll();
+            // Open it: filing a file and then having to find it would be a poor sort of browser.
+            player.play(track);
+          }}
+        />
+      ) : null}
+
+      {creating !== null && creating.kind === 'folder' ? (
+        <NewArchiveFolderWindow
+          parent={creating.parent}
+          author={forum.author}
+          create={folders.create}
+          onClose={() => setCreating(null)}
+          onCreated={(folder) => {
+            setCreating(null);
+            reveal(folder.path);
+            refreshAll();
+          }}
+        />
+      ) : null}
     </section>
   );
 }

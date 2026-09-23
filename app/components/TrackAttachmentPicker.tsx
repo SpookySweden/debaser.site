@@ -4,10 +4,11 @@ import { useRef, useState } from 'react';
 import { SOURCE_LABEL } from '../lib/audio/archive-tree';
 import { trackFromLink, uploadPostTrack } from '../lib/audio/attach';
 import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
-import { MAX_AUDIO_TAGS, STARTER_AUDIO_TAGS, audioTagKey, normaliseAudioTags } from '../lib/audio/tags';
+import { normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
 import type { ForumAuthor, ForumTrack } from '../lib/forum/types';
 import { FIELD, PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import AudioTagChooser from './AudioTagChooser';
 import AudioTagPill from './AudioTagPill';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
@@ -127,7 +128,6 @@ export default function TrackAttachmentPicker({ id, value, onChange, author }: T
   const [title, setTitle] = useState('');
   const [credit, setCredit] = useState('');
   const [tags, setTags] = useState<string[]>([]);
-  const [tagDraft, setTagDraft] = useState('');
   const [link, setLink] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
@@ -139,29 +139,9 @@ export default function TrackAttachmentPicker({ id, value, onChange, author }: T
     setTitle('');
     setCredit('');
     setTags([]);
-    setTagDraft('');
     setLink('');
     setFile(null);
     if (fileInput.current !== null) fileInput.current.value = '';
-  }
-
-  function toggleTag(label: string) {
-    const key = audioTagKey(label);
-    if (key.length === 0) return;
-
-    if (tags.some((tag) => audioTagKey(tag) === key)) {
-      setTags(tags.filter((tag) => audioTagKey(tag) !== key));
-      setError(null);
-      return;
-    }
-
-    if (tags.length >= MAX_AUDIO_TAGS) {
-      setError(`MAX ${MAX_AUDIO_TAGS} AUDIO TAGS PER FILE.`);
-      return;
-    }
-
-    setTags([...tags, label]);
-    setError(null);
   }
 
   async function attachFile() {
@@ -371,56 +351,7 @@ export default function TrackAttachmentPicker({ id, value, onChange, author }: T
             </div>
           )}
 
-      <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
-        <span>
-          AUDIO TAGS ({tags.length}/{MAX_AUDIO_TAGS}):
-        </span>
-
-        {STARTER_AUDIO_TAGS.map((tag) => (
-          <AudioTagPill
-            key={tag}
-            tag={tag}
-            compact
-            active={tags.some((picked) => audioTagKey(picked) === audioTagKey(tag))}
-            onToggle={() => toggleTag(tag)}
-          />
-        ))}
-
-        {tags
-          .filter((tag) => !STARTER_AUDIO_TAGS.some((starter) => audioTagKey(starter) === audioTagKey(tag)))
-          .map((tag) => (
-            <AudioTagPill key={tag} tag={tag} compact active onToggle={() => toggleTag(tag)} />
-          ))}
-      </div>
-
-      <div className="mt-1 flex flex-wrap items-center gap-2">
-        <label htmlFor={`${id}-tag`} className="text-[10px] font-bold text-black">
-          NEW TAG:
-        </label>
-        <input
-          id={`${id}-tag`}
-          value={tagDraft}
-          onChange={(event) => setTagDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key !== 'Enter') return;
-            event.preventDefault();
-            toggleTag(tagDraft);
-            setTagDraft('');
-          }}
-          placeholder="e.g. DRONE"
-          className="w-32 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 text-[10px] text-black outline-none max-sm:w-full max-sm:p-2"
-        />
-        <button
-          type="button"
-          onClick={() => {
-            toggleTag(tagDraft);
-            setTagDraft('');
-          }}
-          className={PLATE}
-        >
-          [ + ADD ]
-        </button>
-      </div>
+      <AudioTagChooser id={id} value={tags} onChange={setTags} />
         </>
       )}
 

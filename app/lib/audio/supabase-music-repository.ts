@@ -1,6 +1,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
+import { normaliseFolderPath } from './archive-tree';
 import { MUSIC_BUCKET, extensionForTrack, trackStoragePath, validateTrackFile } from './catalogue';
-import type { MusicRepository, UploadTrackInput } from './repository';
+import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
 import { tracksFromStorage } from './tracks';
@@ -27,6 +28,10 @@ import { tracksFromStorage } from './tracks';
  */
 
 const TRACKS_TABLE = 'music_tracks';
+/** The folders anybody signed in has made - see supabase/schema.sql section 14b. */
+const FOLDERS_TABLE = 'music_folders';
+/** The columns a track row is read with. `folder_path` is added where the column exists. */
+const TRACK_COLUMNS = 'title, credit, kind, src, length, tags';
 
 /** One listing is enough for a shelf of demos; the folder pass is one level deep. */
 const LIST_LIMIT = 200;
@@ -38,7 +43,26 @@ type TrackRow = {
   src: string;
   length?: string | null;
   tags?: string[] | null;
+  /** The folder the file is filed in; null for a file at the root of the archive. */
+  folder_path?: string | null;
 };
+
+/** One folder row, as `music_folders` has it. */
+type FolderRow = {
+  path: string;
+  created_by: string | null;
+  created_by_label: string;
+  created_at: string;
+};
+
+function toFolder(row: FolderRow): MusicFolder {
+  return {
+    path: row.path,
+    createdBy: row.created_by,
+    createdByLabel: row.created_by_label,
+    createdAt: row.created_at,
+  };
+}
 
 type StorageEntry = {
   name: string;
@@ -101,27 +125,49 @@ class SupabaseMusicRepository implements MusicRepository {
     }
   }
 
+  /**
+   * The shelf's rows, or null when the table cannot be read at all.
+   *
+   * `folder_path` is asked for along with the rest where it is there. On a project that has not run
+   * supabase/migrations/20260928_music_folders.sql the whole select would fail with the missing
+   * column, taking every title and tag on the shelf down to file names - so the plain columns are
+   * asked for instead, and the files simply have no folder until the column exists.
+   */
+  private async readRows(): Promise<TrackRow[] | null> {
+    const read = async (columns: string): Promise<TrackRow[] | null> => {
+      const { data, error } = await this.client()
+        .from(TRACKS_TABLE)
+        .select(columns)
+        .order('created_at', { ascending: true });
+
+      return error === null ? (data as unknown as TrackRow[]) : null;
+    };
+
+    const withFolders = await read(`${TRACK_COLUMNS}, folder_path`);
+    if (withFolders !== null) return withFolders;
+
+    const plain = await read(TRACK_COLUMNS);
+    if (plain !== null) return plain;
+
+    console.warn(`[music] ${TRACKS_TABLE} could not be read - titles fall back to file names.`);
+
+    return null;
+  }
+
   /** What the shelf has been told about those files. */
   private async listRows(): Promise<DescribedAudio[]> {
     try {
-      const { data, error } = await this.client()
-        .from(TRACKS_TABLE)
-        .select('title, credit, kind, src, length, tags')
-        .order('created_at', { ascending: true });
+      const rows = await this.readRows();
+      if (rows === null) return [];
 
-      if (error !== null) {
-        console.warn(`[music] ${TRACKS_TABLE} could not be read: ${error.message} - titles fall back to file names.`);
-
-        return [];
-      }
-
-      return ((data ?? []) as TrackRow[]).map((row) => ({
+      return rows.map((row) => ({
         src: row.src,
         title: row.title,
         credit: row.credit,
         kind: row.kind,
         ...(row.length === null || row.length === undefined || row.length.length === 0 ? {} : { length: row.length }),
         ...(row.tags === null || row.tags === undefined ? {} : { tags: row.tags }),
+        folderPath: row.folder_path ?? null,
       }));
     } catch {
       return [];
@@ -132,6 +178,58 @@ class SupabaseMusicRepository implements MusicRepository {
     const [files, rows] = await Promise.all([this.listBucketFiles(), this.listRows()]);
 
     return tracksFromStorage(files, rows);
+  }
+
+  /**
+   * The folders anybody has made.
+   *
+   * Never throws, for the same reason the shelf does not: a page that lists the catalogue's own
+   * releases is a working page, and an unreadable folder table costs the folders people added
+   * rather than the whole directory.
+   */
+  async listFolders(): Promise<MusicFolder[]> {
+    try {
+      const { data, error } = await this.client()
+        .from(FOLDERS_TABLE)
+        .select('path, created_by, created_by_label, created_at')
+        .order('path', { ascending: true });
+
+      if (error !== null) {
+        console.warn(`[music] ${FOLDERS_TABLE} could not be read: ${error.message} - the catalogue's own folders stand.`);
+
+        return [];
+      }
+
+      return ((data ?? []) as FolderRow[]).map(toFolder);
+    } catch {
+      return [];
+    }
+  }
+
+  /**
+   * Makes a folder, or hands back the one that is already there.
+   *
+   * The insert is told to ignore a duplicate path rather than to fail: two people filing into
+   * `HEXHAM` are asking for the same folder, and the table's own policy already keeps one
+   * account from claiming another's row. What comes back is what the page needs to draw - the
+   * list is read again afterwards for the rest.
+   */
+  async createFolder(input: CreateFolderInput): Promise<MusicFolder> {
+    const path = normaliseFolderPath(input.path);
+    if (path === null) throw new Error('A FOLDER NEEDS A NAME.');
+
+    const { error } = await this.client()
+      .from(FOLDERS_TABLE)
+      .upsert(
+        { path, created_by: input.creatorId, created_by_label: input.creatorName },
+        { onConflict: 'path', ignoreDuplicates: true },
+      );
+
+    if (error !== null) {
+      throw new Error(`${error.message.toUpperCase()} - THE FOLDER COULD NOT BE MADE.`);
+    }
+
+    return { path, createdBy: input.creatorId, createdByLabel: input.creatorName, createdAt: new Date().toISOString() };
   }
 
   async uploadTrack(input: UploadTrackInput): Promise<AudioTrack> {
@@ -171,6 +269,7 @@ class SupabaseMusicRepository implements MusicRepository {
       src,
       tags,
       length: input.length ?? '',
+      folder_path: normaliseFolderPath(input.folderPath),
       uploaded_by: input.uploaderId,
       uploaded_by_label: input.uploaderName,
     });
@@ -183,7 +282,17 @@ class SupabaseMusicRepository implements MusicRepository {
       );
     }
 
-    return { id: path, title, credit, kind, src, length: input.length ?? '--:--', tags, shelf: 'bucket' };
+    return {
+      id: path,
+      title,
+      credit,
+      kind,
+      src,
+      length: input.length ?? '--:--',
+      tags,
+      folderPath: normaliseFolderPath(input.folderPath),
+      shelf: 'bucket',
+    };
   }
 }
 

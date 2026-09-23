@@ -1,4 +1,5 @@
 import { isSupabaseConfigured } from '../supabase/client';
+import type { FolderPath } from './archive-tree';
 import { getMockMusicRepository } from './mock-music-repository';
 import { getSupabaseMusicRepository } from './supabase-music-repository';
 import type { AudioTrack } from './tracks';
@@ -26,6 +27,7 @@ export type UploadTrackInput = {
   uploaderId: string;
   /** The uploader's name at the time of filing, kept for the shelf's row. */
   uploaderName: string;
+  /** The file's name, as the archive spells it (`TITLE - ALBUM - ARTIST`). */
   title: string;
   /** Who the track is credited to; empty means the uploader. */
   credit: string;
@@ -33,7 +35,24 @@ export type UploadTrackInput = {
   tags?: string[];
   /** Running time as it reads in a list, when the caller has measured the file. */
   length?: string;
+  /** The folder it is filed in; `null` files it at the root of the archive. */
+  folderPath?: FolderPath | null;
   file: File;
+};
+
+/** A folder somebody made in the archive. A path is the whole of it: `HEXHAM`, `HEXHAM/GRIDLOCK`. */
+export type MusicFolder = {
+  path: FolderPath;
+  /** The account that made it, when one is known. */
+  createdBy: string | null;
+  createdByLabel: string;
+  createdAt: string;
+};
+
+export type CreateFolderInput = {
+  path: FolderPath;
+  creatorId: string;
+  creatorName: string;
 };
 
 export type MusicRepository = {
@@ -46,6 +65,17 @@ export type MusicRepository = {
   listTracks(): Promise<AudioTrack[]>;
   /** Files one track and hands back the row the player queues. */
   uploadTrack(input: UploadTrackInput): Promise<AudioTrack>;
+  /**
+   * The folders anybody has made. Never throws, and an unreadable folder table is an empty
+   * one: the archive still lists the folders its own catalogue implies, so the page works
+   * before the schema is there.
+   */
+  listFolders(): Promise<MusicFolder[]>;
+  /**
+   * Makes a folder. A path that already exists is not an error - two people filing into
+   * `HEXHAM` are asking for the same folder - so this hands back what is there.
+   */
+  createFolder(input: CreateFolderInput): Promise<MusicFolder>;
   /** Mock-only helper so local uploads can be forgotten. */
   clearLocalTracks?(): Promise<void>;
 };

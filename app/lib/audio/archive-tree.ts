@@ -6,19 +6,30 @@ import type { AudioTrack } from './tracks';
 /**
  * The archive listing, as data.
  *
- * The /music page is a file directory over three shelves at once:
+ * /music is a file browser over three places at once:
  *
  *   1. the archive's own catalogue - ten artists, twenty releases, filed by hand in
- *      `app/lib/projects/tracks.ts`, which is the only shelf that has a release behind a
- *      file and therefore the only one that can be shown as a tree;
- *   2. whatever is in the `mp3` bucket, which includes an account's own song and anything
- *      dropped in by hand;
+ *      `app/lib/projects/tracks.ts`;
+ *   2. whatever is in the `mp3` bucket, which includes the files anybody signed in has filed
+ *      from the page and an account's own song;
  *   3. every MP3 somebody attached to a post or a reply on the board.
  *
- * Files from 2 and 3 are single files with no release, so they are listed under LOOSE
- * FILES rather than filed into an artist they never had. Everything here is pure: the
- * grouping, the ordering, the search and the tag filter can all be reasoned about (and
- * checked) without a browser - see Temp/check-archive-tree.cjs.
+ * ## Paths, which is what makes it a directory
+ *
+ * A folder's whole path is its key - `HEXHAM`, `HEXHAM/GRIDLOCK` - and a file is filed by
+ * path, so a file's name is simply where it is: in `HEXHAM/GRIDLOCK` a file called
+ * `GLASS CORRIDOR` is listed as
+ *
+ *     GLASS CORRIDOR - GRIDLOCK - HEXHAM
+ *
+ * which is the archive's naming convention, derived rather than typed. Folders come from two
+ * places and are the same thing either way: the paths the catalogue implies for its own
+ * releases, and the paths anybody has created on the page. A path only a *file* mentions
+ * exists too - a directory is real while something is in it - so a file whose folder row was
+ * never written still appears where its name says it is.
+ *
+ * Everything here is pure: the grouping, the ordering, the search and the tags can all be
+ * reasoned about (and checked) without a browser - see Temp/check-archive-tree.cjs.
  */
 
 /** Where a listed file came from, in the listing's own words. */
@@ -30,8 +41,14 @@ export const SOURCE_LABEL: Record<ArchiveSource, string> = {
   BOARD: 'BOARD',
 };
 
-/** The heading loose files are listed under: nothing filed them on a release. */
-export const LOOSE_FILES = 'LOOSE FILES';
+/** A folder's whole path, artist first: `HEXHAM`, `HEXHAM/GRIDLOCK`. */
+export type FolderPath = string;
+
+/** The name the root of the archive is listed under, in a path line. */
+export const ROOT_FOLDER_NAME = 'MUSIC';
+
+/** How long a folder or file name may be, so one name cannot fill a row. */
+const MAX_NAME = 64;
 
 /** One file as the directory lists it. */
 export type ArchiveRow = {
@@ -41,30 +58,29 @@ export type ArchiveRow = {
   /** How it sounds, spelled once here so the pills and the filter agree. */
   tags: string[];
   source: ArchiveSource;
+  /** The folder it is filed in; `null` is the root of the archive. */
+  folderPath: FolderPath | null;
   /** The post it was filed on, when it came from the board. */
   href?: string;
   threadTitle?: string;
 };
 
-/** One release's files, in running order. */
-export type ArchiveAlbum = {
+/** One folder of the directory: its subfolders, and the files filed directly in it. */
+export type ArchiveFolder = {
+  /** `HEXHAM/GRIDLOCK`; `null` for the root of the archive. */
+  path: FolderPath | null;
+  /** The last segment: `GRIDLOCK`, or `MUSIC` for the root. */
   name: string;
-  /** The year the release carries; `''` when the file never said. */
-  year: string;
-  rows: ArchiveRow[];
-};
-
-/** One artist's releases, in the order they were filed. */
-export type ArchiveArtist = {
-  name: string;
-  albums: ArchiveAlbum[];
-  trackCount: number;
+  folders: ArchiveFolder[];
+  files: ArchiveRow[];
+  /** Files in this folder and in everything under it. */
+  fileCount: number;
 };
 
 export type ArchiveTree = {
-  artists: ArchiveArtist[];
-  /** Files with no release behind them, in the order they arrived. */
-  loose: ArchiveRow[];
+  root: ArchiveFolder;
+  /** Every folder that exists, A to Z - what a "file into" choice offers. */
+  paths: FolderPath[];
 };
 
 /** The last path segment of a URL or archive path: what the file is called. */
@@ -80,6 +96,106 @@ export function fileLabel(src: string): string {
 }
 
 /**
+ * A name as this archive spells it: one line, spaced, uppercase, and never a path separator.
+ *
+ * Folders and files are named by hand and the archive's own names are shouted, so what anybody
+ * types comes out in the same voice as the catalogue - and the window that files a track shows
+ * the result before it is filed, so nothing is a surprise.
+ */
+export function normaliseArchiveName(raw: string): string {
+  return raw
+    .replace(/[\\/]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+    .slice(0, MAX_NAME);
+}
+
+/** The whole path for a folder inside another: `HEXHAM` + `GRIDLOCK` -> `HEXHAM/GRIDLOCK`. */
+export function childFolderPath(parent: FolderPath | null, name: string): FolderPath {
+  const clean = normaliseArchiveName(name);
+  const under = parent ?? '';
+
+  if (under.length === 0) return clean;
+  return clean.length === 0 ? under : `${under}/${clean}`;
+}
+
+/**
+ * A whole path as this archive spells it, each segment normalised: `my artist / my release` ->
+ * `MY ARTIST/MY RELEASE`. `null` when there is nothing left of it, which is what a store
+ * refuses.
+ */
+export function normaliseFolderPath(raw: string | null | undefined): FolderPath | null {
+  const parts = (raw ?? '')
+    .split('/')
+    .map((part) => normaliseArchiveName(part))
+    .filter((part) => part.length > 0);
+
+  return parts.length === 0 ? null : parts.join('/');
+}
+
+/** The folder a path sits in: `HEXHAM/GRIDLOCK` -> `HEXHAM`; a top-level folder -> the root. */
+export function parentFolderPath(path: FolderPath | null): FolderPath | null {
+  if (path === null) return null;
+
+  const cut = path.lastIndexOf('/');
+  return cut <= 0 ? null : path.slice(0, cut);
+}
+
+/** The last segment of a path: `HEXHAM/GRIDLOCK` -> `GRIDLOCK`. */
+export function folderName(path: FolderPath): string {
+  const cut = path.lastIndexOf('/');
+  return cut === -1 ? path : path.slice(cut + 1);
+}
+
+/**
+ * Every folder a path sits in, root-most first: `A/B/C` -> `['A', 'A/B', 'A/B/C']`.
+ *
+ * This is what makes a path exist: the listing is built from these rather than from folder
+ * rows alone, so a file is never lost to a folder that was never written down.
+ */
+export function folderAncestors(path: FolderPath): FolderPath[] {
+  const ancestors: FolderPath[] = [];
+
+  for (const part of path.split('/').filter((piece) => piece.length > 0)) {
+    const previous = ancestors[ancestors.length - 1];
+    ancestors.push(previous === undefined ? part : `${previous}/${part}`);
+  }
+
+  return ancestors;
+}
+
+/** `MUSIC / HEXHAM / GRIDLOCK`, for a window that has to say where something is going. */
+export function folderLabel(path: FolderPath | null): string {
+  const under = path === null || path.length === 0 ? [] : path.split('/');
+  return [ROOT_FOLDER_NAME, ...under].join(' / ');
+}
+
+/**
+ * A file's name: `[TRACK TITLE] - [ALBUM NAME] - [ARTIST NAME]`, read off where it is filed.
+ *
+ * The nearest folder is the album and the one behind it the artist, which is the order the
+ * convention reads in - a path is written artist first, the way a directory is. A file at the
+ * root has no release to name, so its title is its name; one filed straight into an artist's
+ * folder is `[TITLE] - [ARTIST]`, which is all there is to say about it.
+ */
+export function archiveDisplayName(title: string, folderPath?: FolderPath | null): string {
+  const release =
+    folderPath === undefined || folderPath === null ? [] : folderPath.split('/').reverse().filter((part) => part.length > 0);
+
+  return [title, ...release].join(' - ');
+}
+
+/** The path a release filed in the code catalogue implies: `HEXHAM` + `GRIDLOCK`. */
+export function releaseFolderPath(artist: string, album?: string | null): FolderPath | null {
+  const parts = [normaliseArchiveName(artist), album === undefined || album === null ? '' : normaliseArchiveName(album)].filter(
+    (part) => part.length > 0,
+  );
+
+  return parts.length === 0 ? null : parts.join('/');
+}
+
+/**
  * The rows: the player's queue in its own order first - so the directory and the bar never
  * disagree about what the shelf holds - with anything posted to a thread and not on the
  * shelf appended after it, because a linked MP3 is playable without ever being copied onto
@@ -87,9 +203,10 @@ export function fileLabel(src: string): string {
  *
  * A file that is both on the shelf and on a post is listed once, and the two halves are
  * taken from the half that knows: **the shelf's own record of the file** (which is what knows
- * its release, so a track referenced in a thread stays in its artist's folder instead of
- * falling out of the catalogue) with **the post's poster** (which is what a listing wants to
- * print). A file that only exists on a post has only the post to speak for it.
+ * where it is filed, so a track referenced in a thread stays in its folder instead of falling
+ * out of the directory) with **the post's poster** (which is what a listing wants to print). A
+ * file that only exists on a post has only the post to speak for it - and a post has no
+ * folders, so it is listed at the root.
  */
 export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): ArchiveRow[] {
   const filed = collectFiledTracks(threads);
@@ -108,6 +225,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
       poster: entry.poster,
       tags: track.tags ?? [],
       source: 'BOARD',
+      folderPath: track.folderPath ?? null,
       href: entry.href,
       threadTitle: entry.threadTitle,
     };
@@ -122,6 +240,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
         poster: track.credit.length === 0 ? 'DEBASER.SITE' : track.credit,
         tags: track.tags ?? [],
         source: track.shelf === 'bucket' ? 'SHELF' : 'ARCHIVE',
+        folderPath: track.folderPath ?? null,
       },
     );
   }
@@ -135,6 +254,7 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
       poster: entry.poster,
       tags: entry.track.tags ?? [],
       source: 'BOARD',
+      folderPath: entry.track.folderPath ?? null,
       href: entry.href,
       threadTitle: entry.threadTitle,
     });
@@ -144,50 +264,61 @@ export function buildArchiveRows(queue: AudioTrack[], threads: ForumThread[]): A
 }
 
 /**
- * The shelves as a directory tree: artist, then release, then the files on it.
+ * The archive as a directory: folders, and the files filed in them.
  *
- * Artists read A to Z, an artist's releases oldest first (a netlabel files by year), and a
- * release's tracks in running order - `trackNumber`, which is also the number its name
- * starts with, so the listing and the names agree about the order.
+ * Both levels are built the same way - a folder exists because a path was mentioned, whether by
+ * a folder row somebody created or by a file filed into it - so an empty folder shows (which is
+ * the point of creating one) and a file never goes missing because its folder row was never
+ * written. Each level reads folders A to Z, then files in running order, which is the order a
+ * file browser draws them in.
  */
-export function buildArchiveTree(rows: ArchiveRow[]): ArchiveTree {
-  const artists = new Map<string, Map<string, ArchiveAlbum>>();
-  const loose: ArchiveRow[] = [];
+export function buildArchiveTree(rows: ArchiveRow[], folders: { path: FolderPath }[] = []): ArchiveTree {
+  const known = new Set<FolderPath>();
 
-  for (const row of rows) {
-    const album = row.track.album;
-    if (album === undefined || album.length === 0) {
-      loose.push(row);
-      continue;
-    }
-
-    const artist = row.track.credit.length === 0 ? LOOSE_FILES : row.track.credit;
-    const releases = artists.get(artist) ?? new Map<string, ArchiveAlbum>();
-    // Two releases can share a name across years on a real shelf; keying on both keeps them
-    // apart instead of merging two records into one folder.
-    const key = `${row.track.year ?? ''}::${album}`;
-    const release = releases.get(key) ?? { name: album, year: row.track.year ?? '', rows: [] };
-
-    release.rows.push(row);
-    releases.set(key, release);
-    artists.set(artist, releases);
+  for (const folder of folders) {
+    for (const path of folderAncestors(folder.path)) known.add(path);
   }
 
-  const tree: ArchiveArtist[] = [...artists.entries()]
-    .map(([name, releases]) => {
-      const albums = [...releases.values()]
-        .map((release) => ({ ...release, rows: sortByTrackNumber(release.rows) }))
-        .sort((a, b) => a.year.localeCompare(b.year) || a.name.localeCompare(b.name));
+  for (const row of rows) {
+    if (row.folderPath === null) continue;
+    for (const path of folderAncestors(row.folderPath)) known.add(path);
+  }
 
-      return {
-        name,
-        albums,
-        trackCount: albums.reduce((total, release) => total + release.rows.length, 0),
-      };
-    })
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const nodes = new Map<FolderPath, ArchiveFolder>();
 
-  return { artists: tree, loose };
+  for (const path of known) {
+    nodes.set(path, { path, name: folderName(path), folders: [], files: [], fileCount: 0 });
+  }
+
+  const root: ArchiveFolder = { path: null, name: ROOT_FOLDER_NAME, folders: [], files: [], fileCount: 0 };
+
+  for (const node of nodes.values()) {
+    const parent = parentFolderPath(node.path);
+    const into = parent === null ? root : nodes.get(parent);
+
+    // Every ancestor is in `known`, so a node always has somewhere to go.
+    into?.folders.push(node);
+  }
+
+  for (const row of rows) {
+    const into = row.folderPath === null ? root : nodes.get(row.folderPath);
+    into?.files.push(row);
+  }
+
+  return { root: arrangeFolder(root), paths: [...known].sort((a, b) => a.localeCompare(b)) };
+}
+
+/** Folders A to Z, then files in running order, and the count kept up the way out. */
+function arrangeFolder(folder: ArchiveFolder): ArchiveFolder {
+  const folders = folder.folders.sort((a, b) => a.name.localeCompare(b.name)).map(arrangeFolder);
+  const files = sortByTrackNumber(folder.files);
+
+  return {
+    ...folder,
+    folders,
+    files,
+    fileCount: files.length + folders.reduce((total, child) => total + child.fileCount, 0),
+  };
 }
 
 /** Running order: the track's number, then its name for anything unnumbered. */
@@ -228,13 +359,14 @@ export function isFiltering(filter: ArchiveFilter): boolean {
 }
 
 /**
- * Everything a typed word is looked in: the whole name (track, release, artist), the poster,
- * the year and the tags - so `idm`, `1998` and `hexham` all find the same rows.
+ * Everything a typed word is looked in: the whole name (track, release, artist), where it is
+ * filed, the poster, the year and the tags - so `idm`, `1998` and `hexham lock` all find the
+ * same rows.
  */
 function haystack(row: ArchiveRow): string {
   const track = row.track;
 
-  return [track.title, track.album ?? '', track.credit, track.year ?? '', row.poster, ...row.tags]
+  return [track.title, row.folderPath ?? '', track.credit, track.year ?? '', row.poster, ...row.tags]
     .join(' ')
     .toLowerCase();
 }

@@ -1025,6 +1025,9 @@ create table if not exists public.music_tracks (
   -- filter, and the tags drawn on the inline player under a post. Read by
   -- app/lib/audio/tags.ts, which is also what spells and caps them.
   tags jsonb not null default '[]'::jsonb,
+  -- The folder the file is filed in: `HEXHAM/GRIDLOCK`, or null for the root of the archive.
+  -- A plain path, with no foreign key - see the folders section below.
+  folder_path text,
   uploaded_by uuid references auth.users (id) on delete set null,
   uploaded_by_label text not null default 'Unknown',
   created_at timestamptz not null default now()
@@ -1033,6 +1036,50 @@ create table if not exists public.music_tracks (
 -- An archive that filed tracks before audio tags existed: the column is added
 -- rather than the table rebuilt, so nothing already on the shelf is disturbed.
 alter table public.music_tracks add column if not exists tags jsonb not null default '[]'::jsonb;
+
+-- Where a file is filed. A plain string, with no foreign key: see the folders section below.
+alter table public.music_tracks add column if not exists folder_path text;
+
+-- -----------------------------------------------------------------------------
+-- 14b. the folders the browser makes, and where a file is filed
+-- -----------------------------------------------------------------------------
+-- /music is a file browser, and this is what makes it writable: any signed-in account may make
+-- a folder and file a track into one. A folder's whole path is its key - `HEXHAM`,
+-- `HEXHAM/GRIDLOCK` - rather than a name with a parent to look up, because a path is what the
+-- browser prints, what a file is filed under, and what the archive's own catalogue implies for
+-- the releases it ships. Two people filing into `HEXHAM` are asking for the same folder, which
+-- is why the path is the primary key and a duplicate is ignored rather than refused.
+--
+-- A file's place is `music_tracks.folder_path`, a plain string with no foreign key on purpose:
+-- a directory is real while something is in it, so a path is allowed to exist because a file
+-- mentions it, and deleting a folder row does not take anybody's files with it - they simply
+-- appear in a folder that is implied by its contents.
+--
+-- Who may do what: anybody may read the listing, any account may make a folder (unless the
+-- house account has banned it), and only the account that made one may remove it - together
+-- with the house account, which can remove anything.
+
+create table if not exists public.music_folders (
+  path text primary key,
+  created_by uuid references auth.users (id) on delete set null,
+  created_by_label text not null default 'Unknown',
+  created_at timestamptz not null default now()
+);
+
+alter table public.music_folders enable row level security;
+
+drop policy if exists "music folders readable" on public.music_folders;
+create policy "music folders readable" on public.music_folders for select using (true);
+
+drop policy if exists "music folders made by any account" on public.music_folders;
+create policy "music folders made by any account" on public.music_folders
+  for insert to authenticated with check (not public.is_banned() and auth.uid() = created_by);
+
+drop policy if exists "music folders removed by their maker or admin" on public.music_folders;
+create policy "music folders removed by their maker or admin" on public.music_folders
+  for delete to authenticated using (auth.uid() = created_by or public.is_admin());
+
+create index if not exists music_tracks_folder_idx on public.music_tracks (folder_path);
 
 create index if not exists music_tracks_created_idx on public.music_tracks (created_at desc);
 

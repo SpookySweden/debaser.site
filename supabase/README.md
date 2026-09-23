@@ -64,6 +64,12 @@ only ever read, so a missing column costs a console warning and files fall back 
 It needs no new bucket and no new policy: the audio goes into the `mp3` bucket section 14 already
 made (see Music below).
 
+Section 21 (the archive's folders, and where a file is filed) is
+`supabase/migrations/20260928_music_folders.sql`, safe to re-run. Until it is in, /music still
+works: the browser lists the catalogue's own releases - their folders are read off the files
+rather than off this table - and it cannot make a new folder or file into one somebody made, which
+it reports in the console rather than pretending. Nothing else on the site reads it.
+
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
 `supabase_realtime` publication. A channel bound to a table that is not in it reports
@@ -314,6 +320,18 @@ it. Tags describe how a track sounds (`HIP HOP`, `LO FI`, `AMBIENT`), are spelle
 place (`app/lib/audio/tags.ts`), and are what the directory's filter bar counts and filters on.
 Section 20 adds the three columns that hold all of that; `Temp/check-forum-audio.cjs` checks the
 grammar, the filter, the link field and the collection of posted tracks.
+
+`/music` itself is a **file browser**, and section 21 is what makes it writable: any signed-in
+account may make a folder and file a track into one (`music_folders`, and
+`music_tracks.folder_path`). A folder's whole path is its key and a file is filed by path, so a
+file's name is simply where it is - `GLASS CORRIDOR` filed into `HEXHAM/GRIDLOCK` is listed as
+`GLASS CORRIDOR - GRIDLOCK - HEXHAM`, the archive's naming convention derived rather than typed.
+Folders come from two places and are the same thing either way: the paths the catalogue implies for
+its own releases, and the paths people have made. A path only a *file* mentions exists too - a
+directory is real while something is in it - which is why `folder_path` carries no foreign key and
+why an unreadable folder table costs the folders people added rather than the whole listing.
+`Temp/check-archive-tree.cjs` covers the paths, the naming, the tree, the search and the folder
+store.
 
 Section 15 is the track beside a picture: `profile_song_versions` (append-only, like the
 drawings), `profiles.current_song_version_id` and `show_song_comments`, and

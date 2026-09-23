@@ -1,5 +1,6 @@
+import { normaliseFolderPath, normaliseArchiveName } from './archive-tree';
 import { validateTrackFile } from './catalogue';
-import type { MusicRepository, UploadTrackInput } from './repository';
+import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
 
@@ -12,12 +13,16 @@ import type { AudioTrack } from './tracks';
  * hand-filed tracks. That is the same split the profile pictures use: Supabase
  * Storage when there is a session to check, the project folder when there is not.
  *
+ * The folders anybody makes live in localStorage too, under their own key, so a browser
+ * with no database still behaves like a file browser.
+ *
  * Honest limit, the same one the mock stores all have: this shelf is this browser
  * only, so a track filed here is not heard on another machine until the switch in
  * ./repository.ts points at Supabase.
  */
 
 const STORAGE_KEY = 'debaser.audio.mock.v1';
+const FOLDER_KEY = 'debaser.audio.folders.v1';
 const STORAGE_VERSION = 1;
 
 type PersistedState = {
@@ -26,6 +31,7 @@ type PersistedState = {
 };
 
 let state: AudioTrack[] | null = null;
+let folderState: MusicFolder[] | null = null;
 
 function hasStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
@@ -67,6 +73,46 @@ function persist(tracks: AudioTrack[]): void {
   }
 }
 
+/** A folder row that still makes sense: a path is the whole of it. */
+function isFolderShaped(value: unknown): value is MusicFolder {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const row = value as Partial<MusicFolder>;
+  return typeof row.path === 'string' && row.path.length > 0;
+}
+
+function loadFolders(): MusicFolder[] {
+  if (!hasStorage()) return [];
+
+  const raw = window.localStorage.getItem(FOLDER_KEY);
+  if (raw === null || raw.length === 0) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isFolderShaped);
+  } catch {
+    return [];
+  }
+}
+
+function persistFolders(folders: MusicFolder[]): void {
+  if (!hasStorage()) return;
+
+  try {
+    window.localStorage.setItem(FOLDER_KEY, JSON.stringify(folders));
+  } catch {
+    // Storage full or blocked: the folders still hold for this session.
+  }
+}
+
+function ensureFolders(): MusicFolder[] {
+  if (folderState === null) folderState = loadFolders();
+
+  return folderState;
+}
+
 class MockMusicRepository implements MusicRepository {
   readonly source = 'mock' as const;
 
@@ -74,6 +120,38 @@ class MockMusicRepository implements MusicRepository {
     if (state === null) state = loadTracks();
 
     return state;
+  }
+
+  /** The folders made in this browser. */
+  async listFolders(): Promise<MusicFolder[]> {
+    return ensureFolders();
+  }
+
+  /**
+   * Makes a folder, or hands back the one that is already there.
+   *
+   * A path is unique by its own name, so two people asking for `HEXHAM/GRIDLOCK` are asking for
+   * the same folder rather than failing.
+   */
+  async createFolder(input: CreateFolderInput): Promise<MusicFolder> {
+    const path = normaliseFolderPath(input.path);
+    if (path === null) throw new Error('A FOLDER NEEDS A NAME.');
+
+    const folders = ensureFolders();
+    const existing = folders.find((folder) => folder.path === path);
+    if (existing !== undefined) return existing;
+
+    const folder: MusicFolder = {
+      path,
+      createdBy: input.creatorId,
+      createdByLabel: normaliseArchiveName(input.creatorName),
+      createdAt: new Date().toISOString(),
+    };
+
+    folderState = [...folders, folder].sort((a, b) => a.path.localeCompare(b.path));
+    persistFolders(folderState);
+
+    return folder;
   }
 
   async uploadTrack(input: UploadTrackInput): Promise<AudioTrack> {
@@ -103,8 +181,7 @@ class MockMusicRepository implements MusicRepository {
       src: payload.src,
       length: input.length ?? '--:--',
       tags,
-      // The mock writes into the project's own assets folder, so it is the archive's
-      // shelf that grows - which is exactly what the shelf line in the player says.
+      folderPath: normaliseFolderPath(input.folderPath),
       shelf: 'archive',
     };
 
@@ -119,12 +196,14 @@ class MockMusicRepository implements MusicRepository {
     if (hasStorage()) {
       try {
         window.localStorage.removeItem(STORAGE_KEY);
+        window.localStorage.removeItem(FOLDER_KEY);
       } catch {
         // Nothing to clean up.
       }
     }
 
     state = [];
+    folderState = [];
   }
 }
 
