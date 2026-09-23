@@ -721,3 +721,23 @@ challenges to draw. `NEXT_PUBLIC_GAMES_DATA_SOURCE` moves the arcade to the loca
 or back.
 
 hiding the composer for signed-out visitors.
+
+Sweeping the throwaway accounts
+-------------------------------
+Every check in `Temp/` that talks to a real project signs accounts up, because that is the only way
+to ask a policy anything: a tag has to be filed by one account for another, and a policy cannot be
+asked without a session. The client cannot delete an account - that takes the service role, which
+the site never holds - so they accumulate in `auth.users`, and `auth.users` is what the user
+directory on /users lists. A session of live checks therefore leaves a directory full of `probe actor`
+and `diag <stamp>` accounts.
+
+`supabase/cleanup/` is the sweep:
+
+  throwaway-accounts-review.sql   read-only: lists the accounts the checks made, and counts what a
+                                  sweep would leave, so the list is seen before anything is removed
+  throwaway-accounts-sweep.sql    removes exactly those accounts plus anything they wrote, so no row
+                                  is left pointing at nobody; idempotent
+
+The sweep matches on the names the checks use - `cline-*@debaser.site`, `probe actor`, `probe to`,
+`diag <stamp>`, `PROBE ACCOUNT` - so an account somebody really made is not touched by it. Run the
+review first and read it.
