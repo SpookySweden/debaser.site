@@ -7,6 +7,7 @@ import type { AppNotification } from '../lib/notifications/types';
 import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 /**
  * One line of the feed.
@@ -126,14 +127,14 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   return (
     <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]' : 'w-full'}>
       {!chrome ? null : (
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+        <div className={TITLE_BAR}>
           <span>NOTIFICATIONS :: {summary}</span>
           <button
             type="button"
             onClick={onClose}
             aria-label="Close the notifications"
             title="Close"
-            className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-1 text-[10px] font-bold text-black hover:bg-gray-300"
+            className={TITLE_BAR_BUTTON}
           >
             x
           </button>

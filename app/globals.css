@@ -80,3 +80,16 @@ summary::-webkit-details-marker {
 .pin-tick {
   animation: pin-tick 150ms ease-out;
 }
+
+/* Mobile form controls -------------------------------------------------------
+   Browsers zoom a page in when a text field uses type smaller than 16px. The
+   site's monospace fields are below that, so on a phone every input, select and
+   textarea is lifted to 16px - the page stops jumping, and the field is large
+   enough to read and aim at while typing. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}

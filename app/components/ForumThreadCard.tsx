@@ -145,9 +145,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
           */}
           <div className="flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 text-xs font-bold text-black">
-                <span className="shrink-0 text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
-                <span className="min-w-0 flex-1 group-hover:underline">{layout.title}</span>
+              <div className="flex items-baseline gap-2 font-bold text-black">
+                <span className="shrink-0 text-[10px] leading-none text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
+                <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">{layout.title}</span>
                 {/* Pinned posts say so before anything else about them, because being pinned is
                     why this row is at the top of the list. */}
                 {pin === undefined ? null : (

@@ -5,6 +5,7 @@ import DesktopSidebar from './DesktopSidebar';
 import ProfileControl from './ProfileControl';
 import SiteNav from './SiteNav';
 import type { NavKey } from './SiteNav';
+import { PANEL_INSET, STATUS_BAR, WINDOW_TITLE_BAR } from '../lib/ui/controls';
 
 type SiteWindowProps = {
   /** Title bar text, e.g. `DEBASER_OS - v1.0 [FORUM BOARD]`. */
@@ -40,10 +41,10 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
     // viewport, and the window is short enough that the bar and the status bar do not
     // fight over the same strip of screen (see ./MusicPlayer.tsx).
     <main className="flex min-h-screen items-center justify-center bg-[#008080] p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
-      <div className="flex h-[84vh] w-[95vw] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
+      <div className="flex h-[84vh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] shadow-2xl">
 
         {/* Title Bar: the window title, and the profile control on a phone. */}
-        <div className="flex items-center justify-between gap-2 bg-[#000080] px-3 py-1 text-sm font-bold text-white">
+        <div className={WINDOW_TITLE_BAR}>
           <span className="truncate">{title}</span>
           <ProfileControl />
         </div>
@@ -53,7 +54,7 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
 
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">
-          <div className="m-2 min-w-0 flex-1 overflow-y-auto rounded-none border-2 border-gray-600 border-inset bg-white p-4 text-black sm:p-6">
+          <div className={`m-2 min-w-0 flex-1 overflow-y-auto ${PANEL_INSET} bg-white p-4 text-black sm:p-6`}>
             {children}
           </div>
 
@@ -61,7 +62,7 @@ export default function SiteWindow({ title, active, status = 'Ready', children }
         </div>
 
         {/* Status Bar */}
-        <div className="flex justify-between border-t border-white bg-[#c0c0c0] px-3 py-1 text-xs text-black">
+        <div className={STATUS_BAR}>
           <span>Status: {status}</span>
           <span>UTF-8</span>
         </div>

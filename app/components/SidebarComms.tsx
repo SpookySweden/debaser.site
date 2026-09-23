@@ -8,6 +8,7 @@ import { useComms } from './CommsProvider';
 import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { TITLE_BAR } from '../lib/ui/controls';
 
 /**
  * The side panel's comms block: the conversations, small.
@@ -49,7 +50,7 @@ export default function SidebarComms() {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between gap-1 bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+      <div className={TITLE_BAR}>
         <span>COMMS</span>
         <span className="flex items-center gap-1">
           {/* The bell sits at the top of the comms block: tags and replies are board news, but

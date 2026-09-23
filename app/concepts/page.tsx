@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function Concepts() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [CONCEPT ARCHIVE]" status="Concept Archive Active">
-    <h1 className="text-3xl font-bold mb-4">DEBASER.SITE // CONCEPT ARCHIVE</h1>
+    <h1 className="text-xl font-bold mb-4">DEBASER.SITE // CONCEPT ARCHIVE</h1>
     <p className="text-sm mb-2 leading-relaxed">
       Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet.
     </p>

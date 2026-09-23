@@ -16,6 +16,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { tagChipClasses, tagChipStyle } from './TagBadge';
+import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'all', label: 'ALL SOURCES' },
@@ -188,13 +189,25 @@ export default function ForumBoard() {
       <ForumPinPanel />
 
       {/* Board status window */}
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-          <span>FORUM BOARD // ANONYMOUS POSTING ENABLED</span>
-          <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
+      <section className={PANEL}>
+        <div className={TITLE_BAR}>
+          <span className="truncate">FORUM BOARD // ANONYMOUS POSTING ENABLED</span>
+          <span className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setComposerOpen(true)}
+              aria-haspopup="dialog"
+              aria-expanded={composerOpen}
+              title="Open the composer window to file a new thread"
+              className={TITLE_BAR_BUTTON}
+            >
+              + NEW POST...
+            </button>
+            <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
+          </span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+        <div className="space-y-1.5 p-2 text-[10px] font-bold text-black">
           {/* One compact status line instead of a paragraph of housekeeping. */}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
@@ -225,7 +238,7 @@ export default function ForumBoard() {
                     onClick={() => toggleTagFilter(option.key)}
                     aria-pressed={active}
                     title={active ? `Stop including ${option.label}` : `Include posts tagged ${option.label}`}
-                    className={`${tagChipClasses(tag)} cursor-pointer ${
+                    className={`${tagChipClasses(tag)} cursor-pointer max-sm:px-3 max-sm:py-1.5 max-sm:text-xs ${
                       active ? 'outline-2 outline-black' : 'opacity-90 hover:opacity-100'
                     }`}
                     style={tagChipStyle(tag)}
@@ -389,51 +402,38 @@ export default function ForumBoard() {
                 />
               </div>
             </div>
-
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={handleExpandAll}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
-              >
-                [ EXPAND ALL ]
-              </button>
-              <button
-                type="button"
-                onClick={handleCollapseAll}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
-              >
-                [ COLLAPSE ALL ]
-              </button>
-              <span className="text-[10px] font-bold text-black">
-                SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
-                {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
-              </span>
-            </div>
           </details>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+        {/* List controls: always on screen, one row above the threads. */}
+        <div className="flex flex-wrap items-center gap-2 border-t-2 border-gray-600 bg-[#c0c0c0] px-2 py-[3px]">
+          <button
+            type="button"
+            onClick={handleExpandAll}
+            className={PLATE}
+          >
+            [ EXPAND ALL ]
+          </button>
+          <button
+            type="button"
+            onClick={handleCollapseAll}
+            className={PLATE}
+          >
+            [ COLLAPSE ALL ]
+          </button>
+          <span className="text-[10px] font-bold text-black">
+            SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
+            {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
+          </span>
+          {forum.source === 'mock' ? (
             <button
               type="button"
-              onClick={() => setComposerOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={composerOpen}
-              title="Open the composer window to file a new thread"
-              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300"
+              onClick={handleReset}
+              className={`${PLATE} ml-auto`}
             >
-              + NEW POST...
+              [ PURGE LOCAL POSTS ]
             </button>
-
-            {forum.source === 'mock' ? (
-              <button
-                type="button"
-                onClick={handleReset}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
-              >
-                [ PURGE LOCAL POSTS ]
-              </button>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       </section>
 

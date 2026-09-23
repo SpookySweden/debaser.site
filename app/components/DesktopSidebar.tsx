@@ -4,6 +4,7 @@ import { useSyncExternalStore } from 'react';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
+import { TITLE_BAR } from '../lib/ui/controls';
 
 /**
  * Where the panel remembers whether it is open. Named like the store keys so the
@@ -87,8 +88,8 @@ export default function DesktopSidebar() {
   }
 
   return (
-    <aside className="hidden w-80 shrink-0 flex-col border-l-2 border-gray-600 bg-[#c0c0c0] lg:flex">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-gray-600 bg-[#c0c0c0] lg:flex">
+      <div className={TITLE_BAR}>
         <span>SIDE PANEL</span>
         <button
           type="button"

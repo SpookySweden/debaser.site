@@ -29,7 +29,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
 
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [PUBLIC PROFILE]" active="forum" status="Profile Viewer Active">
-    <h1 className="text-3xl font-bold mb-2">DEBASER.SITE // PUBLIC PROFILE</h1>
+    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // PUBLIC PROFILE</h1>
     <p className="text-xs mb-4 leading-relaxed">
       Everything here was chosen by the account owner in their customiser: the picture (with every earlier version
       kept on file), the bio, the tags other users gave them, and whether comments are open.

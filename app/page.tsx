@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [HOME LANDING]" active="home" status="Landing Page Active">
-    <h1 className="text-3xl font-bold mb-4">DEBASER.SITE // PORTAL ARCHIVE</h1>
+    <h1 className="text-xl font-bold mb-4">DEBASER.SITE // PORTAL ARCHIVE</h1>
     <p className="text-sm mb-4 leading-relaxed">
       Welcome to the central digital hub for comic book lore, design concepts, and interactive community message boards. 
       This platform serves as a retro-styled operating environment dedicated to organizing and showcasing serialized world-building assets, artwork, and collaborative discussions.

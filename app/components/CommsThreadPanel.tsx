@@ -8,6 +8,7 @@ import type { CommsThread } from '../lib/comms/types';
 import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { PLATE_LARGE } from '../lib/ui/controls';
 
 type CommsThreadPanelProps = {
   thread: CommsThread;
@@ -190,7 +191,7 @@ export default function CommsThreadPanel({
             }
           }}
           placeholder="Type the message..."
-          className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+          className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none max-sm:p-3"
         />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -198,7 +199,7 @@ export default function CommsThreadPanel({
             type="button"
             onClick={() => void handleSend()}
             disabled={busy}
-            className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold text-black hover:bg-gray-300 disabled:cursor-wait disabled:opacity-60"
+            className={PLATE_LARGE}
           >
             {busy ? '[ SENDING... ]' : '[ SEND ]'}
           </button>

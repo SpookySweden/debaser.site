@@ -3,6 +3,7 @@
 import { buildNewsFeed } from '../lib/forum/news-feed';
 import { useForum } from './ForumProvider';
 import NewsCrawl from './NewsCrawl';
+import { TITLE_BAR } from '../lib/ui/controls';
 
 /**
  * The wire: everything filed on the board, crawling across one strip.
@@ -32,7 +33,7 @@ export default function NewsTicker() {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-      <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-[10px] font-bold text-white">
+      <div className={TITLE_BAR}>
         <span>NEWSWIRE :: PINNED POSTS</span>
         <span>[ {items.length === 0 ? 'NOTHING PINNED' : `${items.length} PINNED`} ]</span>
       </div>

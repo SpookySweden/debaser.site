@@ -6,6 +6,7 @@ import { getCommsRepository } from '../lib/comms/repository';
 import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
 import { PLATE } from '../lib/ui/controls';
+import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import CommsGroupBar from './CommsGroupBar';
 import CommsThreadPanel from './CommsThreadPanel';
 import { useComms } from './CommsProvider';
@@ -24,6 +25,9 @@ export default function CommsConsole() {
   const comms = useComms();
   const { userId, threads, accounts, accountsReady, nameById, ready, source, error, retry, markRead } = comms;
   const [picking, setPicking] = useState(false);
+  const compact = useCompactViewport();
+  /** On a phone the console is one pane at a time: the list, or the open thread. */
+  const [mobileView, setMobileView] = useState<'list' | 'thread'>('list');
   const [testNote, setTestNote] = useState<string | null>(null);
   // Opening a group: one form and one account list. What is done to a group once it
   // exists - renaming, handing it on, removing a member, leaving - is the strip under the
@@ -137,7 +141,7 @@ export default function CommsConsole() {
       )}
 
       {/* Conversations rail */}
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] lg:w-64 lg:shrink-0">
+      <section className={`rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
         <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
@@ -249,8 +253,11 @@ export default function CommsConsole() {
                 <li key={thread.id}>
                   <button
                     type="button"
-                    onClick={() => comms.setActiveThreadId(thread.id)}
-                    className={`w-full cursor-pointer rounded-none border p-2 text-left text-[10px] font-bold ${
+                    onClick={() => {
+                      comms.setActiveThreadId(thread.id);
+                      setMobileView('thread');
+                    }}
+                    className={`w-full cursor-pointer rounded-none border p-2 text-left text-[10px] font-bold max-sm:p-3 max-sm:text-xs ${
                       thread.id === active?.id
                         ? 'border-black bg-gray-300'
                         : 'border-gray-500 bg-[#f0f0f0] hover:bg-gray-200'
@@ -274,13 +281,22 @@ export default function CommsConsole() {
         </div>
       </section>
       {/* The open conversation */}
-      <section className="flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]">
-        <div className="flex items-center justify-between bg-[#000080] px-2 py-1 text-xs font-bold text-white">
-          <span>
-            COMMS
-            {active === undefined ? '' : ` :: ${threadLabel(active, userId ?? '', nameFor)}`}
+      <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0] ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
+        <div className="flex items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-xs font-bold text-white">
+          <span className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setMobileView('list')}
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[2px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 lg:hidden"
+            >
+              ← LIST
+            </button>
+            <span className="truncate">
+              COMMS
+              {active === undefined ? '' : ` :: ${threadLabel(active, userId ?? '', nameFor)}`}
+            </span>
           </span>
-          <span>[ {ready ? 'LIVE' : 'READING...'} ]</span>
+          <span className="shrink-0">[ {ready ? 'LIVE' : 'READING...'} ]</span>
         </div>
 
         <div className="flex min-h-[24rem] flex-1 flex-col p-3">

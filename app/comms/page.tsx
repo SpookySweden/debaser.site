@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function CommsPage() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [COMMS]" active="comms" status="Comms Online">
-    <h1 className="text-3xl font-bold mb-2">DEBASER.SITE // COMMS</h1>
+    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // COMMS</h1>
     <p className="text-xs mb-4 leading-relaxed">
       Direct messages and group chats, listed down the left with the open one on the right. A message that
       arrives while the site is open pops up on a desktop, and takes a phone straight here.

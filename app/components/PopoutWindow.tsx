@@ -3,6 +3,7 @@
 import { useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { STATUS_BAR, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
 
 type PopoutWindowProps = {
@@ -80,7 +81,7 @@ export default function PopoutWindow({
         {/* Draggable title bar */}
         <div
           {...dragHandlers}
-          className="flex touch-none cursor-move select-none items-center justify-between gap-2 bg-[#000080] px-2 py-1 text-xs font-bold text-white"
+          className={`${TITLE_BAR} touch-none cursor-move select-none`}
         >
           <span id={titleId} className="truncate">
             {title}
@@ -92,7 +93,7 @@ export default function PopoutWindow({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label="Close window"
-              className="cursor-pointer rounded-none border border-t-white border-l-white border-r-black border-b-black bg-[#c0c0c0] px-2 text-black"
+              className={TITLE_BAR_BUTTON}
             >
               ×
             </button>
@@ -107,14 +108,14 @@ export default function PopoutWindow({
         </div>
 
         {/* Status bar */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-t border-white bg-[#c0c0c0] px-2 py-1 text-[10px] font-bold text-black">
+        <div className={STATUS_BAR}>
           <span>{status ?? 'ESC OR CLICK THE DESKTOP TO CLOSE :: DRAG THE TITLE BAR TO MOVE'}</span>
           <span className="flex items-center gap-2">
             {actions}
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300"
+              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-3 py-1 text-xs font-bold hover:bg-gray-300 max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-sm"
             >
               [ CLOSE ]
             </button>

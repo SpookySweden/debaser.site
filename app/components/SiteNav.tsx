@@ -37,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 function navButtonClass(isActive: boolean): string {
-  const base = 'text-black px-4 py-1 text-xs font-bold cursor-pointer';
+  const base = 'text-black px-3 py-[3px] text-[11px] font-bold leading-none cursor-pointer max-sm:min-h-11 max-sm:px-4 max-sm:text-sm';
   return isActive
     ? `${base} bg-gray-300 border-t-2 border-l-2 border-black border-r border-b border-white`
     : `${base} bg-[#c0c0c0] border-t border-l border-white border-r-2 border-b-2 border-black hover:bg-gray-300`;
@@ -58,7 +58,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
   const { unreadTotal } = useComms();
 
   return (
-    <div className="bg-[#c0c0c0] px-2 py-1 border-b-2 border-gray-600 flex gap-1">
+    <div className="bg-[#c0c0c0] px-2 py-[3px] border-b-2 border-gray-600 flex gap-1">
       {NAV_ITEMS.map((item) => {
         const unread = item.key === 'comms' ? unreadTotal : 0;
 
