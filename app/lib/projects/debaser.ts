@@ -6,8 +6,11 @@
  * once: the landing page draws its tiles from `PROJECT_SECTIONS`, and every page
  * under the project draws its strip from the same list.
  *
- * A section is a page, not a folder: CONCEPTS is the sheet archive that used to be
- * a tab of its own, and MUSIC, NOTES and LINKS are the shelves beside it.
+ * A section is somewhere to go, and most of them are pages: CONCEPTS is the sheet archive that used
+ * to be a tab of its own, and NOTES and LINKS are the shelves beside it. MUSIC is the exception - it
+ * is a window docked over the board, so its `href` is the board's address carrying the archive's own
+ * query (see app/lib/audio/music-window.ts). A reader pressing either kind of href ends up somewhere
+ * they can read; only one of them moves them off the page they were on.
  */
 export type ProjectSection = {
   /** Stable key, also what `current` is matched against on the strip. */
@@ -64,9 +67,11 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
   {
     id: 'music',
     label: 'MUSIC',
-    href: '/music',
+    // The one shelf that is a window rather than a page: the archive docks beside the board, so its
+    // address is the board's with the archive's own query (`lib/audio/music-window.ts`).
+    href: '/forum?music=1',
     summary: 'The score, and the rough mixes.',
-    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag.',
+    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag - opened beside the thread you are reading, with `[ INJECT TO POST ]` on any row.',
   },
   {
     id: 'notes',

@@ -8,6 +8,7 @@ import CommsProvider from './components/CommsProvider';
 import ForumProvider from './components/ForumProvider';
 import MusicPlayer from './components/MusicPlayer';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
+import MusicWindow from './components/MusicWindow';
 import NotificationsProvider from './components/NotificationsProvider';
 import PresenceProvider from './components/PresenceProvider';
 import './globals.css';
@@ -63,12 +64,16 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     <CommsNotifier />
                     {/* ...and the player's bar sits over every page, docked to the bottom. */}
                     <MusicPlayer />
-                    {/* The arcade is a window rather than a page: a post's `[ CHALLENGE ]`, the
-                        header's key and the bell's invitation all open it over whatever the reader
-                        was on (see ./components/ArcadeWindow.tsx). It reads the address, so it is
-                        drawn behind a boundary: the layout stays static, the window catches up. */}
+                    {/* The site's two utility windows, drawn once and docked beside whatever is
+                        being read rather than being pages of their own: the arcade (a post's
+                        `[ CHALLENGE ]`, the header's key or the bell) and the music archive (the
+                        MUSIC shelf, a post's plate, or a track's tag badge). They read the address,
+                        so they are drawn behind a boundary: the layout stays static, the windows
+                        catch up. Nothing here is inside the page, which is exactly why opening one
+                        cannot re-render the board. */}
                     <Suspense fallback={null}>
                       <ArcadeWindow />
+                      <MusicWindow />
                     </Suspense>
                   </MusicPlayerProvider>
                 </NotificationsProvider>

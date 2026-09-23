@@ -116,6 +116,20 @@ export const PANEL_INSET =
 export const TITLE_BAR_BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-[#c0c0c0] px-2 py-[1px] text-[10px] font-bold leading-none text-black hover:bg-gray-300 max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
-/** The status bar along the foot of a window: one slim grey line. */
+/**
+ * The plate that carries a verb onto the board: navy, the colour the site gives a post.
+ *
+ * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate on the site
+ * that is not the grey of the furniture. That is deliberate: every other control in that row acts on
+ * the archive (play this, filter by that), and the one that acts on *the board* has to be findable at
+ * a glance from across a list. Navy rather than the maroon of a warning, because it is the same thing
+ * the `♪ MP3` badge on a post is: this file belongs to a thread.
+ */
+export const PLATE_ACCENT =
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-[#000080] px-2 py-[2px] text-[10px] font-bold text-white hover:bg-[#0000a0] active:bg-[#000080] active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:text-[#808080] max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+
+/**
+ * The status bar along the foot of a window: one slim grey line.
+ */
 export const STATUS_BAR =
   'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-[#c0c0c0] px-2 py-[3px] text-[10px] font-bold leading-none text-black';

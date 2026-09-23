@@ -1,3 +1,4 @@
+import { createWindowSlot } from '../ui/window-slot';
 import { GAME_IDS, isGameId, type GameId } from './types';
 
 /**
@@ -40,35 +41,21 @@ export type ArcadeWindowState = {
 /** Shut, on the floor. One shared object, so React can compare it by identity. */
 const CLOSED: ArcadeWindowState = { open: false, focus: { kind: 'floor' } };
 
-let state: ArcadeWindowState = CLOSED;
-const listeners = new Set<() => void>();
+const slot = createWindowSlot<ArcadeWindowState>(CLOSED);
 
 /** The window as it is now, for `useSyncExternalStore`. */
-export function arcadeWindowState(): ArcadeWindowState {
-  return state;
-}
+export const arcadeWindowState = slot.state;
 
 /** Draws from the window: the listener fires when it opens, changes purpose or closes. */
-export function subscribeToArcadeWindow(listener: () => void): () => void {
-  listeners.add(listener);
-
-  return () => {
-    listeners.delete(listener);
-  };
-}
-
-function set(next: ArcadeWindowState): void {
-  state = next;
-  for (const listener of listeners) listener();
-}
+export const subscribeToArcadeWindow = slot.subscribe;
 
 /** Opens the arcade, on the floor unless it was opened to do something. */
 export function openArcade(focus: ArcadeFocus = { kind: 'floor' }): void {
-  set({ open: true, focus });
+  slot.set({ open: true, focus });
 }
 
 export function closeArcade(): void {
-  if (state.open) set(CLOSED);
+  if (arcadeWindowState().open) slot.set(CLOSED);
 }
 
 /** The link to a window, so nav rows, legend links and the bell all spell it the same way. */

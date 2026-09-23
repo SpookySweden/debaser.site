@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { MUSIC_HREF } from '../lib/audio/music-window';
 import { audioTagColour, audioTagKey, audioTagLabel } from '../lib/audio/tags';
 import type { ForumTag } from '../lib/forum/types';
 import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
@@ -26,9 +27,15 @@ function asChip(label: string): ForumTag {
   };
 }
 
-/** Where a tag badge leads: the directory, already filtered to it. */
+/**
+ * Where a tag badge leads: the archive, already filtered to it.
+ *
+ * On the board's own address, because the archive is a window over the board
+ * (`lib/audio/music-window.ts`): a track's tag badge on a post opens the shelf beside the thread
+ * instead of walking the reader off it, which is the whole reason the archive is docked now.
+ */
 export function audioTagHref(label: string): string {
-  return `/music?tag=${encodeURIComponent(audioTagKey(label))}`;
+  return `${MUSIC_HREF}&tag=${encodeURIComponent(audioTagKey(label))}`;
 }
 
 type AudioTagPillProps = {

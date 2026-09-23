@@ -10,16 +10,16 @@ import {
   subscribeToArcadeWindow,
   type ArcadeFocus,
 } from '../lib/games/arcade-window';
+import DockWindow from './DockWindow';
 import GamesHub from './GamesHub';
-import PopoutWindow from './PopoutWindow';
 
 /**
- * The arcade, as a window over whatever is being read.
+ * The arcade, docked beside whatever is being read.
  *
- * Drawn once, in `layout.tsx`, beside the player bar and for the same reason: the arcade is not a
- * page you go to any more. A challenge from a post, the header's key and the bell's invitation all
- * open *this*, over the thread or the directory the reader is standing on, so nobody loses their
- * place to play a game.
+ * Drawn once, in `layout.tsx`, for the same reason the player bar is: the arcade is not a page you go
+ * to any more. A challenge from a post, the header's key and the bell's invitation all open *this*,
+ * against the thread the reader is standing in - docked at the foot of it and draggable, with the
+ * board still on screen and still usable, so nobody loses their place to answer a knock.
  *
  * It is the same `GamesHub` the arcade floor has always been, told what it was opened to do. The
  * window is the only thing that knows about the address (`lib/games/arcade-window.ts` reads it), so
@@ -60,15 +60,16 @@ export default function ArcadeWindow() {
   if (!state.open) return null;
 
   return (
-    <PopoutWindow
+    <DockWindow
       title={arcadeTitle(state.focus)}
       badge="[ ARCADE ]"
       onClose={close}
-      maxWidth="max-w-3xl"
-      status="PRESS ESC, OR CLICK THE DESKTOP, TO GO BACK TO WHAT YOU WERE READING"
+      dock="bottom"
+      widthClass="sm:w-[min(28rem,calc(100vw-1.5rem))]"
+      status="THE BOARD IS STILL BEHIND THIS :: PLAYS SOLO, OR OPENS ON BOTH SCREENS WHEN THEY ANSWER"
     >
       <GamesHub focus={state.focus} />
-    </PopoutWindow>
+    </DockWindow>
   );
 }
 

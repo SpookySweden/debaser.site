@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
   SOURCE_LABEL,
   buildArchiveRows,
@@ -18,12 +18,13 @@ import {
 } from '../lib/audio/archive-tree';
 import { formatClock } from '../lib/audio/format';
 import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
+import { MUSIC_HREF } from '../lib/audio/music-window';
 import { TRACK_SORTS, type TrackSort } from '../lib/audio/sorts';
 import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { pluralise } from '../lib/forum/format';
-import { PANEL, PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_ACCENT, TITLE_BAR } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
@@ -63,10 +64,22 @@ function parseTagKeys(wanted: string | null): string[] {
     .filter((key) => key.length > 0);
 }
 
-/** The address a tag choice is written to, so a filtered listing can be linked to. */
+/**
+ * The address a tag choice is written to, so a filtered listing can be linked to.
+ *
+ * Written on the board's own query, because that is where this window lives: `/forum?music=1` opens
+ * the archive, and `&tag=…` opens it already filtered.
+ */
 function tagHref(keys: string[]): string {
-  return keys.length === 0 ? '/music' : `/music?tag=${keys.join(',')}`;
+  return keys.length === 0 ? MUSIC_HREF : `${MUSIC_HREF}&tag=${keys.join(',')}`;
 }
+
+type FileRowProps = {
+  row: ArchiveRow;
+  index: number;
+  /** Starts a post carrying this file: `[ INJECT TO POST ]`. */
+  onPost: (track: AudioTrack) => void;
+};
 
 /**
  * One file.
@@ -74,8 +87,12 @@ function tagHref(keys: string[]): string {
  * The name is the archive's own - `[TRACK TITLE] - [ALBUM NAME] - [ARTIST NAME]`, which is
  * where it is filed - printed whole, because that is how it is filed and how it reads anywhere
  * else on the site.
+ *
+ * Memoised: typing in the search box, changing the sort or folding a folder redraws the browser, and
+ * a row whose file has not changed comes back as the markup it already had. `onPost` is a `setState`
+ * function, so it is the same one on every render and does not defeat the comparison.
  */
-function FileRow({ row, index, onPost }: { row: ArchiveRow; index: number; onPost: (track: AudioTrack) => void }) {
+const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
   const player = useMusicPlayer();
   const current = player.track?.src === row.track.src;
   const playing = current && player.playing;
@@ -133,15 +150,16 @@ function FileRow({ row, index, onPost }: { row: ArchiveRow; index: number; onPos
             {playing ? '[ ❚❚ ]' : '[ ▶ PLAY ]'}
           </button>
 
-          {/* One press starts a post with this file already filed (`./NewPostForm.tsx`): the archive's
-              own way onto the board, instead of a round trip through /forum and the composer. */}
+          {/* The one plate in this row that acts on the board rather than on the archive: it opens the
+              composer with this file already filed (`./NewPostForm.tsx`). Navy, so it is findable from
+              across a list of grey (see `PLATE_ACCENT` in lib/ui/controls). */}
           <button
             type="button"
             onClick={() => onPost(row.track)}
-            className={`${PLATE} hidden sm:inline-flex`}
-            title={`Start a post carrying ${row.track.title}`}
+            className={`${PLATE_ACCENT} hidden sm:inline-flex`}
+            title={`Inject ${row.track.title} into a post: the composer opens with this file already filed`}
           >
-            [ ♪ TO A POST ]
+            [ INJECT TO POST ]
           </button>
         </span>
       </div>
@@ -161,15 +179,15 @@ function FileRow({ row, index, onPost }: { row: ArchiveRow; index: number; onPos
         <button
           type="button"
           onClick={() => onPost(row.track)}
-          className={PLATE}
-          title={`Start a post carrying ${row.track.title}`}
+          className={PLATE_ACCENT}
+          title={`Inject ${row.track.title} into a post: the composer opens with this file already filed`}
         >
-          [ ♪ TO A POST ]
+          [ INJECT TO POST ]
         </button>
       </div>
     </li>
   );
-}
+});
 
 type FolderBranchProps = {
   folder: ArchiveFolder;
@@ -191,7 +209,14 @@ type FolderBranchProps = {
  * many files are inside, and what can be made in it - and it nests to whatever depth the archive
  * has, because a folder is only a path.
  */
-function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate, onPost }: FolderBranchProps) {
+const FolderBranch = memo(function FolderBranch({
+  folder,
+  openNodes,
+  onToggle,
+  onCreate,
+  canCreate,
+  onPost,
+}: FolderBranchProps) {
   const path = folder.path ?? '';
   const open = openNodes.includes(path);
   const empty = folder.folders.length === 0 && folder.files.length === 0;
@@ -257,15 +282,20 @@ function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate, onPost
       </details>
     </li>
   );
-}
+});
 
 /**
- * The archive, open on the page.
+ * The archive, docked beside the board.
  *
  * The toolbar is the browser's: what can be made, the box that finds things, the tags that stay
  * folded away until they are asked for, and a reload. Everything a row does goes through the one
  * player at the bottom of the window, and everything that makes a file goes through the same
  * store the shelf has always used.
+ *
+ * What a row does *to the board* is `[ INJECT TO POST ]`, and it is the one navy plate in the list,
+ * because it is the only control here that reaches out of the archive: it opens the composer with
+ * that file already filed, so a track being listened to can be written about without leaving the
+ * thread the reader is standing in.
  */
 export default function MusicDirectory() {
   const player = useMusicPlayer();
@@ -311,7 +341,7 @@ export default function MusicDirectory() {
 
   function clearAll() {
     setQuery('');
-    router.replace('/music', { scroll: false });
+    router.replace(MUSIC_HREF, { scroll: false });
   }
 
   function toggleFolder(path: FolderPath, open: boolean) {
@@ -430,7 +460,7 @@ export default function MusicDirectory() {
               <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
                 <button
                   type="button"
-                  onClick={() => router.replace('/music', { scroll: false })}
+                  onClick={() => router.replace(MUSIC_HREF, { scroll: false })}
                   aria-pressed={tagKeys.length === 0}
                   className={tagKeys.length === 0 ? `${PLATE} outline-2 outline-black` : PLATE}
                 >

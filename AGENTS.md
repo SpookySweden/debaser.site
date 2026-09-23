@@ -35,20 +35,32 @@ Every table gets Row Level Security so users can only edit or delete their own c
 The board (`/forum`) is the desktop. A few things follow from that, and they are rules rather than
 preferences:
 
-- **The arcade has no page.** `/games` is not a route: `GamesHub` is the screen inside
-  `app/components/ArcadeWindow.tsx`, drawn once in `app/layout.tsx`, and it opens over whatever the
-  reader was on. Do not add a `/games` route back.
-- **A window opens from an address.** `app/lib/games/arcade-window.ts` both builds and reads the
-  arcade's three addresses, so a link and the code that answers it cannot drift:
-  `/forum?arcade=1` (the header key and Start menu row), `/forum?invite=<id>` (the bell),
-  `/forum?challenge=<userId>&game=<gameId>` (a post's `[ CHALLENGE ]` plate).
+- **Neither the arcade nor the archive has a page.** `/games` and `/music` are not routes: `GamesHub`
+  is the screen inside `app/components/ArcadeWindow.tsx` and `MusicDirectory` is the screen inside
+  `app/components/MusicWindow.tsx`, both drawn once in `app/layout.tsx`. Do not add either route back.
+- **A window opens from an address.** `app/lib/games/arcade-window.ts` and
+  `app/lib/audio/music-window.ts` each build and read their own, so a link and the code that answers
+  it cannot drift: `/forum?arcade=1` (the header key and Start menu row), `/forum?invite=<id>` (the
+  bell), `/forum?challenge=<userId>&game=<gameId>` (a post's `[ CHALLENGE ]` plate), and
+  `/forum?music=1` (`/forum?music=1&tag=…` for a filtered one - the MUSIC shelf, a post's plate, a
+  track's tag badge). Closing a window spends its address, so the same link works twice.
+- **Utility windows dock; dialogues take the screen.** `DockWindow` is for the two screens a reader
+  consults while standing in a thread: no scrim, draggable by its title bar, docked to the side of the
+  feed on a wide screen and a sheet above the player bar on a phone - **the feed must never be
+  covered**. `PopoutWindow` stays for the things that are a decision (the composer, the pickers).
+- **Windows are drawn after `{children}`, and none of them re-renders a page.** Each window's state is
+  a module-level slot (`app/lib/ui/window-slot.ts`) read with `useSyncExternalStore` only by that
+  window's own component, so opening, filtering or closing one cannot touch the board. A screen may
+  import an `open*` function; it must never subscribe to a window's state.
 - **Two presses from the board.** An action a reader starts on the board - asking somebody for a
   game, filing a track with a post - is two presses: one to open the thing, one to commit it. The
   composer's own entry and submit presses are separate and are the floor. `Temp/check-flows.cjs`
   holds both flows to this, so change the flows and that check is what tells you.
 - **Verbs go where the account or the file is named.** `PostAuthorRow` and `UserDirectoryRow` both
   carry an `actions` slot for a screen's own verb (`[ CHALLENGE ]`, `[ MESSAGE ]`); a screen with a
-  question to ask an account adds it there rather than writing the row again.
+  question to ask an account adds it there rather than writing the row again. A verb that reaches
+  *out* of a window and onto the board wears `PLATE_ACCENT` (`[ INJECT TO POST ]`), so it is findable
+  in a list of grey.
 
 ## Build Order
 
