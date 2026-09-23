@@ -10,19 +10,20 @@ import {
   type ProfileElement,
   type ProfileElementKind,
 } from '../lib/profile/elements';
-import type { PublicProfile } from '../lib/profile/types';
+import type { ProfileRepository, PublicProfile } from '../lib/profile/types';
+import { PROFILE_PIN_LABEL } from '../lib/profile/feed';
 import { HYPER_ARROW, HYPER_LABEL, HYPER_TEXT } from '../lib/ui/hypertext';
 import CommentRow, { commentRowData } from './CommentRow';
+import ProfileCommentPin from './ProfileCommentPin';
 import TimeStamp from './TimeStamp';
-
-/** Seconds of crawl per remark, so a long thread does not scroll any faster than a short one. */
-const SECONDS_PER_ITEM = 7;
 
 type ElementCommentsProps = {
   profile: PublicProfile;
   /** The version being read: its thread is the one shown. */
   element: ProfileElement;
   owner: boolean;
+  /** The store the owner's pin is taken on, and which list the pin is drawn for. */
+  repository: ProfileRepository;
   /** Picking another version switches the element *and* the thread. */
   onSelect: (versionId: string) => void;
   /** Tracks can be listened to from the history; pictures have nothing to play. */
@@ -45,18 +46,24 @@ type ElementCommentsProps = {
  * It is also the quietest thing on the page, deliberately. A profile is read for its
  * picture and its track, so the thread lives behind one small arrow carrying its count
  * (`▸ 3`), and the way to add to it is the profile's one comment control rather than a second
- * button here (see ./ProfileCommentMenu). A remark needs no plate of its own to be found.
+ * button here (see ./ProfileCommentMenu).
  *
- * Folded, and there is something to read, the thread goes past as a single line underneath -
- * transparent, with a dashed rule over it, exactly the way the crawl under a comment on the
- * board is drawn: the whole thread on the width of the column, one remark at a time, instead
- * of a list that buries the drawing above it. Writing happens in a window (see
- * ./ProfileCommentWindow) so the page keeps its shape while somebody is mid-sentence.
+ * **There is no crawl under the element any more.** There used to be: folded, with something
+ * behind it, the thread went past in one line on the width of the column. The profile's own
+ * feed now carries every remark the page has - the picture's and the track's included, tagged
+ * `P2` / `M1` so they are placed as they go past - and one line across the window says more
+ * than three narrow ones (see ./ProfileWire, and ../lib/profile/feed on the run of threes).
+ * What is left here is the fold and the list: the element's own thread, in its own place,
+ * read when it is asked for.
+ *
+ * The owner's pin is drawn beside each row of that list, because a comment on a drawing can
+ * lead the feed the same way a comment on the profile does - see ./ProfileCommentPin.
  */
 export default function ElementComments({
   profile,
   element,
   owner,
+  repository,
   onSelect,
   onPlay,
   playing,
@@ -117,30 +124,27 @@ export default function ElementComments({
         ) : (
           <ul className="mt-1 space-y-1">
             {thread.map((comment) => (
-              <CommentRow key={comment.id} data={commentRowData(comment)} />
+              <CommentRow
+                key={comment.id}
+                data={commentRowData(comment)}
+                {...(comment.pinned === true ? { pinnedLabel: PROFILE_PIN_LABEL } : {})}
+                {...(owner
+                  ? {
+                      action: (
+                        <ProfileCommentPin
+                          userId={profile.userId}
+                          commentId={comment.id}
+                          pinned={comment.pinned === true}
+                          repository={repository}
+                        />
+                      ),
+                    }
+                  : {})}
+              />
             ))}
           </ul>
         )
-      ) : thread.length === 0 ? null : (
-        /* Folded with something behind it: the thread crawls past in one line, so a remark
-           can be read without opening anything and the fold never hides what it holds.
-           Transparent, the way the crawl under a comment on the board is: it belongs to the
-           surface it runs across, not to a panel of its own. */
-        <div className="mt-1 overflow-hidden border-t border-dashed border-gray-400 pt-1">
-          <div
-            className="crawl flex w-max items-center"
-            style={{ animationDuration: `${Math.max(24, thread.length * SECONDS_PER_ITEM)}s` }}
-          >
-            {[0, 1].map((copy) => (
-              <ul key={copy} className="flex items-center" aria-hidden={copy === 1 ? 'true' : undefined}>
-                {thread.map((comment) => (
-                  <CommentRow key={`${copy}-${comment.id}`} data={commentRowData(comment)} variant="compact" />
-                ))}
-              </ul>
-            ))}
-          </div>
-        </div>
-      )}
+      ) : null}
 
       {/* The other versions, behind their own fold: switching is a reading choice, so it
           does not take the space the thread might need. */}

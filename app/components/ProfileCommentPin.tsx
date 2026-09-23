@@ -16,9 +16,14 @@ type ProfileCommentPinProps = {
  * The owner's pin, on one comment.
  *
  * A small blue pushpin beside the comment it is about. Pressed, the remark takes the leading row
- * of every run of three on the wire (see ../lib/profile/feed); pressed again it goes back into the
- * run behind them. It is drawn as a blue plate with the pushpin on it rather than as a coloured
- * glyph, because an emoji's own colours cannot be tinted and this one has to read as blue.
+ * of every run of three on the page's feed (see ../lib/profile/feed); pressed again it goes back
+ * into the run behind them. It is drawn beside a row in every list the page keeps - the comments
+ * on the profile itself (see ./PublicProfileWindow), and the remarks on the drawing and the track
+ * (see ./ElementComments) - because the feed under the columns carries all three, so a pin on a
+ * drawing's remark has somewhere to lead.
+ *
+ * It is drawn as a blue plate with the pushpin on it rather than as a tinted glyph, because an
+ * emoji's own colours cannot be tinted and this one has to read as blue.
  *
  * The mark itself is a **character**, not artwork: nothing on this site draws an icon in code, and
  * everything else asked for with a symbol here is a character too (`▸`, `▶`, `♪`, `[ ⚙ ]`). A

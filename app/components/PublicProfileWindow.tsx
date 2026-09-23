@@ -15,7 +15,7 @@ import { getProfileRepository } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
-import { canCommentOnProfile, profileComments, visibleProfileComments } from '../lib/profile/visibility';
+import { canCommentOnProfile, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
 import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
@@ -92,6 +92,10 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   // ./ProfileCommentMenu), so these three options are what it offers.
   const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
+  // The feed carries the whole page rather than one list of it - the profile's own remarks, the
+  // picture's and the track's - so it is read through its own selector: each kind gated by the
+  // owner's switch for that thread, and the owner's own view unfiltered.
+  const feedComments = owner ? profile.comments : visibleFeedComments(profile);
   const commentOptions: ProfileCommentOption[] = [
     {
       kind: 'avatar',
@@ -169,6 +173,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 profile={profile}
                 element={picture}
                 owner={owner}
+                repository={repository}
                 onSelect={setPictureId}
               />
             )}
@@ -182,6 +187,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 profile={profile}
                 element={track}
                 owner={owner}
+                repository={repository}
                 onSelect={setTrackId}
                 onPlay={(element) => player.play(elementAsTrack(profile, element))}
                 playing={(element) => player.track?.src === element.src && player.playing}
@@ -190,13 +196,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
           </div>
         </div>
 
-        {/* The profile's own comments, crawling the whole width of the window under both
-            columns. It used to sit in the wide column beside the drawing, under the track and
-            its remarks, which meant the wire crossed a third of the page; a wire is a line, and
-            this is the one line this page has, so it gets the width. It draws nothing at all
-            until somebody has commented - the panel at the foot of the page is where a reader
-            goes to say something, and the crawl is where it is read back. */}
-        <ProfileWire userId={userId} comments={comments} />
+        {/* The page's one crawling line: every remark it carries - on the profile itself, on the
+            picture, on the track - in the full width of the window under both columns, in the
+            band the old `NEWSWIRE :: COMMENTS ON THIS PROFILE` caption used to sit in. It began
+            as the crawl under the picture, which could only show the drawing's own remarks in
+            212px of column; the space beside it and under the track was empty, and the page's
+            conversation is not one drawing's conversation. A pinned comment leads a run of three
+            (see ../lib/profile/feed). It draws nothing at all until somebody has commented - the
+            panel at the foot of the page is where a reader goes to say something, and this line
+            is where it is read back. */}
+        <ProfileWire userId={userId} comments={feedComments} />
 
 
         {/* The account's own details, under the two columns: they are read once, while the

@@ -174,6 +174,26 @@ export function pendingTags(profile: PublicProfile): GivenTag[] {
 }
 
 /**
+ * Every comment the page shows *this* reader: the profile's own, the picture's and the track's.
+ *
+ * `visibleProfileComments` answers for one list - the panel at the foot of the page - and the
+ * feed that runs under the columns carries all three, so it needs its own answer. Each kind is
+ * gated by the owner's switch for that thread, exactly as the element threads are gated
+ * individually (see `visibleElementComments`); the owner's own view of it is simply
+ * `profile.comments`, since the owner has nothing hidden from themselves.
+ */
+export function visibleFeedComments(profile: PublicProfile): ProfileComment[] {
+  const visibility = withVisibilityDefaults(profile.visibility);
+
+  return profile.comments.filter((comment) => {
+    if (comment.kind === 'profile') return visibility.showProfileComments;
+    if (comment.kind === 'avatar') return visibility.showAvatarComments;
+
+    return visibility.showSongComments;
+  });
+}
+
+/**
  * Whether a tag has to wait for the owner before anybody sees it.
  *
  * Everything except the house account's own tags does - including a tag the owner

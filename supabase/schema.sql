@@ -1523,10 +1523,12 @@ end $$;
 -- to join. `pinned_at` is there because pins lead the wire in turn and the newest takes the first
 -- turn.
 --
--- Who may pin: the profile's owner, on a comment on the profile *itself* (kind = 'profile'). The
--- update policy below is what lets that write through, and the guard trigger is what keeps it a
--- pin rather than an edit - a policy cannot say which columns a write may touch, and without the
--- trigger the owner could rewrite what somebody said about them.
+-- Who may pin: the profile's owner, on any comment their page carries - the remarks on the profile
+-- itself, and the ones left on the picture and the track, because the feed that runs under the
+-- columns carries all three (app/lib/profile/feed.ts). The update policy below is what lets that
+-- write through, and the guard trigger is what keeps it a pin rather than an edit - a policy
+-- cannot say which columns a write may touch, and without the trigger the owner could rewrite what
+-- somebody said about them.
 
 alter table public.profile_comments
   add column if not exists pinned boolean not null default false;
@@ -1540,8 +1542,8 @@ create index if not exists profile_comments_pinned_idx
 
 drop policy if exists "profile comments pinned by owner" on public.profile_comments;
 create policy "profile comments pinned by owner" on public.profile_comments
-  for update using (user_id = auth.uid() and kind = 'profile')
-  with check (user_id = auth.uid() and kind = 'profile');
+  for update using (user_id = auth.uid())
+  with check (user_id = auth.uid());
 
 -- The guard. `auth.uid()` inside a trigger is still the caller's, whoever's privileges the body
 -- runs with (the same note section 16 makes), and a null caller is the SQL editor or the service

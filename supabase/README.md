@@ -409,7 +409,7 @@ Pinned comments on a profile
 ----------------------------
 Section 19 adds two columns to `profile_comments` - `pinned` and `pinned_at` - and they are the
 board's pin in miniature, without a deadline. Pinning a comment on your own profile does one thing:
-it takes the leading row of every run of three on that profile's wire, so a remark the page wants
+it takes the leading row of every run of three on the profile's feed, so a remark the page wants
 read keeps coming back round as the strip goes past. A pin never lapses; it stays until the owner
 takes it off.
 
@@ -417,10 +417,11 @@ takes it off.
     board pin is the *archive's* decision about somebody else's post and outlives edits to it,
     while a profile pin is the page owner's own mark on a comment that lives on that page and dies
     with it. One row per comment, two columns, nothing to join.
-  - **Who.** The profile's owner, and only on a comment on the profile *itself* (`kind =
-    'profile'`): the picture's and the track's remarks are read in the crawls under those elements,
-    so a pin on one of them would have nowhere to lead. Both stores refuse anybody else, and the
-    policy refuses again.
+  - **Who.** The profile's owner, on any comment their page carries: the remarks on the profile
+    itself, and the ones left on the picture and the track. That is what the feed under the two
+    columns is made of - all three kinds, each row tagged with what it is about (`PROFILE`, `P2`,
+    `M1`) - so a pin on a drawing's remark has somewhere to lead. Both stores refuse anybody else,
+    and the policy refuses again.
   - **What it may not touch.** The update policy is written for the owner's own page, but a policy
     cannot say *which* columns a write may touch - on its own it would hand an owner the right to
     rewrite what somebody said about them. The `profile_comments_guard_pin` trigger is what closes
@@ -428,12 +429,13 @@ takes it off.
     the byline, the time, the element a comment was written about, or whose page it is on, unless
     the writer is the comment's own author. A null caller - the SQL editor, the service role - is
     left alone, the way section 16's guard does it.
-  - **Where it shows.** A small blue pushpin beside each comment in the `COMMENTS ON THIS PROFILE`
-    list, drawn for the owner and nobody else; a comment that is pinned wears the same `PINNED`
-    plate the wire draws, and the panel's title bar counts them (`[ 3 VISIBLE :: 1 PINNED ]`). On
-    the wire under the two columns, one row in every three is a pinned comment, the pins taking the
-    leading row in turn and everything else filling the two behind them
-    (app/lib/profile/feed.ts). Nothing pinned means every comment in its scattered order.
+  - **Where it shows.** A small blue pushpin beside each row of the lists the page keeps - the
+    comments on the profile itself (`[ 3 VISIBLE :: 1 PINNED ]` in the panel's title bar) and the
+    remarks on the drawing and the track - drawn for the owner and nobody else. A comment that is
+    pinned wears the same `PINNED` plate the feed draws. On the feed, one row in every three is a
+    pinned comment, the pins taking the leading row in turn and everything else filling the two
+    behind them (app/lib/profile/feed.ts). Nothing pinned means every comment in its scattered
+    order.
 
 The same file puts `profile_comments` in the `supabase_realtime` publication, which it had never
 been in: the profile channel has always subscribed to that table, and a channel bound to a table

@@ -564,16 +564,18 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   /**
-   * The owner's pin on a comment left on the profile itself.
+   * The owner's pin on a comment the page carries.
    *
    * One update, and only the two columns the pin owns: `pinned` and the moment it was taken. The
    * words stay as their author filed them - the database's guard trigger (section 19) refuses a
-   * write from anybody but the author that touches anything else, so an owner can lift a comment
-   * to the front of the wire without being able to rewrite it.
+   * write from anybody but the author that touches anything else, so an owner can lift a remark
+   * to the front of the feed without being able to rewrite it.
    *
-   * `kind = 'profile'` and `user_id` are both in the filter, so the owner can only pin a comment
-   * on their own page, and only one on the profile itself. A filter that matches nothing is an
-   * error rather than a silent success - the screen should say so rather than pretend.
+   * No `kind` in the filter, deliberately: the feed carries the page's own comments and the
+   * picture's and the track's, so any of the three can be pinned. `user_id` is still the
+   * filter, so the owner can only pin a comment on their own page, and a filter that matches
+   * nothing is an error rather than a silent success - the screen should say so rather than
+   * pretend.
    */
   async setCommentPin(userId: string, commentId: string, pinned: boolean): Promise<PublicProfile> {
     const { data, error } = await this.client()
@@ -581,7 +583,6 @@ class SupabaseProfileRepository implements ProfileRepository {
       .update({ pinned, pinned_at: pinned ? new Date().toISOString() : null })
       .eq('id', commentId)
       .eq('user_id', userId)
-      .eq('kind', 'profile')
       .select('id');
 
     if (error !== null) this.fail(error.message);

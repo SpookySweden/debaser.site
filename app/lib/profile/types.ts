@@ -121,9 +121,10 @@ export type ProfileComment = {
    * Set when the profile's owner has pinned the comment.
    *
    * A pin does not change a word of what was written: it decides that this is one of the
-   * remarks the page wants read, so the wire leads a run of three with it (see ./feed). Only a
-   * comment on the profile *itself* can be pinned, because the picture's and the track's
-   * threads have crawls of their own under the element they belong to.
+   * remarks the page wants read, so the feed that runs under the columns leads a run of three
+   * with it (see ./feed). Any comment the page carries can be pinned - one on the profile
+   * itself, on the picture, or on the track - because the feed carries all of them; the pin
+   * beside a row is where the owner takes one.
    */
   pinned?: boolean;
   /** When the pin was taken, so the newest pin takes the first of the three-row turns. */
@@ -266,13 +267,13 @@ export type ProfileRepository = {
   removeTag(userId: string, tagId: string): Promise<PublicProfile>;
   addComment(userId: string, input: AddProfileCommentInput): Promise<PublicProfile>;
   /**
-   * Pin, or unpin, a comment left on the profile itself.
+   * Pin, or unpin, a comment left on the profile.
    *
    * The owner's mark, and the board's pinned post in miniature: it changes nothing about what
-   * was written, it decides which remark the page wants read - so the wire leads its next run
-   * of three with it (see ./feed), and the comments list says `PINNED` beside it. Only the
-   * profile's owner can take one, and only on a comment on the profile itself (the picture's
-   * and the track's remarks are read in their own crawls, under the element they belong to).
+   * was written, it decides which remark the page wants read - so the feed under the columns
+   * leads its next run of three with it (see ./feed), and the list it was pinned from says
+   * `PINNED` beside it. Any of the three kinds can carry one, because the feed carries all
+   * three: a remark on the drawing can lead the same line a remark on the profile does.
    */
   setCommentPin(userId: string, commentId: string, pinned: boolean): Promise<PublicProfile>;
   /** Realtime hook: fires with a fresh snapshot whenever a profile changes. */

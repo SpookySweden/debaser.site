@@ -5,31 +5,31 @@ import type { ProfileComment } from '../lib/profile/types';
 import NewsCrawl from './NewsCrawl';
 
 type ProfileWireProps = {
-  /** The account whose page this is: the wire's rows open its comments. */
+  /** The account whose page this is: the page's own remarks open its comments panel. */
   userId: string;
-  /** The comments left on this profile, as this reader is allowed to see them. */
+  /** Every comment the page carries, as this reader is allowed to see them. */
   comments: ProfileComment[];
 };
 
 /**
- * The wire, on a profile: what people have said *about this profile*, going past.
+ * The feed, on a profile: **everything said on the page**, going past.
  *
- * It used to be the board's wire borrowed - every post and reply in the archive crawled past a
- * page about one account, which was a second copy of /forum where the profile's own conversation
- * should be. Now it is this profile's comments and nothing else: the same rows and the same crawl
- * as the board's strip, but the material is the conversation the page is actually about, and a row
- * opens the comments panel underneath it.
+ * It began as the crawl under the profile picture, carrying only the remarks on that drawing,
+ * and it is now the page's whole conversation: a comment on the profile itself, on the picture,
+ * or on the track, each row stamped with what it is about (`PROFILE`, `P2`, `M1`) by
+ * ../lib/profile/feed. That is what makes it worth the full width - it grew out of a crawl in
+ * the narrow column beside the drawing, into the band across the window where the old
+ * `NEWSWIRE :: COMMENTS ON THIS PROFILE` caption used to explain the empty space under the
+ * track.
  *
- * It is one full-width line and nothing else: **no heading and no placeholder**. A strip of text
- * saying "NEWSWIRE :: COMMENTS ON THIS PROFILE - NOTHING YET" told a reader what the line was
- * before there was a line to read, and stood in the middle of the page doing it; the crawl says
- * what it is by crawling, and a profile nobody has commented on simply has no wire. It ran in the
- * column beside the drawing, which gave it a third of the page to cross - it now spans the window
- * under both columns, since a wire is a line and a line wants the width.
+ * It is one line and nothing else: **no heading and no placeholder**. A strip of text saying what
+ * the line was, before there was a line to read, is what was there before; the crawl says what it
+ * is by crawling, and a page nobody has commented on simply has no feed. The element threads keep
+ * their folds and their lists and no longer crawl (see ./ElementComments).
  *
- * One row in every three is a comment the owner pinned, drawn with the `PINNED` plate the board's
- * pinned posts wear, so the strip goes past as a run of threes rather than a list (see
- * ../lib/profile/feed on why).
+ * One row in every three is a comment the owner pinned - on any of the three - drawn with the
+ * `PINNED` plate the board's pinned posts wear, so the strip goes past as a run of threes rather
+ * than a list (see ../lib/profile/feed on why).
  */
 export default function ProfileWire({ userId, comments }: ProfileWireProps) {
   const items = buildProfileNewsFeed(comments, { userId });

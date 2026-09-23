@@ -1,27 +1,28 @@
 import { clipForNews, type NewsRow } from '../forum/news-feed';
+import { commentTag } from './elements';
 import type { ProfileComment } from './types';
 
 /**
- * A profile's own wire: the comments left on it, and nothing else.
+ * The feed that runs under a profile's two columns: **everything said on the page**.
  *
- * This used to be the board's wire, borrowed: the profile page crawled every post and reply in
- * the archive past the drawing, which was a second copy of /forum on a page about one account.
- * What belongs there is the conversation *about this profile* - so the wire is the profile's own
- * comments, drawn in the same rows and the same crawl, and each row opens the comments panel
- * underneath it.
+ * It began as the crawl under the profile picture, carrying only the remarks on that drawing,
+ * and it is now the page's whole conversation in one line: a comment on the profile itself, on
+ * the picture, or on the track all go past in the same rows, each stamped with what it is about
+ * (`PROFILE`, `P2`, `M1`) so a remark is placed before it is read. That is what makes it worth
+ * a line across the whole window rather than a crawl in a column - the smallest part of the
+ * conversation had the narrowest space on the page, and the space under the track was empty.
  *
- * The comment rows carry no `P2` / `M1` tag, because a comment on the profile itself was written
- * about the profile and there is only one of those; the tag says `PROFILE` instead, so the strip
- * still says what you are reading before you read it. Picture and track comments stay in their
- * own threads under those elements - see ./elements on what a comment was written on - which is
- * also why only a comment on the profile *itself* can be pinned.
+ * Because it carries the whole page, it is also the only crawl left on a profile: the two
+ * element threads keep their fold and their list (`P1 ▸ 2`) and no longer grow a crawl of their
+ * own. Their remarks are already on this line, and the picture's column is 212px wide.
  *
- * **One row in every three is a pinned comment.** The owner's pin is a request to be read, and a
- * crawl is a bad place for one: a strip that simply walked newest-first would let a pinned remark
- * go by once a pass. So the run is built in threes - the pinned comments taking the leading slot
- * in turn, everything else filling the two behind them - which means a reader who catches any
- * part of the run is never more than three rows away from one of them, and two rows away from the
- * conversation at large. With nothing pinned the wire is every comment in a scattered order.
+ * **One row in every three is a pinned comment, and any comment on the page can be pinned.**
+ * A pin is a request to be read, and a crawl is a bad place for one: a strip that simply walked
+ * newest-first would let a pinned remark go by once a pass. So the run is built in threes - the
+ * pinned comments taking the leading row in turn, everything else filling the two behind them -
+ * which means a reader who catches any part of the run is never more than three rows away from
+ * one of them, and two rows away from the conversation at large. With nothing pinned the feed is
+ * every comment in a scattered order.
  */
 
 /** How many rows a profile's wire carries at most: a long conversation still has to read. */
@@ -38,19 +39,28 @@ export const PROFILE_COMMENTS_ANCHOR = 'profile-comments';
  */
 export const PROFILE_NEWS_CYCLE = 3;
 
-/** What a pinned comment is stamped with, in the comments list and on the wire. */
+/** What a pinned comment is stamped with, in the comments list and on the feed. */
 export const PROFILE_PIN_LABEL = 'PINNED';
 
-/** The profile's own comments, newest first: the material the wire is built from. */
+/**
+ * Everything said on the page, newest first: the material the feed is built from.
+ *
+ * Every kind, deliberately, and in one list: which element a remark was written about is the
+ * row's tag rather than a wire of its own. Three separate crawls could only ever show one of
+ * the three threads at a time, and the page's conversation is not three conversations.
+ */
 export function profileWireComments(comments: ProfileComment[]): ProfileComment[] {
-  return comments
-    // Defensive: the caller is expected to hand over the profile's own comments, and a comment
-    // written on a picture or a track is not one of them.
-    .filter((comment) => comment.kind === 'profile')
-    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
+  return [...comments].sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt));
 }
 
-/** The pinned ones, most recently pinned first: the order they take their turns in. */
+/**
+ * The pinned ones, most recently pinned first: the order they take their turns in.
+ *
+ * Any comment the feed carries can be pinned - the page's own remarks, and the ones left on the
+ * picture and the track - so this is not filtered by kind. A pin is taken from the small blue
+ * pushpin beside the row in the list it belongs to (see ./visibility for which lists a reader
+ * is shown).
+ */
 export function pinnedWireComments(comments: ProfileComment[]): ProfileComment[] {
   return profileWireComments(comments)
     .filter((comment) => comment.pinned === true)
@@ -93,20 +103,36 @@ export function scatteredWireComments(comments: ProfileComment[]): ProfileCommen
   return ordered;
 }
 
-/** One comment as the wire's row: the same row the board's strip is made of. */
+/** One comment as the feed's row: the same row the board's strip is made of. */
 function toRow(comment: ProfileComment, userId: string): NewsRow {
   return {
     id: `news-comment-${comment.id}`,
-    tag: 'PROFILE',
+    // `P2` / `M1` when it was written about an element, `PROFILE` when it was written about the
+    // page itself - which is what `commentTag` answers for every kind of comment.
+    tag: commentTag(comment) ?? 'PROFILE',
     author: comment.author,
     text: clipForNews(comment.body),
     createdAt: comment.createdAt,
-    href: `/profile/${encodeURIComponent(userId)}#${PROFILE_COMMENTS_ANCHOR}`,
-    hrefTitle: 'Open the comments on this profile',
+    // Only the page's own remarks have a panel to open. A remark on the picture or the track is
+    // read at that element's own fold, which the tag names, and a row that led somewhere else
+    // would be a lie about where it came from.
+    ...(comment.kind === 'profile'
+      ? {
+          href: `/profile/${encodeURIComponent(userId)}#${PROFILE_COMMENTS_ANCHOR}`,
+          hrefTitle: 'Open the comments on this profile',
+        }
+      : {}),
     ...(comment.pinned === true ? { pinned: true, pinLabel: PROFILE_PIN_LABEL } : {}),
   };
 }
 
+/**
+ * The feed's run, in threes, out of every comment on the page.
+ *
+ * The material is `profileWireComments` - the whole conversation, not one thread of it - so the
+ * pinned rows and the rows between them are drawn from the same pool the page is: a pin on a
+ * drawing's remark leads a run of three that may be filled by remarks on the track.
+ */
 export function buildProfileNewsFeed(
   comments: ProfileComment[],
   options: { userId: string; limit?: number } = { userId: '' },
@@ -120,7 +146,7 @@ export function buildProfileNewsFeed(
 
   // Long enough to give every comment its turn once and every pin a run of three to lead, then
   // bounded by what the strip was asked for. A shorter run is cut off (below) rather than padded,
-  // so a profile with three comments has a wire of three rows and not fourteen of them repeated.
+  // so a page with three comments has a feed of three rows and not fourteen of them repeated.
   const runs = Math.max(1, Math.ceil(rest.length / (PROFILE_NEWS_CYCLE - 1)), pins.length);
   const length = Math.min(limit, runs * PROFILE_NEWS_CYCLE);
 
