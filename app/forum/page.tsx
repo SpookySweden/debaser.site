@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import ForumBoard from '../components/ForumBoard';
 import SiteWindow from '../components/SiteWindow';
+import { PLATE_LINK } from '../lib/ui/controls';
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE - Forum Board',
@@ -18,8 +20,14 @@ export const metadata: Metadata = {
 export default function Forum() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [FORUM BOARD]" active="forum" status="Message Board Active">
-    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // MESSAGE BOARD</h1>
-    <p className="text-xs mb-4">Guests post as Anonymous - an account signs your posts.</p>
+    <h1 className="mb-2 text-xl font-bold">DEBASER.SITE // MESSAGE BOARD</h1>
+    <p className="mb-4 text-xs">
+      Guests post as Anonymous.{' '}
+      <Link href="/account" className={`${PLATE_LINK} text-[10px]`}>
+        CREATE AN ACCOUNT OR LOG IN
+      </Link>
+      {' '}to sign your posts, unlock comms and keep your profile alive.
+    </p>
 
     <ForumBoard />
     </SiteWindow>

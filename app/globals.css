@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #ff00a0;
+  --foreground: #000000;
   /* What the pixel face falls back to where it cannot be had: the bitmap UI faces a Web 1.0
      desktop was drawn with, then anything monospace. */
   --font-pixel-fallback: 'MS Sans Serif', Tahoma, 'Courier New', monospace;
@@ -32,20 +32,21 @@ body {
 }
 
 /* The desktop surface --------------------------------------------------------
-   The surface behind the window is the site's deep blue with a magenta dither through it: 4px
-   way a Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in
-   the sense AGENTS.md asks for - and not an illustration: nothing here draws a character, an
-   icon or a scene, which is what the artwork rule is about. */
+   The surface behind the window is Brilliant Pink with Nigrosine dithered through it: 4px way, the
+   way a Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in the
+   sense AGENTS.md asks for - and not an illustration: nothing here draws a character, an icon or a
+   scene, which is what the artwork rule is about. */
 .desktop-tile {
-  background-color: #0000cc;
+  background-color: #ff00a0;
   background-image:
-    linear-gradient(45deg, #ff00ff 25%, transparent 25%, transparent 75%, #ff00ff 75%),
-    linear-gradient(45deg, #ff00ff 25%, transparent 25%, transparent 75%, #ff00ff 75%);
+    linear-gradient(45deg, #1a1525 25%, transparent 25%, transparent 75%, #1a1525 75%),
+    linear-gradient(45deg, #1a1525 25%, transparent 25%, transparent 75%, #1a1525 75%);
   background-position:
     0 0,
     2px 2px;
   background-size: 4px 4px;
 }
+
 
 /* Cursors ---------------------------------------------------------------------
    The retro pointer is a hand-drawn file, like every other mark on this site: nothing draws an
@@ -93,7 +94,7 @@ body {
   outline: none;
   font-size: 0.8125rem;
   line-height: 1.6;
-  color: #000;
+  color: #000000;
   word-break: break-word;
 }
 
@@ -122,20 +123,20 @@ body {
 }
 
 .lore-document blockquote {
-  border-left: 4px solid #808080;
-  background: #ccffff;
+  border-left: 4px solid #1a1525;
+  background: #e1ff00;
   padding: 0.4rem 0.6rem;
 }
 
 .lore-document code {
-  border: 1px solid #808080;
-  background: #ccffff;
+  border: 1px solid #1a1525;
+  background: #e1ff00;
   padding: 0 0.2rem;
 }
 
 .lore-document hr {
   border: 0;
-  border-top: 2px solid #808080;
+  border-top: 2px solid #1a1525;
 }
 
 /* The other editors' carets, as the collaboration extension draws them: a bar in the colour that
@@ -155,11 +156,11 @@ body {
   font-size: 9px;
   font-weight: 700;
   white-space: nowrap;
-  color: #fff;
+  color: #ffffff;
 }
 
 .lore-document .collaboration-carets__selection {
-  background: #ffffcc;
+  background: #e1ff00;
 }
 
 /* Retro OS primitives -------------------------------------------------------
@@ -247,25 +248,25 @@ summary::-webkit-details-marker {
    standard property is what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read.
    Both are given the same values, so a scrollbar is the same scrollbar wherever the site is opened. */
 html {
-  scrollbar-color: #c0c0c0 #d4d0c8;
+  scrollbar-color: #fff000 #1a1525;
 }
 
 ::-webkit-scrollbar {
   width: 16px;
   height: 16px;
-  background: #d4d0c8;
+  background: #1a1525;
 }
 
 ::-webkit-scrollbar-track {
-  background-image: linear-gradient(45deg, #ffffff 25%, transparent 25%, transparent 75%, #ffffff 75%),
-    linear-gradient(45deg, #ffffff 25%, transparent 25%, transparent 75%, #ffffff 75%);
+  background-image: linear-gradient(45deg, #ff00a0 25%, transparent 25%, transparent 75%, #ff00a0 75%),
+    linear-gradient(45deg, #ff00a0 25%, transparent 25%, transparent 75%, #ff00a0 75%);
   background-position: 0 0, 2px 2px;
   background-size: 4px 4px;
-  background-color: #d4d0c8;
+  background-color: #1a1525;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c0c0c0;
+  background: #fff000;
   border: 2px solid;
   border-color: #ffffff #000000 #000000 #ffffff;
 }
@@ -276,7 +277,7 @@ html {
 }
 
 ::-webkit-scrollbar-corner {
-  background: #d4d0c8;
+  background: #1a1525;
 }
 
 /* Selected text is a flat navy block with white letters, the way a text-mode editor marked it. */
@@ -289,51 +290,65 @@ html {
 img {
   image-rendering: pixelated;
 }
-/* The surreal swatch ----------------------------------------------------------
-   The strict structure above stays: a light top-left edge, a dark bottom-right one, no radius, and
-   nothing that fades. What changed is what the surfaces are *filled* with - fifteen web-safe colours,
-   declared once here, so `bg-sun`, `text-ena`, `border-bubble` and the rest are usable anywhere
-   without a component ever inventing a value, and so the contrast between any two of them can be
-   checked rather than eyeballed (Temp/check-surreal.cjs reads this block and does the arithmetic).
+/* The Dyacid Dyes swatch -------------------------------------------------------
+   Eight colours, and nothing else. The strict structure above stays: a light top-left edge, a dark
+   bottom-right one, no radius, and nothing that fades. What changed - twice now - is what the
+   surfaces are *filled* with. The first pass pulled the chrome off 1995's default grey and onto a
+   web-safe surreal set; this one narrows that to a dyed swatch, which is a different discipline: at
+   sixteen colours a designer is choosing, and at eight they are solving.
 
-   Two Win95 greys survive deliberately: `chrome` and `chrome-dark`. They are the bevel's shade and
-   the furniture that says "this bar is not the window you are working in" (see TITLE_BAR_INACTIVE in
-   lib/ui/controls.ts) - a distinction the site made on purpose, which has to stay quiet to keep
-   meaning it.
+   Every colour here is one of the eight, named as the swatch names them, and declared once so
+   `bg-sun`, `text-ena`, `border-bubble` and the rest resolve without a component ever writing a hex
+   (Temp/check-surreal.cjs reads this block and does the contrast arithmetic on it).
 
-   Black ink is readable on every pale surface (13.6:1 at worst, on `bubble-pale`) and on the
-   saturated ice, acid and sun; the one blood red takes white (5.25:1). The *pairs* are what the check
-   holds to the arithmetic, not the colours on their own. */
+     Black #000000          the ink, and the dark side of every bevel
+     Nigrosine #1A1525      the deep field: the desktop, and a title bar put aside
+     Royal Blue #1D3CA6     the window you are in, and every hover inversion
+     Flavine #E1FF00        the acid pale field a panel is read on
+     Daffodil Yellow #FFF000 a plate's face - every control at rest
+     Emerald #28C745        status bars, the online lamp, anything that is a "go"
+     Brilliant Pink #FF00A0 the one accent: a press flashing, a badge that crosses the board
+     Rose #E6004C           the warning, and the second weight of the pink
+
+   White survives for one job only - `paper`, the field the board's prose is set on - because a
+   readable column of text is not a place to be clever. It is not a fill anywhere else.
+
+   The token *names* are the ones the components already ask for (`sun`, `ena`, `bubble`...), so the
+   whole site moves to the new swatch without a component being rewritten to say so - which is the
+   point of having had one. What each name now means is the list above. */
 @theme {
   --color-ink: #000000;
   --color-paper: #ffffff;
 
-  /* The two greys that are left, and what they are for. */
-  --color-chrome: #d4d0c8;
-  --color-chrome-dark: #808080;
+  /* The two greys are gone: what was the bevel's furniture is now Nigrosine, and what was a disabled
+     face is Flavine at rest. Nothing on this site is grey any more. */
+  --color-chrome: #1a1525;
+  --color-chrome-dark: #1a1525;
 
-  /* Deep ENA blue: the desktop, the title bar of the window you are in, anything pressed. */
-  --color-ena: #0000cc;
-  --color-ena-deep: #000066;
+  /* Royal Blue: the desktop, the title bar of the window you are in, anything pressed. */
+  --color-ena: #1d3ca6;
+  --color-ena-deep: #1a1525;
 
-  /* Bright yellow: every plate's face, and the field the panels and the player are read on. */
-  --color-sun: #ffff00;
-  --color-sun-pale: #ffffcc;
+  /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
+  --color-sun: #fff000;
+  --color-sun-pale: #e1ff00;
 
-  /* Cyan: hovers, insets, the second body tone. */
-  --color-ice: #00ffff;
-  --color-ice-pale: #ccffff;
+  /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
+  --color-ice: #e1ff00;
+  --color-ice-pale: #e1ff00;
 
-  /* Magenta: title-bar accents, one-shot flashes, the dither on the desktop. */
-  --color-bubble: #ff00ff;
-  --color-bubble-pale: #ffccff;
+  /* Brilliant Pink and Rose: the accent, and the warning. */
+  --color-bubble: #ff00a0;
+  --color-bubble-pale: #e6004c;
 
-  /* Lime: status bars, the online lamp, anything that is a "go". */
-  --color-acid: #00ff00;
-  --color-acid-pale: #ccffcc;
+  /* Emerald: status bars, the online lamp, anything that is a "go". */
+  --color-acid: #28c745;
+  --color-acid-pale: #e1ff00;
 
-  --color-blood: #ff0000;
-  --color-flame: #ff6600;
+  /* What were the red and the orange are now the swatch's own two hot colours, so nothing on the
+     site is a hex from outside the dye pot. */
+  --color-blood: #e6004c;
+  --color-flame: #ff00a0;
 
   /* The reactivity, as Tailwind utilities: `animate-wobble` on a plate's hover, `animate-marquee`
      on a ticker, `animate-flash` on the press. */
@@ -344,6 +359,7 @@ img {
   --animate-marquee: marquee 16s linear infinite;
   --animate-blip: blip 1s steps(2, jump-none) infinite;
 }
+
 
 
 /* The reactivity: four verbs, and every one of them is steps() ---------------------------------
@@ -454,7 +470,7 @@ img {
    files that go in. */
 .sprite-slot {
   background-color: #000000;
-  background-image: repeating-linear-gradient(45deg, #000066 0 2px, #000000 2px 4px);
+  background-image: repeating-linear-gradient(45deg, #1a1525 0 2px, #000000 2px 4px);
 }
 
 /* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like

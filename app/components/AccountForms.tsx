@@ -21,7 +21,7 @@ type FieldProps = {
 function Field({ id, label, type, value, onChange, placeholder, autoComplete, error }: FieldProps) {
   return (
     <div className="mt-2">
-      <label htmlFor={id} className="block text-[10px] font-bold text-black">
+      <label htmlFor={id} className="block text-[10px] font-bold text-ink">
         {label}
       </label>
       <input
@@ -33,7 +33,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         autoComplete={autoComplete}
         className={FIELD}
       />
-      {error === undefined ? null : <p className="mt-1 text-[10px] font-bold text-[#800000]">{error}</p>}
+      {error === undefined ? null : <p className="mt-1 text-[10px] font-bold text-bubble-pale">{error}</p>}
     </div>
   );
 }
@@ -111,7 +111,7 @@ export default function AccountForms() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>CREATE ACCOUNT</span>
           <span>[ SIGN UP ]</span>
@@ -170,11 +170,11 @@ export default function AccountForms() {
               {signUpBusy ? '[ WORKING... ]' : '[ CREATE ACCOUNT ]'}
             </button>
             {signUpMessage === null ? null : (
-              <p className="text-[10px] font-bold text-black">{signUpMessage}</p>
+              <p className="text-[10px] font-bold text-ink">{signUpMessage}</p>
             )}
           </div>
 
-          <p className="mt-2 text-[10px] text-black">
+          <p className="mt-2 text-[10px] text-ink">
             {requiresEmailConfirmation
               ? 'NEW ACCOUNTS CONFIRM BY EMAIL BEFORE THE FIRST SIGN IN.'
               : usingMockAuth
@@ -184,7 +184,7 @@ export default function AccountForms() {
         </form>
       </section>
 
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>LOG IN</span>
           <span>[ SESSION ]</span>
@@ -201,7 +201,7 @@ export default function AccountForms() {
               the mock backend the button says what it needs instead of failing quietly. */}
           <GoogleSignInButton className="mb-3" />
 
-          <p className="mb-3 border-t border-gray-400 pt-2 text-[10px] font-bold text-gray-700">
+          <p className="mb-3 border-t border-ink pt-2 text-[10px] font-bold text-ink">
             OR SIGN IN WITH THE ACCOUNT&apos;S OWN DETAILS:
           </p>
 
@@ -231,11 +231,11 @@ export default function AccountForms() {
               {signInBusy ? '[ WORKING... ]' : '[ LOG IN ]'}
             </button>
             {signInMessage === null ? null : (
-              <p className="text-[10px] font-bold text-black">{signInMessage}</p>
+              <p className="text-[10px] font-bold text-ink">{signInMessage}</p>
             )}
           </div>
 
-          <p className="mt-2 text-[10px] text-black">
+          <p className="mt-2 text-[10px] text-ink">
             READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
           </p>
         </form>

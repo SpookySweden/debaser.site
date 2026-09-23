@@ -7,7 +7,7 @@ import { getProfileRepository } from '../lib/profile/repository';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 
-const NOTE = 'text-[10px] font-bold text-black';
+const NOTE = 'text-[10px] font-bold text-ink';
 
 type BlockState = {
   busy: boolean;
@@ -43,7 +43,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         autoComplete={autoComplete}
         className={FIELD}
       />
-      {error === undefined ? null : <p className="mt-1 text-[10px] font-bold text-[#800000]">{error}</p>}
+      {error === undefined ? null : <p className="mt-1 text-[10px] font-bold text-bubble-pale">{error}</p>}
     </div>
   );
 }
@@ -148,7 +148,7 @@ export default function AccountSecurityPanel() {
   return (
     <section
       id="edit-account"
-      className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
+      className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
     >
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>EDIT ACCOUNT</span>
@@ -162,7 +162,7 @@ export default function AccountSecurityPanel() {
         </p>
 
         {/* Display name */}
-        <div className="mt-3 rounded-none border border-gray-500 bg-ice-pale p-2">
+        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
           <p className={NOTE}>1. DISPLAY NAME</p>
           <Field
             id="edit-account-name"
@@ -183,7 +183,7 @@ export default function AccountSecurityPanel() {
         </div>
 
         {/* Sign-in address */}
-        <div className="mt-3 rounded-none border border-gray-500 bg-ice-pale p-2">
+        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
           <p className={NOTE}>2. SIGN-IN EMAIL</p>
           <Field
             id="edit-account-email"
@@ -211,7 +211,7 @@ export default function AccountSecurityPanel() {
             </button>
             {emailState.message === null ? null : <p className={NOTE}>{emailState.message}</p>}
           </div>
-          <p className="mt-1 text-[10px] text-gray-700">
+          <p className="mt-1 text-[10px] text-ink">
             {requiresEmailConfirmation
               ? 'A CONFIRMATION LINK IS SENT TO THE NEW ADDRESS BEFORE THE CHANGE TAKES EFFECT.'
               : usingMockAuth
@@ -221,7 +221,7 @@ export default function AccountSecurityPanel() {
         </div>
 
         {/* Password */}
-        <div className="mt-3 rounded-none border border-gray-500 bg-ice-pale p-2">
+        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
           <p className={NOTE}>3. PASSWORD</p>
           <Field
             id="edit-account-current-password"
@@ -259,7 +259,7 @@ export default function AccountSecurityPanel() {
             </button>
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}
           </div>
-          <p className="mt-1 text-[10px] text-gray-700">
+          <p className="mt-1 text-[10px] text-ink">
             {usingMockAuth
               ? 'PASSWORDS ARE HELD ONLY IN THIS BROWSER.'
               : 'YOU MAY BE ASKED TO SIGN IN AGAIN.'}

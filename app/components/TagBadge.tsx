@@ -26,10 +26,10 @@ const CHIP_BASE =
  * housekeeping tag and stays inset, which is how a reader can still tell the two apart at a glance.
  */
 const KIND_CLASSES: Record<ForumTag['kind'], string> = {
-  user: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  category: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  content: 'bg-bubble-pale text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
-  source: 'bg-ice-pale text-black border-t-[#808080] border-l-[#808080] border-r-white border-b-white',
+  user: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
+  category: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
+  content: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
+  source: 'bg-sun-pale text-ink border-t-ink border-l-ink border-r-white border-b-white',
 };
 
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */
@@ -47,7 +47,7 @@ export function TagMark({ colour, compact = false }: { colour: string | undefine
   return (
     <span
       aria-hidden="true"
-      className={`${compact ? 'h-[6px] w-[6px]' : 'h-[8px] w-[8px]'} shrink-0 border border-[#404040]`}
+      className={`${compact ? 'h-[6px] w-[6px]' : 'h-[8px] w-[8px]'} shrink-0 border border-ena-deep`}
       style={{ backgroundColor: colour }}
     />
   );
@@ -81,7 +81,7 @@ export default function TagBadge({ tag, count, compact = false }: TagBadgeProps)
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`${tagChipClasses(tag, compact)} hover:bg-gray-200`}
+      className={`${tagChipClasses(tag, compact)} hover:bg-sun`}
     >
       <TagMark colour={tagMarkColour(tag)} compact={compact} />
       {tag.label}
@@ -103,7 +103,7 @@ type TagRowProps = {
 export function TagRow({ tags, className, emptyLabel, compact = false, limit }: TagRowProps) {
   if (tags.length === 0) {
     return emptyLabel === undefined ? null : (
-      <span className="text-[10px] text-gray-700">{emptyLabel}</span>
+      <span className="text-[10px] text-ink">{emptyLabel}</span>
     );
   }
 
@@ -115,7 +115,7 @@ export function TagRow({ tags, className, emptyLabel, compact = false, limit }: 
       {shown.map((tag) => (
         <TagBadge key={tag.id} tag={tag} compact={compact} />
       ))}
-      {hidden > 0 ? <span className="text-[9px] font-bold text-gray-700">+{hidden}</span> : null}
+      {hidden > 0 ? <span className="text-[9px] font-bold text-ink">+{hidden}</span> : null}
     </div>
   );
 }
@@ -137,7 +137,7 @@ export function TagLink({ tag, className }: { tag: ForumTag; className?: string 
       className={`inline-flex items-center gap-[3px] hover:underline ${className ?? ''}`}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
-      <span className="text-gray-700">{tagNamespace(tag)}:</span>
+      <span className="text-ink">{tagNamespace(tag)}:</span>
       <span className="font-bold">{tagKey(tag.label)}</span>
     </Link>
   );

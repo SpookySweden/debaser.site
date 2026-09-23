@@ -54,7 +54,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
       id={id}
       role="tree"
       aria-label="Filing destination"
-      className="max-h-44 overflow-y-auto rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1"
+      className="max-h-44 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1"
     >
       {groups.map((group) => {
         const isOpen = open.includes(group.label);
@@ -65,14 +65,14 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
               type="button"
               onClick={() => toggle(group.label)}
               aria-label={`${isOpen ? 'Close' : 'Open'} ${group.label}`}
-              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold text-black hover:bg-ice-pale"
+              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale"
             >
               <span className="inline-block w-4 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
               <span className="truncate">{group.label}</span>
             </button>
 
             {!isOpen ? null : group.items.length === 0 ? (
-              <p className="ml-6 px-1 py-[2px] text-[10px] text-gray-700">{emptyNote ?? 'NOTHING HERE.'}</p>
+              <p className="ml-6 px-1 py-[2px] text-[10px] text-ink">{emptyNote ?? 'NOTHING HERE.'}</p>
             ) : (
               <ul role="group" className="ml-4">
                 {group.items.map((item) => {
@@ -86,13 +86,13 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         aria-selected={selected}
                         onClick={() => onChange(item.key)}
                         className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold ${
-                          selected ? 'bg-ena text-white' : 'text-black hover:bg-ice-pale'
+                          selected ? 'bg-ena text-white' : 'text-ink hover:bg-ice-pale'
                         }`}
                       >
                         <span className="inline-block w-4 shrink-0 text-center font-mono">-</span>
                         <span className="truncate">{item.label}</span>
                         {item.note === undefined ? null : (
-                          <span className={`shrink-0 ${selected ? 'text-white' : 'text-gray-700'}`}>
+                          <span className={`shrink-0 ${selected ? 'text-white' : 'text-ink'}`}>
                             [{item.note}]
                           </span>
                         )}

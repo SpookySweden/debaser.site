@@ -48,7 +48,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
   return (
     <ul
       role="menu"
-      className="w-full max-w-md rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale py-[2px] shadow-[2px_2px_0_rgba(0,0,0,0.35)]"
+      className="w-full max-w-md rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale py-[2px] shadow-[2px_2px_0_rgba(0,0,0,0.35)]"
     >
       {options.map((option) => {
         const label = ASPECTS.find((aspect) => aspect.kind === option.kind)?.label ?? option.kind;
@@ -62,8 +62,8 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               onClick={() => onChoose(option.kind)}
               className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[10px] font-bold ${
                 option.available
-                  ? 'cursor-pointer text-black hover:bg-ena hover:text-white'
-                  : 'cursor-default text-gray-600'
+                  ? 'cursor-pointer text-ink hover:bg-ena hover:text-white'
+                  : 'cursor-default text-ink'
               }`}
               title={option.reason}
             >
@@ -73,7 +73,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
                 {option.tag === undefined ? '' : ` (${option.tag})`}
               </span>
 
-              <span className="shrink-0 text-gray-600">{option.available ? '' : (option.reason ?? 'switched off')}</span>
+              <span className="shrink-0 text-ink">{option.available ? '' : (option.reason ?? 'switched off')}</span>
             </button>
           </li>
         );
@@ -129,7 +129,7 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
         </button>
       </span>
 
-      <span className="text-[10px] font-bold text-gray-700">
+      <span className="text-[10px] font-bold text-ink">
         {openable === 0 ? 'nothing open to comments' : `${openable} of ${options.length} open to comments`}
       </span>
 

@@ -30,7 +30,7 @@ export default function LorePage() {
 
       <LoreDirectory />
 
-      <p className="mt-4 text-[10px] font-bold text-gray-700">
+      <p className="mt-4 text-[10px] font-bold text-ink">
         A PAGE IS WRITTEN, NOT DRAWN: EVERY SHEET IN THIS ARCHIVE IS HAND-DRAWN, AND EVERY PAGE HERE
         IS TYPED. THE TWO SIT SIDE BY SIDE UNDER THE PROJECT FOR THAT REASON.
       </p>

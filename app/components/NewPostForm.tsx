@@ -123,7 +123,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
 
   return (
     <PopoutWindow title="COMPOSER :: NEW POST" badge="[ FILE ]" onClose={onClose} maxWidth="max-w-2xl">
-        <label htmlFor="new-post-title" className="block text-[10px] font-bold text-black">
+        <label htmlFor="new-post-title" className="block text-[10px] font-bold text-ink">
           TITLE:
         </label>
         <input
@@ -132,12 +132,12 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Subject line for the thread"
-          className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
         />
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <div>
-            <label htmlFor="new-post-target" className="block text-[10px] font-bold text-black">
+            <label htmlFor="new-post-target" className="block text-[10px] font-bold text-ink">
               FILE UNDER:
             </label>
             <div className="mt-1">
@@ -152,16 +152,16 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
           </div>
 
           <div>
-            <span className="block text-[10px] font-bold text-black">CONTAINING MEDIA:</span>
+            <span className="block text-[10px] font-bold text-ink">CONTAINING MEDIA:</span>
             {isBoardPost ? (
               <div className="mt-1">
                 <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
               </div>
             ) : (
-              <div className="mt-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 text-[10px] font-bold text-black">
+              <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-[10px] font-bold text-ink">
                 FILED AGAINST: {anchor.label}
                 <br />
-                <span className="font-normal text-gray-700">
+                <span className="font-normal text-ink">
                   SHOWS UP UNDER THAT ITEM ON ITS PAGE, AND TAKES NO PICTURE OF ITS OWN.
                 </span>
               </div>
@@ -169,7 +169,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
           </div>
         </div>
 
-        <p className="mt-2 text-[10px] font-bold text-black">
+        <p className="mt-2 text-[10px] font-bold text-ink">
           FILING INTO: {target.group} :: {anchor.label} [{anchor.kind}]
           {media === undefined ? '' : ` :: ${media.label}`}
         </p>

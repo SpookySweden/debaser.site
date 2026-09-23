@@ -41,14 +41,14 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
     /* Reserved, not overlaid: the space is held open whether or not it is filled,
        so pointing at a row never reflows the list. */
     <div className="pointer-events-none hidden w-1/2 min-w-0 shrink-0 sm:flex">
-      <div className="hidden min-h-0 w-full flex-col gap-1 overflow-hidden border-l border-dashed border-gray-400 pl-3 group-hover:flex">
+      <div className="hidden min-h-0 w-full flex-col gap-1 overflow-hidden border-l border-dashed border-ink pl-3 group-hover:flex">
         {shown.length === 0 ? null : (
           <>
-            <p className="min-h-0 flex-1 overflow-hidden whitespace-pre-line text-xs leading-snug text-black">
+            <p className="min-h-0 flex-1 overflow-hidden whitespace-pre-line text-xs leading-snug text-ink">
               {shown}
             </p>
             {clipped ? (
-              <p className="shrink-0 text-[9px] font-bold text-gray-700">[ + THE REST WHEN EXPANDED ]</p>
+              <p className="shrink-0 text-[9px] font-bold text-ink">[ + THE REST WHEN EXPANDED ]</p>
             ) : null}
           </>
         )}
@@ -65,7 +65,7 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
                     <li key={comment.id} className="flex items-center gap-1 whitespace-nowrap pr-4 text-[10px]">
                       <ProfileAvatarLink author={comment.author} size={20} showName={false} variant="plain" />
                       <ProfileName author={comment.author} className="font-bold" />
-                      <span className="text-black">
+                      <span className="text-ink">
                         &quot;{comment.body.replace(/\s+/g, ' ').trim().slice(0, COMMENT_SLICE)}&quot;
                       </span>
                     </li>

@@ -37,8 +37,8 @@ export const SITE_ACCOUNT_PASSWORD = 'ADMIN1212';
 export const SITE_ACCOUNT_ADDRESS = 'admin1212@debaser.site';
 export const SITE_ACCOUNT_DISPLAY_NAME = 'debaser.site';
 
-/** Dark blue: the navy swatch out of the sixteen a username can be drawn in. */
-export const SITE_ACCOUNT_NAME_COLOUR = nameColourHex('navy') ?? '#000080';
+/** Royal Blue: the swatch out of the eight a username can be drawn in. */
+export const SITE_ACCOUNT_NAME_COLOUR = nameColourHex('royal-blue') ?? '#1d3ca6';
 
 /** The address a typed sign-in identifier stands for, whatever the backend needs. */
 export function resolveSignInAddress(identifier: string): string {

@@ -63,11 +63,11 @@ export const PLATE_LINK =
 
 /** An inset field: white, monospace, with the room it needs under its label. */
 export const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-paper p-[6px] font-mono text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
+  'mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-[6px] font-mono text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-paper p-1 text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
+  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
 
 /**
  * A link in a page of writing: the dashed 3px bar, and the inversion on hover.
@@ -116,7 +116,7 @@ export const WINDOW_TITLE_BAR_INACTIVE =
 
 /** A raised grey plate: light top-left edge, dark bottom-right edge, no radius. */
 export const PANEL =
-  'rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale';
+  'rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale';
 
 /**
  * The small white chip a shelf is linked with: the project strip across a page, and the same list on
@@ -128,7 +128,7 @@ export const SHELF_CHIP =
 
 /** An inset surface pressed into a plate: dark top-left, light bottom-right. */
 export const PANEL_INSET =
-  'rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white';
+  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white';
 
 /** A bevelled button small enough to sit in a navy title bar. */
 export const TITLE_BAR_BUTTON =
@@ -147,7 +147,19 @@ export const PLATE_ACCENT =
   `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
- * The status bar along the foot of a window: one slim grey line.
+ * Royal Blue, as a value rather than a class.
+ *
+ * Some CSS takes a colour and not a utility: `accent-color` on a range input is the one on this
+ * site, and it is written inline because there is no Tailwind class for it. Rather than four
+ * components each spelling `#1d3ca6`, the swatch's own value is named here, where the rest of the
+ * vocabulary lives - so the number has exactly one source and it is the same one the `ena` token
+ * is declared with in `app/globals.css`.
+ */
+export const ACCENT_COLOUR = '#1d3ca6';
+
+/**
+ * The status bar along the foot of a window: one slim line.
  */
 export const STATUS_BAR =
   'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-acid px-2 py-[3px] text-[10px] font-bold leading-none text-ink';
+

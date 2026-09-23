@@ -306,7 +306,7 @@ export function validateSongCredit(credit: string): string | undefined {
   return undefined;
 }
 
-/** A name colour is either empty (the default) or one of the sixteen swatches. */
+/** A name colour is either empty (the default) or one of the eight dyes. */
 export function validateNameColour(colour: string): string | undefined {
   if (colour.length === 0) return undefined;
   return isNameColour(colour) ? undefined : 'THAT COLOUR IS NOT ON THE SWATCH.';

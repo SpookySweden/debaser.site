@@ -86,7 +86,7 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       {author.banned === true ? (
-        <span className="border border-black bg-[#800000] px-1 text-white">[ BANNED ]</span>
+        <span className="border border-black bg-bubble-pale px-1 text-white">[ BANNED ]</span>
       ) : null}
 
       {author.banned === true ? (
@@ -114,13 +114,13 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
             {busy ? '[ BANNING... ]' : '[ CONFIRM BAN ]'}
           </button>
 
-          <span className="text-[#800000]">
+          <span className="text-bubble-pale">
             BANNING STOPS THIS ACCOUNT WRITING ANYWHERE AND HIDES WHAT IT ALREADY WROTE FROM EVERYBODY BUT YOU.
           </span>
         </span>
       ) : null}
 
-      {error === null ? null : <span className="text-[#800000]">{error}</span>}
+      {error === null ? null : <span className="text-bubble-pale">{error}</span>}
     </span>
   );
 }
@@ -171,7 +171,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[10px] font-bold text-black">
+    <div className="mt-1 space-y-1 text-[10px] font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
 
@@ -185,11 +185,11 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
 
         <AuthorModeration author={thread.author} />
 
-        {confirming ? <span className="text-[#800000]">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
+        {confirming ? <span className="text-bubble-pale">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
       </div>
 
       {editing ? (
-        <div className="space-y-1 border border-gray-500 bg-ice-pale p-2">
+        <div className="space-y-1 border border-ink bg-ice-pale p-2">
           <label htmlFor={`moderate-title-${thread.id}`} className="block">
             TITLE:
           </label>
@@ -217,7 +217,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
     </div>
   );
 }
@@ -267,7 +267,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[10px] font-bold text-black">
+    <div className="mt-1 space-y-1 text-[10px] font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
 
@@ -283,12 +283,12 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
 
         {/* Removing a reply takes the replies to it with it, which is worth saying. */}
         {confirming ? (
-          <span className="text-[#800000]">CLICK AGAIN TO REMOVE THIS REPLY AND THE REPLIES TO IT.</span>
+          <span className="text-bubble-pale">CLICK AGAIN TO REMOVE THIS REPLY AND THE REPLIES TO IT.</span>
         ) : null}
       </div>
 
       {editing ? (
-        <div className="space-y-1 border border-gray-500 bg-ice-pale p-2">
+        <div className="space-y-1 border border-ink bg-ice-pale p-2">
           <label htmlFor={`moderate-comment-${comment.id}`} className="block">
             REPLY:
           </label>
@@ -306,7 +306,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
     </div>
   );
 }

@@ -86,9 +86,9 @@ export default function CommentComposer({
         event.preventDefault();
         onSubmit();
       }}
-      className="mt-2 border border-gray-600 bg-sun-pale p-2"
+      className="mt-2 border border-ink bg-sun-pale p-2"
     >
-      <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-black">
+      <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-ink">
         <span>
           AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
         </span>
@@ -102,11 +102,11 @@ export default function CommentComposer({
         value={value}
         onChange={(event) => onChange(event.target.value)}
         placeholder={placeholder}
-        className="w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none max-sm:p-3"
+        className="w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:p-3"
       />
 
       {previewTags !== undefined && previewTags.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
           <span>AUTO TAGS:</span>
           <TagStrip tags={previewTags} className="mt-1" />
         </div>
@@ -122,7 +122,7 @@ export default function CommentComposer({
 
       {showMediaPicker ? (
         <div className="mt-2">
-          <p className="text-[10px] font-bold text-black">CONTAINING MEDIA:</p>
+          <p className="text-[10px] font-bold text-ink">CONTAINING MEDIA:</p>
           <div className="mt-1">
             <MediaPicker
               id={`${id}-media`}
@@ -157,11 +157,11 @@ export default function CommentComposer({
         </button>
 
         {error !== null ? (
-          <span className="text-[10px] font-bold text-[#800000]">ERROR: {error}</span>
+          <span className="text-[10px] font-bold text-bubble-pale">ERROR: {error}</span>
         ) : null}
 
         {error === null && status !== null ? (
-          <span className="text-[10px] font-bold text-[#006000]">OK: {status}</span>
+          <span className="text-[10px] font-bold text-ena-deep">OK: {status}</span>
         ) : null}
       </div>
     </form>

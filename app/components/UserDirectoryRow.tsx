@@ -53,8 +53,8 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 border-b border-gray-500 p-1 text-[10px] font-bold last:border-b-0 ${
-        row.admin ? 'bg-[#dcdcdc]' : ''
+      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-[10px] font-bold last:border-b-0 ${
+        row.admin ? 'bg-sun-pale' : ''
       }`}
     >
       <span
@@ -64,7 +64,7 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
         <StatusDot status={row.status} record={row.record} />
         {presenceLabel(row.status)}
         {row.status === 'online' || row.record === undefined ? null : (
-          <span className="text-gray-700">
+          <span className="text-ink">
             :: <TimeStamp at={row.record.lastSeenAt} />
           </span>
         )}
@@ -78,16 +78,16 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
         {row.admin ? (
           <span className="border border-black bg-ena px-1 text-white">[ ADMIN ]</span>
         ) : null}
-        {row.you ? <span className="border border-black bg-white px-1">[ YOU ]</span> : null}
+        {row.you ? <span className="border border-black bg-paper px-1">[ YOU ]</span> : null}
         {/* Banned is worth saying out loud: their posts are hidden from everybody
             but the admin, so the name would otherwise just look quiet. */}
         {row.account.banned === true ? (
-          <span className="border border-black bg-[#800000] px-1 text-white">[ BANNED ]</span>
+          <span className="border border-black bg-bubble-pale px-1 text-white">[ BANNED ]</span>
         ) : null}
       </span>
 
       {row.account.createdAt.length === 0 ? null : (
-        <span className="text-gray-700">
+        <span className="text-ink">
           JOINED <TimeStamp at={row.account.createdAt} />
         </span>
       )}

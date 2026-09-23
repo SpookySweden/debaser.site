@@ -75,7 +75,7 @@ export default function CommsGroupBar({
   const others = thread.participants.filter((id) => id !== userId);
 
   return (
-    <div className="mb-2 space-y-1 text-[10px] font-bold text-black">
+    <div className="mb-2 space-y-1 text-[10px] font-bold text-ink">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setAdding(!adding)} className={PLATE}>
           {adding ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}
@@ -124,14 +124,14 @@ export default function CommsGroupBar({
           {busy ? '[ WORKING... ]' : confirmingLeave ? '[ CONFIRM LEAVE ]' : '[ LEAVE GROUP ]'}
         </button>
 
-        <span className="text-gray-700">
+        <span className="text-ink">
           {thread.participants.length} / {MAX_GROUP_MEMBERS} IN THE GROUP ::{' '}
           {owner ? 'YOU OWN IT' : `OWNED BY ${nameFor(thread.ownerId ?? '').toUpperCase()}`}
         </span>
       </div>
 
       {!confirmingLeave ? null : (
-        <p className="text-[#800000]">
+        <p className="text-bubble-pale">
           LEAVING TAKES YOU OUT OF THIS GROUP
           {owner
             ? ' AND HANDS IT TO WHOEVER HAS BEEN IN IT LONGEST - IF YOU ARE THE LAST ONE, THE GROUP GOES WITH YOU'
@@ -172,7 +172,7 @@ export default function CommsGroupBar({
 
       {!handingOver ? null : (
         <ul className="space-y-1">
-          <li className="text-gray-700">HAND THIS GROUP TO:</li>
+          <li className="text-ink">HAND THIS GROUP TO:</li>
           {others.map((id) => (
             <li key={id}>
               <button
@@ -197,10 +197,10 @@ export default function CommsGroupBar({
       {/* Who is in it: a head count cannot show that the account somebody just added landed. */}
       <ul className="flex w-full flex-wrap items-center gap-1">
         {thread.participants.map((id) => (
-          <li key={id} className="border border-gray-500 bg-white px-1">
+          <li key={id} className="border border-ink bg-paper px-1">
             <ProfileName author={{ id, displayName: nameFor(id) }} lamp={false} />
-            {id === userId ? <span className="ml-1 text-gray-700">[ YOU ]</span> : null}
-            {id === thread.ownerId ? <span className="ml-1 text-gray-700">[ OWNER ]</span> : null}
+            {id === userId ? <span className="ml-1 text-ink">[ YOU ]</span> : null}
+            {id === thread.ownerId ? <span className="ml-1 text-ink">[ OWNER ]</span> : null}
 
             {/* The owner may take anybody but themselves out - taking yourself out is leaving. */}
             {!owner || id === userId ? null : (
@@ -218,7 +218,7 @@ export default function CommsGroupBar({
                     setConfirmingRemoval(null);
                   });
                 }}
-                className="ml-1 cursor-pointer text-[#800000] underline hover:bg-sun-pale"
+                className="ml-1 cursor-pointer text-bubble-pale underline hover:bg-sun-pale"
               >
                 {confirmingRemoval === id ? 'SURE?' : 'remove'}
               </button>
@@ -228,7 +228,7 @@ export default function CommsGroupBar({
       </ul>
 
       {!adding ? null : addable.length === 0 ? (
-        <p className="text-gray-700">THERE IS NOBODY LEFT TO ADD.</p>
+        <p className="text-ink">THERE IS NOBODY LEFT TO ADD.</p>
       ) : (
         <ul className="space-y-1">
           {addable.map((account) => (
@@ -246,7 +246,7 @@ export default function CommsGroupBar({
         </ul>
       )}
 
-      {error === null ? null : <p className="text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
     </div>
   );
 }

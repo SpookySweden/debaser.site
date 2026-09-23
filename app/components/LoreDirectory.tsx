@@ -61,7 +61,7 @@ export default function LoreDirectory() {
         <span>{ready ? `[ ${pages.length} FILED ]` : '[ READING... ]'}</span>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-500 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ink px-3 py-2">
         <button
           type="button"
           onClick={() => setOpening(true)}
@@ -76,19 +76,19 @@ export default function LoreDirectory() {
           [ READ THE SHELF AGAIN ]
         </button>
 
-        <span className="text-[10px] font-bold text-gray-700">
+        <span className="text-[10px] font-bold text-ink">
           {signedIn
             ? 'ANY ACCOUNT MAY OPEN A PAGE :: THEY ARE WRITTEN TOGETHER, AS THEY ARE TYPED'
             : 'SIGN IN TO OPEN A PAGE :: READING TAKES NOTHING'}
         </span>
       </div>
 
-      {error === null ? null : <p className="px-3 py-2 text-[10px] font-bold text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="px-3 py-2 text-[10px] font-bold text-bubble-pale">{error}</p>}
 
       {!ready ? (
-        <p className="px-3 py-2 text-[10px] font-bold text-black">READING THE SHELF...</p>
+        <p className="px-3 py-2 text-[10px] font-bold text-ink">READING THE SHELF...</p>
       ) : pages.length === 0 ? (
-        <p className="px-3 py-2 text-[10px] font-bold text-black">
+        <p className="px-3 py-2 text-[10px] font-bold text-ink">
           NOTHING IS FILED YET. THE FIRST PAGE IS ONE BUTTON AWAY.
         </p>
       ) : (
@@ -96,9 +96,9 @@ export default function LoreDirectory() {
           {pages.map((page, position) => (
             <li
               key={page.id}
-              className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-gray-500 px-3 py-2 text-black last:border-b-0"
+              className="flex flex-wrap items-baseline gap-x-2 gap-y-1 border-b border-ink px-3 py-2 text-ink last:border-b-0"
             >
-              <span className="w-4 shrink-0 text-right text-[10px] font-bold text-gray-700">{position + 1}.</span>
+              <span className="w-4 shrink-0 text-right text-[10px] font-bold text-ink">{position + 1}.</span>
 
               <Link href={lorePagePath(page.slug)} className="text-xs font-bold underline hover:bg-ice-pale">
                 {page.title}
@@ -108,7 +108,7 @@ export default function LoreDirectory() {
                 {page.summary.length === 0 ? 'NO SUMMARY FILED.' : page.summary}
               </span>
 
-              <span className="text-[10px] text-gray-700">
+              <span className="text-[10px] text-ink">
                 LAST FILED BY {page.updatedByLabel} <TimeStamp at={page.updatedAt} />
               </span>
             </li>

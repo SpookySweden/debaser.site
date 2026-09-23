@@ -47,13 +47,13 @@ export default function TicTacToeBoard({
               onClick={() => onPlay(index)}
               className={`flex items-center justify-center rounded-none border-2 text-4xl font-bold leading-none sm:text-5xl ${
                 inWinningLine
-                  ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-yellow-100'
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-sun'
                   : open
-                    ? 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale hover:bg-ice-pale'
-                    : 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white'
+                    ? 'border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-ice-pale'
+                    : 'border-t-black border-l-black border-r-white border-b-white bg-paper'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
             >
-              <span className={cell === 'X' ? 'text-ena' : 'text-[#800000]'}>
+              <span className={cell === 'X' ? 'text-ena' : 'text-bubble-pale'}>
                 {cell === null ? (open ? '' : '·') : cell}
               </span>
             </button>
@@ -61,7 +61,7 @@ export default function TicTacToeBoard({
         })}
       </div>
 
-      <p className="mt-1 truncate text-[10px] font-bold text-gray-700">
+      <p className="mt-1 truncate text-[10px] font-bold text-ink">
         {winner === null
           ? draw
             ? 'ALL NINE PLATES TAKEN. NOBODY WINS THIS ONE.'

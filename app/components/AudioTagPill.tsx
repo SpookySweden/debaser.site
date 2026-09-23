@@ -53,7 +53,7 @@ export default function AudioTagPill({ tag, onToggle, active = false, count, com
   const label = audioTagLabel(tag);
   const mark = tagMarkColour(asChip(tag));
   const className = `${tagChipClasses(asChip(tag), compact)} ${
-    active ? 'outline-2 outline-black' : 'hover:bg-gray-200'
+    active ? 'outline-2 outline-black' : 'hover:bg-sun'
   }`;
 
   if (onToggle === undefined) {

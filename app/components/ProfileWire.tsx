@@ -42,7 +42,7 @@ export default function ProfileWire({ userId, comments }: ProfileWireProps) {
   return (
     // The dashed rule spans the whole window, the way the crawl under a comment is separated from
     // what is above it; the crawl itself is clipped to the window's own padding.
-    <div className="border-t border-dashed border-gray-400 px-3 py-1">
+    <div className="border-t border-dashed border-ink px-3 py-1">
       <NewsCrawl items={items} className="overflow-hidden" />
     </div>
   );

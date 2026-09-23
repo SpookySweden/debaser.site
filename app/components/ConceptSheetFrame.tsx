@@ -14,23 +14,23 @@ type ConceptSheetFrameProps = {
  */
 export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFrameProps) {
   return (
-    <article className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <article className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>{sheet.title}</span>
         <span>F{index + 1}</span>
       </div>
 
-      <div className="bg-white p-2">
+      <div className="bg-paper p-2">
         <SheetImage src={sheet.src} alt={sheet.caption} width={sheet.width} height={sheet.height} />
       </div>
 
-      <div className="mt-2 bg-ice-pale p-2 text-[10px] font-bold text-black">
+      <div className="mt-2 bg-ice-pale p-2 text-[10px] font-bold text-ink">
         CAPTION: {sheet.caption}
       </div>
 
       {/* Comment control sits directly under the artwork */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-sun-pale p-2">
-        <span className="text-[10px] font-bold text-black">
+        <span className="text-[10px] font-bold text-ink">
           ARCHIVE FILE: {sheet.src}
         </span>
         <CommentPopout anchor={sheet.anchor} />

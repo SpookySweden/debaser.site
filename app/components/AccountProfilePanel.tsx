@@ -59,7 +59,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
   }, [compact, ownTrack, player, profile, ready]);
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>PUBLIC PROFILE</span>
         <span>[ {ready ? 'READY' : 'READING...'} ]</span>
@@ -68,7 +68,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
-        <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-black">
+        <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-ink">
           <p>
             NAME ON THE PROFILE:{' '}
             <ProfileName
@@ -101,7 +101,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
             </Link>
           </div>
 
-          <p className="pt-1 text-gray-700">
+          <p className="pt-1 text-ink">
             VISITORS REACH THIS PAGE FROM ANY USERNAME OR PICTURE YOU POST UNDER.
           </p>
         </div>

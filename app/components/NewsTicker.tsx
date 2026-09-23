@@ -32,7 +32,7 @@ export default function NewsTicker() {
   const items = buildNewsFeed(forum.threads, undefined, { pins: forum.pins });
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>NEWSWIRE :: PINNED POSTS</span>
         <span>[ {items.length === 0 ? 'NOTHING PINNED' : `${items.length} PINNED`} ]</span>
@@ -45,7 +45,7 @@ export default function NewsTicker() {
       />
 
       {items.length === 0 ? null : (
-        <p className="px-2 py-1 text-[9px] font-bold text-gray-700">
+        <p className="px-2 py-1 text-[9px] font-bold text-ink">
           POINT AT IT TO STOP THE CRAWL :: CLICK A ROW TO OPEN THE POST
         </p>
       )}

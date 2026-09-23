@@ -57,7 +57,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
       badge="[ 16 COLOURS ]"
       onClose={onCancel}
       maxWidth="max-w-md"
-      bodyClassName="bg-white"
+      bodyClassName="bg-paper"
       status="ESC OR CLICK THE DESKTOP TO CANCEL"
       actions={
         <button
@@ -69,7 +69,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         </button>
       }
     >
-        <div className="text-black">
+        <div className="text-ink">
           <label htmlFor={inputId} className="block text-[10px] font-bold">
             TAG NAME:
           </label>
@@ -84,7 +84,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
               handleCreate();
             }}
             placeholder="e.g. world building"
-            className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+            className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
           />
 
           <p className="mt-3 text-[10px] font-bold">
@@ -100,7 +100,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
                 className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale py-1 ${
-                  colour === swatch ? 'outline-2 outline-black' : 'hover:bg-gray-200'
+                  colour === swatch ? 'outline-2 outline-black' : 'hover:bg-sun'
                 }`}
               >
                 <TagMark colour={swatch} />
@@ -108,7 +108,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
             ))}
           </div>
 
-          <div className="mt-3 rounded-none border border-gray-600 bg-ice-pale p-2">
+          <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
             <p className="text-[10px] font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={tagChipClasses(makeUserTag(previewLabel))}>
@@ -127,7 +127,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           </div>
 
           {error === null ? null : (
-            <p className="mt-2 text-[10px] font-bold text-[#800000]">ERROR: {error}</p>
+            <p className="mt-2 text-[10px] font-bold text-bubble-pale">ERROR: {error}</p>
           )}
         </div>
     </PopoutWindow>

@@ -19,14 +19,14 @@ export type ProfileTagsTabProps = {
 /** The tags other users gave you, and which of them visitors may see. */
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
       <p className={CUSTOMISER_NOTE}>
         GLOBAL TAG SWITCH: {profile.visibility.showTags ? 'VISIBLE' : 'HIDDEN'} (SEE THE PRIVACY TAB). EVERY TAG BELOW
         STARTS HIDDEN.
       </p>
 
       {profile.tags.length === 0 ? (
-        <p className="mt-2 text-[10px] font-bold text-black">
+        <p className="mt-2 text-[10px] font-bold text-ink">
           NO TAGS GIVEN YET. GIVE YOURSELF ONE FROM YOUR PUBLIC PROFILE PAGE, OR LET A VISITOR GIVE YOU ONE THERE.
         </p>
       ) : (
@@ -42,7 +42,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
 
           <ul className="mt-2 space-y-2">
             {profile.tags.map((tag) => (
-              <li key={tag.id} className="rounded-none border border-gray-500 bg-ice-pale p-2">
+              <li key={tag.id} className="rounded-none border border-ink bg-ice-pale p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })}>
                     <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} />
@@ -53,7 +53,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
                   </span>
                 </div>
 
-                <p className="mt-1 text-[10px] text-gray-700">
+                <p className="mt-1 text-[10px] text-ink">
                   GIVEN BY{' '}
                   <ProfileName author={tag.givenBy}>{tag.givenBy.displayName.toUpperCase()}</ProfileName> ON{' '}
                   <TimeStamp at={tag.givenAt} />
@@ -78,7 +78,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
         </>
       )}
 
-      <p className="mt-2 text-[10px] text-gray-700">
+      <p className="mt-2 text-[10px] text-ink">
         THE GLOBAL SWITCH IN THE PRIVACY TAB HAS TO BE ON BEFORE ANY OF THESE REACH A VISITOR
         {profile.visibility.showTags ? '' : ' - IT IS OFF RIGHT NOW'}.
       </p>

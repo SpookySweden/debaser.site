@@ -28,7 +28,7 @@ export default function AccountConsole() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>ACCOUNT TERMINAL</span>
           <span>
@@ -36,7 +36,7 @@ export default function AccountConsole() {
           </span>
         </div>
 
-        <div className="space-y-1 p-3 text-[10px] font-bold text-black">
+        <div className="space-y-1 p-3 text-[10px] font-bold text-ink">
           <p>
             SIGNED IN AS:{' '}
             {user === null ? (
@@ -50,13 +50,13 @@ export default function AccountConsole() {
         </div>
       </section>
 
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>WHAT LIVES UNDER THIS TAB</span>
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
         </div>
 
-        <ul className="grid gap-1 p-3 text-[10px] font-bold text-black sm:grid-cols-2">
+        <ul className="grid gap-1 p-3 text-[10px] font-bold text-ink sm:grid-cols-2">
           {SECTIONS.map((section) => (
             <li key={section.id}>
               {signedIn ? (
@@ -64,7 +64,7 @@ export default function AccountConsole() {
                   [{section.index}] {section.label} :: {section.note}
                 </a>
               ) : (
-                <span className="text-gray-700">
+                <span className="text-ink">
                   [{section.index}] {section.label} :: {section.note} (AFTER SIGN IN)
                 </span>
               )}
@@ -72,7 +72,7 @@ export default function AccountConsole() {
           ))}
         </ul>
 
-        <p className="px-3 pb-2 text-[10px] text-gray-700">
+        <p className="px-3 pb-2 text-[10px] text-ink">
           {signedIn
             ? 'EACH ENTRY JUMPS TO THAT SECTION ON THIS PAGE. THE PICTURE CONSOLE OPENS AS A POP-UP FROM THE PUBLIC PROFILE PANEL.'
             : 'CREATE AN ACCOUNT OR LOG IN BELOW AND THESE SECTIONS APPEAR STRAIGHT AWAY.'}
@@ -80,7 +80,7 @@ export default function AccountConsole() {
       </section>
 
       {status === 'loading' ? (
-        <p className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-3 text-xs font-bold text-black">
+        <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-xs font-bold text-ink">
           READING THE LOCAL SESSION...
         </p>
       ) : user === null ? (

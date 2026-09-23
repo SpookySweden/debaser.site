@@ -20,12 +20,12 @@ type ProjectSectionNavProps = {
  */
 export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-1 border border-gray-500 bg-ice-pale p-2 text-[10px] font-bold text-black">
+    <div className="mb-4 flex flex-wrap items-center gap-1 border border-ink bg-ice-pale p-2 text-[10px] font-bold text-ink">
       <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP}>
         [ &lt; {DEBASER_PROJECT.title} ]
       </Link>
 
-      <span className="px-1 text-gray-700">::</span>
+      <span className="px-1 text-ink">::</span>
 
       {PROJECT_SECTIONS.map((section) =>
         section.id === current ? (

@@ -26,14 +26,14 @@ export default function LinksPage() {
     <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LINKS]" status="Link Shelf Active">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // LINKS</h1>
     <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
-    <p className="text-[10px] font-bold mb-4 text-gray-700">
+    <p className="text-[10px] font-bold mb-4 text-ink">
       {ARCHIVE_LINKS.length + OUTBOUND_LINKS.length}{' '}
       {pluralise(ARCHIVE_LINKS.length + OUTBOUND_LINKS.length, 'LINK')} FILED.
     </p>
 
     <ProjectSectionNav current="links" />
 
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>THE ARCHIVE</span>
         <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
@@ -42,26 +42,26 @@ export default function LinksPage() {
       <ul className="divide-y divide-gray-500">
         {ARCHIVE_LINKS.map((link) => (
           <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-[10px] font-bold">
-            <Link href={link.href} className="text-xs underline hover:bg-yellow-100">
+            <Link href={link.href} className="text-xs underline hover:bg-sun">
               {link.label}
             </Link>
-            <span className="text-gray-700">{link.href}</span>
-            <span className="text-gray-700">:: {link.summary}</span>
+            <span className="text-ink">{link.href}</span>
+            <span className="text-ink">:: {link.summary}</span>
           </li>
         ))}
       </ul>
     </section>
 
-    <section className="mt-4 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="mt-4 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>OUTBOUND</span>
         <span>[ {OUTBOUND_LINKS.length} LINKS ]</span>
       </div>
 
       {OUTBOUND_LINKS.length === 0 ? (
-        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
           <p>NOTHING FILED ON THIS SHELF YET.</p>
-          <p className="text-gray-700">
+          <p className="text-ink">
             LINKS ARE ADDED BY HAND - EACH ONE WITH A LABEL, ITS ADDRESS AND A LINE SAYING WHAT IS THERE.
           </p>
         </div>
@@ -70,8 +70,8 @@ export default function LinksPage() {
           {OUTBOUND_LINKS.map((link) => (
             <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-[10px] font-bold">
               <span className="text-xs">{link.label}</span>
-              <span className="text-gray-700">{link.href}</span>
-              <span className="text-gray-700">:: {link.summary}</span>
+              <span className="text-ink">{link.href}</span>
+              <span className="text-ink">:: {link.summary}</span>
             </li>
           ))}
         </ul>

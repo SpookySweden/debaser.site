@@ -13,7 +13,7 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 
 const RAIL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice';
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -78,24 +78,24 @@ export default function DesktopSidebar() {
 
   if (!isOpen) {
     return (
-      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-gray-600 bg-sun-pale py-2 lg:flex">
+      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-ink bg-sun-pale py-2 lg:flex">
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
-        <span className="text-[10px] font-bold text-gray-700 [writing-mode:vertical-rl]">SIDE PANEL</span>
+        <span className="text-[10px] font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
       </div>
     );
   }
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-gray-600 bg-sun-pale lg:flex">
+    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-ink bg-sun-pale lg:flex">
       <div className={TITLE_BAR_INACTIVE}>
         <span>SIDE PANEL</span>
         <button
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-black hover:bg-ice"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-ink hover:bg-ice"
         >
           {'>'}
         </button>

@@ -69,12 +69,12 @@ export default function ProfileCommentPin({
             ? 'UNPIN :: THE COMMENT GOES BACK AMONG THE OTHERS'
             : 'PIN :: THE COMMENT LEADS EVERY THIRD ROW OF THE WIRE'
         }
-        className="cursor-pointer border-t border-l border-white border-r border-b border-black bg-ena px-1 py-[1px] text-[9px] leading-none text-white hover:bg-[#0000c0] disabled:cursor-wait disabled:opacity-60"
+        className="cursor-pointer border-t border-l border-white border-r border-b border-black bg-ena px-1 py-[1px] text-[9px] leading-none text-white hover:bg-ena-deep disabled:cursor-wait disabled:opacity-60"
       >
         <span aria-hidden="true">📌</span>
       </button>
 
-      {error === null ? null : <span className="text-[9px] font-bold text-[#800000]">{error}</span>}
+      {error === null ? null : <span className="text-[9px] font-bold text-bubble-pale">{error}</span>}
     </span>
   );
 }

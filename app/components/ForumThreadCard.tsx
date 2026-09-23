@@ -207,20 +207,20 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
           */}
           <div className="flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 font-bold text-black">
-                <span className="shrink-0 text-[10px] leading-none text-gray-700">{isOpen ? '[-]' : '[+]'}</span>
+              <div className="flex items-baseline gap-2 font-bold text-ink">
+                <span className="shrink-0 text-[10px] leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
                 <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">{layout.title}</span>
                 {/* Pinned posts say so before anything else about them, because being pinned is
                     why this row is at the top of the list. */}
                 {pin === undefined ? null : (
                   <span
-                    className="shrink-0 border border-black bg-[#800000] px-1 text-[9px] font-bold text-white"
+                    className="shrink-0 border border-black bg-bubble-pale px-1 text-[9px] font-bold text-white"
                     title={pinSummary(pin)}
                   >
                     {pinLabel(pin)}
                   </span>
                 )}
-                <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
+                <span className="shrink-0 text-[10px] text-ink">{layout.repliesLabel}</span>
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
                   <span className="shrink-0 border border-black bg-ena px-1 text-[9px] font-bold text-white" title="An MP3 is filed with this post">
@@ -230,7 +230,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               </div>
 
               {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-black">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-ink">
                 {/* The instant is the one blue thing in the header: POSTED stays black. */}
                 <span className="font-bold">
                   POSTED <TimeStamp at={thread.createdAt} />
@@ -277,10 +277,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   hand-written `#tag-board` - draws no line at all, because those badges are hidden on
                   every other row on the board and a bar with no chips would say less than nothing. */}
               {matchedTags.length === 0 ? null : (
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-[#fffbe6] px-1 py-[2px] text-[10px] font-bold text-black">
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-sun-pale px-1 py-[2px] text-[10px] font-bold text-ink">
                   <span>FILTER MATCH:</span>
                   <TagStrip tags={matchedTags} />
-                  <span className="text-gray-700">
+                  <span className="text-ink">
                     {matchedReplies.length === 0
                       ? 'ON THIS POST'
                       : `IN ${countReplies(matchedReplies.length)} BY ${matchedReplyAuthors.join(', ')}`}
@@ -318,7 +318,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
         <div className="mt-2 flex flex-col gap-3 sm:flex-row">
           <div className="sm:w-44 sm:shrink-0">
             {layout.left.image === undefined ? null : (
-              <div className="rounded-none border border-black bg-white" title={layout.left.imageSource}>
+              <div className="rounded-none border border-black bg-paper" title={layout.left.imageSource}>
                 <SheetImage
                   src={layout.left.image.src}
                   alt={layout.left.image.alt}
@@ -335,12 +335,12 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
 
             {images.count > 1 ? (
-              <p className="mt-1 text-[9px] font-bold text-gray-700">
+              <p className="mt-1 text-[9px] font-bold text-ink">
                 +{images.count - 1} MORE IMAGE(S) IN THE REPLIES
               </p>
             ) : null}
 
-            <div className="mt-1 text-[9px] font-bold text-gray-700">
+            <div className="mt-1 text-[9px] font-bold text-ink">
               <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" preview={anchorPreview} />
               <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
             </div>
@@ -350,7 +350,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {layout.right.isAnchorPost ? (
               <AnchorLink anchor={thread.anchor} preview={anchorPreview} />
             ) : (
-              <p className="whitespace-pre-line text-xs leading-snug text-black">{layout.right.body}</p>
+              <p className="whitespace-pre-line text-xs leading-snug text-ink">{layout.right.body}</p>
             )}
 
             {/* The track the post came with: one display, one button, played by the site's player. */}
@@ -365,8 +365,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {/* The accounts this post names, said plainly, so a tag reads as a tag. */}
             <MentionRow body={thread.body} accounts={accounts} />
 
-            <div className="mt-2 border-t border-gray-300 pt-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
+            <div className="mt-2 border-t border-ink pt-2">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
                 <span>{layout.repliesLabel} ON THIS POST</span>
                 <span>BOARD ID: {thread.id}</span>
               </div>

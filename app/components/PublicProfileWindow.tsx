@@ -116,7 +116,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
 
   return (
     <div className="space-y-3">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>
             {/* The name in its own colour, or the title bar's white when the account has
@@ -133,7 +133,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         {/* One comment control for the whole profile, above both columns, drawn whether or
             not anything is filed and whether or not the owner has a thread switched off: the
             menu is what says which of the three is open. */}
-        <div className="border-b border-gray-500 px-3 py-1">
+        <div className="border-b border-ink px-3 py-1">
           <ProfileCommentMenu options={commentOptions} onChoose={(kind) => setCommentingOn(kind)} />
         </div>
 
@@ -159,7 +159,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               hideVersionLabel
             />
 
-            <p className="text-center text-[10px] font-bold text-black">
+            <p className="text-center text-[10px] font-bold text-ink">
               {picture === undefined
                 ? 'NO PICTURE FILED'
                 : `[ ${picture.tag} ]${picture.current ? ' (CURRENT)' : ''}`}
@@ -211,7 +211,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             open are the customiser's business, and reading them back at somebody is a console rather
             than a profile. Presence left too - it is the window's status bar now. The owner's way to
             the page that changes any of it is one link on the line that names the thing it changes. */}
-        <div className="min-w-0 border-t border-gray-500 p-3 text-[10px] font-bold text-black">
+        <div className="min-w-0 border-t border-ink p-3 text-[10px] font-bold text-ink">
           <p>
             PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}
             {owner && !compact ? (
@@ -225,24 +225,24 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             ) : null}
           </p>
 
-          <div className="mt-1 border-t border-gray-500 pt-1">
+          <div className="mt-1 border-t border-ink pt-1">
             <ProfileTagList profile={profile} repository={repository} viewer={viewer} owner={owner} />
           </div>
         </div>
 
         {/* The biography, as a small part of the same window rather than a section of its
             own. */}
-        <div className="border-t border-gray-500 p-3">
-          <p className="text-[10px] font-bold text-black">
-            BIOGRAPHY <span className="text-gray-700">[ {profile.bio.length} CHARS ]</span>
+        <div className="border-t border-ink p-3">
+          <p className="text-[10px] font-bold text-ink">
+            BIOGRAPHY <span className="text-ink">[ {profile.bio.length} CHARS ]</span>
           </p>
 
           {profile.bio.length === 0 ? (
-            <p className="mt-1 text-[10px] font-bold text-black">
+            <p className="mt-1 text-[10px] font-bold text-ink">
               NO BIO YET{owner ? ' - WRITE ONE IN THE CUSTOMISER.' : '.'}
             </p>
           ) : (
-            <p className="mt-1 whitespace-pre-line text-xs text-black">{profile.bio}</p>
+            <p className="mt-1 whitespace-pre-line text-xs text-ink">{profile.bio}</p>
           )}
         </div>
 
@@ -334,14 +334,14 @@ function CommentsSection({
   return (
     <section
       id={PROFILE_COMMENTS_ANCHOR}
-      className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
+      className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
     >
       <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
         <span>COMMENTS ON THIS PROFILE</span>
         <span>[ {visible}{pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]</span>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-ink">
         <span className={HYPER_LABEL}>general</span>
 
         <button
@@ -357,19 +357,19 @@ function CommentsSection({
       </div>
 
       {!open ? null : (
-        <div className="border-t border-gray-500 p-2 text-black">
+        <div className="border-t border-ink p-2 text-ink">
           {owner && !visibility.showProfileComments ? (
-            <p className="text-[10px] font-bold text-black">
+            <p className="text-[10px] font-bold text-ink">
               VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
             </p>
           ) : null}
 
           {owner && hiddenCount > 0 ? (
-            <p className="text-[10px] font-bold text-black">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
+            <p className="text-[10px] font-bold text-ink">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
           ) : null}
 
           {comments.length === 0 ? (
-            <p className="text-[10px] font-bold text-black">
+            <p className="text-[10px] font-bold text-ink">
               {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
             </p>
           ) : (

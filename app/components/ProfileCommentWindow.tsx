@@ -92,7 +92,7 @@ function VersionStrip({
           </Choice>
 
           {version.kind !== 'picture' ? null : (
-            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-1 group-hover:block">
+            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 group-hover:block">
               <SheetImage
                 src={version.src}
                 alt={version.credit}
@@ -140,9 +140,9 @@ function AspectPreview({
         />
       ) : aspect === 'song' && shown !== undefined ? (
         <>
-          <div className="w-64 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-black px-2 py-1">
-            <p className="truncate text-[11px] font-bold text-[#33ff33]">{shown.title}</p>
-            <p className="mt-1 truncate text-[9px] text-[#1f9f1f]">
+          <div className="w-64 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+            <p className="truncate text-[11px] font-bold text-acid">{shown.title}</p>
+            <p className="mt-1 truncate text-[9px] text-ena-deep">
               {shown.tag}
               {shown.current ? ' (current)' : ''} :: {shown.credit}
             </p>
@@ -157,11 +157,11 @@ function AspectPreview({
           </button>
         </>
       ) : (
-        <p className="w-56 text-[10px] font-bold text-black">{ASPECT_NOTE[aspect]}</p>
+        <p className="w-56 text-[10px] font-bold text-ink">{ASPECT_NOTE[aspect]}</p>
       )}
 
       {aspect !== 'profile' && shown !== undefined && shown.note.length > 0 ? (
-        <p className="w-64 text-[10px] whitespace-pre-line text-black">{shown.note}</p>
+        <p className="w-64 text-[10px] whitespace-pre-line text-ink">{shown.note}</p>
       ) : null}
     </div>
   );
@@ -247,7 +247,7 @@ export default function ProfileCommentWindow({
       }
     >
       {offered.length === 0 ? (
-        <p className="text-[10px] font-bold text-black">
+        <p className="text-[10px] font-bold text-ink">
           NOTHING ON THIS PROFILE CAN BE COMMENTED ON RIGHT NOW - THE OWNER HAS THE THREADS SWITCHED OFF.
         </p>
       ) : (

@@ -40,7 +40,7 @@ export const LORE_STATUS_LINES: Record<LoreStatus, string> = {
 /** A toolbar plate that reads as pressed while the mark it toggles is on the cursor. */
 function toolClass(isOn: boolean): string {
   return isOn
-    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-[2px] text-[10px] font-bold text-black'
+    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-[2px] text-[10px] font-bold text-ink'
     : PLATE;
 }
 
@@ -133,17 +133,17 @@ export default function LoreEditor({
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>THE PAGE :: {peers.length === 1 ? '1 EDITOR' : `${peers.length} EDITORS`}</span>
         <span>{LORE_STATUS_LINES[status]}</span>
       </div>
 
       {/* Whose carets are in it, in the colours those names wear everywhere else. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-gray-500 bg-ice-pale px-2 py-1 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ink bg-ice-pale px-2 py-1 text-[10px] font-bold text-ink">
         <span>IN THE ROOM:</span>
         {peers.map((peer) => (
-          <span key={peer.clientId} className="border border-black bg-white px-1" style={{ color: peer.colour }}>
+          <span key={peer.clientId} className="border border-black bg-paper px-1" style={{ color: peer.colour }}>
             {peer.self ? `${peer.name} (YOU)` : peer.name}
           </span>
         ))}
@@ -151,7 +151,7 @@ export default function LoreEditor({
 
       {/* The toolbar. Every plate toggles one mark, and reads pressed while that mark is on. */}
       {editor === null ? null : (
-        <div className="flex flex-wrap items-center gap-1 border-b border-gray-500 px-2 py-1">
+        <div className="flex flex-wrap items-center gap-1 border-b border-ink px-2 py-1">
           <button type="button" className={toolClass(editor.isActive('bold'))} onClick={() => editor.chain().focus().toggleBold().run()}>
             [ BOLD ]
           </button>
@@ -200,9 +200,9 @@ export default function LoreEditor({
       </div>
 
       {/* The filing line: what the shelf has, and the button that files what it does not. */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-gray-500 px-2 py-1 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-center gap-2 border-t border-ink px-2 py-1 text-[10px] font-bold text-ink">
         {savedAt === null ? (
-          <span className="text-[#800000]">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
+          <span className="text-bubble-pale">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
         ) : (
           <span>
             FILED :: <TimeStamp at={savedAt} />
@@ -210,7 +210,7 @@ export default function LoreEditor({
         )}
 
         {saving ? <span>FILING...</span> : null}
-        {saveError === null ? null : <span className="text-[#800000]">{saveError}</span>}
+        {saveError === null ? null : <span className="text-bubble-pale">{saveError}</span>}
 
         <button type="button" className={`ml-auto ${PLATE}`} onClick={saveNow} disabled={saving}>
           [ SAVE NOW ]

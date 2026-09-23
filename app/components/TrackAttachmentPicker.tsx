@@ -55,7 +55,7 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
 
   return (
     <div className="mt-2">
-      <label htmlFor={`${id}-archive`} className="block text-[10px] font-bold text-black">
+      <label htmlFor={`${id}-archive`} className="block text-[10px] font-bold text-ink">
         FIND A TRACK ({player.loading ? 'READING...' : `${found.length} OF ${player.queue.length}`})
       </label>
       <input
@@ -67,19 +67,19 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
       />
 
       {shown.length === 0 ? (
-        <p className="mt-1 text-[10px] font-bold text-black">
+        <p className="mt-1 text-[10px] font-bold text-ink">
           {player.loading ? 'READING THE SHELF...' : 'NO MATCHES.'}
         </p>
       ) : (
-        <ul className="mt-1 max-h-64 overflow-y-auto rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white">
+        <ul className="mt-1 max-h-64 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
           {shown.map((track) => (
             <li
               key={track.src}
-              className="flex items-center gap-2 border-b border-dotted border-gray-400 px-1 py-[2px]"
+              className="flex items-center gap-2 border-b border-dotted border-ink px-1 py-[2px]"
             >
-              <span className="min-w-0 flex-1 text-[10px] font-bold text-black" title={track.title}>
+              <span className="min-w-0 flex-1 text-[10px] font-bold text-ink" title={track.title}>
                 <span className="block truncate">{track.title}</span>
-                <span className="block truncate font-normal text-gray-700">
+                <span className="block truncate font-normal text-ink">
                   {track.credit} :: {track.length} ::{' '}
                   {track.shelf === 'bucket' ? SOURCE_LABEL.SHELF : SOURCE_LABEL.ARCHIVE}
                 </span>
@@ -99,7 +99,7 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
       )}
 
       {found.length > shown.length ? (
-        <p className="mt-1 text-[9px] font-bold text-gray-700">
+        <p className="mt-1 text-[9px] font-bold text-ink">
           {shown.length} OF {found.length} - TYPE IN THE BOX ABOVE TO NARROW THE LIST
         </p>
       ) : null}
@@ -225,7 +225,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
 
   return (
     <div id={id}>
-      <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
         <button
           type="button"
           onClick={() => setMode('file')}
@@ -263,7 +263,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
       ) : (
         <>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
-            <label className="block text-[10px] font-bold text-black">
+            <label className="block text-[10px] font-bold text-ink">
               TRACK TITLE
               <input
                 value={title}
@@ -273,7 +273,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
               />
             </label>
 
-            <label className="block text-[10px] font-bold text-black">
+            <label className="block text-[10px] font-bold text-ink">
               CREDITED TO
               <input
                 value={credit}
@@ -286,7 +286,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
 
           {mode === 'file' ? (
             <div className="mt-2">
-              <label htmlFor={`${id}-file`} className="block text-[10px] font-bold text-black">
+              <label htmlFor={`${id}-file`} className="block text-[10px] font-bold text-ink">
                 THE AUDIO FILE (MP3, M4A, OGG, WAV, FLAC - {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB MAX)
               </label>
               <input
@@ -295,12 +295,12 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
                 type="file"
                 accept={MUSIC_ACCEPT}
                 onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                className="mt-1 block w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-[10px] font-bold text-black"
+                className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-[10px] font-bold text-ink"
               />
             </div>
           ) : (
             <div className="mt-2">
-              <label htmlFor={`${id}-link`} className="block text-[10px] font-bold text-black">
+              <label htmlFor={`${id}-link`} className="block text-[10px] font-bold text-ink">
                 THE LINK
               </label>
               <input
@@ -329,8 +329,8 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
           </button>
         )}
 
-        {error === null ? null : <p className="text-[10px] font-bold text-[#800000]">{error}</p>}
-        {error === null && status !== null ? <p className="text-[10px] font-bold text-[#006000]">{status}</p> : null}
+        {error === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{error}</p>}
+        {error === null && status !== null ? <p className="text-[10px] font-bold text-ena-deep">{status}</p> : null}
       </div>
     </div>
   );

@@ -11,14 +11,14 @@ function UnreadDot() {
   return (
     <span
       aria-hidden
-      className="ml-[2px] inline-block h-[6px] w-[6px] shrink-0 border border-black bg-[#ff0000] align-middle"
+      className="ml-[2px] inline-block h-[6px] w-[6px] shrink-0 border border-black bg-bubble-pale align-middle"
     />
   );
 }
 
 /** The bell's plate: small enough to sit in a title bar without crowding it. */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-[3px] py-[1px] text-[10px] font-bold leading-none text-black hover:bg-ice';
+  'inline-flex cursor-pointer items-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-[3px] py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ice';
 
 /**
  * The bell at the top of the side panel's comms block.
@@ -47,7 +47,7 @@ export default function NotificationBell() {
         title={signedIn ? `Notifications: ${notifications.summary}` : 'Sign in to be tagged'}
         className={BELL_BUTTON}
       >
-        [ ! ]{unread === 0 ? null : <span className="ml-[2px] text-[#800000]">{unread}</span>}
+        [ ! ]{unread === 0 ? null : <span className="ml-[2px] text-bubble-pale">{unread}</span>}
         {unread === 0 ? null : <UnreadDot />}
       </button>
 
@@ -65,7 +65,7 @@ export default function NotificationBell() {
 }
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left text-[10px] font-bold text-black hover:bg-ice-pale';
+  'block w-full rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The same menu, as a phone does it: one row among the other buttons in the profile pop-up.

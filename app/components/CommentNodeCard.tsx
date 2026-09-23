@@ -90,7 +90,7 @@ export default function CommentNodeCard({
   onSubmit,
   children,
 }: CommentNodeCardProps) {
-  const indent = depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-2 border-gray-300 pl-2' : 'ml-2';
+  const indent = depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-2 border-ink pl-2' : 'ml-2';
   // A matched reply is ringed, so the eye finds it once the post it answers is open. `scroll-mt`
   // keeps the marker clear of the window's own chrome when the board scrolls to it.
   const marker = matched ? ' scroll-mt-24 outline-2 outline-ena outline-offset-2' : '';
@@ -105,7 +105,7 @@ export default function CommentNodeCard({
       />
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
           <span className="inline-flex flex-wrap items-center gap-1">
             #{index + 1}
             <ProfileLink author={comment.author}>
@@ -113,7 +113,7 @@ export default function CommentNodeCard({
             </ProfileLink>
             {matched ? (
               <span
-                className="border border-black bg-[#fffbe6] px-1 text-[9px] font-bold text-black"
+                className="border border-black bg-sun-pale px-1 text-[9px] font-bold text-ink"
                 title="The tag filter on the board matched this reply"
               >
                 FILTER MATCH
@@ -123,7 +123,7 @@ export default function CommentNodeCard({
           <TimeStamp at={comment.createdAt} />
         </div>
 
-        <p className="mt-1 whitespace-pre-line text-xs text-black">{comment.body}</p>
+        <p className="mt-1 whitespace-pre-line text-xs text-ink">{comment.body}</p>
 
         {/* Whoever the reply names: the tags are in the words, said plainly here. */}
         <MentionRow body={comment.body} accounts={accounts} />

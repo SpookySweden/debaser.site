@@ -47,7 +47,7 @@ export default function ProfileCustomiserPictureTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div>
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
@@ -57,8 +57,8 @@ export default function ProfileCustomiserPictureTab({
           <div>
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
             {pendingSrc === null ? (
-              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2 text-center">
-                <span className="text-[10px] font-bold text-black">NOTHING CHOSEN</span>
+              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2 text-center">
+                <span className="text-[10px] font-bold text-ink">NOTHING CHOSEN</span>
               </div>
             ) : (
               <ProfileAvatar
@@ -78,7 +78,7 @@ export default function ProfileCustomiserPictureTab({
 
           <div className="min-w-0 flex-1 space-y-2">
             <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
-            <p className="text-[10px] text-black">
+            <p className="text-[10px] text-ink">
               CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
               BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.
             </p>
@@ -94,18 +94,18 @@ export default function ProfileCustomiserPictureTab({
                 const file = event.target.files?.[0];
                 if (file !== undefined) onUpload(file);
               }}
-              className="block w-full font-mono text-[10px] text-black"
+              className="block w-full font-mono text-[10px] text-ink"
             />
-            {uploadMessage === null ? null : <p className="text-[10px] font-bold text-black">{uploadMessage}</p>}
+            {uploadMessage === null ? null : <p className="text-[10px] font-bold text-ink">{uploadMessage}</p>}
           </div>
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
 
         {SITE_PICTURES.length === 0 ? (
-          <p className="mt-2 text-[10px] text-gray-700">
+          <p className="mt-2 text-[10px] text-ink">
             NONE OF THE DRAWINGS ON THE SITE IS THE RIGHT SHAPE FOR A PROFILE PICTURE YET.
           </p>
         ) : (
@@ -117,12 +117,12 @@ export default function ProfileCustomiserPictureTab({
                   onClick={() => onSelectSrc(picture.src)}
                   className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[10px] font-bold ${
                     pendingSrc === picture.src
-                      ? 'border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ena text-white'
-                      : 'border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale text-black hover:bg-ice'
+                      ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-white'
+                      : 'border-t-white border-l-white border-r-black border-b-black bg-sun-pale text-ink hover:bg-ice'
                   }`}
                   title={picture.src}
                 >
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-black bg-white">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-black bg-paper">
                     <SheetImage
                       src={picture.src}
                       alt={picture.alt}
@@ -159,25 +159,25 @@ export default function ProfileCustomiserPictureTab({
           >
             {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
           </button>
-          <p className="text-[10px] text-gray-700">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
+          <p className="text-[10px] text-ink">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
-          <p className="mt-2 text-[10px] font-bold text-black">NO PICTURE HAS EVER BEEN FILED.</p>
+          <p className="mt-2 text-[10px] font-bold text-ink">NO PICTURE HAS EVER BEEN FILED.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex flex-wrap items-start gap-3 rounded-none border border-gray-500 bg-ice-pale p-2"
+                className="flex flex-wrap items-start gap-3 rounded-none border border-ink bg-ice-pale p-2"
               >
                 <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel />
 
-                <div className="min-w-0 flex-1 text-[10px] text-black">
+                <div className="min-w-0 flex-1 text-[10px] text-ink">
                   <p className="font-bold">
                     P{version.version}
                     {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}

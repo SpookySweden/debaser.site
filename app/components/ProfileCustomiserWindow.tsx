@@ -26,7 +26,7 @@ const TABS: { key: TabKey; label: string }[] = [
  * the reader having to click between them to see the page they are dressing.
  */
 function PanelHeading({ children }: { children: React.ReactNode }) {
-  return <p className="bg-[#808080] px-2 py-1 text-[10px] font-bold text-white">{children}</p>;
+  return <p className="bg-ena-deep px-2 py-1 text-[10px] font-bold text-white">{children}</p>;
 }
 
 type ProfileCustomiserWindowProps = {
@@ -235,7 +235,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   }
 
   const panel = (
-    <div className="space-y-3 text-black">
+    <div className="space-y-3 text-ink">
       <p className="text-[10px] font-bold">
         THIS CONSOLE STYLES WHAT OTHER PEOPLE SEE AT /profile/{userId} - THE PAGE A USERNAME OR A PICTURE OPENS FROM
         THE BOARD. IT DOES NOT CHANGE HOW YOUR POSTS LOOK ON THE BOARD ITSELF.
@@ -248,7 +248,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             type="button"
             onClick={() => setTab(entry.key)}
             className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold ${
-              tab === entry.key ? 'bg-ena text-white' : 'bg-sun-pale text-black hover:bg-ice'
+              tab === entry.key ? 'bg-ena text-white' : 'bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
             {entry.label}
@@ -347,10 +347,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 text-[10px] font-bold">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] font-bold">
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
-        {error === null ? null : <p className="text-[#800000]">PROBLEM: {error}</p>}
-        <p className="mt-1 text-gray-700">
+        {error === null ? null : <p className="text-bubble-pale">PROBLEM: {error}</p>}
+        <p className="mt-1 text-ink">
           PICTURE FILES: {profile.avatar.versions.length} :: VISIBLE TO VISITORS: TAGS{' '}
           {profile.visibility.showTags ? 'YES' : 'NO'}, PROFILE COMMENTS{' '}
           {profile.visibility.showProfileComments ? 'YES' : 'NO'}, PICTURE COMMENTS{' '}

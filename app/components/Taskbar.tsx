@@ -15,12 +15,15 @@ type TaskbarProps = {
 /**
  * The taskbar along the foot of the window: the Start button, and the tray.
  *
- * The page tabs are the window's header (see ./SiteNav.tsx), so the foot strip holds the three things
- * a desktop keeps at the foot of the screen and nowhere else: the way into everything - the Start
- * menu, which lists the same five keys as the header *and* the debaser project's shelves - and the
- * tray, which is the page's status line, the encoding this window is written in and the notices bell.
- * The bell is here rather than in the side panel because the side panel is wide-screen only, and a
- * notice is the one plate a phone most needs to reach.
+ * The window's keys are the header (see ./SiteNav.tsx), so the foot strip holds the two things a
+ * desktop keeps at the foot of the screen and nowhere else: the way into everything - the Start
+ * menu, which lists the same keys as the header *and* the debaser project's shelves - and the tray,
+ * which is the page's status line, the encoding this window is written in and the notices bell.
+ *
+ * On a phone the plate is gone entirely. `hidden sm:inline-flex` is the whole of that rule, and it is
+ * deliberate rather than incidental: a phone's only permanent control is the profile picture in the
+ * title bar, which opens the same menu this plate does (see ./ProfileControl.tsx). A tray that kept
+ * the plate would put navigation back on the screen the feed is supposed to own.
  *
  * It is drawn with `order-last` while being written before the page, so a keyboard user meets the
  * page's own content first and the tray last, which is the order they read in.
@@ -29,27 +32,26 @@ type TaskbarProps = {
  */
 export default function Taskbar({ status }: TaskbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
-  // The menu's COMMS row carries the unread count on a phone, where that row is the only place the
-  // conversations are listed (the tabs above carry the count on a wide screen).
+  // The menu's COMMS row carries the unread count, which is the only place it is listed in a menu.
   const { unreadTotal } = useComms();
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-sun-pale px-1 py-[3px] text-[10px] font-bold text-black">
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-sun px-1 py-[3px] text-[10px] font-bold text-ink">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
         aria-haspopup="menu"
         aria-expanded={menuOpen}
-        // On a phone this button holds every destination there is, so it has to say what it opens -
-        // and the name it is read with still starts with the word on the plate.
+        // The name it is read with starts with the word on the plate, so the two never drift.
         aria-label="START :: the site menu"
         title="The site menu: every page, and the debaser project's shelves"
-        // Pressed in while its menu is open, which is what a Start button does.
-        className={
+        // Pressed in while its menu is open, which is what a Start button does - and off the phone's
+        // screen entirely, where the profile picture is the only door.
+        className={`hidden sm:inline-flex ${
           menuOpen
-            ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-ice px-2 py-[2px] text-[10px] font-bold text-ink'
+            ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-ena px-2 py-[2px] text-[10px] font-bold text-sun'
             : PLATE
-        }
+        }`}
       >
         [ START ]
       </button>
@@ -65,11 +67,15 @@ export default function Taskbar({ status }: TaskbarProps) {
         title="A pixel sprite loops here once assets/sprites/walk-cycle.gif is drawn"
       />
 
-      {/* The tray: the page's own status line, and what the window is encoded in. */}
-      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[10px] text-gray-700">
-        <span>Status: {status}</span>
-        <span aria-hidden="true">::</span>
-        <span>UTF-8</span>
+      {/* The tray: the page's own status line, and what the window is encoded in. On a phone the
+          status line is left to fill the strip, so the foot of the window is one quiet line rather
+          than a row of controls. */}
+      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[10px] text-ink">
+        <span className="truncate">Status: {status}</span>
+        <span aria-hidden="true" className="max-sm:hidden">
+          ::
+        </span>
+        <span className="max-sm:hidden">UTF-8</span>
         {/* The tray carries the notices too: a notice belongs beside the status line and the encoding,
             at the foot of every window on every screen, rather than inside one page's side panel. */}
         <NotificationBell />
@@ -79,3 +85,4 @@ export default function Taskbar({ status }: TaskbarProps) {
     </div>
   );
 }
+

@@ -6,10 +6,9 @@ import type { ForumAuthor } from '../lib/forum/types';
 import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { GivenTag } from '../lib/profile/types';
 import ProfileAvatarLink from './ProfileAvatarLink';
+import ProfileAvatar from './ProfileAvatar';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
-import { AVATAR_PLAIN_FRAME } from './ProfileAvatar';
-import SheetImage from './SheetImage';
 import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
 type PostAuthorRowProps = {
@@ -51,7 +50,7 @@ type PostAuthorRowProps = {
  * Order matches the board's reading order: the stamp, the poster with their
  * picture, the place line, then the tags the author chose to display. Guests
  * fall back to a plain name with no picture, and the whole row drops its
- * decoration when collapsed (`avatar="hover"`).
+   * decoration when collapsed (`avatar="hover"`). Anonymous rows use the shared placeholder.
  *
  * `picture` is for rows that are not a person at all: a post owned by the item
  * itself is credited to the site, so it draws the house default pfp instead of
@@ -77,20 +76,16 @@ export default function PostAuthorRow({
           {picture === undefined ? (
             <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
           ) : (
-            <span
-              className={AVATAR_PLAIN_FRAME}
-              style={{ width: avatarSize, height: avatarSize }}
-              title={`Default picture for ${label}: add ${picture} to the project assets folder.`}
-            >
-              <SheetImage
-                src={picture}
-                alt={`${label} default profile picture`}
-                width={avatarSize}
-                height={avatarSize}
-                sizes={`${avatarSize}px`}
-                compact
-              />
-            </span>
+            /* The item's own picture, drawn in the *same* anon-facing component as a person who has
+               not chosen one: both are "a picture that is not there yet", and both have to read as
+               deliberate rather than as a fault (see ./ProfileAvatar.tsx). */
+            <ProfileAvatar
+              src={picture}
+              displayName={label}
+              size={avatarSize}
+              variant="plain"
+              hideVersionLabel
+            />
           )}
         </span>
       )}
@@ -102,7 +97,7 @@ export default function PostAuthorRow({
       </ProfileLink>
 
       {location.length === 0 ? null : (
-        <span className="text-[10px] text-gray-700" title="Place line from this account's public profile">
+        <span className="text-[10px] text-ink" title="Place line from this account's public profile">
           :: {location}
         </span>
       )}

@@ -119,12 +119,12 @@ export default function CommsThreadPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
         <span className="inline-flex flex-wrap items-center gap-1">
           {isGroup ? (
             <>
               IN: {heading}
-              {others.length === 0 ? null : <span className="text-gray-700"> :: {others.join(', ')}</span>}
+              {others.length === 0 ? null : <span className="text-ink"> :: {others.join(', ')}</span>}
             </>
           ) : (
             <>
@@ -132,35 +132,35 @@ export default function CommsThreadPanel({
             </>
           )}
         </span>
-        <span className="text-gray-700">
+        <span className="text-ink">
           {thread.messages.length} MESSAGE{thread.messages.length === 1 ? '' : 'S'}
         </span>
       </div>
 
       <ul
         ref={listRef}
-        className="min-h-32 flex-1 space-y-2 overflow-y-auto rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2"
+        className="min-h-32 flex-1 space-y-2 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2"
       >
         {shown.length === 0 ? (
-          <li className="text-[10px] font-bold text-black">NO MESSAGES YET - SAY SOMETHING.</li>
+          <li className="text-[10px] font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
         ) : (
           shown.map((message) => (
-            <li key={message.id} className="rounded-none border border-gray-400 bg-ice-pale p-2">
+            <li key={message.id} className="rounded-none border border-ink bg-ice-pale p-2">
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
                 <span className="inline-flex items-center gap-1">
                   <ProfileName author={resolveAuthor(message, nameById)} />
-                  {message.authorId === userId ? <span className="text-gray-700">[ YOU ]</span> : null}
+                  {message.authorId === userId ? <span className="text-ink">[ YOU ]</span> : null}
                 </span>
                 <TimeStamp at={message.createdAt} />
               </div>
-              <p className="mt-1 whitespace-pre-line text-xs text-black">{message.body}</p>
+              <p className="mt-1 whitespace-pre-line text-xs text-ink">{message.body}</p>
             </li>
           ))
         )}
       </ul>
 
-      <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-black">
+      <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
           <label htmlFor={`${idPrefix}-body`}>
             {isGroup ? (
               <>
@@ -191,7 +191,7 @@ export default function CommsThreadPanel({
             }
           }}
           placeholder="Type the message..."
-          className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none max-sm:p-3"
+          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:p-3"
         />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -206,8 +206,8 @@ export default function CommsThreadPanel({
 
           <AsciiEmoticonPicker onPick={insertEmoticon} disabled={busy} />
 
-          <p className="text-[10px] text-gray-700">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
-          {error === null ? null : <p className="text-[10px] font-bold text-[#800000]">{error}</p>}
+          <p className="text-[10px] text-ink">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
+          {error === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{error}</p>}
         </div>
       </div>
     </div>

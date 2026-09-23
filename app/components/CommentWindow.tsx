@@ -107,7 +107,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
       badge="[ THREAD ]"
       onClose={onClose}
       maxWidth="max-w-2xl"
-      bodyClassName="bg-white"
+      bodyClassName="bg-paper"
       actions={
         thread === undefined ? null : (
           <Link
@@ -119,7 +119,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         )
       }
     >
-      <div className="text-black">
+      <div className="text-ink">
           <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
             <span>
               SOURCE: {anchor.kind.toUpperCase()} :: ID: {anchor.id}

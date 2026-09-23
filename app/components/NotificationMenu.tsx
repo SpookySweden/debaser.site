@@ -23,8 +23,8 @@ import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
  */
 const KIND_BADGE: Record<AppNotification['kind'], string> = {
   tag: 'bg-ena',
-  reply: 'bg-[#800000]',
-  invite: 'bg-[#005000]',
+  reply: 'bg-bubble-pale',
+  invite: 'bg-ena-deep',
 };
 
 /** The three letters on that badge. */
@@ -35,7 +35,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-gray-500 bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-gray-700';
+const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-ink';
 
 /**
  * One line of the feed.
@@ -84,7 +84,7 @@ function NotificationRow({
         <span
           {...(unread ? { 'aria-label': 'Unread', title: 'Unread' } : { 'aria-hidden': true })}
           className={`inline-block h-2 w-2 shrink-0 border ${
-            unread ? 'border-black bg-ena' : 'border-gray-400 bg-sun-pale'
+            unread ? 'border-black bg-ena' : 'border-ink bg-sun-pale'
           }`}
         />
         <span
@@ -94,23 +94,23 @@ function NotificationRow({
           {KIND_TAG[item.kind]}
         </span>
         <ProfileName author={{ id: item.actorId, displayName: item.actorName }} />
-        <span className={unread ? 'text-black' : 'text-gray-700'}>{notificationLabel(item.kind)}</span>
-        <span className="ml-auto shrink-0 font-normal text-gray-700">
+        <span className={unread ? 'text-ink' : 'text-ink'}>{notificationLabel(item.kind)}</span>
+        <span className="ml-auto shrink-0 font-normal text-ink">
           <TimeStamp at={item.createdAt} />
         </span>
       </span>
 
-      <span className={`mt-1 block truncate ${unread ? 'text-black' : 'font-normal text-gray-700'}`}>
+      <span className={`mt-1 block truncate ${unread ? 'text-ink' : 'font-normal text-ink'}`}>
         {item.body.length === 0 ? '...' : `"${item.body}"`}
       </span>
 
-      <span className="mt-[2px] flex items-center gap-2 font-normal text-gray-700">
+      <span className="mt-[2px] flex items-center gap-2 font-normal text-ink">
         <span className="truncate">
           {item.kind === 'invite' ? 'GAME: ' : 'ON: '}
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[9px] font-bold text-black">
+          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[9px] font-bold text-ink">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -119,7 +119,7 @@ function NotificationRow({
   );
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
-    unread ? 'border-gray-500 bg-white text-black' : 'border-gray-400 bg-bubble-pale text-gray-700'
+    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink'
   } hover:bg-ice-pale max-sm:min-h-11`;
 
   if (target === null) {
@@ -224,7 +224,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   };
 
   return (
-    <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale' : 'w-full'}>
+    <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale' : 'w-full'}>
       {!chrome ? null : (
         <div className={TITLE_BAR}>
           <span>NOTIFICATIONS :: {summary}</span>
@@ -241,24 +241,24 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
       )}
 
       {userId === null ? (
-        <p className="p-2 text-[10px] font-bold text-black">
+        <p className="p-2 text-[10px] font-bold text-ink">
           TAGS AND REPLIES GO ACCOUNT TO ACCOUNT - SIGN IN TO BE TOLD ABOUT THEM.
         </p>
       ) : !ready ? (
-        <p className="p-2 text-[10px] font-bold text-black">READING THE NOTIFICATIONS...</p>
+        <p className="p-2 text-[10px] font-bold text-ink">READING THE NOTIFICATIONS...</p>
       ) : error !== null ? (
-        <div className="p-2 text-[10px] font-bold text-[#800000]">
+        <div className="p-2 text-[10px] font-bold text-bubble-pale">
           <p>FEED OFFLINE :: {error}</p>
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice"
+            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
           >
             [ RETRY ]
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="p-2 text-[10px] font-bold text-black">
+        <p className="p-2 text-[10px] font-bold text-ink">
           NOTHING HERE YET. TAGGING SOMEBODY IN A POST, OR REPLYING TO THEIR POST, IS WHAT LANDS IN THIS LIST.
         </p>
       ) : (
@@ -269,25 +269,25 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 border-t border-gray-500 p-1">
+      <div className="flex flex-wrap items-center gap-2 border-t border-ink p-1">
         <button
           type="button"
           disabled={unread === 0}
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
         >
           [ OPEN THE BOARD ]
         </Link>
-        <span className="text-[10px] text-gray-700">
+        <span className="text-[10px] text-ink">
           {summary}
           {breakdown === '' ? '' : ` :: ${breakdown}`}
         </span>

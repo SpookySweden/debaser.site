@@ -24,7 +24,8 @@ type ProfileAvatarLinkProps = {
  *
  * Reading it through the profile repository means the picture the owner picked
  * in the customiser shows up everywhere their name appears. Guests have no
- * profile, so their posts keep the plain text name and a placeholder square.
+ * profile, so their posts keep the plain text name and the shared anonymous
+ * placeholder avatar.
  */
 export default function ProfileAvatarLink({
   author,
@@ -39,13 +40,8 @@ export default function ProfileAvatarLink({
   if (author.id === null) {
     return (
       <span className={`inline-flex items-center gap-1 align-middle ${className ?? ''}`}>
-        <span
-          className="inline-flex items-center justify-center rounded-none border border-black bg-white text-[9px] font-bold text-gray-700"
-          style={{ width: size, height: size }}
-        >
-          ?
-        </span>
-        {showName ? <span className="text-xs font-bold text-black">{label}</span> : null}
+        <ProfileAvatar version={undefined} displayName={label} size={size} variant="plain" hideVersionLabel />
+        {showName ? <span className="text-xs font-bold text-ink">{label}</span> : null}
       </span>
     );
   }
@@ -64,7 +60,7 @@ export default function ProfileAvatarLink({
         hideVersionLabel
       />
       {showName ? (
-        <span className="text-xs font-bold text-black underline decoration-dotted">{label}</span>
+        <span className="text-xs font-bold text-ink underline decoration-dotted">{label}</span>
       ) : null}
     </Link>
   );

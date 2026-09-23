@@ -85,7 +85,7 @@ type CommentRowProps = {
 export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
-    <span className="border border-black bg-[#800000] px-1 text-[9px] font-bold text-white">
+    <span className="border border-black bg-bubble-pale px-1 text-[9px] font-bold text-white">
       [ {pinnedLabel} ]
     </span>
   );
@@ -107,9 +107,9 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         <TimeStamp at={data.createdAt} className="text-[9px]" />
 
         {href === undefined ? (
-          <span className="text-black">&quot;{data.body}&quot;</span>
+          <span className="text-ink">&quot;{data.body}&quot;</span>
         ) : (
-          <Link href={href} title={hrefTitle} className="text-black hover:bg-ena">
+          <Link href={href} title={hrefTitle} className="text-ink hover:bg-ena">
             &quot;{data.body}&quot;
           </Link>
         )}
@@ -118,7 +118,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
   }
 
   return (
-    <li className={`rounded-none border border-gray-500 p-1 ${pinned === null ? 'bg-white' : 'bg-sun-pale'}`}>
+    <li className={`rounded-none border border-ink p-1 ${pinned === null ? 'bg-paper' : 'bg-sun-pale'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
         <span className="flex flex-wrap items-center gap-1">
           <ProfileLink author={author}>

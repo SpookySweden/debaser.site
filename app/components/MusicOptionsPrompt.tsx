@@ -1,6 +1,6 @@
 'use client';
 
-import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import { ACCENT_COLOUR, PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import PopoutWindow from './PopoutWindow';
 
@@ -23,7 +23,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
       maxWidth="max-w-sm"
       status="HOW A PROFILE'S TRACK SHOULD BEHAVE"
     >
-      <div className="space-y-3 text-[10px] font-bold text-black">
+      <div className="space-y-3 text-[10px] font-bold text-ink">
         <label className="flex items-center gap-2">
           <span className="w-28 shrink-0">DEFAULT VOLUME</span>
           <input
@@ -33,7 +33,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
             value={Math.round(player.volume * 100)}
             onChange={(event) => player.setVolume(Number(event.target.value) / 100)}
             className="h-4 flex-1 cursor-pointer"
-            style={{ accentColor: '#0000cc' }}
+            style={{ accentColor: ACCENT_COLOUR }}
             aria-label="Default volume"
           />
           <span className="w-7 text-right">{Math.round(player.volume * 100)}</span>
@@ -43,11 +43,11 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
           {player.playByDefault ? '[ PLAY BY DEFAULT: ON ]' : '[ PLAY BY DEFAULT: OFF ]'}
         </button>
 
-        <p className="text-gray-700">
+        <p className="text-ink">
           PLAY BY DEFAULT STARTS A PROFILE&apos;S TRACK AS SOON AS ITS PAGE LOADS. LEAVE IT OFF TO PRESS PLAY BY HAND.
         </p>
 
-        <div className="flex flex-wrap items-center gap-2 border-t border-gray-400 pt-2">
+        <div className="flex flex-wrap items-center gap-2 border-t border-ink pt-2">
           <button
             type="button"
             onClick={() => {

@@ -111,7 +111,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       </div>
 
       {shown.length === 0 ? (
-        <p className="text-[10px] text-gray-700">
+        <p className="text-[10px] text-ink">
           {owner
             ? 'NOBODY HAS GIVEN YOU A TAG YET. YOU CAN GIVE YOURSELF ONE, BUT ONLY ONE OF YOUR OWN SHOWS AT A TIME.'
             : 'NO TAGS TO SHOW.'}
@@ -129,9 +129,9 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                 {tag.label}
               </span>
 
-              {tag.hidden ? <span className="border border-black bg-[#800000] px-1 text-white">[ WAITING ]</span> : null}
+              {tag.hidden ? <span className="border border-black bg-bubble-pale px-1 text-white">[ WAITING ]</span> : null}
 
-              <span className="text-gray-700">
+              <span className="text-ink">
                 {isSelfGivenTag(tag, profile.userId) ? (
                   'YOURS'
                 ) : (
@@ -182,8 +182,8 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       ) : null}
 
       {adding ? (
-        <div className="space-y-1 border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2">
-          <label htmlFor={`give-tag-${profile.userId}`} className="block text-[10px] font-bold text-black">
+        <div className="space-y-1 border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2">
+          <label htmlFor={`give-tag-${profile.userId}`} className="block text-[10px] font-bold text-ink">
             {owner ? 'GIVE YOUR OWN PROFILE A TAG:' : 'GIVE THIS PROFILE A TAG:'}
           </label>
 
@@ -200,7 +200,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
             </button>
           </div>
 
-          <p className="text-[10px] text-gray-700">
+          <p className="text-[10px] text-ink">
             {owner
               ? 'YOUR OWN TAGS WAIT FOR YOUR APPROVAL TOO, AND ONLY ONE OF THEM SHOWS AT A TIME.'
               : 'TAGS WAIT UNTIL THE OWNER APPROVES THEM. THE HOUSE ACCOUNT DOES NOT HAVE TO WAIT.'}
@@ -208,8 +208,8 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-[10px] font-bold text-[#800000]">{error}</p>}
-      {status === null ? null : <p className="text-[10px] font-bold text-black">{status}</p>}
+      {error === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{error}</p>}
+      {status === null ? null : <p className="text-[10px] font-bold text-ink">{status}</p>}
     </div>
   );
 }

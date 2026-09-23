@@ -67,14 +67,14 @@ export default function AccountDetails() {
 
       <section
         id="account-summary"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
+        className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>ACCOUNT DETAILS</span>
           <span>[ READ ONLY ]</span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
           <p>
             NAME:{' '}
             <ProfileName
@@ -97,25 +97,25 @@ export default function AccountDetails() {
             <button type="button" onClick={() => void signOut()} disabled={busy} className={PLATE_LARGE}>
               [ SIGN OUT ]
             </button>
-            <p className="text-gray-700">
+            <p className="text-ink">
               NEED TO CHANGE THE NAME, EMAIL OR PASSWORD? USE THE EDIT ACCOUNT SECTION BELOW.
             </p>
           </div>
 
-          {message === null ? null : <p className="text-[10px] font-bold text-black">{message}</p>}
+          {message === null ? null : <p className="text-[10px] font-bold text-ink">{message}</p>}
         </div>
       </section>
 
       <section
         id="activity"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
+        className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
         <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
           <span>BOARD ACTIVITY</span>
           <span>[ {myThreads.length + myReplies} POSTS ]</span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-black">
+        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
           <p>
             THREADS FILED: {myThreads.length} :: REPLIES FILED: {myReplies}
           </p>
@@ -138,14 +138,14 @@ export default function AccountDetails() {
 
       <section
         id="danger-zone"
-        className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale"
+        className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-[#800000] px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-xs font-bold text-white">
           <span>DANGER ZONE</span>
           <span>[ CAREFUL ]</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-3 text-[10px] font-bold text-black">
+        <div className="flex flex-wrap items-center gap-2 p-3 text-[10px] font-bold text-ink">
           {usingMockAuth ? (
             <>
               <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>

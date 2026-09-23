@@ -25,20 +25,20 @@ export default function MentionRow({ body, accounts, className }: MentionRowProp
   if (mentioned.length === 0) return null;
 
   return (
-    <p className={`flex flex-wrap items-center gap-1 text-[10px] font-bold text-black ${className ?? 'mt-1'}`}>
+    <p className={`flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink ${className ?? 'mt-1'}`}>
       <span>TAGGED:</span>
       {mentioned.map((account) => {
         const label = `@${account.displayName.trim().replace(/\s+/g, '_')}`;
 
         return account.id === null ? (
-          <span key={account.displayName} className="font-normal text-gray-700" title="No account to tell">
+          <span key={account.displayName} className="font-normal text-ink" title="No account to tell">
             {label}
           </span>
         ) : (
           <ProfileLink
             key={account.id}
             author={{ id: account.id, displayName: account.displayName }}
-            className="border border-gray-500 bg-white px-1 hover:bg-ice-pale"
+            className="border border-ink bg-paper px-1 hover:bg-ice-pale"
           >
             {label}
           </ProfileLink>

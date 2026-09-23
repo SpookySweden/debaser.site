@@ -128,7 +128,7 @@ export default function NewArchiveFileWindow({
         </button>
       }
     >
-      <label htmlFor="new-file-title" className="block text-[10px] font-bold text-black">
+      <label htmlFor="new-file-title" className="block text-[10px] font-bold text-ink">
         FILE NAME
       </label>
       <input
@@ -139,11 +139,11 @@ export default function NewArchiveFileWindow({
         className={FIELD}
       />
 
-      <p className="mt-1 text-[10px] font-bold text-black">FILES AS: {fileName}</p>
+      <p className="mt-1 text-[10px] font-bold text-ink">FILES AS: {fileName}</p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="new-file-folder" className="block text-[10px] font-bold text-black">
+          <label htmlFor="new-file-folder" className="block text-[10px] font-bold text-ink">
             FOLDER
           </label>
           <select
@@ -162,7 +162,7 @@ export default function NewArchiveFileWindow({
         </div>
 
         <div>
-          <label htmlFor="new-file-new-folder" className="block text-[10px] font-bold text-black">
+          <label htmlFor="new-file-new-folder" className="block text-[10px] font-bold text-ink">
             OR A NEW ONE BELOW IT
           </label>
           <input
@@ -175,11 +175,11 @@ export default function NewArchiveFileWindow({
         </div>
       </div>
 
-      <p className="mt-1 text-[10px] font-bold text-gray-700">GOES TO: {folderLabel(chosen)}</p>
+      <p className="mt-1 text-[10px] font-bold text-ink">GOES TO: {folderLabel(chosen)}</p>
 
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
-          <label htmlFor="new-file-credit" className="block text-[10px] font-bold text-black">
+          <label htmlFor="new-file-credit" className="block text-[10px] font-bold text-ink">
             CREDITED TO
           </label>
           <input
@@ -192,7 +192,7 @@ export default function NewArchiveFileWindow({
         </div>
 
         <div>
-          <label htmlFor="new-file-upload" className="block text-[10px] font-bold text-black">
+          <label htmlFor="new-file-upload" className="block text-[10px] font-bold text-ink">
             THE AUDIO FILE (MP3, M4A, OGG, WAV, FLAC - {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB MAX)
           </label>
           <input
@@ -201,14 +201,14 @@ export default function NewArchiveFileWindow({
             type="file"
             accept={MUSIC_ACCEPT}
             onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-            className="mt-1 block w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-[10px] font-bold text-black"
+            className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-[10px] font-bold text-ink"
           />
         </div>
       </div>
 
       <AudioTagChooser id="new-file" value={tags} onChange={setTags} />
 
-      {error === null ? null : <p className="mt-2 text-[10px] font-bold text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="mt-2 text-[10px] font-bold text-bubble-pale">{error}</p>}
     </PopoutWindow>
   );
 }

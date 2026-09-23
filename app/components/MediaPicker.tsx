@@ -37,10 +37,10 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
   const selected = items.find((item) => item.id === value);
 
   return (
-    <div id={id} className="rounded-none border border-gray-600 bg-ice-pale p-1">
+    <div id={id} className="rounded-none border border-ink bg-ice-pale p-1">
       <div className="flex flex-col gap-1 sm:flex-row">
         <div
-          className={`w-full overflow-y-auto rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 sm:w-3/5 ${heightClass}`}
+          className={`w-full overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 sm:w-3/5 ${heightClass}`}
         >
           <div role="radiogroup" aria-label="Containing media" className="flex flex-wrap gap-1">
             <button
@@ -49,10 +49,10 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               aria-checked={value === ''}
               onClick={() => onChange('')}
               className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                value === '' ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-ice-pale'
+                value === '' ? 'border-black bg-ena text-white' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
               }`}
             >
-              <span className="flex h-12 items-center justify-center border border-gray-600 bg-white text-[9px] font-bold text-black">
+              <span className="flex h-12 items-center justify-center border border-ink bg-paper text-[9px] font-bold text-ink">
                 [ NONE ]
               </span>
               <span className="mt-[2px] block truncate text-[9px] font-bold">TEXT ONLY</span>
@@ -70,10 +70,10 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   title={item.label}
                   onClick={() => onChange(item.id)}
                   className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                    picked ? 'border-black bg-ena text-white' : 'border-gray-400 bg-sun-pale text-black hover:bg-ice-pale'
+                    picked ? 'border-black bg-ena text-white' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
                   }`}
                 >
-                  <span className="flex h-12 items-center justify-center overflow-hidden border border-gray-600 bg-white">
+                  <span className="flex h-12 items-center justify-center overflow-hidden border border-ink bg-paper">
                     <SheetImage
                       src={item.preview.src}
                       alt={item.preview.alt}
@@ -89,25 +89,25 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
           </div>
         </div>
 
-        <div className={`flex w-full items-center gap-2 border border-gray-500 bg-bubble-pale p-1 sm:flex-1 ${heightClass}`}>
+        <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 sm:flex-1 ${heightClass}`}>
           {selected === undefined ? (
-            <p className="text-[10px] font-bold text-black">
+            <p className="text-[10px] font-bold text-ink">
               {NONE}
               <br />
-              <span className="font-normal text-gray-700">PICK A SHEET TO ATTACH IT.</span>
+              <span className="font-normal text-ink">PICK A SHEET TO ATTACH IT.</span>
             </p>
           ) : (
             <>
               <MediaThumbnail media={selected.preview} size={56} />
-              <span className="min-w-0 flex-1 text-[10px] font-bold text-black">
+              <span className="min-w-0 flex-1 text-[10px] font-bold text-ink">
                 <span className="block truncate">{selected.label}</span>
-                <span className="mt-[2px] block font-normal text-gray-700">
+                <span className="mt-[2px] block font-normal text-ink">
                   {selected.preview.width} x {selected.preview.height}
                 </span>
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-black hover:bg-ice"
+                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-ink hover:bg-ice"
                 >
                   [ CLEAR ]
                 </button>
@@ -117,7 +117,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
         </div>
       </div>
 
-      <p className="mt-1 px-1 text-[9px] text-gray-700">
+      <p className="mt-1 px-1 text-[9px] text-ink">
         {items.length === 0
           ? 'THE ARCHIVE IS EMPTY.'
           : `${items.length} SHEET${items.length === 1 ? '' : 'S'} IN THE ARCHIVE.`}

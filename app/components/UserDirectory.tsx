@@ -92,18 +92,18 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
         </div>
 
         {compact ? null : (
-          <p className="border-b border-gray-500 px-2 py-1 text-[10px] font-bold text-black">
+          <p className="border-b border-ink px-2 py-1 text-[10px] font-bold text-ink">
             {counts.online} ONLINE :: {counts.recent} SEEN THIS HOUR :: {counts.offline} ELSEWHERE :: THE HOUSE
             ACCOUNT FIRST
           </p>
         )}
 
         {!accountsReady ? (
-          <p className="p-3 text-[10px] font-bold text-black">READING THE ACCOUNT LIST...</p>
+          <p className="p-3 text-[10px] font-bold text-ink">READING THE ACCOUNT LIST...</p>
         ) : rows.length === 0 ? (
-          <p className="p-3 text-[10px] font-bold text-black">NO ACCOUNTS YET.</p>
+          <p className="p-3 text-[10px] font-bold text-ink">NO ACCOUNTS YET.</p>
         ) : (
-          <ul className="text-black">
+          <ul className="text-ink">
             {shown.map((row) => (
               <UserDirectoryRow
                 key={row.account.id}
@@ -124,7 +124,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             <span>[ LEGEND ]</span>
           </div>
 
-          <div className="space-y-1 p-3 text-[10px] font-bold text-black">
+          <div className="space-y-1 p-3 text-[10px] font-bold text-ink">
             <p>
               GREEN WHILE A TAB OF THAT ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS
               PASSED.
@@ -134,7 +134,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 ? 'SIGN IN TO SEND SOMEBODY A MESSAGE.'
                 : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
             </p>
-            <p className="text-gray-700">
+            <p className="text-ink">
               <Link href="/forum" className="underline hover:bg-ice">
                 [ BOARD ]
               </Link>{' '}

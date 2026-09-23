@@ -11,17 +11,17 @@ import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { TagMark } from './TagBadge';
 
-export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-black';
+export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-ink';
 
 /**
  * A swatch is offered as the site's own chip: a small key of the colour with the swatch's *name* in
- * readable ink beside it, rather than a 24px square of the colour itself. Sixteen saturated squares in
+ * readable ink beside it, rather than a 24px square of the colour itself. Eight saturated squares in
  * a grid is the loudest thing a customiser can do, and it tells a visitor nothing except that the
- * colours exist; the same sixteen as named keys is quiet, and the preview line underneath still shows
+ * colours exist; the same eight as named keys is quiet, and the preview line underneath still shows
  * the name drawn in the colour that was picked - which is the only part that has to be loud.
  */
 const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-black uppercase hover:bg-gray-200 max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-ink uppercase hover:bg-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [
@@ -67,7 +67,7 @@ export function ProfileIdentityTab({
   const preview = name.trim().length === 0 ? profile.displayName : name;
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
         PUBLIC NAME: SIGNS YOUR PROFILE PAGE AND YOUR ACCOUNT
       </label>
@@ -79,11 +79,11 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
 
-      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE SIXTEEN SWATCHES</p>
+      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE EIGHT DYES</p>
 
       {NAME_COLOUR_ROWS.map((row) => (
         <div key={row.label} className="mt-1">
-          <p className="text-[10px] font-bold text-gray-700">{row.label}</p>
+          <p className="text-[10px] font-bold text-ink">{row.label}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1">
             {row.colours.map((colour) => {
               const chosen = nameColour === colour.hex;
@@ -106,17 +106,17 @@ export function ProfileIdentityTab({
         </div>
       ))}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-500 pt-1">
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-ink pt-1">
         <span
           className="text-sm font-bold"
           style={nameColour.length === 0 ? undefined : { color: nameColour }}
         >
           {preview}
         </span>
-        <span className="text-[10px] text-gray-700">PREVIEW :: {nameColourLabel(nameColour)}</span>
+        <span className="text-[10px] text-ink">PREVIEW :: {nameColourLabel(nameColour)}</span>
       </div>
 
-      <p className="mt-1 text-[10px] text-gray-700">
+      <p className="mt-1 text-[10px] text-ink">
         AN INK SWATCH IS A NAME THAT READS ON THE PAGE. A GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH -
         PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
       </p>
@@ -132,7 +132,7 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
       {locationProblem === undefined ? null : (
-        <p className="mt-1 text-[10px] font-bold text-[#800000]">{locationProblem}</p>
+        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{locationProblem}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -151,13 +151,13 @@ export function ProfileIdentityTab({
         placeholder="Who is behind this account?"
         className={FIELD}
       />
-      {bioProblem === undefined ? null : <p className="mt-1 text-[10px] font-bold text-[#800000]">{bioProblem}</p>}
+      {bioProblem === undefined ? null : <p className="mt-1 text-[10px] font-bold text-bubble-pale">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
         </button>
-        <p className="text-[10px] text-gray-700">
+        <p className="text-[10px] text-ink">
           THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.
         </p>
       </div>
@@ -201,11 +201,11 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
   ];
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
+    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
       <ul className="space-y-2">
         {rows.map((row) => (
-          <li key={row.key} className="rounded-none border border-gray-500 bg-ice-pale p-2">
-            <label className="flex items-start gap-2 text-[10px] font-bold text-black">
+          <li key={row.key} className="rounded-none border border-ink bg-ice-pale p-2">
+            <label className="flex items-start gap-2 text-[10px] font-bold text-ink">
               <input
                 type="checkbox"
                 checked={visibility[row.key]}
@@ -214,10 +214,10 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
               />
               <span>
                 {row.label}
-                <span className="mt-1 block font-normal text-gray-700">{row.note}</span>
+                <span className="mt-1 block font-normal text-ink">{row.note}</span>
               </span>
             </label>
-            <p className="mt-1 text-[10px] text-gray-700">
+            <p className="mt-1 text-[10px] text-ink">
               CURRENTLY: {visibility[row.key] ? 'VISIBLE TO VISITORS' : 'HIDDEN FROM VISITORS'}
               {visibility[row.key] === profile.visibility[row.key] ? '' : ' :: UNSAVED CHANGE'}
             </p>
@@ -229,7 +229,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
         <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
         </button>
-        <p className="text-[10px] text-gray-700">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>
+        <p className="text-[10px] text-ink">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>
       </div>
     </div>
   );

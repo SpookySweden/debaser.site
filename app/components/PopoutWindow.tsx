@@ -74,7 +74,7 @@ export default function PopoutWindow({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-black/60 p-4 sm:p-8"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-ink/60 p-4 sm:p-8"
       onMouseDown={onClose}
     >
       <div
@@ -85,7 +85,7 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale shadow-2xl`}
+        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale shadow-2xl`}
       >
         {/* Draggable title bar */}
         <div
@@ -111,7 +111,7 @@ export default function PopoutWindow({
 
         {/* Window body */}
         <div
-          className={`max-h-[70vh] overflow-y-auto border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white p-3 ${bodyClassName}`}
+          className={`max-h-[70vh] overflow-y-auto border-2 border-t-black border-l-black border-r-white border-b-white p-3 ${bodyClassName}`}
         >
           {children}
         </div>

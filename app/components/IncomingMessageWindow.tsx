@@ -68,13 +68,13 @@ export default function IncomingMessageWindow({
       }
     >
       {isGroup ? (
-        <p className="mb-2 text-[10px] font-bold text-black">
+        <p className="mb-2 text-[10px] font-bold text-ink">
           IN {threadLabel(thread, userId, (id) => nameById.get(id) ?? id)} :: ANSWERING HERE WRITES TO THE WHOLE GROUP
         </p>
       ) : null}
 
       {hidden === 0 ? null : (
-        <p className="mb-2 text-[10px] font-bold text-gray-700">
+        <p className="mb-2 text-[10px] font-bold text-ink">
           {hidden} EARLIER MESSAGE{hidden === 1 ? '' : 'S'} STAY ON THE COMMS PAGE.
         </p>
       )}

@@ -44,7 +44,7 @@ export default function AudioTagChooser({ id, value, onChange, suggestions = STA
 
   return (
     <div className="mt-2">
-      <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
+      <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
         <span>
           TAGS ({value.length}/{MAX_AUDIO_TAGS}):
         </span>
@@ -65,7 +65,7 @@ export default function AudioTagChooser({ id, value, onChange, suggestions = STA
       </div>
 
       <div className="mt-1 flex flex-wrap items-center gap-2">
-        <label htmlFor={`${id}-tag`} className="text-[10px] font-bold text-black">
+        <label htmlFor={`${id}-tag`} className="text-[10px] font-bold text-ink">
           ANOTHER TAG:
         </label>
         <input
@@ -92,7 +92,7 @@ export default function AudioTagChooser({ id, value, onChange, suggestions = STA
           [ + ADD ]
         </button>
 
-        {full ? <span className="text-[9px] font-bold text-[#800000]">MAX {MAX_AUDIO_TAGS}.</span> : null}
+        {full ? <span className="text-[9px] font-bold text-bubble-pale">MAX {MAX_AUDIO_TAGS}.</span> : null}
       </div>
     </div>
   );

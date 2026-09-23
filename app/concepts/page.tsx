@@ -38,7 +38,7 @@ export default function Concepts() {
         {CONCEPT_SHEETS.map((sheet, index) => (
           <li
             key={sheet.id}
-            className="flex flex-wrap items-center justify-between gap-2 border border-gray-500 bg-white p-2"
+            className="flex flex-wrap items-center justify-between gap-2 border border-ink bg-paper p-2"
           >
             <span className="text-[10px] font-bold">
               {index + 1}. {sheet.title} :: {sheet.src}
@@ -48,7 +48,7 @@ export default function Concepts() {
         ))}
       </ul>
 
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-gray-400 pt-2">
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-ink pt-2">
         <span className="text-[10px] font-bold">ARCHIVE HOUSEKEEPING / SHEET REQUESTS:</span>
         <CommentPopout anchor={FORUM_ANCHORS.conceptsSheetIndex} compact />
       </div>

@@ -8,6 +8,7 @@ import SiteNav from './SiteNav';
 import Taskbar from './Taskbar';
 import type { NavKey } from './SiteNav';
 import { PANEL_INSET, PLATE_LINK, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import GuestPrompt from './GuestPrompt';
 
 type SiteWindowProps = {
   /** Title bar text, e.g. `DEBASER_OS - v1.0 [FORUM BOARD]`. */
@@ -84,8 +85,9 @@ export default function SiteWindow({ title, active, status = 'Ready', closeHref,
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">
           <div
-            className={`m-2 min-w-0 flex-1 overflow-y-auto ${PANEL_INSET} bg-white p-4 text-black select-text sm:p-6`}
+            className={`m-2 min-w-0 flex-1 overflow-y-auto ${PANEL_INSET} bg-paper p-4 text-ink select-text sm:p-6`}
           >
+            <GuestPrompt />
             {children}
           </div>
 

@@ -11,7 +11,7 @@ import TimeStamp from './TimeStamp';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-black hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice';
 
 /**
  * The side panel's top block: who is signed in.
@@ -26,7 +26,7 @@ export default function SidebarProfile() {
   const { profile } = usePublicProfile(user?.id ?? null);
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale">
+    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
         <span>[ {status === 'loading' ? 'READING...' : user === null ? 'GUEST' : 'SIGNED IN'} ]</span>
@@ -34,7 +34,7 @@ export default function SidebarProfile() {
 
       {user === null ? (
         <div className="space-y-2 p-2">
-          <p className="text-[10px] font-bold text-black">
+          <p className="text-[10px] font-bold text-ink">
             {status === 'loading'
               ? 'READING THE LOCAL SESSION...'
               : 'NOBODY IS SIGNED IN. READING THE BOARD TAKES NO ACCOUNT - AN ACCOUNT IS WHAT SIGNS YOUR POSTS AND OPENS YOUR MESSAGES.'}
@@ -56,11 +56,11 @@ export default function SidebarProfile() {
               hideVersionLabel
             />
 
-            <div className="min-w-0 space-y-1 text-[10px] font-bold text-black">
+            <div className="min-w-0 space-y-1 text-[10px] font-bold text-ink">
               <p className="truncate">
                 <ProfileName author={{ id: user.id, displayName: user.displayName }} />
               </p>
-              <p className="text-gray-700">
+              <p className="text-ink">
                 JOINED <TimeStamp at={user.createdAt} />
               </p>
             </div>
@@ -79,7 +79,7 @@ export default function SidebarProfile() {
           </div>
 
           {usingMockAuth ? (
-            <p className="text-[10px] text-gray-700">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
+            <p className="text-[10px] text-ink">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
           ) : null}
         </div>
       )}

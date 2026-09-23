@@ -60,7 +60,7 @@ export default function PaddleDuelCourt({
     return (
       <span
         aria-hidden
-        className={`absolute border ${mine ? 'border-ena bg-ena' : 'border-[#800000] bg-[#800000]'}`}
+        className={`absolute border ${mine ? 'border-ena bg-ena' : 'border-bubble-pale bg-bubble-pale'}`}
         style={{
           left: side === 'left' ? `${(PADDLE_INSET / COURT_WIDTH) * 100}%` : undefined,
           right: side === 'right' ? `${(PADDLE_INSET / COURT_WIDTH) * 100}%` : undefined,
@@ -73,14 +73,14 @@ export default function PaddleDuelCourt({
   };
 
   return (
-    <div className={`${PANEL_INSET} bg-[#005000] p-1`}>
+    <div className={`${PANEL_INSET} bg-ena-deep p-1`}>
       <div
         ref={field}
         onPointerMove={aim}
         onPointerDown={aim}
         onPointerLeave={() => onAim(null)}
         onPointerUp={() => onAim(null)}
-        className="relative aspect-[1000/600] w-full touch-none select-none overflow-hidden bg-[#008000]"
+        className="relative aspect-[1000/600] w-full touch-none select-none overflow-hidden bg-acid"
       >
         {/* The net: one dashed line down the middle, drawn as a border rather than a picture. */}
         <span
@@ -98,7 +98,7 @@ export default function PaddleDuelCourt({
 
         <span
           aria-hidden
-          className="absolute border border-black bg-black"
+          className="absolute border border-black bg-ink"
           style={{
             width: `${(BALL_RADIUS * 2 / COURT_WIDTH) * 100}%`,
             height: `${(BALL_RADIUS * 2 / COURT_HEIGHT) * 100}%`,
@@ -108,12 +108,12 @@ export default function PaddleDuelCourt({
         />
 
         {scoresHidden ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-xs font-bold text-black">
+          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-xs font-bold text-ink">
             WAITING FOR THE OTHER PLAYER. THE BALL HOLDS STILL UNTIL THEY ARE HERE.
           </span>
         ) : null}
 
-        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[10px] font-bold text-black">
+        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[10px] font-bold text-ink">
           {state.leftScore} - {state.rightScore}
         </span>
       </div>

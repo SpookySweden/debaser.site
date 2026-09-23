@@ -52,7 +52,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
 
   return (
     <div
-      className={`rounded-none border border-gray-500 bg-sun-pale ${compact ? 'p-1' : 'p-[5px]'}`}
+      className={`rounded-none border border-ink bg-sun-pale ${compact ? 'p-1' : 'p-[5px]'}`}
       title={`MP3 filed by ${poster}`}
     >
       <div className="flex items-center gap-2">
@@ -65,11 +65,11 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
           {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
         </button>
 
-        <span className="min-w-0 flex-1 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-black px-2 py-[2px]">
-          <span className={`block truncate font-bold text-[#33ff33] ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+        <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-[2px]">
+          <span className={`block truncate font-bold text-acid ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
             {track.title}
           </span>
-          <span className={`block truncate text-[#1f9f1f] ${compact ? 'text-[8px]' : 'text-[9px]'}`}>
+          <span className={`block truncate text-ena-deep ${compact ? 'text-[8px]' : 'text-[9px]'}`}>
             {poster}
             {track.credit.length === 0 || track.credit === poster ? '' : ` :: ${track.credit}`}
             {origin === undefined ? '' : ` :: ${origin}`}

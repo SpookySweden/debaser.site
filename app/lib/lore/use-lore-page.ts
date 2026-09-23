@@ -88,7 +88,7 @@ export function useLorePage(slug: string, editor: LoreEditor | null): UseLorePag
 
   const editorId = editor?.id ?? null;
   const editorName = editor?.name ?? null;
-  const editorColour = editorId === null ? '#000080' : (nameColourHex(editorId) ?? '#000080');
+  const editorColour = editorId === null ? '#1d3ca6' : (nameColourHex(editorId) ?? '#1d3ca6');
   const identity: LoreIdentity = { name: editorName ?? 'A VISITOR', colour: editorColour };
   const key = `${slug}:${editorId ?? 'visitor'}`;
   const current = loaded !== null && loaded.key === key ? loaded : null;

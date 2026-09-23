@@ -22,7 +22,7 @@ export default function MediaThumbnail({ media, size = 64 }: MediaThumbnailProps
   if (missing) {
     return (
       <span
-        className="inline-flex items-center justify-center rounded-none border border-gray-600 bg-ice-pale text-[10px] font-bold text-black"
+        className="inline-flex items-center justify-center rounded-none border border-ink bg-ice-pale text-[10px] font-bold text-ink"
         style={{ width: size, height: size }}
       >
         [ NO IMG ]
@@ -31,7 +31,7 @@ export default function MediaThumbnail({ media, size = 64 }: MediaThumbnailProps
   }
 
   return (
-    <span className="inline-block rounded-none border border-black bg-white">
+    <span className="inline-block rounded-none border border-black bg-paper">
       <Image
         src={media.src}
         alt={media.alt}

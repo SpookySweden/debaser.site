@@ -8,18 +8,29 @@ import { currentAvatarVersion } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
-import { navItemsFor } from './SiteNav';
+import { NAV_ITEMS } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-gray-500 bg-white px-2 py-[3px] text-left hover:bg-ice-pale';
+  'flex w-full items-center gap-2 rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 const LOG_IN_BUTTON =
-  'lg:hidden shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold text-black hover:bg-ice';
+  'shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-3 py-1 text-xs font-bold text-ink hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
 
 const PICTURE_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale p-[2px] text-black hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun p-[2px] text-ink hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
+
+/**
+ * The menu's panel: the raised yellow box every pop-up on this site is made of.
+ *
+ * It is anchored to the picture and opened *downward* on a phone, because the picture sits in the
+ * title bar at the top of the window - a menu that opens upward from the top edge would be off the
+ * screen. The 2px bevel, the square corners and the flat yellow are the same as everywhere else.
+ */
+const MENU_PANEL =
+  'absolute right-0 top-full z-30 mt-1 w-64 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun p-2 text-[10px] font-bold text-ink';
+
 
 /**
  * Signed out: one large log-in button, where the window buttons used to be.
@@ -48,12 +59,12 @@ type ProfilePictureMenuProps = {
 /**
  * Signed in: the visitor's own picture, and the pop-up it opens.
  *
- * On a phone this is the third of the three navigation surfaces, and the smallest: the things about
- * *you* - your public profile, your account, and the tags and replies waiting for you - while the
- * tabs above hold where you read and the Start menu at the foot holds the rest of the site. Nothing
- * here is offered anywhere else on a phone (see the `mobile` list in ./SiteNav.tsx), which is why
- * the directory and the conversations are not in this menu any more: both are one press away in the
- * Start menu, and a row that leads to the same place as another row is a button spent on nothing.
+ * This is the whole of the site's navigation on a hand's width of screen. The header band and the
+ * Start plate are both wide-screen chrome now, so tapping the picture is the one intentional,
+ * discoverable gesture that opens everything: the account, where you read, the arcade, the archive,
+ * the directory and the conversations, plus the tags and replies waiting for you. Nothing here is
+ * offered anywhere else on a phone, which is the point - a row that leads to the same place as
+ * another row is a button spent on nothing, and the board is what the screen is for.
  *
  * Tapping anywhere else closes it, the way a Win95 pop-up behaves.
  */
@@ -62,7 +73,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
   const news = unreadNotifications === 0 ? '' : `, ${unreadNotifications} new`;
 
   return (
-    <div className="lg:hidden relative shrink-0">
+    <div className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen(!open)}
@@ -86,7 +97,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
         {unreadNotifications === 0 ? null : (
           <span
             aria-hidden
-            className="ml-[2px] mr-1 inline-block h-[6px] w-[6px] shrink-0 border border-black bg-[#ff0000]"
+            className="ml-[2px] mr-1 inline-block h-[6px] w-[6px] shrink-0 border border-black bg-bubble-pale"
           />
         )}
       </button>
@@ -95,11 +106,8 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
 
-          <div
-            className="absolute right-0 top-full z-20 mt-1 w-56 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2 text-[10px] font-bold text-black"
-            role="menu"
-          >
-            <p className="border-b border-gray-500 pb-1">
+          <div className={MENU_PANEL} role="menu">
+            <p className="border-b-2 border-ink pb-1">
               <ProfileName author={{ id: userId, displayName }} lamp={false} />
             </p>
 
@@ -112,15 +120,28 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
               onClick={() => setOpen(false)}
               role="menuitem"
             >
-              [ MY PUBLIC PROFILE ]
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                ☻
+              </span>
+              <span>MY PUBLIC PROFILE</span>
             </Link>
 
-            {/* The account key, read off the same list the tabs and the menu are drawn from. */}
-            {navItemsFor('account').map((item) => (
+            <p className="border-b-2 border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
+
+            {/* The one navigation drawer on a phone: every essential destination lives here, and the
+                profile picture above is the only thing on screen that opens it (the header band and
+                the Start plate are both wide-screen chrome now). HOME and FORUM are left out because
+                this menu opens *from the board*, so both would be two ways back to where the reader
+                already is. */}
+            {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-                [ {item.label} ]
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                  {item.mark}
+                </span>
+                <span>{item.label}</span>
               </Link>
             ))}
+
           </div>
         </>
       ) : null}
@@ -139,20 +160,94 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
  * On a wide screen this is hidden: the side panel on the right does the same job
  * with room to breathe (see ./DesktopSidebar.tsx).
  */
+/**
+ * The top-right of the window: the account, and the way into it.
+ *
+ * It stands where the minimise / maximise / close buttons of a Windows 95 title bar used to be,
+ * because those were decoration here and this is not. Which half shows is the session's answer, and
+ * until that read lands this draws nothing at all - better than a log-in button that turns into a
+ * picture a moment later.
+ *
+ * On a wide screen it is hidden: the side panel on the right does the same job with room to breathe
+ * (see ./DesktopSidebar.tsx), and the reader's own face there is a link rather than a menu.
+ */
 export default function ProfileControl() {
   const { user, status } = useAuth();
   const notifications = useNotifications();
   const { profile } = usePublicProfile(user?.id ?? null);
 
   if (status === 'loading') return null;
-  if (user === null) return <ProfileLogIn />;
 
   return (
-    <ProfilePictureMenu
-      userId={user.id}
-      displayName={user.displayName}
-      avatarVersion={currentAvatarVersion(profile)}
-      unreadNotifications={notifications.unread}
-    />
+    // The wrapper is what a wide screen hides, so the two halves below stay about *what* to draw
+    // rather than each carrying the same breakpoint.
+    <div className="shrink-0 sm:hidden">
+      {user === null ? (
+        <GuestProfileMenu />
+      ) : (
+        <ProfilePictureMenu
+          userId={user.id}
+          displayName={user.displayName}
+          avatarVersion={currentAvatarVersion(profile)}
+          unreadNotifications={notifications.unread}
+        />
+      )}
+    </div>
   );
 }
+
+/**
+ * Signed out on a phone: the visitor's own anonymous picture, and the same menu.
+ *
+ * A guest gets the identical drawer rather than a lesser one - the whole site is one press away
+ * whether or not somebody has signed in - with the way in put at the top of it. The picture itself
+ * is the shared anonymous placeholder (see ./ProfileAvatar.tsx), so a visitor who has never been
+ * here looks like an account that has not chosen a drawing yet, which is what they are.
+ */
+function GuestProfileMenu() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label="Open the site menu"
+        title="Open the site menu"
+        className={PICTURE_BUTTON}
+      >
+        <ProfileAvatar version={undefined} displayName="Anonymous" size={26} variant="plain" hideVersionLabel />
+      </button>
+
+      {open ? (
+        <>
+          <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
+          <div className={MENU_PANEL} role="menu">
+            <p className="border-b-2 border-ink pb-1">ANONYMOUS VISITOR</p>
+            <p className="pb-1 text-[10px]">READING TAKES NO ACCOUNT. AN ACCOUNT SIGNS YOUR POSTS.</p>
+
+            <Link href="/account" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                ⚿
+              </span>
+              <span>CREATE ACCOUNT / LOG IN</span>
+            </Link>
+
+            {/* The same drawer a signed-in reader gets: one control opens the whole site. */}
+            {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
+              <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                  {item.mark}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+

@@ -281,7 +281,7 @@ export default function GameMatch({
       </div>
 
       <div className="space-y-2 p-2">
-        {note === null ? null : <p className="border border-gray-500 bg-white px-2 py-1 text-[10px] font-bold text-[#800000]">{note}</p>}
+        {note === null ? null : <p className="border border-ink bg-paper px-2 py-1 text-[10px] font-bold text-bubble-pale">{note}</p>}
 
         {/* Phones get the board first and the controls under it; a wide screen puts them side by side. */}
         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_13rem]">
@@ -307,12 +307,12 @@ export default function GameMatch({
 
           <div className="space-y-2">
             <div className={`${PANEL} p-2`}>
-              <p className="text-[10px] font-bold text-black">{myMark === 'X' ? 'X' : 'O'} :: {me.displayName}</p>
-              <p className="truncate text-[10px] font-bold text-gray-700">
+              <p className="text-[10px] font-bold text-ink">{myMark === 'X' ? 'X' : 'O'} :: {me.displayName}</p>
+              <p className="truncate text-[10px] font-bold text-ink">
                 {game === 'tic-tac-toe' ? (myMark === 'X' ? 'O' : 'X') : mySide === 'left' ? 'RIGHT' : 'LEFT'} ::{' '}
                 {opponentName}
               </p>
-              <p className="mt-1 text-[10px] text-gray-700">{entry.controls}</p>
+              <p className="mt-1 text-[10px] text-ink">{entry.controls}</p>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -325,11 +325,11 @@ export default function GameMatch({
             </div>
 
             {invite === null ? (
-              <p className="text-[10px] text-gray-700">
+              <p className="text-[10px] text-ink">
                 Nobody else on this one. {entry.players} - invite somebody from the list below.
               </p>
             ) : (
-              <p className="text-[10px] text-gray-700">
+              <p className="text-[10px] text-ink">
                 {host ? 'YOU OPENED THIS MATCH.' : 'YOU WERE INVITED TO THIS MATCH.'} LEAVE WHEN YOU ARE DONE.
               </p>
             )}

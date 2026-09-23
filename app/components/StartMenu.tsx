@@ -9,20 +9,19 @@ import { NAV_ITEMS } from './SiteNav';
  * A row in the menu: flat until the pointer is on it, the way a desktop menu reads - a column of
  * bevelled plates would look like a toolbar lying on its side.
  *
- * The small-screen height is deliberate: on a phone the menu is the whole of the site's navigation,
- * so every row is thumb-sized there even though it is a line of text on a wide screen. The display
- * is left to the row itself, so a row that a phone hides can say `hidden lg:flex` without fighting
- * a `flex` in here.
+ * The row carries the key's *word*, unlike the header above it, because this is the screen where a
+ * reader who does not know what a glyph means finds out: the mark is drawn beside the word rather
+ * than instead of it, so the menu doubles as the legend (see app/lib/ui/icons.ts).
  */
 const MENU_ROW =
-  'w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-ena hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'flex w-full cursor-pointer items-center gap-2 px-2 py-[5px] text-left text-[11px] font-bold text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */
   onDismiss: () => void;
   /**
-   * Messages waiting, so the COMMS row can say so on a phone - where this menu is the only place
-   * that row appears (passed in rather than read here, which keeps this a list drawer).
+   * Messages waiting, so the COMMS row can say so - the count is carried here on every screen the
+   * menu is drawn on, and nowhere else on a phone.
    */
   commsUnread?: number;
 };
@@ -72,7 +71,7 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
     <nav
       ref={frame}
       aria-label="Site menu"
-      className="absolute bottom-full left-0 z-[70] mb-1 flex w-64 rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale shadow-2xl"
+      className="absolute bottom-full left-0 z-[70] mb-1 flex w-64 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale shadow-2xl"
     >
       {/* The spine: the name, read the way a Win95 menu's was - bottom to top. */}
       <div className="flex w-6 shrink-0 items-end justify-center bg-ena py-2">
@@ -83,22 +82,24 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
 
       <div className="min-w-0 flex-1 py-1">
         {NAV_ITEMS.map((item) => {
-          // A key the header already carries on a phone is drawn only on a wide screen, so no page
-          // is reachable two ways at once (`mobile` in ./SiteNav.tsx is the list).
-          const display = item.mobile === 'start' ? 'flex' : 'hidden lg:flex';
-          // The count belongs to the COMMS row, and on a wide screen the tab above already says it.
+          // The count belongs to the COMMS row and to no other.
           const unread = item.key === 'comms' && commsUnread > 0 ? ` (${commsUnread})` : '';
 
           return (
-            <Link key={item.key} href={item.href} onClick={onDismiss} className={`${display} ${MENU_ROW}`}>
-              {item.label}
-              {unread === '' ? null : <span className="lg:hidden">{unread}</span>}
+            <Link key={item.key} href={item.href} onClick={onDismiss} className={MENU_ROW}>
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                {item.mark}
+              </span>
+              <span>
+                {item.label}
+                {unread}
+              </span>
             </Link>
           );
         })}
 
-        <div className="mt-1 border-t border-gray-500 pt-1">
-          <p className="px-2 pb-1 text-[10px] font-bold text-gray-700">PROJECT SHELVES</p>
+        <div className="mt-1 border-t border-ink pt-1">
+          <p className="px-2 pb-1 text-[10px] font-bold text-ink">PROJECT SHELVES</p>
 
           {PROJECT_SECTIONS.map((section) => (
             <Link

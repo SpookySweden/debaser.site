@@ -71,9 +71,9 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
         </button>
       }
     >
-      <p className="text-[10px] font-bold text-black">IN: {folderLabel(parent)}</p>
+      <p className="text-[10px] font-bold text-ink">IN: {folderLabel(parent)}</p>
 
-      <label htmlFor="new-folder-name" className="mt-2 block text-[10px] font-bold text-black">
+      <label htmlFor="new-folder-name" className="mt-2 block text-[10px] font-bold text-ink">
         NAME
       </label>
       <input
@@ -89,9 +89,9 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
         className={FIELD}
       />
 
-      <p className="mt-2 text-[10px] font-bold text-black">BECOMES: {named ? path : '...'}</p>
+      <p className="mt-2 text-[10px] font-bold text-ink">BECOMES: {named ? path : '...'}</p>
 
-      {error === null ? null : <p className="mt-2 text-[10px] font-bold text-[#800000]">{error}</p>}
+      {error === null ? null : <p className="mt-2 text-[10px] font-bold text-bubble-pale">{error}</p>}
     </PopoutWindow>
   );
 }

@@ -52,15 +52,15 @@ export function presenceStatus(record: PresenceRecord | undefined, now: number):
   return 'offline';
 }
 
-/** The lamp's colour: three of the sixteen swatches (green / yellow / red). */
+/** The lamp's colour: three of the eight dyes (Emerald / Daffodil / Rose). */
 export function presenceDotColour(status: PresenceStatus): string {
   switch (status) {
     case 'online':
-      return nameColourHex('green') ?? '#008000';
+      return nameColourHex('emerald') ?? '#28c745';
     case 'recent':
-      return nameColourHex('yellow') ?? '#ffff00';
+      return nameColourHex('daffodil') ?? '#fff000';
     default:
-      return nameColourHex('red') ?? '#ff0000';
+      return nameColourHex('rose') ?? '#e6004c';
   }
 }
 

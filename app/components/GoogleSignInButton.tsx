@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider';
 import SheetImage from './SheetImage';
 
 const BUTTON =
-  'inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale font-bold text-black hover:bg-ice disabled:cursor-wait disabled:opacity-60';
+  'inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale font-bold text-ink hover:bg-ice disabled:cursor-wait disabled:opacity-60';
 
 type GoogleSignInButtonProps = {
   /** 'large' is the one the side panel and the mobile menu use. */
@@ -57,13 +57,13 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
         title="Sign in with a Google account"
         className={`${BUTTON} ${size === 'large' ? 'px-4 py-2 text-xs' : 'px-3 py-1 text-[10px]'}`}
       >
-        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-none border border-black bg-white">
+        <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-none border border-black bg-paper">
           <SheetImage src={GOOGLE_ICON_SRC} alt="Google" width={20} height={20} sizes="20px" compact />
         </span>
         {busy ? 'OPENING GOOGLE...' : 'LOG IN WITH GOOGLE'}
       </button>
 
-      {note === null ? null : <p className="text-[10px] font-bold text-[#800000]">{note}</p>}
+      {note === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{note}</p>}
     </div>
   );
 }

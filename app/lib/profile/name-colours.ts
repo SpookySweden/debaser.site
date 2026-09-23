@@ -4,16 +4,20 @@ import type { PublicProfile } from './types';
 /**
  * The colours a username can be drawn in.
  *
- * A fixed swatch of the sixteen saturated colours an old browser could paint
- * without dithering - the VGA/HTML 3.2 set: black, maroon, green, olive, navy,
- * purple, teal, silver, grey, red, lime, yellow, blue, fuchsia, aqua, white.
- * Nothing here is generated: a name is either one of these sixteen or black, so
- * a profile can never end up with an unreadable or off-brand colour.
+ * This is the *account's* copy of the swatch, and it is the same eight the chrome is dyed with
+ * (`app/globals.css`). It used to be the sixteen a VGA browser could paint without dithering, which
+ * read as a second palette sitting beside the first: a site whose every surface is one of eight dyes
+ * cannot then offer a username in `olive`. Offering the dye pot itself is also the more interesting
+ * choice, because there are fewer of them and each one is already loaded with a meaning on this site
+ * - a Rose name is the colour things are pinned in, an Emerald one is the colour that means "go".
  *
- * The set is kept whole, and split in two further down by how it *reads* rather
- * than by how it looks: `INK` for a name the page cannot swallow, `GLOW` for one
- * the page shows through. The picker draws them as those two rows, which is the
- * honest way to offer a lime name - next to a note saying what it will do.
+ * Nothing here is generated: a name is either one of these or the page's own black, so a profile can
+ * never end up with an unreadable or off-brand colour.
+ *
+ * The set is kept whole, and split in two further down by how it *reads* rather than by how it looks:
+ * `INK` for a name the page cannot swallow, `GLOW` for one the page shows through. The picker draws
+ * them as those two rows, which is the honest way to offer a Flavine name - next to a note saying
+ * what it will do.
  */
 export type NameColour = {
   /** Stable key, also the swatch's tooltip. */
@@ -25,21 +29,13 @@ export type NameColour = {
 
 export const NAME_COLOURS: NameColour[] = [
   { id: 'black', label: 'BLACK', hex: '#000000' },
-  { id: 'maroon', label: 'MAROON', hex: '#800000' },
-  { id: 'green', label: 'GREEN', hex: '#008000' },
-  { id: 'olive', label: 'OLIVE', hex: '#808000' },
-  { id: 'navy', label: 'NAVY', hex: '#000080' },
-  { id: 'purple', label: 'PURPLE', hex: '#800080' },
-  { id: 'teal', label: 'TEAL', hex: '#008080' },
-  { id: 'silver', label: 'SILVER', hex: '#c0c0c0' },
-  { id: 'grey', label: 'GREY', hex: '#808080' },
-  { id: 'red', label: 'RED', hex: '#ff0000' },
-  { id: 'lime', label: 'LIME', hex: '#00ff00' },
-  { id: 'yellow', label: 'YELLOW', hex: '#ffff00' },
-  { id: 'blue', label: 'BLUE', hex: '#0000ff' },
-  { id: 'fuchsia', label: 'FUCHSIA', hex: '#ff00ff' },
-  { id: 'aqua', label: 'AQUA', hex: '#00ffff' },
-  { id: 'white', label: 'WHITE', hex: '#ffffff' },
+  { id: 'nigrosine', label: 'NIGROSINE', hex: '#1a1525' },
+  { id: 'royal-blue', label: 'ROYAL BLUE', hex: '#1d3ca6' },
+  { id: 'emerald', label: 'EMERALD', hex: '#28c745' },
+  { id: 'rose', label: 'ROSE', hex: '#e6004c' },
+  { id: 'brilliant-pink', label: 'BRILLIANT PINK', hex: '#ff00a0' },
+  { id: 'flavine', label: 'FLAVINE', hex: '#e1ff00' },
+  { id: 'daffodil', label: 'DAFFODIL YELLOW', hex: '#fff000' },
 ];
 
 /** The default: usernames are drawn in the page's own black. */
@@ -48,11 +44,11 @@ export const DEFAULT_NAME_COLOUR = '';
 /**
  * The surfaces a name is read on.
  *
- * A username is printed on the white of a post card and on the panel grey of a customiser, so those
- * are the two backgrounds the arithmetic below asks about. Grey is the stricter of the two, which is
- * why a swatch can pass on a post and still be hard to find in a list.
+ * A username is printed on the paper of a post card and on the Flavine field a panel is read on, so
+ * those are the two backgrounds the arithmetic below asks about. Flavine is the stricter of the two,
+ * which is why a swatch can pass on a post and still be hard to find in a list.
  */
-const NAME_BACKGROUNDS = ['#ffffff', '#ffffcc'];
+const NAME_BACKGROUNDS = ['#ffffff', '#e1ff00'];
 
 /** How well a swatch reads as a name on the page: the worst of those two, as a ratio from 1 to 21. */
 export function nameColourContrast(hex: string): number {

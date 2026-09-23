@@ -9,6 +9,7 @@ import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
 import { openArcade } from '../lib/games/arcade-window';
+import { ICON_ARCADE, ICON_MUSIC } from '../lib/ui/icons';
 import TagWindow from './TagWindow';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
@@ -227,8 +228,9 @@ export default function ForumBoard() {
               aria-haspopup="dialog"
               title="Open the arcade window: play solo, or ask an account for a game"
               className={TITLE_BAR_BUTTON}
+              aria-label="Open the arcade"
             >
-              [ ARCADE ]
+              <span aria-hidden="true">{ICON_ARCADE}</span>
             </button>
             <button
               type="button"
@@ -236,14 +238,15 @@ export default function ForumBoard() {
               aria-haspopup="dialog"
               title="Open the music archive beside this page: play a file, or inject one into a post"
               className={TITLE_BAR_BUTTON}
+              aria-label="Open the music archive"
             >
-              [ MUSIC ]
+              <span aria-hidden="true">{ICON_MUSIC}</span>
             </button>
             <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
           </span>
         </div>
 
-        <div className="space-y-1.5 p-2 text-[10px] font-bold text-black">
+        <div className="space-y-1.5 p-2 text-[10px] font-bold text-ink">
           {/* One compact status line instead of a paragraph of housekeeping. */}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
@@ -260,9 +263,9 @@ export default function ForumBoard() {
           {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
               music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
               a board's tags are *for* is telling you what is on it, and that is a count. */}
-          <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2">
+          <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="text-[10px] font-bold text-black">
+              <p className="text-[10px] font-bold text-ink">
                 TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
               </p>
 
@@ -291,7 +294,7 @@ export default function ForumBoard() {
                 <span className="border border-black bg-ena px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
               ) : null}
               {musicTagKeys.length === 0 ? null : (
-                <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-black">
+                <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink">
                   {musicTagKeys.length} MUSIC TAG(S)
                 </span>
               )}
@@ -318,13 +321,13 @@ export default function ForumBoard() {
                           : `Include posts tagged ${option.label} (${option.count} in use)`
                       }
                       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                        active ? 'bg-ena text-white' : 'text-black hover:underline'
+                        active ? 'bg-ena text-white' : 'text-ink hover:underline'
                       }`}
                     >
                       <TagMark colour={tagMarkColour(tag)} compact />
                       {option.key}
                       {option.count > 0 ? (
-                        <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
+                        <span className={active ? 'text-ink' : 'text-ink'}>({option.count})</span>
                       ) : null}
                     </button>
                   );
@@ -333,11 +336,11 @@ export default function ForumBoard() {
             ) : null}
 
             {tagFilters.length === 0 ? (
-              <p className="mt-1 text-[10px] text-black">
+              <p className="mt-1 text-[10px] text-ink">
                 PICK TAGS WITH [+ TAGS], OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
               </p>
             ) : (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
                 <span>INCLUDED:</span>
                 {tagFilters.map((key) => {
                   const label =
@@ -397,15 +400,15 @@ export default function ForumBoard() {
 
           {/* Sort / filter / search / paging are collapsed by default: the posts
               themselves are the practical information on this page. */}
-          <details className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-ice-pale p-2">
-            <summary className="cursor-pointer select-none text-[10px] font-bold text-black">
+          <details className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2">
+            <summary className="cursor-pointer select-none text-[10px] font-bold text-ink">
               [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
             </summary>
 
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              <fieldset className="rounded-none border border-gray-600 p-2">
-                <legend className="px-1 text-[10px] font-bold text-black">SORT THREADS</legend>
-                <label className="flex items-center gap-2 text-[10px] font-bold text-black">
+              <fieldset className="rounded-none border border-ink p-2">
+                <legend className="px-1 text-[10px] font-bold text-ink">SORT THREADS</legend>
+                <label className="flex items-center gap-2 text-[10px] font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -418,7 +421,7 @@ export default function ForumBoard() {
                   />
                   NEWEST FIRST
                 </label>
-                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-black">
+                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -431,7 +434,7 @@ export default function ForumBoard() {
                   />
                   MOST REPLIES
                 </label>
-                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-black">
+                <label className="mt-1 flex items-center gap-2 text-[10px] font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -447,7 +450,7 @@ export default function ForumBoard() {
               </fieldset>
 
               <div>
-                <label htmlFor="forum-source-filter" className="block text-[10px] font-bold text-black">
+                <label htmlFor="forum-source-filter" className="block text-[10px] font-bold text-ink">
                   FILTER SOURCE:
                 </label>
                 <select
@@ -457,7 +460,7 @@ export default function ForumBoard() {
                     setSourceFilter(event.target.value as SourceFilter);
                     setPage(1);
                   }}
-                  className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+                  className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
                 >
                   {SOURCE_FILTERS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -468,7 +471,7 @@ export default function ForumBoard() {
               </div>
 
               <div>
-                <label htmlFor="forum-search" className="block text-[10px] font-bold text-black">
+                <label htmlFor="forum-search" className="block text-[10px] font-bold text-ink">
                   SEARCH TITLE / BODY / TAG / ACCOUNT:
                 </label>
                 <input
@@ -480,7 +483,7 @@ export default function ForumBoard() {
                     setPage(1);
                   }}
                   placeholder="e.g. LORE, spoiler, account name"
-                  className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
+                  className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
                 />
               </div>
             </div>
@@ -488,8 +491,8 @@ export default function ForumBoard() {
         </div>
 
         {/* List controls: always on screen, one row above the threads. */}
-        <div className="flex flex-wrap items-center gap-2 border-t-2 border-gray-600 bg-sun-pale px-2 py-[3px]">
-          <span className="text-[10px] font-bold text-black">
+        <div className="flex flex-wrap items-center gap-2 border-t-2 border-ink bg-sun-pale px-2 py-[3px]">
+          <span className="text-[10px] font-bold text-ink">
             SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
             {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
           </span>
@@ -507,10 +510,10 @@ export default function ForumBoard() {
 
       <div
         id="forum-thread-list"
-        className="divide-y divide-gray-300 rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white text-black"
+        className="divide-y divide-gray-300 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
       >
         {visibleThreads.length === 0 ? (
-          <p className="p-3 text-xs font-bold text-black">
+          <p className="p-3 text-xs font-bold text-ink">
             {forum.threads.length === 0
               ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
               : 'NO THREADS MATCH THIS FILTER.'}
@@ -530,8 +533,8 @@ export default function ForumBoard() {
 
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (
-        <section className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold text-black">
+        <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[10px] font-bold text-ink">
             <span>
               SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
               {currentPage} OF {totalPages}
@@ -552,7 +555,7 @@ export default function ForumBoard() {
                 id="forum-page"
                 value={currentPage}
                 onChange={(event) => goToPage(Number(event.target.value))}
-                className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+                className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none"
               >
                 {pageNumbers.map((number) => (
                   <option key={number} value={number}>
@@ -575,7 +578,7 @@ export default function ForumBoard() {
                 id="forum-per-page"
                 value={perPage}
                 onChange={(event) => handlePerPageChange(Number(event.target.value))}
-                className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-1 font-mono text-[10px] text-black outline-none"
+                className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none"
               >
                 {PAGE_SIZES.map((size) => (
                   <option key={size} value={size}>
@@ -596,8 +599,8 @@ export default function ForumBoard() {
                   aria-current={number === currentPage ? 'page' : undefined}
                   className={
                     number === currentPage
-                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-gray-300 px-2 py-1 text-[10px] font-bold text-black'
-                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-black hover:bg-ice'
+                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-1 text-[10px] font-bold text-ink'
+                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-ink hover:bg-ice'
                   }
                 >
                   {number}

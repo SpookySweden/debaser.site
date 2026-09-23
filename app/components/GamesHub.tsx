@@ -250,10 +250,10 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   return (
     <div className="space-y-3">
       {error === null ? null : (
-        <p className="rounded-none border-2 border-black bg-white px-2 py-1 text-[10px] font-bold text-[#800000]">{error}</p>
+        <p className="rounded-none border-2 border-black bg-paper px-2 py-1 text-[10px] font-bold text-bubble-pale">{error}</p>
       )}
       {notice === null ? null : (
-        <p className="rounded-none border-2 border-black bg-white px-2 py-1 text-[10px] font-bold text-black">{notice}</p>
+        <p className="rounded-none border-2 border-black bg-paper px-2 py-1 text-[10px] font-bold text-ink">{notice}</p>
       )}
 
       {/* What the window was opened to do, when a post's `[ CHALLENGE ]` opened it: the account is
@@ -267,7 +267,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
             <span>{challengeRefusalText === null ? '[ READY ]' : '[ NOT YET ]'}</span>
           </div>
 
-          <div className="space-y-2 p-2 text-[10px] font-bold text-black">
+          <div className="space-y-2 p-2 text-[10px] font-bold text-ink">
             <p className="leading-relaxed">
               ASK {challengeOpponent.displayName.toUpperCase()} FOR A GAME. THE BOARD OPENS ON BOTH SCREENS THE
               MOMENT THEY ANSWER, AND THE BELL TELLS THEM IT IS WAITING.
@@ -289,7 +289,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               </button>
 
               {challengeRefusalText === null ? null : (
-                <span className="text-[#800000]">{challengeRefusalText}</span>
+                <span className="text-bubble-pale">{challengeRefusalText}</span>
               )}
             </p>
           </div>
@@ -321,16 +321,16 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           {GAME_CATALOGUE.map((game) => (
             <div
               key={game.id}
-              className="rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-sun-pale p-2"
+              className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2"
             >
-              <p className="flex items-center gap-2 text-xs font-bold text-black">
+              <p className="flex items-center gap-2 text-xs font-bold text-ink">
                 <span className={`px-1 text-[9px] text-white ${game.badge}`}>
                   {game.id === 'tic-tac-toe' ? 'X/O' : 'DUEL'}
                 </span>
                 {game.title}
               </p>
-              <p className="mt-1 text-[10px] text-gray-700">{game.tagline}</p>
-              <p className="text-[10px] text-gray-700">
+              <p className="mt-1 text-[10px] text-ink">{game.tagline}</p>
+              <p className="text-[10px] text-ink">
                 {game.players} :: {game.controls}
               </p>
 
@@ -364,10 +364,10 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         </div>
 
         <div className="space-y-2 p-2">
-          {!loaded ? <p className="text-[10px] text-gray-700">READING THE ARCADE STORE...</p> : null}
+          {!loaded ? <p className="text-[10px] text-ink">READING THE ARCADE STORE...</p> : null}
 
           {loaded && visible.length === 0 ? (
-            <p className="text-[10px] text-gray-700">No invitations either way. Pick a game above, then somebody below.</p>
+            <p className="text-[10px] text-ink">No invitations either way. Pick a game above, then somebody below.</p>
           ) : null}
 
           {split.incoming.map((invite) => (
@@ -425,21 +425,21 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         <div className="space-y-2 p-2">
           {/* Two plates rather than a drop-down: a choice this small is made by pressing it, and a
               menu would hide what the arcade carries behind one more press. */}
-          <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-black">
+          <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
             INVITE THEM TO:
             <GameChoice value={chosen} onChange={setChosen} />
           </p>
 
           {userId === null ? (
-            <p className="text-[10px] text-gray-700">Sign in to invite anybody: an invitation is from one account to another.</p>
+            <p className="text-[10px] text-ink">Sign in to invite anybody: an invitation is from one account to another.</p>
           ) : null}
 
           {userId !== null && around.length === 0 ? (
-            <p className="text-[10px] text-gray-700">Nobody else is on. Both players have to be here, so try solo meanwhile.</p>
+            <p className="text-[10px] text-ink">Nobody else is on. Both players have to be here, so try solo meanwhile.</p>
           ) : null}
 
           {around.length === 0 ? null : (
-            <ul className="overflow-hidden rounded-none border border-gray-500 bg-white text-black">
+            <ul className="overflow-hidden rounded-none border border-ink bg-paper text-ink">
               {around.map((row) => (
                 <UserDirectoryRow
                   key={row.account.id}
@@ -482,10 +482,10 @@ function InviteLine({
 }) {
   const frame =
     tone === 'firm'
-      ? 'border-black bg-white text-black'
+      ? 'border-black bg-paper text-ink'
       : tone === 'plain'
-        ? 'border-gray-500 bg-bubble-pale text-black'
-        : 'border-gray-400 bg-bubble-pale text-gray-700';
+        ? 'border-ink bg-bubble-pale text-ink'
+        : 'border-ink bg-bubble-pale text-ink';
 
   return (
     <div className={`flex flex-wrap items-center gap-2 rounded-none border px-2 py-1 text-[10px] font-bold ${frame}`}>
