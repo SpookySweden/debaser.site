@@ -142,10 +142,15 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
    * The rows are written together, so a post that tags three people either tells all three or
    * none of them: a half-delivered tag is worse than a retry. The policy refuses anything not
    * signed by its actor, which is what keeps the feed honest about who did it.
+   *
+   * No return is asked for, and nothing comes back. A row is addressed to somebody else, so the
+   * account that files it cannot read it - `insert(...).select()` would make PostgREST read back a
+   * row the read policy refuses and fail the whole write with `new row violates row-level security
+   * policy` (see the contract in ./types.ts). What was filed is the recipient's to see.
    */
-  async notify(input: NotifyInput): Promise<AppNotification[]> {
+  async notify(input: NotifyInput): Promise<void> {
     const targets = dedupeTargets(input.targets, input.actorId);
-    if (targets.length === 0) return [];
+    if (targets.length === 0) return;
 
     const rows = targets.map((target) => ({
       user_id: target.userId,
@@ -158,12 +163,10 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
       body: snippet(input.body),
     }));
 
-    const { data, error } = await this.client().from(TABLE).insert(rows).select('*');
+    const { error } = await this.client().from(TABLE).insert(rows);
     if (error !== null) {
       this.refuse(error);
     }
-
-    return ((data ?? []) as NotificationRow[]).map(toNotification);
   }
 
   async markRead(userId: string, id: string): Promise<void> {

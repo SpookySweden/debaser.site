@@ -105,9 +105,9 @@ class MockNotificationsRepository implements NotificationsRepository {
     return feedFor(userId);
   }
 
-  async notify(input: NotifyInput): Promise<AppNotification[]> {
+  async notify(input: NotifyInput): Promise<void> {
     const targets = dedupeTargets(input.targets, input.actorId);
-    if (targets.length === 0) return [];
+    if (targets.length === 0) return;
 
     const createdAt = new Date().toISOString();
     const rows: AppNotification[] = targets.map((target) => ({
@@ -126,8 +126,6 @@ class MockNotificationsRepository implements NotificationsRepository {
     ensureState().push(...rows);
     persist();
     emit();
-
-    return rows;
   }
 
   async markRead(userId: string, id: string): Promise<void> {

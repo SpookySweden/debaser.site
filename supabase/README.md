@@ -466,17 +466,28 @@ by its author (`actor_id = auth.uid()`, so a tag cannot claim to be somebody els
 is addressed to somebody other than themselves. Nobody can read somebody else's feed, and the
 house account is no exception.
 
+**And the write is made without asking for the row back.** `insert(...).select(...)` - PostgREST's
+`Prefer: return=representation` - makes the writer read the row it has just filed, and a row
+addressed to somebody else may not be read by the writer: the whole statement is refused with
+`new row violates row-level security policy for table "forum_notifications"`, which reads exactly
+like a missing policy even when every policy is in place, and nothing is filed. The repository
+therefore inserts without a return and `notify()` hands nothing back (see the contract in
+app/lib/notifications/types.ts); the recipient's own bell is what shows the row. That distinction
+was first found by this check failing after the SQL had been applied - the check used the
+returning shape itself.
+
 Until section 17 is in, nothing is lost but the delivery: a post files, the tag is simply not
 written, and the bell says the feed needs the update rather than pretending the list is empty
 (`NOTIFICATIONS_NEED_MIGRATION`, see app/lib/notifications/supabase-notifications-repository.ts).
 
 `Temp/check-notifications-schema.cjs` asks the project whether it is there, and then what it is for:
 with the table in place it signs two throwaway accounts up and exercises the four policies one at a
-time - a tag filed for the account it names, a row addressed to the tagger refused, the recipient's
-feed holding it while the tagger's does not, the tagger unable to mark it read or delete it, and the
-recipient able to do both. Realtime is reported rather than asserted, because the bell also polls.
-`Temp/probe-live-schema.cjs` is the wider one: every table and every section-16 function, which is
-what caught the two sections this project was missing.
+time - a tag filed for the account it names (written the way the app writes it, with no return), a
+read-back of that row refused and filing nothing, a row addressed to the tagger refused, the
+recipient's feed holding it while the tagger's does not, the tagger unable to mark it read or delete
+it, and the recipient able to do both. Realtime is reported rather than asserted, because the bell
+also polls. `Temp/probe-live-schema.cjs` is the wider one: every table and every section-16
+function, which is what caught the two sections this project was missing.
 
 The feed follows the board's data source, so a project with
 `NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase` needs nothing else;

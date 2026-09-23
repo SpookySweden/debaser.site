@@ -72,13 +72,20 @@ export type NotifyInput = {
  * RLS: a row is readable, updatable and deletable only by the account it names
  * (`auth.uid() = user_id`), while an insert is allowed for any signed-in, unbanned account as
  * long as it is signed by its author (`actor_id = auth.uid()`) and is not addressed to them.
+ *
+ * Which is why `notify` hands nothing back. A notification is addressed to somebody else, so the
+ * account that files it may not read it: asking PostgREST for the row it has just written
+ * (`insert(...).select()` - `Prefer: return=representation`) makes it read a row the read policy
+ * refuses, and the whole write is then reported as `new row violates row-level security policy`,
+ * with no row filed at all. The write is made without a return for that reason; the recipient's
+ * own bell is what shows it, over the realtime subscription or the next poll.
  */
 export type NotificationsRepository = {
   readonly source: NotificationsDataSource;
   /** The signed-in account's feed, newest first. */
   list(userId: string): Promise<AppNotification[]>;
   /** Files one row per target; the actor is skipped, so nobody is told what they wrote. */
-  notify(input: NotifyInput): Promise<AppNotification[]>;
+  notify(input: NotifyInput): Promise<void>;
   /** Marks one notification as seen. */
   markRead(userId: string, id: string): Promise<void>;
   /** Marks the whole feed as seen; the menu's [ MARK ALL READ ]. */
