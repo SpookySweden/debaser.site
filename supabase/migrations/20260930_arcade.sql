@@ -61,6 +61,7 @@ create policy "game invites answered by the pair" on public.game_invites
 
 drop policy if exists "game invites removed by the pair" on public.game_invites;
 create policy "game invites removed by the pair" on public.game_invites
+  for delete using (from_user = auth.uid() or to_user = auth.uid());
 
 -- -----------------------------------------------------------------------------
 -- The notification feed carries a challenge.
@@ -148,5 +149,3 @@ select object, state, section from (
          ) then 'ok' else 'MISSING' end, '23'
 ) as checklist
 order by section, object;
-
-  for delete using (from_user = auth.uid() or to_user = auth.uid());
