@@ -15,7 +15,7 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { useNotifications } from './NotificationsProvider';
 import PopoutWindow from './PopoutWindow';
-import { TagRow } from './TagBadge';
+import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
 type CommentWindowProps = {
@@ -160,7 +160,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
                 </p>
               )}
 
-              <TagRow tags={displayTags(thread.tags)} className="mt-1" compact />
+              <TagStrip tags={displayTags(thread.tags)} className="mt-1" limit={5} />
 
               <CommentThreadList
                 thread={thread}

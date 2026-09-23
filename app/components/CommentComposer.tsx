@@ -9,7 +9,7 @@ import MediaPicker from './MediaPicker';
 import MentionPicker from './MentionPicker';
 import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
-import { TagRow } from './TagBadge';
+import TagStrip from './TagStrip';
 import TrackAttachmentPicker from './TrackAttachmentPicker';
 import { PLATE_LARGE } from '../lib/ui/controls';
 
@@ -108,7 +108,7 @@ export default function CommentComposer({
       {previewTags !== undefined && previewTags.length > 0 ? (
         <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
           <span>AUTO TAGS:</span>
-          <TagRow tags={previewTags} />
+          <TagStrip tags={previewTags} className="mt-1" />
         </div>
       ) : null}
 

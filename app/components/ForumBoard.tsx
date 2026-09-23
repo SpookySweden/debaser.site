@@ -6,7 +6,7 @@ import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
-import { makeUserTag } from '../lib/forum/tag-vocabulary';
+import { groupByNamespace, makeUserTag } from '../lib/forum/tag-vocabulary';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
 import ForumPinPanel from './ForumPinPanel';
@@ -15,7 +15,7 @@ import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
-import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
+import { TagMark, tagMarkColour } from './TagBadge';
 import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
@@ -221,33 +221,56 @@ export default function ForumBoard() {
             </span>
           </p>
 
-          {/* Tag inclusion: toggle tags in, choose ANY/ALL, and the
-              "MOST SELECTED TAGS" sort ranks posts by how many they include. */}
+          {/* Tag inclusion, filed by namespace: toggle tags in, choose ANY/ALL, and the
+              "MOST SELECTED TAGS" sort ranks posts by how many they include.
+
+              The list is grouped the way the tags themselves are written (`theme:design`,
+              `user:mechanics`) rather than poured into one row of chips: the namespace is what tells
+              a reader whether a word is a theme, a warning or something somebody typed, so the
+              filter says it too - and a text row per namespace holds more tags in less height than a
+              chip did. Selecting one is a Win95 list selection: the navy this site selects in. */}
           <div className="rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0] p-2">
-            <p className="text-[10px] font-bold text-black">TAG FILTER ({tagFilters.length} INCLUDED):</p>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+              <p className="text-[10px] font-bold text-black">TAG FILTER ({tagFilters.length} INCLUDED):</p>
+              <p className="text-[10px] text-gray-700">
+                THEME = READ FROM THE POST :: WARN = BEFORE YOU OPEN IT :: USER = TYPED BY THE POSTER
+              </p>
+            </div>
 
-            <div className="mt-1 flex flex-wrap items-center gap-1">
-              {forum.tagVocabulary.slice(0, 14).map((option) => {
-                const tag = makeUserTag(option.label, option.colour);
-                const active = tagFilters.includes(option.key);
+            <div className="mt-1 space-y-[2px]">
+              {groupByNamespace(forum.tagVocabulary).map((group) => (
+                <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-[3px] text-[10px]">
+                  <span className="w-12 shrink-0 font-bold text-gray-700">{group.namespace}:</span>
 
-                return (
-                  <button
-                    key={option.key}
-                    type="button"
-                    onClick={() => toggleTagFilter(option.key)}
-                    aria-pressed={active}
-                    title={active ? `Stop including ${option.label}` : `Include posts tagged ${option.label}`}
-                    className={`${tagChipClasses(tag)} cursor-pointer max-sm:px-3 max-sm:py-1.5 max-sm:text-xs ${
-                      active ? 'outline-2 outline-black' : 'hover:bg-gray-200'
-                    }`}
-                  >
-                    <TagMark colour={tagMarkColour(tag)} />
-                    {option.label}
-                    {option.count > 0 ? ` (${option.count})` : ''}
-                  </button>
-                );
-              })}
+                  {group.items.map((option) => {
+                    const tag = makeUserTag(option.label, option.colour);
+                    const active = tagFilters.includes(option.key);
+
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => toggleTagFilter(option.key)}
+                        aria-pressed={active}
+                        title={
+                          active
+                            ? `Stop including ${option.label}`
+                            : `Include posts tagged ${option.label} (${option.count} in use)`
+                        }
+                        className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                          active ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                        }`}
+                      >
+                        <TagMark colour={tagMarkColour(tag)} compact />
+                        {option.key}
+                        {option.count > 0 ? (
+                          <span className={active ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
             </div>
 
             {tagFilters.length === 0 ? (

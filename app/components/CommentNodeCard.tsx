@@ -15,7 +15,7 @@ import MentionRow from './MentionRow';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
-import { TagRow } from './TagBadge';
+import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
 import { PLATE } from '../lib/ui/controls';
@@ -144,7 +144,9 @@ export default function CommentNodeCard({
           />
         )}
 
-        <TagRow tags={displayTags(comment.tags)} className="mt-1" compact />
+        {/* The reply's own tags, folded to one line: a tag in a reply box is often the thing a
+            filter was looking for, so every one of them is at least a click away on the row. */}
+        <TagStrip tags={displayTags(comment.tags)} className="mt-1" limit={5} />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
           <button type="button" onClick={onToggleReply} title="Comment on this reply" className={PLATE}>

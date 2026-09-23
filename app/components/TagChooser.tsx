@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { canonicalTagLabel, makeUserTag, tagKey, type TagOption } from '../lib/forum/tag-vocabulary';
+import { canonicalTagLabel, groupByNamespace, makeUserTag, tagKey, tagNamespace, type TagOption } from '../lib/forum/tag-vocabulary';
 import { useForum } from './ForumProvider';
-import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
+import { TagMark, tagMarkColour } from './TagBadge';
 import TagCreatorWindow from './TagCreatorWindow';
 
 type TagChooserProps = {
@@ -86,8 +86,8 @@ export default function TagChooser({
         TAGS ({value.length}/{max})
       </legend>
 
-      <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
-        <span>SELECTED:</span>
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-[3px] text-[10px] font-bold text-black">
+        <span className="text-gray-700">SELECTED:</span>
         {value.length === 0 ? (
           <span className="text-gray-700">NONE - PICK OR TYPE BELOW</span>
         ) : (
@@ -99,38 +99,49 @@ export default function TagChooser({
                 type="button"
                 onClick={() => toggle(label)}
                 title={`Remove tag ${tag.label}`}
-                className={`${tagChipClasses(tag)} cursor-pointer hover:bg-gray-200`}
+                className="inline-flex cursor-pointer items-center gap-[3px] font-bold hover:underline"
               >
-                <TagMark colour={tagMarkColour(tag)} />
-                {tag.label} ×
+                <TagMark colour={tagMarkColour(tag)} compact />
+                <span className="text-gray-700">{tagNamespace(tag)}:</span>
+                <span>{tagKey(tag.label)}</span>
+                <span className="text-gray-700">×</span>
               </button>
             );
           })
         )}
       </div>
 
-      <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
-        <span>SUGGESTED:</span>
-        {suggestions.map((option) => {
-          const tag = makeUserTag(option.label, option.colour);
-          const isSelected = selectedKeys.includes(option.key);
+      {/* Filed by namespace, the way the tags are written on a post: a chooser that lists forty tags
+          is a wall, and one that says `theme:` and `user:` is a list you can read down. */}
+      <div className="mt-2 space-y-[2px] text-[10px] text-black">
+        {groupByNamespace(suggestions).map((group) => (
+          <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-[3px]">
+            <span className="w-12 shrink-0 font-bold text-gray-700">{group.namespace}:</span>
 
-          return (
-            <button
-              key={option.key}
-              type="button"
-              onClick={() => toggle(option.label)}
-              title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
-              className={`${tagChipClasses(tag)} cursor-pointer ${
-                isSelected ? 'outline-2 outline-black' : 'hover:bg-gray-200'
-              }`}
-            >
-              <TagMark colour={tagMarkColour(tag)} />
-              {option.label}
-              {option.count > 0 ? ` (${option.count})` : ''}
-            </button>
-          );
-        })}
+            {group.items.map((option) => {
+              const tag = makeUserTag(option.label, option.colour);
+              const isSelected = selectedKeys.includes(option.key);
+
+              return (
+                <button
+                  key={option.key}
+                  type="button"
+                  onClick={() => toggle(option.label)}
+                  title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
+                  className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                    isSelected ? 'bg-[#000080] text-white' : 'text-black hover:underline'
+                  }`}
+                >
+                  <TagMark colour={tagMarkColour(tag)} compact />
+                  {option.key}
+                  {option.count > 0 ? (
+                    <span className={isSelected ? 'text-gray-300' : 'text-gray-700'}>({option.count})</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
+        ))}
       </div>
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -144,7 +155,7 @@ export default function TagChooser({
         </button>
 
         <p className={`text-[10px] font-bold ${error === null ? 'text-black' : 'text-[#800000]'}`}>
-          {error ?? 'TAGS ARE COLOUR CODED AND LINK EVERY POST THAT USES THEM.'}
+          {error ?? 'TAGS ARE COLOUR CODED, FILED BY NAMESPACE (THEME: WARN: USER:), AND LINK EVERY POST THAT USES THEM.'}
         </p>
       </div>
 

@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { tagColour, tagKey } from '../lib/forum/tag-vocabulary';
+import { tagColour, tagKey, tagNamespace } from '../lib/forum/tag-vocabulary';
 import type { ForumTag } from '../lib/forum/types';
 import { markColour } from '../lib/ui/colour';
 
@@ -117,5 +117,28 @@ export function TagRow({ tags, className, emptyLabel, compact = false, limit }: 
       ))}
       {hidden > 0 ? <span className="text-[9px] font-bold text-gray-700">+{hidden}</span> : null}
     </div>
+  );
+}
+
+/**
+ * The same tag, written as one token in a list: `theme:design`.
+ *
+ * A chip is a button with a border and a label; a token is what a tag list is made of when the list
+ * itself is the point - the way a gallery of this kind files `artist:name` and lets a row of ten tags
+ * stay one row. The namespace is the first half of what the word means, so it is drawn in the quiet
+ * grey and the name keeps the ink; the colour that stands for the tag is the small key in front of
+ * it, unchanged. Clicking one filters the board to it, exactly as a chip did.
+ */
+export function TagLink({ tag, className }: { tag: ForumTag; className?: string }) {
+  return (
+    <Link
+      href={`/forum#tag-${tagKey(tag.label)}`}
+      title={`Show every post tagged ${tag.label}`}
+      className={`inline-flex items-center gap-[3px] hover:underline ${className ?? ''}`}
+    >
+      <TagMark colour={tagMarkColour(tag)} compact />
+      <span className="text-gray-700">{tagNamespace(tag)}:</span>
+      <span className="font-bold">{tagKey(tag.label)}</span>
+    </Link>
   );
 }

@@ -56,5 +56,6 @@ export function pluralise(count: number, singular: string, plural?: string): str
 }
 
 export function countReplies(count: number): string {
-  return `${count} ${pluralise(count, 'REPLY')}`;
+  // An explicit plural: a reply's plural is not the word with an S on the end.
+  return `${count} ${pluralise(count, 'REPLY', 'REPLIES')}`;
 }

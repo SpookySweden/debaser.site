@@ -30,7 +30,7 @@ import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
 import SheetImage from './SheetImage';
-import { TagRow } from './TagBadge';
+import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
 type ForumThreadCardProps = {
@@ -241,7 +241,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 ) : null}
               </div>
 
-              {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
+              {/* The post's own tags, one line of `theme:design` tokens: the few that say what the
+                  post is about, with the rest behind `[+n]` (see ./TagStrip.tsx). */}
+              {isOpen ? null : <TagStrip tags={layout.collapsedTags} limit={5} className="mt-1" />}
 
               {/* Why this post is on screen while a tag filter is on: the tags that matched, and
                   where they were typed. A match on a reply is the case worth spelling out - the post
@@ -254,7 +256,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               {matchedTags.length === 0 ? null : (
                 <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-[#fffbe6] px-1 py-[2px] text-[10px] font-bold text-black">
                   <span>FILTER MATCH:</span>
-                  <TagRow tags={matchedTags} compact />
+                  <TagStrip tags={matchedTags} />
                   <span className="text-gray-700">
                     {matchedReplies.length === 0
                       ? 'ON THIS POST'
@@ -304,7 +306,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               </div>
             )}
 
-            <TagRow tags={layout.left.tags} className="mt-2" compact emptyLabel="NO TAGS" limit={6} />
+            {/* The open post's left column: every tag it carries, one token a line where the column
+                is narrow, in the same `namespace:name` form the collapsed row uses. */}
+            <TagStrip tags={layout.left.tags} className="mt-2" emptyLabel="NO TAGS" />
 
             {images.count > 1 ? (
               <p className="mt-1 text-[9px] font-bold text-gray-700">

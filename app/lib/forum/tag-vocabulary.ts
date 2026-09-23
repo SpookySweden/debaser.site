@@ -21,9 +21,54 @@ export type TagOption = {
   count: number;
   /** True for one of the pre-made starter tags. */
   starter: boolean;
+  /** The namespace the tag list files it under, e.g. `theme:design`. */
+  namespace: TagNamespace;
   /** Colour chosen in the picker, when the tag has one. */
   colour?: string;
 };
+
+/**
+ * The namespace a tag sits in: what the tag list writes in front of it.
+ *
+ * A tag is not a loose word here any more - it is read as `namespace:name`, the way a gallery of
+ * this kind files `artist:name` - because the namespace is half of what the word means. A `theme` is
+ * a tag read out of the post's own text (`deriveTags` in ./tags.ts), a `warn` is one a reader wants
+ * before opening the post, a `user` tag is one a poster typed themselves, and `filed` is the retired
+ * housekeeping badge an older row still carries.
+ */
+export type TagNamespace = 'theme' | 'warn' | 'user' | 'filed';
+
+/** The namespaces in the order a list reads them: what it is about, then the rest. */
+export const TAG_NAMESPACES: TagNamespace[] = ['theme', 'warn', 'user', 'filed'];
+
+export function tagNamespace(tag: ForumTag): TagNamespace {
+  if (tag.kind === 'category') return 'theme';
+  if (tag.kind === 'content') return 'warn';
+  if (tag.kind === 'source') return 'filed';
+
+  return 'user';
+}
+
+/** How a tag is written in a list: `theme:design`, lowercase and unambiguous. */
+export function tagToken(tag: ForumTag): string {
+  return `${tagNamespace(tag)}:${tagKey(tag.label)}`;
+}
+
+/**
+ * The same tags folded into their namespaces, empty ones left out.
+ *
+ * Generic over the tag type so the board's own vocabulary options (`TagOption`, which carries a
+ * count) fold by the same rule as the tags on a post - one function, so the filter panel and the
+ * chooser cannot group the same board two ways.
+ */
+export function groupByNamespace<T extends { namespace: TagNamespace }>(
+  items: T[],
+): { namespace: TagNamespace; items: T[] }[] {
+  return TAG_NAMESPACES.map((namespace) => ({
+    namespace,
+    items: items.filter((item) => item.namespace === namespace),
+  })).filter((group) => group.items.length > 0);
+}
 
 /** Pre-made tags that ship with the archive. */
 export const STARTER_TAGS: string[] = [
@@ -182,12 +227,15 @@ export function makeUserTag(raw: string, colour?: string): ForumTag {
   };
 }
 
+/** Starter tags whose namespace is not the theme one. They have no kind until somebody uses them. */
+const STARTER_NAMESPACES: Record<string, TagNamespace> = { spoiler: 'warn' };
+
 /** Starter tags plus everything already in use, most used first. */
 export function buildTagVocabulary(
   threads: ForumThread[],
   chosenColours: Record<string, string> = {},
 ): TagOption[] {
-  const counts = new Map<string, { label: string; count: number; colour?: string }>();
+  const counts = new Map<string, { label: string; count: number; namespace: TagNamespace; colour?: string }>();
 
   const tally = (tag: ForumTag) => {
     if (tag.kind === 'source' || tag.kind === 'content') return;
@@ -201,6 +249,7 @@ export function buildTagVocabulary(
     counts.set(key, {
       label: normaliseTagLabel(tag.label),
       count: current === undefined ? 1 : current.count + 1,
+      namespace: tagNamespace(tag),
       ...(colour === undefined ? {} : { colour }),
     });
   };
@@ -221,6 +270,9 @@ export function buildTagVocabulary(
       key,
       count: counts.get(key)?.count ?? 0,
       starter: true,
+      // A starter tag that nobody has used yet has no kind to read a namespace off, so the one that
+      // is not a theme is named here - a warning is a warning whether or not a post carries it.
+      namespace: counts.get(key)?.namespace ?? STARTER_NAMESPACES[key] ?? 'theme',
       ...(colour === undefined ? {} : { colour }),
     });
   }
@@ -237,9 +289,10 @@ export function buildTagVocabulary(
             key,
             count: value.count,
             starter: false,
+            namespace: value.namespace,
             ...(colour === undefined ? {} : { colour }),
           }
-        : { ...existing, count: value.count, ...(colour === undefined ? {} : { colour }) },
+        : { ...existing, count: value.count, namespace: value.namespace, ...(colour === undefined ? {} : { colour }) },
     );
   }
 
