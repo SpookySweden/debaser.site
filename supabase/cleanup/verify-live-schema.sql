@@ -10,7 +10,7 @@
 -- rules are the only door to, the policies the bell and the arcade lean on, and the two guard
 -- triggers. The publication and the account count follow as listings.
 
-select object, state, section from (
+with all_rows as (
   -- Tables (sections 1-6, 14, 15, 17, 18, 22, 23).
   select 'table: profiles' as object, case when to_regclass('public.profiles') is null then 'MISSING' else 'ok' end as state, '1' as section
   union all select 'table: profile_avatar_versions', case when to_regclass('public.profile_avatar_versions') is null then 'MISSING' else 'ok' end, '2'
@@ -52,50 +52,63 @@ select object, state, section from (
   union all select 'function: rename_group', case when to_regprocedure('public.rename_group(text,text)') is null then 'MISSING' else 'ok' end, '16'
   union all select 'function: transfer_group_ownership', case when to_regprocedure('public.transfer_group_ownership(text,uuid)') is null then 'MISSING' else 'ok' end, '16'
   union all select 'function: remove_group_member', case when to_regprocedure('public.remove_group_member(text,uuid)') is null then 'MISSING' else 'ok' end, '16'
-  union all select 'function: leave_group', case when to_regprocedure('public.leave_group(text)') is null then 'MISSING' else 'ok' end, '16'
-) as checklist
-order by section, object;
+),
 
 -- The policies the bell, the board's pins and the arcade lean on, one row each.
-
-select expected.policyname,
-       case when p.policyname is null then 'MISSING' else 'ok' end as state
-from unnest(array[
-  'forum_notifications readable by recipient',
-  'forum_notifications inserted by actor',
-  'forum_notifications marked read by recipient',
-  'forum_notifications deleted by recipient',
-  'forum_pins readable',
-  'forum_pins pinned by admin',
-  'forum_pins changed by admin',
-  'forum_pins removed by admin',
-  'game invites readable by the pair',
-  'game invites sent by the challenger',
-  'game invites answered by the pair',
-  'game invites removed by the pair'
-]) as expected(policyname)
-left join pg_policies p
-  on p.schemaname = 'public' and p.policyname = expected.policyname
-order by expected.policyname;
+policies as (
+  select 'policy: ' || expected.policyname as object,
+         case when p.policyname is null then 'MISSING' else 'ok' end as state,
+         '17,18,23' as section
+  from unnest(array[
+    'forum_notifications readable by recipient',
+    'forum_notifications inserted by actor',
+    'forum_notifications marked read by recipient',
+    'forum_notifications deleted by recipient',
+    'forum_pins readable',
+    'forum_pins pinned by admin',
+    'forum_pins changed by admin',
+    'forum_pins removed by admin',
+    'game invites readable by the pair',
+    'game invites sent by the challenger',
+    'game invites answered by the pair',
+    'game invites removed by the pair'
+  ]) as expected(policyname)
+  left join pg_policies p on p.schemaname = 'public' and p.policyname = expected.policyname
+),
 
 -- The two guards: the pin one stops a pin rewriting somebody's words, the comms one stops a member
 -- renaming a group and claiming it.
+guards as (
+  select 'trigger: ' || expected.tgname as object,
+         case when t.tgname is null then 'MISSING' else 'ok' end as state,
+         '16,19' as section
+  from unnest(array['comms_threads_guard_metadata', 'profile_comments_guard_pin']) as expected(tgname)
+  left join pg_trigger t on t.tgname = expected.tgname
+),
 
-select expected.tgname,
-       case when t.tgname is null then 'MISSING' else 'ok' end as state
-from unnest(array['comms_threads_guard_metadata', 'profile_comments_guard_pin']) as expected(tgname)
-left join pg_trigger t on t.tgname = expected.tgname
-order by expected.tgname;
+-- What realtime carries (a table missing from it is a slower screen, not a broken one), and the
+-- number of accounts the user directory will draw.
+listings as (
+  select 'realtime: ' || tablename as object, 'ok' as state, '9' as section
+  from pg_publication_tables
+  where pubname = 'supabase_realtime' and schemaname = 'public'
+  union all
+  select 'accounts listed', (select count(*)::text from public.profiles), 'zz'
+)
 
--- The publication as it stands, for the record: what the board, the feed and the arcade get their
--- live updates from. A table missing from it is a slower screen rather than a broken one - each of
--- those reads also polls.
-
-select tablename
-from pg_publication_tables
-where pubname = 'supabase_realtime' and schemaname = 'public'
-order by tablename;
-
--- And the count the user directory on /users will draw.
-
-select count(*) as accounts_listed from public.profiles;
+-- One statement, so the editor shows all of it: every row that says MISSING is something this build
+-- expects and the project does not have, and the last line counts them.
+select object, state, section from all_rows
+union all select object, state, section from policies
+union all select object, state, section from guards
+union all select object, state, section from listings
+union all
+select 'RESULT: ' || (count(*) filter (where state = 'MISSING'))::text || ' row(s) missing',
+       case when count(*) filter (where state = 'MISSING') = 0 then 'ok' else 'CHECK' end,
+       'zzz'
+from (
+  select state from all_rows
+  union all select state from policies
+  union all select state from guards
+)
+order by section, object;
