@@ -12,7 +12,8 @@ import { GAME_IDS, isGameId, type GameId } from './types';
  *
  * The address is the other way in, and it is deliberately three different questions:
  *
- *   /forum?arcade=1                             the floor - the header key and the Start menu row
+ *   /forum?arcade=1                             the floor - the side panel's own key, and the
+ *                                               Start menu row
  *   /forum?invite=<inviteId>                    one invitation, answered on arrival (the bell)
  *   /forum?challenge=<userId>&game=<gameId>     one account, asked for a game (a post's plate)
  *
@@ -73,9 +74,9 @@ export function arcadeHref(focus: ArcadeFocus): string {
 /**
  * A press on the arcade's own key: opening it when shut, closing it when open.
  *
- * The board's plate and the side panel's key are *switches* - both sit on the screen the arcade is
- * drawn over, so a reader who has finished with it presses the same key again rather than hunting for
- * the window's `[ X CLOSE ]`. This is that answer, in one place, so the two doors cannot disagree.
+ * The side panel's key is a *switch* - it sits on the screen the arcade is drawn over, so a reader who
+ * has finished with it presses the same key again rather than hunting for the window's `[ X CLOSE ]`.
+ * This is that answer, and this is the only door that answers this way.
  *
  * Two things it is deliberately not.
  *

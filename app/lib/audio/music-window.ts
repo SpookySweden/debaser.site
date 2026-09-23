@@ -47,16 +47,15 @@ export function closeMusic(): void {
 /**
  * A press on the archive's own key: opening when shut, closing when open.
  *
- * The board's plate and the side panel's key are *switches*, not links - both sit on the screen the
- * archive is drawn over, so a reader who has finished with it presses the same key again rather than
- * hunting for the window's `[ X CLOSE ]`. This is that answer, in one place, so the two doors cannot
- * disagree about what a second press does.
+ * The side panel's key is a *switch* - it sits on the screen the archive is drawn over, so a reader
+ * who has finished with it presses the same key again rather than hunting for the window's
+ * `[ X CLOSE ]`. This is that answer, and this is the only door that answers this way.
  *
  * What it deliberately is not is the behaviour of a *link* into the archive. A tag badge, the Start
  * menu's MUSIC shelf and a post's `♪ MP3` plate are addresses a reader follows from somewhere else -
  * possibly from a screen with no key of its own - and a link that closed the window when it was
  * already open would be a link that sometimes does nothing visible. Those keep `openMusic`, which
- * only ever opens. The distinction is the same one the arcade keeps between its header key and its
+ * only ever opens. The distinction is the same one the arcade keeps between its own key and its
  * invitations, and `Temp/check-flows.cjs` holds both to it.
  */
 export function toggleMusic(): void {

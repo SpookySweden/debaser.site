@@ -66,7 +66,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                     <MusicPlayer />
                     {/* The site's two utility windows, drawn once and docked beside whatever is
                         being read rather than being pages of their own: the arcade (a post's
-                        `[ CHALLENGE ]`, the header's key or the bell) and the music archive (the
+                        `[ CHALLENGE ]`, the side panel's key or the bell) and the music archive (the
                         MUSIC shelf, a post's plate, or a track's tag badge). They read the address,
                         so they are drawn behind a boundary: the layout stays static, the windows
                         catch up. Nothing here is inside the page, which is exactly why opening one

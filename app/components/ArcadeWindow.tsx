@@ -17,9 +17,9 @@ import GamesHub from './GamesHub';
  * The arcade, docked beside whatever is being read.
  *
  * Drawn once, in `layout.tsx`, for the same reason the player bar is: the arcade is not a page you go
- * to any more. A challenge from a post, the header's key and the bell's invitation all open *this*,
- * against the thread the reader is standing in - docked at the foot of it and draggable, with the
- * board still on screen and still usable, so nobody loses their place to answer a knock.
+ * to any more. A challenge from a post, the side panel's own key and the bell's invitation all open
+ * *this*, against the thread the reader is standing in - docked at the foot of it and draggable, with
+ * the board still on screen and still usable, so nobody loses their place to answer a knock.
  *
  * It is the same `GamesHub` the arcade floor has always been, told what it was opened to do. The
  * window is the only thing that knows about the address (`lib/games/arcade-window.ts` reads it), so
@@ -36,7 +36,7 @@ export default function ArcadeWindow() {
 
   /**
    * A link is one of the ways in, and the address is read whenever it changes rather than only as
-   * the window mounts: the header's key and the board share a route, so pressing that key while
+   * the window mounts: the side panel's key and the window share a route, so pressing that key while
    * already on the board changes the query without remounting anything.
    */
   useEffect(() => {

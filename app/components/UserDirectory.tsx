@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/directory';
+import { arcadeHref } from '../lib/games/arcade-window';
 import { PANEL, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
@@ -138,7 +139,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
               <Link href="/forum" className="underline hover:bg-ice">
                 [ BOARD ]
               </Link>{' '}
-              <Link href="/forum?arcade=1" className="underline hover:bg-ice">
+              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice">
                 [ ARCADE ]
               </Link>{' '}
               <Link href="/comms" className="underline hover:bg-ice">

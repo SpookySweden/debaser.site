@@ -22,8 +22,7 @@ import MusicDirectory from './MusicDirectory';
  *
  * The address is one of the ways in (`lib/audio/music-window.ts`): `/forum?music=1` from the MUSIC
  * shelf, and `/forum?music=1&tag=…` from a track's own tag badge, which is how a tag on a post opens
- * the archive already filtered. On the board itself the plate in the board's title bar opens it
- * without going near the address at all.
+ * the archive already filtered.
  */
 export default function MusicWindow() {
   const state = useSyncExternalStore(subscribeToMusicWindow, musicWindowState, musicWindowState);
