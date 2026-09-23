@@ -90,6 +90,16 @@ export function threadDomId(threadId: string): string {
   return `thread-${threadId}`;
 }
 
+/**
+ * DOM id of one reply, so a post can be opened straight onto the reply somebody came for.
+ *
+ * That is what the board does when a tag filter matched a reply rather than the post itself: a
+ * marker on a folded post with the reply three folds further in is not much of an answer.
+ */
+export function commentDomId(commentId: string): string {
+  return `comment-${commentId}`;
+}
+
 /** Title used when a comment left under an asset/text box opens a new thread. */
 export function autoThreadTitle(anchor: ForumAnchor): string {
   return `RE: ${anchor.label}`;

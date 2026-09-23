@@ -17,6 +17,13 @@ type CommentThreadListProps = {
   /** Nesting levels that get their own indent before replies line up flat. */
   maxIndentDepth?: number;
   emptyLabel?: string;
+  /**
+   * Replies to ring as matches of a board tag filter (see ForumThreadCard).
+   *
+   * A reply is where a tag is often typed, so the reply is what the filter has to show - and a
+   * marker on the post alone would leave the reader hunting through the thread for it.
+   */
+  matchedIds?: string[];
 };
 
 /**
@@ -36,6 +43,7 @@ export default function CommentThreadList({
   avatarSize = 44,
   maxIndentDepth = 3,
   emptyLabel = 'NO REPLIES YET.',
+  matchedIds = [],
 }: CommentThreadListProps) {
   const forum = useForum();
   const { accounts } = useComms();
@@ -112,6 +120,7 @@ export default function CommentThreadList({
         replyCount={children.length}
         replyOpen={replyOpen}
         repliesHidden={repliesHidden}
+        matched={matchedIds.includes(comment.id)}
         accounts={accounts}
         busy={busyId === comment.id}
         error={error !== null && error.id === comment.id ? error.message : null}

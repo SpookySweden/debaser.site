@@ -41,6 +41,19 @@ export const PROJECT_NOTES: ProjectNote[] = [
     hrefLabel: '[ HOUSE RULES ]',
   },
   {
+    id: 'note-what-a-tag-filter-matches',
+    title: 'WHAT A TAG FILTER MATCHES',
+    kinds: ['BOARD', 'HOUSE RULES'],
+    filed: '2026-09-23T12:00:00.000Z',
+    body: [
+      'A tag can be typed onto a post or onto a reply, and the chooser counts both - a MECHANICS tag left in the reply box is what makes the MECHANICS chip read (1). A filter that read only the post would break that promise, offering a chip that brings nothing when it is pressed, so the filter reads the whole thread and a tag on a reply counts as a tag on the post it answers.',
+      'Because those tags are not in the same place, a filtered card says where its match was found. `FILTER MATCH: [MECHANICS] ON THIS POST` needs no more than the one line; a match on a reply reads `IN 1 REPLY BY [name]` and carries a `[ OPEN THE REPLY ]` button, which opens the post and puts that reply on screen with a marker of its own. The tag is the reason the post is on the board at all, so the tag is what the row points at.',
+      'The number on a chip counts uses rather than posts - one thread with the same tag on two replies reads (2) and brings one post - and the two numbers are meant to differ: the chip measures the vocabulary, and the board says SHOWING n OF n MATCHING underneath it when a post count is what you are after.',
+    ],
+    href: '/forum',
+    hrefLabel: '[ FORUM BOARD ]',
+  },
+  {
     id: 'note-who-may-write-a-lore-page',
     title: 'WHO MAY WRITE A LORE PAGE',
     kinds: ['LORE', 'HOUSE RULES'],

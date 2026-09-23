@@ -1,6 +1,6 @@
 import { tagKey } from './tag-vocabulary';
 import { postCredit } from './site-author';
-import type { ForumAnchorKind, ForumThread } from './types';
+import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread } from './types';
 
 /**
  * Board query: filtering and ordering of the thread list.
@@ -13,6 +13,13 @@ import type { ForumAnchorKind, ForumThread } from './types';
  *   - the `tags` sort ranks posts by how many of the selected tags they include,
  *     which is what "sort by tag inclusion" means, with newest first as the
  *     tie-breaker.
+ *
+ * A tag counts **wherever it sits on the thread**: the tags on the post itself and the tags on any
+ * of its replies. That is not a detail - the tag chooser counts both (see `buildTagVocabulary` in
+ * ./tag-vocabulary.ts), so a MECHANICS tag typed into a reply makes the MECHANICS chip read
+ * `MECHANICS (1)`. If the filter only read `thread.tags` that chip would promise a post the board
+ * could not show. `threadTagMatches` also reports *where* each hit was found, so a card can say
+ * "matched in a reply" and open it.
  *
  * Free text looks at the title, the body, the item the post is filed under, the
  * tags and the accounts on it - so a post is findable by whoever it is credited
@@ -33,9 +40,62 @@ export type BoardQuery = {
   sortMode: SortMode;
 };
 
-/** Canonical keys of every tag on a post. */
-export function threadTagKeys(thread: ForumThread): string[] {
+/** Canonical keys of the tags on the post itself. */
+export function postTagKeys(thread: ForumThread): string[] {
   return thread.tags.map((tag) => tagKey(tag.label));
+}
+
+/** Canonical keys of every tag on the post's replies. */
+export function replyTagKeys(thread: ForumThread): string[] {
+  return thread.comments.flatMap((comment) => comment.tags.map((tag) => tagKey(tag.label)));
+}
+
+/**
+ * Canonical keys of every tag on the thread, the replies included.
+ *
+ * Every tag is kept, `source` and the retired housekeeping badges with them, because a hand-written
+ * `#tag-board` still has to find the posts that wear one even though the badge itself is no longer
+ * drawn.
+ */
+export function threadTagKeys(thread: ForumThread): string[] {
+  return [...new Set([...postTagKeys(thread), ...replyTagKeys(thread)])];
+}
+
+/**
+ * One tag a thread matched a filter with, and where on the thread it was found.
+ *
+ * `comment` is undefined for a hit on the post itself; when it is set the tag is on that reply -
+ * which is what lets a card name the reply and offer to open it.
+ */
+export type TagMatch = {
+  tag: ForumTag;
+  comment?: ForumComment;
+};
+
+/**
+ * Every tag on the thread that the selected keys include, in the order the thread holds them.
+ *
+ * Duplicates are kept: two replies tagged SPOILER are two matches, and the card has two replies to
+ * point at.
+ */
+export function threadTagMatches(thread: ForumThread, tagKeys: string[]): TagMatch[] {
+  const keys = normaliseKeys(tagKeys);
+  if (keys.length === 0) return [];
+
+  const wanted = new Set(keys);
+  const matches: TagMatch[] = [];
+
+  for (const tag of thread.tags) {
+    if (wanted.has(tagKey(tag.label))) matches.push({ tag });
+  }
+
+  for (const comment of thread.comments) {
+    for (const tag of comment.tags) {
+      if (wanted.has(tagKey(tag.label))) matches.push({ tag, comment });
+    }
+  }
+
+  return matches;
 }
 
 /**
@@ -66,7 +126,7 @@ function normaliseKeys(tagKeys: string[]): string[] {
   return [...new Set(tagKeys.map((key) => tagKey(key)).filter((key) => key.length > 0))];
 }
 
-/** How many of the selected tags this post includes. */
+/** How many of the selected tags this thread includes, replies counted. */
 export function countTagHits(thread: ForumThread, tagKeys: string[]): number {
   const keys = normaliseKeys(tagKeys);
   if (keys.length === 0) return 0;

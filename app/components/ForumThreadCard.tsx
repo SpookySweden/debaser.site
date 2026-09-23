@@ -1,16 +1,21 @@
 'use client';
 
 import { useState } from 'react';
+import { authorLabel } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
-import { threadDomId } from '../lib/forum/anchors';
+import { commentDomId, threadDomId } from '../lib/forum/anchors';
+import { threadTagMatches } from '../lib/forum/board-query';
 import { countReplies, formatStamp } from '../lib/forum/format';
 import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
 import { mentionsIn } from '../lib/forum/mentions';
 import { pinLabel, pinSummary } from '../lib/forum/pins';
 import { buildPostLayout } from '../lib/forum/post-layout';
 import { postCredit } from '../lib/forum/site-author';
+import { displayTags } from '../lib/forum/tags';
+import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PLATE } from '../lib/ui/controls';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -32,6 +37,14 @@ type ForumThreadCardProps = {
   thread: ForumThread;
   isOpen: boolean;
   onToggle: (threadId: string, open: boolean) => void;
+  /**
+   * The tag filter in force on the board, when there is one.
+   *
+   * A card is told rather than working it out because the filter is the board's state; what the card
+   * does with it is the part only a card can do - say where on the thread the tags were found, and
+   * open the post onto the reply when it was a reply that carried them.
+   */
+  tagFilter?: string[];
 };
 
 /**
@@ -49,8 +62,13 @@ type ForumThreadCardProps = {
  *
  * Native <details>/<summary> keeps the collapse behaviour (and the board's expand
  * all / collapse all, plus #thread-<id> jump links) without extra JS.
+ *
+ * While the board has a tag filter on, the card also carries a `FILTER MATCH` line saying which of
+ * its tags the filter matched and whether they sit on the post or on a reply - and a `[ OPEN THE
+ * REPLY ]` button in the second case, because a post that does not wear the tag is only on screen
+ * because somebody's comment does (see app/lib/forum/board-query.ts).
  */
-export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThreadCardProps) {
+export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = [] }: ForumThreadCardProps) {
   const forum = useForum();
   // The header reads the *credit's* profile, not the thread author's: an item's own
   // post is signed by the house account, so its dark blue name and its picture come
@@ -112,6 +130,34 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
   }
 
   const images = collectThreadImages(thread);
+
+  // What the board's tag filter matched here, and where: the post's own tags, or a reply's. The
+  // retired housekeeping badges are dropped from the line, so it names tags a reader can see, and
+  // two replies wearing SPOILER count as two replies to point at.
+  const tagMatches = threadTagMatches(thread, tagFilter);
+  const matchedReplies = tagMatches.flatMap((match) => (match.comment === undefined ? [] : [match.comment]));
+  const matchedIds = [...new Set(matchedReplies.map((match) => match.id))];
+  const matchedTags = displayTags([...new Map(tagMatches.map((match) => [tagKey(match.tag.label), match.tag])).values()]);
+  const matchedReplyAuthors = [...new Set(matchedReplies.map((match) => authorLabel(match.author)))];
+
+  /**
+   * Open this post and put the matched reply on screen.
+   *
+   * Two frames, for two reasons: the first lets the board re-render with the post open (the
+   * `<details>` is controlled by the board's state, not by this button), and by the second the reply
+   * is in the document to scroll to.
+   */
+  function revealReply(commentId: string) {
+    if (!isOpen) onToggle(thread.id, true);
+
+    if (typeof window === 'undefined') return;
+
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(commentDomId(commentId))?.scrollIntoView({ block: 'center' }),
+      ),
+    );
+  }
 
   const layout = buildPostLayout({
     thread,
@@ -197,6 +243,36 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
 
               {isOpen ? null : <TagRow tags={layout.collapsedTags} className="mt-1" compact limit={8} />}
 
+              {/* Why this post is on screen while a tag filter is on: the tags that matched, and
+                  where they were typed. A match on a reply is the case worth spelling out - the post
+                  does not wear the tag, somebody's comment does - so it is also the case that gets a
+                  button to open it.
+
+                  A match on nothing but a retired housekeeping badge - only reachable from a
+                  hand-written `#tag-board` - draws no line at all, because those badges are hidden on
+                  every other row on the board and a bar with no chips would say less than nothing. */}
+              {matchedTags.length === 0 ? null : (
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-[#fffbe6] px-1 py-[2px] text-[10px] font-bold text-black">
+                  <span>FILTER MATCH:</span>
+                  <TagRow tags={matchedTags} compact />
+                  <span className="text-gray-700">
+                    {matchedReplies.length === 0
+                      ? 'ON THIS POST'
+                      : `IN ${countReplies(matchedReplies.length)} BY ${matchedReplyAuthors.join(', ')}`}
+                  </span>
+                  {matchedReplies.length === 0 || isOpen ? null : (
+                    <button
+                      type="button"
+                      onClick={() => revealReply(matchedReplies[0].id)}
+                      title="Open this post at the reply the tag was typed into"
+                      className={PLATE}
+                    >
+                      [ OPEN THE REPLY ]
+                    </button>
+                  )}
+                </div>
+              )}
+
               {/* Only drawn for the house account: rewrite the post, or take it down. */}
               <ThreadModeration thread={thread} />
 
@@ -270,6 +346,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
               <CommentThreadList
                 thread={thread}
                 avatarSize={48}
+                matchedIds={matchedIds}
                 emptyLabel="NO REPLIES YET. BE THE FIRST ANONYMOUS POSTER."
               />
 

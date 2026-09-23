@@ -2,6 +2,7 @@
 
 import type { ReactNode } from 'react';
 import { authorTag } from '../lib/auth/author';
+import { commentDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { type Mentionable } from '../lib/forum/mentions';
 import { displayTags } from '../lib/forum/tags';
@@ -43,6 +44,13 @@ type CommentNodeCardProps = {
   onTrackChange: (track: ForumTrack | null) => void;
   /** Accounts that may be tagged in this reply; empty hides the tagger. */
   accounts?: Mentionable[];
+  /**
+   * True when this reply is one a board tag filter matched.
+   *
+   * It is then drawn with a marker and with its scroll anchor set, so the filter can open the post
+   * and land on the reply that carried the tag.
+   */
+  matched?: boolean;
   onToggleReply: () => void;
   onToggleReplies: () => void;
   onSubmit: () => void;
@@ -76,15 +84,19 @@ export default function CommentNodeCard({
   track,
   onTrackChange,
   accounts = [],
+  matched = false,
   onToggleReply,
   onToggleReplies,
   onSubmit,
   children,
 }: CommentNodeCardProps) {
   const indent = depth === 0 ? '' : depth <= maxIndentDepth ? 'ml-4 border-l-2 border-gray-300 pl-2' : 'ml-2';
+  // A matched reply is ringed, so the eye finds it once the post it answers is open. `scroll-mt`
+  // keeps the marker clear of the window's own chrome when the board scrolls to it.
+  const marker = matched ? ' scroll-mt-24 outline-2 outline-[#000080] outline-offset-2' : '';
 
   return (
-    <li className={`flex items-start gap-2 ${indent}`}>
+    <li id={commentDomId(comment.id)} className={`flex items-start gap-2 ${indent}${marker}`}>
       <ProfileAvatarLink
         author={comment.author}
         size={depth === 0 ? avatarSize : Math.max(30, avatarSize - 12)}
@@ -99,6 +111,14 @@ export default function CommentNodeCard({
             <ProfileLink author={comment.author}>
               <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
             </ProfileLink>
+            {matched ? (
+              <span
+                className="border border-black bg-[#fffbe6] px-1 text-[9px] font-bold text-black"
+                title="The tag filter on the board matched this reply"
+              >
+                FILTER MATCH
+              </span>
+            ) : null}
           </span>
           <TimeStamp at={comment.createdAt} />
         </div>

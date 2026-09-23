@@ -453,6 +453,7 @@ export default function ForumBoard() {
               key={thread.id}
               thread={thread}
               isOpen={openThreadIds.includes(thread.id)}
+              tagFilter={tagFilters}
               onToggle={handleToggle}
             />
           ))
