@@ -10,7 +10,6 @@ import {
   profileElementById,
 } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
-import { presenceLabel } from '../lib/profile/presence';
 import { getProfileRepository } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -26,12 +25,11 @@ import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
 import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
+import ProfileStatusBar from './ProfileStatusBar';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
 import ProfileWire from './ProfileWire';
 import { useMusicPlayer } from './MusicPlayerProvider';
-import { usePresence } from './PresenceProvider';
-import TimeStamp from './TimeStamp';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -77,7 +75,6 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const displayName =
     profile.displayName !== 'Anonymous' ? profile.displayName : (accountName ?? forumName ?? 'Anonymous');
   const nameColour = profileNameColour(profile);
-  const presence = usePresence(userId);
 
   // Which version of each element is being read. Each one carries its own selection, so
   // reading the second drawing does not move the track, and the thread follows the version
@@ -208,41 +205,27 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         <ProfileWire userId={userId} comments={feedComments} />
 
 
-        {/* The account's own details, under the two columns: they are read once, while the
-            picture and the track are what the page is for. */}
-        <div className="min-w-0 space-y-1 border-t border-gray-500 p-3 text-[10px] font-bold text-black">
-          <p>ACCOUNT ID: {userId}</p>
-          <p>PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}</p>
+        {/* What is left of the account's own details now that the console furniture is gone: where
+            they say they are, and the tags other users have given them. The counts left, and so did
+            the row of switches: how many versions of a drawing exist and which of the four threads is
+            open are the customiser's business, and reading them back at somebody is a console rather
+            than a profile. Presence left too - it is the window's status bar now. The owner's way to
+            the page that changes any of it is one link on the line that names the thing it changes. */}
+        <div className="min-w-0 border-t border-gray-500 p-3 text-[10px] font-bold text-black">
           <p>
-            PRESENCE: {presence.status === undefined ? 'CHECKING...' : presenceLabel(presence.status)}
-            {presence.record === undefined ? null : (
+            PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}
+            {owner && !compact ? (
               <>
-                {' :: LAST SEEN '}
-                <TimeStamp at={presence.record.lastSeenAt} />
+                {' [ '}
+                <Link href="/account" className="underline hover:bg-gray-300">
+                  CHANGE IT
+                </Link>
+                {' ]'}
               </>
-            )}
+            ) : null}
           </p>
-          <p>
-            PICTURE VERSIONS: {profile.avatar.versions.length} :: TRACK VERSIONS: {profile.song.versions.length} ::
-            TAGS GIVEN: {profile.tags.length} :: PROFILE COMMENTS: {profileComments(profile).length}
-          </p>
-          <p>
-            TAGS: {profile.visibility.showTags ? 'VISIBLE' : 'HIDDEN'} :: PROFILE COMMENTS:{' '}
-            {profile.visibility.showProfileComments ? 'VISIBLE' : 'HIDDEN'} :: PICTURE COMMENTS:{' '}
-            {profile.visibility.showAvatarComments ? 'VISIBLE' : 'HIDDEN'} :: TRACK COMMENTS:{' '}
-            {profile.visibility.showSongComments ? 'VISIBLE' : 'HIDDEN'}
-          </p>
-          {owner && !compact ? (
-            <p>
-              THIS IS YOUR PROFILE.{' '}
-              <Link href="/account" className="underline hover:bg-gray-300">
-                OPEN THE ACCOUNT PAGE
-              </Link>{' '}
-              TO CHANGE THE PICTURE, THE TRACK, THE BIO OR WHAT VISITORS SEE.
-            </p>
-          ) : null}
 
-          <div className="border-t border-gray-500 pt-1">
+          <div className="mt-1 border-t border-gray-500 pt-1">
             <ProfileTagList profile={profile} repository={repository} viewer={viewer} owner={owner} />
           </div>
         </div>
@@ -262,6 +245,12 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             <p className="mt-1 whitespace-pre-line text-xs text-black">{profile.bio}</p>
           )}
         </div>
+
+        {/* The window's own status bar: the one line of state that belongs to the whole page, under
+            everything the profile carries, which is where a desktop of this era put it. It is the only
+            place the "when were they last here" question is answered now, and it answers it in words
+            that age on their own. */}
+        <ProfileStatusBar userId={userId} />
       </section>
 
       {commentingOn === null ? null : (

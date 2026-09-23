@@ -3,7 +3,7 @@
 import {
   presenceDotColour,
   presenceLabel,
-  presenceTooltip,
+  presenceLine,
   type PresenceRecord,
   type PresenceStatus,
 } from '../lib/profile/presence';
@@ -37,7 +37,7 @@ export default function StatusDot({ status, record, size = STATUS_DOT_SIZE, clas
     <span
       role="img"
       aria-label={label}
-      title={presenceTooltip(status, record)}
+      title={presenceLine(status, record)}
       className={`inline-block shrink-0 rounded-none border border-black align-middle ${className ?? ''}`}
       style={{ width: size, height: size, backgroundColor: presenceDotColour(status) }}
     />

@@ -62,6 +62,11 @@ preferences:
   *out* of a window and onto the board wears `PLATE_ACCENT` (`[ INJECT TO POST ]`), so it is findable
   in a list of grey.
 
+- **A page about a person shows a person.** No account ids, no counts of how much is filed, no row of
+  switch states - those are the customiser's business and the store's, and reading them back at
+  somebody turns a profile into a console. What a profile ends with is the last-online reading, in
+  words that age on their own (`app/lib/ui/relative-time.ts`, `ProfileStatusBar`).
+
 ## Build Order
 
 1. Static Web 1.0 UI frames + gallery placeholders

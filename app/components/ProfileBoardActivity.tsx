@@ -49,10 +49,6 @@ export default function ProfileBoardActivity({
             ))}
           </ul>
         )}
-
-        <p className="mt-2 text-[10px] text-gray-700">
-          ACCOUNT ID {userId} :: READ FROM THE BOARD, SO IT STAYS TRUE IF A PICTURE OR BIO CHANGES.
-        </p>
       </div>
     </section>
   );

@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react';
 import type { UserDirectoryRow as DirectoryRow } from '../lib/profile/directory';
-import { presenceLabel, presenceTooltip } from '../lib/profile/presence';
+import { presenceLabel, presenceLine } from '../lib/profile/presence';
 import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
@@ -59,7 +59,7 @@ export default function UserDirectoryRow({ row, viewerId, busy = false, onMessag
     >
       <span
         className="inline-flex w-full shrink-0 items-center gap-1 sm:w-52"
-        title={presenceTooltip(row.status, row.record)}
+        title={presenceLine(row.status, row.record)}
       >
         <StatusDot status={row.status} record={row.record} />
         {presenceLabel(row.status)}

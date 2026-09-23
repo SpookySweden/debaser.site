@@ -83,7 +83,6 @@ export default function AccountDetails() {
               lamp={false}
             />
           </p>
-          <p>ACCOUNT ID: {user.id}</p>
           <p>EMAIL: {user.email.length === 0 ? 'NOT PROVIDED' : user.email}</p>
           <p>
             CREATED: <TimeStamp at={user.createdAt} />

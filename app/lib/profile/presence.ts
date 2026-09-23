@@ -1,5 +1,5 @@
-import { formatStamp } from '../forum/format';
 import { nameColourHex } from './name-colours';
+import { relativeTime } from '../ui/relative-time';
 
 /**
  * Presence: who is actually at the keyboard.
@@ -76,10 +76,27 @@ export function presenceLabel(status: PresenceStatus): string {
   }
 }
 
-/** The lamp's tooltip: the state, and when they were last around. */
-export function presenceTooltip(status: PresenceStatus, record: PresenceRecord | undefined): string {
-  const label = presenceLabel(status);
-  if (record === undefined) return label;
+/**
+ * The one line a lamp is read as: whether they are here, and if not, how long ago.
+ *
+ * `presenceLabel` is the short form - the lamp's own two or three words, for an aria-label or a
+ * legend - and this is the sentence a tooltip or a status bar carries. A relative reading replaced the
+ * absolute `LAST SEEN 2026-09-21 11:00` stamp because that is the question actually being asked of a
+ * name ("are they about?"), and because a UTC stamp is not an answer to it for a reader in another
+ * time zone. An account with no record at all is the one case relative time cannot phrase: nobody has
+ * ever heard from them, so it says that instead.
+ *
+ * `now` defaults to the clock at call time, which is what a tooltip wants: a row that is redrawn when
+ * presence changes (`PRESENCE_TICK_MS`) re-reads it, so the number keeps up without an interval of
+ * its own on every row of a directory.
+ */
+export function presenceLine(
+  status: PresenceStatus,
+  record: PresenceRecord | undefined,
+  now: number = Date.now(),
+): string {
+  if (status === 'online') return presenceLabel('online');
+  if (record === undefined) return 'NEVER SEEN';
 
-  return `${label} :: LAST SEEN ${formatStamp(record.lastSeenAt)}`;
+  return `LAST ONLINE ${relativeTime(record.lastSeenAt, now)}`;
 }

@@ -10,7 +10,7 @@ import { authorFromAccount } from '../lib/auth/author';
 const SECTIONS = [
   { id: 'public-profile', index: 1, label: 'PUBLIC PROFILE', note: 'PICTURE, BIO, WHAT VISITORS SEE' },
   { id: 'edit-account', index: 2, label: 'EDIT ACCOUNT', note: 'DISPLAY NAME, SIGN-IN EMAIL, PASSWORD' },
-  { id: 'activity', index: 3, label: 'BOARD ACTIVITY', note: 'THREADS AND REPLIES ON THIS ACCOUNT ID' },
+  { id: 'activity', index: 3, label: 'BOARD ACTIVITY', note: 'THREADS AND REPLIES YOU HAVE FILED' },
   { id: 'danger-zone', index: 4, label: 'DANGER ZONE', note: 'SIGN OUT AND ACCOUNT DELETION' },
 ];
 
