@@ -11,6 +11,7 @@ import {
   avatarVersionById,
   currentAvatarVersion,
   currentSongVersion,
+  defaultProfileTag,
   isSelfGivenTag,
   songVersionById,
   tagArrivesApproved,
@@ -207,8 +208,17 @@ function commit(profile: PublicProfile): PublicProfile {
   return profile;
 }
 
-/** A profile nobody has filled in yet: no picture, nothing shown to visitors. */
+/**
+ * A profile nobody has filled in yet: no picture, no bio, and the one welcome tag.
+ *
+ * The tag is not decoration: a profile opens with nothing on it, so without it the first visitor to
+ * a fresh page reads an empty tag heading and learns nothing about what tags are for. It arrives
+ * already approved because the house account gave it (see `defaultProfileTag` in ./visibility), and
+ * the owner can remove it like any other.
+ */
 export function emptyProfile(userId: string, displayName: string): PublicProfile {
+  const now = new Date().toISOString();
+
   return {
     userId,
     displayName,
@@ -217,9 +227,9 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     avatar: { versions: [], currentVersionId: null },
     song: { versions: [], currentVersionId: null },
     visibility: { ...DEFAULT_VISIBILITY },
-    tags: [],
+    tags: [defaultProfileTag(now)],
     comments: [],
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
   };
 }
 /* Presence ------------------------------------------------------------------ */

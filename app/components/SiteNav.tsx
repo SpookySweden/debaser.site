@@ -45,9 +45,19 @@ export type NavItem = {
  * account menu offers the same list on a phone: one list, so a key added here is reachable everywhere
  * without anybody remembering to write it down twice. The project's own shelves are the other list
  * the menu draws from, and that one lives with the project (app/lib/projects/debaser.ts).
+ *
+ * HOME is the debaser project rather than `/`, and that is not a shortcut: `/` hands the visitor to
+ * the board (app/page.tsx), so a HOME pointing there would be a key that goes where FORUM already
+ * goes. What "home" means on this site is the project page - the comic, its music, its notes and its
+ * links - which is the one page that explains what the archive is *for*. The board is the front door;
+ * this is the address.
+ *
+ * ARCADE and MUSIC sit together because they are the same kind of key: both open a window *over* the
+ * board rather than a page of their own (see lib/games/arcade-window.ts, lib/audio/music-window.ts),
+ * and they are the two the title bar's own row carries.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'HOME', mark: ICON_HOME, href: '/' },
+  { key: 'home', label: 'HOME :: THE DEBASER PROJECT', mark: ICON_HOME, href: '/projects/debaser' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
   { key: 'games', label: 'ARCADE', mark: ICON_ARCADE, href: '/forum?arcade=1' },
   { key: 'music', label: 'MUSIC', mark: ICON_MUSIC, href: '/forum?music=1' },

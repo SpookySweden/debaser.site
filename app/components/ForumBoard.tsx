@@ -20,7 +20,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON, WINDOW_KEY } from '../lib/ui/controls';
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'all', label: 'ALL SOURCES' },
@@ -222,26 +222,36 @@ export default function ForumBoard() {
             >
               + NEW POST...
             </button>
-            <button
-              type="button"
-              onClick={() => openArcade()}
-              aria-haspopup="dialog"
-              title="Open the arcade window: play solo, or ask an account for a game"
-              className={TITLE_BAR_BUTTON}
-              aria-label="Open the arcade"
-            >
-              <span aria-hidden="true">{ICON_ARCADE}</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => openMusic()}
-              aria-haspopup="dialog"
-              title="Open the music archive beside this page: play a file, or inject one into a post"
-              className={TITLE_BAR_BUTTON}
-              aria-label="Open the music archive"
-            >
-              <span aria-hidden="true">{ICON_MUSIC}</span>
-            </button>
+
+            {/* The two window keys, in one highlighted recess.
+                They are not plates in the row beside `[ + NEW POST... ]` any more: a press on either
+                one does not act on the board, it opens something *over* it, and the pair reads as the
+                one piece of hardware that does that. The recess is an inset in the site's own Royal
+                Blue, so the two marks sit on the colour the header presses a key down to - which is
+                what "these are open" looks like everywhere else on this site. */}
+            <span className="inline-flex items-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ena px-1 py-[2px]">
+              <button
+                type="button"
+                onClick={() => openArcade()}
+                aria-haspopup="dialog"
+                title="Open the arcade window: play solo, or ask an account for a game"
+                className={`${TITLE_BAR_BUTTON} ${WINDOW_KEY}`}
+                aria-label="Open the arcade"
+              >
+                <span aria-hidden="true">{ICON_ARCADE}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => openMusic()}
+                aria-haspopup="dialog"
+                title="Open the music archive beside this page: play a file, or inject one into a post"
+                className={`${TITLE_BAR_BUTTON} ${WINDOW_KEY}`}
+                aria-label="Open the music archive"
+              >
+                <span aria-hidden="true">{ICON_MUSIC}</span>
+              </button>
+            </span>
+
             <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
           </span>
         </div>

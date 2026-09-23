@@ -1,5 +1,7 @@
 import { isSiteAccount } from '../auth/builtin-account';
+import { SITE_AUTHOR } from '../forum/site-author';
 import type { ForumAuthor } from '../forum/types';
+import { ACCENT_COLOUR } from '../ui/controls';
 import { isNameColour } from './name-colours';
 import {
   MAX_BIO_LENGTH,
@@ -148,6 +150,68 @@ export function visibleGivenTags(profile: PublicProfile) {
  *     implementations (see the profile repositories), so every surface inherits it.
  */
 export const TAGS_BEFORE_EXPANDING = 6;
+
+/**
+ * The tag every account is given on arrival.
+ *
+ * A profile opens empty: no picture, no bio, no tags. That is honest, but it is also a page with
+ * nothing on it to say what this place is, and the tag list is the first part of it a visitor reads.
+ * So one tag is filed for every account the moment its profile exists - `NEW HERE`, given by the
+ * house account, which is the only giver whose tags arrive already approved (see
+ * `isAdminGivenTag` below).
+ *
+ * It is deliberately not a label an owner has to clear before the page looks like theirs: it is the
+ * one tag they can delete, and the customiser's tag box already offers that. What it is for is the
+ * first minute - a guest opening a fresh profile sees that tags are a thing here and that somebody
+ * has been paying attention, rather than an empty heading.
+ *
+ * The id is fixed and readable rather than generated, because it has to be recognisable across
+ * stores: a profile loaded from localStorage, from Supabase or from a mock all carry the *same*
+ * row, so `isDefaultTag` can recognise it and no store ends up with a second one.
+ */
+export const DEFAULT_PROFILE_TAG = {
+  id: 'tag-default-new-here',
+  label: 'NEW HERE',
+} as const;
+
+/**
+ * The default tag's colour: the site's own Royal Blue.
+ *
+ * Taken from `ACCENT_COLOUR` rather than written out again, because it is the same dye the swatch
+ * declares for `ena` and a second copy of `#1d3ca6` is a second thing to move when the palette does.
+ * A profile's first tag is the archive's welcome, so it wears the archive's colour.
+ */
+export const DEFAULT_PROFILE_TAG_COLOUR = ACCENT_COLOUR;
+
+/** A tag is the welcome one when it is the tag above - matched on the id, not on the words. */
+export function isDefaultTag(tag: GivenTag): boolean {
+  return tag.id === DEFAULT_PROFILE_TAG.id;
+}
+
+/**
+ * The welcome tag, stamped for one account at one moment.
+ *
+ * Built here rather than in either repository so the mock store and Supabase file *the same row*:
+ * two implementations that each wrote their own id would drift the first time one of them changed a
+ * word, which is exactly the bug the shared id above exists to prevent.
+ *
+ * The id is a constant rather than derived from the owner, because one account has one welcome: a
+ * profile is only ever built empty once, and a second one would be a bug rather than a feature. The
+ * Supabase side derives its uuid from the profile id purely so a re-run of the schema is idempotent;
+ * the app never has to, because `emptyProfile` is the only thing that calls this.
+ */
+export function defaultProfileTag(givenAt: string): GivenTag {
+  return {
+    id: DEFAULT_PROFILE_TAG.id,
+    label: DEFAULT_PROFILE_TAG.label,
+    colour: DEFAULT_PROFILE_TAG_COLOUR,
+    // The house account gives it, so it arrives approved and is not the owner's own badge - the
+    // "only one self-given tag shows" rule does not spend itself on a welcome.
+    givenBy: SITE_AUTHOR,
+    givenAt,
+    hidden: false,
+  };
+}
 
 /** The house account's tags: approved on arrival, and unlimited. */
 export function isAdminGivenTag(tag: GivenTag): boolean {

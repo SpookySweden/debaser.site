@@ -1,4 +1,4 @@
-﻿-- =============================================================================
+-- =============================================================================
 -- DEBASER.SITE - complete database schema
 -- =============================================================================
 --
@@ -454,12 +454,51 @@ begin
   end;
 
   insert into public.profiles (id, display_name, name_colour)
-  values (new.id, chosen_name, case when is_house then '#000080' else null end)
+  values (new.id, chosen_name, case when is_house then '#1d3ca6' else null end)
+  on conflict (id) do nothing;
+
+  -- The welcome tag, filed with the profile so a fresh page is not an empty tag heading. It is
+  -- given by the house account, which is the one giver whose tags arrive approved (see
+  -- app/lib/profile/visibility.ts, `defaultProfileTag`), and the owner may delete it like any
+  -- other. The id is derived from the profile it belongs to, which is what makes the insert
+  -- idempotent: a re-run of this script cannot file a second welcome.
+  --
+  -- The giver is looked up rather than assumed to exist: this trigger fires for the house account
+  -- itself too, and whichever order the two accounts are created in, `given_by` is nullable and
+  -- falls back to null - which the app reads as "a guest gave it", still an approved tag because
+  -- it is not the owner's own. What must not happen is the insert failing and taking the signup
+  -- with it, so the lookup is done before the insert and cannot raise.
+  insert into public.profile_tags (id, user_id, label, colour, given_by, given_by_label, hidden)
+  values (
+    md5('tag-default-new-here:' || new.id::text)::uuid,
+    new.id,
+    'NEW HERE',
+    '#1d3ca6',
+    (select id from auth.users where lower(email) = 'admin1212@debaser.site' limit 1),
+    'debaser.site',
+    false
+  )
   on conflict (id) do nothing;
 
   return new;
 end;
 $$;
+
+-- Accounts that existed before the welcome tag did: give it to any profile that has no tags at
+-- all. Idempotent by the same derived id, and scoped to tagless profiles so it can never land on
+-- somebody who has been using the tag list.
+insert into public.profile_tags (id, user_id, label, colour, given_by, given_by_label, hidden)
+select
+  md5('tag-default-new-here:' || p.id::text)::uuid,
+  p.id,
+  'NEW HERE',
+  '#1d3ca6',
+  (select id from auth.users where lower(email) = 'admin1212@debaser.site' limit 1),
+  'debaser.site',
+  false
+from public.profiles p
+where not exists (select 1 from public.profile_tags t where t.user_id = p.id)
+on conflict (id) do nothing;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
@@ -504,7 +543,7 @@ create trigger on_auth_user_created_before
 
 update public.profiles
 set display_name = 'debaser.site',
-    name_colour = '#000080',
+    name_colour = '#1d3ca6',
     updated_at = now()
 where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site')
   and (display_name = 'admin1212' or display_name = 'Anonymous' or display_name = '');
@@ -512,7 +551,7 @@ where id in (select id from auth.users where lower(email) = 'admin1212@debaser.s
 -- The same seed for an account that arrived with a name already (a Google sign-in),
 -- where only the colour is still missing:
 update public.profiles
-set name_colour = coalesce(name_colour, '#000080'),
+set name_colour = coalesce(name_colour, '#1d3ca6'),
     updated_at = now()
 where id in (select id from auth.users where lower(email) = 'admin1212@debaser.site')
   and display_name = 'debaser.site';
