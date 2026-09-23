@@ -52,19 +52,38 @@ export type NavItem = {
  * links - which is the one page that explains what the archive is *for*. The board is the front door;
  * this is the address.
  *
- * ARCADE and MUSIC sit together because they are the same kind of key: both open a window *over* the
- * board rather than a page of their own (see lib/games/arcade-window.ts, lib/audio/music-window.ts),
- * and they are the two the title bar's own row carries.
+ * ARCADE is the only window key left here, because the archive is not a key on this band at all any
+ * more: `♪` lives in the side panel, beside the player it controls and the account that owns it
+ * (`SIDE_MUSIC` below). It is still routeable exactly as it was - `/forum?music=1` is the same
+ * address, and the Start menu, a post's plate and a track's tag badge all still open it - so nothing
+ * that pointed at the archive had to be rewritten; only the band stopped showing it.
  */
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME :: THE DEBASER PROJECT', mark: ICON_HOME, href: '/projects/debaser' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
   { key: 'games', label: 'ARCADE', mark: ICON_ARCADE, href: '/forum?arcade=1' },
-  { key: 'music', label: 'MUSIC', mark: ICON_MUSIC, href: '/forum?music=1' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },
 ];
+
+/**
+ * The archive, as the side panel's own key.
+ *
+ * It is not part of `NAV_ITEMS` because the panel is not a row of page keys: the five above are
+ * places you *go*, and this one opens a window over wherever you already are. Keeping it out of the
+ * list is what stops the header band drawing it again - the two draw from different lists now, and
+ * neither can reintroduce the other's key by accident.
+ *
+ * The address is the same one every other route to the archive uses (`/forum?music=1`), so the Start
+ * menu's shelf, a post's `♪ MP3` plate and a track's tag badge all still land in the same window.
+ */
+export const SIDE_MUSIC: NavItem = {
+  key: 'music',
+  label: 'MUSIC',
+  mark: ICON_MUSIC,
+  href: '/forum?music=1',
+};
 
 /**
  * A key: raised while its page is closed, pressed in while it is the one on screen.

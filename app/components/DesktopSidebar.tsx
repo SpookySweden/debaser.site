@@ -1,9 +1,11 @@
 'use client';
 
 import { useSyncExternalStore } from 'react';
+import Link from 'next/link';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
+import { SIDE_MUSIC } from './SiteNav';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
@@ -103,6 +105,35 @@ export default function DesktopSidebar() {
 
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
         <SidebarProfile />
+
+        {/* The archive, where the account it belongs to is.
+            `♪` used to sit in the header band with the page keys, which put it in a row of places
+            you *go* while it is really a window you open over wherever you are standing - and it put
+            it as far from the player bar it controls as the window allows. It is here instead, under
+            the profile: one key, its own line, at the thumb-end of the panel rather than mixed into
+            a row of pages. It is a link like every other key, so a middle-click or a copy of the
+            address still works, and `/forum?music=1` opens the same window the Start menu's shelf
+            does (see `SIDE_MUSIC` in ./SiteNav.tsx). */}
+        <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+          <div className={TITLE_BAR_INACTIVE}>
+            <span>SHELF</span>
+            <span>[ 1 ]</span>
+          </div>
+
+          <div className="p-2">
+            <Link
+              href={SIDE_MUSIC.href}
+              title="Open the music archive: play a file, or inject one into a post"
+              className="flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-1 text-[10px] font-bold text-ink hover:animate-bump hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble active:text-ink"
+            >
+              <span aria-hidden="true" className="text-[13px] leading-none">
+                {SIDE_MUSIC.mark}
+              </span>
+              <span>{SIDE_MUSIC.label}</span>
+            </Link>
+          </div>
+        </section>
+
         <SidebarComms />
         <UserDirectory compact />
       </div>
