@@ -741,3 +741,11 @@ and `diag <stamp>` accounts.
 The sweep matches on the names the checks use - `cline-*@debaser.site`, `probe actor`, `probe to`,
 `diag <stamp>`, `PROBE ACCOUNT` - so an account somebody really made is not touched by it. Run the
 review first and read it.
+
+`Temp/check-games-live.cjs` is the same ground, live: it signs two accounts up and walks the whole
+path against the project - the challenger files an invitation and reads it back (allowed, because the
+read policy names both sides), the invited account reads it and a reader with no session does not,
+inviting yourself is refused, the invited account answers it and the challenger sees the answer, the
+challenger''s screen hears the answer over realtime, the invitation is filed in the bell the way the
+app files it (no read-back, with `game_id` and `invite_id`), and either side can clear it. It cannot
+delete the two accounts it made, so sweep them afterwards - see "Sweeping the throwaway accounts".
