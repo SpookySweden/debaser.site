@@ -6,8 +6,9 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import type { AvatarVersion } from '../lib/profile/types';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
-import { useComms } from './CommsProvider';
+import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
+import { navItemsFor } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
@@ -40,19 +41,25 @@ type ProfilePictureMenuProps = {
   displayName: string;
   /** The picture version on display, straight from the profile store. */
   avatarVersion: AvatarVersion | undefined;
-  /** Messages waiting, so the comms entry can say so without opening the page. */
-  unreadTotal: number;
+  /** How many notifications are waiting, for the mark on the picture. */
+  unreadNotifications: number;
 };
 
 /**
  * Signed in: the visitor's own picture, and the pop-up it opens.
  *
- * This is the phone's answer to the tabs the banner drops: the directory, the
- * conversations (with the unread count) and the account, plus the way to their
- * public profile. Tapping anywhere else closes it, the way a Win95 pop-up behaves.
+ * On a phone this is the third of the three navigation surfaces, and the smallest: the things about
+ * *you* - your public profile, your account, and the tags and replies waiting for you - while the
+ * tabs above hold where you read and the Start menu at the foot holds the rest of the site. Nothing
+ * here is offered anywhere else on a phone (see the `mobile` list in ./SiteNav.tsx), which is why
+ * the directory and the conversations are not in this menu any more: both are one press away in the
+ * Start menu, and a row that leads to the same place as another row is a button spent on nothing.
+ *
+ * Tapping anywhere else closes it, the way a Win95 pop-up behaves.
  */
-export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadTotal }: ProfilePictureMenuProps) {
+export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadNotifications }: ProfilePictureMenuProps) {
   const [open, setOpen] = useState(false);
+  const news = unreadNotifications === 0 ? '' : `, ${unreadNotifications} new`;
 
   return (
     <div className="lg:hidden relative shrink-0">
@@ -61,8 +68,8 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
         onClick={() => setOpen(!open)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label="Open the account menu"
-        title="Account, directory and comms"
+        aria-label={`Open the account menu${news}`}
+        title={unreadNotifications === 0 ? 'Account and notifications' : `Account and notifications (${unreadNotifications} new)`}
         className={PICTURE_BUTTON}
       >
         {/* A 26px square: the plain frame, because the framed notice ("NO PICTURE") is wider
@@ -74,7 +81,14 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
           variant="plain"
           hideVersionLabel
         />
-        {unreadTotal === 0 ? null : <span className="pr-1 text-[10px] font-bold text-[#800000]">{unreadTotal}</span>}
+        {/* The mark, not a number: the count belongs to the row inside, and a phone's title bar has
+            no room for a second line of text beside the picture. */}
+        {unreadNotifications === 0 ? null : (
+          <span
+            aria-hidden
+            className="ml-[2px] mr-1 inline-block h-[6px] w-[6px] shrink-0 border border-black bg-[#ff0000]"
+          />
+        )}
       </button>
 
       {open ? (
@@ -89,18 +103,9 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
               <ProfileName author={{ id: userId, displayName }} lamp={false} />
             </p>
 
-            <Link href="/users" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-              [ USER DIRECTORY ]
-            </Link>
-            <Link href="/comms" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-              [ COMMS{unreadTotal === 0 ? '' : ` (${unreadTotal})`} ]
-            </Link>
-            {/* Tags and replies, one row above the account: on a phone this is where the
-                notification button lives, listed with the other buttons. */}
+            {/* Tags and replies, first: it is the row that changes while you are reading. */}
             <NotificationMenuButton />
-            <Link href="/account" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-              [ ACCOUNT ]
-            </Link>
+
             <Link
               href={`/profile/${encodeURIComponent(userId)}`}
               className={MENU_ITEM}
@@ -109,6 +114,13 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
             >
               [ MY PUBLIC PROFILE ]
             </Link>
+
+            {/* The account key, read off the same list the tabs and the menu are drawn from. */}
+            {navItemsFor('account').map((item) => (
+              <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
+                [ {item.label} ]
+              </Link>
+            ))}
           </div>
         </>
       ) : null}
@@ -129,7 +141,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
  */
 export default function ProfileControl() {
   const { user, status } = useAuth();
-  const { unreadTotal } = useComms();
+  const notifications = useNotifications();
   const { profile } = usePublicProfile(user?.id ?? null);
 
   if (status === 'loading') return null;
@@ -140,7 +152,7 @@ export default function ProfileControl() {
       userId={user.id}
       displayName={user.displayName}
       avatarVersion={currentAvatarVersion(profile)}
-      unreadTotal={unreadTotal}
+      unreadNotifications={notifications.unread}
     />
   );
 }

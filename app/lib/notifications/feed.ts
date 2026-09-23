@@ -71,3 +71,36 @@ export function notificationSummary(items: AppNotification[]): string {
   if (unread === 1) return '1 NEW';
   return `${unread} NEW`;
 }
+
+/**
+ * The feed split into what is waiting and what has been seen.
+ *
+ * The menu draws these as two groups, the way a mail client does, because the question a feed
+ * answers is "what do I owe somebody" and an unread row that is three days old is more urgent than
+ * a seen one from this morning. Recency still rules *inside* each group - both halves are taken off
+ * the same newest-first list, in order.
+ */
+export function splitNotifications(items: AppNotification[]): {
+  fresh: AppNotification[];
+  earlier: AppNotification[];
+} {
+  return { fresh: unreadNotifications(items), earlier: items.filter((item) => !isUnread(item)) };
+}
+
+/** How many of each kind are in the list: tags and replies, for the menu's own status line. */
+export function notificationKindCounts(items: AppNotification[]): { tag: number; reply: number } {
+  const tag = items.filter((item) => item.kind === 'tag').length;
+
+  return { tag, reply: items.length - tag };
+}
+
+/** The same counts as words: `2 TAGS :: 1 REPLY`, or nothing at all when the feed is empty. */
+export function notificationBreakdown(items: AppNotification[]): string {
+  if (items.length === 0) return '';
+
+  const { tag, reply } = notificationKindCounts(items);
+  // Two forms per word rather than an `S` on the end: a reply's plural is not a reply with an S.
+  const word = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+
+  return `${word(tag, 'TAG', 'TAGS')} :: ${word(reply, 'REPLY', 'REPLIES')}`;
+}

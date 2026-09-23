@@ -2,12 +2,31 @@
 
 import Link from 'next/link';
 import { threadDomId } from '../lib/forum/anchors';
-import { notificationLabel, unreadNotificationCount } from '../lib/notifications/feed';
+import {
+  notificationBreakdown,
+  notificationLabel,
+  splitNotifications,
+  unreadNotificationCount,
+} from '../lib/notifications/feed';
 import type { AppNotification } from '../lib/notifications/types';
 import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+
+/**
+ * What kind of news a row is, as the badge this site already uses for that: navy for a tag and
+ * maroon for a reply, the same two colours the board's own plates wear (`♪ MP3` is navy, `PINNED`
+ * is maroon). One look tells a reader which rows they can answer and which are somebody asking
+ * them something.
+ */
+const KIND_BADGE: Record<AppNotification['kind'], string> = {
+  tag: 'bg-[#000080]',
+  reply: 'bg-[#800000]',
+};
+
+/** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
+const GROUP_HEAD = 'border-y border-gray-500 bg-[#e8e8e8] px-1 py-[2px] text-[9px] font-bold text-gray-700';
 
 /**
  * One line of the feed.
@@ -16,8 +35,14 @@ import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
  * the words. Nothing is looked up and nothing is guessed, so a notification cannot describe
  * something other than what happened.
  *
- * Opening one is what marks it read - a notification you have acted on is a notification you
- * have seen - and it takes the reader to the post itself, via the same `#thread-<id>` anchor the
+ * It is laid out as a list row rather than a paragraph - marker, kind, who, when, then the words
+ * and the post - because that is what a feed of twelve of them has to be read as: down the left
+ * edge the two things that differ between rows (is it new, is it a tag or a reply), down the right
+ * the sentence. The tagger's name carries the presence lamp every other name in the app carries,
+ * so a row can say that the account behind it is around.
+ *
+ * Opening one is what marks it read - a notification you have acted on is a notification you have
+ * seen - and it takes the reader to the post itself, via the same `#thread-<id>` anchor the
  * board's own links use.
  */
 function NotificationRow({
@@ -35,16 +60,20 @@ function NotificationRow({
   const body = (
     <>
       <span className="flex items-center gap-1">
-        {unread ? (
-          <span
-            aria-label="Unread"
-            title="Unread"
-            className="inline-block h-2 w-2 shrink-0 border border-black bg-[#000080]"
-          />
-        ) : (
-          <span aria-hidden className="inline-block h-2 w-2 shrink-0 border border-gray-400 bg-[#c0c0c0]" />
-        )}
-        <ProfileName author={{ id: item.actorId, displayName: item.actorName }} lamp={false} />
+        {/* The marker: filled navy while unread, flat grey once seen. */}
+        <span
+          {...(unread ? { 'aria-label': 'Unread', title: 'Unread' } : { 'aria-hidden': true })}
+          className={`inline-block h-2 w-2 shrink-0 border ${
+            unread ? 'border-black bg-[#000080]' : 'border-gray-400 bg-[#c0c0c0]'
+          }`}
+        />
+        <span
+          className={`shrink-0 px-1 text-[9px] leading-[14px] text-white ${KIND_BADGE[item.kind]}`}
+          title={notificationLabel(item.kind)}
+        >
+          {item.kind === 'tag' ? 'TAG' : 'REPLY'}
+        </span>
+        <ProfileName author={{ id: item.actorId, displayName: item.actorName }} />
         <span className={unread ? 'text-black' : 'text-gray-700'}>{notificationLabel(item.kind)}</span>
         <span className="ml-auto shrink-0 font-normal text-gray-700">
           <TimeStamp at={item.createdAt} />
@@ -63,7 +92,7 @@ function NotificationRow({
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
     unread ? 'border-gray-500 bg-white text-black' : 'border-gray-400 bg-[#e8e8e8] text-gray-700'
-  } hover:bg-yellow-100`;
+  } hover:bg-yellow-100 max-sm:min-h-11`;
 
   if (target === null) {
     return (
@@ -98,6 +127,34 @@ function NotificationRow({
   );
 }
 
+/** One group of rows under its own heading. */
+function NotificationGroup({
+  label,
+  items,
+  onOpen,
+  onClose,
+}: {
+  label: string;
+  items: AppNotification[];
+  onOpen: (item: AppNotification) => void;
+  onClose: () => void;
+}) {
+  if (items.length === 0) return null;
+
+  return (
+    <section>
+      <p className={GROUP_HEAD}>
+        {label} :: {items.length}
+      </p>
+      <ul className="space-y-1 p-1">
+        {items.map((item) => (
+          <NotificationRow key={item.id} item={item} onOpen={onOpen} onDismiss={onClose} />
+        ))}
+      </ul>
+    </section>
+  );
+}
+
 type NotificationMenuProps = {
   /** Closes the menu: the side panel hides its panel, a phone closes its window. */
   onClose: () => void;
@@ -123,6 +180,12 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   const notifications = useNotifications();
   const { userId, items, summary, error, ready, markRead, markAllRead, retry } = notifications;
   const unread = unreadNotificationCount(items);
+  // What is waiting, then what has been seen: the two groups the list is drawn in.
+  const { fresh, earlier } = splitNotifications(items);
+  const breakdown = notificationBreakdown(items);
+  const open = (opened: AppNotification) => {
+    void markRead(opened.id);
+  };
 
   return (
     <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-gray-800 border-b-gray-800 bg-[#c0c0c0]' : 'w-full'}>
@@ -163,18 +226,11 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           NOTHING HERE YET. TAGGING SOMEBODY IN A POST, OR REPLYING TO THEIR POST, IS WHAT LANDS IN THIS LIST.
         </p>
       ) : (
-        <ul className="max-h-64 space-y-1 overflow-y-auto p-1">
-          {items.map((item) => (
-            <NotificationRow
-              key={item.id}
-              item={item}
-              onOpen={(opened) => {
-                void markRead(opened.id);
-              }}
-              onDismiss={onClose}
-            />
-          ))}
-        </ul>
+        // One scrolling pane for both groups, so the headings stay with their rows.
+        <div className="max-h-80 overflow-y-auto">
+          <NotificationGroup label="[ NEW ]" items={fresh} onOpen={open} onClose={onClose} />
+          <NotificationGroup label="[ EARLIER ]" items={earlier} onOpen={open} onClose={onClose} />
+        </div>
       )}
 
       <div className="flex flex-wrap items-center gap-2 border-t border-gray-500 p-1">
@@ -195,7 +251,10 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
         >
           [ OPEN THE BOARD ]
         </Link>
-        <span className="text-[10px] text-gray-700">{summary}</span>
+        <span className="text-[10px] text-gray-700">
+          {summary}
+          {breakdown === '' ? '' : ` :: ${breakdown}`}
+        </span>
       </div>
     </div>
   );

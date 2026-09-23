@@ -10,30 +10,38 @@ import { NAV_ITEMS } from './SiteNav';
  * bevelled plates would look like a toolbar lying on its side.
  *
  * The small-screen height is deliberate: on a phone the menu is the whole of the site's navigation,
- * so every row is thumb-sized there even though it is a line of text on a wide screen.
+ * so every row is thumb-sized there even though it is a line of text on a wide screen. The display
+ * is left to the row itself, so a row that a phone hides can say `hidden lg:flex` without fighting
+ * a `flex` in here.
  */
 const MENU_ROW =
-  'flex w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-[#000080] hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'w-full cursor-pointer items-center px-2 py-[5px] text-left text-[11px] font-bold text-black hover:bg-[#000080] hover:text-white max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */
   onDismiss: () => void;
+  /**
+   * Messages waiting, so the COMMS row can say so on a phone - where this menu is the only place
+   * that row appears (passed in rather than read here, which keeps this a list drawer).
+   */
+  commsUnread?: number;
 };
 
 /**
  * The Start menu: everything the desktop can open, in one list.
  *
- * The taskbar's task buttons are the wide window's, so this is how a phone reaches the whole site
- * - and it is a nicer list than five buttons anyway: the site's own five keys first, then the
- * debaser project's shelves, in the order the project page lists them. Both halves are drawn from
- * the lists the taskbar and the project strip already read, so a page added in one place appears
- * here by itself.
+ * On a wide screen that is the site's five keys and then the debaser project's shelves, in the order
+ * the project page lists them. On a phone it is what the header does not already offer: HOME and
+ * FORUM are the tabs at the top and ACCOUNT is behind the picture in the title bar, so those rows
+ * fold away here rather than being a second way to the same page (`mobile` on each key decides it,
+ * see ./SiteNav.tsx). Both halves are drawn from the lists the tabs and the project strip already
+ * read, so a page added in one place appears here by itself.
  *
  * It opens upward out of the taskbar at the foot of the window, carries the vertical name strip a
  * menu of this era carried down its left edge, and closes on ESC, on a click anywhere else, or on
  * a row being chosen.
  */
-export default function StartMenu({ onDismiss }: StartMenuProps) {
+export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps) {
   const frame = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -74,11 +82,20 @@ export default function StartMenu({ onDismiss }: StartMenuProps) {
       </div>
 
       <div className="min-w-0 flex-1 py-1">
-        {NAV_ITEMS.map((item) => (
-          <Link key={item.key} href={item.href} onClick={onDismiss} className={MENU_ROW}>
-            {item.label}
-          </Link>
-        ))}
+        {NAV_ITEMS.map((item) => {
+          // A key the header already carries on a phone is drawn only on a wide screen, so no page
+          // is reachable two ways at once (`mobile` in ./SiteNav.tsx is the list).
+          const display = item.mobile === 'start' ? 'flex' : 'hidden lg:flex';
+          // The count belongs to the COMMS row, and on a wide screen the tab above already says it.
+          const unread = item.key === 'comms' && commsUnread > 0 ? ` (${commsUnread})` : '';
+
+          return (
+            <Link key={item.key} href={item.href} onClick={onDismiss} className={`${display} ${MENU_ROW}`}>
+              {item.label}
+              {unread === '' ? null : <span className="lg:hidden">{unread}</span>}
+            </Link>
+          );
+        })}
 
         <div className="mt-1 border-t border-gray-500 pt-1">
           <p className="px-2 pb-1 text-[10px] font-bold text-gray-700">PROJECT SHELVES</p>

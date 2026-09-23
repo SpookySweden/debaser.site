@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { useComms } from './CommsProvider';
 import StartMenu from './StartMenu';
 
 type TaskbarProps = {
@@ -24,6 +25,9 @@ type TaskbarProps = {
  */
 export default function Taskbar({ status }: TaskbarProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  // The menu's COMMS row carries the unread count on a phone, where that row is the only place the
+  // conversations are listed (the tabs above carry the count on a wide screen).
+  const { unreadTotal } = useComms();
 
   return (
     <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-[#c0c0c0] px-1 py-[3px] text-[10px] font-bold text-black">
@@ -53,7 +57,7 @@ export default function Taskbar({ status }: TaskbarProps) {
         <span>UTF-8</span>
       </span>
 
-      {menuOpen ? <StartMenu onDismiss={() => setMenuOpen(false)} /> : null}
+      {menuOpen ? <StartMenu onDismiss={() => setMenuOpen(false)} commsUnread={unreadTotal} /> : null}
     </div>
   );
 }
