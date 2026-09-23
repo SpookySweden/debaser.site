@@ -10,12 +10,18 @@ import { MAX_NOTIFICATION_SNIPPET, type AppNotification, type NotifyTarget } fro
 
 /** Window chrome and menu wording for each kind. */
 export function notificationLabel(kind: AppNotification['kind']): string {
-  return kind === 'tag' ? 'TAGGED YOU' : 'REPLIED TO YOU';
+  if (kind === 'tag') return 'TAGGED YOU';
+  if (kind === 'reply') return 'REPLIED TO YOU';
+
+  return 'INVITED YOU TO A GAME';
 }
 
 /** Shorter verb for a cramped row. */
 export function notificationVerb(kind: AppNotification['kind']): string {
-  return kind === 'tag' ? 'TAGGED' : 'REPLIED';
+  if (kind === 'tag') return 'TAGGED';
+  if (kind === 'reply') return 'REPLIED';
+
+  return 'INVITED';
 }
 
 /** One line of the post, as much as fits, with the line breaks taken out of it. */
@@ -87,20 +93,24 @@ export function splitNotifications(items: AppNotification[]): {
   return { fresh: unreadNotifications(items), earlier: items.filter((item) => !isUnread(item)) };
 }
 
-/** How many of each kind are in the list: tags and replies, for the menu's own status line. */
-export function notificationKindCounts(items: AppNotification[]): { tag: number; reply: number } {
+/** How many of each kind are in the list, for the menu's own status line. */
+export function notificationKindCounts(items: AppNotification[]): { tag: number; reply: number; invite: number } {
   const tag = items.filter((item) => item.kind === 'tag').length;
+  const invite = items.filter((item) => item.kind === 'invite').length;
 
-  return { tag, reply: items.length - tag };
+  return { tag, reply: items.length - tag - invite, invite };
 }
 
 /** The same counts as words: `2 TAGS :: 1 REPLY`, or nothing at all when the feed is empty. */
 export function notificationBreakdown(items: AppNotification[]): string {
   if (items.length === 0) return '';
 
-  const { tag, reply } = notificationKindCounts(items);
+  const { tag, reply, invite } = notificationKindCounts(items);
   // Two forms per word rather than an `S` on the end: a reply's plural is not a reply with an S.
   const word = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+  const parts = [word(tag, 'TAG', 'TAGS'), word(reply, 'REPLY', 'REPLIES')];
+  // An invitation is only worth a word when there is one: the line stays about the board otherwise.
+  if (invite > 0) parts.push(word(invite, 'INVITE', 'INVITES'));
 
-  return `${word(tag, 'TAG', 'TAGS')} :: ${word(reply, 'REPLY', 'REPLIES')}`;
+  return parts.join(' :: ');
 }

@@ -26,7 +26,8 @@ It creates:
   comms_members             who is in a group; a dm's pair answers for it too
   comms_messages            the messages themselves
   comms_reads               each account's read marker per conversation
-  forum_notifications       who tagged you, and who replied to you (section 17)
+  forum_notifications       who tagged you, who replied to you, and who wants a game (sections 17, 23)
+  game_invites              who challenged whom to which game, and whether it was answered (section 23)
   forum_pins                the posts a moderator has pinned, and for how long (section 18)
   music_tracks              the shelf's files, with their tags and the folder they are filed in
   music_folders             the folders the file browser makes, keyed by their whole path (14b)
@@ -677,4 +678,46 @@ this backend is live (the mock store behaved the same way). Those rows have no
 owner, so nothing can delete them through the API - only SQL, or a moderation
 policy added on purpose. If guest posting turns out to be more trouble than it is
 worth, the fix is one line per policy (`with check (author_id = auth.uid())`) plus
+
+The arcade
+----------
+Section 23 adds `game_invites`: one row per challenge. Who asked, who was asked, which game, and
+whether it has been answered.
+
+  - **Readable by the pair.** The two accounts a row names, and nobody else. That is also what
+    makes a match private: it is played on a realtime broadcast channel named after the invitation
+    (`match:<invite id>`, see app/lib/games/channel.ts), and only the pair can read the id.
+  - **Written by either of them.** The sender inserts it (the policy checks `from_user = auth.uid()`
+    and that it is not addressed to them), the recipient answers it by moving `status`, and both may
+    delete it: the sender cancels, the recipient clears one they have answered.
+  - **Nothing about a game in progress is stored.** A board and a court travel over the channel and
+    are forgotten. There is no match table, no move log and nothing to clean up: the worst a
+    disconnect leaves behind is an invitation nobody answers, which the arcade shows as old.
+
+The same section widens `forum_notifications` so the bell can carry a challenge: `kind` gains
+`'invite'` (the constraint is dropped and re-made, so a project with section 17's rows keeps them),
+`game_id` says which game, and `invite_id` points at the row with a cascade so deleting an
+invitation cannot leave a notification behind. The menu's row then reads
+`INVITED YOU TO A GAME` with a `[ ACCEPT & PLAY ]` plate, and opens `/games?invite=<id>` - which
+answers the invitation and starts the match in one press.
+
+  - **Two games, two ways of agreeing.** Tic-tac-toe needs no authority: both sides hold the board
+    and apply the same rule to it, so an illegal move is refused on both ends. The paddle duel has
+    one: the host steps the court and sends it out, while the guest sends only its paddle's position.
+    Both live in app/lib/games/, pure and checked without a browser.
+  - **Who may play.** Any signed-in, unbanned account. A guest may play solo, and is told why an
+    invitation needs an account rather than being quietly refused.
+
+`Temp/check-games.cjs` is the offline one, and it does not need a project: the rules of both games,
+the four buckets an invitation is sorted into, the mock store walked end to end, and the third kind
+of notification, which is where a paddle that never returned the ball was caught.
+`Temp/probe-live-schema.cjs` asks the database for the table, the two columns, the widened
+constraint, the policies and the realtime entry; the migration file ends with the same questions in
+one result.
+
+Until section 23 is in, nothing is broken but the invitations: solo play needs no table at all, the
+games page says the store did not answer (`GAME_INVITES_NEED_MIGRATION`), and the bell simply has no
+challenges to draw. `NEXT_PUBLIC_GAMES_DATA_SOURCE` moves the arcade to the local store on its own -
+or back.
+
 hiding the composer for signed-out visitors.

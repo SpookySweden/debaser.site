@@ -10,6 +10,7 @@ import {
 import { NOTIFICATIONS_DATA_SOURCE, getNotificationsRepository } from '../lib/notifications/repository';
 import type { AppNotification, NotifyTarget } from '../lib/notifications/types';
 import { NOTIFICATIONS_POLL_MS } from '../lib/notifications/types';
+import type { GameId } from '../lib/games/types';
 import { useAuth } from './AuthProvider';
 
 export type NotificationsContextValue = {
@@ -44,6 +45,20 @@ export type NotificationsContextValue = {
     mentions: Mentionable[];
     /** The author this post answers, if it answers one: told as a reply, not as a tag. */
     autoTagId?: string | null;
+  }) => Promise<void>;
+  /**
+   * Files a game invitation for the account it names.
+   *
+   * The arcade writes the invitation itself (`lib/games`); this is the bell's half, so the challenge
+   * and the alert are one press apart. Never rejects, for the same reason `notifyTagged` never does.
+   */
+  notifyInvited: (input: {
+    inviteId: string;
+    gameId: GameId;
+    /** The game's own title, which is what the menu names in place of a thread. */
+    gameTitle: string;
+    body: string;
+    toUserId: string;
   }) => Promise<void>;
   source: typeof NOTIFICATIONS_DATA_SOURCE;
 };
@@ -174,6 +189,38 @@ export default function NotificationsProvider({ children }: { children: React.Re
     [repository, user],
   );
 
+  /**
+   * Files a game invitation for the account it names.
+   *
+   * The invitation row belongs to the arcade's own store (`lib/games`); this is the bell's half of
+   * the same act, so the challenge and the alert are one press apart. A tag and an invitation are the
+   * same shape of news - somebody wants something from you - which is why they share the feed and
+   * the same unread dot.
+   */
+  const notifyInvited = useCallback<NotificationsContextValue['notifyInvited']>(
+    async ({ inviteId, gameId, gameTitle, body, toUserId }) => {
+      if (user === null) return;
+
+      try {
+        await repository.notify({
+          actorId: user.id,
+          actorName: user.displayName,
+          // An invitation has no post behind it: the menu names the game instead of a thread.
+          threadId: '',
+          threadTitle: gameTitle,
+          body,
+          targets: [{ userId: toUserId, kind: 'invite' }],
+          gameId,
+          inviteId,
+        });
+      } catch (caught: unknown) {
+        console.warn('notification feed: could not file an invitation', caught);
+        setError(caught instanceof Error ? caught.message : 'THE NOTIFICATION STORE DID NOT ANSWER.');
+      }
+    },
+    [repository, user],
+  );
+
   const value = useMemo<NotificationsContextValue>(
     () => ({
       // A visitor with no session has no feed to read, so there is nothing to wait for and
@@ -188,9 +235,10 @@ export default function NotificationsProvider({ children }: { children: React.Re
       markRead,
       markAllRead,
       notifyTagged,
+      notifyInvited,
       source: NOTIFICATIONS_DATA_SOURCE,
     }),
-    [error, items, markAllRead, markRead, notifyTagged, ready, retry, userId],
+    [error, items, markAllRead, markRead, notifyTagged, notifyInvited, ready, retry, userId],
   );
 
   return <NotificationsContext.Provider value={value}>{children}</NotificationsContext.Provider>;

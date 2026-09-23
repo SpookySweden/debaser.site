@@ -19,7 +19,7 @@ import { useComms } from './CommsProvider';
  * (or otherwise off the taskbar) pass no `active` key, which leaves every tab
  * unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'games' | 'users' | 'comms' | 'account';
 
 /**
  * Where a phone keeps a key: the tab strip at the top, the Start menu at the foot, or the account
@@ -27,9 +27,9 @@ export type NavKey = 'home' | 'forum' | 'users' | 'comms' | 'account';
  *
  * One key, one place. A phone has three navigation surfaces and no room to be clever with any of
  * them, so the same destination offered twice is a button wasted and a row of chrome stretched for
- * nothing: HOME and FORUM are the tabs (where you read), USERS and COMMS are the menu at the foot
- * (where the rest of the site is), and ACCOUNT is behind your own picture with the rest of the
- * things about you. On a wide screen the axis does not exist - the tabs carry all five and the menu
+ * nothing: HOME and FORUM are the tabs (where you read), GAMES, USERS and COMMS are the menu at the
+ * foot (where the rest of the site is), and ACCOUNT is behind your own picture with the rest of the
+ * things about you. On a wide screen the axis does not exist - the tabs carry all six and the menu
  * adds the project's shelves.
  */
 export type MobileHome = 'tabs' | 'start' | 'account';
@@ -53,6 +53,7 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME', href: '/', mobile: 'tabs' },
   { key: 'forum', label: 'FORUM', href: '/forum', mobile: 'tabs' },
+  { key: 'games', label: 'GAMES', href: '/games', mobile: 'start' },
   { key: 'users', label: 'USERS', href: '/users', mobile: 'start' },
   { key: 'comms', label: 'COMMS', href: '/comms', mobile: 'start' },
   { key: 'account', label: 'ACCOUNT', href: '/account', mobile: 'account' },

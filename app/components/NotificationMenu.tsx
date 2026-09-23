@@ -17,12 +17,20 @@ import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 /**
  * What kind of news a row is, as the badge this site already uses for that: navy for a tag and
  * maroon for a reply, the same two colours the board's own plates wear (`♪ MP3` is navy, `PINNED`
- * is maroon). One look tells a reader which rows they can answer and which are somebody asking
- * them something.
+ * is maroon). An invitation takes the third colour Win95 gave a "go" - the dark green - because a
+ * row you can act on in one press should not look like the two you can only read.
  */
 const KIND_BADGE: Record<AppNotification['kind'], string> = {
   tag: 'bg-[#000080]',
   reply: 'bg-[#800000]',
+  invite: 'bg-[#005000]',
+};
+
+/** The three letters on that badge. */
+const KIND_TAG: Record<AppNotification['kind'], string> = {
+  tag: 'TAG',
+  reply: 'REPLY',
+  invite: 'GAME',
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
@@ -55,7 +63,17 @@ function NotificationRow({
   onDismiss: () => void;
 }) {
   const unread = item.readAt === null;
-  const target = item.threadId === null ? null : `/forum#${threadDomId(item.threadId)}`;
+  // A row written before the arcade exists has no `inviteId` at all, so absence means "no game".
+  const inviteId = item.inviteId ?? null;
+  const isInvite = item.kind === 'invite' && inviteId !== null;
+  // Where the row goes: the invitation's match (which answers it as it opens), or the post itself
+  // via the same `#thread-<id>` anchor the board's own links use.
+  const target =
+    inviteId !== null
+      ? `/games?invite=${encodeURIComponent(inviteId)}`
+      : item.threadId === null
+        ? null
+        : `/forum#${threadDomId(item.threadId)}`;
 
   const body = (
     <>
@@ -71,7 +89,7 @@ function NotificationRow({
           className={`shrink-0 px-1 text-[9px] leading-[14px] text-white ${KIND_BADGE[item.kind]}`}
           title={notificationLabel(item.kind)}
         >
-          {item.kind === 'tag' ? 'TAG' : 'REPLY'}
+          {KIND_TAG[item.kind]}
         </span>
         <ProfileName author={{ id: item.actorId, displayName: item.actorName }} />
         <span className={unread ? 'text-black' : 'text-gray-700'}>{notificationLabel(item.kind)}</span>
@@ -84,8 +102,16 @@ function NotificationRow({
         {item.body.length === 0 ? '...' : `"${item.body}"`}
       </span>
 
-      <span className="mt-[2px] block truncate font-normal text-gray-700">
-        ON: {item.threadTitle.length === 0 ? 'A POST' : item.threadTitle}
+      <span className="mt-[2px] flex items-center gap-2 font-normal text-gray-700">
+        <span className="truncate">
+          {item.kind === 'invite' ? 'GAME: ' : 'ON: '}
+          {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
+        </span>
+        {isInvite ? (
+          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-[#c0c0c0] px-1 text-[9px] font-bold text-black">
+            [ ACCEPT &amp; PLAY ]
+          </span>
+        ) : null}
       </span>
     </>
   );

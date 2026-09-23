@@ -1,3 +1,4 @@
+import { isGameId } from '../games/types';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { dedupeTargets, snippet, sortNotificationsNewestFirst } from './feed';
@@ -68,6 +69,9 @@ type NotificationRow = {
   thread_id: string | null;
   thread_title: string;
   body: string;
+  /** Section 23: the game an invitation is for, and the row it belongs to. Null on a tag or reply. */
+  game_id?: string | null;
+  invite_id?: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -78,12 +82,14 @@ function toNotification(row: NotificationRow): AppNotification {
   return {
     id: row.id,
     userId: row.user_id,
-    kind: row.kind === 'reply' ? 'reply' : 'tag',
+    kind: row.kind === 'reply' ? 'reply' : row.kind === 'invite' ? 'invite' : 'tag',
     actorId: row.actor_id,
     actorName: row.actor_name,
     threadId: row.thread_id,
     threadTitle: row.thread_title,
     body: row.body,
+    gameId: isGameId(row.game_id) ? row.game_id : null,
+    inviteId: row.invite_id ?? null,
     createdAt: row.created_at,
     readAt: row.read_at,
   };
@@ -161,6 +167,9 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
       thread_id: UUID.test(input.threadId) ? input.threadId : null,
       thread_title: input.threadTitle,
       body: snippet(input.body),
+      // Section 23's two columns, written only when the row is about a game.
+      game_id: input.gameId ?? null,
+      invite_id: input.inviteId ?? null,
     }));
 
     const { error } = await this.client().from(TABLE).insert(rows);

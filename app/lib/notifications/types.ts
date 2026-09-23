@@ -1,5 +1,5 @@
 /**
- * Notifications: who was tagged, and who was answered.
+ * Notifications: who was tagged, who was answered, and who wants a game.
  *
  * A notification is written by the account that did the tagging or the replying, and read by
  * exactly one account - the one it names. Everything the menu shows is a column here: who did
@@ -13,8 +13,14 @@
 
 export type NotificationsDataSource = 'mock' | 'supabase';
 
-/** A tag is somebody naming you; a reply is somebody answering you. */
-export type NotificationKind = 'tag' | 'reply';
+import type { GameId } from '../games/types';
+
+/**
+ * A tag is somebody naming you; a reply is somebody answering you; an invite is somebody asking you
+ * for a game. The three share one feed because they share one question - what do I owe somebody - and
+ * one place to answer it from.
+ */
+export type NotificationKind = 'tag' | 'reply' | 'invite';
 
 /** How much of the post a notification carries into the menu. */
 export const MAX_NOTIFICATION_SNIPPET = 120;
@@ -37,6 +43,15 @@ export type AppNotification = {
   threadTitle: string;
   /** The words themselves, shortened (see `snippet`). */
   body: string;
+  /**
+   * Game invitations only: which game, and which row to answer.
+   *
+   * The id is what the menu's `[ ACCEPT ]` opens (`/games?invite=<id>`) and what the two clients
+   * name their match channel after, so the invitation is answered and joined in one step. Null on a
+   * tag or a reply, where the post is the destination instead.
+   */
+  gameId: GameId | null;
+  inviteId: string | null;
   createdAt: string;
   /** Null until the recipient has seen it: that is what the unread dot is. */
   readAt: string | null;
@@ -57,6 +72,9 @@ export type NotifyInput = {
   /** The post or reply itself; the store keeps a snippet of it. */
   body: string;
   targets: NotifyTarget[];
+  /** Game invitations only: see AppNotification.gameId / .inviteId. */
+  gameId?: GameId | null;
+  inviteId?: string | null;
 };
 
 /**
