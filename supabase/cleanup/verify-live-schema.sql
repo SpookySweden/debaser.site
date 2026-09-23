@@ -41,6 +41,7 @@ select object, state, section from (
   union all select 'column: forum_notifications.invite_id', case when exists (select 1 from information_schema.columns where table_schema='public' and table_name='forum_notifications' and column_name='invite_id') then 'ok' else 'MISSING' end, '23'
 
   -- Constraints that were widened rather than re-made.
+  union all select 'constraint: profile comment kinds include song', case when exists (select 1 from pg_constraint where conrelid='public.profile_comments'::regclass and pg_get_constraintdef(oid) like '%song%') then 'ok' else 'MISSING' end, '15'
   union all select 'constraint: notification kinds include invite', case when exists (select 1 from pg_constraint where conname='forum_notifications_kind_check' and pg_get_constraintdef(oid) like '%invite%') then 'ok' else 'MISSING' end, '23'
 
   -- The functions section 16 made the only door to a group, plus the two the policies ask.
@@ -98,5 +99,3 @@ order by tablename;
 -- And the count the user directory on /users will draw.
 
 select count(*) as accounts_listed from public.profiles;
-
-  union all select 'constraint: profile comment kinds include song', case when exists (select 1 from pg_constraint where conrelid='public.profile_comments'::regclass and pg_get_constraintdef(oid) like '%song%') then 'ok' else 'MISSING' end, '15'
