@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
 import { emptyProfile } from './mock-profile-repository';
+import { profileRecord, readProfile, rememberProfile, subscribeToProfile } from './profile-cache';
+import type { CachedProfile } from './profile-cache';
 import { getProfileRepository } from './repository';
 import type { ProfileDataSource, PublicProfile } from './types';
 
@@ -15,58 +17,66 @@ export type UsePublicProfileResult = {
   refresh: () => Promise<void>;
 };
 
+/** Nobody to read: nothing to subscribe to. */
+function subscribeToNothing(): () => void {
+  return () => undefined;
+}
+
+/** What a reader that has been asked for nothing sees: the same object every time, by design. */
+const EMPTY_RECORD: CachedProfile = { profile: null, status: 'unread' };
+
 /**
  * Reads one profile and keeps it in sync.
  *
- * The shell profile is used until the stored row arrives, so a visitor opening
- * a profile nobody has filled in sees the empty state rather than a spinner,
- * and the owner's customiser can write to it straight away.
+ * The row comes from the tab's profile cache (`./profile-cache`), so a component that mounts
+ * later - after a navigation, or as the tenth avatar on one page - draws the picture on its
+ * **first** render instead of an empty shell that fills in a moment afterwards. The first
+ * reader of an account is the one that goes and gets it; every other reader waits on that same
+ * request rather than making its own.
+ *
+ * A profile nobody has read yet draws as the empty shell rather than a spinner, so a visitor
+ * opening a profile nobody has filled in sees the empty state, and the owner's customiser can
+ * write to it straight away.
  */
 export function usePublicProfile(userId: string | null): UsePublicProfileResult {
   const repository = useMemo(() => getProfileRepository(), []);
-  const [stored, setStored] = useState<PublicProfile | null>(null);
-  const [ready, setReady] = useState(userId === null);
-  const [fallbackName, setFallbackName] = useState('Anonymous');
 
-  const refresh = useCallback(async () => {
-    if (userId === null) return;
+  const subscribe = useCallback(
+    (listener: () => void) => (userId === null ? subscribeToNothing() : subscribeToProfile(userId, listener)),
+    [userId],
+  );
 
-    const next = await repository.getProfile(userId);
-    setStored(next);
-  }, [repository, userId]);
+  const cached = useSyncExternalStore(
+    subscribe,
+    useCallback(
+      () => (userId === null ? EMPTY_RECORD : profileRecord(userId)),
+      [userId],
+    ),
+    // The server has read nothing, so it draws the shell and the client fills it in - which is
+    // what useSyncExternalStore is for: no hydration complaint, no flicker afterwards.
+    () => EMPTY_RECORD,
+  );
 
   useEffect(() => {
     if (userId === null) return;
 
-    let cancelled = false;
+    // The first reader fetches; the cache answers everyone else.
+    void readProfile(repository, userId);
 
-    void repository
-      .getProfile(userId)
-      .then((next) => {
-        if (cancelled) return;
-        setStored(next);
-        if (next !== null) setFallbackName(next.displayName);
-        setReady(true);
-      })
-      .catch(() => {
-        if (!cancelled) setReady(true);
-      });
-
-    const unsubscribe = repository.subscribe((profile) => {
-      if (!cancelled && profile.userId === userId) {
-        setStored(profile);
-        setFallbackName(profile.displayName);
-        setReady(true);
-      }
+    // A write anywhere - the customiser here, the same account in another tab, another device
+    // - arrives as a whole row, so what is remembered is what the store now holds.
+    return repository.subscribe((next) => {
+      if (next.userId === userId) rememberProfile(next);
     });
-
-    return () => {
-      cancelled = true;
-      unsubscribe();
-    };
   }, [repository, userId]);
 
-  const profile = stored ?? emptyProfile(userId ?? 'anonymous', fallbackName);
+  const refresh = useCallback(async () => {
+    if (userId === null) return;
 
-  return { profile, ready, source: repository.source, repository, refresh };
+    await readProfile(repository, userId, { force: true });
+  }, [repository, userId]);
+
+  const profile = cached.profile ?? emptyProfile(userId ?? 'anonymous', 'Anonymous');
+
+  return { profile, ready: userId === null || cached.status !== 'unread', source: repository.source, repository, refresh };
 }

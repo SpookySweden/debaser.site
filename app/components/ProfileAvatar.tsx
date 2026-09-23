@@ -24,13 +24,18 @@ type ProfileAvatarProps = {
 export const AVATAR_PLAIN_FRAME =
   'inline-flex shrink-0 items-center justify-center overflow-hidden rounded-none border border-black bg-white';
 
+/** A frame this wide has room for the notice; below it the frame is smaller than the words. */
+const NOTICE_MIN_SIZE = 96;
+
 /**
  * A profile picture, framed like everything else on the site.
  *
  * The drawing itself is hand-drawn and dropped into `assets/` by hand, so this
  * only frames it: `SheetImage` shows the standard "[ ARTWORK FILE NOT FOUND ]"
  * notice while a slot is still empty, and an untouched profile shows a plain
- * "NO PICTURE" box instead of a broken image.
+ * "NO PICTURE" box instead of a broken image - or, where the frame is only a
+ * thumbnail's width (the side panel's card, the picture revealed on hover), a
+ * plain `?`, because "NO PICTURE" is wider than the box it would sit in.
  */
 export default function ProfileAvatar({
   version,
@@ -72,7 +77,7 @@ export default function ProfileAvatar({
           className="flex items-center justify-center rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-[#f0f0f0]"
           style={{ height: size - 10 }}
         >
-          <span className="text-[10px] font-bold text-black">NO PICTURE</span>
+          <span className="text-[10px] font-bold text-black">{size >= NOTICE_MIN_SIZE ? 'NO PICTURE' : '?'}</span>
         </div>
       ) : (
         <SheetImage

@@ -65,7 +65,15 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadT
         title="Account, directory and comms"
         className={PICTURE_BUTTON}
       >
-        <ProfileAvatar version={avatarVersion} displayName={displayName} size={26} hideVersionLabel />
+        {/* A 26px square: the plain frame, because the framed notice ("NO PICTURE") is wider
+            than the picture it stands in for and would push the title bar about. */}
+        <ProfileAvatar
+          version={avatarVersion}
+          displayName={displayName}
+          size={26}
+          variant="plain"
+          hideVersionLabel
+        />
         {unreadTotal === 0 ? null : <span className="pr-1 text-[10px] font-bold text-[#800000]">{unreadTotal}</span>}
       </button>
 
