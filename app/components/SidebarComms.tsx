@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { participantFromThread, threadLabel } from '../lib/comms/threads';
 import { useComms } from './CommsProvider';
-import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { TITLE_BAR } from '../lib/ui/controls';
@@ -53,9 +52,8 @@ export default function SidebarComms() {
       <div className={TITLE_BAR}>
         <span>COMMS</span>
         <span className="flex items-center gap-1">
-          {/* The bell sits at the top of the comms block: tags and replies are board news, but
-              this is where a reader looks when they want to know who is waiting on them. */}
-          <NotificationBell />
+          {/* No bell here any more: the notices plate lives in the taskbar's tray, so it is at the
+              foot of every window on every screen instead of inside one panel of the side column. */}
           <span>[ {comms.unreadTotal === 0 ? `${threads.length} OPEN` : `${comms.unreadTotal} NEW`} ]</span>
         </span>
       </div>

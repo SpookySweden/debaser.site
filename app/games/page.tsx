@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function GamesPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [GAMES]" active="games" status="Arcade Open">
+    <SiteWindow title="DEBASER_OS - v1.0 [GAMES]" active="games" status="Arcade Open" closeHref="/forum">
       <h1 className="text-xl font-bold mb-2">DEBASER.SITE // ARCADE</h1>
       <p className="text-xs mb-4 leading-relaxed">
         Two games, played here or with somebody else. Solo is one press; a match is an invitation -

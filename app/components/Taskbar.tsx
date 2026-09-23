@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
 import { useComms } from './CommsProvider';
+import NotificationBell from './NotificationBell';
 import StartMenu from './StartMenu';
 
 type TaskbarProps = {
@@ -13,10 +14,12 @@ type TaskbarProps = {
 /**
  * The taskbar along the foot of the window: the Start button, and the tray.
  *
- * The page tabs are the window's header (see ./SiteNav.tsx), so the foot strip holds the two things
+ * The page tabs are the window's header (see ./SiteNav.tsx), so the foot strip holds the three things
  * a desktop keeps at the foot of the screen and nowhere else: the way into everything - the Start
  * menu, which lists the same five keys as the header *and* the debaser project's shelves - and the
- * tray, which is the page's status line and the encoding this window is written in.
+ * tray, which is the page's status line, the encoding this window is written in and the notices bell.
+ * The bell is here rather than in the side panel because the side panel is wide-screen only, and a
+ * notice is the one plate a phone most needs to reach.
  *
  * It is drawn with `order-last` while being written before the page, so a keyboard user meets the
  * page's own content first and the tray last, which is the order they read in.
@@ -55,6 +58,9 @@ export default function Taskbar({ status }: TaskbarProps) {
         <span>Status: {status}</span>
         <span aria-hidden="true">::</span>
         <span>UTF-8</span>
+        {/* The tray carries the notices too: a notice belongs beside the status line and the encoding,
+            at the foot of every window on every screen, rather than inside one page's side panel. */}
+        <NotificationBell />
       </span>
 
       {menuOpen ? <StartMenu onDismiss={() => setMenuOpen(false)} commsUnread={unreadTotal} /> : null}

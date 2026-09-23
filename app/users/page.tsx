@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function UsersPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [USERS]" active="users" status="Directory Online">
+    <SiteWindow title="DEBASER_OS - v1.0 [USERS]" active="users" status="Directory Online" closeHref="/forum">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // USER DIRECTORY</h1>
     <p className="text-xs mb-4 leading-relaxed">
       Every account the site knows about, with a lamp that says whether anybody is behind it: green while

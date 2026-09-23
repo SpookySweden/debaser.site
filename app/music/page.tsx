@@ -20,7 +20,7 @@ export const metadata: Metadata = {
  */
 export default function MusicPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / MUSIC]" status="Music Archive">
+    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / MUSIC]" status="Music Archive" closeHref="/forum">
       <h1 className="text-xl font-bold mb-4">DEBASER.SITE // MUSIC</h1>
 
       <ProjectSectionNav current="music" />
