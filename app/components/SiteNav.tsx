@@ -52,20 +52,43 @@ export type NavItem = {
  * links - which is the one page that explains what the archive is *for*. The board is the front door;
  * this is the address.
  *
- * ARCADE is the only window key left here, because the archive is not a key on this band at all any
- * more: `♪` lives in the side panel, beside the player it controls and the account that owns it
- * (`SIDE_MUSIC` below). It is still routeable exactly as it was - `/forum?music=1` is the same
- * address, and the Start menu, a post's plate and a track's tag badge all still open it - so nothing
- * that pointed at the archive had to be rewritten; only the band stopped showing it.
+ * ARCADE and MUSIC are not keys on this band at all any more: `◄►` and `♪` live in the side panel,
+ * where the account that owns them and the player one of them controls are (`SIDE_ARCADE` and
+ * `SIDE_MUSIC` below). Both are still routeable exactly as they were - `/forum?arcade=1` and
+ * `/forum?music=1` are the same addresses, and the Start menu, a post's plate, a track's tag badge
+ * and the bell's invitation all still open them - so nothing that pointed at either window had to be
+ * rewritten; only the band stopped showing them.
+ *
+ * That leaves this list as the places a reader *goes*, with no key that opens a window over where
+ * they already are. The two are kept apart deliberately, and `Temp/check-surreal.cjs` holds the
+ * separation: a band that grew a window key back would be a band that lies about what a key does.
  */
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME :: THE DEBASER PROJECT', mark: ICON_HOME, href: '/projects/debaser' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
-  { key: 'games', label: 'ARCADE', mark: ICON_ARCADE, href: '/forum?arcade=1' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },
 ];
+
+/**
+ * The arcade, as the side panel's own key.
+ *
+ * It sits beside the archive's because the two are the same kind of thing: a window opened over
+ * wherever the reader is standing, not a place they go. Keeping both out of `NAV_ITEMS` is what stops
+ * the header band drawing them again - the band draws one list, the panel draws the other, and
+ * neither can reintroduce the other's key by accident.
+ *
+ * The address is the arcade's own floor (`/forum?arcade=1`), the same one the Start menu row uses, so
+ * a copied link or a middle-click still lands in the same window. An *invitation* and a *challenge*
+ * are different addresses and are not this key's business (see lib/games/arcade-window.ts).
+ */
+export const SIDE_ARCADE: NavItem = {
+  key: 'games',
+  label: 'ARCADE',
+  mark: ICON_ARCADE,
+  href: '/forum?arcade=1',
+};
 
 /**
  * The archive, as the side panel's own key.

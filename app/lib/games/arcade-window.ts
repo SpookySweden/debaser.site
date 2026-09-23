@@ -70,6 +70,43 @@ export function arcadeHref(focus: ArcadeFocus): string {
   }
 }
 
+/**
+ * A press on the arcade's own key: opening it when shut, closing it when open.
+ *
+ * The board's plate and the side panel's key are *switches* - both sit on the screen the arcade is
+ * drawn over, so a reader who has finished with it presses the same key again rather than hunting for
+ * the window's `[ X CLOSE ]`. This is that answer, in one place, so the two doors cannot disagree.
+ *
+ * Two things it is deliberately not.
+ *
+ * It is not the behaviour of an *invitation* or a *challenge*. Those arrive as addresses from
+ * somewhere else - the bell, a post's plate - and they carry a `focus` saying what the arcade was
+ * opened to do (see `ArcadeFocus`). A toggle has no focus to offer: a second press would either
+ * re-open the floor over the game in progress, or do nothing visible. So a focused open stays a
+ * focused open, and only ever opens.
+ *
+ * It is not a toggle *to* the floor either. `toggleArcade` opens on the floor when shut, which is
+ * what the key means, and closes whatever is open when open - a challenge on screen and a press on
+ * the key is a reader leaving the arcade, not a reader asking for a different game.
+ */
+export function toggleArcade(): void {
+  if (arcadeWindowState().open) closeArcade();
+  else openArcade();
+}
+
+/**
+ * Whether the address still needs spending when the arcade closes.
+ *
+ * The key opens the arcade by *following* an address (`/forum?arcade=1`), and an invitation or a
+ * challenge does the same (`?invite=`, `?challenge=&game=`). Once the window is shut that address is
+ * a lie, and worse, it is one the effect in ./components/ArcadeWindow.tsx would read again the next
+ * time it ran - reopening the thing the reader just closed. All three shapes are recognised here, so
+ * clearing the address is one question rather than three.
+ */
+export function arcadeAddressSpentByClose(search: string): boolean {
+  return arcadeFocusFromSearch(search) !== null;
+}
+
 /** What an address asks for, or null for an address that says nothing about the arcade. */
 export function arcadeFocusFromSearch(search: string): ArcadeFocus | null {
   const params = new URLSearchParams(search);

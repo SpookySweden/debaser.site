@@ -5,7 +5,14 @@ import { usePathname, useRouter } from 'next/navigation';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { SIDE_MUSIC } from './SiteNav';
+import { SIDE_ARCADE, SIDE_MUSIC } from './SiteNav';
+import type { NavItem } from './SiteNav';
+import {
+  arcadeAddressSpentByClose,
+  arcadeWindowState,
+  subscribeToArcadeWindow,
+  toggleArcade,
+} from '../lib/games/arcade-window';
 import {
   musicAddressSpentByClose,
   musicWindowState,
@@ -71,6 +78,48 @@ function setSidebarOpen(next: boolean): void {
 }
 
 /**
+ * One shelf key: a window that opens over wherever the reader is standing.
+ *
+ * Both keys in the panel's shelf are this, because both are the same thing - a mark, a word, and a
+ * switch that says whether the window is up. Writing it once is what keeps them agreeing: a key that
+ * gained an `[ ON ]` mark or a hover bump would get it for both, rather than for whichever one
+ * somebody remembered.
+ *
+ * The state it is drawn in is the window's own, handed in rather than read here, so this stays a
+ * plain component with no opinion about which window it belongs to.
+ */
+function ShelfKey({
+  item,
+  isOpen,
+  onPress,
+}: {
+  item: NavItem;
+  isOpen: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onPress}
+      aria-haspopup="dialog"
+      aria-pressed={isOpen}
+      title={isOpen ? `Close the ${item.label.toLowerCase()}` : `Open the ${item.label.toLowerCase()}`}
+      className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold ${
+        isOpen
+          ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
+          : 'border-t-white border-l-white border-black bg-sun text-ink hover:animate-bump hover:bg-ena hover:text-sun'
+      }`}
+    >
+      <span aria-hidden="true" className="text-[13px] leading-none">
+        {item.mark}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+      <span aria-hidden="true">{isOpen ? '[ ON ]' : '[ ▶ ]'}</span>
+    </button>
+  );
+}
+
+/**
  * The side panel: the profile, the conversations and the directory, on the right.
  *
  * It lives inside the DEBASER_OS window rather than floating beside it, so it
@@ -85,31 +134,51 @@ export default function DesktopSidebar() {
   const isOpen = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
   const musicState = useSyncExternalStore(subscribeToMusicWindow, musicWindowState, musicWindowState);
   const musicOpen = musicState.open;
+  const arcadeState = useSyncExternalStore(subscribeToArcadeWindow, arcadeWindowState, arcadeWindowState);
+  const arcadeOpen = arcadeState.open;
   const pathname = usePathname();
   const router = useRouter();
 
   /**
-   * The archive's key: a press opens it, and a second press shuts it.
+   * A press on either shelf key: opening when shut, closing when open.
    *
-   * It is a button rather than a link because it is a switch on the screen the archive is drawn over
-   * - pressing `♪` twice should leave the window shut, the same way pressing the board's plate twice
-   * does. The address is spent with it: this key opens the window by *following* `/forum?music=1`, so
-   * leaving that in the URL would make the shut window disagree with where the reader is, and the
-   * window's own effect would read it and open the thing straight back up.
+   * Both keys are *switches*, not links - they sit on the screen their window is drawn over, so a
+   * reader who has finished with one presses the same key again rather than hunting for the window's
+   * `[ X CLOSE ]`. They work through the same shape here so they cannot drift apart: take the
+   * address, ask the window whether it was open, toggle, and spend the address if it was.
    *
-   * The query is read off `window.location` here rather than through `useSearchParams`, and that is
+   * The address is read off `window.location` rather than through `useSearchParams`, and that is
    * deliberate: `useSearchParams` opts the whole page out of static prerendering, which is a cost the
    * sidebar should not impose on every screen for a value it only wants at the moment of a press. A
    * click handler runs in the browser by definition, so the address is right there to read.
+   *
+   * Spending it matters because both keys open their window by *following* an address
+   * (`/forum?music=1`, `/forum?arcade=1`). Leave that in the URL and the shut window disagrees with
+   * where the reader is - and the window's own effect reads the address again and opens the thing
+   * straight back up. The two `*AddressSpentByClose` questions answer it for all four arcade
+   * addresses and both archive ones.
    */
-  const pressMusic = useCallback(() => {
-    const asked = window.location.search;
-    const wasOpen = musicWindowState().open;
+  const pressShelf = useCallback(
+    (wasOpen: boolean, spentByClose: (search: string) => boolean, toggle: () => void) => {
+      const asked = window.location.search;
 
-    toggleMusic();
+      toggle();
 
-    if (wasOpen && musicAddressSpentByClose(asked)) router.replace(pathname);
-  }, [pathname, router]);
+      if (wasOpen && spentByClose(asked)) router.replace(pathname);
+    },
+    [pathname, router],
+  );
+
+  const pressMusic = useCallback(
+    () => pressShelf(musicWindowState().open, musicAddressSpentByClose, toggleMusic),
+    [pressShelf],
+  );
+
+  const pressArcade = useCallback(
+    () => pressShelf(arcadeWindowState().open, arcadeAddressSpentByClose, toggleArcade),
+    [pressShelf],
+  );
+
 
   if (!isOpen) {
     return (
@@ -139,43 +208,26 @@ export default function DesktopSidebar() {
       <div className="flex-1 space-y-2 overflow-y-auto p-2">
         <SidebarProfile />
 
-        {/* The archive, where the account it belongs to is.
-            `♪` used to sit in the header band with the page keys, which put it in a row of places
-            you *go* while it is really a window you open over wherever you are standing - and it put
-            it as far from the player bar it controls as the window allows. It is here instead, under
-            the profile: one key, its own line, at the thumb-end of the panel rather than mixed into
-            a row of pages. It is a link like every other key, so a middle-click or a copy of the
-            address still works, and `/forum?music=1` opens the same window the Start menu's shelf
-            does (see `SIDE_MUSIC` in ./SiteNav.tsx). */}
+        {/* The shelf: the two windows that open *over* wherever the reader is standing.
+            `◄►` and `♪` used to sit in the header band with the page keys, which put them in a row of
+            places you *go* while they are really windows you open where you are - and it put them as
+            far from the player bar `♪` controls as the window allows. They are here instead, under the
+            profile: two keys, at the thumb-end of the panel rather than mixed into a row of pages.
+
+            They are buttons, not links, because a second press must shut what the first opened. Both
+            keep the address they open by (`/forum?arcade=1`, `/forum?music=1`), so a copied link and a
+            middle-click still work - and so the Start menu's shelves, a post's plates and the bell's
+            invitation, which are *links* into the same two windows, are unaffected. See `SIDE_ARCADE`
+            and `SIDE_MUSIC` in ./SiteNav.tsx. */}
         <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
           <div className={TITLE_BAR_INACTIVE}>
             <span>SHELF</span>
-            <span>[ 1 ]</span>
+            <span>[ 2 ]</span>
           </div>
 
-          <div className="p-2">
-            <button
-              type="button"
-              onClick={pressMusic}
-              aria-haspopup="dialog"
-              aria-pressed={musicOpen}
-              title={
-                musicOpen
-                  ? 'Close the music archive'
-                  : 'Open the music archive: play a file, or inject one into a post'
-              }
-              className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold ${
-                musicOpen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-                  : 'border-t-white border-l-white border-black bg-sun text-ink hover:animate-bump hover:bg-ena hover:text-sun'
-              }`}
-            >
-              <span aria-hidden="true" className="text-[13px] leading-none">
-                {SIDE_MUSIC.mark}
-              </span>
-              <span className="min-w-0 flex-1 truncate text-left">{SIDE_MUSIC.label}</span>
-              <span aria-hidden="true">{musicOpen ? '[ ON ]' : '[ ▶ ]'}</span>
-            </button>
+          <div className="space-y-1 p-2">
+            <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
+            <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
           </div>
         </section>
 

@@ -135,17 +135,6 @@ export const TITLE_BAR_BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ena hover:text-sun active:animate-flash active:bg-bubble active:text-ink max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
 /**
- * A mark-sized title-bar key: the two that open a window over the board.
- *
- * The same bevel and the same yellow as every other plate, sized to its glyph instead of to a word.
- * They are the header's own keys - the arcade and the archive, the two doors that open a window
- * rather than a page - so they wear the header's inversion too, and the recess they sit in is the
- * navy that inversion lands on.
- */
-export const WINDOW_KEY =
-  'inline-flex h-5 min-w-5 items-center justify-center px-[3px] text-[11px] font-bold';
-
-/**
  * The plate that carries a verb onto the board: the one magenta face on the site.
  *
  * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not
