@@ -30,6 +30,26 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
 
 Every table gets Row Level Security so users can only edit or delete their own comments and lore entries.
 
+## Routing & Windows
+
+The board (`/forum`) is the desktop. A few things follow from that, and they are rules rather than
+preferences:
+
+- **The arcade has no page.** `/games` is not a route: `GamesHub` is the screen inside
+  `app/components/ArcadeWindow.tsx`, drawn once in `app/layout.tsx`, and it opens over whatever the
+  reader was on. Do not add a `/games` route back.
+- **A window opens from an address.** `app/lib/games/arcade-window.ts` both builds and reads the
+  arcade's three addresses, so a link and the code that answers it cannot drift:
+  `/forum?arcade=1` (the header key and Start menu row), `/forum?invite=<id>` (the bell),
+  `/forum?challenge=<userId>&game=<gameId>` (a post's `[ CHALLENGE ]` plate).
+- **Two presses from the board.** An action a reader starts on the board - asking somebody for a
+  game, filing a track with a post - is two presses: one to open the thing, one to commit it. The
+  composer's own entry and submit presses are separate and are the floor. `Temp/check-flows.cjs`
+  holds both flows to this, so change the flows and that check is what tells you.
+- **Verbs go where the account or the file is named.** `PostAuthorRow` and `UserDirectoryRow` both
+  carry an `actions` slot for a screen's own verb (`[ CHALLENGE ]`, `[ MESSAGE ]`); a screen with a
+  question to ask an account adds it there rather than writing the row again.
+
 ## Build Order
 
 1. Static Web 1.0 UI frames + gallery placeholders
