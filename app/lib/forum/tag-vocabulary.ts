@@ -101,32 +101,40 @@ export function canonicalTagLabel(raw: string, existing: string[]): string {
 }
 
 /**
- * CRT pastel swatch palette: the 16 colours the tag picker offers, and the set
- * the automatic fallback colour is hashed into.
+ * The palette a tag's colour comes from: sixteen hues, one weight.
  *
- * All sixteen are light enough to read black lettering on (see TagBadge).
+ * Every entry is the same saturation and lightness - `hsl(n * 22.5deg, 42%, 38%)`, written out - so
+ * the set reads as a palette rather than sixteen opinions: two tags a step apart in hue are equally
+ * strong, and no single tag shouts. Hue is the only thing that changes, which is the whole trick.
+ *
+ * They are this dark on purpose. A colour that *fills* a chip has to be pale enough to write on; a
+ * colour that *marks* one - the small key drawn in front of a tag's label, see TagBadge - has to be
+ * dark enough to see, so the same palettes that looked like confetti as fills look like a control
+ * panel's chart legend as keys. `markColour` (app/lib/ui/colour.ts) clamps a colour chosen in the
+ * picker to the same weight, so a tag coloured before this rule existed still comes out as a
+ * recognisable mark.
  */
-export const CRT_PASTEL_PALETTE = [
-  '#ffb3ba',
-  '#ffd7b5',
-  '#ffefb5',
-  '#d9f7b0',
-  '#b5f7c8',
-  '#b5f0e8',
-  '#b7e2ff',
-  '#c3cbff',
-  '#d9bfff',
-  '#f0bfff',
-  '#ffbfe4',
-  '#ffd0d9',
-  '#ffc9b5',
-  '#d8e8b5',
-  '#bfe8d8',
-  '#e6e0ff',
+export const TAG_MARK_PALETTE = [
+  '#8a3838',
+  '#8a5738',
+  '#8a7538',
+  '#7f8a38',
+  '#618a38',
+  '#428a38',
+  '#388a4d',
+  '#388a6b',
+  '#388a8a',
+  '#386b8a',
+  '#384d8a',
+  '#42388a',
+  '#61388a',
+  '#7f388a',
+  '#8a3875',
+  '#8a3857',
 ];
 
-/** Back-compat alias: the palette is also the automatic colour source. */
-export const TAG_PALETTE = CRT_PASTEL_PALETTE;
+/** The automatic colour source: a tag's own label picks from this set by hash. */
+export const TAG_PALETTE = TAG_MARK_PALETTE;
 
 function hashKey(key: string): number {
   let hash = 2166136261;

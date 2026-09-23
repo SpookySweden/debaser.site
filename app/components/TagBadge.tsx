@@ -1,55 +1,71 @@
 import Link from 'next/link';
-import type { CSSProperties } from 'react';
 import { tagColour, tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumTag } from '../lib/forum/types';
+import { markColour } from '../lib/ui/colour';
 
 /**
- * Retro "pill" badges.
+ * Retro tag chips.
  *
- * Every tag a reader sees - the ones posters picked and the themes read out of the
- * text - is painted with the pastel swatch the picker gives that label, so DESIGN
- * is DESIGN wherever it appears instead of navy on a post and pastel in the
- * chooser. Only the retired housekeeping tags (`source`) keep the grey system
- * styling, and `displayTags` strips those before they reach the screen.
+ * A tag is a neutral bevelled chip with a small colour **key** in front of its label - the way a list
+ * box of this era marked a category - rather than a chip painted wall-to-wall in its colour. Three
+ * things come out of that one decision: a board full of tags reads as one board instead of a bag of
+ * sweets, the same tag is still the same colour everywhere it appears (the key is the colour, so
+ * DESIGN is DESIGN on a post, in the chooser and on a profile), and a colour nobody would have chosen
+ * as a *fill* still works as a mark - which is what lets the picker offer sixteen hues without
+ * shouting.
  *
- * Note: the project hard rule is 0px border-radius on every element, so these
- * pills are square-edged bevelled chips (Win95 tag look) instead of rounded
- * capsules - `rounded-none` is explicit on purpose.
+ * The project's hard rule is 0px border-radius, so these are square-edged bevelled chips (the Win95
+ * tag look), never rounded capsules - `rounded-none` is explicit on purpose.
  */
 
-/** The bevelled chip every swatch-coloured tag wears. */
-const SWATCH_CHIP = 'text-[#101010] border-t-white border-l-white border-r-[#707070] border-b-[#707070]';
+const CHIP_BASE =
+  'inline-flex items-center gap-1 rounded-none border px-1.5 py-[1px] text-[10px] font-bold uppercase tracking-[0.02em]';
 
+/**
+ * The chip itself. The coloured kinds wear the site's raised grey; `source` is the retired
+ * housekeeping tag and stays inset, which is how a reader can still tell the two apart at a glance.
+ */
 const KIND_CLASSES: Record<ForumTag['kind'], string> = {
-  user: SWATCH_CHIP,
-  category: SWATCH_CHIP,
-  content: SWATCH_CHIP,
+  user: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
+  category: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
+  content: 'bg-[#e8e8e8] text-black border-t-white border-l-white border-r-[#808080] border-b-[#808080]',
   source: 'bg-[#f0f0f0] text-black border-t-[#808080] border-l-[#808080] border-r-white border-b-white',
 };
 
-const CHIP_BASE =
-  'inline-flex items-center rounded-none border px-2 py-[2px] text-[10px] font-bold uppercase tracking-[0.08em]';
-
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */
-const CHIP_COMPACT = 'px-1 py-0 text-[9px] tracking-[0.04em]';
+const CHIP_COMPACT = 'gap-[3px] px-1 py-0 text-[9px] tracking-0';
 
 /** Shared chip styling, so the chooser and the badges look identical. */
 export function tagChipClasses(tag: ForumTag, compact = false): string {
   return `${CHIP_BASE} ${KIND_CLASSES[tag.kind]}${compact ? ` ${CHIP_COMPACT}` : ''}`;
 }
 
-/**
- * The chip's colour: the colour chosen for the tag, else the swatch its label
- * hashes to. Automatic theme tags take the same route as picked ones, which is
- * what keeps the badge on a post identical to the badge in the picker.
- */
-export function tagChipStyle(tag: ForumTag): CSSProperties | undefined {
-  return tag.kind === 'source' ? undefined : { backgroundColor: tag.colour ?? tagColour(tag.label) };
+/** The key: a small square of the tag's colour, at the weight a mark wears. */
+export function TagMark({ colour, compact = false }: { colour: string | undefined; compact?: boolean }) {
+  if (colour === undefined) return null;
+
+  return (
+    <span
+      aria-hidden="true"
+      className={`${compact ? 'h-[6px] w-[6px]' : 'h-[8px] w-[8px]'} shrink-0 border border-[#404040]`}
+      style={{ backgroundColor: colour }}
+    />
+  );
 }
 
-/** Same chip background, straight from a colour (used by the picker). */
-export function tagChipStyleFromColour(colour: string): CSSProperties {
-  return { backgroundColor: colour };
+/**
+ * The colour a tag's key wears: the colour chosen for the label, else the one its label hashes to,
+ * at the weight a mark wears. Undefined for the retired housekeeping tags, which carry no colour.
+ */
+export function tagMarkColour(tag: ForumTag): string | undefined {
+  if (tag.kind === 'source') return undefined;
+
+  return markColour(tag.colour ?? tagColour(tag.label));
+}
+
+/** The same, straight from a colour: what the pickers preview before a tag exists. */
+export function tagMarkColourFromColour(colour: string): string {
+  return markColour(colour);
 }
 
 type TagBadgeProps = {
@@ -65,9 +81,9 @@ export default function TagBadge({ tag, count, compact = false }: TagBadgeProps)
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`${tagChipClasses(tag, compact)} hover:opacity-90`}
-      style={tagChipStyle(tag)}
+      className={`${tagChipClasses(tag, compact)} hover:bg-gray-200`}
     >
+      <TagMark colour={tagMarkColour(tag)} compact={compact} />
       {tag.label}
       {count === undefined || count === 0 ? null : ` (${count})`}
     </Link>

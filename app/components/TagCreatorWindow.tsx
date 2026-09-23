@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import {
-  CRT_PASTEL_PALETTE,
+  TAG_MARK_PALETTE,
   canonicalTagLabel,
   makeUserTag,
   normaliseTagLabel,
 } from '../lib/forum/tag-vocabulary';
+import { contrastRatio } from '../lib/ui/colour';
 import PopoutWindow from './PopoutWindow';
-import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
 type TagCreatorWindowProps = {
   /** Labels already in use, so the editor can warn when a name folds onto one. */
@@ -20,14 +21,14 @@ type TagCreatorWindowProps = {
 /**
  * The tag editor pop-up.
  *
- * Opened from the subtle "+ NEW TAG..." control in any composer. Name the tag,
- * pick one of the 16 CRT pastel swatches, and it is created with that colour -
- * the colour is remembered against the tag, so the same tag always comes back
- * in the same pastel.
+ * Opened from the subtle "+ NEW TAG..." control in any composer. Name the tag, pick one of the
+ * sixteen swatches, and it is created with that colour - the colour is remembered against the tag, so
+ * the same tag always comes back in the same colour. Each swatch is drawn the way a tag wears it (a
+ * small key on a neutral chip), so what is picked here is what a post will show.
  */
 export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: TagCreatorWindowProps) {
   const [name, setName] = useState('');
-  const [colour, setColour] = useState<string>(CRT_PASTEL_PALETTE[0]);
+  const [colour, setColour] = useState<string>(TAG_MARK_PALETTE[0]);
   const [error, setError] = useState<string | null>(null);
 
   const inputId = 'tag-creator-name';
@@ -86,34 +87,35 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
             className="mt-1 w-full rounded-none border-2 border-t-gray-600 border-l-gray-600 border-r-white border-b-white bg-white p-2 font-mono text-xs text-black outline-none"
           />
 
-          <p className="mt-3 text-[10px] font-bold">CRT PASTEL SWATCHES (16):</p>
+          <p className="mt-3 text-[10px] font-bold">
+            SWATCHES ({TAG_MARK_PALETTE.length}) :: EACH IS DRAWN AS A TAG&apos;S COLOUR KEY
+          </p>
           <div className="mt-1 grid grid-cols-8 gap-1">
-            {CRT_PASTEL_PALETTE.map((swatch) => (
+            {TAG_MARK_PALETTE.map((swatch) => (
               <button
                 key={swatch}
                 type="button"
                 onClick={() => setColour(swatch)}
-                title={swatch.toUpperCase()}
+                title={`${swatch.toUpperCase()} :: ${contrastRatio(swatch, '#e8e8e8').toFixed(1)}:1 against the chip it sits on`}
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
-                className={`h-6 w-full cursor-pointer rounded-none border-2 border-t-white border-l-white border-r-[#606060] border-b-[#606060] ${
-                  colour === swatch ? 'outline-2 outline-black' : ''
+                className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#e8e8e8] py-1 ${
+                  colour === swatch ? 'outline-2 outline-black' : 'hover:bg-gray-200'
                 }`}
-                style={{ backgroundColor: swatch }}
-              />
+              >
+                <TagMark colour={swatch} />
+              </button>
             ))}
           </div>
 
           <div className="mt-3 rounded-none border border-gray-600 bg-[#f0f0f0] p-2">
             <p className="text-[10px] font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
-              <span
-                className={tagChipClasses(makeUserTag(previewLabel))}
-                style={tagChipStyleFromColour(colour)}
-              >
+              <span className={tagChipClasses(makeUserTag(previewLabel))}>
+                <TagMark colour={tagMarkColourFromColour(colour)} />
                 {previewLabel}
               </span>
-              <span className="text-[10px] font-bold">{colour.toUpperCase()}</span>
+              <span className="text-[10px] font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
             </div>
             {foldsOnto === null ? (
               <p className="mt-1 text-[10px]">A NEW TAG WILL BE CREATED.</p>

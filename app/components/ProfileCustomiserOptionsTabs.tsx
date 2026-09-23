@@ -1,11 +1,33 @@
 'use client';
 
-import { LOW_CONTRAST_NAME_COLOURS, NAME_COLOURS, nameColourLabel } from '../lib/profile/name-colours';
+import {
+  NAME_COLOURS_THAT_GLOW,
+  NAME_COLOURS_THAT_READ,
+  nameColourContrast,
+  nameColourLabel,
+} from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { TagMark } from './TagBadge';
 
 export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-black';
+
+/**
+ * A swatch is offered as the site's own chip: a small key of the colour with the swatch's *name* in
+ * readable ink beside it, rather than a 24px square of the colour itself. Sixteen saturated squares in
+ * a grid is the loudest thing a customiser can do, and it tells a visitor nothing except that the
+ * colours exist; the same sixteen as named keys is quiet, and the preview line underneath still shows
+ * the name drawn in the colour that was picked - which is the only part that has to be loud.
+ */
+const SWATCH_CHIP =
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-[#e8e8e8] px-1.5 py-[1px] text-[10px] font-bold text-black uppercase hover:bg-gray-200 max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+
+/** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
+const NAME_COLOUR_ROWS = [
+  { label: 'INK :: A NAME THE PAGE CANNOT SWALLOW', colours: NAME_COLOURS_THAT_READ },
+  { label: 'GLOW :: A NAME THE PAGE SHOWS THROUGH', colours: NAME_COLOURS_THAT_GLOW },
+];
 
 export type ProfileVisibilityDraft = Partial<ProfileVisibility>;
 
@@ -58,39 +80,45 @@ export function ProfileIdentityTab({
       />
 
       <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE SIXTEEN SWATCHES</p>
-      <div className="mt-1 flex flex-wrap items-center gap-1">
-        {NAME_COLOURS.map((colour) => {
-          const chosen = nameColour === colour.hex;
 
-          return (
-            <button
-              key={colour.id}
-              type="button"
-              onClick={() => onNameColourChange(colour.hex)}
-              aria-pressed={chosen}
-              title={
-                LOW_CONTRAST_NAME_COLOURS.includes(colour.hex)
-                  ? `${colour.label} - HARD TO READ ON THE WHITE PAGES`
-                  : colour.label
-              }
-              style={{ backgroundColor: colour.hex }}
-              className={`h-6 w-6 shrink-0 cursor-pointer rounded-none border border-black ${
-                chosen ? 'outline-2 outline-black' : 'hover:outline-1 hover:outline-gray-600'
-              }`}
-            />
-          );
-        })}
+      {NAME_COLOUR_ROWS.map((row) => (
+        <div key={row.label} className="mt-1">
+          <p className="text-[10px] font-bold text-gray-700">{row.label}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1">
+            {row.colours.map((colour) => {
+              const chosen = nameColour === colour.hex;
 
+              return (
+                <button
+                  key={colour.id}
+                  type="button"
+                  onClick={() => onNameColourChange(colour.hex)}
+                  aria-pressed={chosen}
+                  title={`${colour.label} :: ${nameColourContrast(colour.hex).toFixed(1)}:1 on the page`}
+                  className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-black' : ''}`}
+                >
+                  <TagMark colour={colour.hex} />
+                  {colour.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-gray-500 pt-1">
         <span
-          className="ml-2 text-xs font-bold"
+          className="text-sm font-bold"
           style={nameColour.length === 0 ? undefined : { color: nameColour }}
         >
           {preview}
         </span>
+        <span className="text-[10px] text-gray-700">PREVIEW :: {nameColourLabel(nameColour)}</span>
       </div>
+
       <p className="mt-1 text-[10px] text-gray-700">
-        PREVIEW :: {nameColourLabel(nameColour)}. WHITE, SILVER, LIME AND YELLOW SIT CLOSE TO THE PAGE
-        BACKGROUND - PICK ONE OF THOSE AND THE NAME IS MEANT TO BE HARD TO READ.
+        AN INK SWATCH IS A NAME THAT READS ON THE PAGE. A GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH -
+        PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
       </p>
 
       <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-location">

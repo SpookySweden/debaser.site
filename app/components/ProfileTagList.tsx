@@ -15,7 +15,7 @@ import {
 } from '../lib/profile/visibility';
 import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
 import ProfileName from './ProfileName';
-import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
 type ProfileTagListProps = {
   profile: PublicProfile;
@@ -124,8 +124,8 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                 className={`${tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })} ${
                   tag.hidden ? 'opacity-60' : ''
                 }`}
-                style={tagChipStyleFromColour(tag.colour ?? tagColour(tag.label))}
               >
+                <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} />
                 {tag.label}
               </span>
 

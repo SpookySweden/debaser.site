@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { audioTagColour, audioTagKey, audioTagLabel } from '../lib/audio/tags';
 import type { ForumTag } from '../lib/forum/types';
-import { tagChipClasses, tagChipStyle } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
 
 /**
  * An audio tag, worn as the site's own chip.
@@ -44,14 +44,15 @@ type AudioTagPillProps = {
 
 export default function AudioTagPill({ tag, onToggle, active = false, count, compact = false }: AudioTagPillProps) {
   const label = audioTagLabel(tag);
+  const mark = tagMarkColour(asChip(tag));
   const className = `${tagChipClasses(asChip(tag), compact)} ${
-    active ? 'outline-2 outline-black' : 'opacity-90 hover:opacity-100'
+    active ? 'outline-2 outline-black' : 'hover:bg-gray-200'
   }`;
-  const style = tagChipStyle(asChip(tag));
 
   if (onToggle === undefined) {
     return (
-      <Link href={audioTagHref(tag)} title={`Show every track tagged ${label}`} className={className} style={style}>
+      <Link href={audioTagHref(tag)} title={`Show every track tagged ${label}`} className={className}>
+        <TagMark colour={mark} compact={compact} />
         {label}
         {count === undefined || count === 0 ? null : ` (${count})`}
       </Link>
@@ -65,8 +66,8 @@ export default function AudioTagPill({ tag, onToggle, active = false, count, com
       aria-pressed={active}
       title={active ? `Stop filtering by ${label}` : `Filter by ${label}`}
       className={`cursor-pointer ${className}`}
-      style={style}
     >
+      <TagMark colour={mark} compact={compact} />
       {label}
       {count === undefined || count === 0 ? null : ` (${count})`}
     </button>

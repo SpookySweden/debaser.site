@@ -28,6 +28,19 @@ export type ProjectNote = {
 
 export const PROJECT_NOTES: ProjectNote[] = [
   {
+    id: 'note-what-a-tag-colour-is-for',
+    title: 'WHAT A TAG COLOUR IS FOR',
+    kinds: ['BOARD', 'HOUSE RULES'],
+    filed: '2026-09-23T11:00:00.000Z',
+    body: [
+      'A tag wears its colour as a small key in front of its label rather than as a coat of paint over the whole chip. That one change is what lets sixteen colours live on one board: the chip stays the neutral grey every other control is drawn in, the key tells you which tag you are looking at, and a page of tags reads as one page instead of a bag of sweets.',
+      'The palette is sixteen hues at one weight - the same saturation, the same lightness, only the hue changing - so two tags a step apart are equally strong and none of them shouts. A colour chosen in the tag editor is brought to that same weight before it is drawn, which is why a colour nobody would have picked as a fill still works as a key.',
+      'A username colour works the other way round, because a name is ink rather than a mark: the sixteen swatches are offered in two rows, INK for a name the page cannot swallow and GLOW for one the page shows through. The rows are worked out from the contrast arithmetic rather than from taste, so the list of "hard to read" swatches is exactly the glow row and never drifts away from it.',
+    ],
+    href: '/notes',
+    hrefLabel: '[ HOUSE RULES ]',
+  },
+  {
     id: 'note-who-may-write-a-lore-page',
     title: 'WHO MAY WRITE A LORE PAGE',
     kinds: ['LORE', 'HOUSE RULES'],

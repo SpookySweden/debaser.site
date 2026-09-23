@@ -5,7 +5,7 @@ import type { PublicProfile } from '../lib/profile/types';
 import { PLATE_LARGE } from '../lib/ui/controls';
 import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import ProfileName from './ProfileName';
-import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 import TimeStamp from './TimeStamp';
 
 export type ProfileTagsTabProps = {
@@ -44,10 +44,8 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
             {profile.tags.map((tag) => (
               <li key={tag.id} className="rounded-none border border-gray-500 bg-[#f0f0f0] p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span
-                    className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })}
-                    style={tagChipStyleFromColour(tag.colour ?? tagColour(tag.label))}
-                  >
+                  <span className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })}>
+                    <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} />
                     {tag.label}
                   </span>
                   <span className={CUSTOMISER_NOTE}>

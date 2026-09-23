@@ -9,7 +9,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { AVATAR_PLAIN_FRAME } from './ProfileAvatar';
 import SheetImage from './SheetImage';
-import { tagChipClasses, tagChipStyleFromColour } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
 type PostAuthorRowProps = {
   author: ForumAuthor;
@@ -105,8 +105,8 @@ export default function PostAuthorRow({
               key={tag.id}
               title={`Tag given by ${authorLabel(tag.givenBy)}`}
               className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label }, true)}
-              style={tagChipStyleFromColour(tag.colour ?? tagColour(tag.label))}
             >
+              <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} compact />
               {tag.label}
             </span>
           ))}

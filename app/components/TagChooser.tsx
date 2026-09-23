@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { canonicalTagLabel, makeUserTag, tagKey, type TagOption } from '../lib/forum/tag-vocabulary';
 import { useForum } from './ForumProvider';
-import { tagChipClasses, tagChipStyle } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
 import TagCreatorWindow from './TagCreatorWindow';
 
 type TagChooserProps = {
@@ -99,9 +99,9 @@ export default function TagChooser({
                 type="button"
                 onClick={() => toggle(label)}
                 title={`Remove tag ${tag.label}`}
-                className={`${tagChipClasses(tag)} cursor-pointer`}
-                style={tagChipStyle(tag)}
+                className={`${tagChipClasses(tag)} cursor-pointer hover:bg-gray-200`}
               >
+                <TagMark colour={tagMarkColour(tag)} />
                 {tag.label} ×
               </button>
             );
@@ -122,10 +122,10 @@ export default function TagChooser({
               onClick={() => toggle(option.label)}
               title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
               className={`${tagChipClasses(tag)} cursor-pointer ${
-                isSelected ? 'outline-2 outline-black' : 'hover:opacity-100 opacity-90'
+                isSelected ? 'outline-2 outline-black' : 'hover:bg-gray-200'
               }`}
-              style={tagChipStyle(tag)}
             >
+              <TagMark colour={tagMarkColour(tag)} />
               {option.label}
               {option.count > 0 ? ` (${option.count})` : ''}
             </button>

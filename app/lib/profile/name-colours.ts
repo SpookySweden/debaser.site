@@ -1,3 +1,4 @@
+import { contrastRatio } from '../ui/colour';
 import type { PublicProfile } from './types';
 
 /**
@@ -8,6 +9,11 @@ import type { PublicProfile } from './types';
  * purple, teal, silver, grey, red, lime, yellow, blue, fuchsia, aqua, white.
  * Nothing here is generated: a name is either one of these sixteen or black, so
  * a profile can never end up with an unreadable or off-brand colour.
+ *
+ * The set is kept whole, and split in two further down by how it *reads* rather
+ * than by how it looks: `INK` for a name the page cannot swallow, `GLOW` for one
+ * the page shows through. The picker draws them as those two rows, which is the
+ * honest way to offer a lime name - next to a note saying what it will do.
  */
 export type NameColour = {
   /** Stable key, also the swatch's tooltip. */
@@ -39,8 +45,43 @@ export const NAME_COLOURS: NameColour[] = [
 /** The default: usernames are drawn in the page's own black. */
 export const DEFAULT_NAME_COLOUR = '';
 
-/** Swatches that are hard to read on the page's white/grey panels. */
-export const LOW_CONTRAST_NAME_COLOURS = ['#ffffff', '#c0c0c0', '#ffff00', '#00ff00'];
+/**
+ * The surfaces a name is read on.
+ *
+ * A username is printed on the white of a post card and on the panel grey of a customiser, so those
+ * are the two backgrounds the arithmetic below asks about. Grey is the stricter of the two, which is
+ * why a swatch can pass on a post and still be hard to find in a list.
+ */
+const NAME_BACKGROUNDS = ['#ffffff', '#f0f0f0'];
+
+/** How well a swatch reads as a name on the page: the worst of those two, as a ratio from 1 to 21. */
+export function nameColourContrast(hex: string): number {
+  return Math.min(...NAME_BACKGROUNDS.map((paper) => contrastRatio(hex, paper)));
+}
+
+/** What WCAG asks of body text. The words are here so the numbers below are not a mystery. */
+const READABLE = 4.5;
+
+/**
+ * The palette, split by what the arithmetic says rather than by what somebody remembered.
+ *
+ * The picker used to hand-write a list of four swatches as "hard to read on the white pages", and the
+ * arithmetic disagrees with it: eleven of the sixteen sit below the line on at least one of the two
+ * surfaces, and two of the four it named are not even the worst of them. So both groups are computed
+ * here, once, and the picker draws them as two rows - `INK` (a name the page cannot swallow) and
+ * `GLOW` (a name the page shows through, which is a taste and not a fault).
+ */
+export const NAME_COLOURS_THAT_READ = NAME_COLOURS.filter((colour) => nameColourContrast(colour.hex) >= READABLE);
+
+export const NAME_COLOURS_THAT_GLOW = NAME_COLOURS.filter((colour) => nameColourContrast(colour.hex) < READABLE);
+
+/**
+ * Swatches that are hard to read on the page's white/grey panels: the `GLOW` row, by definition.
+ *
+ * Kept as a list of hexes because it is what the picker's own marker asked for, and derived from the
+ * arithmetic so it cannot drift away from the two rows it names.
+ */
+export const LOW_CONTRAST_NAME_COLOURS = NAME_COLOURS_THAT_GLOW.map((colour) => colour.hex);
 
 export function isNameColour(hex: string): boolean {
   return NAME_COLOURS.some((colour) => colour.hex === hex);

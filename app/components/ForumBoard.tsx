@@ -15,7 +15,7 @@ import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
-import { tagChipClasses, tagChipStyle } from './TagBadge';
+import { TagMark, tagChipClasses, tagMarkColour } from './TagBadge';
 import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
@@ -239,10 +239,10 @@ export default function ForumBoard() {
                     aria-pressed={active}
                     title={active ? `Stop including ${option.label}` : `Include posts tagged ${option.label}`}
                     className={`${tagChipClasses(tag)} cursor-pointer max-sm:px-3 max-sm:py-1.5 max-sm:text-xs ${
-                      active ? 'outline-2 outline-black' : 'opacity-90 hover:opacity-100'
+                      active ? 'outline-2 outline-black' : 'hover:bg-gray-200'
                     }`}
-                    style={tagChipStyle(tag)}
                   >
+                    <TagMark colour={tagMarkColour(tag)} />
                     {option.label}
                     {option.count > 0 ? ` (${option.count})` : ''}
                   </button>
