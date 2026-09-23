@@ -15,6 +15,7 @@ import type {
   ForumPreview,
   ForumRepository,
   ForumThread,
+  ForumTrack,
   PinDurationKey,
   ThreadPatch,
   ThreadPin,
@@ -29,6 +30,8 @@ export type CreateThreadRequest = {
   userTags?: string[];
   /** Artwork attached to a general board post. */
   media?: ForumPreview;
+  /** The MP3 filed with the post. */
+  track?: ForumTrack;
 };
 
 export type AddCommentRequest = {
@@ -43,6 +46,8 @@ export type AddCommentRequest = {
   userTags?: string[];
   /** Artwork attached to this reply. */
   media?: ForumPreview;
+  /** The MP3 filed with this reply. */
+  track?: ForumTrack;
 };
 
 export type ForumContextValue = {
@@ -201,6 +206,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         author,
         userTags: canonicaliseUserTags(request.userTags),
         media: request.media,
+        track: request.track,
       });
     },
     [author, canonicaliseUserTags],
@@ -217,6 +223,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
         parentId: request.parentId,
         userTags: canonicaliseUserTags(request.userTags),
         media: request.media,
+        track: request.track,
       });
     },
     [author, canonicaliseUserTags],

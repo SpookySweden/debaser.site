@@ -5,7 +5,7 @@ import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { BOARD_TARGET, POST_TARGETS, postTargetTree } from '../lib/forum/anchors';
 import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags } from '../lib/forum/tags';
-import type { ForumThread } from '../lib/forum/types';
+import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
@@ -44,6 +44,7 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [targetKey, setTargetKey] = useState<string>(POST_TARGETS[0].key);
   const [mediaId, setMediaId] = useState('');
+  const [track, setTrack] = useState<ForumTrack | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -87,6 +88,7 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
         anchor,
         userTags: tags,
         media: media?.preview,
+        ...(track === null ? {} : { track }),
       });
 
       // Whoever the post names is told, after the post itself is filed: a tag that could not be
@@ -102,6 +104,7 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
       setBody('');
       setTags([]);
       setMediaId('');
+      setTrack(null);
       setStatus('THREAD FILED.');
       onCreated?.(thread);
     } catch (caught) {
@@ -176,6 +179,8 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
           previewTags={previewTags}
           tags={tags}
           onTagsChange={setTags}
+          track={track}
+          onTrackChange={setTrack}
           busy={busy}
           error={error}
           status={status}

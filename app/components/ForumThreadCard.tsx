@@ -9,7 +9,7 @@ import { mentionsIn } from '../lib/forum/mentions';
 import { pinLabel, pinSummary } from '../lib/forum/pins';
 import { buildPostLayout } from '../lib/forum/post-layout';
 import { postCredit } from '../lib/forum/site-author';
-import type { ForumThread } from '../lib/forum/types';
+import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
@@ -18,6 +18,7 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
+import InlineTrackPlayer from './InlineTrackPlayer';
 import MediaThumbnail from './MediaThumbnail';
 import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
@@ -66,6 +67,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
   const [replyStatus, setReplyStatus] = useState<string | null>(null);
   const [replyTags, setReplyTags] = useState<string[]>([]);
   const [replyMediaId, setReplyMediaId] = useState('');
+  const [replyTrack, setReplyTrack] = useState<ForumTrack | null>(null);
 
   async function handleReply() {
     const body = reply.trim();
@@ -85,6 +87,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
         threadId: thread.id,
         userTags: replyTags,
         media: ARCHIVE_MEDIA.find((item) => item.id === replyMediaId)?.preview,
+        ...(replyTrack === null ? {} : { track: replyTrack }),
       });
 
       // A reply to the post tags whoever wrote it, plus anybody the words name.
@@ -99,6 +102,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
       setReply('');
       setReplyTags([]);
       setReplyMediaId('');
+      setReplyTrack(null);
       setReplyStatus('REPLY FILED.');
     } catch (caught) {
       setReplyError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
@@ -159,6 +163,12 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
                   </span>
                 )}
                 <span className="shrink-0 text-[10px] text-gray-700">{layout.repliesLabel}</span>
+                {/* A post that came with a track says so before it is opened. */}
+                {thread.track === undefined ? null : (
+                  <span className="shrink-0 border border-black bg-[#000080] px-1 text-[9px] font-bold text-white" title="An MP3 is filed with this post">
+                    ♪ MP3
+                  </span>
+                )}
               </div>
 
               {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
@@ -239,6 +249,15 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
               <p className="whitespace-pre-line text-xs leading-snug text-black">{layout.right.body}</p>
             )}
 
+            {/* The track the post came with: one display, one button, played by the site's player. */}
+            {thread.track === undefined ? null : (
+              <InlineTrackPlayer
+                track={thread.track}
+                poster={layout.author.name}
+                origin="POST"
+              />
+            )}
+
             {/* The accounts this post names, said plainly, so a tag reads as a tag. */}
             <MentionRow body={thread.body} accounts={accounts} />
 
@@ -268,6 +287,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle }: ForumThrea
                 onTagsChange={setReplyTags}
                 mediaId={replyMediaId}
                 onMediaIdChange={setReplyMediaId}
+                track={replyTrack}
+                onTrackChange={setReplyTrack}
                 busy={replyBusy}
                 error={replyError}
                 status={replyStatus}

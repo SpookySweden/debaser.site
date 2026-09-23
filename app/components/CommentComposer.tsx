@@ -3,13 +3,14 @@
 import { authorTag } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { type Mentionable } from '../lib/forum/mentions';
-import type { ForumAuthor, ForumTag } from '../lib/forum/types';
+import type { ForumAuthor, ForumTag, ForumTrack } from '../lib/forum/types';
 import { useForum } from './ForumProvider';
 import MediaPicker from './MediaPicker';
 import MentionPicker from './MentionPicker';
 import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import { TagRow } from './TagBadge';
+import TrackAttachmentPicker from './TrackAttachmentPicker';
 import { PLATE_LARGE } from '../lib/ui/controls';
 
 type CommentComposerProps = {
@@ -35,6 +36,9 @@ type CommentComposerProps = {
   /** Optional image attachment: omit both media props to hide the picker. */
   mediaId?: string;
   onMediaIdChange?: (id: string) => void;
+  /** Optional MP3 attachment: omit both track props to hide the control. */
+  track?: ForumTrack | null;
+  onTrackChange?: (track: ForumTrack | null) => void;
   busy?: boolean;
   error?: string | null;
   status?: string | null;
@@ -64,6 +68,8 @@ export default function CommentComposer({
   autoTag = null,
   mediaId,
   onMediaIdChange,
+  track,
+  onTrackChange,
   busy = false,
   error = null,
   status = null,
@@ -72,6 +78,7 @@ export default function CommentComposer({
   const { tagVocabulary } = useForum();
   const showTagChooser = tags !== undefined && onTagsChange !== undefined;
   const showMediaPicker = mediaId !== undefined && onMediaIdChange !== undefined;
+  const showTrackPicker = onTrackChange !== undefined;
 
   return (
     <form
@@ -126,6 +133,16 @@ export default function CommentComposer({
             />
           </div>
         </div>
+      ) : null}
+
+      {/* An MP3 can ride along with any post or reply on the site (see ./TrackAttachmentPicker). */}
+      {showTrackPicker ? (
+        <TrackAttachmentPicker
+          id={`${id}-track`}
+          value={track ?? null}
+          onChange={onTrackChange ?? (() => undefined)}
+          author={author}
+        />
       ) : null}
 
       <div className="mt-2 flex flex-wrap items-center gap-3">

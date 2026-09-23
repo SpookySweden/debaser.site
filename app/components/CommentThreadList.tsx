@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { buildCommentTree, type CommentNode } from '../lib/forum/comment-tree';
 import { answeredAuthor, mentionsIn } from '../lib/forum/mentions';
-import type { ForumThread } from '../lib/forum/types';
+import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import CommentNodeCard from './CommentNodeCard';
 import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
@@ -43,6 +43,8 @@ export default function CommentThreadList({
   const nodes = useMemo(() => buildCommentTree(thread.comments), [thread.comments]);
 
   const [drafts, setDrafts] = useState<Record<string, string>>({});
+  /** The MP3 each open reply box has attached, by the comment it answers. */
+  const [draftTracks, setDraftTracks] = useState<Record<string, ForumTrack | null>>({});
   const [openReplyId, setOpenReplyId] = useState<string | null>(null);
   const [collapsedIds, setCollapsedIds] = useState<string[]>([]);
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -62,7 +64,13 @@ export default function CommentThreadList({
     setError(null);
 
     try {
-      await forum.addComment({ body, threadId: thread.id, parentId });
+      const attached = draftTracks[parentId] ?? null;
+      await forum.addComment({
+        body,
+        threadId: thread.id,
+        parentId,
+        ...(attached === null ? {} : { track: attached }),
+      });
 
       // Answering a reply tags whoever wrote it (app/lib/forum/mentions.ts), and the words may
       // tag accounts of their own: both are filed from the same call.
@@ -75,6 +83,7 @@ export default function CommentThreadList({
       });
 
       setDrafts((current) => ({ ...current, [parentId]: '' }));
+      setDraftTracks((current) => ({ ...current, [parentId]: null }));
       setOpenReplyId(null);
       setStatus({ id: parentId, message: 'COMMENT FILED.' });
       // Keep the new reply on screen even if that comment's replies were folded.
@@ -109,6 +118,8 @@ export default function CommentThreadList({
         status={status !== null && status.id === comment.id ? status.message : null}
         draft={drafts[comment.id] ?? ''}
         onDraftChange={(value) => setDrafts((current) => ({ ...current, [comment.id]: value }))}
+        track={draftTracks[comment.id] ?? null}
+        onTrackChange={(next) => setDraftTracks((current) => ({ ...current, [comment.id]: next }))}
         onToggleReply={() => {
           setOpenReplyId(replyOpen ? null : comment.id);
           setError(null);

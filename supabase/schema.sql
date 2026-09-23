@@ -236,6 +236,16 @@ create policy "profile comments delete author" on public.profile_comments
 -- auto-filed by an item's comment box, in which case (anchor_kind, anchor_id) is
 -- that item and only one such thread may exist. Guests post with no author.
 -- These are the tables app/lib/forum/supabase-repository.ts reads.
+--
+-- Both tables carry `track`, the MP3 filed with the post or the reply. It is left
+-- unchecked on purpose: the browser writes it, and the repository reads it back
+-- defensively (a row whose `src` has gone is dropped rather than drawn as a player
+-- that cannot play anything). The audio itself lives in the `mp3` bucket, section
+-- 14, beside the shelf's own tracks - so one file can be on the shelf, on a post
+-- and in the /music directory at the same time.
+
+alter table public.forum_threads add column if not exists track jsonb;
+alter table public.forum_comments add column if not exists track jsonb;
 
 create table if not exists public.forum_threads (
   id uuid primary key default gen_random_uuid(),
@@ -251,6 +261,10 @@ create table if not exists public.forum_threads (
   media_alt text,
   media_width integer,
   media_height integer,
+  -- The MP3 filed with the post: { src, title, credit, tags, length }. jsonb rather
+  -- than four columns because it is read as one thing by the player and the /music
+  -- directory, and a row written without one is simply null.
+  track jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -267,6 +281,8 @@ create table if not exists public.forum_comments (
   media_alt text,
   media_width integer,
   media_height integer,
+  -- The MP3 filed with the reply, the same shape the post's `track` column holds.
+  track jsonb,
   created_at timestamptz not null default now()
 );
 
@@ -961,6 +977,11 @@ end $$;
 -- The player reads the *bucket*, not this table: a file dropped in by hand is on the
 -- shelf the moment it lands, and `music_tracks` is what gives a file its title and its
 -- credit. Keep the two in step.
+--
+-- One bucket, three ways in: the music page's own upload form, an account's profile
+-- song (section 15, filed under the same owner's folder), and an MP3 attached to a
+-- forum post or reply - a post's audio is the same file on the same shelf, which is
+-- what puts it in the /music directory the moment it is posted.
 
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('mp3', 'mp3', true, 20971520, array['audio/mpeg', 'audio/mp4', 'audio/ogg', 'audio/wav', 'audio/flac'])
@@ -1000,10 +1021,18 @@ create table if not exists public.music_tracks (
   -- The public URL, which is what a row and a bucket listing are matched on.
   src text not null unique,
   length text not null default '',
+  -- How the track sounds (`HIP HOP`, `LO FI`, `AMBIENT`): the /music directory's
+  -- filter, and the tags drawn on the inline player under a post. Read by
+  -- app/lib/audio/tags.ts, which is also what spells and caps them.
+  tags jsonb not null default '[]'::jsonb,
   uploaded_by uuid references auth.users (id) on delete set null,
   uploaded_by_label text not null default 'Unknown',
   created_at timestamptz not null default now()
 );
+
+-- An archive that filed tracks before audio tags existed: the column is added
+-- rather than the table rebuilt, so nothing already on the shelf is disturbed.
+alter table public.music_tracks add column if not exists tags jsonb not null default '[]'::jsonb;
 
 create index if not exists music_tracks_created_idx on public.music_tracks (created_at desc);
 

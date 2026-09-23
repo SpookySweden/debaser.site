@@ -1,5 +1,6 @@
 import { validateTrackFile } from './catalogue';
 import type { MusicRepository, UploadTrackInput } from './repository';
+import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
 
 /**
@@ -93,13 +94,15 @@ class MockMusicRepository implements MusicRepository {
     }
 
     const credit = input.credit.trim().length === 0 ? input.uploaderName : input.credit.trim();
+    const tags = normaliseAudioTags(input.tags ?? []);
     const track: AudioTrack = {
       id: payload.src,
       title,
       credit,
       kind: 'UPLOADED TO THE SHELF',
       src: payload.src,
-      length: '--:--',
+      length: input.length ?? '--:--',
+      tags,
       // The mock writes into the project's own assets folder, so it is the archive's
       // shelf that grows - which is exactly what the shelf line in the player says.
       shelf: 'archive',

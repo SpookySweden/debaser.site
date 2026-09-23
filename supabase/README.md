@@ -55,6 +55,15 @@ half-working, and the wire draws every comment in its scattered order with no `P
 same file also publishes `profile_comments` to Realtime, which it never was - see Pinned comments
 on a profile below.
 
+Section 20 (an MP3 filed with a post, and the audio tags the file directory filters on) is
+`supabase/migrations/20260927_forum_audio_and_track_tags.sql`, safe to re-run: three `if not
+exists` columns and nothing dropped. Run it *before* the build that posts audio goes up: every post
+and reply now writes the `track` column, so until the column exists an insert is refused with the
+database's own words and nothing lands on the board. The shelf is gentler - `music_tracks.tags` is
+only ever read, so a missing column costs a console warning and files fall back to their own names.
+It needs no new bucket and no new policy: the audio goes into the `mp3` bucket section 14 already
+made (see Music below).
+
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
 `supabase_realtime` publication. A channel bound to a table that is not in it reports
@@ -294,6 +303,17 @@ what the bar at the bottom of the window opens on, looping (`[ LOOP: ON ]` by de
 file with no row is titled from its own name, and if the listing is refused the shelf falls
 back to the archive's own hand-filed tracks (app/lib/projects/tracks.ts) rather than
 showing nothing. `Temp/check-music-bucket.cjs` prints what the player will find.
+
+The same bucket takes the audio that rides with a post. Any post or reply on the board, an asset's
+comment box and a profile's own thread can carry one MP3 - filed from the poster's machine, or
+linked from somewhere else, which is the way in for a guest (`app/components/TrackAttachmentPicker.tsx`).
+The row keeps only what the board says about the file (`track`, read back defensively), and the
+file itself lands on the shelf, so a track filed in a thread is in the player's queue and in the
+`/music` directory the moment it is posted - under the heading `BOARD`, credited to whoever filed
+it. Tags describe how a track sounds (`HIP HOP`, `LO FI`, `AMBIENT`), are spelled and capped in one
+place (`app/lib/audio/tags.ts`), and are what the directory's filter bar counts and filters on.
+Section 20 adds the three columns that hold all of that; `Temp/check-forum-audio.cjs` checks the
+grammar, the filter, the link field and the collection of posted tracks.
 
 Section 15 is the track beside a picture: `profile_song_versions` (append-only, like the
 drawings), `profiles.current_song_version_id` and `show_song_comments`, and

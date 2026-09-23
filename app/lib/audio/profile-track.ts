@@ -22,6 +22,7 @@ export function elementAsTrack(profile: PublicProfile, element: ProfileElement):
     kind: `PROFILE TRACK :: ${element.tag}`,
     src: element.src,
     length: '--:--',
+    tags: [],
     shelf: 'bucket' as const,
   };
 }

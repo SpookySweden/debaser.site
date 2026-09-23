@@ -14,6 +14,7 @@ import type {
   ForumRepository,
   ForumTag,
   ForumThread,
+  ForumTrack,
   PinThreadInput,
   ThreadPatch,
   ThreadPin,
@@ -40,6 +41,8 @@ import type {
  *     media_alt text,
  *     media_width integer,
  *     media_height integer,
+ *     -- The MP3 filed with the post: { src, title, credit, tags, length }.
+ *     track jsonb,
  *     created_at timestamptz not null default now()
  *   );
  *
@@ -54,6 +57,8 @@ import type {
  *     media_alt text,
  *     media_width integer,
  *     media_height integer,
+ *     -- The MP3 filed with the reply, the same shape the post's column holds.
+ *     track jsonb,
  *     created_at timestamptz not null default now()
  *   );
  *
@@ -79,6 +84,10 @@ import type {
  *   alter table public.forum_comments
  *     add column parent_id uuid references public.forum_comments (id) on delete cascade;
  *
+ *   -- the MP3 filed with a post or a reply (additive: an older row is simply null)
+ *   alter table public.forum_threads add column if not exists track jsonb;
+ *   alter table public.forum_comments add column if not exists track jsonb;
+ *
  *   -- realtime
  *   alter publication supabase_realtime add table public.forum_threads, public.forum_comments;
  */
@@ -99,6 +108,8 @@ type CommentRow = {
   media_alt?: string | null;
   media_width?: number | null;
   media_height?: number | null;
+  /** The MP3 filed with the reply, as jsonb (`null` when there is none). */
+  track?: ForumTrack | null;
   /** The comment this replies to, null for a reply to the post itself. */
   parent_id?: string | null;
   created_at: string;
@@ -118,6 +129,8 @@ type ThreadRow = {
   media_alt?: string | null;
   media_width?: number | null;
   media_height?: number | null;
+  /** The MP3 filed with the post, as jsonb (`null` when there is none). */
+  track?: ForumTrack | null;
   created_at: string;
   forum_comments?: CommentRow[] | null;
 };
@@ -137,6 +150,38 @@ function toAuthor(id: string | null, label: string, banned = false): ForumAuthor
     displayName: label.length > 0 ? label : ANONYMOUS_AUTHOR.displayName,
     ...(banned ? { banned: true } : {}),
   };
+}
+
+/**
+ * The `track` column as the board reads it.
+ *
+ * The jsonb is written by whichever browser filed the post, so nothing in it is
+ * trusted: a row that has lost its `src` is dropped rather than drawn as a player
+ * that cannot play anything. Anything else that is missing is filled with what
+ * the board can say honestly - an untitled track, an unattributed one.
+ */
+function trackFromRow(value: ForumTrack | null | undefined): ForumTrack | undefined {
+  if (value === null || value === undefined || typeof value !== 'object') return undefined;
+  if (typeof value.src !== 'string' || value.src.length === 0) return undefined;
+
+  const title = typeof value.title === 'string' ? value.title.trim() : '';
+  const credit = typeof value.credit === 'string' ? value.credit.trim() : '';
+  const tags = Array.isArray(value.tags) ? value.tags.filter((tag): tag is string => typeof tag === 'string') : [];
+  const length = typeof value.length === 'string' && value.length.length > 0 ? value.length : undefined;
+
+  return {
+    src: value.src,
+    title: title.length === 0 ? 'UNTITLED' : title,
+    credit,
+    tags,
+    ...(length === undefined ? {} : { length }),
+  };
+}
+
+/** A track for an object literal's spread, or nothing to spread at all. */
+function withTrack(value: ForumTrack | null | undefined): { track?: ForumTrack } {
+  const track = trackFromRow(value);
+  return track === undefined ? {} : { track };
 }
 
 /** `banned` holds the ids the admin has banned, so a row can be marked on sight. */
@@ -160,6 +205,7 @@ function toComment(row: CommentRow, threadId: string, banned: ReadonlySet<string
     createdAt: row.created_at,
     tags: row.tags ?? deriveTags({ text: row.body, maxTags: 3 }),
     ...(row.parent_id === null || row.parent_id === undefined ? {} : { parentId: row.parent_id }),
+    ...withTrack(row.track),
     ...(row.media_src === null || row.media_src === undefined
       ? {}
       : {
@@ -187,6 +233,7 @@ function toThread(row: ThreadRow, banned: ReadonlySet<string> = new Set()): Foru
     anchor: { kind: row.anchor_kind, id: row.anchor_id, label: row.anchor_label },
     tags: row.tags ?? deriveTags({ text: `${row.title}\n${row.body}`, maxTags: 6 }),
     comments,
+    ...withTrack(row.track),
     ...(row.media_src === null || row.media_src === undefined
       ? {}
       : {
@@ -219,6 +266,7 @@ function threadPayload(input: CreateThreadInput): ThreadInsert {
     media_alt: input.media?.alt ?? null,
     media_width: input.media?.width ?? null,
     media_height: input.media?.height ?? null,
+    track: input.track ?? null,
   };
 }
 
@@ -234,6 +282,7 @@ function commentPayload(input: CreateCommentInput, threadId: string): CommentIns
     media_alt: input.media?.alt ?? null,
     media_width: input.media?.width ?? null,
     media_height: input.media?.height ?? null,
+    track: input.track ?? null,
   };
 }
 

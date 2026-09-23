@@ -29,6 +29,10 @@ export type UploadTrackInput = {
   title: string;
   /** Who the track is credited to; empty means the uploader. */
   credit: string;
+  /** Audio tags for the file: how it sounds, as filed. */
+  tags?: string[];
+  /** Running time as it reads in a list, when the caller has measured the file. */
+  length?: string;
   file: File;
 };
 

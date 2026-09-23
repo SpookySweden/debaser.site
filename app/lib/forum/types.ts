@@ -31,6 +31,28 @@ export type ForumPreview = {
   height: number;
 };
 
+/**
+ * A track filed with a post or a reply.
+ *
+ * The audio itself lives in the `mp3` bucket, or in the project's own
+ * `assets/audio/` folder while the site runs without a backend - this is only
+ * what the board says about the file, so a thread can be read back long after
+ * the visitor's own browser has forgotten it. `tags` are the audio's own
+ * vocabulary (`HIP HOP`, `LO FI`, `AMBIENT`), kept apart from the post's theme
+ * tags because they describe the sound rather than the writing.
+ */
+export type ForumTrack = {
+  /** Storage URL or archive path: the player's key, and what a row is matched on. */
+  src: string;
+  title: string;
+  /** Who the track is credited to; empty means whoever posted it. */
+  credit: string;
+  /** Audio tags, as filed. */
+  tags: string[];
+  /** Running time as it reads in a list; missing until the file has been measured. */
+  length?: string;
+};
+
 export type ForumAnchor = {
   kind: ForumAnchorKind;
   /** Stable id of the asset / text box the thread is attached to. */
@@ -70,6 +92,8 @@ export type ForumComment = {
   tags: ForumTag[];
   /** Artwork attached to this reply. */
   media?: ForumPreview;
+  /** MP3 filed with this reply, played inline where the reply is read. */
+  track?: ForumTrack;
   /**
    * The comment this one replies to. Missing on top-level replies, which answer
    * the post (or the item the thread is filed under) directly.
@@ -119,6 +143,8 @@ export type ForumThread = {
   comments: ForumComment[];
   /** Artwork attached to a general board post. */
   media?: ForumPreview;
+  /** MP3 filed with the post, played inline in the thread stream. */
+  track?: ForumTrack;
   /** 'seed' rows ship with the mock board, 'user' rows were filed in the browser. */
   origin: 'seed' | 'user';
 };
@@ -132,6 +158,8 @@ export type CreateThreadInput = {
   userTags?: string[];
   /** Artwork attached to a general board post. */
   media?: ForumPreview;
+  /** MP3 filed with the post. */
+  track?: ForumTrack;
 };
 
 export type CreateCommentInput = {
@@ -147,6 +175,8 @@ export type CreateCommentInput = {
   userTags?: string[];
   /** Artwork attached to this reply. */
   media?: ForumPreview;
+  /** MP3 filed with this reply. */
+  track?: ForumTrack;
 };
 
 export type AddCommentResult = {

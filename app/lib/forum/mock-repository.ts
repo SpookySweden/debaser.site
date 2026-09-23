@@ -16,6 +16,7 @@ import type {
   ForumPreview,
   ForumRepository,
   ForumThread,
+  ForumTrack,
   PinThreadInput,
   ThreadPatch,
   ThreadPin,
@@ -215,6 +216,7 @@ function makeComment(
   createdAt: string,
   userTags: string[],
   media: ForumPreview | undefined,
+  track: ForumTrack | undefined,
   parentId: string | undefined,
 ): ForumComment {
   return {
@@ -225,6 +227,7 @@ function makeComment(
     createdAt,
     tags: mergeTags(userTags, deriveTags({ text: body, anchor: thread.anchor, maxTags: 3 })),
     ...(media === undefined ? {} : { media }),
+    ...(track === undefined ? {} : { track }),
     ...(parentId === undefined ? {} : { parentId }),
   };
 }
@@ -254,6 +257,7 @@ class MockForumRepository implements ForumRepository {
       comments: [],
       origin: 'user',
       ...(input.media === undefined ? {} : { media: input.media }),
+      ...(input.track === undefined ? {} : { track: input.track }),
     };
 
     commit([thread, ...existing]);
@@ -283,7 +287,7 @@ class MockForumRepository implements ForumRepository {
         if (!parentExists) throw new Error('The comment being replied to is no longer on this thread.');
       }
 
-      const comment = makeComment(existing, body, author, createdAt, userTags, input.media, input.parentId);
+      const comment = makeComment(existing, body, author, createdAt, userTags, input.media, input.track, input.parentId);
       const nextThread: ForumThread = { ...existing, comments: [...existing.comments, comment] };
       commit(threads.map((thread) => (thread.id === existing.id ? nextThread : thread)));
       return { thread: nextThread, comment, createdThread: false };
@@ -307,7 +311,7 @@ class MockForumRepository implements ForumRepository {
       origin: 'user',
     };
 
-    const comment = makeComment(draft, body, author, createdAt, userTags, input.media, undefined);
+    const comment = makeComment(draft, body, author, createdAt, userTags, input.media, input.track, undefined);
     const nextThread: ForumThread = { ...draft, comments: [comment] };
 
     commit([nextThread, ...threads]);

@@ -5,9 +5,10 @@ import { authorTag } from '../lib/auth/author';
 import { countReplies } from '../lib/forum/format';
 import { type Mentionable } from '../lib/forum/mentions';
 import { displayTags } from '../lib/forum/tags';
-import type { ForumAuthor, ForumComment } from '../lib/forum/types';
+import type { ForumAuthor, ForumComment, ForumTrack } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import { CommentModeration } from './ForumModerationControls';
+import InlineTrackPlayer from './InlineTrackPlayer';
 import MediaThumbnail from './MediaThumbnail';
 import MentionRow from './MentionRow';
 import ProfileAvatarLink from './ProfileAvatarLink';
@@ -37,6 +38,9 @@ type CommentNodeCardProps = {
   status: string | null;
   draft: string;
   onDraftChange: (value: string) => void;
+  /** The MP3 attached to the open reply box on this comment, if any. */
+  track: ForumTrack | null;
+  onTrackChange: (track: ForumTrack | null) => void;
   /** Accounts that may be tagged in this reply; empty hides the tagger. */
   accounts?: Mentionable[];
   onToggleReply: () => void;
@@ -69,6 +73,8 @@ export default function CommentNodeCard({
   status,
   draft,
   onDraftChange,
+  track,
+  onTrackChange,
   accounts = [],
   onToggleReply,
   onToggleReplies,
@@ -108,6 +114,16 @@ export default function CommentNodeCard({
           </div>
         )}
 
+        {/* The MP3 this reply came with, played from where the reply is read. */}
+        {comment.track === undefined ? null : (
+          <InlineTrackPlayer
+            track={comment.track}
+            poster={authorTag(comment.author)}
+            origin="REPLY"
+            compact
+          />
+        )}
+
         <TagRow tags={displayTags(comment.tags)} className="mt-1" compact />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
@@ -136,6 +152,8 @@ export default function CommentNodeCard({
             author={viewer}
             accounts={accounts}
             autoTag={comment.author}
+            track={track}
+            onTrackChange={onTrackChange}
             busy={busy}
             error={error}
             status={status}

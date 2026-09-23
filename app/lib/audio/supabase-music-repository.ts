@@ -1,6 +1,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { MUSIC_BUCKET, extensionForTrack, trackStoragePath, validateTrackFile } from './catalogue';
 import type { MusicRepository, UploadTrackInput } from './repository';
+import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
 import { tracksFromStorage } from './tracks';
 
@@ -36,6 +37,7 @@ type TrackRow = {
   kind: string;
   src: string;
   length?: string | null;
+  tags?: string[] | null;
 };
 
 type StorageEntry = {
@@ -104,7 +106,7 @@ class SupabaseMusicRepository implements MusicRepository {
     try {
       const { data, error } = await this.client()
         .from(TRACKS_TABLE)
-        .select('title, credit, kind, src, length')
+        .select('title, credit, kind, src, length, tags')
         .order('created_at', { ascending: true });
 
       if (error !== null) {
@@ -119,6 +121,7 @@ class SupabaseMusicRepository implements MusicRepository {
         credit: row.credit,
         kind: row.kind,
         ...(row.length === null || row.length === undefined || row.length.length === 0 ? {} : { length: row.length }),
+        ...(row.tags === null || row.tags === undefined ? {} : { tags: row.tags }),
       }));
     } catch {
       return [];
@@ -159,12 +162,15 @@ class SupabaseMusicRepository implements MusicRepository {
     const src = client.storage.from(MUSIC_BUCKET).getPublicUrl(path).data.publicUrl;
     const credit = input.credit.trim().length === 0 ? input.uploaderName : input.credit.trim();
     const kind = 'UPLOADED TO THE SHELF';
+    const tags = normaliseAudioTags(input.tags ?? []);
 
     const { error: rowError } = await client.from(TRACKS_TABLE).insert({
       title,
       credit,
       kind,
       src,
+      tags,
+      length: input.length ?? '',
       uploaded_by: input.uploaderId,
       uploaded_by_label: input.uploaderName,
     });
@@ -177,7 +183,7 @@ class SupabaseMusicRepository implements MusicRepository {
       );
     }
 
-    return { id: path, title, credit, kind, src, length: '--:--', shelf: 'bucket' };
+    return { id: path, title, credit, kind, src, length: input.length ?? '--:--', tags, shelf: 'bucket' };
   }
 }
 

@@ -21,6 +21,8 @@ export type Track = {
   length: string;
   /** What it is for: a cue, a theme, a rough mix, a loop. */
   kind: string;
+  /** Audio tags: how the track sounds, read by the /music directory's filter. */
+  tags: string[];
   /** Browser path, served out of the project `assets/` folder. */
   src: string;
 };
@@ -36,6 +38,7 @@ export const TRACKS: Track[] = [
     length: '--:--',
     kind: 'THEME - ROUGH MIX',
     src: '/assets/audio/track-01.mp3',
+    tags: ['AMBIENT', 'EXPERIMENTAL'],
   },
   {
     id: 'track-02',
@@ -44,6 +47,7 @@ export const TRACKS: Track[] = [
     length: '--:--',
     kind: 'CUE - SKETCH',
     src: '/assets/audio/track-02.mp3',
+    tags: ['HIP HOP'],
   },
   {
     id: 'track-03',
@@ -52,5 +56,6 @@ export const TRACKS: Track[] = [
     length: '--:--',
     kind: 'LOOP - AMBIENCE',
     src: '/assets/audio/track-03.mp3',
+    tags: ['AMBIENT', 'LO FI'],
   },
 ];

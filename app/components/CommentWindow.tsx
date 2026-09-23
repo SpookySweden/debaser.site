@@ -7,7 +7,7 @@ import { threadDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags, displayTags } from '../lib/forum/tags';
-import type { ForumAnchor } from '../lib/forum/types';
+import type { ForumAnchor, ForumTrack } from '../lib/forum/types';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -42,6 +42,13 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
   const [status, setStatus] = useState<string | null>(null);
   const [commentTags, setCommentTags] = useState<string[]>([]);
   const [commentMediaId, setCommentMediaId] = useState('');
+  const [commentTrack, setCommentTrack] = useState<ForumTrack | null>(null);
+  /** The MP3s filed on this item's post and its replies, counted for the line under the list. */
+  const filedTracks = useMemo(() => {
+    if (thread === undefined) return 0;
+
+    return (thread.track === undefined ? 0 : 1) + thread.comments.filter((item) => item.track !== undefined).length;
+  }, [thread]);
 
   const composerId = `comment-window-body-${anchor.id}`;
   const previewTags = useMemo(() => deriveTags({ text: body, anchor, maxTags: 3 }), [body, anchor]);
@@ -69,6 +76,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         anchor,
         userTags: commentTags,
         media: ARCHIVE_MEDIA.find((item) => item.id === commentMediaId)?.preview,
+        ...(commentTrack === null ? {} : { track: commentTrack }),
       });
 
       // A comment under an item answers the thread already filed for it, if there is one:
@@ -84,6 +92,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
       setBody('');
       setCommentTags([]);
       setCommentMediaId('');
+      setCommentTrack(null);
       setStatus(result.createdThread ? 'THREAD OPENED ON THE BOARD.' : 'COMMENT FILED.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
@@ -144,6 +153,13 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
                 <span>ORIGIN: {thread.origin.toUpperCase()}</span>
               </div>
 
+              {/* A thread with audio in it says so: the players are in the replies below. */}
+              {filedTracks === 0 ? null : (
+                <p className="mt-1 text-[10px] font-bold text-[#000080]">
+                  {filedTracks} MP3{filedTracks === 1 ? '' : 'S'} FILED HERE - PRESS PLAY ON ONE TO HEAR IT.
+                </p>
+              )}
+
               <TagRow tags={displayTags(thread.tags)} className="mt-1" compact />
 
               <CommentThreadList
@@ -169,6 +185,8 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
             onTagsChange={setCommentTags}
             mediaId={commentMediaId}
             onMediaIdChange={setCommentMediaId}
+            track={commentTrack}
+            onTrackChange={setCommentTrack}
             busy={busy}
             error={error}
             status={status}

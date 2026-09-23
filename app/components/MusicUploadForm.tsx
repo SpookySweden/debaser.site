@@ -1,9 +1,12 @@
 'use client';
 
 import { useRef, useState } from 'react';
+import { measureTrackLength } from '../lib/audio/attach';
 import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
 import { getMusicRepository } from '../lib/audio/repository';
+import { MAX_AUDIO_TAGS, STARTER_AUDIO_TAGS, audioTagKey } from '../lib/audio/tags';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
@@ -25,10 +28,30 @@ export default function MusicUploadForm() {
 
   const [title, setTitle] = useState('');
   const [credit, setCredit] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
+
+  /** Audio tags are the directory's filter, so they are picked as the file is filed. */
+  function toggleTag(label: string) {
+    const key = audioTagKey(label);
+    if (key.length === 0) return;
+
+    if (tags.some((tag) => audioTagKey(tag) === key)) {
+      setTags(tags.filter((tag) => audioTagKey(tag) !== key));
+      return;
+    }
+
+    if (tags.length >= MAX_AUDIO_TAGS) {
+      setError(`MAX ${MAX_AUDIO_TAGS} AUDIO TAGS PER TRACK.`);
+      return;
+    }
+
+    setError(null);
+    setTags([...tags, label]);
+  }
 
   if (user === null) {
     return (
@@ -52,11 +75,17 @@ export default function MusicUploadForm() {
     setNote(null);
 
     try {
+      // The running time is read off the file here, while it is on this machine:
+      // the directory's LENGTH column wants a number, not a placeholder.
+      const length = await measureTrackLength(file);
+
       const track = await getMusicRepository().uploadTrack({
         uploaderId: user?.id ?? '',
         uploaderName: user?.displayName ?? 'Anonymous',
         title,
         credit,
+        tags,
+        ...(length === undefined ? {} : { length }),
         file,
       });
 
@@ -66,6 +95,7 @@ export default function MusicUploadForm() {
       player.play(track);
       setTitle('');
       setCredit('');
+      setTags([]);
       setFile(null);
       if (fileInput.current !== null) fileInput.current.value = '';
       setNote(`FILED :: ${track.src}`);
@@ -117,6 +147,22 @@ export default function MusicUploadForm() {
         onChange={(event) => setFile(event.target.files?.[0] ?? null)}
         className="mt-1 block w-full cursor-pointer rounded-none border border-gray-500 bg-white p-1 text-[10px] font-bold text-black"
       />
+
+      <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-black">
+        <span>
+          AUDIO TAGS ({tags.length}/{MAX_AUDIO_TAGS}):
+        </span>
+
+        {STARTER_AUDIO_TAGS.map((tag) => (
+          <AudioTagPill
+            key={tag}
+            tag={tag}
+            compact
+            active={tags.some((picked) => audioTagKey(picked) === audioTagKey(tag))}
+            onToggle={() => toggleTag(tag)}
+          />
+        ))}
+      </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_LARGE}>

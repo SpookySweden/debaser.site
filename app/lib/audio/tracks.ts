@@ -32,6 +32,8 @@ export type AudioTrack = {
   src: string;
   /** Running time as it reads in a list, when it is known. */
   length: string;
+  /** Audio tags: how it sounds, read by the /music directory's filter. */
+  tags: string[];
   /** Where it came from, which is what the player's display calls out. */
   shelf: 'archive' | 'bucket';
 };
@@ -52,6 +54,7 @@ export const LOCAL_TRACKS: AudioTrack[] = TRACKS.map((track) => ({
   kind: track.kind,
   src: track.src,
   length: track.length,
+  tags: track.tags,
   shelf: 'archive',
 }));
 
@@ -109,6 +112,8 @@ export type DescribedAudio = {
   credit: string;
   kind: string;
   length?: string;
+  /** Audio tags filed with the row; a file with no row simply has none. */
+  tags?: string[];
 };
 
 /**
@@ -132,6 +137,7 @@ export function tracksFromStorage(objects: StoredAudio[], described: DescribedAu
       kind: row === undefined || row.kind.trim().length === 0 ? 'UPLOADED TO THE SHELF' : row.kind,
       src: object.src,
       length: row?.length ?? '--:--',
+      tags: row?.tags ?? [],
       shelf: 'bucket' as const,
     };
   });
