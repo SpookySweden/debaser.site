@@ -31,6 +31,18 @@ const TABLE = 'forum_notifications';
 export const NOTIFICATIONS_NEED_MIGRATION =
   'THE NOTIFICATION FEED NEEDS A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260923_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. POSTING AND REPLYING ARE UNAFFECTED.';
 
+/**
+ * What the bell is told when the table is there but its rules are not.
+ *
+ * A table can exist with the four policies missing - a script that stopped halfway, a `create table`
+ * pasted on its own, a policy block run while it was not what was selected in the editor - and the
+ * only thing the client ever sees of that is Postgres refusing every write with `42501`, in words
+ * about row-level security that name no fix. So the database's own sentence is kept (it is the
+ * truth) and the sentence that says which file to run is put beside it.
+ */
+export const NOTIFICATIONS_NEED_POLICIES =
+  'THE FEED`S OWN RULES ARE NOT IN PLACE, SO NOTHING CAN BE FILED: RUN supabase/migrations/20260923_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD - IT RECREATES EACH POLICY BY NAME, SO IT IS SAFE TO RUN AGAIN. THE POST, THE REPLY AND THE TAG IN ITS WORDS ARE ALL UNAFFECTED.';
+
 /** The codes PostgREST and Postgres answer with when the database is behind the code. */
 const MISSING_SCHEMA_CODES = new Set(['PGRST200', 'PGRST204', 'PGRST205', 'PGRST106', '42P01', '42703']);
 
@@ -40,6 +52,11 @@ function isMissingSchema(error: QueryError): boolean {
   if (typeof error.code === 'string' && MISSING_SCHEMA_CODES.has(error.code)) return true;
 
   return /schema cache|does not exist|could not find/i.test(error.message);
+}
+
+/** `42501` is what a row-level security refusal carries, whatever the policy that refused. */
+function isPolicyRefusal(error: QueryError): boolean {
+  return error.code === '42501' || /row-level security policy/i.test(error.message);
 }
 
 type NotificationRow = {
@@ -81,6 +98,17 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
     throw new Error(message);
   }
 
+  /**
+   * The store's own words for a write it would not take, with the script to run beside them when the
+   * cause is the database being behind the code rather than the row being wrong.
+   */
+  private refuse(error: QueryError): never {
+    if (isMissingSchema(error)) this.fail(NOTIFICATIONS_NEED_MIGRATION);
+    if (isPolicyRefusal(error)) this.fail(`${error.message} :: ${NOTIFICATIONS_NEED_POLICIES}`);
+
+    this.fail(error.message);
+  }
+
   private client() {
     const client = getSupabaseBrowserClient();
     if (client === null) this.fail('THE NOTIFICATION FEED NEEDS SUPABASE TO BE CONFIGURED.');
@@ -98,8 +126,7 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
       .limit(200);
 
     if (error !== null) {
-      if (isMissingSchema(error)) this.fail(NOTIFICATIONS_NEED_MIGRATION);
-      this.fail(error.message);
+      this.refuse(error);
     }
 
     return sortNotificationsNewestFirst(((data ?? []) as NotificationRow[]).map(toNotification));
@@ -133,8 +160,7 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
 
     const { data, error } = await this.client().from(TABLE).insert(rows).select('*');
     if (error !== null) {
-      if (isMissingSchema(error)) this.fail(NOTIFICATIONS_NEED_MIGRATION);
-      this.fail(error.message);
+      this.refuse(error);
     }
 
     return ((data ?? []) as NotificationRow[]).map(toNotification);
@@ -149,8 +175,7 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
       .is('read_at', null);
 
     if (error !== null) {
-      if (isMissingSchema(error)) this.fail(NOTIFICATIONS_NEED_MIGRATION);
-      this.fail(error.message);
+      this.refuse(error);
     }
 
     await this.publish(userId);
@@ -164,8 +189,7 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
       .is('read_at', null);
 
     if (error !== null) {
-      if (isMissingSchema(error)) this.fail(NOTIFICATIONS_NEED_MIGRATION);
-      this.fail(error.message);
+      this.refuse(error);
     }
 
     await this.publish(userId);
