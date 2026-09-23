@@ -1,3 +1,4 @@
+import { USING_MOCK_AUTH } from '../auth/auth-repository';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { MAX_AVATAR_BYTES } from './avatar-catalogue';
 import { PROFILE_DATA_SOURCE } from './repository';
@@ -49,6 +50,29 @@ export function avatarStoragePath(userId: string, version: number, extension: st
   return `${safeUserId}/avatar-v${version}-${stamp}${extension}`;
 }
 
+/**
+ * The credential the upload route is sent with, once the site has real accounts.
+ *
+ * `app/api/profile/avatar/route.ts` checks the session when Supabase Auth is the backend,
+ * and files the drawing under the account the token belongs to - so the browser has to
+ * present its token or the picture is refused. With the mock accounts there is no session
+ * to present, and the route's own rate limit is what stands in its place.
+ *
+ * Null means "there is nothing to present": signed out, or no client to read a session
+ * from. Worth refusing before the upload rather than after it.
+ */
+async function sessionHeaders(): Promise<Record<string, string> | null> {
+  if (USING_MOCK_AUTH) return {};
+
+  const client = getSupabaseBrowserClient();
+  if (client === null) return null;
+
+  const { data } = await client.auth.getSession();
+  const token = data.session?.access_token ?? null;
+
+  return token === null ? null : { Authorization: `Bearer ${token}` };
+}
+
 export async function uploadAvatarDrawing(input: {
   file: File;
   userId: string;
@@ -83,11 +107,14 @@ export async function uploadAvatarDrawing(input: {
   }
 
   try {
+    const headers = await sessionHeaders();
+    if (headers === null) return { ok: false, error: 'SIGN IN AGAIN BEFORE FILING A DRAWING.' };
+
     const form = new FormData();
     form.append('file', input.file);
     form.append('userId', input.userId);
 
-    const response = await fetch('/api/profile/avatar', { method: 'POST', body: form });
+    const response = await fetch('/api/profile/avatar', { method: 'POST', body: form, headers });
     const payload = (await response.json()) as { ok?: boolean; src?: string; error?: string };
 
     if (payload.ok !== true || payload.src === undefined) {

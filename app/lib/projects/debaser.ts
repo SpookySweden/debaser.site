@@ -55,6 +55,13 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     note: 'Visual development, one sheet per window, each carrying its own comment thread on the board.',
   },
   {
+    id: 'lore',
+    label: 'LORE',
+    href: '/lore',
+    summary: 'The world, written down.',
+    note: 'The lore pages: what the world is made of, written by whoever has a page open and merged as it is typed.',
+  },
+  {
     id: 'music',
     label: 'MUSIC',
     href: '/music',

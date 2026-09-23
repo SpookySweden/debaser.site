@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+DEBASER.SITE
+============
 
-## Getting Started
+An archive of comic-book lore and concept art, run like a Web 1.0 desktop. A message board, an
+account directory, direct messages, a music shelf, a set of hand-drawn concept sheets and a set of
+lore pages written live by whoever is looking at one share a single window frame, one palette and
+one set of stores.
 
-First, run the development server:
+Every drawing is hand-drawn on a Kamvas tablet and filed by hand: nothing here generates artwork,
+and no character, icon or cursor is drawn in CSS or in SVG. AGENTS.md holds the look to that rule
+and to the rest of the aesthetic; `assets/README.txt` says where each kind of drawing goes.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+What is where
+-------------
+    app/                  the site: one folder per route, plus the chrome, the stores and the rules
+      page.tsx            the landing map, and the project it lists
+      forum/              the board: posts, replies, tags, pins and moderation
+      users/ comms/       the account directory, and the conversations between accounts
+      account/            signing in, and the public-profile customiser
+      profile/[userId]/   one account's public page, with the comment wire that runs over it
+      concepts/           the hand-drawn sheets, each in a window of its own with its own thread
+      music/              the archive as a file browser: folders, files, tags, and the player
+      lore/[slug]/        lore pages, edited together in real time
+      notes/ links/       how the archive is built, and everywhere else worth going
+      api/                the routes a browser posts files to on the mock stores
+      lib/                every store and every rule, one folder per subject
+      components/         the chrome, the windows and the panels
+    assets/               every hand-drawn file, streamed by app/assets/[...path]/route.ts
+    supabase/             schema.sql (the whole database, safe to re-run) plus the newer sections
+                          as migrations, and README.md - the order to run everything in
+    Temp/                 local scratch: the check scripts, their logs and the commit messages
+                          (gitignored, and never needed to run or to build the site)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Running it
+----------
+    npm install
+    npm run dev           # http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+The site runs with no backend at all. Every store falls back to a localStorage mock when the
+environment says nothing, so the board, the profiles, the conversations, the shelf and the lore
+pages all work on a fresh clone - and each part can be moved onto Supabase on its own.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The switches
+------------
+Copy `.env.example` to `.env.local`, then fill in the project's url and publishable key:
 
-## Learn More
+    NEXT_PUBLIC_SUPABASE_URL=...              the project, and the key the browser reads with
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+    NEXT_PUBLIC_AUTH_BACKEND=supabase         accounts
+    NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase    the board
+    NEXT_PUBLIC_PROFILE_DATA_SOURCE=supabase  profiles, pictures, tags
+    NEXT_PUBLIC_COMMS_DATA_SOURCE=supabase    direct messages
+    NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase    the shelf's files and folders
 
-To learn more about Next.js, take a look at the following resources:
+`.env.production` is committed with the same names, because every one of them is a `NEXT_PUBLIC_*`
+value that reaches the browser in the bundle anyway: Row Level Security in `supabase/schema.sql` is
+what protects the data. `supabase/README.md` is the order to run, the house account to make, the
+Google sign-in seam to open - and what each part of the site does until its script has been run.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Checks
+------
+    npm run lint          # eslint
+    npm run typecheck     # tsc --noEmit
+    npm run build         # next build, which typechecks and prerenders every route
+    npm run verify        # the three above, in that order
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+    node Temp/run-checks.cjs
 
-## Deploy on Vercel
+The last one runs the scratch checks: the assertions behind each feature, from the pin durations to
+the wire's rows to the Yjs handshake between two editors. Each compiles the modules it needs with
+`npx tsc` first, from the command written in its own header comment, so that one command is the
+whole run. The live probes beside them need a Supabase project and credentials, and are run by hand
+against the deployed one.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Deploying
+---------
+Vercel, straight from this repository. `next build` is what runs there, `.env.production` is what
+points it at Supabase, and nothing else has to be configured in a dashboard - except the schema,
+which is run once in the Supabase SQL editor (step 1 of `supabase/README.md`).
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

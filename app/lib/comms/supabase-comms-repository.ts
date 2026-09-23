@@ -52,12 +52,14 @@ const THREAD_SELECT_PAIRS_ONLY = `*, ${MESSAGES_TABLE}(*), ${READS_TABLE}(*)`;
 /**
  * What the group forms are told when this database has not had the group script.
  *
- * A deployment step rather than a mistake the reader made, so it names the file to
- * run and says the direct messages are unaffected - the honest answer to "why did
- * this button not work" when the code is ahead of the database.
+ * A deployment step rather than a mistake the reader made, so it names the files to
+ * run - both the catch-up script and the section of the whole script that holds it -
+ * and says the direct messages are unaffected: the honest answer to "why did this
+ * button not work" when the code is ahead of the database. The notification feed's
+ * refusal is the same shape of sentence, for the same reason.
  */
 export const GROUPS_NEED_MIGRATION =
-  'GROUPS ARE NOT SET UP YET - DIRECT MESSAGES STILL WORK.';
+  'GROUPS NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260921_group_conversations.sql (OR SECTION 13 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. DIRECT MESSAGES STILL WORK.';
 
 /**
  * What the ownership controls are told when this database has not had section 15.

@@ -43,6 +43,12 @@ export const ARCHIVE_LINKS: ArchiveLink[] = [
     summary: 'The hand-drawn sheets, each in its own window with its own thread.',
   },
   {
+    id: 'lore',
+    label: 'LORE PAGES',
+    href: '/lore',
+    summary: 'The world written down: pages any account can add to, merged as they are typed.',
+  },
+  {
     id: 'music',
     label: 'MUSIC',
     href: '/music',

@@ -18,7 +18,8 @@ It creates:
   profile_tags              tags other accounts gave somebody
   profile_comments          comments on a profile, and on one picture version
                             (the owner pins one to the wire - section 19)
-  forum_threads             the board's posts
+  profile_song_versions     the one track beside a picture (section 15)
+  forum_threads             the board's posts, each able to carry an MP3 (section 5)
   forum_comments            replies, including the auto-filed item threads
   comms_threads             one row per conversation: a pair of accounts, or a group
   comms_members             who is in a group; a dm's pair answers for it too
@@ -26,6 +27,10 @@ It creates:
   comms_reads               each account's read marker per conversation
   forum_notifications       who tagged you, and who replied to you (section 17)
   forum_pins                the posts a moderator has pinned, and for how long (section 18)
+  music_tracks              the shelf's files, with their tags and the folder they are filed in
+  music_folders             the folders the file browser makes, keyed by their whole path (14b)
+  lore_pages                the world written down: one row per page, holding the shared document
+                            and the plain text a visitor reads (section 22)
 
 plus the Row Level Security that makes each of those safe to read from a browser,
 a trigger that gives every new account a profile row, the house account's dark
@@ -55,20 +60,28 @@ half-working, and the wire draws every comment in its scattered order with no `P
 same file also publishes `profile_comments` to Realtime, which it never was - see Pinned comments
 on a profile below.
 
-Section 20 (an MP3 filed with a post, and the audio tags the file directory filters on) is
-`supabase/migrations/20260927_forum_audio_and_track_tags.sql`, safe to re-run: three `if not
-exists` columns and nothing dropped. Run it *before* the build that posts audio goes up: every post
-and reply now writes the `track` column, so until the column exists an insert is refused with the
-database's own words and nothing lands on the board. The shelf is gentler - `music_tracks.tags` is
-only ever read, so a missing column costs a console warning and files fall back to their own names.
-It needs no new bucket and no new policy: the audio goes into the `mp3` bucket section 14 already
-made (see Music below).
+Two more catch-ups have files of their own, safe to re-run, and both are already part of what
+`schema.sql` does - they exist for a project that has been running since before them:
 
-Section 21 (the archive's folders, and where a file is filed) is
-`supabase/migrations/20260928_music_folders.sql`, safe to re-run. Until it is in, /music still
-works: the browser lists the catalogue's own releases - their folders are read off the files
-rather than off this table - and it cannot make a new folder or file into one somebody made, which
-it reports in the console rather than pretending. Nothing else on the site reads it.
+  `supabase/migrations/20260927_forum_audio_and_track_tags.sql`  an MP3 filed with a post, and the
+      audio tags the file directory filters on (`forum_threads.track`, `forum_comments.track`,
+      `music_tracks.tags`). Run it *before* the build that posts audio goes up: every post and reply
+      writes the `track` column, so until the column exists an insert is refused with the database's
+      own words and nothing lands on the board. The shelf is gentler - `music_tracks.tags` is only
+      ever read, so a missing column costs a console warning and files fall back to their own names.
+      It needs no new bucket and no new policy: the audio goes into the `mp3` bucket section 14
+      already made (see Music below).
+
+  `supabase/migrations/20260928_music_folders.sql`               the folders /music is browsed by,
+      and the path a file is filed under (`music_folders`, `music_tracks.folder_path`). Until it is
+      in, /music still works: the browser lists the catalogue's own releases - their folders are read
+      off the files rather than off this table - and it cannot make a new folder or file into one
+      somebody made, which it reports in the console rather than pretending.
+
+Section 22 (the lore pages, and the document two editors merge) is
+`supabase/migrations/20260929_lore_pages.sql`, safe to re-run. Until it is in, /lore says so
+rather than pretending to be an empty shelf: the list is a read that fails, and no page can be
+opened. Nothing else on the site reads the table - see Lore pages below.
 
 One more catch-up is worth knowing about, because its failure is silent:
 `supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
@@ -186,6 +199,8 @@ What lives where
   profiles + presence        app/lib/profile/supabase-profile-repository.ts
   direct messages            app/lib/comms/supabase-comms-repository.ts
   uploaded pictures          app/lib/profile/avatar-upload.ts + the `avatars` bucket
+  the shelf and the archive  app/lib/audio/supabase-music-repository.ts + the `mp3` bucket
+  lore pages + their channel app/lib/lore/supabase-lore-repository.ts
   the switches themselves    app/lib/*/repository.ts (and auth-repository.ts)
 
 Each repository is the only place that knows a table name: no component reads a
@@ -526,11 +541,48 @@ Two things follow from the bucket being a different host:
     row stores whatever `src` it was filed with, and the upload route is still the
     path used when profiles are on the mock store.
 
+Lore pages
+----------
+The archive's lore is written rather than drawn, and it is written *together*: /lore holds pages
+that any signed-in account may open and any account may write on, with the writing merging as it is
+typed rather than one save overwriting another (app/components/LoreEditor.tsx, Tiptap over Yjs).
+
+A page is a row, and the writing inside it travels two ways:
+
+  while a page is open      the editors merge over a Realtime channel named `lore:<slug>`, carrying
+                            Broadcast messages: one Yjs update per change, plus presence for the
+                            carets. The channel is *not* attached to the table, and the table is not
+                            in `supabase_realtime` - a Yjs update is not a row, and a change feed
+                            over this table would put every keystroke through the replication
+                            stream and write a row per letter. It also means this feature can never
+                            be the table that takes a channel quiet (see Realtime above).
+
+  when somebody saves       the whole document is written to the row as base64 (`yjs_state`), with
+                            the same writing as plain text beside it (`body_text`). The plain copy
+                            is what a visitor who is not signed in reads, so the writing is never
+                            locked away behind an account that only wanted to look.
+
+The editor files the page a couple of seconds after the last keystroke, when the tab is put away,
+and whenever somebody presses `[ SAVE NOW ]` - so the row is a snapshot rather than a stream, and
+the worst a dropped connection costs is the last few seconds of typing. The editors keep merging
+throughout, whether or not anything has been filed.
+
+The address is the title read as a slug (`THE GLASS CORRIDOR` -> `the-glass-corridor`) and it cannot
+be changed afterwards, because it is what every link to the page says. Both sides enforce its shape:
+the site refuses to file a title that makes no address, and the table's `lore_pages_slug_shape`
+check is the backstop.
+
+A project with no backend at all still has live editing, which is the point of the split: the mock
+store keeps its pages in localStorage and its room is a `BroadcastChannel`, and the handshake over
+it is the same code (app/lib/lore/session.ts), so two tabs on one machine merge exactly as two
+accounts do.
+
 What the permissions actually allow
 -----------------------------------
 Read as an anonymous visitor (the public key, no session):
 
   profiles, profile_avatar_versions, forum_threads, forum_comments   all rows
+  music_tracks, music_folders, lore_pages                            all rows
   profile_tags, profile_comments                                     only rows that
       are not hidden, plus what the profile's own `show_*` switches open up
   comms_threads, comms_messages, comms_reads                         nothing
@@ -545,6 +597,11 @@ Write, signed in:
   profile_comments               any account may comment; only the author may edit
                                  or delete (the page's owner may also delete)
   forum_threads / forum_comments your own rows, and only signed by you
+  music_tracks                   the files you uploaded, and only signed by you
+  music_folders                  the folders you made, and only signed by you
+  lore_pages                     pages you opened; *any* account may file one, which
+                                 is what writing together means, and the policy holds
+                                 the row to the account that filed it last
   comms_*                        only the two accounts in the conversation; a
                                  message can only be signed by its writer
 

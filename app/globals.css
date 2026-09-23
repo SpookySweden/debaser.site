@@ -3,19 +3,163 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* What the pixel face falls back to where it cannot be had: the bitmap UI faces a Web 1.0
+     desktop was drawn with, then anything monospace. */
+  --font-pixel-fallback: 'MS Sans Serif', Tahoma, 'Courier New', monospace;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* One face for the whole site: the pixel one `app/layout.tsx` loads, with the fallbacks above.
+     The names `font-sans` and `font-mono` are kept because every component already asks for them
+     by name; what they resolve to is this site's business, not each component's. */
+  --font-sans: var(--font-pixel), 'MS Sans Serif', Tahoma, sans-serif;
+  --font-mono: var(--font-pixel), 'Courier New', 'Lucida Console', monospace;
+}
+
+html {
+  /* A pixel face is drawn on a grid, so the browser's antialiasing is what turns blocky
+     letterforms into blurred ones. Switched off where the property exists; where it does not,
+     nothing is lost. */
+  -webkit-font-smoothing: none;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-pixel), var(--font-pixel-fallback);
+}
+
+/* The desktop surface --------------------------------------------------------
+   The teal behind the window is a two-tone dither rather than a flat colour: 4px squares, the
+   way a Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in
+   the sense AGENTS.md asks for - and not an illustration: nothing here draws a character, an
+   icon or a scene, which is what the artwork rule is about. */
+.desktop-tile {
+  background-color: #008080;
+  background-image:
+    linear-gradient(45deg, #007070 25%, transparent 25%, transparent 75%, #007070 75%),
+    linear-gradient(45deg, #007070 25%, transparent 25%, transparent 75%, #007070 75%);
+  background-position:
+    0 0,
+    2px 2px;
+  background-size: 4px 4px;
+}
+
+/* Cursors ---------------------------------------------------------------------
+   The retro pointer is a hand-drawn file, like every other mark on this site: nothing draws an
+   arrow in CSS or in SVG (see AGENTS.md, and assets/cursors/README.txt for the three files and
+   their sizes). Until they are drawn the URLs 404 and the browser falls back to the next entry
+   in each list, which is the ordinary cursor - so the site reads normally either way, and a
+   cursor that lands appears without another line of code.
+
+   Declared in `base` rather than loose, so a utility still wins: `cursor-pointer`,
+   `cursor-wait` and `cursor-move` are deliberate statements about one control and are left
+   alone. */
+@layer base {
+  :root {
+    cursor: url('/assets/cursors/arrow.png') 0 0, auto;
+  }
+
+  a,
+  button,
+  label,
+  summary,
+  [role='button'],
+  [role='menuitem'],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'] {
+    cursor: url('/assets/cursors/pointer.png') 0 0, pointer;
+  }
+
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='search'],
+  textarea {
+    cursor: url('/assets/cursors/text.png') 0 0, text;
+  }
+}
+
+/* A lore page's writing --------------------------------------------------------
+   The editor draws ProseMirror's own markup rather than this site's, so the class the editor puts
+   on it (`lore-document`, see app/components/LoreEditor.tsx) is the only hook our CSS has. What is
+   styled here is a document's furniture: block spacing, the two headings the toolbar offers, the
+   two lists, a quote, inline code and a rule - all in the pixel face the rest of the site wears. */
+.lore-document {
+  min-height: 14rem;
+  outline: none;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+  color: #000;
+  word-break: break-word;
+}
+
+.lore-document > * + * {
+  margin-top: 0.7rem;
+}
+
+.lore-document h1 {
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.lore-document h2 {
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.lore-document ul {
+  list-style: square inside;
+  padding-left: 1rem;
+}
+
+.lore-document ol {
+  list-style: decimal inside;
+  padding-left: 1rem;
+}
+
+.lore-document blockquote {
+  border-left: 4px solid #808080;
+  background: #f0f0f0;
+  padding: 0.4rem 0.6rem;
+}
+
+.lore-document code {
+  border: 1px solid #808080;
+  background: #f0f0f0;
+  padding: 0 0.2rem;
+}
+
+.lore-document hr {
+  border: 0;
+  border-top: 2px solid #808080;
+}
+
+/* The other editors' carets, as the collaboration extension draws them: a bar in the colour that
+   account's name wears, with the name above it and whatever they have selected behind it. */
+.lore-document .collaboration-carets__caret {
+  position: relative;
+  border-left: 2px solid transparent;
+  margin-right: -1px;
+  pointer-events: none;
+}
+
+.lore-document .collaboration-carets__label {
+  position: absolute;
+  top: -1.1rem;
+  left: -2px;
+  padding: 0 3px;
+  font-size: 9px;
+  font-weight: 700;
+  white-space: nowrap;
+  color: #fff;
+}
+
+.lore-document .collaboration-carets__selection {
+  background: #ffffcc;
 }
 
 /* Retro OS primitives -------------------------------------------------------
