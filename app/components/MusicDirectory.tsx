@@ -17,6 +17,7 @@ import {
   type FolderPath,
 } from '../lib/audio/archive-tree';
 import { formatClock } from '../lib/audio/format';
+import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
 import { TRACK_SORTS, type TrackSort } from '../lib/audio/sorts';
 import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
@@ -29,6 +30,7 @@ import { useForum } from './ForumProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
+import NewPostForm from './NewPostForm';
 
 /**
  * The archive, as a file browser.
@@ -45,7 +47,7 @@ import NewArchiveFolderWindow from './NewArchiveFolderWindow';
 
 /** The row grid shared by the column header and every file row, so the columns line up. */
 const ROW_GRID =
-  'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_4rem_minmax(0,14rem)_6.5rem]';
+  'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_4rem_minmax(0,14rem)_11rem]';
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
@@ -73,7 +75,7 @@ function tagHref(keys: string[]): string {
  * where it is filed - printed whole, because that is how it is filed and how it reads anywhere
  * else on the site.
  */
-function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
+function FileRow({ row, index, onPost }: { row: ArchiveRow; index: number; onPost: (track: AudioTrack) => void }) {
   const player = useMusicPlayer();
   const current = player.track?.src === row.track.src;
   const playing = current && player.playing;
@@ -121,14 +123,27 @@ function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
           {tags.length === 0 ? null : tags.map((tag) => <AudioTagPill key={tag} tag={tag} compact />)}
         </span>
 
-        <button
-          type="button"
-          onClick={() => press(row.track)}
-          className={`${PLATE} justify-self-end`}
-          title={playing ? `Pause ${row.track.title}` : `Play ${row.track.title}`}
-        >
-          {playing ? '[ ❚❚ ]' : '[ ▶ PLAY ]'}
-        </button>
+        <span className="flex items-center gap-1 justify-self-end">
+          <button
+            type="button"
+            onClick={() => press(row.track)}
+            className={PLATE}
+            title={playing ? `Pause ${row.track.title}` : `Play ${row.track.title}`}
+          >
+            {playing ? '[ ❚❚ ]' : '[ ▶ PLAY ]'}
+          </button>
+
+          {/* One press starts a post with this file already filed (`./NewPostForm.tsx`): the archive's
+              own way onto the board, instead of a round trip through /forum and the composer. */}
+          <button
+            type="button"
+            onClick={() => onPost(row.track)}
+            className={`${PLATE} hidden sm:inline-flex`}
+            title={`Start a post carrying ${row.track.title}`}
+          >
+            [ ♪ TO A POST ]
+          </button>
+        </span>
       </div>
 
       {/* A phone has no room for the tag column, so the tags take their own line. */}
@@ -139,6 +154,19 @@ function FileRow({ row, index }: { row: ArchiveRow; index: number }) {
           ))}
         </div>
       )}
+
+      {/* ...and no room for two plates in the last column either, so the second drops to its own line
+          rather than going missing on a phone: the same trade the tags above make. */}
+      <div className="mt-1 pl-8 sm:hidden">
+        <button
+          type="button"
+          onClick={() => onPost(row.track)}
+          className={PLATE}
+          title={`Start a post carrying ${row.track.title}`}
+        >
+          [ ♪ TO A POST ]
+        </button>
+      </div>
     </li>
   );
 }
@@ -152,6 +180,8 @@ type FolderBranchProps = {
   onCreate: (kind: 'file' | 'folder', parent: FolderPath) => void;
   /** True for a signed-in reader; a guest is offered the rows without the buttons. */
   canCreate: boolean;
+  /** Starts a post carrying one of the files inside (see `./FileRow`). */
+  onPost: (track: AudioTrack) => void;
 };
 
 /**
@@ -161,7 +191,7 @@ type FolderBranchProps = {
  * many files are inside, and what can be made in it - and it nests to whatever depth the archive
  * has, because a folder is only a path.
  */
-function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate }: FolderBranchProps) {
+function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate, onPost }: FolderBranchProps) {
   const path = folder.path ?? '';
   const open = openNodes.includes(path);
   const empty = folder.folders.length === 0 && folder.files.length === 0;
@@ -214,11 +244,12 @@ function FolderBranch({ folder, openNodes, onToggle, onCreate, canCreate }: Fold
               onToggle={onToggle}
               onCreate={onCreate}
               canCreate={canCreate}
+              onPost={onPost}
             />
           ))}
 
           {folder.files.map((row, index) => (
-            <FileRow key={row.track.src} row={row} index={index} />
+            <FileRow key={row.track.src} row={row} index={index} onPost={onPost} />
           ))}
 
           {empty ? <li className="px-2 py-1 pl-6 text-[10px] font-bold text-gray-700">EMPTY.</li> : null}
@@ -256,6 +287,8 @@ export default function MusicDirectory() {
   const [openNodes, setOpenNodes] = useState<FolderPath[]>([]);
   /** The window on screen: a new file or a new folder, and where it was asked for from. */
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
+  /** The file a post is being written about, or null: the composer, opened by a row's `[ ♪ TO A POST ]`. */
+  const [posting, setPosting] = useState<AudioTrack | null>(null);
 
   const signedIn = user !== null;
 
@@ -456,7 +489,7 @@ export default function MusicDirectory() {
             <span>NAME</span>
             <span className="text-right">LENGTH</span>
             <span>TAGS</span>
-            <span className="text-right">PLAY</span>
+            <span className="text-right">PLAY :: POST</span>
           </div>
 
           {filtering ? (
@@ -465,7 +498,7 @@ export default function MusicDirectory() {
             ) : (
               <ul>
                 {flat.map((row, index) => (
-                  <FileRow key={row.track.src} row={row} index={index} />
+                  <FileRow key={row.track.src} row={row} index={index} onPost={setPosting} />
                 ))}
               </ul>
             )
@@ -483,12 +516,13 @@ export default function MusicDirectory() {
                   onToggle={toggleFolder}
                   onCreate={(kind, parent) => setCreating({ kind, parent })}
                   canCreate={signedIn}
+                  onPost={setPosting}
                 />
               ))}
 
               {/* Files at the root: what nobody has filed into a folder yet. */}
               {tree.root.files.map((row, index) => (
-                <FileRow key={row.track.src} row={row} index={index} />
+                <FileRow key={row.track.src} row={row} index={index} onPost={setPosting} />
               ))}
             </ul>
           )}
@@ -525,6 +559,15 @@ export default function MusicDirectory() {
           }}
         />
       ) : null}
+
+      {/* The archive's own way onto the board: the composer, with the file already filed, so a track
+          somebody is listening to can be written about without a round trip through /forum. */}
+      {posting === null ? null : (
+        <NewPostForm
+          initialTrack={forumTrackFromArchive(posting)}
+          onClose={() => setPosting(null)}
+        />
+      )}
     </section>
   );
 }

@@ -20,14 +20,21 @@ const TARGET_TREE = postTargetTree();
 type NewPostFormProps = {
   onClose: () => void;
   onCreated?: (thread: ForumThread) => void;
+  /**
+   * A track to start with, for the screens that open this window *because* of one: the music
+   * directory's `[ ♪ TO A POST ]` opens the composer with that file already filed, so the two presses
+   * it costs are "start a post about this" and "file it".
+   */
+  initialTrack?: ForumTrack | null;
 };
 
 /**
  * The composer, presented as a Win95 pop-up window.
  *
- * It stays out of the way until the board's [+ NEW POST...] control opens it: a post can be
- * filed straight onto the board (with attached media) or onto any item on the site, which is how
- * "comments under an asset" and "new threads" end up in the same list.
+ * It stays out of the way until something opens it: the board's [+ NEW POST...] control, or the
+ * music directory's `[ ♪ TO A POST ]` on a row, which opens it with that file already filed. A post
+ * can be filed straight onto the board (with attached media) or onto any item on the site, which is
+ * how "comments under an asset" and "new threads" end up in the same list.
  *
  * The window is organised the way a file dialog is, in two columns rather than two long
  * drop-downs: the destination is a tree of pages you open and click into, the artwork is a pane
@@ -35,7 +42,7 @@ type NewPostFormProps = {
  * words. Nothing here draws artwork - a sheet is a file in the project assets folder, and the
  * picker only points at it (AGENTS.md).
  */
-export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
+export default function NewPostForm({ onClose, onCreated, initialTrack = null }: NewPostFormProps) {
   const forum = useForum();
   const { accounts } = useComms();
   const notifications = useNotifications();
@@ -44,7 +51,7 @@ export default function NewPostForm({ onClose, onCreated }: NewPostFormProps) {
   const [tags, setTags] = useState<string[]>([]);
   const [targetKey, setTargetKey] = useState<string>(POST_TARGETS[0].key);
   const [mediaId, setMediaId] = useState('');
-  const [track, setTrack] = useState<ForumTrack | null>(null);
+  const [track, setTrack] = useState<ForumTrack | null>(initialTrack);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);

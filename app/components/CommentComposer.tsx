@@ -10,7 +10,7 @@ import MentionPicker from './MentionPicker';
 import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
-import TrackAttachmentPicker from './TrackAttachmentPicker';
+import TrackControl from './TrackControl';
 import { PLATE_LARGE } from '../lib/ui/controls';
 
 type CommentComposerProps = {
@@ -135,9 +135,11 @@ export default function CommentComposer({
         </div>
       ) : null}
 
-      {/* An MP3 can ride along with any post or reply on the site (see ./TrackAttachmentPicker). */}
+      {/* An MP3 can ride along with any post or reply on the site: one plate in the action row, and
+          one window for the picking itself (see ./TrackControl.tsx). It used to be a three-source
+          fieldset at the bottom of this box, which put it under everything else the composer draws. */}
       {showTrackPicker ? (
-        <TrackAttachmentPicker
+        <TrackControl
           id={`${id}-track`}
           value={track ?? null}
           onChange={onTrackChange ?? (() => undefined)}

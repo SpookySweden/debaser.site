@@ -1,6 +1,7 @@
 import type { ForumAuthor, ForumThread, ForumTrack } from '../forum/types';
 import { threadDomId } from '../forum/anchors';
 import type { TrackSort } from './sorts';
+import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
 
 /**
@@ -13,6 +14,25 @@ import type { AudioTrack } from './tracks';
  * them, so the inline player in a thread and the /music directory can never
  * disagree about what a posted track is called.
  */
+
+/**
+ * A file the archive holds, as the record a post carries.
+ *
+ * Nothing is copied and nothing is re-titled: the post keeps the file's own name, credit, tags and
+ * running time, so a track pulled from the shelf and the same row in the directory on `/music` are
+ * one file with one name. This is the only conversion of its kind - the picker inside a composer and
+ * the directory's own `[ ♪ TO A POST ]` both come through here - so the two cannot attach records
+ * that differ in shape.
+ */
+export function forumTrackFromArchive(track: AudioTrack): ForumTrack {
+  return {
+    src: track.src,
+    title: track.title,
+    credit: track.credit,
+    tags: normaliseAudioTags(track.tags),
+    ...(track.length.length === 0 ? {} : { length: track.length }),
+  };
+}
 
 /** One posted track, with the post it came from. */
 export type FiledTrack = {
