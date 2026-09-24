@@ -100,15 +100,20 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
         )}
 
         {!accountsReady ? (
-          <p className="p-3 text-[10px] font-bold text-ink">READING THE ACCOUNT LIST...</p>
+          <p className={`${compact ? 'px-2 py-1 text-[10px]' : 'p-3 text-[10px]'} font-bold text-ink`}>
+            READING...
+          </p>
         ) : rows.length === 0 ? (
-          <p className="p-3 text-[10px] font-bold text-ink">NO ACCOUNTS YET.</p>
+          <p className={`${compact ? 'px-2 py-1 text-[10px]' : 'p-3 text-[10px]'} font-bold text-ink`}>
+            NO ACCOUNTS YET.
+          </p>
         ) : (
           <ul className="text-ink">
             {shown.map((row) => (
               <UserDirectoryRow
                 key={row.account.id}
                 row={row}
+                compact={compact}
                 viewerId={user?.id ?? null}
                 busy={busyId === row.account.id}
                 onMessage={(otherId) => void startConversation(otherId)}

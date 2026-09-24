@@ -11,12 +11,13 @@
  * glyphs, and every label on every panel is already capitals.
  */
 
-export type RelativeUnit = 'second' | 'minute' | 'hour' | 'day' | 'month' | 'year';
+export type RelativeUnit = 'second' | 'minute' | 'hour' | 'day' | 'week' | 'month' | 'year';
 
 const SECOND = 1000;
 const MINUTE = 60 * SECOND;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
+const WEEK = 7 * DAY;
 
 /** One unit: how long it is, and how much of it reads better as the next one up. */
 type UnitStep = {
@@ -32,7 +33,8 @@ const UNITS: UnitStep[] = [
   { unit: 'second', ms: SECOND, upTo: 45 * SECOND },
   { unit: 'minute', ms: MINUTE, upTo: 45 * MINUTE },
   { unit: 'hour', ms: HOUR, upTo: 22 * HOUR },
-  { unit: 'day', ms: DAY, upTo: 26 * DAY },
+  { unit: 'day', ms: DAY, upTo: 6 * DAY },
+  { unit: 'week', ms: WEEK, upTo: 4 * WEEK },
   { unit: 'month', ms: 30 * DAY, upTo: 320 * DAY },
   YEARS,
 ];
@@ -75,4 +77,40 @@ export function relativeTime(iso: string | null | undefined, now: number): strin
   if (parts === null) return 'AT AN UNKNOWN TIME';
 
   return FORMAT.format(-parts.value, parts.unit).toUpperCase();
+}
+
+/**
+ * The one letter each unit is written with, where there is no room for the word.
+ *
+ * `m` is minutes and months, which looks like a collision and is not one: the ladder never has both
+ * live at once, because a value under an hour is minutes and a value over four weeks is months. The
+ * pair is fixed here rather than derived, so the letters are one decision rather than a habit that
+ * drifts between screens.
+ */
+const SUFFIX: Record<RelativeUnit, string> = {
+  second: 's',
+  minute: 'm',
+  hour: 'h',
+  day: 'd',
+  week: 'w',
+  month: 'm',
+  year: 'y',
+};
+
+/**
+ * "22s", "5m", "3h", "4d", "2w", "6m", "1y".
+ *
+ * The same ladder as `relativeTime`, in one character instead of a sentence - for a column of accounts
+ * where the words would be the widest thing on the row and the least of what it says. It is deliberately
+ * *not* a second set of thresholds: both readers walk `UNITS`, so "45 minutes" cannot become "45m" in
+ * one place and "1h" in another.
+ *
+ * No spaces and no "AGO": this is a reading to be scanned down, and the column's heading is what says
+ * what it means.
+ */
+export function relativeShort(iso: string | null | undefined, now: number): string {
+  const parts = relativeParts(iso, now);
+  if (parts === null) return '--';
+
+  return `${parts.value}${SUFFIX[parts.unit]}`;
 }

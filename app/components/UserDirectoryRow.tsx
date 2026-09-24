@@ -7,6 +7,7 @@ import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
+import RelativeShort from './RelativeShort';
 import StatusDot from './StatusDot';
 import TimeStamp from './TimeStamp';
 
@@ -27,6 +28,15 @@ type UserDirectoryRowProps = {
    * and there is no second copy of them to fall out of step.
    */
   actions?: ReactNode;
+  /**
+   * The side panel's row: a glance rather than a listing.
+   *
+   * The panel is 18rem of column, and the row it used to draw spent most of that on things a reader
+   * scanning a short list does not need - the lamp's word, the account's join date, and the count's
+   * own legend. Compact keeps what identifies an account and what says whether they are about: the
+   * picture, the name, its marks, and how long ago they were last here in one character (`22s`).
+   */
+  compact?: boolean;
 };
 
 /**
@@ -46,10 +56,55 @@ type UserDirectoryRowProps = {
  * item owns is signed by the archive even though a visitor's comment opened it -
  * but this page is about accounts, and debaser.site is one of them.
  */
-export default function UserDirectoryRow({ row, viewerId, busy = false, onMessage, actions }: UserDirectoryRowProps) {
+export default function UserDirectoryRow({
+  row,
+  viewerId,
+  busy = false,
+  onMessage,
+  actions,
+  compact = false,
+}: UserDirectoryRowProps) {
   const author = { id: row.account.id, displayName: row.account.displayName };
   const showMessage = onMessage !== undefined && viewerId !== null && !row.you;
   const asked = showMessage || actions !== undefined;
+
+  /**
+   * The panel's row: one line, and only the parts a glance needs.
+   *
+   * The lamp is the whole of the presence reading here - no word beside it, because a colour with a
+   * legend two inches up the same panel does not need to say "ONLINE" as well - and the last-seen
+   * reading is the compact one (`22s`), in the lamp's own colour, so the thing that says *how fresh*
+   * is the thing that carries the state.
+   *
+   * No join date: it is the one fact on this row that never changes, which makes it the right one to
+   * leave to `/users`. The `[ ADMIN ]` mark still rides the name, because it changes how the account
+   * is read; `[ YOU ]` does too, because a reader scanning for themselves should find themselves.
+   */
+  if (compact) {
+    return (
+      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-[10px] font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
+        <StatusDot status={row.status} record={row.record} />
+
+        <ProfileAvatarLink author={author} size={20} showName={false} />
+
+        <ProfileLink author={author} className="min-w-0 flex-1 truncate">
+          <ProfileName author={author} lamp={false} />
+        </ProfileLink>
+
+        {row.admin ? <span className="shrink-0 border border-black bg-ena px-1 text-paper">[ A ]</span> : null}
+        {row.you ? <span className="shrink-0 border border-black bg-paper px-1">[ YOU ]</span> : null}
+        {row.account.banned === true ? (
+          <span className="shrink-0 border border-black bg-bubble-pale px-1 text-paper">[ X ]</span>
+        ) : null}
+
+        {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
+            reading that could not be taken says `--` rather than inventing one. */}
+        <span className="shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
+          {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+        </span>
+      </li>
+    );
+  }
 
   return (
     <li
