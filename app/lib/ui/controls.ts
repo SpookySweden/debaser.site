@@ -155,6 +155,31 @@ export const GLYPH_BUTTON =
   'inline-flex cursor-pointer items-center justify-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun text-ink hover:bg-ena hover:text-sun active:bg-bubble active:text-ink max-sm:-mx-1 max-sm:min-h-11 max-sm:min-w-11 max-sm:px-2 max-sm:text-base';
 
 /**
+ * A space that a reveal is allowed to fill, because it is already there either way.
+ *
+ * The rule (AGENTS.md, "Reveals take their space in both states"): pointing at something must not move
+ * it, and must not move anything beside it. A hover reveal therefore has two honest shapes - out of
+ * flow, or a box laid out in *both* states that merely swaps what is inside it. This is the second.
+ *
+ * The important part is what this does **not** say: there is no `hidden` and no `group-hover:flex` on
+ * the box, because a box that only exists on hover is the bug. The box is always laid out at the width
+ * its reveal will need; `REVEAL_CONTENTS` is what hides the contents, and the caller's own width class
+ * is where the reserved width goes. So a caller writes `${REVEAL_SLOT} w-14` for a 56px picture and
+ * puts the picture inside a `REVEAL_CONTENTS`.
+ *
+ * `empty:hidden` lets a slot with nothing in it collapse for real - which is fine, because nothing
+ * arrives there later, so there is no second state to jump between.
+ */
+export const REVEAL_SLOT = 'shrink-0 empty:hidden';
+
+/**
+ * The contents of a `REVEAL_SLOT`: hidden until the row is pointed at or one of its controls is
+ * focused, and laid out the rest of the time. `focus-within` as well as `group-hover`, because a
+ * keyboard reader never hovers and a reveal that only appears for a pointer is half a control.
+ */
+export const REVEAL_CONTENTS = 'hidden group-hover:flex group-focus-within:flex';
+
+/**
  * The plate that carries a verb onto the board: the one magenta face on the site.
  *
  * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not

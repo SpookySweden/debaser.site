@@ -5,6 +5,7 @@ import { authorLabel } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { tagColour } from '../lib/forum/tag-vocabulary';
 import type { GivenTag } from '../lib/profile/types';
+import { REVEAL_CONTENTS, REVEAL_SLOT } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileLink from './ProfileLink';
@@ -72,21 +73,29 @@ export default function PostAuthorRow({
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
       {avatar === 'hidden' ? null : (
-        <span className={avatar === 'hover' ? 'hidden group-hover:inline-flex' : 'inline-flex'}>
-          {picture === undefined ? (
-            <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
-          ) : (
-            /* The item's own picture, drawn in the *same* anon-facing component as a person who has
-               not chosen one: both are "a picture that is not there yet", and both have to read as
-               deliberate rather than as a fault (see ./ProfileAvatar.tsx). */
-            <ProfileAvatar
-              src={picture}
-              displayName={label}
-              size={avatarSize}
-              variant="plain"
-              hideVersionLabel
-            />
-          )}
+        /*
+          The space the picture will take is reserved in both states, so pointing at a post reveals
+          the picture without shifting the name beside it (AGENTS.md, "Reveals take their space in
+          both states"). The outer span is the slot and is laid out either way; the inner one is what
+          is hidden until the pointer or the keyboard arrives.
+        */
+        <span className={REVEAL_SLOT} style={avatar === 'hover' ? { width: avatarSize } : undefined}>
+          <span className={avatar === 'hover' ? REVEAL_CONTENTS : 'inline-flex'}>
+            {picture === undefined ? (
+              <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
+            ) : (
+              /* The item's own picture, drawn in the *same* anon-facing component as a person who
+                 has not chosen one: both are "a picture that is not there yet", and both have to
+                 read as deliberate rather than as a fault (see ./ProfileAvatar.tsx). */
+              <ProfileAvatar
+                src={picture}
+                displayName={label}
+                size={avatarSize}
+                variant="plain"
+                hideVersionLabel
+              />
+            )}
+          </span>
         </span>
       )}
 

@@ -38,10 +38,17 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
   const clipped = words.length > BODY_SLICE;
 
   return (
-    /* Reserved, not overlaid: the space is held open whether or not it is filled,
-       so pointing at a row never reflows the list. */
-    <div className="pointer-events-none hidden w-1/2 min-w-0 shrink-0 sm:flex">
-      <div className="hidden min-h-0 w-full flex-col gap-1 overflow-hidden border-l border-dashed border-ink pl-3 group-hover:flex">
+    /* The caller reserves the box (see ./ForumThreadCard.tsx): the width is held whether or not this
+       is filled, so pointing at a row never reflows the list. What is inside is what the pointer
+       reveals - and `focus-within` matches, because a keyboard reader does not hover.
+
+       `data-reveal` is how `Temp/check-reveals.cjs` knows this one is allowed: an element that fills a
+       space somebody else reserved is the legal shape, and the attribute is the declaration of it
+       rather than something a regex has to guess from the surrounding markup. */
+    <div
+      data-reveal="reserved"
+      className="hidden min-h-0 w-full flex-col gap-1 overflow-hidden border-l border-dashed border-ink pl-3 group-hover:flex group-focus-within:flex"
+    >
         {shown.length === 0 ? null : (
           <>
             <p className="min-h-0 flex-1 overflow-hidden whitespace-pre-line text-xs leading-snug text-ink">
@@ -76,6 +83,5 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
           </div>
         )}
       </div>
-    </div>
   );
 }

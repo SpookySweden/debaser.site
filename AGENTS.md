@@ -26,6 +26,15 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
   `steps()` rather than eased so they move in whole pixel frames; plates invert on hover and flash
   magenta on press; prose links wear a 3px dotted pixel bar that changes colour on hover. All of it
   goes quiet under `prefers-reduced-motion`.
+- **Reveals take their space in both states**: anything that appears on hover, focus or tap - a
+  picture beside a name, the preview down the side of a post, a row's own detail - must occupy its box
+  whether or not it is filled, so **the thing you are pointing at never moves and the surrounding
+  content never reflows**. Two shapes are allowed: `position: absolute` (out of flow, so filling it
+  cannot push anything - see `ProfileCommentWindow`'s thumbnail), or a box that is laid out in both
+  states whose *contents* are what swaps (see `PostHoverPreview`, whose own comment is where this rule
+  was first written down, and `ForumThreadCard`'s reserved right-hand column). What is never allowed is
+  `hidden` becoming visible on hover inside a laid-out row: the reveal arrives and shoves its siblings
+  sideways. `Temp/check-reveals.cjs` fails on one.
 - **Artwork**: sprites, sheets, avatars and cursors are hand-drawn files, pointed at from a slot
   (`SpriteSlot`, `assets/sprites/README.txt`) - code never draws a character, an icon or an
   illustration, though repeating tile patterns, dithers and dotted rules are fine.

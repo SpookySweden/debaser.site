@@ -15,7 +15,7 @@ import { displayTags } from '../lib/forum/tags';
 import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { PLATE } from '../lib/ui/controls';
+import { PLATE, REVEAL_CONTENTS, REVEAL_SLOT } from '../lib/ui/controls';
 import AnchorLink from './AnchorLink';
 import ChallengeControl from './ChallengeControl';
 import CommentComposer from './CommentComposer';
@@ -257,16 +257,29 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   }
                 />
 
+                {/* The picture that a post was filed with, revealed on hover. The slot reserves the
+                    72px either way, so the row's second line does not re-lay-out and the author's
+                    name does not slide sideways when the pointer arrives (AGENTS.md, "Reveals take
+                    their space in both states"). */}
                 {layout.image === 'hover' && images.preview !== undefined ? (
-                  <span className="hidden group-hover:inline-flex" title={layout.left.imageSource}>
-                    <MediaThumbnail media={images.preview} size={72} />
+                  <span className={REVEAL_SLOT} style={{ width: 72 }} title={layout.left.imageSource}>
+                    <span className={REVEAL_CONTENTS}>
+                      <MediaThumbnail media={images.preview} size={72} />
+                    </span>
                   </span>
                 ) : null}
               </div>
 
               {/* The post's own tags, one line of `theme:design` tokens: the few that say what the
-                  post is about, with the rest behind `[+n]` (see ./TagStrip.tsx). */}
-              {isOpen ? null : <TagStrip tags={layout.collapsedTags} limit={5} className="mt-1" />}
+                  post is about, with the rest behind `[+n]` (see ./TagStrip.tsx).
+
+                  Drawn in both states. It used to be `isOpen ? null : ...`, which took a line out of
+                  the row the moment it was opened - so the moderation and pin controls under it, and
+                  every post below, jumped up by that line. Keeping it means opening a post reveals
+                  the body without the list moving under the reader's finger (AGENTS.md, "Reveals take
+                  their space in both states"). `collapsedTags` is the same list the open card's left
+                  column draws, so nothing is lost by it staying. */}
+              <TagStrip tags={layout.collapsedTags} limit={5} className="mt-1" />
 
               {/* Why this post is on screen while a tag filter is on: the tags that matched, and
                   where they were typed. A match on a reply is the case worth spelling out - the post
@@ -305,9 +318,15 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               <ThreadPinControl thread={thread} />
             </div>
 
-            {isOpen ? null : (
-              <PostHoverPreview body={layout.right.body} comments={thread.comments} />
-            )}
+            {/* The preview fills the reserved right half while the row is collapsed. On open it goes,
+                because the body it was previewing is now on screen - but the *box* it lived in does
+                not, so opening a post never widens the row under the reader's finger. The outer div
+                is the slot; `PostHoverPreview` fills it in both states and swaps only its contents. */}
+            <div className="hidden w-1/2 min-w-0 shrink-0 sm:flex">
+              {isOpen ? null : (
+                <PostHoverPreview body={layout.right.body} comments={thread.comments} />
+              )}
+            </div>
           </div>
         </summary>
 
