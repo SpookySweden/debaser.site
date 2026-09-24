@@ -129,7 +129,7 @@ export default function TagChooser({
                   onClick={() => toggle(option.label)}
                   title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
                   className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                    isSelected ? 'bg-ena text-white' : 'text-ink hover:underline'
+                    isSelected ? 'bg-ena text-paper' : 'text-ink hover:underline'
                   }`}
                 >
                   <TagMark colour={tagMarkColour(tag)} compact />

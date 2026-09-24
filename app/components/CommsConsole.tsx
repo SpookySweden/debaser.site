@@ -108,7 +108,7 @@ export default function CommsConsole() {
   if (userId === null) {
     return (
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span>COMMS</span>
           <span>[ NOBODY SIGNED IN ]</span>
         </div>
@@ -132,7 +132,7 @@ export default function CommsConsole() {
           account with nothing in it. On a wide screen it takes the first row to itself. */}
       {error === null ? null : (
         <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] font-bold text-ink lg:basis-full">
-          <span className="border border-black bg-bubble-pale px-1 text-white">[ COMMS OFFLINE ]</span>
+          <span className="border border-black bg-bubble-pale px-1 text-paper">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words text-bubble-pale">{error}</span>
           <button type="button" onClick={retry} className={PLATE}>
             [ RETRY ]
@@ -142,7 +142,7 @@ export default function CommsConsole() {
 
       {/* Conversations rail */}
       <section className={`rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
         </div>
@@ -282,7 +282,7 @@ export default function CommsConsole() {
       </section>
       {/* The open conversation */}
       <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span className="flex min-w-0 items-center gap-2">
             <button
               type="button"

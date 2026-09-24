@@ -320,10 +320,18 @@ img {
   --color-ink: #000000;
   --color-paper: #ffffff;
 
-  /* The two greys are gone: what was the bevel's furniture is now Nigrosine, and what was a disabled
-     face is Flavine at rest. Nothing on this site is grey any more. */
-  --color-chrome: #1a1525;
-  --color-chrome-dark: #1a1525;
+  /* The two furniture greys, and why they are greys after all.
+     They were swept out with everything else in the dye pass - "nothing on this site is grey any
+     more" - and the sweep collapsed both onto Nigrosine. That was fine for anything that had merely
+     *looked* grey, and wrong for these two, because both are *surfaces with ink on them*:
+     `chrome-dark` is the inactive title bar (SIDE PANEL, SHELF, PROFILE, COMMS all sit on it in ink)
+     and `chrome` is the disabled plate ([ CHALLENGE ] while the account is offline). Nigrosine under
+     ink is 1.18:1, and disabled ink on a Nigrosine surface was 1.00:1 - the same colour twice. They
+     are furniture rather than dye: the quiet grey a Win95 window is made of, kept because a surface
+     whose job is to be quiet cannot do that job by being dark. Both pairs are held to 4.5:1 by
+     `Temp/check-surreal.cjs`, so this cannot be swept again without a check saying so. */
+  --color-chrome: #484848;
+  --color-chrome-dark: #c0c0c0;
 
   /* Royal Blue: the desktop, the title bar of the window you are in, anything pressed. */
   --color-ena: #1d3ca6;

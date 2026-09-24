@@ -324,7 +324,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2"
             >
               <p className="flex items-center gap-2 text-xs font-bold text-ink">
-                <span className={`px-1 text-[9px] text-white ${game.badge}`}>
+                <span className={`px-1 text-[9px] text-paper ${game.badge}`}>
                   {game.id === 'tic-tac-toe' ? 'X/O' : 'DUEL'}
                 </span>
                 {game.title}

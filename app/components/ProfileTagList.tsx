@@ -129,7 +129,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                 {tag.label}
               </span>
 
-              {tag.hidden ? <span className="border border-black bg-bubble-pale px-1 text-white">[ WAITING ]</span> : null}
+              {tag.hidden ? <span className="border border-black bg-bubble-pale px-1 text-paper">[ WAITING ]</span> : null}
 
               <span className="text-ink">
                 {isSelfGivenTag(tag, profile.userId) ? (

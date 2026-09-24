@@ -69,7 +69,7 @@ export default function AccountDetails() {
         id="account-summary"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span>ACCOUNT DETAILS</span>
           <span>[ READ ONLY ]</span>
         </div>
@@ -110,7 +110,7 @@ export default function AccountDetails() {
         id="activity"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span>BOARD ACTIVITY</span>
           <span>[ {myThreads.length + myReplies} POSTS ]</span>
         </div>
@@ -140,7 +140,7 @@ export default function AccountDetails() {
         id="danger-zone"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-xs font-bold text-paper">
           <span>DANGER ZONE</span>
           <span>[ CAREFUL ]</span>
         </div>

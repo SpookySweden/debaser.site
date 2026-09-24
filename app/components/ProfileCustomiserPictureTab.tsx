@@ -117,7 +117,7 @@ export default function ProfileCustomiserPictureTab({
                   onClick={() => onSelectSrc(picture.src)}
                   className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[10px] font-bold ${
                     pendingSrc === picture.src
-                      ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-white'
+                      ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
                       : 'border-t-white border-l-white border-r-black border-b-black bg-sun-pale text-ink hover:bg-ice'
                   }`}
                   title={picture.src}

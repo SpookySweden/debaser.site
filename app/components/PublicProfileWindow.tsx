@@ -117,7 +117,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   return (
     <div className="space-y-3">
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
           <span>
             {/* The name in its own colour, or the title bar's white when the account has
                 not chosen one: no plate behind it, so a name is never drawn the same
@@ -336,7 +336,7 @@ function CommentsSection({
       id={PROFILE_COMMENTS_ANCHOR}
       className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
     >
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
         <span>COMMENTS ON THIS PROFILE</span>
         <span>[ {visible}{pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]</span>
       </div>

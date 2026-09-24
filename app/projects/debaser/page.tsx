@@ -49,7 +49,7 @@ export default function DebaserProjectPage() {
           href={section.href}
           className="block rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-sun"
         >
-          <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+          <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
             <span>{section.label}</span>
             <span>[ {SECTION_COUNTS[section.id] ?? 'OPEN'} ]</span>
           </div>

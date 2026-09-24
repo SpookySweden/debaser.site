@@ -26,7 +26,7 @@ const TABS: { key: TabKey; label: string }[] = [
  * the reader having to click between them to see the page they are dressing.
  */
 function PanelHeading({ children }: { children: React.ReactNode }) {
-  return <p className="bg-ena-deep px-2 py-1 text-[10px] font-bold text-white">{children}</p>;
+  return <p className="bg-ena-deep px-2 py-1 text-[10px] font-bold text-paper">{children}</p>;
 }
 
 type ProfileCustomiserWindowProps = {
@@ -248,7 +248,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             type="button"
             onClick={() => setTab(entry.key)}
             className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold ${
-              tab === entry.key ? 'bg-ena text-white' : 'bg-sun-pale text-ink hover:bg-ice'
+              tab === entry.key ? 'bg-ena text-paper' : 'bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
             {entry.label}

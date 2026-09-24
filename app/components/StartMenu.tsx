@@ -82,7 +82,7 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
     >
       {/* The spine: the name, read the way a Win95 menu's was - bottom to top. */}
       <div className="flex w-6 shrink-0 items-end justify-center bg-ena py-2">
-        <span className="rotate-180 text-[10px] font-bold text-white [writing-mode:vertical-rl]">
+        <span className="rotate-180 text-[10px] font-bold text-paper [writing-mode:vertical-rl]">
           {DEBASER_PROJECT.title}
         </span>
       </div>

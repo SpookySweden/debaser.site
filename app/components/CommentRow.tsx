@@ -85,7 +85,7 @@ type CommentRowProps = {
 export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
-    <span className="border border-black bg-bubble-pale px-1 text-[9px] font-bold text-white">
+    <span className="border border-black bg-bubble-pale px-1 text-[9px] font-bold text-paper">
       [ {pinnedLabel} ]
     </span>
   );
@@ -100,7 +100,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         <ProfileAvatarLink author={author} size={20} showName={false} variant="plain" />
         <ProfileName author={author} className="font-bold" />
         {data.tag === undefined ? null : (
-          <span className="border border-black bg-ena px-1 text-white">[ {data.tag} ]</span>
+          <span className="border border-black bg-ena px-1 text-paper">[ {data.tag} ]</span>
         )}
         {pinned}
         {action}
@@ -125,7 +125,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
             <ProfileName author={author}>{authorTag(author)}</ProfileName>
           </ProfileLink>
           {data.tag === undefined ? null : (
-            <span className="border border-black bg-ena px-1 text-white">[ {data.tag} ]</span>
+            <span className="border border-black bg-ena px-1 text-paper">[ {data.tag} ]</span>
           )}
           {pinned}
           {action}

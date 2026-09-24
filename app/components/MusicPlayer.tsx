@@ -150,7 +150,7 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-sun-pale px-2 py-1 font-mono text-ink shadow-[0_-2px_0_theme(colors.ena-deep)]">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
-          <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[2px] text-[10px] font-bold text-white">
+          <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[2px] text-[10px] font-bold text-paper">
             ♪ DEBASER PLAYER
           </span>
 
@@ -324,7 +324,7 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
 
   return (
     <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-white">
+      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-paper">
         <span className="truncate">♪ DEBASER PLAYER</span>
 
         <span className="flex shrink-0 items-center gap-2">

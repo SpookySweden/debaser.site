@@ -49,7 +49,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               aria-checked={value === ''}
               onClick={() => onChange('')}
               className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                value === '' ? 'border-black bg-ena text-white' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
+                value === '' ? 'border-black bg-ena text-paper' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
               }`}
             >
               <span className="flex h-12 items-center justify-center border border-ink bg-paper text-[9px] font-bold text-ink">
@@ -70,7 +70,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   title={item.label}
                   onClick={() => onChange(item.id)}
                   className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                    picked ? 'border-black bg-ena text-white' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
+                    picked ? 'border-black bg-ena text-paper' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
                   }`}
                 >
                   <span className="flex h-12 items-center justify-center overflow-hidden border border-ink bg-paper">

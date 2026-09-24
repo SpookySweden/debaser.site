@@ -60,7 +60,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
         <span>PUBLIC PROFILE</span>
         <span>[ {ready ? 'READY' : 'READING...'} ]</span>
       </div>

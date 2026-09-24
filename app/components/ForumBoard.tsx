@@ -269,7 +269,7 @@ export default function ForumBoard() {
               </button>
 
               {musicOnly ? (
-                <span className="border border-black bg-ena px-1 text-[10px] font-bold text-white">MUSIC ONLY</span>
+                <span className="border border-black bg-ena px-1 text-[10px] font-bold text-paper">MUSIC ONLY</span>
               ) : null}
               {musicTagKeys.length === 0 ? null : (
                 <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink">
@@ -299,7 +299,7 @@ export default function ForumBoard() {
                           : `Include posts tagged ${option.label} (${option.count} in use)`
                       }
                       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                        active ? 'bg-ena text-white' : 'text-ink hover:underline'
+                        active ? 'bg-ena text-paper' : 'text-ink hover:underline'
                       }`}
                     >
                       <TagMark colour={tagMarkColour(tag)} compact />

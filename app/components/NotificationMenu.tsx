@@ -89,7 +89,7 @@ function NotificationRow({
           }`}
         />
         <span
-          className={`shrink-0 px-1 text-[9px] leading-[14px] text-white ${KIND_BADGE[item.kind]}`}
+          className={`shrink-0 px-1 text-[9px] leading-[14px] text-paper ${KIND_BADGE[item.kind]}`}
           title={notificationLabel(item.kind)}
         >
           {KIND_TAG[item.kind]}

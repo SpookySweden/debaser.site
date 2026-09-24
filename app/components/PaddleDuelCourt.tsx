@@ -118,7 +118,7 @@ export default function PaddleDuelCourt({
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[10px] font-bold text-white">
+      <p className="mt-1 truncate text-[10px] font-bold text-paper">
         {mySide === 'left' ? 'YOU ARE THE LEFT PADDLE.' : 'YOU ARE THE RIGHT PADDLE.'} DRAG ANYWHERE TO MOVE IT.
       </p>
     </div>

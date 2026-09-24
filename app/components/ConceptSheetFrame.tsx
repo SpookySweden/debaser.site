@@ -15,7 +15,7 @@ type ConceptSheetFrameProps = {
 export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFrameProps) {
   return (
     <article className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-white">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
         <span>{sheet.title}</span>
         <span>F{index + 1}</span>
       </div>

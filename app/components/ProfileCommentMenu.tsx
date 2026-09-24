@@ -62,7 +62,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               onClick={() => onChoose(option.kind)}
               className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[10px] font-bold ${
                 option.available
-                  ? 'cursor-pointer text-ink hover:bg-ena hover:text-white'
+                  ? 'cursor-pointer text-ink hover:bg-ena hover:text-paper'
                   : 'cursor-default text-ink'
               }`}
               title={option.reason}

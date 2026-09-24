@@ -3,7 +3,7 @@ import { DEBASER_PROJECT, PROJECT_SECTIONS } from '../lib/projects/debaser';
 import { SHELF_CHIP } from '../lib/ui/controls';
 
 const CURRENT =
-  'rounded-none border border-black bg-ena px-2 py-[2px] text-white max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'rounded-none border border-black bg-ena px-2 py-[2px] text-paper max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 type ProjectSectionNavProps = {
   /** The section this page is, so it is marked rather than linked. */

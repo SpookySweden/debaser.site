@@ -76,7 +76,7 @@ function TagTick({
       aria-pressed={active}
       title={active ? `Stop including ${tag.label}` : `Include posts tagged ${tag.label}`}
       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 text-[10px] font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-        active ? 'bg-ena text-white' : 'text-ink hover:underline'
+        active ? 'bg-ena text-paper' : 'text-ink hover:underline'
       }`}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
@@ -351,7 +351,7 @@ export default function TagWindow({
               aria-pressed={fileSort === entry.value}
               title={entry.hint}
               className={`cursor-pointer px-1 font-bold ${
-                fileSort === entry.value ? 'bg-ena text-white' : 'text-ink hover:underline'
+                fileSort === entry.value ? 'bg-ena text-paper' : 'text-ink hover:underline'
               }`}
             >
               {entry.label}
@@ -457,7 +457,7 @@ export default function TagWindow({
             onClick={() => setTab(entry.key)}
             aria-pressed={tab === entry.key}
             className={`inline-flex cursor-pointer items-center px-2 py-[3px] text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
-              tab === entry.key ? 'bg-ena text-white' : 'text-ink hover:bg-ice'
+              tab === entry.key ? 'bg-ena text-paper' : 'text-ink hover:bg-ice'
             }`}
           >
             {entry.label}
