@@ -462,7 +462,7 @@ export default function MusicDirectory() {
                   type="button"
                   onClick={() => router.replace(MUSIC_HREF, { scroll: false })}
                   aria-pressed={tagKeys.length === 0}
-                  className={tagKeys.length === 0 ? `${PLATE} outline-2 outline-black` : PLATE}
+                  className={tagKeys.length === 0 ? `${PLATE} outline-2 outline-ink` : PLATE}
                 >
                   [ ALL ]
                 </button>
@@ -486,7 +486,7 @@ export default function MusicDirectory() {
                   type="button"
                   onClick={() => setMatchAll(false)}
                   aria-pressed={!matchAll}
-                  className={!matchAll ? `${PLATE} outline-2 outline-black` : PLATE}
+                  className={!matchAll ? `${PLATE} outline-2 outline-ink` : PLATE}
                 >
                   [ ANY TAG ]
                 </button>
@@ -495,7 +495,7 @@ export default function MusicDirectory() {
                   type="button"
                   onClick={() => setMatchAll(true)}
                   aria-pressed={matchAll}
-                  className={matchAll ? `${PLATE} outline-2 outline-black` : PLATE}
+                  className={matchAll ? `${PLATE} outline-2 outline-ink` : PLATE}
                 >
                   [ ALL TAGS ]
                 </button>

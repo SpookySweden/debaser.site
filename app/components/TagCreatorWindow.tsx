@@ -100,7 +100,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
                 className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale py-1 ${
-                  colour === swatch ? 'outline-2 outline-black' : 'hover:bg-sun'
+                  colour === swatch ? 'outline-2 outline-ink' : 'hover:bg-sun'
                 }`}
               >
                 <TagMark colour={swatch} />

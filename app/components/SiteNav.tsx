@@ -46,11 +46,14 @@ export type NavItem = {
  * without anybody remembering to write it down twice. The project's own shelves are the other list
  * the menu draws from, and that one lives with the project (app/lib/projects/debaser.ts).
  *
- * HOME is the debaser project rather than `/`, and that is not a shortcut: `/` hands the visitor to
- * the board (app/page.tsx), so a HOME pointing there would be a key that goes where FORUM already
- * goes. What "home" means on this site is the project page - the comic, its music, its notes and its
- * links - which is the one page that explains what the archive is *for*. The board is the front door;
- * this is the address.
+ * HOME is the projects map rather than `/`, and that is not a shortcut: `/` hands the visitor to the
+ * board (app/page.tsx), so a HOME pointing there would be a key that goes where FORUM already goes.
+ * What "home" means on this site is the archive's own index - the projects it holds, each with the
+ * page that gathers its parts. From there a reader chooses the debaser project and gets its shelves.
+ *
+ * It was `/projects/debaser` - the one project rather than the map - until the map existed. Pointing a
+ * key called HOME past the index and into the only thing the index would have listed is a shortcut
+ * that stops being one the moment a second project is filed: the key would keep going to the first.
  *
  * ARCADE and MUSIC are not keys on this band at all any more: `◄►` and `♪` live in the side panel,
  * where the account that owns them and the player one of them controls are (`SIDE_ARCADE` and
@@ -64,7 +67,7 @@ export type NavItem = {
  * separation: a band that grew a window key back would be a band that lies about what a key does.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'HOME :: THE DEBASER PROJECT', mark: ICON_HOME, href: '/projects/debaser' },
+  { key: 'home', label: 'HOME :: THE PROJECTS', mark: ICON_HOME, href: '/projects' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },

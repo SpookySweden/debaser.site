@@ -95,7 +95,7 @@ export function ProfileIdentityTab({
                   onClick={() => onNameColourChange(colour.hex)}
                   aria-pressed={chosen}
                   title={`${colour.label} :: ${nameColourContrast(colour.hex).toFixed(1)}:1 on the page`}
-                  className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-black' : ''}`}
+                  className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-ink' : ''}`}
                 >
                   <TagMark colour={colour.hex} />
                   {colour.label}

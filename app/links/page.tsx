@@ -39,7 +39,7 @@ export default function LinksPage() {
         <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
       </div>
 
-      <ul className="divide-y divide-gray-500">
+      <ul className="divide-y divide-ink">
         {ARCHIVE_LINKS.map((link) => (
           <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-[10px] font-bold">
             <Link href={link.href} className="text-xs underline hover:bg-sun">
@@ -66,7 +66,7 @@ export default function LinksPage() {
           </p>
         </div>
       ) : (
-        <ul className="divide-y divide-gray-500">
+        <ul className="divide-y divide-ink">
           {OUTBOUND_LINKS.map((link) => (
             <li key={link.id} className="flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-[10px] font-bold">
               <span className="text-xs">{link.label}</span>
