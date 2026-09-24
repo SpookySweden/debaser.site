@@ -1,7 +1,7 @@
 import { normaliseFolderPath, normaliseArchiveName } from './archive-tree';
 import { validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
-import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
+import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
 
@@ -298,9 +298,14 @@ class MockMusicRepository implements MusicRepository {
 
   /* The reader's own music: per account, in this browser. ------------------------------------- */
 
-  async listLikes(userId: string): Promise<LikedTrack[]> {
+  async listLikes(userId: string): Promise<LibraryRead<LikedTrack>> {
     // Newest first, so the shelf's own order is not what decides the head of "my music".
-    return [...recordFor(userId).likes].sort((a, b) => b.likedAt.localeCompare(a.likedAt));
+    const items = [...recordFor(userId).likes].sort((a, b) => b.likedAt.localeCompare(a.likedAt));
+
+    // A mock always answers: localStorage is either readable or the reader has bigger problems. The
+    // `answered` flag exists for the Supabase store, where a read can genuinely fail, and it is set here
+    // too so a caller cannot be right against one store and wrong against the other.
+    return { items, answered: true };
   }
 
   async toggleLike(userId: string, trackId: string): Promise<{ liked: boolean }> {
@@ -316,8 +321,8 @@ class MockMusicRepository implements MusicRepository {
     return { liked: !already };
   }
 
-  async listPlaylists(userId: string): Promise<Playlist[]> {
-    return [...recordFor(userId).playlists];
+  async listPlaylists(userId: string): Promise<LibraryRead<Playlist>> {
+    return { items: [...recordFor(userId).playlists], answered: true };
   }
 
   async savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist> {

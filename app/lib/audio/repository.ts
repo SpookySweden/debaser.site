@@ -56,6 +56,30 @@ export type CreateFolderInput = {
   creatorName: string;
 };
 
+/**
+ * A read of the reader's own music, which says whether it actually answered.
+ *
+ * `listTracks` and `listFolders` return a bare array, and for the *archive* that is right: an unreadable
+ * shelf is a short queue, not a broken page, so the store swallows the reason and the page works. That is
+ * wrong for a personal screen, and this is the difference made explicit.
+ *
+ * The distinction is not academic. "You have liked nothing" and "the database did not answer" draw the
+ * same empty panel, and the second one is a bug the reader cannot report because they cannot see it. So
+ * the read hands back both: the rows it has, and whether that is all of them.
+ */
+export type LibraryRead<T> = {
+  items: T[];
+  /**
+   * True when the read answered in full. False when it could not be read at all - a table that is not
+   * there yet, a policy that refused, a network that gave up - in which case `items` is empty and the
+   * screen says so rather than pretending the reader has nothing.
+   */
+  answered: boolean;
+};
+
+/** Thrown by writes, which *do* throw: a press that failed must be told, not shown as done. */
+export class LibraryWriteError extends Error {}
+
 export type MusicRepository = {
   readonly source: MusicDataSource;
   /**
@@ -90,8 +114,14 @@ export type MusicRepository = {
    * security policy answers it rather than this interface pretending to.
    * ------------------------------------------------------------------------------------------- */
 
-  /** What this account liked, newest first. Never throws: an unreadable table reads as nothing liked. */
-  listLikes(userId: string): Promise<LikedTrack[]>;
+  /**
+   * What this account liked, newest first.
+   *
+   * Never throws, and the *empty* answer is meaningful: a like table that has not been migrated yet
+   * reads as "nothing liked", which is what the screen draws before the schema is pasted in. The second
+   * return value says whether the read actually answered - see `LibraryRead`.
+   */
+  listLikes(userId: string): Promise<LibraryRead<LikedTrack>>;
   /**
    * Hearts or un-hearts, and hands back the state it settled on.
    *
@@ -99,8 +129,10 @@ export type MusicRepository = {
    * the two it is doing, and asking it to know is how a heart ends up out of step with the row.
    */
   toggleLike(userId: string, trackId: string): Promise<{ liked: boolean }>;
-  /** This account's lists, oldest first. Never throws, for the same reason. */
-  listPlaylists(userId: string): Promise<Playlist[]>;
+  /**
+   * This account's lists, oldest first. Never throws, for the same reason `listLikes` does not.
+   */
+  listPlaylists(userId: string): Promise<LibraryRead<Playlist>>;
   /**
    * Creates a list, or replaces the one with the same derived id.
    *

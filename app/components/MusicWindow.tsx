@@ -101,10 +101,24 @@ export default function MusicWindow() {
         <ScreenTab label="MY MUSIC" selected={state.screen === 'mine'} onSelect={() => show('mine')} />
       </div>
 
-      {/* Both are mounted only while they are on. The archive keeps its own state (the open folder, the
-          running filter) inside itself, so switching away and back is a fresh browse rather than a
-          half-remembered one - which is what a tab that says THE ARCHIVE should give you. */}
-      {state.screen === 'mine' ? <PersonalLibrary /> : <MusicDirectory />}
+      {/* Both screens stay *mounted*, and the one that is not on is hidden.
+          This is the fix for a bug worth naming: the archive keeps its search box, its sort order, its
+          tag drawer and which folders are folded in `useState`, and only its tag filter lives in the
+          address. Unmounting it to show MY MUSIC - which is what mounting one at a time does - threw all
+          of that away, so a reader who sorted by POSTS, opened a folder, pressed a heart on the other
+          screen and came back found the archive sorted by name and every folder shut.
+
+          Hiding rather than unmounting costs nothing that matters: neither screen subscribes to the
+          other's state, and a hidden one reads nothing (its effects do not re-run, because nothing it
+          depends on changed). What it buys is that the reader never watches the thing they were pointing
+          at rearrange itself - the same rule the reveals follow, applied at the scale of a screen. */}
+      <div className={state.screen === 'mine' ? 'hidden' : undefined}>
+        <MusicDirectory />
+      </div>
+
+      <div className={state.screen === 'mine' ? undefined : 'hidden'}>
+        <PersonalLibrary />
+      </div>
     </DockWindow>
   );
 }

@@ -7,6 +7,7 @@ import CommsNotifier from './components/CommsNotifier';
 import CommsProvider from './components/CommsProvider';
 import ForumProvider from './components/ForumProvider';
 import MusicPlayer from './components/MusicPlayer';
+import MusicLibraryProvider from './components/MusicLibraryProvider';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
 import NotificationsProvider from './components/NotificationsProvider';
@@ -65,28 +66,35 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                   {/* The station: one audio element for the whole site, so a track keeps
                       playing while the reader moves from page to page. */}
                   <MusicPlayerProvider>
-                    {children}
-                    {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
-                    <CommsNotifier />
-                    {/* ...and the player's bar sits over every page, docked to the bottom. */}
-                    <MusicPlayer />
-                    {/* The site's two utility windows, drawn once and docked beside whatever is
-                        being read rather than being pages of their own: the arcade (a post's
-                        `[ CHALLENGE ]`, the side panel's key or the bell) and the music archive (the
-                        MUSIC shelf, a post's plate, or a track's tag badge). They read the address,
-                        so they are drawn behind a boundary: the layout stays static, the windows
-                        catch up. Nothing here is inside the page, which is exactly why opening one
-                        cannot re-render the board. */}
-                    <Suspense fallback={null}>
-                      <ArcadeWindow />
-                      <MusicWindow />
-                    </Suspense>
+                    {/* The reader's own music - what they liked, and the lists they made - read once
+                        for whoever asks. Two screens need it: the personal library draws it, and the
+                        archive's rows wear a heart from it, so a track can be liked without leaving
+                        the shelf. It hangs here, inside AuthProvider, because the read is *per
+                        account* and a guest has none. */}
+                    <MusicLibraryProvider>
+                      {children}
+                      {/* Any page: a message that arrives pops up (desktop) or opens comms (mobile). */}
+                      <CommsNotifier />
+                      {/* ...and the player's bar sits over every page, docked to the bottom. */}
+                      <MusicPlayer />
+                      {/* The site's two utility windows, drawn once and docked beside whatever is
+                          being read rather than being pages of their own: the arcade (a post's
+                          `[ CHALLENGE ]`, the side panel's key or the bell) and the music window (the
+                          MUSIC shelf, a post's plate, or a track's tag badge). They read the address,
+                          so they are drawn behind a boundary: the layout stays static, the windows
+                          catch up. Nothing here is inside the page, which is exactly why opening one
+                          cannot re-render the board. */}
+                      <Suspense fallback={null}>
+                        <ArcadeWindow />
+                        <MusicWindow />
+                      </Suspense>
 
-                    {/* Preferences: the one window with no address, because a theme is a setting on
-                        *this* browser and a link to somebody else's would promise a change it cannot
-                        make. It is not behind the Suspense boundary with the other two, because it
-                        reads no address and has nothing to catch up on. */}
-                    <PreferencesWindow />
+                      {/* Preferences: the one window with no address, because a theme is a setting on
+                          *this* browser and a link to somebody else's would promise a change it cannot
+                          make. It is not behind the Suspense boundary with the other two, because it
+                          reads no address and has nothing to catch up on. */}
+                      <PreferencesWindow />
+                    </MusicLibraryProvider>
                   </MusicPlayerProvider>
                 </NotificationsProvider>
               </CommsProvider>

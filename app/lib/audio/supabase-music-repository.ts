@@ -2,7 +2,7 @@ import { getSupabaseBrowserClient } from '../supabase/client';
 import { normaliseFolderPath } from './archive-tree';
 import { MUSIC_BUCKET, extensionForTrack, trackStoragePath, validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
-import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
+import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
 import { tracksFromStorage } from './tracks';
@@ -341,7 +341,7 @@ class SupabaseMusicRepository implements MusicRepository {
    * still be able to list songs. The reason each read fails the same way is that the alternative - a
    * reader whose likes table has not been migrated yet seeing an error - is worse than seeing none.
    */
-  async listLikes(userId: string): Promise<LikedTrack[]> {
+  async listLikes(userId: string): Promise<LibraryRead<LikedTrack>> {
     const { data, error } = await this.client()
       .from(LIKES_TABLE)
       .select('track_id, liked_at')
@@ -349,9 +349,14 @@ class SupabaseMusicRepository implements MusicRepository {
       .order('liked_at', { ascending: false })
       .limit(LIST_LIMIT);
 
-    if (error !== null) return [];
+    // A refusal, a missing table and a dead network all land here. The reader is told, rather than shown
+    // an empty list that means "you liked nothing" - which is a different sentence and a different bug.
+    if (error !== null) return { items: [], answered: false };
 
-    return ((data ?? []) as LikeRow[]).map((row) => ({ trackId: row.track_id, likedAt: row.liked_at }));
+    return {
+      items: ((data ?? []) as LikeRow[]).map((row) => ({ trackId: row.track_id, likedAt: row.liked_at })),
+      answered: true,
+    };
   }
 
   /**
@@ -386,7 +391,7 @@ class SupabaseMusicRepository implements MusicRepository {
     return { liked: true };
   }
 
-  async listPlaylists(userId: string): Promise<Playlist[]> {
+  async listPlaylists(userId: string): Promise<LibraryRead<Playlist>> {
     const { data, error } = await this.client()
       .from(PLAYLISTS_TABLE)
       .select('id, owner_id, name, created_at, items')
@@ -394,9 +399,9 @@ class SupabaseMusicRepository implements MusicRepository {
       .order('created_at', { ascending: true })
       .limit(LIST_LIMIT);
 
-    if (error !== null) return [];
+    if (error !== null) return { items: [], answered: false };
 
-    return ((data ?? []) as PlaylistRow[]).map(toPlaylist);
+    return { items: ((data ?? []) as PlaylistRow[]).map(toPlaylist), answered: true };
   }
 
   async savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist> {
@@ -407,7 +412,7 @@ class SupabaseMusicRepository implements MusicRepository {
 
     // Read first so an edit does not wipe the items it is not touching - the same reasoning the mock
     // store records, and the reason a rename is not a way to lose a list's contents.
-    const existing = await this.listPlaylists(input.ownerId);
+    const existing = (await this.listPlaylists(input.ownerId)).items;
     const current = existing.find((list) => list.id === id);
 
     const { data, error } = await this.client()
@@ -430,7 +435,7 @@ class SupabaseMusicRepository implements MusicRepository {
   }
 
   async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist> {
-    const lists = await this.listPlaylists(input.ownerId);
+    const lists = (await this.listPlaylists(input.ownerId)).items;
     const list = lists.find((entry) => entry.id === input.playlistId);
 
     if (list === undefined) throw new Error('THERE IS NO PLAYLIST BY THAT NAME.');

@@ -28,6 +28,7 @@ import { LINK_PIXEL, PANEL, PLATE, PLATE_ACCENT, TITLE_BAR } from '../lib/ui/con
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
+import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
@@ -94,9 +95,13 @@ type FileRowProps = {
  */
 const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
   const player = useMusicPlayer();
+  const library = useMusicLibrary();
   const current = player.track?.src === row.track.src;
   const playing = current && player.playing;
   const tags = normaliseAudioTags(row.tags);
+  const liked = library.likedIds.has(row.track.id);
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   /** The player's own reading of the file wins once it has been played. */
   const length = current && Number.isFinite(player.duration) ? formatClock(player.duration) : row.track.length;
 
@@ -107,6 +112,30 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
     }
 
     player.play(track);
+  }
+
+  /**
+   * The heart, here in the archive as well as in the personal screen.
+   *
+   * It is drawn on every row for one blunt reason: the personal screen's empty state tells a reader that
+   * *"every row in the archive wears a heart"*, and a hint that points at a control which is not there is
+   * worse than no hint. So the shelf and the personal list wear the same switch, on the same track, and
+   * pressing it here moves the row onto the other screen without the reader having to go and find it.
+   *
+   * The only thing it does *not* do silently is fail: a guest pressing it gets the sentence the provider
+   * throws, said in place, rather than a heart that appears to work and forgets.
+   */
+  async function toggleLike() {
+    setBusy(true);
+    setNotice(null);
+
+    try {
+      await library.toggleLike(row.track.id);
+    } catch (caught) {
+      setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -141,6 +170,22 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
         </span>
 
         <span className="flex items-center gap-1 justify-self-end">
+          {/* The like switch, the same shape it wears on the personal screen. It sits first in the
+              group because it acts on the reader's own list rather than on the file - everything to its
+              right moves the file somewhere. */}
+          <button
+            type="button"
+            onClick={() => void toggleLike()}
+            disabled={busy}
+            aria-pressed={liked}
+            title={liked ? `Take ${row.track.title} out of liked` : `Like ${row.track.title}`}
+            className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
+              liked ? 'bg-bubble-pale text-paper hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
+            }`}
+          >
+            {liked ? '♥' : '♡'}
+          </button>
+
           <button
             type="button"
             onClick={() => press(row.track)}
@@ -164,7 +209,18 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
         </span>
       </div>
 
-      {/* A phone has no room for the tag column, so the tags take their own line. */}
+      {/* A failed like says so *where the press was*, rather than at the top of the window: the reader is
+          looking at this row, and a message somewhere else is a message they will not find. It is also the
+          only thing that makes the guest case work here - pressing a heart as a guest says why, in place.
+          Rose (`bubble-pale`) rather than grey, because a refusal is a fault and this site's faults are
+          the two bright dyes - the same colour the guest banner flashes. */}
+      {notice === null ? null : (
+        <p className="mt-1 pl-8 text-[9px] font-bold text-bubble-pale" role="status">
+          {notice}
+        </p>
+      )}
+
+
       {tags.length === 0 ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-1 pl-8 sm:hidden">
           {tags.map((tag) => (

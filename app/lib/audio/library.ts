@@ -69,42 +69,98 @@ export function playlistId(ownerId: string, name: string): string {
 /**
  * What a list of stored likes looks like against the shelf that is actually loaded.
  *
- * Two jobs, and both are about not lying. A like whose track is gone is dropped, because a row with
- * no title is worse than no row. And the order is the shelf's order, not the liking order - so "my
- * music" reads like the rest of the archive rather than like a second, differently-sorted listing of
- * it. `likedAt` is kept on the returned rows so a caller that wants newest-first can sort them.
+ * Two jobs, and both are about not lying. A like whose track is gone is dropped, because a row with no
+ * title is worse than no row. And the order is the shelf's order, not the liking order - so "my music"
+ * reads like the rest of the archive rather than like a second, differently-sorted listing of it.
+ * `likedAt` is kept on the returned rows so a caller that wants newest-first can sort them.
+ *
+ * **The dropped ones are handed back rather than swallowed.** A like whose track has been deleted and a
+ * like whose *shelf read fell short* look identical from here - both are an id with no track - and the
+ * difference matters enormously to the reader: one is a file that is gone, the other is their song that
+ * will be back when the next read answers fully. So this reports the count and lets the screen say so.
+ * Silently drawing a short list is how a reader concludes they never liked a song they did.
  */
+export type ResolvedList<T> = {
+  /** The rows, in this list's own order, with the shelf's own fields on them. */
+  rows: (T & { likedAt: string })[];
+  /** How many stored likes could not be drawn, because the loaded shelf does not hold them. */
+  missing: number;
+};
+
 export function resolveLikes<T extends { id: string }>(
   likes: readonly LikedTrack[],
   shelf: readonly T[],
-): (T & { likedAt: string })[] {
+): ResolvedList<T> {
   const byId = new Map(shelf.map((track) => [track.id, track]));
 
-  return likes.flatMap((like) => {
+  let missing = 0;
+  const rows: (T & { likedAt: string })[] = [];
+
+  for (const like of likes) {
     const track = byId.get(like.trackId);
-    return track === undefined ? [] : [{ ...track, likedAt: like.likedAt }];
-  });
+
+    if (track === undefined) {
+      missing += 1;
+      continue;
+    }
+
+    rows.push({ ...track, likedAt: like.likedAt });
+  }
+
+  return { rows, missing };
 }
 
-/** The same, for a playlist's items - in the order the *list* holds them, because that is its point. */
+/**
+ * The same, for a playlist's items - in the order the *list* holds them, because that is its point.
+ *
+ * Reports its drops for the same reason `resolveLikes` does, and `addedAt` is the field name so a
+ * caller can sort a playlist by when each track went in without a second pass.
+ */
 export function resolvePlaylistItems<T extends { id: string }>(
   playlist: Playlist,
   shelf: readonly T[],
-): (T & { addedAt: string })[] {
+): ResolvedList<T> {
   const byId = new Map(shelf.map((track) => [track.id, track]));
 
-  return playlist.items.flatMap((item) => {
+  let missing = 0;
+  const rows: (T & { likedAt: string })[] = [];
+
+  for (const item of playlist.items) {
     const track = byId.get(item.trackId);
-    return track === undefined ? [] : [{ ...track, addedAt: item.addedAt }];
-  });
+
+    if (track === undefined) {
+      missing += 1;
+      continue;
+    }
+
+    rows.push({ ...track, likedAt: item.addedAt });
+  }
+
+  return { rows, missing };
 }
 
-/** Whether a track is in the liked set, for the heart's own state. */
+/**
+ * The ids in a set of likes, as a `Set` - built once per render rather than scanned once per row.
+ *
+ * `isLiked(likes, id)` is a linear scan, and a row asks it for its own id, so answering every row that
+ * way is quadratic in the length of the list. A `Set` is the same answer in constant time, and it is
+ * built once: the screen makes one, hands it to every row, and the whole list costs one pass.
+ */
+export function likedIds(likes: readonly LikedTrack[]): Set<string> {
+  return new Set(likes.map((like) => like.trackId));
+}
+
+/** The same, for one playlist's items. */
+export function playlistIds(playlist: Playlist | null): Set<string> {
+  return new Set((playlist?.items ?? []).map((item) => item.trackId));
+}
+
+/** Whether a track is in the liked set, for a caller that has not built the `Set`. */
 export function isLiked(likes: readonly LikedTrack[], trackId: string): boolean {
   return likes.some((like) => like.trackId === trackId);
 }
 
-/** Whether a track is in a particular list, for the menu's tick. */
+/** Whether a track is in a particular list, for a caller that has not built the `Set`. */
 export function isInPlaylist(playlist: Playlist, trackId: string): boolean {
   return playlist.items.some((item) => item.trackId === trackId);
 }

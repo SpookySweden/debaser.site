@@ -2,12 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  isInPlaylist,
-  isLiked,
+  playlistIds,
   resolveLikes,
   resolvePlaylistItems,
   validatePlaylistName,
-  type LikedTrack,
   type Playlist,
 } from '../lib/audio/library';
 import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
@@ -16,10 +14,12 @@ import { formatClock } from '../lib/audio/format';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { FIELD, PANEL, PLATE, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import Link from 'next/link';
 import NewPostForm from './NewPostForm';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import LibraryRow from './LibraryRow';
 import ListRow from './ListRow';
+import { useMusicLibrary } from './MusicLibraryProvider';
 
 /**
  * The reader's own music: what they liked, and the lists they made.
@@ -29,20 +29,35 @@ import ListRow from './ListRow';
  * because a like is a pointer (`lib/audio/library.ts`). That is why the same file can be on this
  * screen and in the archive at once without being two files.
  *
- * The screen's own shape is two panels: the lists on the left (with LIKED as the first entry, because
- * it is the one list everybody has), and the rows of whichever list is open. Which is a file browser
- * with a folder column, deliberately - this replaces the archive as the *default* screen of the window
- * while keeping the archive's own browser one tab away.
+ * The screen's own shape is two panels: the lists first, then the rows of whichever list is open -
+ * a file browser with a folder column, deliberately.
+ *
+ * Three things it is careful never to do, and each was a bug found in review rather than a preference:
+ *
+ *   1. **it does not claim the reader has nothing when the read failed.** `answered: false` draws a
+ *      fault with a retry, not an empty list. "You have liked nothing" and "the database did not answer"
+ *      are different sentences, and the second is a bug the reader cannot report because they cannot
+ *      see it;
+ *   2. **it does not lose rows silently.** A like whose track the shelf does not hold is counted, and
+ *      the count is said out loud, because a short shelf read and a deleted file look identical from
+ *      here while meaning very different things;
+ *   3. **it does not read the session as signed-out while the session is still arriving.** The guard is
+ *      `status !== 'anonymous'`, the long way round - the same one `./GuestPrompt.tsx` uses, and for
+ *      the same reason: `user` is null while the read is in flight, so the short test would tell a
+ *      signed-in reader their own library is empty.
  */
 export default function PersonalLibrary() {
   const { user, status } = useAuth();
   const player = useMusicPlayer();
   const repository = useMemo(() => getMusicRepository(), []);
+  const library = useMusicLibrary();
   const userId = user?.id ?? null;
 
+  /**
+   * The shelf, which is the archive's rather than the reader's - so it is read here rather than shared.
+   * The likes and lists come from `./MusicLibraryProvider.tsx`, which reads them once for both screens.
+   */
   const [shelf, setShelf] = useState<AudioTrack[]>([]);
-  const [likes, setLikes] = useState<LikedTrack[]>([]);
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
@@ -56,69 +71,64 @@ export default function PersonalLibrary() {
   const [posting, setPosting] = useState<AudioTrack | null>(null);
 
   /**
-   * Reads the shelf, the likes and the lists together.
+   * Reads the shelf.
    *
-   * All three, every time, because they are drawn as one screen: a like that arrived without the shelf
-   * would be an id with no title, and a list without the likes would draw its rows twice over.
-   * `Promise.all` rather than three effects, so the screen has one loading state rather than a
-   * flickering three.
+   * Only the shelf: the two personal reads live in the provider, which is what lets the archive's rows
+   * wear the same hearts without reading them again. Guarded by `alive` because a reader can switch
+   * screens while the read is in flight - the same guard `AuthProvider` uses for its own session read.
    *
-   * Guarded by `alive` because the read is three network calls deep and a reader can switch screens
-   * while they are in flight - the same guard `AuthProvider` uses for its own session read, and for the
-   * same reason: writing state after unmount is how a window that has been closed throws.
+   * The personal reads report whether they answered; the shelf's does not and cannot, because
+   * `listTracks` deliberately swallows its own failures so the archive still works. So a short shelf is
+   * detected where it can be - by counting the likes that could not be resolved - and reported there.
    */
-  const [reloadToken, setReloadToken] = useState(0);
+  const [shelfToken, setShelfToken] = useState(0);
 
   useEffect(() => {
     let alive = true;
 
     void (async () => {
-      const [tracks, nextLikes, nextPlaylists] = await Promise.all([
-        repository.listTracks(),
-        userId === null ? Promise.resolve([] as LikedTrack[]) : repository.listLikes(userId),
-        userId === null ? Promise.resolve([] as Playlist[]) : repository.listPlaylists(userId),
-      ]);
-
+      const tracks = await repository.listTracks();
       if (!alive) return;
 
       setShelf(tracks);
-      setLikes(nextLikes);
-      setPlaylists(nextPlaylists);
       setReady(true);
     })();
 
     return () => {
       alive = false;
     };
-  }, [reloadToken, repository, userId]);
+  }, [repository, shelfToken]);
 
-  /** Asks for the same read again, after a write that changed something. */
-  const refresh = useCallback(() => setReloadToken((token) => token + 1), []);
+  /** Asks for the shelf again, after a write that may have changed it. */
+  const refresh = useCallback(() => setShelfToken((token) => token + 1), []);
 
-  /** The liked tracks, against the shelf that is actually loaded. */
-  const liked = useMemo(() => resolveLikes(likes, shelf), [likes, shelf]);
+  /** The liked tracks, against the shelf that is actually loaded - and how many could not be drawn. */
+  const liked = useMemo(() => resolveLikes(library.likes, shelf), [library.likes, shelf]);
 
-  const current = useMemo(() => playlists.find((list) => list.id === openList) ?? null, [openList, playlists]);
+  const current = useMemo(
+    () => library.playlists.find((list) => list.id === openList) ?? null,
+    [library.playlists, openList],
+  );
 
   /** The rows the screen is showing: the liked set, or the list that is open. */
-  const rows = useMemo(
+  const shown = useMemo(
     () => (current === null ? liked : resolvePlaylistItems(current, shelf)),
     [current, liked, shelf],
   );
 
-  async function toggleLike(track: AudioTrack) {
-    if (userId === null) {
-      setNotice('LIKING A TRACK TAKES AN ACCOUNT - READING THE ARCHIVE DOES NOT.');
-      return;
-    }
+  const rows = shown.rows;
 
+  // Built once for the whole list rather than re-scanned by every row. `isInPlaylist` is linear, so
+  // asking it per row is quadratic in the length of the list; the liked set is already shared.
+  const inOpenList = useMemo(() => playlistIds(current), [current]);
+
+  async function toggleLike(track: AudioTrack) {
     setBusy(track.id);
     setNotice(null);
 
     try {
-      const { liked: nowLiked } = await repository.toggleLike(userId, track.id);
+      const { liked: nowLiked } = await library.toggleLike(track.id);
       setNotice(nowLiked ? `${track.title} LIKED.` : `${track.title} TAKEN BACK OUT OF LIKED.`);
-      refresh();
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
     } finally {
@@ -127,17 +137,11 @@ export default function PersonalLibrary() {
   }
 
   async function addToList(track: AudioTrack, list: Playlist) {
-    if (userId === null) {
-      setNotice('A PLAYLIST TAKES AN ACCOUNT.');
-      return;
-    }
-
     setBusy(track.id);
     setNotice(null);
 
     try {
-      await repository.togglePlaylistTrack({ ownerId: userId, playlistId: list.id, trackId: track.id });
-      refresh();
+      await library.togglePlaylistTrack(list.id, track.id);
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
     } finally {
@@ -146,11 +150,6 @@ export default function PersonalLibrary() {
   }
 
   async function makeList() {
-    if (userId === null) {
-      setNotice('A PLAYLIST TAKES AN ACCOUNT.');
-      return;
-    }
-
     const problem = validatePlaylistName(newName);
     if (problem !== undefined) {
       setNotice(problem);
@@ -158,30 +157,88 @@ export default function PersonalLibrary() {
     }
 
     try {
-      const made = await repository.savePlaylist({ ownerId: userId, name: newName });
+      const made = await library.savePlaylist(newName);
       setNewName('');
       setNaming(false);
       setOpenList(made.id);
-      refresh();
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
     }
   }
 
   async function dropList(list: Playlist) {
-    if (userId === null) return;
-
     try {
-      await repository.removePlaylist(userId, list.id);
+      await library.removePlaylist(list.id);
       if (openList === list.id) setOpenList(null);
-      refresh();
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
     }
   }
 
+  /**
+   * The session has not settled yet.
+   *
+   * This test is deliberately *before* the guest test and is the only thing that keeps the two apart: a
+   * guest and a signed-in reader are both `userId === null` for the first moment, so drawing the guest
+   * panel without waiting would tell a signed-in reader - mid-page-load - that they have no library.
+   * Showing "reading" instead costs a frame and lies about nothing.
+   */
   if (status === 'loading') {
     return <p className="p-3 text-[10px] font-bold text-ink">READING YOUR LIBRARY...</p>;
+  }
+
+  /**
+   * A settled guest. They get the archive and an offer, and no empty LIKED list - there is no library to
+   * be empty, it does not exist yet.
+   *
+   * The offer is a `Link` to `/account` rather than a sentence that stops at "this takes an account", the
+   * same shape `./GuestPrompt.tsx` uses: being told you cannot, and not being told how, is how a fault
+   * becomes a dead end.
+   */
+  if (userId === null) {
+    return (
+      <section className={`${PANEL} p-3`}>
+        <p className="text-[10px] font-bold text-ink">
+          YOUR MUSIC IS WHERE THE TRACKS YOU LIKED AND THE LISTS YOU MADE LIVE. IT IS KEPT AGAINST YOUR ACCOUNT.
+        </p>
+
+        <p className="mt-2 text-[10px] text-ink">
+          THE ARCHIVE IS OPEN TO EVERYBODY, AND EVERY ROW IN IT CAN BE PLAYED WITHOUT ONE - THIS SCREEN IS THE
+          HALF THAT IS YOURS.
+        </p>
+
+        <Link
+          href="/account"
+          className="mt-2 inline-block cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ink px-2 py-[3px] text-[10px] font-bold text-paper hover:bg-ena hover:text-sun"
+        >
+          [ CREATE ACCOUNT OR LOG IN ]
+        </Link>
+      </section>
+    );
+  }
+
+  /**
+   * The read failed. This is drawn *instead of* the lists, not above an empty one, because an empty list
+   * is a claim and this is the absence of one.
+   */
+  if (!library.answered) {
+    return (
+      <section className={`${PANEL} p-3`} role="alert">
+        <div className={TITLE_BAR}>
+          <span>YOUR MUSIC</span>
+          <span>[ FAULT ]</span>
+        </div>
+
+        <p className="mt-2 text-[10px] font-bold text-ink">
+          THE LIBRARY DID NOT ANSWER, SO NOTHING HERE IS YOURS TO READ YET. YOUR LIKES AND LISTS ARE NOT LOST -
+          THIS SCREEN SIMPLY COULD NOT ASK FOR THEM.
+        </p>
+
+        <button type="button" onClick={refresh} className={`${PLATE} mt-2`}>
+          [ TRY AGAIN ]
+        </button>
+      </section>
+    );
   }
 
   return (
@@ -192,33 +249,37 @@ export default function PersonalLibrary() {
         </p>
       )}
 
-      {/* A guest can read all of this - the shelf is public - but nothing here can be written without an
-          account, so the screen says which half needs one rather than failing at the write. */}
-      {userId === null ? (
-        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-[10px] font-bold text-ink">
-          READING TAKES NO ACCOUNT. LIKING A TRACK AND KEEPING LISTS DOES.
+      {/* A short list is explained rather than silently drawn. It is shown to everybody who is looking at
+          a list with holes in it, signed in or not, because it is about the rows rather than the account.
+          The two readings - a deleted file and a shelf read that fell short - are named together, because
+          from here they are genuinely indistinguishable and guessing at one would be inventing. */}
+      {shown.missing === 0 ? null : (
+        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-[10px] font-bold text-ink" role="status">
+          {shown.missing} TRACK{shown.missing === 1 ? '' : 'S'} IN THIS LIST {shown.missing === 1 ? 'IS' : 'ARE'} NOT
+          ON THE SHELF RIGHT NOW - {shown.missing === 1 ? 'IT HAS' : 'THEY HAVE'} EITHER BEEN TAKEN DOWN OR THE
+          ARCHIVE DID NOT ANSWER IN FULL. YOUR LIST STILL HOLDS {shown.missing === 1 ? 'IT' : 'THEM'}.
         </p>
-      ) : null}
+      )}
 
       {/* The lists, with LIKED as the first entry: the one list everybody has, and the screen's default. */}
       <div className={PANEL}>
         <div className={TITLE_BAR}>
           <span>LISTS</span>
-          <span>[ {playlists.length + 1} ]</span>
+          <span>[ {library.playlists.length + 1} ]</span>
         </div>
 
         <ul className="divide-y divide-dotted divide-ink">
           <li>
             <ListRow
               label="LIKED"
-              note={`${liked.length}`}
+              note={`${liked.rows.length}`}
               selected={openList === null}
               onSelect={() => setOpenList(null)}
               symbol="♥"
             />
           </li>
 
-          {playlists.map((list) => (
+          {library.playlists.map((list) => (
             <li key={list.id}>
               <ListRow
                 label={list.name}
@@ -293,9 +354,9 @@ export default function PersonalLibrary() {
                 key={track.id}
                 track={track}
                 index={index}
-                lists={playlists}
-                liked={isLiked(likes, track.id)}
-                inOpenList={current === null ? false : isInPlaylist(current, track.id)}
+                lists={library.playlists}
+                liked={library.likedIds.has(track.id)}
+                inOpenList={inOpenList.has(track.id)}
                 busy={busy === track.id}
                 playing={player.track?.src === track.src && player.playing}
                 current={player.track?.src === track.src}
