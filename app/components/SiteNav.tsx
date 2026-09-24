@@ -153,7 +153,12 @@ export default function SiteNav({ active }: { active?: NavKey }) {
   return (
     <nav
       aria-label="Site keys"
-      className="hidden min-w-0 flex-wrap items-center gap-1 border-b-2 border-ink bg-sun-pale px-2 py-[3px] sm:flex"
+      // `hidden` below `md`, which is stricter than the `sm` it used to be: the brief asks for the
+      // band to be gone for the whole phone-and-small-tablet range, because between 640 and 768 the
+      // keys were visible *and* the profile menu was too, so the same destinations had two doors and
+      // the narrow band was doing nothing but crowding the title. The profile picture in the title bar
+      // is the only door below `md`, and `Temp/check-mobile.cjs` holds that.
+      className="hidden min-w-0 flex-wrap items-center gap-1 border-b-2 border-ink bg-sun-pale px-2 py-[3px] md:flex"
     >
       {NAV_ITEMS.map((item) => {
         const unread = item.key === 'comms' ? unreadTotal : 0;

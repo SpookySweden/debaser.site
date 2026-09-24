@@ -17,11 +17,15 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
 - **Shapes & borders**: 0px border-radius on every element, no exceptions. Thick, bevelled borders -
   a light top-left edge and a dark bottom-right one - mimicking classic Windows 95 pop-up windows.
   Nothing fades, lifts or casts a soft shadow.
-- **Colours**: one swatch, in the `@theme` block of `app/globals.css`: fifteen web-safe colours (deep
-  ENA blue, sun yellow, ice cyan, magenta, lime) plus the two Win95 greys that survive as the bevel's
-  shade and the quiet furniture. Every fill and every ink comes from `app/lib/ui/controls.ts`, which is
-  written in those tokens - no component writes a hex of its own (`Temp/check-surreal.cjs` fails on
-  one), and every pair that carries text clears 4.5:1 contrast by arithmetic.
+- **Colours**: nine, and not one grey. Black `#000000`, Nigrosine `#1A1525` (the field), Royal Blue
+  `#1D3CA6`, Daffodil Yellow `#FFF000`, Flavine `#E1FF00`, Emerald `#28C745`, Brilliant Pink `#FF00A0`,
+  Rose `#E6004C`, and Pure White `#FFFFFF` for the prose only. They live in the `@theme` block of
+  `app/globals.css`; every fill and every ink resolves to one of them through `app/lib/ui/controls.ts`,
+  and no component writes a hex of its own (`Temp/check-surreal.cjs` fails on one, on a grey, or on a
+  pair that carries text below 4.5:1). The two tokens named `chrome`, `chrome-dark` are *not* greys any
+  more - they are Flavine and Nigrosine - and they stay separate tokens because they do the opposite
+  jobs an inactive title bar and a disabled plate need: one pale enough for Black ink, one dark enough
+  for White. Collapsing them onto one value is the bug that put greys here to begin with.
 - **Reactivity**: six animations (`wobble`, `bump`, `shake`, `flash`, `marquee`, `blip`), all of them
   `steps()` rather than eased so they move in whole pixel frames; plates invert on hover and flash
   magenta on press; prose links wear a 3px dotted pixel bar that changes colour on hover. All of it

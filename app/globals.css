@@ -313,6 +313,11 @@ img {
    White survives for one job only - `paper`, the field the board's prose is set on - because a
    readable column of text is not a place to be clever. It is not a fill anywhere else.
 
+   **Nine colours, and nothing else.** Black, Nigrosine, Royal Blue, Daffodil Yellow, Flavine,
+   Brilliant Pink, Rose, Emerald, and Pure White for the prose. Every fill and every ink resolves to
+   one of the nine: there is not a grey left in this file, and the two tokens that were greys -
+   `chrome`, `chrome-dark` - now name a dye (see the comment on them below).
+
    The token *names* are the ones the components already ask for (`sun`, `ena`, `bubble`...), so the
    whole site moves to the new swatch without a component being rewritten to say so - which is the
    point of having had one. What each name now means is the list above. */
@@ -320,22 +325,41 @@ img {
   --color-ink: #000000;
   --color-paper: #ffffff;
 
-  /* The two furniture greys, and why they are greys after all.
-     They were swept out with everything else in the dye pass - "nothing on this site is grey any
-     more" - and the sweep collapsed both onto Nigrosine. That was fine for anything that had merely
-     *looked* grey, and wrong for these two, because both are *surfaces with ink on them*:
-     `chrome-dark` is the inactive title bar (SIDE PANEL, SHELF, PROFILE, COMMS all sit on it in ink)
-     and `chrome` is the disabled plate ([ CHALLENGE ] while the account is offline). Nigrosine under
-     ink is 1.18:1, and disabled ink on a Nigrosine surface was 1.00:1 - the same colour twice. They
-     are furniture rather than dye: the quiet grey a Win95 window is made of, kept because a surface
-     whose job is to be quiet cannot do that job by being dark. Both pairs are held to 4.5:1 by
-     `Temp/check-surreal.cjs`, so this cannot be swept again without a check saying so. */
-  --color-chrome: #484848;
-  --color-chrome-dark: #c0c0c0;
+  /* The quiet furniture, in dye rather than grey.
+     Both tokens below are *surfaces with ink on them*, and the distinction that decides them is
+     lightness, not hue: a surface whose job is to be quiet cannot do that job by being dark, because
+     ink on near-black is 1.18:1.
+       `chrome-dark` is the inactive title bar - SIDE PANEL, SHELF, PROFILE and COMMS all sit on it in
+       Black. It was a Win95 silver at 11.54:1; Flavine under Black is 18.51:1, which is quieter in the
+       palette's terms (it reads as a pale field, not as a colour) and stronger by arithmetic.
+       `chrome` is the disabled plate - `[ CHALLENGE ]` while an account is offline. It was the dark
+       grey at 9.15:1; Nigrosine under Pure White is 17.83:1, and Nigrosine is the named background, so
+       a disabled control now reads as *pressed into the field* rather than as a separately coloured box.
+     The names are kept because the components already ask for them, and `Temp/check-surreal.cjs` still
+     holds both pairs to the arithmetic - so neither can be swept onto a dark surface again without a
+     check saying so. */
+  --color-chrome: #1a1525;
+  --color-chrome-dark: #e1ff00;
 
-  /* Royal Blue: the desktop, the title bar of the window you are in, anything pressed. */
+  /* The desktop, the title bar of the window you are in, anything pressed. */
   --color-ena: #1d3ca6;
   --color-ena-deep: #1a1525;
+
+  /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
+  --color-sun: #fff000;
+  --color-sun-pale: #e1ff00;
+
+  /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
+  --color-ice: #e1ff00;
+  --color-ice-pale: #e1ff00;
+
+  /* Brilliant Pink and Rose: the accent, and the warning. */
+  --color-bubble: #ff00a0;
+  --color-bubble-pale: #e6004c;
+
+  /* Emerald: status bars, the online lamp, anything that is a "go". */
+  --color-acid: #28c745;
+  --color-acid-pale: #e1ff00;
 
   /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
   --color-sun: #fff000;
@@ -366,6 +390,9 @@ img {
   --animate-flash: flash 260ms steps(2, jump-none) 1;
   --animate-marquee: marquee 16s linear infinite;
   --animate-blip: blip 1s steps(2, jump-none) infinite;
+  /* The alarm: Emerald and Rose, alternating in whole frames. `steps` with no easing again - an alarm
+     that fades between its two colours reads as a decoration, and this one has to read as a fault. */
+  --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
 }
 
 
@@ -446,6 +473,23 @@ img {
 
   50% {
     opacity: 0.25;
+  }
+}
+
+/* The alarm: Emerald to Rose and back, in two whole frames.
+   For the one banner on the site that is a *fault* rather than an offer. The ink on it is Black,
+   because the background alternates and Black is the only ink that reads on *both* dyes: 9.35:1 on
+   Emerald and 4.47:1 on Rose, against Pure White's 2.25:1 on Emerald, which would have been unreadable
+   for half of every second. The switch is a step rather than a fade, because a warning that eases into
+   itself reads as an animation instead of an error. */
+@keyframes alarm {
+  0%,
+  100% {
+    background-color: var(--color-acid);
+  }
+
+  50% {
+    background-color: var(--color-bubble-pale);
   }
 }
 

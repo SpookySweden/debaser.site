@@ -10,7 +10,7 @@ import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
-import { NAV_ITEMS } from './SiteNav';
+import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
@@ -143,11 +143,26 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
             <p className="border-b-2 border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
 
             {/* The one navigation drawer on a phone: every essential destination lives here, and the
-                profile picture above is the only thing on screen that opens it (the header band and
-                the Start plate are both wide-screen chrome now). HOME and FORUM are left out because
-                this menu opens *from the board*, so both would be two ways back to where the reader
-                already is. */}
+                profile picture above is the only thing on screen that opens it - the header band and
+                the Start plate are both wide-screen chrome (`hidden sm:inline-flex`), and the side
+                panel does not open until `md`. HOME and FORUM are left out because this menu opens
+                *from the board*, so both would be two ways back to where the reader already is. */}
             {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
+              <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                  {item.mark}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+
+            {/* The two windows, below a rule of their own because they are not pages: they open
+                *over* the board rather than taking the reader somewhere, which is the same separation
+                the panel's shelf keeps. They are here at all because the panel is `md:` and up, so
+                below that the arcade and the archive would otherwise have no door at all on a phone. */}
+            <p className="border-b-2 border-ink pb-1 pt-1">WINDOWS</p>
+
+            {[SIDE_ARCADE, SIDE_MUSIC].map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
                 <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
                   {item.mark}
@@ -258,6 +273,20 @@ function GuestProfileMenu() {
 
             {/* The same drawer a signed-in reader gets: one control opens the whole site. */}
             {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
+              <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                  {item.mark}
+                </span>
+                <span>{item.label}</span>
+              </Link>
+            ))}
+
+            {/* A guest gets the two windows as well. Both open over the board without an account -
+                the arcade and the archive are reading, not interacting - so hiding them behind a
+                sign-in the banner is already asking for would be a door with no handle. */}
+            <p className="border-b-2 border-ink pb-1 pt-1">WINDOWS</p>
+
+            {[SIDE_ARCADE, SIDE_MUSIC].map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
                 <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
                   {item.mark}
