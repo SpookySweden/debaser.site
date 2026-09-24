@@ -325,6 +325,13 @@ img {
   --color-ink: #000000;
   --color-paper: #ffffff;
 
+  /* The ink that reads on a *plate* rather than on the field.
+     It is Black here, exactly like `ink`, and that is not redundant: a theme can need them to differ.
+     The dark theme's field is Nigrosine, so its `ink` is Pure White - and Pure White on a Daffodil
+     plate is 1.19:1, a button nobody could read. Every control that draws a label on a coloured face
+     asks for this token instead, so a theme can darken the page without darkening its controls. */
+  --color-ink-plate: #000000;
+
   /* The quiet furniture, in dye rather than grey.
      Both tokens below are *surfaces with ink on them*, and the distinction that decides them is
      lightness, not hue: a surface whose job is to be quiet cannot do that job by being dark, because

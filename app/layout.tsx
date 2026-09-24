@@ -10,7 +10,9 @@ import MusicPlayer from './components/MusicPlayer';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
 import NotificationsProvider from './components/NotificationsProvider';
+import PreferencesWindow from './components/PreferencesWindow';
 import PresenceProvider from './components/PresenceProvider';
+import ThemeHost from './components/ThemeHost';
 import './globals.css';
 
 /**
@@ -49,6 +51,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={`${pixel.variable} h-full`}>
       <body className="min-h-full flex flex-col">
+        {/* The reader's theme, written onto <html> before anything else the client does. It draws
+            nothing: a theme is CSS custom properties, not markup. */}
+        <ThemeHost />
+
         <AuthProvider>
           <PresenceProvider>
             <ForumProvider>
@@ -75,6 +81,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <ArcadeWindow />
                       <MusicWindow />
                     </Suspense>
+
+                    {/* Preferences: the one window with no address, because a theme is a setting on
+                        *this* browser and a link to somebody else's would promise a change it cannot
+                        make. It is not behind the Suspense boundary with the other two, because it
+                        reads no address and has nothing to catch up on. */}
+                    <PreferencesWindow />
                   </MusicPlayerProvider>
                 </NotificationsProvider>
               </CommsProvider>

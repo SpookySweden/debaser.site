@@ -1,9 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, useSyncExternalStore } from 'react';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
+import {
+  preferencesWindowState,
+  subscribeToPreferencesWindow,
+  togglePreferences,
+} from '../lib/ui/preferences-window';
 import { useAuth } from './AuthProvider';
 import GoogleSignInButton from './GoogleSignInButton';
 import ProfileAvatar from './ProfileAvatar';
@@ -52,6 +57,17 @@ export default function SidebarProfile() {
   const { profile } = usePublicProfile(user?.id ?? null);
   const [customising, setCustomising] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  /*
+    The preferences window's own state, read here for one reason only: the row's tick. The window
+    itself is drawn by the shell, not by this component, so this subscribes to a slot rather than
+    holding the state - which is what stops the menu and the window from being able to disagree.
+  */
+  const { open: preferencesOpen } = useSyncExternalStore(
+    subscribeToPreferencesWindow,
+    preferencesWindowState,
+    preferencesWindowState,
+  );
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
@@ -140,18 +156,26 @@ export default function SidebarProfile() {
               </Link>
 
               {/*
-                Two placeholders, kept as working rows rather than as greyed-out ones: a menu that
-                silently does nothing is worse than a menu that says what it is waiting for. Both are
-                labelled `:: SOON` so the state is read before the row is pressed, not after.
+                One row is now a real control and one is still a placeholder.
+                The preferences row opens the settings window, which docks to the right-hand corner
+                *over the board* rather than over this panel - so it is a toggle, because the row sits
+                on the screen the window is drawn over and a second press should shut what the first
+                opened. The same switch the shelf keys keep, and the tick says which state it is in
+                before the press rather than after.
+
+                No `aria-pressed`: a `menuitem` does not support it (eslint's jsx-a11y catches it), and
+                the state is already in the accessible name through the `[ ON ]` / `[ ▶ ]` mark and the
+                title, which is how every other switch on this site says which way it is.
               */}
               <button
                 type="button"
-                disabled
-                title="Not built yet: what this will do is still being decided."
-                className={`${MENU_ROW} cursor-not-allowed`}
+                onClick={togglePreferences}
+                aria-haspopup="dialog"
+                title={preferencesOpen ? 'Close preferences' : 'Open preferences'}
+                className={MENU_ROW}
                 role="menuitem"
               >
-                [ PREFERENCES ] :: SOON
+                [ PREFERENCES ] {preferencesOpen ? '[ ON ]' : '[ ▶ ]'}
               </button>
 
               <button

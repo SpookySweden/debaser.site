@@ -29,19 +29,19 @@ export const PRESSED =
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The largest: a control that has its line to itself, or carries the form's weight. */
 export const PLATE_LARGE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-xs font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-xs font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-2 text-sm font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-2 text-sm font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink`;
 
 /**
  * The deck's own controls: the transport keys on the docked player.
@@ -52,14 +52,14 @@ export const PLATE_TAP =
  * bolted to, so these are black with a lime label, and a press turns them magenta.
  */
 export const PLATE_HARDWARE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-ink px-3 py-2 text-[11px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-ink px-3 py-2 text-[11px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
 /** A plate already pressed in: the tab you are standing on, the switch that is on. */
 export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[10px] font-bold text-sun`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** An inset field: white, monospace, with the room it needs under its label. */
 export const FIELD =
@@ -189,7 +189,7 @@ export const REVEAL_CONTENTS = 'hidden group-hover:flex group-focus-within:flex'
  * the same thing the `♪ MP3` badge on a post is: this file belongs to a thread.
  */
 export const PLATE_ACCENT =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome disabled:text-chrome-dark max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[10px] font-bold text-ink hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * Royal Blue, as a value rather than a class.

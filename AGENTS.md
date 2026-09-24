@@ -30,6 +30,14 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
   `steps()` rather than eased so they move in whole pixel frames; plates invert on hover and flash
   magenta on press; prose links wear a 3px dotted pixel bar that changes colour on hover. All of it
   goes quiet under `prefers-reduced-motion`.
+- **Themes**: `app/lib/ui/themes.ts` is the library - a theme is a name and a map of the tokens above to
+  hexes, and nothing else. The default is recorded *as a theme* rather than as an absence, so it can
+  be chosen again after trying another. Switching writes CSS custom properties onto `<html>`
+  (`app/lib/ui/theme-slot.ts`), so no component knows themes exist. Every theme must define every token
+  and every text pair must clear 4.5:1 *in every theme* - `Temp/check-themes.cjs` fails on a theme that
+  is incomplete, that uses a grey, or that cannot be read. The `ink-plate` token exists for this: a
+  theme may need the ink on a *plate* to differ from the ink on the *field* (the dark one does, because
+  White on Daffodil is 1.19:1).
 - **Reveals take their space in both states**: anything that appears on hover, focus or tap - a
   picture beside a name, the preview down the side of a post, a row's own detail - must occupy its box
   whether or not it is filled, so **the thing you are pointing at never moves and the surrounding
