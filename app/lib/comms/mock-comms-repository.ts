@@ -335,6 +335,10 @@ class MockCommsRepository implements CommsRepository {
       authorName: input.authorName,
       body: input.body.trim(),
       createdAt,
+      // Carried through untouched, so a thread stored in this browser reads exactly like one stored in
+      // Supabase - which is the whole point of keeping the event on the message rather than in a side
+      // table only one of the two stores has.
+      ...(input.event === undefined ? {} : { event: input.event }),
     };
 
     const next: CommsThread = {

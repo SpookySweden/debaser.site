@@ -1,5 +1,7 @@
 import { gameById } from './catalogue';
+import { gameEvent } from './events';
 import { INVITE_WINDOW_MS, type GameId, type GameInvite, type GamesRepository } from './types';
+import type { CommsEvent } from '../comms/types';
 import { presenceLabel, type PresenceStatus } from '../profile/presence';
 
 /**
@@ -67,6 +69,22 @@ export type ChallengeNotifier = (input: {
 }) => Promise<void>;
 
 /**
+ * The conversation's half: the same fact written into the DM between the two accounts.
+ *
+ * A challenge is news between two people, and the conversation is where they already read their news -
+ * so it is filed there as a message (`lib/comms/types.ts`, `CommsEvent`), which is what makes "who
+ * asked me for a game, and what did I say" answerable in the thread rather than only in the arcade.
+ *
+ * Passed in rather than imported, for the same reason the bell is: nothing in this file knows about
+ * React, and the checks can hold the whole act to its rules without mounting a provider.
+ */
+export type GameEventRecorder = (input: {
+  /** The account the event is with - the other half of the DM. */
+  withUserId: string;
+  event: CommsEvent;
+}) => Promise<void>;
+
+/**
  * What came of the press: the row and a line about it, or the sentence saying why not.
  *
  * Read it with `outcome.ok === false`, never `!outcome.ok`: a plain negation only narrows a union
@@ -78,30 +96,46 @@ export type ChallengeOutcome =
   | { ok: false; error: string };
 
 /**
- * Files the invitation and rings the bell.
+ * Files the invitation: the row, the conversation line, and the bell.
  *
- * The failure that matters is the one in the middle: an account told "the store did not answer"
- * about an invitation that *was* filed would be lied to, and the row is the whole of the challenge
- * (both sides read it, and the match opens from it), so only the alert is lost when the feed
- * hiccups.
+ * The failure that matters is the one in the middle: an account told "the store did not answer" about
+ * an invitation that *was* filed would be lied to, and the row is the whole of the challenge (both
+ * sides read it, and the match opens from it), so only the later halves are lost when they hiccup.
+ *
+ * Order is the point. The row goes first because everything else refers to it by id. The conversation
+ * line goes second because it is the *record* - a reader scrolling back has to find the challenge
+ * between the messages either side of it, so it wants to be in the thread before any answer to it can
+ * be. The bell goes last, because a bell is a tip rather than a tackle: a challenge that is filed and
+ * unannounced is a missed alert, and one that is announced and unfiled is a lie.
  */
 export async function sendChallenge(input: {
   repository: Pick<GamesRepository, 'create'>;
   notify: ChallengeNotifier;
+  /** Writes the line into the conversation between the two accounts. */
+  record?: GameEventRecorder;
   /** The account asking, or null for a guest - who has no row to sign. */
   from: { id: string; displayName: string } | null;
   to: { id: string; displayName: string };
   game: GameId;
 }): Promise<ChallengeOutcome> {
-  const { from, game, notify, repository, to } = input;
+  const { from, game, notify, record, repository, to } = input;
 
   if (from === null) return { ok: false, error: CHALLENGE_SIGN_IN };
 
   const entry = gameById(game);
 
   try {
-    // The row first, the bell second, and never the other way round.
+    // The row first, and never any of the later halves before it.
     const invite = await repository.create({ game, from, to });
+
+    try {
+      await record?.({
+        withUserId: to.id,
+        event: gameEvent('invite', game, invite.id),
+      });
+    } catch (caught) {
+      console.warn('challenge: the invitation was filed, but the conversation line was not', caught);
+    }
 
     try {
       await notify({
@@ -121,5 +155,41 @@ export async function sendChallenge(input: {
       ok: false,
       error: caught instanceof Error ? caught.message : 'THE ARCADE STORE DID NOT ANSWER.',
     };
+  }
+}
+
+/**
+ * Files what became of an invitation, into the same two places the invitation went.
+ *
+ * A challenge has a life after it is sent - taken up, turned down, or called off - and each of those is
+ * as much a line in the conversation as the challenge itself was. Kept here beside `sendChallenge` so
+ * the two ends of an invitation are written by the same file and read by the same reader.
+ *
+ * There is no bell on this side. The account that answered already knows what it answered, and the one
+ * that asked is watching the arcade; a notification for "they said yes to the thing you are looking at"
+ * is noise. The conversation is where the record belongs, and the record is all this writes.
+ */
+export async function answerChallenge(input: {
+  record: GameEventRecorder | undefined;
+  /** The account asking, or null for a guest - who has no row to sign. */
+  from: { id: string } | null;
+  /** The account on the other end of the conversation the line is filed in. */
+  withUserId: string;
+  inviteId: string;
+  game: GameId;
+  /** False when the challenge was called off rather than answered. */
+  answered?: boolean;
+}): Promise<void> {
+  const { answered = true, from, game, inviteId, record, withUserId } = input;
+
+  if (from === null) return;
+
+  try {
+    await record?.({
+      withUserId,
+      event: gameEvent(answered ? 'answer' : 'cancel', game, inviteId),
+    });
+  } catch (caught) {
+    console.warn('challenge: the answer was filed in the arcade, but not in the conversation', caught);
   }
 }

@@ -44,7 +44,7 @@ type GamesHubProps = {
  */
 export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   const { user } = useAuth();
-  const { accounts } = useComms();
+  const { accounts, recordGameEvent } = useComms();
   const presence = usePresenceDirectory();
   const { notifyInvited } = useNotifications();
   const repository = useMemo(() => getGamesRepository(), []);
@@ -176,6 +176,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
       const outcome = await sendChallenge({
         repository,
         notify: notifyInvited,
+        record: recordGameEvent,
         from: userId === null ? null : { id: userId, displayName: me.displayName },
         to: { id: player.id, displayName: player.displayName },
         game: chosen,

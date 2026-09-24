@@ -5,10 +5,12 @@ import { insertAtCaret } from '../lib/comms/ascii-emoticons';
 import { otherParticipant, resolveAuthor, threadLabel, validateMessage } from '../lib/comms/threads';
 import { MAX_MESSAGE_LENGTH } from '../lib/comms/types';
 import type { CommsThread } from '../lib/comms/types';
+import { openArcade } from '../lib/games/arcade-window';
+import { EVENT_LABELS, gameTitle } from '../lib/games/events';
 import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-import { PLATE_LARGE } from '../lib/ui/controls';
+import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 
 type CommsThreadPanelProps = {
   thread: CommsThread;
@@ -145,7 +147,12 @@ export default function CommsThreadPanel({
           <li className="text-[10px] font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
         ) : (
           shown.map((message) => (
-            <li key={message.id} className="rounded-none border border-ink bg-ice-pale p-2">
+            <li
+              key={message.id}
+              className={`rounded-none border p-2 ${
+                message.event === undefined ? 'border-ink bg-ice-pale' : 'border-ink bg-sun-pale'
+              }`}
+            >
               <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
                 <span className="inline-flex items-center gap-1">
                   <ProfileName author={resolveAuthor(message, nameById)} />
@@ -153,7 +160,38 @@ export default function CommsThreadPanel({
                 </span>
                 <TimeStamp at={message.createdAt} />
               </div>
-              <p className="mt-1 whitespace-pre-line text-xs text-ink">{message.body}</p>
+
+              {/*
+                A game challenge is drawn as a plate rather than as prose, and it is the one line in a
+                conversation that gets a link: the invite is still the arcade's, so pressing it opens
+                the arcade on that invitation rather than trying to re-send anything. Drawing it as a
+                sentence would read as something one of them typed - which it is not, and which matters
+                when the reader is scrolling back to work out who asked whom.
+              */}
+              {message.event === undefined ? (
+                <p className="mt-1 whitespace-pre-line text-xs text-ink">{message.body}</p>
+              ) : (
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-ink">
+                  <span
+                    className={`rounded-none border border-ink px-1 ${
+                      message.event.kind === 'invite' ? 'bg-ena text-paper' : 'bg-paper text-ink'
+                    }`}
+                  >
+                    {EVENT_LABELS[message.event.kind]} {gameTitle(message.event.gameId)}
+                  </span>
+
+                  {message.event.kind === 'invite' ? (
+                    <button
+                      type="button"
+                      onClick={() => openArcade({ kind: 'invite', inviteId: message.event!.inviteId })}
+                      title="Open this invitation in the arcade"
+                      className={PLATE}
+                    >
+                      [ OPEN ]
+                    </button>
+                  ) : null}
+                </p>
+              )}
             </li>
           ))
         )}

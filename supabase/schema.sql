@@ -353,8 +353,55 @@ create table if not exists public.comms_messages (
   -- resolve the account (the console resolves names live where it can).
   author_name text not null default 'Anonymous',
   body text not null,
-  created_at timestamptz not null default now()
+  -- A line is one of two things: something typed, or something that happened. A game challenge is
+  -- filed as a *message* rather than in a table of its own, because it is news between the two
+  -- accounts and the conversation is where they already read their news - same ordering, same read
+  -- markers, same realtime. These three are null for every typed line, which is also what every row
+  -- filed before they existed is.
+  --
+  -- They are a set: the check below refuses a partial event, and the app drops one rather than drawing
+  -- half a plate (`toMessage` in app/lib/comms/supabase-comms-repository.ts).
+  event_kind text,
+  game_id text,
+  invite_id text,
+  created_at timestamptz not null default now(),
+  constraint comms_messages_event_is_whole check (
+    (event_kind is null and game_id is null and invite_id is null)
+    or (event_kind is not null and game_id is not null and invite_id is not null)
+  ),
+  -- A build that meets a fourth kind draws the line as an ordinary message rather than inventing a
+  -- plate for it; this is what stops a typo being filed as an event nobody can draw.
+  constraint comms_messages_event_kind_known check (
+    event_kind is null or event_kind in ('invite', 'answer', 'cancel')
+  )
 );
+
+-- A database created before the columns existed: `create table if not exists` does nothing to a table
+-- that is already there, so they are added explicitly. Idempotent, and the constraint is guarded
+-- because `add constraint` has no `if not exists`.
+alter table public.comms_messages
+  add column if not exists event_kind text,
+  add column if not exists game_id text,
+  add column if not exists invite_id text;
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'comms_messages_event_is_whole') then
+    alter table public.comms_messages
+      add constraint comms_messages_event_is_whole check (
+        (event_kind is null and game_id is null and invite_id is null)
+        or (event_kind is not null and game_id is not null and invite_id is not null)
+      );
+  end if;
+
+  if not exists (select 1 from pg_constraint where conname = 'comms_messages_event_kind_known') then
+    alter table public.comms_messages
+      add constraint comms_messages_event_kind_known check (
+        event_kind is null or event_kind in ('invite', 'answer', 'cancel')
+      );
+  end if;
+end
+$$;
 
 create table if not exists public.comms_reads (
   thread_id text not null references public.comms_threads (id) on delete cascade,

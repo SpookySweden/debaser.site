@@ -1,7 +1,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { groupThreadId, threadIdFor } from './threads';
-import type { CommsMessage, CommsRepository, CommsThread, CreateGroupInput, SendMessageInput } from './types';
+import type { CommsEventKind, CommsMessage, CommsRepository, CommsThread, CreateGroupInput, SendMessageInput } from './types';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from './types';
 
 /**
@@ -97,6 +97,18 @@ type MessageRow = {
   author_name: string;
   body: string;
   created_at: string;
+  /**
+   * The three game-event columns, absent on a database without
+   * `supabase/migrations/20260930_comms_events.sql`.
+   *
+   * Optional for the same reason `created_by` is: a select that names them would fail the whole read on
+   * a project that has not had the script run, and losing every conversation is far worse than losing
+   * the fact that one line was a challenge. `toMessage` treats all three as a set and drops a partial
+   * one rather than drawing half an event.
+   */
+  event_kind?: string | null;
+  game_id?: string | null;
+  invite_id?: string | null;
 };
 
 type ReadRow = {
@@ -124,7 +136,28 @@ type ThreadRow = {
   comms_reads?: ReadRow[] | null;
 };
 
+/**
+ * The closed set of event kinds, read from a column this build may not understand.
+ *
+ * A row written by a *later* build could carry a fourth kind, and the honest answer for a build that
+ * does not know it is to draw the line as an ordinary message rather than to invent a plate for it. So
+ * an unrecognised kind is not an event.
+ */
+const EVENT_KINDS: CommsEventKind[] = ['invite', 'answer', 'cancel'];
+
+function toEventKind(value: string | null | undefined): CommsEventKind | null {
+  return EVENT_KINDS.find((kind) => kind === value) ?? null;
+}
+
 function toMessage(row: MessageRow): CommsMessage {
+  const kind = toEventKind(row.event_kind);
+  // All three columns or none: half an event cannot say which game, and a plate that names no game
+  // has lost the one thing it was there to say.
+  const event =
+    kind !== null && row.game_id != null && row.invite_id != null
+      ? { kind, gameId: row.game_id, inviteId: row.invite_id }
+      : undefined;
+
   return {
     id: row.id,
     threadId: row.thread_id,
@@ -132,6 +165,7 @@ function toMessage(row: MessageRow): CommsMessage {
     authorName: row.author_name,
     body: row.body,
     createdAt: row.created_at,
+    ...(event === undefined ? {} : { event }),
   };
 }
 
@@ -435,16 +469,50 @@ class SupabaseCommsRepository implements CommsRepository {
 
     if (thread === null) this.fail('THAT CONVERSATION IS NOT THERE.');
 
-    const { error } = await this.client()
-      .from(MESSAGES_TABLE)
-      .insert({
+    /**
+     * The message, with the game-event columns when there is an event.
+     *
+     * The three travel together, so a partial one is never written: `event` is a whole object or
+     * nothing at all, which is what `CommsEvent` being a single shape rather than three loose fields
+     * buys. `event_kind` is the kind, and the other two are what a plate needs to say which game.
+     */
+    const row = {
+      thread_id: thread.id,
+      author_id: input.authorId,
+      author_name: input.authorName.length > 0 ? input.authorName : 'Anonymous',
+      body: input.body.trim(),
+      ...(input.event === undefined
+        ? {}
+        : {
+            event_kind: input.event.kind,
+            game_id: input.event.gameId,
+            invite_id: input.event.inviteId,
+          }),
+    };
+
+    const { error } = await this.client().from(MESSAGES_TABLE).insert(row);
+
+    if (error !== null) {
+      /**
+       * A project without `20260930_comms_events.sql` has no event columns, and the insert above fails
+       * with a schema complaint naming `event_kind`. Retrying without them files the line as an ordinary
+       * message, which is what a reader of that database would have seen anyway - and it means a
+       * *challenge* still reaches the conversation instead of the write failing and the thread going
+       * silent. Anything else is a real error and is raised.
+       */
+      const missingColumn = /column .*event_kind.* does not exist|schema cache/i.test(error.message);
+
+      if (input.event === undefined || !missingColumn) this.fail(error.message);
+
+      const { error: retryError } = await this.client().from(MESSAGES_TABLE).insert({
         thread_id: thread.id,
-        author_id: input.authorId,
-        author_name: input.authorName.length > 0 ? input.authorName : 'Anonymous',
-        body: input.body.trim(),
+        author_id: row.author_id,
+        author_name: row.author_name,
+        body: row.body,
       });
 
-    if (error !== null) this.fail(error.message);
+      if (retryError !== null) this.fail(retryError.message);
+    }
 
     // A new message has to move the conversation up the list, and the list sorts
     // by the thread's own stamp.

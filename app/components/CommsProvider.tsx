@@ -5,7 +5,8 @@ import { getAuthRepository } from '../lib/auth/auth-repository';
 import type { AccountUser } from '../lib/auth/types';
 import { COMMS_DATA_SOURCE, getCommsRepository } from '../lib/comms/repository';
 import { COMMS_POLL_MS, sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
-import type { CommsThread } from '../lib/comms/types';
+import type { CommsEvent, CommsThread } from '../lib/comms/types';
+import { commsEventBody } from '../lib/games/events';
 import { formatStamp } from '../lib/forum/format';
 import { useAuth } from './AuthProvider';
 
@@ -60,6 +61,20 @@ export type CommsContextValue = {
   send: (otherId: string, body: string) => Promise<void>;
   /** Writes to a conversation that already exists - which is how a group is written to. */
   sendToThread: (threadId: string, body: string) => Promise<void>;
+  /**
+   * Files a game event into the DM with that account.
+   *
+   * A challenge is news between two accounts, so it is written as a *message* in the conversation they
+   * already have - same ordering, same read markers, same realtime - rather than into a table of its
+   * own that only the arcade would ever read. The body is written by the event's own module
+   * (`lib/games/events.ts`), so this store and the screen cannot disagree about what the line says, and
+   * the two stores (mock and Supabase) file the same words.
+   *
+   * Errors are swallowed after a warning, deliberately: a challenge that was filed in the arcade but
+   * whose record did not land is a conversation missing a line, and failing here would report it as a
+   * challenge that was never sent - which would be false, and worse.
+   */
+  recordGameEvent: (input: { withUserId: string; event: CommsEvent }) => Promise<void>;
   markRead: (threadId: string) => Promise<void>;
   /** Mock-only: file a message from the other side, to see the pop-up work. */
   simulateIncoming: (otherId: string, body: string) => Promise<CommsThread>;
@@ -287,6 +302,33 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     [repository, user, userId],
   );
 
+  /**
+   * The conversation's record of a game event.
+   *
+   * Deliberately quiet: it warns and returns rather than throwing. The caller is mid-press on a
+   * challenge that *has* been filed in the arcade, and an error from here would be reported as a
+   * challenge that failed - which would be a lie about the one thing that did succeed. A missing line
+   * in a conversation is worth a console warning, not a broken button.
+   */
+  const recordGameEvent = useCallback(
+    async ({ withUserId, event }: { withUserId: string; event: CommsEvent }) => {
+      if (userId === null) return;
+
+      try {
+        await repository.sendMessage({
+          authorId: userId,
+          recipientId: withUserId,
+          authorName: user?.displayName ?? 'Anonymous',
+          body: commsEventBody(event.kind, event.gameId),
+          event,
+        });
+      } catch (caught) {
+        console.warn('comms: could not record the game event in the conversation', caught);
+      }
+    },
+    [repository, user, userId],
+  );
+
   const markRead = useCallback(
     async (threadId: string) => {
       if (userId === null) return;
@@ -342,6 +384,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       leaveGroup,
       send,
       sendToThread,
+      recordGameEvent,
       markRead,
       simulateIncoming,
       source: COMMS_DATA_SOURCE,
@@ -366,6 +409,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       leaveGroup,
       send,
       sendToThread,
+      recordGameEvent,
       markRead,
       simulateIncoming,
     ],

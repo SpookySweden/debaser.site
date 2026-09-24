@@ -50,6 +50,12 @@ export default function NotificationBell() {
   const unread = notifications.items.filter(isUnread).length;
   const signedIn = notifications.userId !== null;
 
+  // Nothing waiting, nothing drawn. A bell on a quiet day is a row of furniture that teaches nobody
+  // anything; the panel's own `[ COMMS ]` button already says how many conversations are open, so a
+  // second resting count beside it would be two numbers for one question. The moment there is
+  // something unread the key appears, and appearing *is* the alert.
+  if (unread === 0) return null;
+
   return (
     <span className="relative block">
       <button
@@ -64,8 +70,8 @@ export default function NotificationBell() {
         <span aria-hidden="true" className="text-[13px] leading-none">
           {ICON_BELL}
         </span>
-        <span>[ {unread === 0 ? 'NOTICES' : `${unread} NEW`} ]</span>
-        {unread === 0 ? null : <UnreadDot />}
+        <span>[ {unread} NEW ]</span>
+        <UnreadDot />
       </button>
 
       {!open ? null : (
