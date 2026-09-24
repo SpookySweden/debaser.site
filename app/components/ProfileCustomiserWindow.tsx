@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { validateBio, validateLocation, validateSongCredit, validateSongTitle } from '../lib/profile/visibility';
+import { validateBio, validateLocation, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } from './ProfileCustomiserOptionsTabs';
@@ -68,16 +68,19 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [bioDraft, setBioDraft] = useState<string | null>(null);
   const [locationDraft, setLocationDraft] = useState<string | null>(null);
+  const [statusDraft, setStatusDraft] = useState<string | null>(null);
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
   const name = nameDraft ?? profile.displayName;
   const bio = bioDraft ?? profile.bio;
   const location = locationDraft ?? profile.location;
+  const status = statusDraft ?? profile.status;
   // Empty means the default: usernames are drawn in the page's own black.
   const nameColour = nameColourDraft ?? profile.nameColour ?? '';
   const bioProblem = validateBio(bio);
   const locationProblem = validateLocation(location);
+  const statusProblem = validateStatus(status);
 
   async function run(action: () => Promise<unknown>, ok: string) {
     setBusy(true);
@@ -204,8 +207,13 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       return;
     }
 
+    if (statusProblem !== undefined) {
+      setError(statusProblem);
+      return;
+    }
+
     await run(async () => {
-      await repository.saveProfile(userId, { displayName: name, bio, location, nameColour });
+      await repository.saveProfile(userId, { displayName: name, bio, location, status, nameColour });
 
       // The public name and the account name stay in step, so posts and the
       // profile page never disagree about who wrote something.
@@ -217,8 +225,9 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       setNameDraft(null);
       setBioDraft(null);
       setLocationDraft(null);
+      setStatusDraft(null);
       setNameColourDraft(null);
-    }, 'NAME, NAME COLOUR, PLACE LINE AND BIO SAVED.');
+    }, 'NAME, NAME COLOUR, PLACE LINE, STATUS AND BIO SAVED.');
   }
 
   async function handleSavePrivacy() {
@@ -302,21 +311,24 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             uploadMessage={songMessage}
           />
 
-          <PanelHeading>NAME, NAME COLOUR, PLACE LINE AND BIO</PanelHeading>
+          <PanelHeading>NAME, NAME COLOUR, PLACE LINE, STATUS AND BIO</PanelHeading>
           <ProfileIdentityTab
             profile={profile}
             name={name}
             bio={bio}
             location={location}
+            status={status}
             nameColour={nameColour}
             onNameChange={setNameDraft}
             onBioChange={setBioDraft}
             onLocationChange={setLocationDraft}
+            onStatusChange={setStatusDraft}
             onNameColourChange={setNameColourDraft}
             onSave={() => void handleSaveIdentity()}
             busy={busy}
             bioProblem={bioProblem}
             locationProblem={locationProblem}
+            statusProblem={statusProblem}
           />
 
           <PanelHeading>TAGS GIVEN TO YOU</PanelHeading>

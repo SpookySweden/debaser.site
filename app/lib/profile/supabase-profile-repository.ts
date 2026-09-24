@@ -7,6 +7,7 @@ import {
   validateAvatarNote,
   validateBio,
   validateLocation,
+  validateStatus,
   validateNameColour,
   validateProfileComment,
   validateSongCredit,
@@ -121,6 +122,12 @@ type ProfileRow = {
   name_colour: string | null;
   bio: string;
   location: string;
+  /**
+   * The owner's own one-liner. Optional in the type for the same reason `created_by` is optional on a
+   * message row: a database without `20260930_profile_status.sql` has no such column, and a select
+   * that named it would fail the whole read. A row that came back without one reads as unwritten.
+   */
+  status?: string | null;
   show_tags: boolean;
   show_profile_comments: boolean;
   show_avatar_comments: boolean;
@@ -192,6 +199,7 @@ function toProfile(row: ProfileRow): PublicProfile {
     ...(row.name_colour !== null && isNameColour(row.name_colour) ? { nameColour: row.name_colour } : {}),
     bio: row.bio,
     location: row.location,
+    status: typeof row.status === 'string' ? row.status : '',
     avatar: { versions, currentVersionId: row.current_version_id },
     song: { versions: songs, currentVersionId: row.current_song_version_id },
     visibility: withVisibilityDefaults({
@@ -292,6 +300,11 @@ class SupabaseProfileRepository implements ProfileRepository {
       if (problem !== undefined) throw new Error(problem);
     }
 
+    if (patch.status !== undefined) {
+      const problem = validateStatus(patch.status);
+      if (problem !== undefined) throw new Error(problem);
+    }
+
     if (patch.nameColour !== undefined) {
       const problem = validateNameColour(patch.nameColour);
       if (problem !== undefined) throw new Error(problem);
@@ -304,6 +317,7 @@ class SupabaseProfileRepository implements ProfileRepository {
     }
     if (patch.bio !== undefined) update.bio = patch.bio.trim();
     if (patch.location !== undefined) update.location = patch.location.trim();
+    if (patch.status !== undefined) update.status = patch.status.trim();
     // An empty string is a real choice: it means "back to the page's own black".
     if (patch.nameColour !== undefined) update.name_colour = patch.nameColour.length === 0 ? null : patch.nameColour;
 

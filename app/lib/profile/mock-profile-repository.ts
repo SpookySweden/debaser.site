@@ -18,6 +18,7 @@ import {
   validateAvatarNote,
   validateBio,
   validateLocation,
+  validateStatus,
   validateNameColour,
   validateProfileComment,
   validateSongCredit,
@@ -129,6 +130,7 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
     ...(typeof row.nameColour === 'string' && isNameColour(row.nameColour) ? { nameColour: row.nameColour } : {}),
     bio: typeof row.bio === 'string' ? row.bio : '',
     location: typeof row.location === 'string' ? row.location : '',
+    status: typeof row.status === 'string' ? row.status : '',
     avatar: {
       versions: Array.isArray(avatar.versions) ? avatar.versions.filter(isVersionShaped) : [],
       currentVersionId: typeof avatar.currentVersionId === 'string' ? avatar.currentVersionId : null,
@@ -224,6 +226,7 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     displayName,
     bio: '',
     location: '',
+    status: '',
     avatar: { versions: [], currentVersionId: null },
     song: { versions: [], currentVersionId: null },
     visibility: { ...DEFAULT_VISIBILITY },
@@ -355,6 +358,11 @@ class MockProfileRepository implements ProfileRepository {
       if (problem !== undefined) throw new Error(problem);
     }
 
+    if (patch.status !== undefined) {
+      const problem = validateStatus(patch.status);
+      if (problem !== undefined) throw new Error(problem);
+    }
+
     if (patch.nameColour !== undefined) {
       const problem = validateNameColour(patch.nameColour);
       if (problem !== undefined) throw new Error(problem);
@@ -368,6 +376,7 @@ class MockProfileRepository implements ProfileRepository {
         displayName: displayName.length === 0 ? profile.displayName : displayName,
         bio: patch.bio === undefined ? profile.bio : patch.bio.trim(),
         location: patch.location === undefined ? profile.location : patch.location.trim(),
+        status: patch.status === undefined ? profile.status : patch.status.trim(),
         // An empty string is a real choice here: it means "back to the default".
         ...(patch.nameColour === undefined
           ? {}

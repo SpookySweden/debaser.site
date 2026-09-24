@@ -20,6 +20,7 @@ export const MAX_BIO_LENGTH = 400;
 export const MAX_COMMENT_LENGTH = 400;
 export const MAX_TAG_LABEL_LENGTH = 24;
 export const MAX_LOCATION_LENGTH = 40;
+export const MAX_STATUS_LENGTH = 60;
 export const MAX_SONG_TITLE_LENGTH = 60;
 export const MAX_SONG_CREDIT_LENGTH = 40;
 
@@ -143,6 +144,15 @@ export type PublicProfile = {
   bio: string;
   /** Optional place line, shown next to the name on posts and on the profile. */
   location: string;
+  /**
+   * What the account is doing, in its own words: one line, the owner's own.
+   *
+   * Deliberately *not* the presence lamp. The lamp is a fact the store keeps - a tab is open, or it
+   * closed an hour ago - and this is a sentence somebody chose, so the two sit beside each other
+   * rather than one standing in for the other. Empty means they have not written one, which is a
+   * different thing from a status that reads as nothing.
+   */
+  status: string;
   avatar: ProfileAvatar;
   /** The one track beside the picture, with the history behind it. */
   song: ProfileSong;
@@ -165,6 +175,8 @@ export type ProfilePatch = {
   displayName?: string;
   bio?: string;
   location?: string;
+  /** The owner's own one-liner. An empty string is a real choice: it means "not written". */
+  status?: string;
   /** A swatch hex from name-colours.ts; an empty string clears it to the default. */
   nameColour?: string;
   visibility?: Partial<ProfileVisibility>;

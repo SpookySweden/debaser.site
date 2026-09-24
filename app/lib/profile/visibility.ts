@@ -9,6 +9,7 @@ import {
   MAX_LOCATION_LENGTH,
   MAX_SONG_CREDIT_LENGTH,
   MAX_SONG_TITLE_LENGTH,
+  MAX_STATUS_LENGTH,
   MAX_TAG_LABEL_LENGTH,
 } from './types';
 import type {
@@ -330,6 +331,11 @@ export function validateBio(bio: string): string | undefined {
 
 export function validateLocation(location: string): string | undefined {
   if (location.length > MAX_LOCATION_LENGTH) return `PLACE LINE MUST BE ${MAX_LOCATION_LENGTH} CHARACTERS OR FEWER.`;
+  return undefined;
+}
+
+export function validateStatus(status: string): string | undefined {
+  if (status.length > MAX_STATUS_LENGTH) return `STATUS MUST BE ${MAX_STATUS_LENGTH} CHARACTERS OR FEWER.`;
   return undefined;
 }
 

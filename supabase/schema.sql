@@ -55,6 +55,9 @@ create table if not exists public.profiles (
   name_colour text check (name_colour is null or name_colour ~ '^#[0-9a-fA-F]{6}$'),
   bio text not null default '',
   location text not null default '',
+  -- What the account is doing, in its own words. Not the presence lamp: that is a fact the store
+  -- keeps, and this is a sentence the owner chose. Empty means they have not written one.
+  status text not null default '',
   -- What visitors may see. Tags are somebody else's writing about you, so they start
   -- hidden; comments are the reason a profile is a page rather than a card, so they start
   -- open and the owner closes what they would rather not read. The application defaults
@@ -71,6 +74,11 @@ create table if not exists public.profiles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- A database created before the status line existed: `create table if not exists` does nothing to a
+-- table that is already there, so the column is added explicitly. Idempotent.
+alter table public.profiles
+  add column if not exists status text not null default '';
 
 alter table public.profiles enable row level security;
 

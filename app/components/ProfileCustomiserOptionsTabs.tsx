@@ -6,7 +6,7 @@ import {
   nameColourContrast,
   nameColourLabel,
 } from '../lib/profile/name-colours';
-import { MAX_BIO_LENGTH } from '../lib/profile/types';
+import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { TagMark } from './TagBadge';
@@ -36,33 +36,39 @@ export type ProfileIdentityTabProps = {
   name: string;
   bio: string;
   location: string;
+  status: string;
   /** Swatch hex for the username, or '' for the default black. */
   nameColour: string;
   onNameChange: (value: string) => void;
   onBioChange: (value: string) => void;
   onLocationChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
   onNameColourChange: (hex: string) => void;
   onSave: () => void;
   busy: boolean;
   bioProblem: string | undefined;
   locationProblem: string | undefined;
+  statusProblem: string | undefined;
 };
 
-/** Public name, its colour, place line and bio: the text half of the public face. */
+/** Public name, its colour, place line, status and bio: the text half of the public face. */
 export function ProfileIdentityTab({
   profile,
   name,
   bio,
   location,
+  status,
   nameColour,
   onNameChange,
   onBioChange,
   onLocationChange,
+  onStatusChange,
   onNameColourChange,
   onSave,
   busy,
   bioProblem,
   locationProblem,
+  statusProblem,
 }: ProfileIdentityTabProps) {
   const preview = name.trim().length === 0 ? profile.displayName : name;
 
@@ -133,6 +139,29 @@ export function ProfileIdentityTab({
       />
       {locationProblem === undefined ? null : (
         <p className="mt-1 text-[10px] font-bold text-bubble-pale">{locationProblem}</p>
+      )}
+
+      {/* The status, beside the place line because the two are the same kind of thing: one short
+          sentence about the account, shown next to the name. It is the owner's own words and not the
+          presence lamp, which is why the label says so - the panel shows both, one above the other,
+          and a reader should be able to tell which is which. */}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        <label htmlFor="customise-status" className={CUSTOMISER_NOTE}>
+          STATUS: ONE LINE BESIDE YOUR NAME ON THE SIDE PANEL (LEAVE EMPTY FOR NONE)
+        </label>
+        <span className={CUSTOMISER_NOTE}>
+          {status.length} / {MAX_STATUS_LENGTH}
+        </span>
+      </div>
+      <input
+        id="customise-status"
+        value={status}
+        onChange={(event) => onStatusChange(event.target.value)}
+        placeholder="e.g. drawing issue three"
+        className={FIELD}
+      />
+      {statusProblem === undefined ? null : (
+        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{statusProblem}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
