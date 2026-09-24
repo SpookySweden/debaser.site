@@ -54,8 +54,15 @@ export default function SiteWindow({ title, active, status = 'Ready', closeHref,
     // `select-none` is the chrome's, not the archive's: a page of writing is meant to be quoted
     // from, so the panel below turns selection back on for what it holds (and the taskbar, which is
     // no writing at all, keeps the window's).
+    //
+    // `84dvh` rather than `84vh`: on a phone `vh` is measured against the *largest* viewport, the one
+    // with the URL bar retracted, so a reader who has not scrolled yet gets a window taller than the
+    // screen they are looking at. `dvh` follows the visible viewport instead, so the frame fits
+    // whether the bar is showing or not. The plain `h-[84vh]` is kept in front of it as the fallback
+    // for a browser without `dvh`, which was Baseline in 2022 and is older than anything this site
+    // supports - but a fallback that costs one class is cheaper than guessing.
     <main className="desktop-tile flex min-h-screen items-center justify-center p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
-      <div className="flex h-[84vh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-sun-pale shadow-2xl">
+      <div className="flex h-[84vh] max-h-[84dvh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-sun-pale shadow-2xl">
 
         {/* Title Bar: the window title, the close plate when this is a window over the desktop, and
             the profile control on a phone. */}

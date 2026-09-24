@@ -135,6 +135,26 @@ export const TITLE_BAR_BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ena hover:text-sun active:animate-flash active:bg-bubble active:text-ink max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
 /**
+ * A control whose face is a glyph rather than a word.
+ *
+ * The marks in `lib/ui/icons.ts` are one character wide, which is fine for a pointer and useless for a
+ * thumb: a `13px` glyph with no padding is a target around 18px, and the platform guidance both Apple
+ * and Material land on is 44. So on a phone the box grows and the glyph with it, while the desktop
+ * keeps the small square that fits a title bar.
+ *
+ * It is a token rather than a rule in each component because the shell had drifted: `ProfileControl`,
+ * `SiteNav` and the taskbar tray were each drawing their own small control, and none of the three had
+ * a phone branch - which is how a site whose `StartMenu` rows are a careful 44px ends up with a row of
+ * 18px glyphs directly above them.
+ *
+ * `-mx-1` at phone width is deliberate: the box grows, so the *gap* between two of these has to shrink
+ * or a row of them stops fitting across the screen. It pulls the extra width back out of the margin
+ * rather than out of the tap area.
+ */
+export const GLYPH_BUTTON =
+  'inline-flex cursor-pointer items-center justify-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun text-ink hover:bg-ena hover:text-sun active:bg-bubble active:text-ink max-sm:-mx-1 max-sm:min-h-11 max-sm:min-w-11 max-sm:px-2 max-sm:text-base';
+
+/**
  * The plate that carries a verb onto the board: the one magenta face on the site.
  *
  * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not

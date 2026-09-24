@@ -5,6 +5,8 @@ import { useState } from 'react';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import type { AvatarVersion } from '../lib/profile/types';
 import { currentAvatarVersion } from '../lib/profile/visibility';
+import { GLYPH_BUTTON } from '../lib/ui/controls';
+import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
@@ -18,8 +20,18 @@ const MENU_ITEM =
 const LOG_IN_BUTTON =
   'shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-3 py-1 text-xs font-bold text-ink hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
 
-const PICTURE_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun p-[2px] text-ink hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
+const PICTURE_BUTTON = `${GLYPH_BUTTON} gap-1 p-[2px] border-r-2 border-b-2`;
+
+/**
+ * The picture's size, which is also the button's.
+ *
+ * On a phone this is the only control left in the title bar (see ./SiteNav.tsx for why the keys go),
+ * so it is the whole way into the account, the notifications and the side panel's destinations. A
+ * 26px square is a pointer's target and not a thumb's, so it grows - and `useCompactViewport` is
+ * already imported here, so the size can follow the same breakpoint the rest of the component does
+ * rather than a second one.
+ */
+const PICTURE_SIZE = { desktop: 26, compact: 40 };
 
 /**
  * The menu's panel: the raised yellow box every pop-up on this site is made of.
@@ -70,6 +82,7 @@ type ProfilePictureMenuProps = {
  */
 export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadNotifications }: ProfilePictureMenuProps) {
   const [open, setOpen] = useState(false);
+  const compact = useCompactViewport();
   const news = unreadNotifications === 0 ? '' : `, ${unreadNotifications} new`;
 
   return (
@@ -83,12 +96,13 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
         title={unreadNotifications === 0 ? 'Account and notifications' : `Account and notifications (${unreadNotifications} new)`}
         className={PICTURE_BUTTON}
       >
-        {/* A 26px square: the plain frame, because the framed notice ("NO PICTURE") is wider
-            than the picture it stands in for and would push the title bar about. */}
+        {/* The plain frame, because the framed notice ("NO PICTURE") is wider than the picture it
+            stands in for and would push the title bar about. On a phone it is a thumb's size, not a
+            pointer's - see `PICTURE_SIZE`. */}
         <ProfileAvatar
           version={avatarVersion}
           displayName={displayName}
-          size={26}
+          size={compact ? PICTURE_SIZE.compact : PICTURE_SIZE.desktop}
           variant="plain"
           hideVersionLabel
         />
@@ -206,6 +220,7 @@ export default function ProfileControl() {
  */
 function GuestProfileMenu() {
   const [open, setOpen] = useState(false);
+  const compact = useCompactViewport();
 
   return (
     <div className="relative shrink-0">
@@ -218,7 +233,13 @@ function GuestProfileMenu() {
         title="Open the site menu"
         className={PICTURE_BUTTON}
       >
-        <ProfileAvatar version={undefined} displayName="Anonymous" size={26} variant="plain" hideVersionLabel />
+        <ProfileAvatar
+          version={undefined}
+          displayName="Anonymous"
+          size={compact ? PICTURE_SIZE.compact : PICTURE_SIZE.desktop}
+          variant="plain"
+          hideVersionLabel
+        />
       </button>
 
       {open ? (

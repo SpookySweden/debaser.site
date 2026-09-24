@@ -121,7 +121,12 @@ export const SIDE_MUSIC: NavItem = {
  * aria-label are what make honest.
  */
 function tabClass(isActive: boolean): string {
-  const base = 'inline-flex h-7 min-w-7 items-center justify-center text-[13px] font-bold leading-none';
+  // The keys are 28px, which is comfortable for a pointer and too small for a thumb. They only appear
+  // from `sm` up (the band below is `hidden sm:flex`), and `sm` includes every tablet - so the phone
+  // rule has to be `max-md` rather than `max-sm` here. A tablet in portrait is held in two hands, the
+  // same as a phone, and gets the same floor.
+  const base =
+    'inline-flex h-7 min-w-7 items-center justify-center text-[13px] font-bold leading-none max-md:min-h-11 max-md:min-w-11 max-md:text-base';
 
   return isActive
     ? `${base} border-t-2 border-l-2 border-black border-r border-b border-white bg-ena text-sun`

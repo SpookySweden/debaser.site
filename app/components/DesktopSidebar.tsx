@@ -28,7 +28,7 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 
 const RAIL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice';
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice max-md:min-h-11 max-md:min-w-11 max-md:text-base';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -182,7 +182,7 @@ export default function DesktopSidebar() {
 
   if (!isOpen) {
     return (
-      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-ink bg-sun-pale py-2 lg:flex">
+      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-ink bg-sun-pale py-2 md:flex">
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
@@ -192,7 +192,11 @@ export default function DesktopSidebar() {
   }
 
   return (
-    <aside className="hidden w-72 shrink-0 flex-col border-l-2 border-ink bg-sun-pale lg:flex">
+    // `w-72` on a wide screen, `w-60` on a tablet: 288px is comfortable beside a 1280px feed and a
+    // third of a 700px one. Both the rail and the panel open from `md`, not `lg` - below `md` the
+    // phone rule holds (the picture in the title bar is the only door), and from `md` the archive and
+    // the arcade would otherwise be unreachable, since `SiteNav`'s keys do not carry them.
+    <aside className="hidden w-60 shrink-0 flex-col border-l-2 border-ink bg-sun-pale md:flex lg:w-72">
       <div className={TITLE_BAR_INACTIVE}>
         <span>SIDE PANEL</span>
         <button
