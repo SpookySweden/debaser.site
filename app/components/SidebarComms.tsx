@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { participantFromThread, threadLabel } from '../lib/comms/threads';
 import { useComms } from './CommsProvider';
+import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 import { TITLE_BAR } from '../lib/ui/controls';
@@ -52,8 +53,9 @@ export default function SidebarComms() {
       <div className={TITLE_BAR}>
         <span>COMMS</span>
         <span className="flex items-center gap-1">
-          {/* No bell here any more: the notices plate lives in the taskbar's tray, so it is at the
-              foot of every window on every screen instead of inside one panel of the side column. */}
+          {/* The count of conversations, and only that. The notices key sits directly under this block
+              (see ./NotificationBell.tsx), because a tag or a reply is the same kind of thing as a
+              message: both are addressed to this account. */}
           <span>[ {comms.unreadTotal === 0 ? `${threads.length} OPEN` : `${comms.unreadTotal} NEW`} ]</span>
         </span>
       </div>
@@ -97,13 +99,22 @@ export default function SidebarComms() {
         </ul>
       )}
 
-      <div className="p-2 pt-0">
+      <div className="flex flex-wrap items-center gap-1 p-2 pt-0">
         <Link
           href="/comms"
           className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
         >
           [ OPEN COMMS ]
         </Link>
+
+        {/* The notices key sits beside `[ OPEN COMMS ]`, on the same line, because a tag or a reply is
+            the same kind of thing as a message: something addressed to this account. It used to live
+            in the taskbar's tray, which is the foot of every window - a place a notice belongs only
+            when there is nowhere better, and the panel is better. It is on this row rather than a
+            section of its own so a reader meets one block about what is waiting for them, not two.
+            A phone never sees this row: the panel is `lg:` only, and ./ProfileControl.tsx carries the
+            same feed as a row in the account pop-up (see ./NotificationBell.tsx). */}
+        <NotificationBell />
       </div>
     </section>
   );

@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
 import { useComms } from './CommsProvider';
-import NotificationBell from './NotificationBell';
 import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
 
@@ -76,9 +75,6 @@ export default function Taskbar({ status }: TaskbarProps) {
           ::
         </span>
         <span className="max-sm:hidden">UTF-8</span>
-        {/* The tray carries the notices too: a notice belongs beside the status line and the encoding,
-            at the foot of every window on every screen, rather than inside one page's side panel. */}
-        <NotificationBell />
       </span>
 
       {menuOpen ? <StartMenu onDismiss={() => setMenuOpen(false)} commsUnread={unreadTotal} /> : null}

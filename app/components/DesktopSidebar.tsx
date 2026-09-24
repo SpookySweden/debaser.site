@@ -232,6 +232,7 @@ export default function DesktopSidebar() {
         </section>
 
         <SidebarComms />
+
         <UserDirectory compact />
       </div>
     </aside>
