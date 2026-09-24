@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ARCADE_DEFAULT_GAME, type ArcadeFocus } from '../lib/games/arcade-window';
 import { gameById, GAME_CATALOGUE } from '../lib/games/catalogue';
-import { challengeRefusal, sendChallenge } from '../lib/games/challenges';
-import { inviteSummary, opponentOf, splitInvites } from '../lib/games/invites';
+import { answerChallenge, challengeRefusal, sendChallenge } from '../lib/games/challenges';
+import { inviteSummary, opponentIdOf, opponentOf, splitInvites } from '../lib/games/invites';
 import { getGamesRepository } from '../lib/games/repository';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { buildUserDirectory } from '../lib/profile/directory';
@@ -72,6 +72,11 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
    *
    * Accepting opens the match on the spot (the answer *is* the entry), while declining and cancelling
    * only move the row - there is nothing to open.
+   *
+   * The answer is also a line in the conversation, which is what `answerChallenge` files. The row
+   * moves first, because that is the fact both sides are watching; the line is the record of it. If
+   * the record fails it is a warning inside `answerChallenge` and not an error here: the game did
+   * start, and telling the player their acceptance did not happen when it did would be a lie.
    */
   const answer = useCallback(
     async (invite: GameInvite, status: 'accepted' | 'declined') => {
@@ -80,6 +85,15 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
 
       try {
         await repository.setStatus(invite.id, status);
+
+        await answerChallenge({
+          record: recordGameEvent,
+          from: userId === null ? null : { id: userId },
+          withUserId: opponentIdOf(invite, userId ?? me.id),
+          inviteId: invite.id,
+          game: invite.game,
+        });
+
         if (status === 'accepted') {
           setSolo(null);
           setMatch({ ...invite, status });
@@ -92,7 +106,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         setBusy(null);
       }
     },
-    [me.id, repository, userId],
+    [me.id, recordGameEvent, repository, userId],
   );
 
   /** The invitation the window was opened on, if it was opened from a link that names one. */
@@ -192,13 +206,30 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
     }
   }
 
-  /** Off the board for both sides: the sender's cancel, and clearing an answered row. */
+  /**
+   * Off the board for both sides: the sender's cancel, and clearing an answered row.
+   *
+   * `answered: false` tells `answerChallenge` this was called off rather than decided, which is a
+   * different line in the conversation - a challenge that never happened, not one that was turned
+   * down. The row goes first: a cancel that failed to remove the invitation but did file a line
+   * saying it was gone would be the worse of the two orders.
+   */
   async function drop(invite: GameInvite) {
     setBusy(invite.id);
     setError(null);
 
     try {
       await repository.remove(invite.id);
+
+      await answerChallenge({
+        record: recordGameEvent,
+        from: userId === null ? null : { id: userId },
+        withUserId: opponentIdOf(invite, userId ?? me.id),
+        inviteId: invite.id,
+        game: invite.game,
+        answered: false,
+      });
+
       setMatch((current) => (current?.id === invite.id ? null : current));
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : 'THE ARCADE STORE DID NOT ANSWER.');

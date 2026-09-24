@@ -187,7 +187,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const anchorPreview = isOpen && images.source === 'item' ? 'none' : 'hover';
 
   return (
-    <article id={threadDomId(thread.id)} className="px-2 py-2">
+    <article id={threadDomId(thread.id)} className="rule-pixel px-2 py-2">
       <details
         className="group"
         open={isOpen}

@@ -471,7 +471,36 @@ img {
   color: var(--color-ena);
 }
 
-/* The sprite slot -------------------------------------------------------------
+/* The pixel rule between rows -------------------------------------------------
+   The same 2-on/2-off dash as `.link-pixel`, laid on the bottom edge of a row instead of under a
+   word. A list of threads, links or files is a list of things, and a hairline in the ink colour says
+   "these are separate" quietly; which is what a rule between rows is for. Drawn as a gradient rather
+   than a `border-dashed`, because a browser's dash is a smooth rounded stroke at whatever width the
+   zoom happens to be, and this is pixels.
+
+   It sits on `::after` rather than on the row's own border so a row that already has a border - the
+   bevel on a thread card - keeps it. `last:after:hidden` closes the list, because the rule is a
+   separator and there is nothing under the final row to separate it from. */
+.rule-pixel {
+  position: relative;
+}
+
+.rule-pixel::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  background-image: repeating-linear-gradient(to right, var(--color-ink) 0 2px, transparent 2px 4px);
+  background-repeat: repeat-x;
+  background-size: 4px 2px;
+}
+
+.rule-pixel:last-child::after {
+  display: none;
+}
+
+
    The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
    same tile language as the desktop, so the space reads as *waiting for artwork* rather than as a
    hole. Nothing is drawn in it - see AGENTS.md, Asset Rules, and assets/sprites/README.txt for the

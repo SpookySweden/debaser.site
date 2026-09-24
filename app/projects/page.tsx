@@ -45,9 +45,9 @@ export default function ProjectsPage() {
           <span>[ {ARCHIVE_PROJECTS.length} ]</span>
         </div>
 
-        <ul className="divide-y divide-ink">
+        <ul>
           {ARCHIVE_PROJECTS.map((project) => (
-            <li key={project.id}>
+            <li key={project.id} className="rule-pixel">
               <Link
                 href={project.href}
                 title={project.summary}

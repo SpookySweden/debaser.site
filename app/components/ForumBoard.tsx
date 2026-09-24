@@ -488,7 +488,7 @@ export default function ForumBoard() {
 
       <div
         id="forum-thread-list"
-        className="divide-y divide-ink rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
+        className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
       >
         {visibleThreads.length === 0 ? (
           <p className="p-3 text-xs font-bold text-ink">

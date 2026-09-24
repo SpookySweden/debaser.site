@@ -45,6 +45,18 @@ export function opponentOf(invite: GameInvite, viewerId: string): string {
   return invite.fromUserId === viewerId ? invite.toName : invite.fromName;
 }
 
+/**
+ * The opponent's account, from whichever side of the row is not the reader.
+ *
+ * The sibling of `opponentOf`, and the same derivation off the same pair of ids - one reads the name
+ * and one reads the id, so a caller filing something against "the other account" cannot end up with
+ * a name where an id belongs. `withUserId` on a game event is an id, which is why this exists rather
+ * than a caller reaching into the row itself.
+ */
+export function opponentIdOf(invite: GameInvite, viewerId: string): string {
+  return invite.fromUserId === viewerId ? invite.toUserId : invite.fromUserId;
+}
+
 /** One line for a row: what it is, and who it is with. */
 export function inviteSummary(invite: GameInvite, viewerId: string, gameTitle: string): string {
   const mine = invite.fromUserId === viewerId;
