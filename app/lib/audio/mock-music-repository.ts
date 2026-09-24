@@ -1,5 +1,6 @@
 import { normaliseFolderPath, normaliseArchiveName } from './archive-tree';
 import { validateTrackFile } from './catalogue';
+import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
 import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
@@ -23,6 +24,15 @@ import type { AudioTrack } from './tracks';
 
 const STORAGE_KEY = 'debaser.audio.mock.v1';
 const FOLDER_KEY = 'debaser.audio.folders.v1';
+/**
+ * The reader's own music, keyed by account.
+ *
+ * One key holding every account's likes and lists, rather than a key per account: the same browser may
+ * be used by two people, and a per-account key would leave the second one's rows invisible to
+ * `clearLocalTracks`. `{ [userId]: { likes, playlists } }` also means a guest who signs out and back
+ * in finds their own list again.
+ */
+const LIBRARY_KEY = 'debaser.audio.library.v1';
 const STORAGE_VERSION = 1;
 
 type PersistedState = {
@@ -113,6 +123,84 @@ function ensureFolders(): MusicFolder[] {
   return folderState;
 }
 
+/** One account's shelf: what they liked, and the lists they made. */
+type LibraryRecord = { likes: LikedTrack[]; playlists: Playlist[] };
+type LibraryState = Record<string, LibraryRecord>;
+
+let libraryState: LibraryState | null = null;
+
+const EMPTY_LIBRARY: LibraryRecord = { likes: [], playlists: [] };
+
+function loadLibrary(): LibraryState {
+  if (!hasStorage()) return {};
+
+  const raw = window.localStorage.getItem(LIBRARY_KEY);
+  if (raw === null || raw.length === 0) return {};
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== 'object' || parsed === null) return {};
+
+    // Shallow-checked rather than trusted: this is a value a reader's own browser can edit, and a
+    // malformed record should read as an empty shelf rather than throw on the way to drawing one.
+    const out: LibraryState = {};
+
+    for (const [userId, record] of Object.entries(parsed as Record<string, unknown>)) {
+      if (typeof record !== 'object' || record === null) continue;
+
+      const candidate = record as Partial<LibraryRecord>;
+      out[userId] = {
+        likes: Array.isArray(candidate.likes)
+          ? candidate.likes.filter((like) => typeof (like as LikedTrack)?.trackId === 'string')
+          : [],
+        playlists: Array.isArray(candidate.playlists)
+          ? candidate.playlists.filter((list) => typeof (list as Playlist)?.id === 'string')
+          : [],
+      };
+    }
+
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function persistLibrary(next: LibraryState): void {
+  libraryState = next;
+
+  if (!hasStorage()) return;
+
+  try {
+    window.localStorage.setItem(LIBRARY_KEY, JSON.stringify(next));
+  } catch {
+    // The change holds for this session and is forgotten on reload.
+  }
+}
+
+/** This account's record, creating nothing until a write needs it. */
+function recordFor(userId: string): LibraryRecord {
+  return libraryState?.[userId] ?? EMPTY_LIBRARY;
+}
+
+/**
+ * Writes one account's record and leaves every other account's alone.
+ *
+ * Every library write goes through here, which is what makes "did I just clobber somebody else's
+ * likes" a question with one answer rather than one per method.
+ */
+function writeRecord(userId: string, record: LibraryRecord): void {
+  const current = libraryState ?? (libraryState = loadLibrary());
+  persistLibrary({ ...current, [userId]: record });
+}
+
+/**
+ * The mock's library, keyed per account in this browser.
+ *
+ * Honest limit, the same one every mock store has: a like here is this browser's, so it is not on
+ * another machine until `NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase` points the store at the tables in
+ * `supabase/migrations/20260930_music_library.sql`.
+ */
+
 class MockMusicRepository implements MusicRepository {
   readonly source = 'mock' as const;
 
@@ -197,6 +285,7 @@ class MockMusicRepository implements MusicRepository {
       try {
         window.localStorage.removeItem(STORAGE_KEY);
         window.localStorage.removeItem(FOLDER_KEY);
+        window.localStorage.removeItem(LIBRARY_KEY);
       } catch {
         // Nothing to clean up.
       }
@@ -204,6 +293,87 @@ class MockMusicRepository implements MusicRepository {
 
     state = [];
     folderState = [];
+    libraryState = {};
+  }
+
+  /* The reader's own music: per account, in this browser. ------------------------------------- */
+
+  async listLikes(userId: string): Promise<LikedTrack[]> {
+    // Newest first, so the shelf's own order is not what decides the head of "my music".
+    return [...recordFor(userId).likes].sort((a, b) => b.likedAt.localeCompare(a.likedAt));
+  }
+
+  async toggleLike(userId: string, trackId: string): Promise<{ liked: boolean }> {
+    const record = recordFor(userId);
+    const already = record.likes.some((like) => like.trackId === trackId);
+
+    const likes = already
+      ? record.likes.filter((like) => like.trackId !== trackId)
+      : [...record.likes, { trackId, likedAt: new Date().toISOString() }];
+
+    writeRecord(userId, { ...record, likes });
+
+    return { liked: !already };
+  }
+
+  async listPlaylists(userId: string): Promise<Playlist[]> {
+    return [...recordFor(userId).playlists];
+  }
+
+  async savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist> {
+    const problem = validatePlaylistName(input.name);
+    if (problem !== undefined) throw new Error(problem);
+
+    const record = recordFor(input.ownerId);
+    const id = playlistId(input.ownerId, input.name);
+    const existing = record.playlists.find((list) => list.id === id);
+
+    const playlist: Playlist = {
+      id,
+      ownerId: input.ownerId,
+      name: input.name.trim(),
+      createdAt: existing?.createdAt ?? new Date().toISOString(),
+      // An edit keeps whatever is in the list; only a caller that passes items replaces them.
+      items: input.items ?? existing?.items ?? [],
+    };
+
+    const playlists = existing === undefined
+      ? [...record.playlists, playlist]
+      : record.playlists.map((list) => (list.id === id ? playlist : list));
+
+    writeRecord(input.ownerId, { ...record, playlists });
+
+    return playlist;
+  }
+
+  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist> {
+    const record = recordFor(input.ownerId);
+    const list = record.playlists.find((entry) => entry.id === input.playlistId);
+
+    if (list === undefined) throw new Error('THERE IS NO PLAYLIST BY THAT NAME.');
+
+    const already = list.items.some((item) => item.trackId === input.trackId);
+
+    const items = already
+      ? list.items.filter((item) => item.trackId !== input.trackId)
+      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString() }];
+
+    const next: Playlist = { ...list, items };
+    writeRecord(input.ownerId, {
+      ...record,
+      playlists: record.playlists.map((entry) => (entry.id === next.id ? next : entry)),
+    });
+
+    return next;
+  }
+
+  async removePlaylist(ownerId: string, playlistIdToRemove: string): Promise<void> {
+    const record = recordFor(ownerId);
+
+    writeRecord(ownerId, {
+      ...record,
+      playlists: record.playlists.filter((list) => list.id !== playlistIdToRemove),
+    });
   }
 }
 

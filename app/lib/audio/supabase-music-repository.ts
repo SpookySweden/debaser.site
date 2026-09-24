@@ -1,6 +1,7 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { normaliseFolderPath } from './archive-tree';
 import { MUSIC_BUCKET, extensionForTrack, trackStoragePath, validateTrackFile } from './catalogue';
+import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
 import type { CreateFolderInput, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
@@ -30,6 +31,10 @@ import { tracksFromStorage } from './tracks';
 const TRACKS_TABLE = 'music_tracks';
 /** The folders anybody signed in has made - see supabase/schema.sql section 14b. */
 const FOLDERS_TABLE = 'music_folders';
+/** What one account liked - see supabase/migrations/20260930_music_library.sql. */
+const LIKES_TABLE = 'music_likes';
+/** The lists one account made, and their items, in the same migration. */
+const PLAYLISTS_TABLE = 'music_playlists';
 /** The columns a track row is read with. `folder_path` is added where the column exists. */
 const TRACK_COLUMNS = 'title, credit, kind, src, length, tags';
 
@@ -54,6 +59,37 @@ type FolderRow = {
   created_by_label: string;
   created_at: string;
 };
+
+/** One like, as `music_likes` has it. */
+type LikeRow = {
+  track_id: string;
+  liked_at: string;
+};
+
+/**
+ * One playlist, as `music_playlists` has it.
+ *
+ * The items are a `jsonb` column rather than a join table, and that is a deliberate trade: a playlist
+ * is short, ordered, and always read whole, so a third table would buy a join and a second round trip
+ * for an ordering guarantee that `jsonb` already gives. It is the same call `library.ts` records.
+ */
+type PlaylistRow = {
+  id: string;
+  owner_id: string;
+  name: string;
+  created_at: string;
+  items: PlaylistItem[] | null;
+};
+
+function toPlaylist(row: PlaylistRow): Playlist {
+  return {
+    id: row.id,
+    ownerId: row.owner_id,
+    name: row.name,
+    createdAt: row.created_at,
+    items: Array.isArray(row.items) ? row.items : [],
+  };
+}
 
 function toFolder(row: FolderRow): MusicFolder {
   return {
@@ -293,6 +329,142 @@ class SupabaseMusicRepository implements MusicRepository {
       folderPath: normaliseFolderPath(input.folderPath),
       shelf: 'bucket',
     };
+  }
+
+  /* The reader's own music: per account, in real tables. --------------------------------------- */
+
+  /**
+   * What this account liked.
+   *
+   * Never throws. An unreadable library reads as an empty one, for the same reason an unreadable shelf
+   * does: this is drawn beside the music, and a page that cannot list somebody's favourite songs should
+   * still be able to list songs. The reason each read fails the same way is that the alternative - a
+   * reader whose likes table has not been migrated yet seeing an error - is worse than seeing none.
+   */
+  async listLikes(userId: string): Promise<LikedTrack[]> {
+    const { data, error } = await this.client()
+      .from(LIKES_TABLE)
+      .select('track_id, liked_at')
+      .eq('user_id', userId)
+      .order('liked_at', { ascending: false })
+      .limit(LIST_LIMIT);
+
+    if (error !== null) return [];
+
+    return ((data ?? []) as LikeRow[]).map((row) => ({ trackId: row.track_id, likedAt: row.liked_at }));
+  }
+
+  /**
+   * Hearts or un-hearts, and hands back what it settled on.
+   *
+   * A delete-then-insert would be two round trips and a window where the like is in neither state, so
+   * this reads first and writes once. The read is the account's own rows only, which the policy also
+   * enforces - the filter is here so a returned count means what it looks like.
+   */
+  async toggleLike(userId: string, trackId: string): Promise<{ liked: boolean }> {
+    const client = this.client();
+
+    const existing = await client
+      .from(LIKES_TABLE)
+      .select('track_id')
+      .eq('user_id', userId)
+      .eq('track_id', trackId)
+      .maybeSingle();
+
+    if (existing.error !== null) throw new Error(existing.error.message.toUpperCase());
+
+    if (existing.data !== null) {
+      const { error } = await client.from(LIKES_TABLE).delete().eq('user_id', userId).eq('track_id', trackId);
+      if (error !== null) throw new Error(error.message.toUpperCase());
+
+      return { liked: false };
+    }
+
+    const { error } = await client.from(LIKES_TABLE).insert({ user_id: userId, track_id: trackId });
+    if (error !== null) throw new Error(error.message.toUpperCase());
+
+    return { liked: true };
+  }
+
+  async listPlaylists(userId: string): Promise<Playlist[]> {
+    const { data, error } = await this.client()
+      .from(PLAYLISTS_TABLE)
+      .select('id, owner_id, name, created_at, items')
+      .eq('owner_id', userId)
+      .order('created_at', { ascending: true })
+      .limit(LIST_LIMIT);
+
+    if (error !== null) return [];
+
+    return ((data ?? []) as PlaylistRow[]).map(toPlaylist);
+  }
+
+  async savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist> {
+    const problem = validatePlaylistName(input.name);
+    if (problem !== undefined) throw new Error(problem);
+
+    const id = playlistId(input.ownerId, input.name);
+
+    // Read first so an edit does not wipe the items it is not touching - the same reasoning the mock
+    // store records, and the reason a rename is not a way to lose a list's contents.
+    const existing = await this.listPlaylists(input.ownerId);
+    const current = existing.find((list) => list.id === id);
+
+    const { data, error } = await this.client()
+      .from(PLAYLISTS_TABLE)
+      .upsert(
+        {
+          id,
+          owner_id: input.ownerId,
+          name: input.name.trim(),
+          items: input.items ?? current?.items ?? [],
+        },
+        { onConflict: 'id' },
+      )
+      .select('id, owner_id, name, created_at, items')
+      .single();
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+
+    return toPlaylist(data as PlaylistRow);
+  }
+
+  async togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist> {
+    const lists = await this.listPlaylists(input.ownerId);
+    const list = lists.find((entry) => entry.id === input.playlistId);
+
+    if (list === undefined) throw new Error('THERE IS NO PLAYLIST BY THAT NAME.');
+
+    const already = list.items.some((item) => item.trackId === input.trackId);
+    const items = already
+      ? list.items.filter((item) => item.trackId !== input.trackId)
+      : [...list.items, { trackId: input.trackId, addedAt: new Date().toISOString() }];
+
+    // Asked to hand the row back, so a write the policy refused is told rather than shown as done -
+    // the same pattern `banAccount` uses: row-level security refuses by touching nothing, which is
+    // otherwise silent.
+    const { data, error } = await this.client()
+      .from(PLAYLISTS_TABLE)
+      .update({ items })
+      .eq('id', input.playlistId)
+      .select('id, owner_id, name, created_at, items');
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+    if ((data ?? []).length === 0) throw new Error('THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER`S.');
+
+    return toPlaylist((data as PlaylistRow[])[0]);
+  }
+
+  async removePlaylist(ownerId: string, playlistIdToRemove: string): Promise<void> {
+    const { data, error } = await this.client()
+      .from(PLAYLISTS_TABLE)
+      .delete()
+      .eq('id', playlistIdToRemove)
+      .eq('owner_id', ownerId)
+      .select('id');
+
+    if (error !== null) throw new Error(error.message.toUpperCase());
+    if ((data ?? []).length === 0) throw new Error('THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER`S.');
   }
 }
 

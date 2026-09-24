@@ -1177,6 +1177,67 @@ create index if not exists music_tracks_folder_idx on public.music_tracks (folde
 
 create index if not exists music_tracks_created_idx on public.music_tracks (created_at desc);
 
+-- ---------------------------------------------------------------------------
+-- 14c. The reader's own music: what they liked, and the lists they made
+-- ---------------------------------------------------------------------------
+-- The per-account half of the archive. Everything above is the *shelf*, which belongs to nobody; these
+-- two belong to one account each, which is what makes them the first music tables with an owner and a
+-- policy. A like holds a `track_id` rather than a foreign key, because the shelf is read by listing the
+-- bucket - a file dropped in by hand is a real track with no row anywhere, and a key would refuse to
+-- let anybody like it. See supabase/migrations/20260930_music_library.sql.
+
+create table if not exists public.music_likes (
+  user_id uuid not null references auth.users (id) on delete cascade,
+  track_id text not null,
+  liked_at timestamptz not null default now(),
+  primary key (user_id, track_id)
+);
+
+alter table public.music_likes enable row level security;
+
+drop policy if exists "likes readable by owner" on public.music_likes;
+create policy "likes readable by owner" on public.music_likes
+  for select using (auth.uid() = user_id);
+
+drop policy if exists "likes writable by owner" on public.music_likes;
+create policy "likes writable by owner" on public.music_likes
+  for insert with check (auth.uid() = user_id);
+
+drop policy if exists "likes removable by owner" on public.music_likes;
+create policy "likes removable by owner" on public.music_likes
+  for delete using (auth.uid() = user_id);
+
+create index if not exists music_likes_user_idx on public.music_likes (user_id, liked_at desc);
+
+create table if not exists public.music_playlists (
+  id text primary key,
+  owner_id uuid not null references auth.users (id) on delete cascade,
+  name text not null,
+  items jsonb not null default '[]'::jsonb,
+  created_at timestamptz not null default now(),
+  constraint music_playlists_items_is_a_list check (jsonb_typeof(items) = 'array')
+);
+
+alter table public.music_playlists enable row level security;
+
+drop policy if exists "playlists readable by owner" on public.music_playlists;
+create policy "playlists readable by owner" on public.music_playlists
+  for select using (auth.uid() = owner_id);
+
+drop policy if exists "playlists insertable by owner" on public.music_playlists;
+create policy "playlists insertable by owner" on public.music_playlists
+  for insert with check (auth.uid() = owner_id);
+
+drop policy if exists "playlists updatable by owner" on public.music_playlists;
+create policy "playlists updatable by owner" on public.music_playlists
+  for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
+
+drop policy if exists "playlists removable by owner" on public.music_playlists;
+create policy "playlists removable by owner" on public.music_playlists
+  for delete using (auth.uid() = owner_id);
+
+create index if not exists music_playlists_owner_idx on public.music_playlists (owner_id, created_at);
+
 alter table public.music_tracks enable row level security;
 
 drop policy if exists "music tracks readable" on public.music_tracks;

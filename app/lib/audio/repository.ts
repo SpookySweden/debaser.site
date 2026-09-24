@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import type { FolderPath } from './archive-tree';
+import type { LikedTrack, Playlist, PlaylistItem } from './library';
 import { getMockMusicRepository } from './mock-music-repository';
 import { getSupabaseMusicRepository } from './supabase-music-repository';
 import type { AudioTrack } from './tracks';
@@ -78,6 +79,39 @@ export type MusicRepository = {
   createFolder(input: CreateFolderInput): Promise<MusicFolder>;
   /** Mock-only helper so local uploads can be forgotten. */
   clearLocalTracks?(): Promise<void>;
+
+  /* ---------------------------------------------------------------------------------------------
+   * The reader's own music.
+   *
+   * Everything above is the *shelf*, which belongs to nobody. These four are per-account, and the
+   * account is passed in rather than read from a session inside the store - the same way the forum
+   * repository takes an author rather than asking who is signed in. That keeps the store testable
+   * and keeps the "who may write this" question in the database's hands, where the row-level
+   * security policy answers it rather than this interface pretending to.
+   * ------------------------------------------------------------------------------------------- */
+
+  /** What this account liked, newest first. Never throws: an unreadable table reads as nothing liked. */
+  listLikes(userId: string): Promise<LikedTrack[]>;
+  /**
+   * Hearts or un-hearts, and hands back the state it settled on.
+   *
+   * One call rather than `like`/`unlike` because the caller is a switch: it does not know which of
+   * the two it is doing, and asking it to know is how a heart ends up out of step with the row.
+   */
+  toggleLike(userId: string, trackId: string): Promise<{ liked: boolean }>;
+  /** This account's lists, oldest first. Never throws, for the same reason. */
+  listPlaylists(userId: string): Promise<Playlist[]>;
+  /**
+   * Creates a list, or replaces the one with the same derived id.
+   *
+   * Upsetting a name is an edit rather than an error, because the id is derived from the name: a
+   * second `LATE NIGHT` is the same list, not a duplicate of it.
+   */
+  savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist>;
+  /** Adds a track to a list, or removes it if it is already there. Hands back the list as it stands. */
+  togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist>;
+  /** Takes a list away. Only its owner may, which the policy enforces rather than this code. */
+  removePlaylist(ownerId: string, playlistId: string): Promise<void>;
 };
 
 let mockRepository: MusicRepository | null = null;

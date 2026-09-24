@@ -20,10 +20,21 @@ import { createWindowSlot } from '../ui/window-slot';
 
 export type MusicWindowState = {
   open: boolean;
+  /**
+   * Which of the two screens is on: the shared archive, or the reader's own music.
+   *
+   * It lives in the window's state rather than in a component's `useState` because the *address* decides
+   * it (`?music=1` opens the archive, `?music=mine` opens the personal shelf) and the two have to agree:
+   * a screen held in local state would ignore the second half of a link, and a link that half-works is
+   * worse than one that does not.
+   */
+  screen: MusicScreen;
 };
 
-/** Shut. One shared object, so React can compare it by identity. */
-const SHUT: MusicWindowState = { open: false };
+export type MusicScreen = 'archive' | 'mine';
+
+/** Shut, on the archive. One shared object, so React can compare it by identity. */
+const SHUT: MusicWindowState = { open: false, screen: 'archive' };
 
 const slot = createWindowSlot<MusicWindowState>(SHUT);
 
@@ -36,12 +47,28 @@ export const subscribeToMusicWindow = slot.subscribe;
 /** The archive's address: the board, so the reader keeps the thread they were on. */
 export const MUSIC_HREF = '/forum?music=1';
 
-export function openMusic(): void {
-  slot.set({ open: true });
+/** The reader's own music, as its own address: a link somebody can be sent, and a screen that survives a reload. */
+export const LIBRARY_HREF = '/forum?music=mine';
+
+/**
+ * Opens the window, on one screen or the other.
+ *
+ * The screen is a parameter rather than a separate opener because they are the same window: a reader
+ * switching between them should not see the frame close and reopen, which is what two openers would give
+ * them. Defaulting to the archive keeps every existing caller - the MUSIC shelf, a post's plate, a tag
+ * badge - working unchanged.
+ */
+export function openMusic(screen: MusicScreen = 'archive'): void {
+  slot.set({ open: true, screen });
 }
 
 export function closeMusic(): void {
   if (slot.state().open) slot.set(SHUT);
+}
+
+/** Switches screens while the window stays open. */
+export function showMusicScreen(screen: MusicScreen): void {
+  if (slot.state().open && slot.state().screen !== screen) slot.set({ open: true, screen });
 }
 
 /**
@@ -78,4 +105,16 @@ export function musicAddressSpentByClose(search: string): boolean {
 /** Whether an address asks for the archive. A query about anything else opens nothing. */
 export function musicRequested(search: string): boolean {
   return new URLSearchParams(search).get('music') !== null;
+}
+
+/**
+ * Which screen an address asks for.
+ *
+ * `?music=1` is the archive, which is every link that existed before there were two screens - so it has
+ * to keep meaning the archive rather than becoming ambiguous. `?music=mine` is the reader's own music.
+ * Anything else (`?music=0`, `?music=yes`) is still a request, because the presence of the parameter is
+ * what opens the window; it simply names no screen, so the archive is what shows.
+ */
+export function musicScreenRequested(search: string): MusicScreen {
+  return new URLSearchParams(search).get('music') === 'mine' ? 'mine' : 'archive';
 }

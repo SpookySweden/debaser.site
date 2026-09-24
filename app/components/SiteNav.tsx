@@ -10,6 +10,7 @@ import {
   ICON_MUSIC,
   ICON_USERS,
 } from '../lib/ui/icons';
+import { LIBRARY_HREF } from '../lib/audio/music-window';
 import { useComms } from './CommsProvider';
 
 /**
@@ -108,7 +109,17 @@ export const SIDE_MUSIC: NavItem = {
   key: 'music',
   label: 'MUSIC',
   mark: ICON_MUSIC,
-  href: '/forum?music=1',
+  /**
+   * The *personal* screen, not the archive, and that is the whole point of this key.
+   *
+   * The archive is where a reader goes to browse a shelf somebody else filled; the side panel is where
+   * they keep their own things - the profile, the conversations, the directory of accounts - so its
+   * music key opens the shelf *they* have a stake in. Everything that points at the archive from a
+   * file - a post's `[ ♪ MP3 ]` plate, a track's tag badge, the Start menu's MUSIC shelf - keeps
+   * `MUSIC_HREF` and still lands on the browser, because those are all "show me this file" rather than
+   * "show me my music".
+   */
+  href: LIBRARY_HREF,
 };
 
 /**
