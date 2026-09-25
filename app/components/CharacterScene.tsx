@@ -3,10 +3,18 @@
 import { Canvas } from '@react-three/fiber';
 import { useRef } from 'react';
 import { UNITS_PER_PIXEL, type ViewportKind } from '../lib/character/drag';
-import { MODEL_HANDLE, MODEL_HANDLE_ACTIVE, MODEL_HIGHLIGHT, MODEL_INK, MODEL_VOID } from '../lib/character/palette';
+import {
+  MODEL_HANDLE,
+  MODEL_HANDLE_ACTIVE,
+  MODEL_HIGHLIGHT,
+  MODEL_INK,
+  MODEL_VOID,
+  MODEL_WIRE,
+} from '../lib/character/palette';
 import { massFor } from '../lib/character/rig';
 import { scaleOf, type Joint } from '../lib/character/skeleton';
 import { useCharacterStore, useInteractionMode, type InteractionMode } from '../lib/character/store';
+import { PixelPass } from './CharacterPixelPass';
 
 /**
  * The figure, drawn.
@@ -25,6 +33,7 @@ import { useCharacterStore, useInteractionMode, type InteractionMode } from '../
  */
 export default function CharacterScene({ view }: { view: ViewportKind }) {
   const mode = useInteractionMode();
+  const pixelLayerOn = useCharacterStore((state) => state.visible.pixel);
 
   return (
     <Canvas
@@ -41,6 +50,9 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
       // Nothing here animates: the figure changes when the store does, and never on its own. Rendering 60fps of
       // a still life on every visit to the console is a battery cost nobody asked for.
       frameloop="demand"
+      // `NearestFilter` is set here rather than on the composer because it is the *canvas* that does the final
+      // blit, and a nearest-filtered canvas is what keeps the pixel blocks hard-edged instead of smoothing them
+      // back out. Antialiasing is off for the same reason: smoothing edges is the opposite of the effect.
       gl={{ antialias: false }}
       className="cursor-move"
     >
@@ -48,6 +60,7 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
       <ambientLight intensity={0.55} />
       <KeyLight />
       <Figure view={view} mode={mode} />
+      <PixelPass enabled={pixelLayerOn} />
     </Canvas>
   );
 }
@@ -122,12 +135,31 @@ function MassAt({ jointId, scale, mode }: { jointId: string; scale: number; mode
   const part = massFor(jointId);
   const selectJoint = useCharacterStore((state) => state.selectJoint);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
+  const massVisible = useCharacterStore((state) => state.visible.mass);
+  const baseVisible = useCharacterStore((state) => state.visible.base);
+  const pixelVisible = useCharacterStore((state) => state.visible.pixel);
 
   if (part === undefined) return null;
 
   const isSelected = selectedJointId === jointId;
   const clickable = mode === 'mass';
   const size: [number, number, number] = [part.size.x * 2, part.size.y * 2, part.size.z * 2];
+
+  /**
+   * **What the mass looks like depends on which render layer is showing, and the layers are not decoration.**
+   *
+   *   MASS    wireframe only - edges to build against, with no surface to hide them. It is the layer where the
+   *           *shape* is the subject, so the surface is left out entirely.
+   *   BASE    solid and unshaded-flat, with no composer over it. The brief says BASE has no pixelation, and the
+   *           point of it is to see the figure cleanly at full resolution.
+   *   PIXEL   solid and lit, so there is something for `PixelPass` to reduce. A flat surface with no shading
+   *           pixelates to a single block of colour, which is why this one keeps the lambert material.
+   *
+   * A joint's mass is drawn if *any* of the three is visible, which is what `showMass` means - they are three
+   * views of the same geometry rather than three pieces of it.
+   */
+  const layer = pixelVisible ? 'pixel' : baseVisible ? 'base' : massVisible ? 'mass' : null;
+  if (layer === null) return null;
 
   return (
     <group position={[part.offset.x, part.offset.y, part.offset.z]} scale={scale}>
@@ -147,7 +179,20 @@ function MassAt({ jointId, scale, mode }: { jointId: string; scale: number; mode
         {part.shape === 'box' ? <boxGeometry args={size} /> : null}
         {part.shape === 'sphere' ? <sphereGeometry args={[size[0] / 2, 12, 8]} /> : null}
         {part.shape === 'cone' ? <coneGeometry args={[size[0] / 2, size[1], 10]} /> : null}
-        <meshLambertMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_INK} />
+
+        {/*
+         * The colour is deliberately **not** from the nine-token palette. This is the model, not the chrome - it
+         * is what the pixel shader recolours, and choosing a site colour now would hard-code a decision the
+         * shader has not made yet. Selection is the one exception: it has to be visible, and uses the palette's
+         * magenta so it still reads as the same site.
+         */}
+        {layer === 'mass' ? (
+          <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_WIRE} wireframe />
+        ) : null}
+        {layer === 'base' ? <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_INK} /> : null}
+        {layer === 'pixel' ? (
+          <meshLambertMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_INK} />
+        ) : null}
       </mesh>
     </group>
   );

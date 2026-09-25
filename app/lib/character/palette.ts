@@ -16,3 +16,12 @@ export const MODEL_HIGHLIGHT = '#FF00A0';
 export const MODEL_HANDLE = '#28C745';
 export const MODEL_HANDLE_ACTIVE = '#FFF000';
 export const MODEL_VOID = '#000000';
+
+/**
+ * The MASS layer's wireframe colour, which is the same green as a handle.
+ *
+ * Deliberately the same value as `MODEL_HANDLE` and still a separate name, because they mean different things: a
+ * handle is a thing you grab, a wireframe is a thing you look at. Collapsing them would make "change the handle
+ * colour" a change to the wireframe too, which is not what anybody editing one would expect.
+ */
+export const MODEL_WIRE = '#28C745';
