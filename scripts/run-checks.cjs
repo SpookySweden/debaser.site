@@ -68,6 +68,26 @@ function compileSteps(file) {
     if (header.length > 1 && line.trim().startsWith('*/')) break;
   }
 
+  /**
+   * **A header that names a compiler but does not start a step is an error, not an absence.**
+   *
+   * The prefix match below is `'npx tsc '` exactly, and a check that wrote `npm exec tsc ...` - the same
+   * command, spelled another way - had its compiles silently skipped and was handed whatever the previous
+   * check left in a shared output directory. It then failed on a missing module, which read as a broken check
+   * rather than a wrong header. That is the `slice(0, 20)` defect again in a new costume, so this time the
+   * runner says so out loud instead of quietly compiling nothing.
+   */
+  const mentionsCompiler = (line) => /\btsc\b/.test(line) && /--outDir/.test(line);
+  const isStep = (line) => /^\s*\*\s*npx tsc /.test(line);
+
+  for (const line of header) {
+    if (mentionsCompiler(line) && !isStep(line) && !line.includes('`npx tsc')) {
+      throw new Error(
+        `${file}: header line looks like a compile step but does not start with "npx tsc ": ${line.trim()}`,
+      );
+    }
+  }
+
   return header
     .filter((line) => line.includes('npx tsc '))
     .map((line) => line.replace(/^\s*\*\s*/, '').trim())

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useCharacterStore, type LayerId } from '../lib/character/store';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
@@ -16,30 +16,27 @@ const LAYERS = [
   { id: 'mass', label: 'MASS GEOMETRY', note: 'THE PRIMITIVES, WIREFRAME. DRAGGING SCALES THEM.' },
   { id: 'base', label: 'BASE RENDER', note: 'SOLID, UNSHADED. NO PIXELATION.' },
   { id: 'pixel', label: 'LIVE PIXEL SHADER', note: 'LOW-RES TARGET AND THE OUTLINE. DRAGGING MOVES THE LIGHT.' },
-] as const;
-
-type LayerId = (typeof LAYERS)[number]['id'];
+] as const satisfies readonly { id: LayerId; label: string; note: string }[];
 
 /**
  * The workbench's two viewports and its sidebar.
  *
- * Phase 1 draws the frame: two orthographic panes side by side, the layer list, and the light controls. The
- * canvas, the rig and the interaction modes arrive in later phases - what this file establishes is the
- * *shape* they will be dropped into, so the layout is settled before anything is drawn inside it.
+ * **The sidebar reads and writes the store as of Phase 2**, rather than holding its own `useState`. That is
+ * what makes the selection the *store's* fact instead of the sidebar's: a drag in a viewport (Phase 3) has to
+ * know which layer is selected, and two components each holding their own copy of that is the drift this
+ * feature's store exists to prevent. The state moved here the moment there was something to share it with,
+ * rather than being written early and left unread - `Temp/check-structure.cjs` refuses a module nothing
+ * imports, and it was right to.
  *
- * **The viewports are labelled and the labels matter.** "Front" and "Side" are not decoration: a drag is
- * constrained differently in each (front moves X and Y, side moves Z and Y), so a reader has to be able to
- * tell at a glance which pane their pointer is in. The label is inside the pane's own frame rather than
- * beside it, for that reason.
+ * What is *not* here yet: the canvas, the rig and the drag handling. Phase 1 drew this frame; Phase 2 gave it
+ * a real skeleton to point at; Phase 3 puts the figure in it.
  */
 export default function CharacterViewport() {
-  const [active, setActive] = useState<LayerId>('skeleton');
-  const [hidden, setHidden] = useState<Record<LayerId, boolean>>({
-    skeleton: false,
-    mass: false,
-    base: false,
-    pixel: false,
-  });
+  const activeLayer = useCharacterStore((state) => state.activeLayer);
+  const visible = useCharacterStore((state) => state.visible);
+  const selectLayer = useCharacterStore((state) => state.selectLayer);
+  const toggleLayer = useCharacterStore((state) => state.toggleLayer);
+  const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -56,7 +53,7 @@ export default function CharacterViewport() {
 
         <ul className="divide-y divide-ink">
           {LAYERS.map((layer) => {
-            const isHidden = hidden[layer.id];
+            const isHidden = !visible[layer.id];
 
             return (
               <li key={layer.id} className="flex items-center gap-2 p-1">
@@ -64,7 +61,7 @@ export default function CharacterViewport() {
                     vanishes is one you cannot use to turn the thing back on. */}
                 <button
                   type="button"
-                  onClick={() => setHidden((current) => ({ ...current, [layer.id]: !current[layer.id] }))}
+                  onClick={() => toggleLayer(layer.id)}
                   aria-pressed={!isHidden}
                   aria-label={`${isHidden ? 'Show' : 'Hide'} the ${layer.label} layer`}
                   className={`shrink-0 cursor-pointer rounded-none border border-black px-1 text-[11px] leading-none ${
@@ -76,10 +73,10 @@ export default function CharacterViewport() {
 
                 <button
                   type="button"
-                  onClick={() => setActive(layer.id)}
-                  aria-pressed={active === layer.id}
+                  onClick={() => selectLayer(layer.id)}
+                  aria-pressed={activeLayer === layer.id}
                   className={`min-w-0 flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
-                    active === layer.id
+                    activeLayer === layer.id
                       ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
                       : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
                   }`}
@@ -94,8 +91,8 @@ export default function CharacterViewport() {
       </div>
 
       <p className="text-[10px] text-ink-plate">
-        SELECTED: <span className="font-bold text-ink">{LAYERS.find((layer) => layer.id === active)?.label}</span> -
-        DRAGGING IN EITHER VIEWPORT DRIVES THIS LAYER.
+        SELECTED: <span className="font-bold text-ink">{LAYERS.find((layer) => layer.id === activeLayer)?.label}</span>{' '}
+        - DRAGGING IN EITHER VIEWPORT DRIVES THIS LAYER. THE RIG HAS {jointCount} JOINTS.
       </p>
     </div>
   );

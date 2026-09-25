@@ -250,6 +250,31 @@ on is therefore older than `20260930000027` by the clock, and without the flag `
 *"Found local migration files to be inserted before the last migration on remote database"* and
 applies nothing. The flag is on `db:push` **and** `db:push:dry`, so the preview and the act agree.
 
+**A check's header is a contract with the runner, and spelling it differently runs nothing.** The
+runner collects a check's compile steps by looking for the literal prefix `npx tsc ` inside its
+header comment. A check that wrote the same command as `npm exec tsc ...` had **its compiles silently
+skipped** - it was then handed whatever the previous check had left in a shared output directory, and
+failed on a missing module, which reads as a broken check rather than a wrong header. That is the
+`slice(0, 20)` defect wearing a new costume, so the guard went in the runner: a header line that names
+a compiler and carries `--outDir` without starting with `npx tsc ` is now an error rather than a
+silence. The step also has to be *inside* the `/** */` block - a `//` line below it is not read at all.
+
+**Run a check through the runner, never directly, when its header compiles anything.** Reverting the
+fix under test and re-running the check by hand reported a **pass against stale compiled code**, twice
+- because the compiled output in `Temp/` was from before the revert. The revert only becomes visible
+once the runner recompiles. `Temp/revert.cjs` exists for this: it edits, runs the whole suite through
+the runner, prints whether the check caught it, and restores in a `finally`.
+
+**A summary must print last.** `check-character.cjs` printed its "passed" line *between* two sections,
+and `run-checks.cjs` reports only the first line of stdout - so a run that failed on a later assertion
+was shown as `FAIL` beside the word "passed". Two turns went into reading that as a harness fault. The
+summary now sits at the end of the file, and the reason is written above it.
+
+**Assert a shape, not a remembered identifier.** A Phase 1 assertion matched
+`aria-pressed={active === layer.id}`; Phase 2 renamed the local to `activeLayer` while moving the state
+into the store, and the check failed on correct code. The rule had not changed, the variable had. The
+match is now `aria-pressed={\w+ === layer\.id}`, and the rename is not a test failure any more.
+
 **Review before a destructive pattern, and never on an assumption.** 35 accounts were listed before
 any were removed, which is how the `cline-%` sweep was confirmed to leave exactly the 7 real ones.
 "The pattern looks right" is not the same as "I read the list", and the second is the one that
