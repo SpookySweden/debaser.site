@@ -169,7 +169,7 @@ export default function NewArchiveFileWindow({
             id="new-file-new-folder"
             value={newFolder}
             onChange={(event) => setNewFolder(event.target.value)}
-            placeholder="e.g. TAPE DECK SUMMER"
+            placeholder="e.g. WHAT THE RELEASE IS CALLED"
             className={FIELD}
           />
         </div>
