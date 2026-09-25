@@ -210,6 +210,42 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
 
+  /**
+   * The middle cell's press: on to the next state, walking playing -> paused -> looping -> playing.
+   *
+   * Written out here rather than pushed into the provider, because the three states are genuinely made
+   * of two switches (`playing` and `loop`) and the *pairing* of them is a presentation choice - the
+   * provider should not learn about the cell. What each state means:
+   *
+   *   playing  audio on,  repeat off - the shelf walks on when the track ends
+   *   paused   audio off, repeat off - silence, and the position is kept
+   *   looping  audio on,  repeat on  - this track repeats
+   *
+   * The reading order is `loop` first, then `playing` - the same order the cell uses, and it has to be
+   * the same or the key would act on a different state than the one it is showing. Only the two presses
+   * that change the audio call `toggle`; leaving looping must not, because the music is already audible
+   * and a press that silenced it would do the opposite of what the symbol promised.
+   */
+  const cycleState = useCallback(() => {
+    const state = loop ? 'looping' : playing ? 'playing' : 'paused';
+
+    if (state === 'playing') {
+      // -> paused: silence. Repeat is already off.
+      player.toggle();
+      return;
+    }
+
+    if (state === 'paused') {
+      // -> looping: audible and repeating. Both switches move.
+      player.setLoop(true);
+      player.toggle();
+      return;
+    }
+
+    // 'looping' -> playing: repeat off, audio untouched.
+    player.setLoop(false);
+  }, [loop, playing, player]);
+
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-sun-pale px-2 py-1 font-mono text-ink shadow-[0_-2px_0_theme(colors.ena-deep)]">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
@@ -256,18 +292,16 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
             </span>
           </span>
 
-          {/* The transport, in a recess: the D-pad. Left and right step the queue; the middle cell
-              is a live readout of what the player is doing rather than a label for a press, and it
-              carries stop and loop beneath it - see `TransportPad` for why those are separate keys. */}
+          {/* The transport, in a recess: the D-pad. Left and right step the queue; the middle is one
+              symbol showing which of the three states the player is in, and a press moves to the next -
+              see `TransportPad` for the cycle and why the symbol reports rather than promises. */}
           <TransportPad
             playing={playing}
             loop={loop}
             disabled={loading || player.queue.length === 0}
             onPrevious={player.previous}
-            onToggle={player.toggle}
-            onStop={player.stop}
+            onCycle={cycleState}
             onNext={player.next}
-            onLoop={() => player.setLoop(!loop)}
           />
 
           <label className="flex items-center gap-1 text-[10px] font-bold text-ink">
@@ -308,50 +342,60 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
 }
 
 /**
- * The transport as a D-pad: left, a live readout in the middle, right.
+ * The transport as a D-pad: left, one cycling symbol, right.
  *
- * The middle cell is the whole idea, and it is the opposite of a normal button. A normal button says
- * *what pressing it will do* (`[ PLAY ]` waits for a press and then becomes `[ PAUSE ]`), so it is
- * always naming a state the reader is not in. This one names the state they *are* in, and moves, so
- * it reads as a display rather than as something to press - which is what the brief asked for: the
- * symbol says what is happening, not what would happen.
+ * The middle is one cell with **one symbol**, showing which of three states the player is in, and a
+ * press moves to the next. That is the whole idea, and it is the opposite of a normal button: `[ PLAY ]`
+ * names what pressing it would *do*, so it is always describing a state the reader is not in. This
+ * names the state they *are* in.
  *
- * It is still pressable - a reader who wants to pause has to be able to - so the animation carries the
- * difference rather than the cursor or the border. `animate-blip` is a `steps(2)` blink and the `▶` on
- * the LED already wears it for exactly this reason: a thing that is *running* should look like it is
- * running. Paused sits still, because something that has stopped and is still blinking is lying about
- * itself.
+ *   ▶   playing    - blipping, because something running should look like it is running
+ *   ❚❚  paused     - still, because something stopped that kept blinking would be lying about itself
+ *   ↻   looping    - also moving, and this is the one that repeats rather than advancing
  *
- * **Stopped is not paused**, which is why there are three states rather than two. Paused keeps the
- * position and play resumes from it; stopped returns to the start of the track. A shelf stereo has
- * both and a reader expects both, which is the reason the square key exists separately from the
- * triangle.
+ * The cycle is playing -> paused -> looping -> playing. Looping sits *in* the cycle rather than beside
+ * it because loop is about this track in this player, which is what the cell is showing - and because
+ * one cell with one symbol is what the brief asked for: no secondary row, no fourth key.
  *
- * The loop key is the fourth state and lives *inside* the pad rather than beside it, because loop is
- * about this track in this player, which is what the pad is showing. It is the one cell that names what
- * it *changes* rather than what is true, so it wears the lit bevel when it is on - the same trade
- * `PLATE_PRESSED` makes elsewhere - and every mark is drawn with its own word beside it, per the house
- * rule that a bare glyph is a puzzle.
+ * `animate-blip` is the site's `steps(2)` blink and the LED's own play mark already wears it for
+ * exactly this reason. Each state gets a different animation so the cell is legible at a glance and
+ * without reading the glyph: `blip` for playing, `wobble` for looping, nothing for paused. Stillness is
+ * a state too, and it is the one that says "the silence is deliberate".
+ *
+ * Every mark is drawn with its own word for a screen reader (`sr-only`), per the house rule that a bare
+ * glyph is a puzzle - and the word comes from the state, so it says what is true rather than what a
+ * press would do.
  */
 function TransportPad({
   playing,
   loop,
   disabled,
   onPrevious,
-  onToggle,
-  onStop,
+  onCycle,
   onNext,
-  onLoop,
 }: {
   playing: boolean;
   loop: boolean;
   disabled: boolean;
   onPrevious: () => void;
-  onToggle: () => void;
-  onStop: () => void;
+  /** Moves to the next state: playing -> paused -> looping -> playing. */
+  onCycle: () => void;
   onNext: () => void;
-  onLoop: () => void;
 }) {
+  /**
+   * Which state the cell is in.
+   *
+   * `loop` wins over `playing` when both are set, and the order is the whole reason this is written
+   * down: with a repeating track the audio *is* running, so "playing" would be true as well - and if
+   * `playing` took precedence the `↻` symbol could never appear at all. Looping is the more specific
+   * statement, so it is the one the cell reports.
+   */
+  const state: 'playing' | 'paused' | 'looping' = loop ? 'looping' : playing ? 'playing' : 'paused';
+
+  const MARK = { playing: '▶', paused: '❚❚', looping: '↻' } as const;
+  const WORD = { playing: 'Playing', paused: 'Paused', looping: 'Looping' } as const;
+  const ANIMATION = { playing: 'animate-blip', paused: undefined, looping: 'animate-wobble' } as const;
+
   return (
     <span className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-1">
       <span className="flex items-stretch gap-1">
@@ -368,49 +412,21 @@ function TransportPad({
           </span>
         </button>
 
-        {/* The live cell: the readout on top, stop and loop under it, in one recess. */}
-        <span className="flex flex-col rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink p-[2px]">
+        {/* The one cell: a single symbol, the state it is showing, and the next state as the tooltip -
+            so a reader who is unsure gets the answer from the title rather than from guessing. */}
+        <span className="flex items-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-1 py-[2px]">
           <button
             type="button"
-            onClick={onToggle}
+            onClick={onCycle}
             disabled={disabled}
-            aria-pressed={playing}
-            title={playing ? 'Pause' : 'Play'}
-            className="flex min-w-[5.5rem] cursor-pointer items-center justify-center gap-1 rounded-none px-2 py-[3px] text-[12px] font-bold text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed disabled:text-chrome-dark"
+            title={`${WORD[state]} - press for ${WORD[state === 'playing' ? 'paused' : state === 'paused' ? 'looping' : 'playing']}`}
+            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed disabled:text-chrome-dark"
           >
-            {/* The animation is the message: blipping while audio runs, still while it does not. */}
-            <span aria-hidden="true" className={playing ? 'animate-blip' : undefined}>
-              {playing ? '▶' : '❚❚'}
+            <span aria-hidden="true" className={ANIMATION[state]}>
+              {MARK[state]}
             </span>
-            <span className="text-[9px] leading-none">{playing ? 'PLAYING' : 'PAUSED'}</span>
+            <span className="sr-only">{WORD[state]}</span>
           </button>
-
-          <span className="mt-[2px] flex items-stretch gap-[2px]">
-            <button
-              type="button"
-              onClick={onStop}
-              disabled={disabled}
-              title="Stop, and go back to the start of the track"
-              className="flex-1 cursor-pointer rounded-none px-1 py-[2px] text-[10px] font-bold text-ena-deep hover:bg-ena hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed"
-            >
-              ■<span className="sr-only">Stop</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onLoop}
-              disabled={disabled}
-              aria-pressed={loop}
-              title={loop ? 'Repeating this track: press to play on through the shelf' : 'Repeat this track when it ends'}
-              className={`flex-1 cursor-pointer rounded-none border px-1 py-[2px] text-[10px] font-bold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed ${
-                loop
-                  ? 'border-black bg-acid text-ink'
-                  : 'border-ena-deep bg-ink text-ena-deep hover:bg-ena hover:text-ink'
-              }`}
-            >
-              ↻<span className="sr-only">{loop ? 'Loop on' : 'Loop off'}</span>
-            </button>
-          </span>
         </span>
 
         <button
