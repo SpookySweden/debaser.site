@@ -146,10 +146,38 @@ function LoopIcon({
     setSpot({ left, top: box.bottom + 4 });
   }, []);
 
-  const start = useCallback(() => {
+  /**
+   * Asking for the caption: one timer, set once when the pointer arrives.
+   *
+   * **`onPointerEnter` only - never `onPointerMove`.** The first version restarted this timer on every
+   * movement, so the delay began again on each pixel the reader's hand travelled and the caption *never
+   * appeared* for anybody holding a mouse, which is everybody. A delay that waits for the pointer to be
+   * perfectly still is not a hover delay, it is a coincidence. The motion half of the problem - keeping the
+   * caption up while the reader reaches for the globe - is `hold` below, which is a different job.
+   */
+  const ask = useCallback(() => {
     if (timer.current !== null) window.clearTimeout(timer.current);
 
-    timer.current = window.setTimeout(place, CAPTION_DELAY_MS);
+    timer.current = window.setTimeout(() => {
+      // The wait is over: clearing the handle is what tells `hold` that a caption is up and no longer
+      // pending, so moving toward it keeps it rather than restarting the delay.
+      timer.current = null;
+      place();
+    }, CAPTION_DELAY_MS);
+  }, [place]);
+
+  /**
+   * Keeping the caption up while the pointer is over it.
+   *
+   * The caption is `fixed`, so it sits outside the icon's own hit area - moving from the mark towards the
+   * globe therefore reads to the icon as a *leave*, and without this the caption would be taken away at the
+   * exact moment the reader reached for the thing they were asked to read. It re-places an already-visible
+   * caption rather than restarting the wait, because the wait is over by then.
+   */
+  const hold = useCallback(() => {
+    if (timer.current !== null) return;
+
+    place();
   }, [place]);
 
   const stop = useCallback(() => {
@@ -180,14 +208,11 @@ function LoopIcon({
   useEffect(() => stop, [stop]);
 
   return (
-    // `onPointerMove` restarts the timer for the same reason `onPointerEnter` does: the caption is `fixed`,
-    // so it sits outside this box's hit area, and a pointer travelling from the mark toward the globe would
-    // otherwise read as a leave and take the caption away before it could be pressed.
-    <div ref={icon} className="relative" onPointerEnter={start} onPointerMove={start} onPointerLeave={stop}>
+    <div ref={icon} className="relative" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
       <button
         type="button"
         onClick={onOpen}
-        onFocus={start}
+        onFocus={ask}
         onBlur={stop}
         aria-label={`${label} - press to go back to where you were in it`}
         className="group flex w-full cursor-pointer items-center justify-center rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun py-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
@@ -218,15 +243,14 @@ function LoopIcon({
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}
-      >
-        Ã—
+      >        ×
       </button>
 
       {spot === null ? null : (
         <div
           data-caption="loop"
           style={{ left: spot.left, top: spot.top }}
-          onPointerEnter={start}
+          onPointerEnter={hold}
           onPointerLeave={stop}
           className="fixed z-[130] w-[min(15rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 opacity-60"
         >

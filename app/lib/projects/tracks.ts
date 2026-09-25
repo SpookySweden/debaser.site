@@ -1,11 +1,16 @@
 /**
  * The music archive's catalogue.
  *
- * The netlabel shelf: ten artists, two releases each, filed here by hand the same way the
- * concept sheets are. The audio itself is recorded by hand and dropped into the project
- * `assets/audio/` folder by hand - this list only describes what belongs there, so a row
- * plays the moment the file exists, and until then it states the path it is waiting for,
- * which is the audio half of the rule the artwork follows.
+ * The hand-filed shelf: releases someone has actually put a file up for, described here so the archive can
+ * list them. **It holds nothing at the moment** - see `RELEASES` below for why that is the honest state.
+ *
+ * The audio itself is recorded by hand and dropped into `assets/audio/` by hand - this list only describes
+ * what belongs there, so a row plays the moment the file exists, and until then it states the path it is
+ * waiting for, which is the audio half of the rule the artwork follows.
+ *
+ * The other half of the archive is the Supabase `mp3` bucket, listed by asking it rather than by a list in
+ * the code (`app/lib/audio/supabase-music-repository.ts`), so an upload from the music window appears with
+ * nobody editing this file.
  *
  * ## How a track reads
  *
@@ -51,7 +56,7 @@ export type Track = {
 export const TRACK_FOLDER = 'assets/audio';
 
 /** One release as it is filed: the artist, the year, how it sounds, and its tracks. */
-type ReleaseSeed = {
+export type ReleaseSeed = {
   artist: string;
   album: string;
   year: string;
@@ -71,10 +76,15 @@ function stem(raw: string): string {
 /**
  * A release's tracks as the archive lists them.
  *
+ * Exported so a check can build a release of *its own* and hold the naming rules against it, rather than
+ * against whatever the shipped catalogue happens to contain. That distinction mattered the moment the
+ * invented catalogue was removed: three checks had been asserting "sixty tracks" and broke, having been
+ * testing fake data rather than the rule they were written for.
+ *
  * The id and the path are derived from the artist, the release and the track's position -
  * never from the title - so retitling a track does not move the file it plays.
  */
-function releaseTracks(seed: ReleaseSeed): Track[] {
+export function releaseTracks(seed: ReleaseSeed): Track[] {
   return seed.tracks.map((entry, index) => {
     const id = `${stem(seed.artist)}-${stem(seed.album)}-${String(index + 1).padStart(2, '0')}`;
 
@@ -100,229 +110,23 @@ export function archiveDisplayName(track: Pick<Track, 'title' | 'album' | 'artis
   return `${track.title} - ${track.album} - ${track.artist}`;
 }
 
-/** The shelf, in the order it was filed: the artists in turn, oldest release first. */
-const RELEASES: ReleaseSeed[] = [
-  {
-    artist: 'SLEEP STATIC',
-    album: 'TAPE DECK SUMMER',
-    year: '1996',
-    tags: ['LO FI', 'HIP HOP'],
-    tracks: [
-      { title: 'SUMMER STATIC', length: '3:12' },
-      { title: 'BACK SEAT RADIO', length: '2:48' },
-      { title: 'ONE MORE TAPE', length: '3:40' },
-    ],
-  },
-  {
-    artist: 'SLEEP STATIC',
-    album: 'RAIN ON CONCRETE',
-    year: '1998',
-    tags: ['LO FI', 'HIP HOP', 'DOWNTEMPO'],
-    tracks: [
-      { title: 'WET KERB', length: '4:02' },
-      { title: 'LAST BUS HOME', length: '3:26' },
-      { title: 'SLEEPLESS AT SIX', length: '3:51' },
-    ],
-  },
-  {
-    artist: 'DJ NULLSET',
-    album: 'CARGO CULT BEATS',
-    year: '1995',
-    tags: ['HIP HOP', 'DOWNTEMPO'],
-    tracks: [
-      { title: 'SAMPLE CLEARANCE', length: '3:08' },
-      { title: 'DUSTY FREIGHT', length: '2:57' },
-      { title: 'NULL SET', length: '4:15' },
-    ],
-  },
-  {
-    artist: 'DJ NULLSET',
-    album: 'SLOW TRAIN TO NOWHERE',
-    year: '1999',
-    tags: ['DOWNTEMPO', 'TRIP HOP'],
-    tracks: [
-      { title: 'PLATFORM NINE', length: '5:02' },
-      { title: 'NO SIGNAL', length: '4:28' },
-      { title: 'SLEEPER CAR', length: '6:11' },
-    ],
-  },
-  {
-    artist: 'LOWLIGHT CHOIR',
-    album: 'SALT FLATS',
-    year: '1994',
-    tags: ['AMBIENT', 'DRONE'],
-    tracks: [
-      { title: 'WHITE PAN', length: '6:40' },
-      { title: 'MIRAGE', length: '5:18' },
-      { title: 'SALT LINE', length: '7:02' },
-    ],
-  },
-  {
-    artist: 'LOWLIGHT CHOIR',
-    album: 'NIGHT BUS',
-    year: '2001',
-    tags: ['AMBIENT'],
-    tracks: [
-      { title: 'TERMINAL LIGHTS', length: '4:44' },
-      { title: 'WINDOW SEAT', length: '5:30' },
-      { title: 'DAWN INTERCHANGE', length: '6:25' },
-    ],
-  },
-  {
-    artist: 'GHOST REPEATER',
-    album: 'ABANDONED AIRPORTS',
-    year: '1997',
-    tags: ['AMBIENT', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'CONCOURSE B', length: '8:10' },
-      { title: 'DEPARTURES BOARD', length: '5:55' },
-      { title: 'NO FLIGHTS', length: '6:48' },
-    ],
-  },
-  {
-    artist: 'GHOST REPEATER',
-    album: 'TAPE HISS MEDITATION',
-    year: '2000',
-    tags: ['DRONE', 'EXPERIMENTAL', 'NOISE'],
-    tracks: [
-      { title: 'HISS LOOP', length: '7:33' },
-      { title: 'BROKEN AZIMUTH', length: '4:19' },
-      { title: 'STOP BUTTON', length: '3:57' },
-    ],
-  },
-  {
-    artist: 'HEXHAM',
-    album: 'MACHINE BALLADS',
-    year: '1996',
-    tags: ['IDM', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'BINARY LULLABY', length: '5:12' },
-      { title: 'SEQUENCER TEARS', length: '4:36' },
-      { title: 'ROOM TONE', length: '6:02' },
-    ],
-  },
-  {
-    artist: 'HEXHAM',
-    album: 'GRIDLOCK',
-    year: '1998',
-    tags: ['IDM', 'BREAKCORE'],
-    tracks: [
-      { title: 'TRAFFIC MODEL', length: '3:44' },
-      { title: 'PACKET LOSS', length: '4:08' },
-      { title: 'RED LIGHT DISTRICT', length: '5:21' },
-    ],
-  },
-  {
-    artist: 'PLASTIC ORACLE',
-    album: 'SOFTWARE DECAY',
-    year: '1997',
-    tags: ['IDM', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'DEPRECATED', length: '4:50' },
-      { title: 'MEMORY LEAK', length: '3:33' },
-      { title: 'ORACLE BONE', length: '5:44' },
-    ],
-  },
-  {
-    artist: 'PLASTIC ORACLE',
-    album: 'CATHODE',
-    year: '1999',
-    tags: ['IDM', 'NOISE'],
-    tracks: [
-      { title: 'PHOSPHOR BURN', length: '4:12' },
-      { title: 'SCANLINE', length: '3:29' },
-      { title: 'TUBE FAILURE', length: '5:06' },
-    ],
-  },
-  {
-    artist: 'BLIND TERMINAL',
-    album: 'DEAD SIGNAL',
-    year: '1995',
-    tags: ['NOISE', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'CARRIER LOST', length: '6:20' },
-      { title: 'STATIC BLOOM', length: '5:41' },
-      { title: 'TERMINAL HUM', length: '7:14' },
-    ],
-  },
-  {
-    artist: 'BLIND TERMINAL',
-    album: 'FEEDBACK LOOP',
-    year: '2002',
-    tags: ['NOISE', 'DRONE'],
-    tracks: [
-      { title: 'HOWL BACK', length: '8:02' },
-      { title: 'GROUND LOOP', length: '5:27' },
-      { title: 'CLIPPING', length: '4:45' },
-    ],
-  },
-  {
-    artist: 'VHS MARTYR',
-    album: 'TRACKING ERROR',
-    year: '1998',
-    tags: ['NOISE', 'BREAKCORE'],
-    tracks: [
-      { title: 'BLUE SCREEN TEARS', length: '3:18' },
-      { title: 'TRACKING BAR', length: '2:44' },
-      { title: 'REWIND DAMAGE', length: '4:01' },
-    ],
-  },
-  {
-    artist: 'VHS MARTYR',
-    album: 'HEAD CLEANING TAPE',
-    year: '2003',
-    tags: ['NOISE', 'BREAKCORE', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'CHROME DUST', length: '5:33' },
-      { title: 'AUTO TRACKING', length: '3:52' },
-      { title: 'TAPE EATER', length: '6:07' },
-    ],
-  },
-  {
-    artist: 'CONCRETE ANGEL',
-    album: 'STAIRWELL',
-    year: '1996',
-    tags: ['DOWNTEMPO', 'TRIP HOP'],
-    tracks: [
-      { title: 'TWELVE FLOORS', length: '4:22' },
-      { title: 'LANDING LIGHT', length: '3:47' },
-      { title: 'BROKEN LIFT', length: '5:15' },
-    ],
-  },
-  {
-    artist: 'CONCRETE ANGEL',
-    album: 'CITY OF SMALL ROOMS',
-    year: '1999',
-    tags: ['DOWNTEMPO', 'LO FI'],
-    tracks: [
-      { title: 'BEDSIT', length: '3:36' },
-      { title: 'NIGHT PORTER', length: '4:09' },
-      { title: 'LAST ROOM', length: '5:48' },
-    ],
-  },
-  {
-    artist: 'SPOKEN WIRE',
-    album: 'PIRATE RADIO GHOSTS',
-    year: '1997',
-    tags: ['SPOKEN WORD', 'EXPERIMENTAL'],
-    tracks: [
-      { title: 'FREQUENCY DRIFT', length: '4:31' },
-      { title: 'ANNOUNCEMENT', length: '2:58' },
-      { title: 'DEAD AIR', length: '5:12' },
-    ],
-  },
-  {
-    artist: 'SPOKEN WIRE',
-    album: 'LAST TRANSMISSION',
-    year: '2001',
-    tags: ['SPOKEN WORD', 'AMBIENT'],
-    tracks: [
-      { title: 'SIGN OFF', length: '6:03' },
-      { title: 'REPEATER', length: '4:47' },
-      { title: 'SILENCE AFTER', length: '7:26' },
-    ],
-  },
-];
+/**
+ * The shelf: the releases the archive actually holds.
+ *
+ * **Empty, and that is the honest state.** This list used to carry twenty invented releases - ten invented
+ * artists, sixty invented track titles, their running times made up - and not one of the `mp3` files they
+ * pointed at existed, because there is no audio in the repository at all. Every row in the archive was
+ * therefore a path waiting for a file that was never going to arrive, which reads as a broken shelf rather
+ * than as an empty one.
+ *
+ * The machinery is kept and only the data is gone, on purpose: drop a real file into `assets/audio/` and
+ * add its release here, and it plays with nothing else to change. A track's `src` is derived from the
+ * release, never from the title, so a file keeps playing when its title is edited.
+ *
+ * The archive is not empty as a *screen* while this list is empty - it lists whatever the Supabase `mp3`
+ * bucket holds, which is where uploads go. This list is only the hand-filed half.
+ */
+const RELEASES: ReleaseSeed[] = [];
 
-/** Every track the archive holds: ten artists, twenty releases, in filing order. */
+/** Every track the archive holds by hand: nothing yet, and the bucket's own files beside it. */
 export const TRACKS: Track[] = RELEASES.flatMap(releaseTracks);
