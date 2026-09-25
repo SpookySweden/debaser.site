@@ -163,8 +163,16 @@ export type MusicRepository = {
    * the two rather than swallowing both into an empty array.
    */
   listQueues(): Promise<BroadcastQueue[]>;
-  /** This account's own queue, public or not, or null when it has never published one. */
-  readOwnQueue(): Promise<OwnQueue | null>;
+  /**
+   * This account's own queue, public or not, or null when it has never published one.
+   *
+   * The account is passed in for the reason every other per-account read here passes one: "whose row is
+   * this" is not a question a store can answer on its own. The mock got it wrong first - it returned
+   * whichever account had last written in *this browser*, so on a shared machine the second person to
+   * sign in was shown the first person's queue, private or not. The real table refuses that through its
+   * policy; the mock has to be told.
+   */
+  readOwnQueue(userId: string): Promise<OwnQueue | null>;
   /**
    * Publishes, retracts or moves this account's queue along.
    *

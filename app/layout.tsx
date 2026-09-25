@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Silkscreen } from 'next/font/google';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
+import BroadcastHeartbeat from './components/BroadcastHeartbeat';
 import AuthProvider from './components/AuthProvider';
 import CommsNotifier from './components/CommsNotifier';
 import CommsProvider from './components/CommsProvider';
@@ -78,6 +79,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <CommsNotifier />
                       {/* ...and the player's bar sits over every page, docked to the bottom. */}
                       <MusicPlayer />
+                      {/* A broadcast has to keep telling the database where it is, whether or not the
+                          window that started it is open - so the heartbeat is drawn by the shell, next to
+                          the player whose clock it reads, and not inside the queue window. */}
+                      <BroadcastHeartbeat />
                       {/* The site's two utility windows, drawn once and docked beside whatever is
                           being read rather than being pages of their own: the arcade (a post's
                           `[ CHALLENGE ]`, the side panel's key or the bell) and the music window (the

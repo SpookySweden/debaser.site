@@ -46,9 +46,6 @@ const QUEUE_KEY = 'debaser.audio.queues.v1';
 /** The channel two tabs of this browser tell each other a queue moved on. */
 const QUEUE_WIRE = 'debaser.queues.changed';
 
-/** Who this browser was last signed in as, so "your own queue" can be found on the mock. */
-const QUEUE_OWNER_KEY = 'debaser.audio.queues.owner.v1';
-
 const STORAGE_VERSION = 1;
 
 type PersistedState = {
@@ -240,58 +237,41 @@ function isQueueShaped(value: unknown): value is BroadcastQueue & { isPublic: bo
 }
 
 function loadQueues(): (BroadcastQueue & { isPublic: boolean })[] {
-  if (!hasStorage()) return [];
+  if (!hasStorage()) return queueMemory;
 
   const raw = window.localStorage.getItem(QUEUE_KEY);
-  if (raw === null || raw.length === 0) return [];
+  if (raw === null || raw.length === 0) return queueMemory;
 
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
+    if (!Array.isArray(parsed)) return queueMemory;
 
     return parsed.filter(isQueueShaped);
   } catch {
-    return [];
+    return queueMemory;
   }
 }
 
+/**
+ * The rows when there is no storage at all.
+ *
+ * `localStorage` is absent in a Node process, which is where the checks run - so without this the mock
+ * would answer "nothing is broadcasting" to every read and a check of its *scoping* could not be written.
+ * The other mock stores answer with an empty list in that case and leave it there, which is fine for a
+ * shelf read but wrong here: a broadcast is a *conversation with state*, and the question worth asking
+ * about it is whether one account can see another's row.
+ */
+let queueMemory: (BroadcastQueue & { isPublic: boolean })[] = [];
+
 function persistQueues(rows: (BroadcastQueue & { isPublic: boolean })[]): void {
+  queueMemory = rows;
+
   if (!hasStorage()) return;
 
   try {
     window.localStorage.setItem(QUEUE_KEY, JSON.stringify(rows));
   } catch {
-    // Storage full or blocked: the queue holds for this session only.
-  }
-}
-
-/**
- * Who this browser is, for the mock's "your own queue".
- *
- * Written by `publishQueue` and read by `readOwnQueue`, because the mock has no session of its own -
- * the account is passed into every write by the caller, and this is where the mock remembers which one
- * that was. It is deliberately *not* a claim about who is signed in: the real answer to that question is
- * `AuthProvider`'s, and a store that guessed would be a second authority on it.
- */
-function currentQueueOwner(): string | null {
-  if (!hasStorage()) return null;
-
-  try {
-    return window.localStorage.getItem(QUEUE_OWNER_KEY);
-  } catch {
-    return null;
-  }
-}
-
-/** Remembers which account last wrote a queue here, so `readOwnQueue` can find it without a session. */
-function rememberQueueOwner(userId: string): void {
-  if (!hasStorage()) return;
-
-  try {
-    window.localStorage.setItem(QUEUE_OWNER_KEY, userId);
-  } catch {
-    // Storage blocked: `readOwnQueue` reads as null, and the switch shows as off - which is wrong but
-    // harmless, and the press that follows still writes.
+    // Storage full or blocked: the rows are still in `queueMemory` for this session.
   }
 }
 
@@ -510,15 +490,22 @@ class MockMusicRepository implements MusicRepository {
       .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
   }
 
-  async readOwnQueue(): Promise<OwnQueue | null> {
-    const own = currentQueueOwner();
-
-    return own === null ? null : (loadQueues().find((queue) => queue.userId === own) ?? null);
+  /**
+   * This account's own queue - and it takes the account, which is the fix for a real hole.
+   *
+   * It used to read whichever account had last published *in this browser*, so signing in as a second
+   * person on a shared machine showed them the first person's queue, private or not. The Supabase
+   * implementation never had that bug because the policy refuses it; a mock has no policy, so it has to be
+   * told whose row it is. That is the whole reason the parameter exists.
+   */
+  async readOwnQueue(userId: string): Promise<OwnQueue | null> {
+    return loadQueues().find((queue) => queue.userId === userId) ?? null;
   }
 
   async publishQueue(input: PublishQueueInput): Promise<void> {
-    const rows = loadQueues().filter((queue) => queue.userId !== input.userId);
-    const previous = loadQueues().find((queue) => queue.userId === input.userId);
+    const current = loadQueues();
+    const previous = current.find((queue) => queue.userId === input.userId);
+    const rows = current.filter((queue) => queue.userId !== input.userId);
 
     rows.push({
       userId: input.userId,
@@ -535,7 +522,6 @@ class MockMusicRepository implements MusicRepository {
     });
 
     persistQueues(rows);
-    rememberQueueOwner(input.userId);
     announceQueue();
   }
 

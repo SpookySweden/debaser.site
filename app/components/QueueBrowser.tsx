@@ -12,6 +12,7 @@ import {
   type QueueState,
 } from '../lib/audio/broadcast';
 import { getMusicRepository } from '../lib/audio/repository';
+import { announceQueueChanged } from '../lib/audio/queue-window';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import QueueProfilePopout from './QueueProfilePopout';
@@ -166,10 +167,12 @@ function BroadcastSwitch({
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    if (userId === null) return;
+
     let cancelled = false;
 
     void repository
-      .readOwnQueue()
+      .readOwnQueue(userId)
       .then((own) => {
         if (!cancelled) setIsPublic(own?.isPublic ?? false);
       })
@@ -182,7 +185,7 @@ function BroadcastSwitch({
     return () => {
       cancelled = true;
     };
-  }, [repository]);
+  }, [repository, userId]);
 
   if (!signedIn) {
     return (
@@ -212,7 +215,11 @@ function BroadcastSwitch({
       .then(() => {
         setIsPublic(next);
         setMessage(next ? 'YOU ARE ON THE LIST.' : 'YOU ARE OFF THE LIST.');
+
+        // Both listeners: `onChanged` re-reads the window's own list, and the event wakes the heartbeat,
+        // which is drawn by the shell and cannot see this component at all.
         onChanged();
+        announceQueueChanged();
       })
       .catch((error: unknown) => {
         setMessage(error instanceof Error ? error.message : 'THAT DID NOT SAVE.');

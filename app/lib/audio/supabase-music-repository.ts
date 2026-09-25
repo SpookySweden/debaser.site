@@ -562,14 +562,22 @@ class SupabaseMusicRepository implements MusicRepository {
     return (data ?? []).map(toBroadcastQueue);
   }
 
-  /** This account's own queue, public or not. Null when it has never published one. */
-  async readOwnQueue(): Promise<OwnQueue | null> {
+  /**
+   * This account's own queue.
+   *
+   * Filtered by the account *as well as* scoped by the policy, and that is deliberate despite looking
+   * redundant: the policy is what makes it safe, and the filter is what makes it *say* whose row it is.
+   * A reader that leaned on the policy alone would silently change meaning the day the policy changed -
+   * and the mock, which has no policy, is what that would look like.
+   */
+  async readOwnQueue(userId: string): Promise<OwnQueue | null> {
     const client = getSupabaseBrowserClient();
     if (client === null) return null;
 
     const { data, error } = await client
       .from(QUEUES_TABLE)
       .select('user_id, track_id, track_index, track_total, position_seconds, is_public, started_at, updated_at')
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error !== null) {

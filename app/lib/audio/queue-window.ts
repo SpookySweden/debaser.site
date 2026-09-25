@@ -106,3 +106,25 @@ export function queueTabRequested(search: string): QueueTab {
 export function queuesAddressSpentByClose(search: string): boolean {
   return queuesRequested(search);
 }
+
+/**
+ * The event a broadcast's *state* changing fires on.
+ *
+ * The switch that turns a broadcast on and the heartbeat that keeps it alive are siblings in different
+ * subtrees - the switch is inside the window, the heartbeat is drawn by the shell - so neither can read
+ * the other's state. This is the seam: the switch announces that it wrote something, and the heartbeat
+ * re-reads whether it should be running.
+ *
+ * A DOM event rather than a second module-level slot, deliberately. A slot would be a *second* source of
+ * truth for "am I public" - the row is the first, and the row is what the policy guards - and two stores
+ * that can disagree about that is how a switch ends up showing OFF while the database says otherwise.
+ * This carries no state at all; it only says *look again*.
+ */
+export const QUEUE_CHANGED = 'debaser:queue-changed';
+
+/** Says the row moved. Called by whatever wrote it, so a listener can re-read. */
+export function announceQueueChanged(): void {
+  if (typeof window === 'undefined') return;
+
+  window.dispatchEvent(new Event(QUEUE_CHANGED));
+}
