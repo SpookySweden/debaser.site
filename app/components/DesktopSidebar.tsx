@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
-import { SIDE_ARCADE, SIDE_MUSIC } from './SiteNav';
+import { SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import type { NavItem } from './SiteNav';
 import {
   arcadeAddressSpentByClose,
@@ -20,6 +20,12 @@ import {
   subscribeToMusicWindow,
   toggleMusic,
 } from '../lib/audio/music-window';
+import {
+  queueWindowState,
+  queuesAddressSpentByClose,
+  subscribeToQueueWindow,
+  toggleQueues,
+} from '../lib/audio/queue-window';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
@@ -27,6 +33,17 @@ import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
  * browser's storage reads as one set of settings.
  */
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
+
+/**
+ * The shelf's keys, in the order they are drawn.
+ *
+ * A list rather than a number typed into the title bar, so the count is the length of the row above it
+ * and adding a shelf cannot leave the count behind. The presses stay explicit in the JSX below, because
+ * each one answers a *different* question - the archive opens its own screen, the queue window opens
+ * whichever tab it last had - and folding three different behaviours into one table would hide that
+ * behind a lookup.
+ */
+const SHELF_KEYS: NavItem[] = [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES];
 
 const RAIL_BUTTON =
   'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice max-md:min-h-11 max-md:min-w-11 max-md:text-base';
@@ -137,6 +154,8 @@ export default function DesktopSidebar() {
   const musicOpen = musicState.open;
   const arcadeState = useSyncExternalStore(subscribeToArcadeWindow, arcadeWindowState, arcadeWindowState);
   const arcadeOpen = arcadeState.open;
+  const queueState = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowState);
+  const queuesOpen = queueState.open;
   const pathname = usePathname();
   const router = useRouter();
 
@@ -195,6 +214,19 @@ export default function DesktopSidebar() {
     [pressShelf],
   );
 
+  /**
+   * The panel's QUEUES key.
+   *
+   * The same shape as the other two, and the same reason: `toggleQueues` with no argument opens
+   * whichever tab the window last had, which is what a key that says QUEUES and nothing more should do.
+   * A reader who wants a *particular* tab gets it from a link - a post's plate, a track's tag - and those
+   * carry the tab in the address (`app/lib/audio/queue-window.ts`).
+   */
+  const pressQueues = useCallback(
+    () => pressShelf(queueWindowState().open, queuesAddressSpentByClose, () => toggleQueues()),
+    [pressShelf],
+  );
+
 
   if (!isOpen) {
     return (
@@ -242,12 +274,15 @@ export default function DesktopSidebar() {
         <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
           <div className={TITLE_BAR_INACTIVE}>
             <span>SHELF</span>
-            <span>[ 2 ]</span>
+            {/* Counted rather than typed: the row below is the list, and a number written by hand beside
+                it is the kind of thing that stays at 2 while a third key appears. */}
+            <span>[ {SHELF_KEYS.length} ]</span>
           </div>
 
           <div className="space-y-1 p-2">
             <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
+            <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />
           </div>
         </section>
 

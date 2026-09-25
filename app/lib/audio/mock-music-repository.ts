@@ -1,7 +1,8 @@
 import { normaliseFolderPath, normaliseArchiveName } from './archive-tree';
+import type { BroadcastQueue } from './broadcast';
 import { validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
-import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, UploadTrackInput } from './repository';
+import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, OwnQueue, PublishQueueInput, UploadTrackInput } from './repository';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
 
@@ -33,6 +34,21 @@ const FOLDER_KEY = 'debaser.audio.folders.v1';
  * in finds their own list again.
  */
 const LIBRARY_KEY = 'debaser.audio.library.v1';
+/**
+ * The published queues, keyed by account.
+ *
+ * One row per account rather than a list of rows, because a person is listening to one thing at a time
+ * - the same reason the table's primary key is the account. A private queue is still *stored* here (so
+ * going public again does not lose the track) and is filtered out of every read anybody else makes.
+ */
+const QUEUE_KEY = 'debaser.audio.queues.v1';
+
+/** The channel two tabs of this browser tell each other a queue moved on. */
+const QUEUE_WIRE = 'debaser.queues.changed';
+
+/** Who this browser was last signed in as, so "your own queue" can be found on the mock. */
+const QUEUE_OWNER_KEY = 'debaser.audio.queues.owner.v1';
+
 const STORAGE_VERSION = 1;
 
 type PersistedState = {
@@ -200,6 +216,103 @@ function writeRecord(userId: string, record: LibraryRecord): void {
  * another machine until `NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase` points the store at the tables in
  * `supabase/migrations/20260930000025_music_library.sql`.
  */
+
+/**
+ * The published queues this browser holds.
+ *
+ * Shaped like the table so the two stores cannot drift in what they mean by a row: one entry per
+ * account, carrying the track, the position and the two stamps. `isPublic` is stored *with* the row here
+ * (unlike on the server, where the policy does the hiding) because a mock has no policy - so the filter
+ * is applied on read instead, in `listQueues`.
+ */
+function isQueueShaped(value: unknown): value is BroadcastQueue & { isPublic: boolean } {
+  if (typeof value !== 'object' || value === null) return false;
+
+  const row = value as Partial<BroadcastQueue & { isPublic: boolean }>;
+
+  return (
+    typeof row.userId === 'string' &&
+    typeof row.trackId === 'string' &&
+    typeof row.positionSeconds === 'number' &&
+    typeof row.updatedAt === 'string' &&
+    typeof row.isPublic === 'boolean'
+  );
+}
+
+function loadQueues(): (BroadcastQueue & { isPublic: boolean })[] {
+  if (!hasStorage()) return [];
+
+  const raw = window.localStorage.getItem(QUEUE_KEY);
+  if (raw === null || raw.length === 0) return [];
+
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+
+    return parsed.filter(isQueueShaped);
+  } catch {
+    return [];
+  }
+}
+
+function persistQueues(rows: (BroadcastQueue & { isPublic: boolean })[]): void {
+  if (!hasStorage()) return;
+
+  try {
+    window.localStorage.setItem(QUEUE_KEY, JSON.stringify(rows));
+  } catch {
+    // Storage full or blocked: the queue holds for this session only.
+  }
+}
+
+/**
+ * Who this browser is, for the mock's "your own queue".
+ *
+ * Written by `publishQueue` and read by `readOwnQueue`, because the mock has no session of its own -
+ * the account is passed into every write by the caller, and this is where the mock remembers which one
+ * that was. It is deliberately *not* a claim about who is signed in: the real answer to that question is
+ * `AuthProvider`'s, and a store that guessed would be a second authority on it.
+ */
+function currentQueueOwner(): string | null {
+  if (!hasStorage()) return null;
+
+  try {
+    return window.localStorage.getItem(QUEUE_OWNER_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Remembers which account last wrote a queue here, so `readOwnQueue` can find it without a session. */
+function rememberQueueOwner(userId: string): void {
+  if (!hasStorage()) return;
+
+  try {
+    window.localStorage.setItem(QUEUE_OWNER_KEY, userId);
+  } catch {
+    // Storage blocked: `readOwnQueue` reads as null, and the switch shows as off - which is wrong but
+    // harmless, and the press that follows still writes.
+  }
+}
+
+/**
+ * Tells other tabs of this browser that a queue moved.
+ *
+ * Separate from the store's `subscribe` because the two have different reaches: the listener set wakes
+ * *this* tab, and the channel wakes the others. A caller that only had one of them would see a list that
+ * was stale in one of the two directions.
+ */
+function announceQueue(): void {
+  if (typeof BroadcastChannel === 'undefined') return;
+
+  const wire = new BroadcastChannel(QUEUE_WIRE);
+
+  try {
+    wire.postMessage('changed');
+  } finally {
+    wire.close();
+  }
+}
 
 class MockMusicRepository implements MusicRepository {
   readonly source = 'mock' as const;
@@ -379,6 +492,76 @@ class MockMusicRepository implements MusicRepository {
       ...record,
       playlists: record.playlists.filter((list) => list.id !== playlistIdToRemove),
     });
+  }
+
+  /* ---------------------------------------------------------------------------------------------
+   * Broadcast queues
+   *
+   * **Honest limit, and it is a real one.** This store lives in this browser's localStorage, so a
+   * queue published here reaches *this machine* and no other. `BroadcastChannel` lets two tabs of the
+   * same site see each other, which is enough to walk the flow - but a different person on a different
+   * machine cannot, and no care here changes that. Following somebody across machines needs
+   * `NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase` and the `music_queues` table.
+   * ------------------------------------------------------------------------------------------- */
+
+  async listQueues(): Promise<BroadcastQueue[]> {
+    return loadQueues()
+      .filter((queue) => queue.isPublic)
+      .sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt));
+  }
+
+  async readOwnQueue(): Promise<OwnQueue | null> {
+    const own = currentQueueOwner();
+
+    return own === null ? null : (loadQueues().find((queue) => queue.userId === own) ?? null);
+  }
+
+  async publishQueue(input: PublishQueueInput): Promise<void> {
+    const rows = loadQueues().filter((queue) => queue.userId !== input.userId);
+    const previous = loadQueues().find((queue) => queue.userId === input.userId);
+
+    rows.push({
+      userId: input.userId,
+      trackId: input.trackId,
+      trackIndex: input.trackIndex,
+      trackTotal: Math.max(1, input.trackTotal),
+      positionSeconds: Math.max(0, input.positionSeconds),
+      isPublic: input.isPublic,
+      // The start survives a move: `startedAt` is when this person began broadcasting, which is what a
+      // listener reads as "how long they have been on", so re-writing it on every track change would
+      // reset a number that is supposed to grow.
+      startedAt: previous?.startedAt ?? new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+
+    persistQueues(rows);
+    rememberQueueOwner(input.userId);
+    announceQueue();
+  }
+
+  async clearQueue(userId: string): Promise<void> {
+    persistQueues(loadQueues().filter((queue) => queue.userId !== userId));
+    announceQueue();
+  }
+
+  /**
+   * This browser's own writes, and other tabs of it.
+   *
+   * A `BroadcastChannel` rather than a timer, for the reason the game channel is one: two tabs of the
+   * same site are the only two clients this store can reach, so the channel is exactly the reach it
+   * has. Where `BroadcastChannel` does not exist the subscription is silent rather than broken.
+   */
+  subscribeToQueues(onChange: () => void): () => void {
+    if (typeof BroadcastChannel === 'undefined') return () => undefined;
+
+    const wire = new BroadcastChannel(QUEUE_WIRE);
+
+    wire.onmessage = () => onChange();
+
+    return () => {
+      wire.onmessage = null;
+      wire.close();
+    };
   }
 }
 

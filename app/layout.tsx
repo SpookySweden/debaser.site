@@ -10,6 +10,7 @@ import MusicPlayer from './components/MusicPlayer';
 import MusicLibraryProvider from './components/MusicLibraryProvider';
 import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
+import QueueWindow from './components/QueueWindow';
 import NotificationsProvider from './components/NotificationsProvider';
 import PreferencesWindow from './components/PreferencesWindow';
 import PresenceProvider from './components/PresenceProvider';
@@ -87,6 +88,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <Suspense fallback={null}>
                         <ArcadeWindow />
                         <MusicWindow />
+                        <QueueWindow />
                       </Suspense>
 
                       {/* Preferences: the one window with no address, because a theme is a setting on

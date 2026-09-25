@@ -42,6 +42,15 @@ export const ICON_ACCOUNT = '⚿';
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 
+/**
+ * The queue window: a loop, because that is what it holds.
+ *
+ * The glyph rather than a drawing, like every other mark here - and it is the right one twice over: a
+ * loop is a place you return to, and the window's two halves are both about returning (to where you
+ * were, and to what somebody else is playing).
+ */
+export const ICON_LOOP = '↻';
+
 /** What a mark means, so a page can print the legend once rather than beside every key. */
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },
@@ -49,4 +58,5 @@ export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'users', mark: ICON_USERS, meaning: 'EVERY ACCOUNT ON THE SITE' },
   { key: 'comms', mark: ICON_COMMS, meaning: 'DIRECT MESSAGES' },
   { key: 'account', mark: ICON_ACCOUNT, meaning: 'YOUR OWN CABINET' },
+  { key: 'queues', mark: ICON_LOOP, meaning: 'WHERE YOU WERE, AND WHO IS LISTENING' },
 ];

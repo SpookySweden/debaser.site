@@ -1,5 +1,6 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import type { FolderPath } from './archive-tree';
+import type { BroadcastQueue } from './broadcast';
 import type { LikedTrack, Playlist, PlaylistItem } from './library';
 import { getMockMusicRepository } from './mock-music-repository';
 import { getSupabaseMusicRepository } from './supabase-music-repository';
@@ -144,6 +145,67 @@ export type MusicRepository = {
   togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist>;
   /** Takes a list away. Only its owner may, which the policy enforces rather than this code. */
   removePlaylist(ownerId: string, playlistId: string): Promise<void>;
+
+  /* ---------------------------------------------------------------------------------------------
+   * Broadcast queues.
+   *
+   * The queue somebody is listening to, published so others can follow it. Two reads and two writes,
+   * and the account is passed in for the reason the library methods give: "who may write this" is the
+   * database's question, answered by the policy on `music_queues`, not this interface's.
+   * ------------------------------------------------------------------------------------------- */
+
+  /**
+   * The queues anybody may see - the public ones, most recently moved first.
+   *
+   * Never throws, and an empty answer is meaningful: a table that has not been migrated reads as
+   * "nobody is broadcasting", which is what the tab draws before the schema is there. A *failure* is
+   * different and is reported by the caller, which is why the Supabase implementation distinguishes
+   * the two rather than swallowing both into an empty array.
+   */
+  listQueues(): Promise<BroadcastQueue[]>;
+  /** This account's own queue, public or not, or null when it has never published one. */
+  readOwnQueue(): Promise<OwnQueue | null>;
+  /**
+   * Publishes, retracts or moves this account's queue along.
+   *
+   * One method rather than three, because every one of them is the same upsert: a person is listening
+   * to one thing at a time, so the row is keyed by the account and "go public", "change track" and
+   * "stop broadcasting" differ only in the values written. That also means the row cannot be duplicated
+   * by two presses racing, which three methods could.
+   */
+  publishQueue(input: PublishQueueInput): Promise<void>;
+  /** Forgets this account's queue entirely, which is more than going private - the row is gone. */
+  clearQueue(userId: string): Promise<void>;
+  /**
+   * Tells the caller when a queue moves, until the returned function is called.
+   *
+   * A subscription rather than a poll, so somebody going public or changing track appears on the list
+   * without a reload. The mock store cannot reach another browser and subscribes to its own writes, so
+   * on the mock the list only moves when *this* browser changes something - the honest limit every mock
+   * store in this project has.
+   */
+  subscribeToQueues(onChange: () => void): () => void;
+};
+
+/**
+ * A queue's row, plus the one field only its owner may see.
+ *
+ * `isPublic` is deliberately *not* on `BroadcastQueue`: a list of public queues has no use for the flag,
+ * because everything on it is public by definition - and putting it there would invite a screen to draw
+ * a broadcast that is not one. It is its own type because only `readOwnQueue` may return it, and the
+ * switch that shows it is the only thing that reads it.
+ */
+export type OwnQueue = BroadcastQueue & { isPublic: boolean };
+
+/** What a queue write needs: the whole state, because every write is an upsert of it. */
+export type PublishQueueInput = {
+  /** The account publishing. Passed in rather than read from a session, like every other write here. */
+  userId: string;
+  trackId: string;
+  trackIndex: number;
+  trackTotal: number;
+  positionSeconds: number;
+  isPublic: boolean;
 };
 
 let mockRepository: MusicRepository | null = null;

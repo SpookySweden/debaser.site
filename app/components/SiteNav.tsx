@@ -7,9 +7,11 @@ import {
   ICON_COMMS,
   ICON_FORUM,
   ICON_HOME,
+  ICON_LOOP,
   ICON_MUSIC,
   ICON_USERS,
 } from '../lib/ui/icons';
+import { QUEUES_HREF } from '../lib/audio/queue-window';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
 import { useComms } from './CommsProvider';
 
@@ -20,7 +22,7 @@ import { useComms } from './CommsProvider';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'games' | 'music' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -120,6 +122,21 @@ export const SIDE_MUSIC: NavItem = {
    * "show me my music".
    */
   href: LIBRARY_HREF,
+};
+
+/**
+ * The queue window's key: the things you can listen *along to*.
+ *
+ * A `NavItem` like the other two, so the three shelf keys in the panel are written the same way and the
+ * Start menu and the account drawer can offer it without a second list. Its glyph is the loop, because
+ * that is what the window is about - a place you go back to - and its `href` is the board carrying the
+ * query, the way MUSIC's and the arcade's are.
+ */
+export const SIDE_QUEUES: NavItem = {
+  key: 'queues',
+  label: 'QUEUES',
+  mark: ICON_LOOP,
+  href: QUEUES_HREF,
 };
 
 /**

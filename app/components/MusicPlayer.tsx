@@ -10,7 +10,12 @@ import {
   musicWindowState,
   toggleMusic,
 } from '../lib/audio/music-window';
-import { SIDE_MUSIC } from './SiteNav';
+import {
+  queueWindowState,
+  queuesAddressSpentByClose,
+  toggleQueues,
+} from '../lib/audio/queue-window';
+import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -150,6 +155,24 @@ export default function MusicPlayer() {
     if (wasOpen && musicAddressSpentByClose(asked)) router.replace(pathname);
   }, [pathname, router]);
 
+  /**
+   * The queue key on the bar.
+   *
+   * The same press as the panel's QUEUES key and the same shape as `pressMusic` just above, deliberately:
+   * a reader who has just been displaced by somebody's queue is looking at *this* bar when they want
+   * their own listening back, so the way to RADI-OH has to be within reach of the transport rather than
+   * only in the side panel. It opens whichever tab the window last had, which for the panel's key and
+   * this one is the same answer - a key that says QUEUES and nothing more opens the window.
+   */
+  const pressQueues = useCallback(() => {
+    const asked = window.location.search;
+    const wasOpen = queueWindowState().open;
+
+    toggleQueues();
+
+    if (wasOpen && queuesAddressSpentByClose(asked)) router.replace(pathname);
+  }, [pathname, router]);
+
   if (!open) {
     return (
       <button
@@ -169,12 +192,14 @@ export default function MusicPlayer() {
         <CompactBar
           onHide={() => setBarOpen(false)}
           onMusic={pressMusic}
+          onQueues={pressQueues}
           onSettings={() => setSettingsOpen(true)}
         />
       ) : (
         <DockedBar
           onHide={() => setBarOpen(false)}
           onMusic={pressMusic}
+          onQueues={pressQueues}
           onSettings={() => setSettingsOpen(true)}
         />
       )}
@@ -190,6 +215,14 @@ type BarControls = {
   onHide: () => void;
   /** Opens the music window - the reader's own screen, the same one the side panel's key opens. */
   onMusic: () => void;
+  /**
+   * Opens the queue window - RADI-OH and the people broadcasting.
+   *
+   * On the bar as well as in the panel, because the two are read at different moments: the panel is
+   * where a reader *browses*, and the bar is where they are when something takes the player over. The
+   * press is identical either way (`pressQueues`), so the two cannot disagree about what QUEUES means.
+   */
+  onQueues: () => void;
   onSettings: () => void;
 };
 
@@ -205,7 +238,7 @@ type BarControls = {
  * had: `[ HIDE ]` closed the strip from the opposite end to everything else, so the key that puts the
  * player away was the furthest thing from the key that plays it.
  */
-function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
+function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
@@ -335,6 +368,20 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
             aria-haspopup="dialog"
           >
             [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
+          </button>
+
+          {/* The queue key, wearing `SIDE_QUEUES`' own mark and word for the same reason the music key
+              wears `SIDE_MUSIC`': one thing is one thing wherever it is pressed. It is here rather than
+              only in the panel because this is the bar a reader is looking at when somebody's queue has
+              just taken the player over and they want to know where their own listening went. */}
+          <button
+            type="button"
+            onClick={onQueues}
+            className={PLATE_HARDWARE}
+            title="Open queues - what you were listening to, and who is broadcasting"
+            aria-haspopup="dialog"
+          >
+            [ {SIDE_QUEUES.mark} {SIDE_QUEUES.label} ]
           </button>
         </div>
       </div>
@@ -523,7 +570,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
  * phone's player is a solved shape.
  */
-function CompactBar({ onHide, onMusic, onSettings }: BarControls) {
+function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
@@ -555,6 +602,16 @@ function CompactBar({ onHide, onMusic, onSettings }: BarControls) {
             aria-haspopup="dialog"
           >
             {SIDE_MUSIC.mark} music
+          </button>
+
+          <button
+            type="button"
+            onClick={onQueues}
+            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-ena"
+            title="Open queues"
+            aria-haspopup="dialog"
+          >
+            {SIDE_QUEUES.mark} queues
           </button>
 
           <button

@@ -71,6 +71,16 @@ export type MusicPlayerValue = {
   promptDismissed: boolean;
   dismissPrompt: () => void;
   seek: (seconds: number) => void;
+  /**
+   * How fast audio is played, so a listener can catch up to a queue they followed.
+   *
+   * Exposed as a pair rather than kept inside the queue screen because it is a property of *the player*,
+   * not of the queue: the element is shared with every profile's song and the shelf's own playback, and
+   * a screen that reached past the provider to set it would keep it set after it closed. `1` is normal
+   * speed and is what everything but a catch-up writes.
+   */
+  playbackRate: number;
+  setPlaybackRate: (rate: number) => void;
   /** Reads the shelf again, after an upload or a track dropped into the bucket. */
   refresh: () => void;
 };
@@ -164,6 +174,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [duration, setDuration] = useState(Number.NaN);
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
+  const [playbackRate, setPlaybackRateState] = useState(1);
 
   /**
    * The repeat of a track that was *handed over* rather than chosen from the shelf - a profile's own
@@ -538,6 +549,23 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     setElapsed(seconds);
   }, []);
 
+  /**
+   * How fast to play.
+   *
+   * Clamped rather than trusted, and clamped *to the element's own range*: the browser throws when a rate
+   * falls outside what it will accept, and a catch-up rate computed from a queue that is hours stale would
+   * be exactly that. `broadcast.ts` caps its own arithmetic at `MAX_CATCH_UP_RATE`, so this is the second
+   * of two guards - the one that stops a slip in that arithmetic from reaching the audio element.
+   */
+  const setPlaybackRate = useCallback((rate: number) => {
+    const audio = audioRef.current;
+    const safe = Number.isFinite(rate) ? Math.min(4, Math.max(0.25, rate)) : 1;
+
+    if (audio !== null) audio.playbackRate = safe;
+
+    setPlaybackRateState(safe);
+  }, []);
+
   const refresh = useCallback(() => setAttempt((current) => current + 1), []);
 
   const value = useMemo<MusicPlayerValue>(
@@ -566,6 +594,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       promptDismissed,
       dismissPrompt,
       seek,
+      playbackRate,
+      setPlaybackRate,
       refresh,
     }),
     [
@@ -593,6 +623,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       promptDismissed,
       dismissPrompt,
       seek,
+      playbackRate,
+      setPlaybackRate,
       refresh,
     ],
   );
