@@ -3,12 +3,141 @@ SUPABASE
 
 Everything the site needs from a Supabase project, and the order to do it in.
 
+Running SQL from the checkout
+-----------------------------
+Every other way this repository talks to the project is the *site's* way: the
+publishable (anon) key over PostgREST, which is what `app/lib/*/supabase-*.ts`
+uses and what the `Temp/` checks ask their questions with. That key is
+deliberately weak - it reads the tables RLS lets it read and calls the functions
+the schema defines, and it **cannot run SQL at all**, so the checks can prove
+what a reader would see and none of them can ask why. The steps below are the
+SQL editor's job, and this is how to make them a command instead:
+
+    npm run db -- "select count(*) from public.profiles;"
+    npm run db -- "select tablename from pg_tables where schemaname = 'public';"
+    npm run db -- --file supabase/cleanup/verify-live-schema.sql
+    npm run db -- --json "select * from pg_policies where tablename = 'profiles';"
+
+`npm run db` (`Temp/sql.cjs`) drives `supabase db query`, which is the same
+instrument the SQL editor is: it goes to the Management API with a *personal*
+access token, not with the site's key.
+
+**The credential is the whole story, so read this part.** A token (`sbp_...`)
+from https://supabase.com/dashboard/account/tokens belongs to *your account*, not
+to this site: it reaches every project you can see and can do anything to any of
+them. Two ways to give it, and either is enough:
+
+    npx supabase login                        # stores it for the machine, in the browser
+    SUPABASE_ACCESS_TOKEN=sbp_...             # a line in .env.local (gitignored)
+
+`SUPABASE_ACCESS_TOKEN` wins if both are set. It is never read by `app/`, never
+needed to build or run the site, and must never go in `.env.production` or
+anywhere under `app/` - that file is committed and those values reach a browser.
+
+Then link the checkout once, so `--linked` means something. The project ref is
+in `.env.local` already (`https://<ref>.supabase.co`), and this asks for the
+database password (Dashboard -> Project Settings -> Database):
+
+    npm run db:link -- --project-ref <ref>
+
+Two flags matter when the SQL is not a question:
+
+    npm run db -- --write "..."     run a statement that changes something
+    npm run db -- --dry-run "..."   print the statement and the command, run nothing
+
+A statement that is not a read is **refused** without `--write`, and printed in
+full first, so the review is of the SQL rather than of the flag. `--read-only`
+refuses the other way: it errors if the statement turns out to be a write. The
+CLI has no read-only mode of its own, so this is a courtesy rather than a guard -
+but it is the difference between a typo and an outage. `Temp/` is gitignored, and
+so is `.env.local`.
+
+### The migrations, and how the history was adopted
+
+`supabase/migrations/` is now **a real CLI migration chain**, and this is the
+part worth understanding before touching it, because the history had to be
+reconciled by hand exactly once.
+
+Every file is named to the CLI's rule - `<14-digit timestamp>_name.sql`, in the
+order `db push` applies them:
+
+    20260921000009_comms_realtime.sql              section 9
+    20260921000013_group_conversations.sql         section 13
+    20260921000014_music_and_profile_songs.sql     sections 14, 15
+    20260922000016_group_ownership.sql             section 16
+    20260923000017_notifications.sql               section 17
+    20260924000018_forum_pins.sql                  section 18
+    20260926000019_profile_comment_pins.sql        section 19
+    20260927000020_forum_audio_and_track_tags.sql  section 20
+    20260928000021_music_folders.sql               section 21
+    20260929000022_lore_pages.sql                  section 22
+    20260930000023_arcade.sql                      section 23
+    20260930000024_comms_events.sql
+    20260930000025_music_library.sql
+    20260930000026_profile_status.sql
+    20260930000027_welcome_tag.sql
+
+The date part is the date the section was written; the time part is **the
+schema section it holds**. That is deliberate: the old names were
+`20260921_name.sql` - an 8-digit date - and the CLI needs a 14-digit timestamp,
+so the time had to be invented for each file. Using the section number keeps the
+order meaningful rather than arbitrary, which matters because the sections have
+real dependencies (`comms_realtime` publishes what `group_conversations` makes;
+`group_ownership` tightens what `group_conversations` loosened). The four files
+with a section number of 24 or higher are the ones with no section of their own:
+they only add, and they run last.
+
+**Reconciling the history, once.** The schema had been run by pasting
+`schema.sql` into the SQL editor, so the remote
+`supabase_migrations.schema_migrations` table knew about none of this and a
+`db push` would have replayed all fifteen files. The fix is `migration repair`,
+which records what is already true without running anything:
+
+    npx supabase migration repair --status applied 20260921000009
+    # ...and so on for each timestamp, then:
+    npm run db:list          # local and remote, side by side
+
+Every line should read `applied` once that is done, and `db push` then applies
+only what is genuinely new. `20260925000019_catch_up.sql` is deliberately *not*
+in the list above: it was 95 verbatim duplicates of sections 16-18 plus a
+verification query, kept because a human had to paste it. It has moved to
+`supabase/cleanup/catch-up.sql` with the other hand-run utilities, so it can
+never be replayed by a push. Sections 16-18 are the three files above it.
+
+From here on, a new change is:
+
+    npm run db:new -- my_change       # creates <timestamp>_my_change.sql, empty
+    # write the SQL in it, using `if not exists` / `drop policy if exists` like
+    # every other file here, so it is safe on a project that is already partway
+    npm run db:push:dry               # what would run
+    npm run db:push                   # run it
+
+A file that is already written but not yet in the chain can be run on its own
+without touching the history - for a project that is behind by one section, or to
+re-run something:
+
+    npm run db -- --file supabase/migrations/20260930000023_arcade.sql
+
+The read checks do not depend on the history table either way: they ask the
+*project* what it has.
+
 1. Run the schema
 -----------------
-Supabase dashboard -> SQL Editor -> New query, paste the whole of `schema.sql`,
-and Run. It is written to be re-run: tables, indexes, triggers and policies are
-created with `if not exists`, and the policies are dropped and recreated by name,
-so running it again after a change only adds what is new.
+For a **new** project, this is the whole database in one paste. Supabase dashboard -> SQL Editor ->
+New query, paste the whole of `schema.sql`, and Run. It is written to be re-run: tables, indexes,
+triggers and policies are created with `if not exists`, and the policies are dropped and recreated by
+name, so running it again after a change only adds what is new.
+
+For a project that is already running, `schema.sql` is still the reference - the migration chain in
+`supabase/migrations/` is the same statements cut into sections - and a change reaches it with the
+CLI rather than by hand:
+
+    npm run db:push:dry      # what would run
+    npm run db:push          # run it
+
+Either way, one section can be run on its own when that is what is wanted:
+
+    npm run db -- --file supabase/migrations/20260930000023_arcade.sql
 
 It creates:
 
@@ -42,20 +171,20 @@ The last section of the file has three queries to run afterwards (tables and the
 RLS flag, the policies, and the profile rows) - each should answer without error.
 
 A project that has been running since before section 13 (groups) existed needs that one
-section run on its own: `supabase/migrations/20260921_group_conversations.sql` is section
+section run on its own: `supabase/migrations/20260921000013_group_conversations.sql` is section
 13 as a file, safe to re-run. See Groups below for what happens until it has run.
 
 The same goes for three later sections, each with its own file: section 16 (which stops a
 group member renaming a group and claiming it) is
-`supabase/migrations/20260922_group_ownership.sql`, section 17 (tags and replies) is
-`supabase/migrations/20260923_notifications.sql`, and section 18 (pinned posts, and the test
-pin that comes with it) is `supabase/migrations/20260924_forum_pins.sql`. All three are safe
+`supabase/migrations/20260922000016_group_ownership.sql`, section 17 (tags and replies) is
+`supabase/migrations/20260923000017_notifications.sql`, and section 18 (pinned posts, and the test
+pin that comes with it) is `supabase/migrations/20260924000018_forum_pins.sql`. All three are safe
 to re-run. Until section 17 is in, the bell is empty rather than broken: posting, replying and
 tagging all still work, and the tag is simply not delivered - see Notifications below. Until
 section 18 is in, the board works and nothing can be pinned: the pin controls and the
 moderators' panel answer with the store's own words rather than half-working.
 
-Section 19 (pinned comments on a profile) is `supabase/migrations/20260926_profile_comment_pins.sql`,
+Section 19 (pinned comments on a profile) is `supabase/migrations/20260926000019_profile_comment_pins.sql`,
 safe to re-run too. Until it is in, the profile page is exactly as it was: comments read and file
 as normal, the pin button beside each one answers with the database's own words rather than
 half-working, and the wire draws every comment in its scattered order with no `PINNED` plate. The
@@ -65,7 +194,7 @@ on a profile below.
 Two more catch-ups have files of their own, safe to re-run, and both are already part of what
 `schema.sql` does - they exist for a project that has been running since before them:
 
-  `supabase/migrations/20260927_forum_audio_and_track_tags.sql`  an MP3 filed with a post, and the
+  `supabase/migrations/20260927000020_forum_audio_and_track_tags.sql`  an MP3 filed with a post, and the
       audio tags the file directory filters on (`forum_threads.track`, `forum_comments.track`,
       `music_tracks.tags`). Run it *before* the build that posts audio goes up: every post and reply
       writes the `track` column, so until the column exists an insert is refused with the database's
@@ -74,19 +203,19 @@ Two more catch-ups have files of their own, safe to re-run, and both are already
       It needs no new bucket and no new policy: the audio goes into the `mp3` bucket section 14
       already made (see Music below).
 
-  `supabase/migrations/20260928_music_folders.sql`               the folders /music is browsed by,
+  `supabase/migrations/20260928000021_music_folders.sql`               the folders /music is browsed by,
       and the path a file is filed under (`music_folders`, `music_tracks.folder_path`). Until it is
       in, /music still works: the browser lists the catalogue's own releases - their folders are read
       off the files rather than off this table - and it cannot make a new folder or file into one
       somebody made, which it reports in the console rather than pretending.
 
 Section 22 (the lore pages, and the document two editors merge) is
-`supabase/migrations/20260929_lore_pages.sql`, safe to re-run. Until it is in, /lore says so
+`supabase/migrations/20260929000022_lore_pages.sql`, safe to re-run. Until it is in, /lore says so
 rather than pretending to be an empty shelf: the list is a read that fails, and no page can be
 opened. Nothing else on the site reads the table - see Lore pages below.
 
 One more catch-up is worth knowing about, because its failure is silent:
-`supabase/migrations/20260921_comms_realtime.sql` puts the four `comms_*` tables in the
+`supabase/migrations/20260921000009_comms_realtime.sql` puts the four `comms_*` tables in the
 `supabase_realtime` publication. A channel bound to a table that is not in it reports
 SUBSCRIBED and then delivers nothing at all - from any of its tables - which reads on
 screen as "nobody has messaged you yet". See Realtime below.
@@ -274,7 +403,7 @@ a `[ GROUP ]` mark and a head count in the conversation list, a member count wit
 "TO:". Direct messages are unchanged - same derived id, same two readers.
 
 If a project's `comms_*` tables predate section 13, run the catch-up script -
-`supabase/migrations/20260921_group_conversations.sql`, Dashboard -> SQL Editor, safe to
+`supabase/migrations/20260921000013_group_conversations.sql`, Dashboard -> SQL Editor, safe to
 re-run. Until it has run, the site is honest rather than half-broken: the conversation
 read falls back to the pair-only shape (so the comms page, the unread badge and the
 notification pop-up all work on direct messages), and `[ + NEW GROUP ]` answers with the
@@ -308,7 +437,7 @@ Two things follow, and both are in the repository now:
     channel delays a message by seconds instead of hiding it until a reload. A channel
     that cannot join now says so in the console rather than looking like an empty inbox.
 
-`supabase/migrations/20260921_comms_realtime.sql` is that publication catch-up as a file
+`supabase/migrations/20260921000009_comms_realtime.sql` is that publication catch-up as a file
 you can paste on its own - all four tables, safe to re-run. Run it on a project that has
 been live since before `comms_reads` was published.
 
@@ -404,7 +533,7 @@ Section 19's pin columns are read too: a pinned remark still leads the profile's
 is the same row the board draws.
 
 A project that has been live since before either section needs them run on their own:
-`supabase/migrations/20260921_music_and_profile_songs.sql`, safe to re-run.
+`supabase/migrations/20260921000014_music_and_profile_songs.sql`, safe to re-run.
 
 Groups and who owns them
 ------------------------
@@ -437,7 +566,7 @@ that adding *yourself* is only allowed in a conversation you opened, rather than
 whose id you happen to know.
 
 A project that has been live since before section 16 needs it on its own:
-`supabase/migrations/20260922_group_ownership.sql`, safe to re-run. Until it is run, groups
+`supabase/migrations/20260922000016_group_ownership.sql`, safe to re-run. Until it is run, groups
 work and only the owner's controls (rename, hand over, remove) say they need the update.
 
 `Temp/probe-group-metadata-write.cjs` is the probe that found it and the one to run afterwards:

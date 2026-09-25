@@ -102,6 +102,96 @@ preferences:
   somebody turns a profile into a console. What a profile ends with is the last-online reading, in
   words that age on their own (`app/lib/ui/relative-time.ts`, `ProfileStatusBar`).
 
+## Working Rules
+
+Two standing instructions from the archive's owner. They are not preferences - they are how work here
+is done, and both are written down because both were got wrong once.
+
+### Read and write the database directly
+
+**The agent may read and write SQL against the live project, freely, without asking first.** It is a
+standing grant; it does not need renewing per task. The instrument is built and works:
+
+    npm run db -- "select count(*) from public.profiles;"           read
+    npm run db -- --file supabase/cleanup/verify-live-schema.sql    read a whole file
+    npm run db -- --json "select ..."                               machine-readable
+    npm run db -- --write "drop table if exists public.x;"          a write
+    npm run db -- --dry-run "select ..."                            print the command, run nothing
+
+Why this is worth writing down: for most of this project's life the publishable (anon) key was the
+only credential, and it **cannot run SQL at all** - it reads the tables RLS allows and calls the
+functions the schema defines, and that is the whole of it. There is no SQL-over-HTTP door a
+publishable key opens. Every `Temp/check-*.cjs` was therefore written as a *reader*: it can prove
+what a visitor would see and none of them can ask the database *why*. That ceiling is gone. The
+Supabase CLI is a devDependency, `supabase/config.toml` is committed, the migration history is
+reconciled, and the token lives in `.env.local` as `SUPABASE_ACCESS_TOKEN`. `supabase/README.md`
+holds the whole setup, including how the history was adopted.
+
+**What the grant does not change:**
+
+- **Writes still need `--write`.** `Temp/sql.cjs` refuses a statement that is not a read and prints
+  it in full first, so the review is of the SQL rather than of the flag that was typed. Leave that
+  guard alone: it is the difference between a typo and an outage.
+- **Destructive work is reviewed before it runs.** `supabase/cleanup/` is the pattern:
+  `throwaway-accounts-review.sql` (read-only, lists exactly what would go) and then
+  `throwaway-accounts-sweep.sql`. Run the review, read the list, and confirm the survivors are the
+  accounts that should survive - that is how 30 throwaway accounts went without touching the 7 real
+  ones. Never sweep on an assumption about what a `like` pattern matches.
+- **Schema changes go through the migration chain, never ad-hoc DDL.** `npm run db:new -- name`,
+  write the SQL with `if not exists` / `drop policy if exists`, `npm run db:push:dry`, then
+  `npm run db:push`. This repository's timestamps carry *section numbers*, so `--include-all` is
+  required and is already on both push scripts.
+- **The token and the database password never leave `.env.local`** (gitignored).
+  `.env.production` is committed and its values reach browsers, so it holds `NEXT_PUBLIC_*` only.
+- **The house rules apply to SQL too**: every table gets Row Level Security, and a statement is
+  written to be re-run (`if not exists`, policies dropped and recreated by name).
+
+### Ship it, then say what was actually verified
+
+**A change is not finished when it compiles. It is finished when it is live and the agent has said
+plainly what it checked and what it could not.** The owner cannot see a local build, and neither can
+the agent - so the loop is: change, verify, push, confirm it is deployed, report honestly.
+
+1. `npm run verify` - lint, typecheck and build. **Never push a red build.**
+2. `node Temp/run-checks.cjs` - the scratch checks. All must pass. A failing check is a *finding*,
+   not an obstacle: update the check deliberately (never delete it) when the rule it holds genuinely
+   changed, and say why. `Temp/check-music-library.cjs` and `Temp/check-surreal.cjs` are recent
+   examples, and both were proven to fail before being trusted.
+3. `node Temp/qa-audit.cjs` - reads the HTML a visitor's browser gets before any JavaScript runs
+   (which is also what a screen reader and a crawler see) and reports unnamed fields, controls too
+   small for a thumb, text too small to read, and colour pairs below the contrast floor.
+   **Capture first: `node Temp/capture-qa.cjs --serve`.** The audit reads snapshots from `Temp/qa/`,
+   not the current build, so without a fresh capture it happily reports on yesterday's HTML and the
+   pass means nothing - which is exactly what happened on 2026-09-25, when the captures were two days
+   older than the components. The two scripts share one route list (`ROUTES` in `qa-audit.cjs`), so
+   they cannot disagree about what is being audited.
+4. **Commit and push to `main`.** Vercel builds from `github.com/SpookySweden/debaser.site`, and that
+   is what puts the change where the owner can look at it. Only ever after 1 and 2 are green.
+5. **Fetch the deployed page and confirm the change is in the served HTML.**
+   `node Temp/verify-live.cjs` does this against `https://debaser-site.vercel.app/forum`, and
+   `--local` does it against a local `next start`. Use it rather than a hand-written grep, for a
+   reason worth knowing: **React wraps dynamic text in HTML comments.** The player's music key is
+   served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so a plain search for `[ ♪ MUSIC ]`
+   finds nothing and reports a present change as missing - which happened twice here, and each time
+   looked like a stale build rather than a wrong grep. The script strips the comments first.
+   This is also the step that catches "uncommitted work is not deployed": on 2026-09-25 the player's
+   `[ ♪ MUSIC ]` was reported done while the live site still served `[ SHELF (60) ]`.
+6. **Report the limits out loud.** Not as a disclaimer but as part of the answer.
+
+**What the agent can and cannot do. State it every time; never imply more:**
+
+| can | cannot |
+| --- | --- |
+| read the served HTML of any page, local or deployed | **see pixels** - no screenshots, no layout, no colour, no fonts, no cursor art |
+| read and write SQL, and query the live database directly | **click, hover, press or drag anything** - no way to exercise an interaction |
+| run the check suite, lint, typecheck and build | **judge the aesthetic** - whether it reads as Web 1.0, or feels like ENA |
+| grep the deployed HTML for a control's text | **tell a placeholder from a result** - `READING...` / `[ SYNCING... ]` are pre-hydration states, so a prerendered `0` is not proof that a list is empty |
+
+So the sentence is *"the served HTML contains X, and the checks pass"* - never *"it looks right"*.
+When something genuinely needs eyes, ask a **specific** question ("is the picture beside the name
+the right size?") rather than a general one ("does it look ok?"), because the second is not
+answerable by anybody.
+
 ## Build Order
 
 1. Static Web 1.0 UI frames + gallery placeholders

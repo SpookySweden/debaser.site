@@ -72,11 +72,11 @@ export function showMusicScreen(screen: MusicScreen): void {
 }
 
 /**
- * A press on the archive's own key: opening when shut, closing when open.
+ * A press on a window's own key: opening when shut, closing when open.
  *
- * The side panel's key is a *switch* - it sits on the screen the archive is drawn over, so a reader
- * who has finished with it presses the same key again rather than hunting for the window's
- * `[ X CLOSE ]`. This is that answer, and this is the only door that answers this way.
+ * The side panel's keys are *switches* - they sit on the screen their window is drawn over, so a
+ * reader who has finished with one presses the same key again rather than hunting for the window's
+ * `[ X CLOSE ]`. This is that answer, and these are the only doors that answer this way.
  *
  * What it deliberately is not is the behaviour of a *link* into the archive. A tag badge, the Start
  * menu's MUSIC shelf and a post's `♪ MP3` plate are addresses a reader follows from somewhere else -
@@ -84,10 +84,28 @@ export function showMusicScreen(screen: MusicScreen): void {
  * already open would be a link that sometimes does nothing visible. Those keep `openMusic`, which
  * only ever opens. The distinction is the same one the arcade keeps between its own key and its
  * invitations, and `Temp/check-flows.cjs` holds both to it.
+ *
+ * The screen is a parameter for the same reason `openMusic` takes one: the side panel's key opens the
+ * reader's *own* music rather than the archive (`SIDE_MUSIC.href` is `LIBRARY_HREF`), and a switch that
+ * ignored which screen it was asked for would be a key that disagreed with its own href. The archive is
+ * the default so that the arcade's symmetric path and anything that merely wants "the music window"
+ * keep the meaning they had before there were two screens.
+ *
+ * An already-open window is *switched* rather than left alone: pressing a key that names a screen must
+ * land on that screen, or the key would do nothing visible to a reader already looking at the other
+ * one - the same fault the links avoid by never closing.
  */
-export function toggleMusic(): void {
-  if (slot.state().open) closeMusic();
-  else openMusic();
+export function toggleMusic(screen: MusicScreen = 'archive'): void {
+  if (!slot.state().open) {
+    openMusic(screen);
+    return;
+  }
+
+  // Open already: a press on the key of the screen that is *showing* shuts the window (the switch
+  // behaviour), and a press naming the other screen moves to it rather than closing, because the
+  // reader asked for somewhere, not for nothing.
+  if (slot.state().screen === screen) closeMusic();
+  else showMusicScreen(screen);
 }
 
 /**
@@ -117,4 +135,21 @@ export function musicRequested(search: string): boolean {
  */
 export function musicScreenRequested(search: string): MusicScreen {
   return new URLSearchParams(search).get('music') === 'mine' ? 'mine' : 'archive';
+}
+
+/**
+ * Which screen a link into the window names.
+ *
+ * `musicScreenRequested` answers the same question for the *browser's* address, which has no scheme or
+ * host; this answers it for the hrefs this module exports (`/forum?music=mine`), so a component holding
+ * one of those can ask what it points at instead of repeating the literal. That is what keeps a key's
+ * behaviour and its href from drifting apart - the bug this pair exists to end, where `SIDE_MUSIC` said
+ * `LIBRARY_HREF` while the panel's press still opened the archive.
+ *
+ * The whole href is handed to `musicScreenRequested` rather than the query alone, because
+ * `new URLSearchParams` reads the query off a full url happily - there is no need for a second parse.
+ */
+export function musicScreenForHref(href: string): MusicScreen {
+  const queryAt = href.indexOf('?');
+  return musicScreenRequested(queryAt === -1 ? '' : href.slice(queryAt));
 }

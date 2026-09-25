@@ -290,7 +290,7 @@ grant execute on function public.remove_group_member(text, uuid) to authenticate
 -- -----------------------------------------------------------------------------
 -- 17. Notifications: who was tagged, and who was answered.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260923_notifications.sql, for a project that
+-- Also shipped on its own as supabase/migrations/20260923000017_notifications.sql, for a project that
 -- has already had the rest of this file run against it.
 --
 -- One table, `public.forum_notifications`, one row per account told: a post that names somebody
@@ -357,7 +357,7 @@ end $$;
 -- -----------------------------------------------------------------------------
 -- 18. Pinned posts: the moderator's mark, and how long it lasts.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260924_forum_pins.sql, for a project that has
+-- Also shipped on its own as supabase/migrations/20260924000018_forum_pins.sql, for a project that has
 -- already had the rest of this file run against it.
 --
 -- A pin holds one post at the top of the board and leads the wire, until a set time runs out or

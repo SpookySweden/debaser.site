@@ -11,7 +11,7 @@ import { tracksFromStorage } from './tracks';
  * The music shelf in Supabase - the production implementation of `MusicRepository`.
  *
  * Tables and storage it expects (created by supabase/schema.sql, section 14, or by
- * supabase/migrations/20260921_music_and_profile_songs.sql):
+ * supabase/migrations/20260921000014_music_and_profile_songs.sql):
  *
  *   music_tracks   id, title, credit, kind, src, uploaded_by, uploaded_by_label, created_at
  *   mp3 bucket     public read, authenticated insert into the uploader's own folder
@@ -31,7 +31,7 @@ import { tracksFromStorage } from './tracks';
 const TRACKS_TABLE = 'music_tracks';
 /** The folders anybody signed in has made - see supabase/schema.sql section 14b. */
 const FOLDERS_TABLE = 'music_folders';
-/** What one account liked - see supabase/migrations/20260930_music_library.sql. */
+/** What one account liked - see supabase/migrations/20260930000025_music_library.sql. */
 const LIKES_TABLE = 'music_likes';
 /** The lists one account made, and their items, in the same migration. */
 const PLAYLISTS_TABLE = 'music_playlists';
@@ -128,7 +128,7 @@ class SupabaseMusicRepository implements MusicRepository {
       if (root.error !== null) {
         console.warn(
           `[music] the ${MUSIC_BUCKET} bucket could not be listed: ${root.error.message}. ` +
-            'The shelf falls back to the archive tracks - see supabase/migrations/20260921_music_and_profile_songs.sql.',
+            'The shelf falls back to the archive tracks - see supabase/migrations/20260921000014_music_and_profile_songs.sql.',
         );
         return [];
       }
@@ -165,7 +165,7 @@ class SupabaseMusicRepository implements MusicRepository {
    * The shelf's rows, or null when the table cannot be read at all.
    *
    * `folder_path` is asked for along with the rest where it is there. On a project that has not run
-   * supabase/migrations/20260928_music_folders.sql the whole select would fail with the missing
+   * supabase/migrations/20260928000021_music_folders.sql the whole select would fail with the missing
    * column, taking every title and tag on the shelf down to file names - so the plain columns are
    * asked for instead, and the files simply have no folder until the column exists.
    */

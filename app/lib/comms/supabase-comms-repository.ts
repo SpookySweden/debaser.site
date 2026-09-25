@@ -27,7 +27,7 @@ import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from './types';
  *
  * One deployment note the reads below are written around: `kind`, `name`,
  * `created_by` and `comms_members` arrive with the group script (section 13 of
- * `supabase/schema.sql`, or supabase/migrations/20260921_group_conversations.sql).
+ * `supabase/schema.sql`, or supabase/migrations/20260921000013_group_conversations.sql).
  * A project that has not had it run against it answers those requests with a schema
  * error - which would fail the *whole* read and take the direct messages down with
  * it - so this store asks the group-aware way first, falls back to asking for what
@@ -59,7 +59,7 @@ const THREAD_SELECT_PAIRS_ONLY = `*, ${MESSAGES_TABLE}(*), ${READS_TABLE}(*)`;
  * refusal is the same shape of sentence, for the same reason.
  */
 export const GROUPS_NEED_MIGRATION =
-  'GROUPS NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260921_group_conversations.sql (OR SECTION 13 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. DIRECT MESSAGES STILL WORK.';
+  'GROUPS NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260921000013_group_conversations.sql (OR SECTION 13 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. DIRECT MESSAGES STILL WORK.';
 
 /**
  * What the ownership controls are told when this database has not had section 15.
@@ -99,7 +99,7 @@ type MessageRow = {
   created_at: string;
   /**
    * The three game-event columns, absent on a database without
-   * `supabase/migrations/20260930_comms_events.sql`.
+   * `supabase/migrations/20260930000024_comms_events.sql`.
    *
    * Optional for the same reason `created_by` is: a select that names them would fail the whole read on
    * a project that has not had the script run, and losing every conversation is far worse than losing
@@ -494,7 +494,7 @@ class SupabaseCommsRepository implements CommsRepository {
 
     if (error !== null) {
       /**
-       * A project without `20260930_comms_events.sql` has no event columns, and the insert above fails
+       * A project without `20260930000024_comms_events.sql` has no event columns, and the insert above fails
        * with a schema complaint naming `event_kind`. Retrying without them files the line as an ordinary
        * message, which is what a reader of that database would have seen anyway - and it means a
        * *challenge* still reaches the conversation instead of the write failing and the thread going
@@ -635,7 +635,7 @@ class SupabaseCommsRepository implements CommsRepository {
           console.warn(
             `[comms] realtime channel ${status}: ${channelError?.message ?? 'no reason given'}. ` +
               'A table missing from the supabase_realtime publication makes the whole channel quiet - ' +
-              'see supabase/migrations/20260921_comms_realtime.sql. Messages still arrive on the poll.',
+              'see supabase/migrations/20260921000009_comms_realtime.sql. Messages still arrive on the poll.',
           );
         });
       });

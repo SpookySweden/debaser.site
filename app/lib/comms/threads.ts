@@ -113,7 +113,7 @@ export function threadsWithNewMessages(threads: CommsThread[], userId: string, k
  * These are the *rules the screens read* - what to draw, and what to say when a control is not
  * the caller's to press. The database enforces the same rules where it matters, because a rule
  * that lives only in a component is a rule that anybody with the API key can ignore
- * (`supabase/migrations/20260922_group_ownership.sql`).
+ * (`supabase/migrations/20260922000016_group_ownership.sql`).
  */
 export function isGroupOwner(thread: CommsThread, userId: string | null): boolean {
   return userId !== null && thread.kind === 'group' && thread.ownerId === userId;

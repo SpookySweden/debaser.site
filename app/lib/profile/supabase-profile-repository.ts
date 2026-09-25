@@ -124,7 +124,7 @@ type ProfileRow = {
   location: string;
   /**
    * The owner's own one-liner. Optional in the type for the same reason `created_by` is optional on a
-   * message row: a database without `20260930_profile_status.sql` has no such column, and a select
+   * message row: a database without `20260930000026_profile_status.sql` has no such column, and a select
    * that named it would fail the whole read. A row that came back without one reads as unwritten.
    */
   status?: string | null;

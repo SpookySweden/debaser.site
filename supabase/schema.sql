@@ -1184,7 +1184,7 @@ create index if not exists music_tracks_created_idx on public.music_tracks (crea
 -- two belong to one account each, which is what makes them the first music tables with an owner and a
 -- policy. A like holds a `track_id` rather than a foreign key, because the shelf is read by listing the
 -- bucket - a file dropped in by hand is a real track with no row anywhere, and a key would refuse to
--- let anybody like it. See supabase/migrations/20260930_music_library.sql.
+-- let anybody like it. See supabase/migrations/20260930000025_music_library.sql.
 
 create table if not exists public.music_likes (
   user_id uuid not null references auth.users (id) on delete cascade,
@@ -1618,7 +1618,7 @@ grant execute on function public.remove_group_member(text, uuid) to authenticate
 -- -----------------------------------------------------------------------------
 -- 17. Notifications: who was tagged, and who was answered.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260923_notifications.sql, for a project that
+-- Also shipped on its own as supabase/migrations/20260923000017_notifications.sql, for a project that
 -- has already had the rest of this file run against it.
 --
 -- One table, `public.forum_notifications`, one row per account told: a post that names somebody
@@ -1685,7 +1685,7 @@ end $$;
 -- -----------------------------------------------------------------------------
 -- 18. Pinned posts: the moderator's mark, and how long it lasts.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260924_forum_pins.sql, for a project that has
+-- Also shipped on its own as supabase/migrations/20260924000018_forum_pins.sql, for a project that has
 -- already had the rest of this file run against it.
 --
 -- A pin holds one post at the top of the board and leads the wire, until a set time runs out or
@@ -1739,7 +1739,7 @@ end $$;
 -- -----------------------------------------------------------------------------
 -- 19. Pinned comments on a profile: the owner's mark, and what it may not touch.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260926_profile_comment_pins.sql, for a
+-- Also shipped on its own as supabase/migrations/20260926000019_profile_comment_pins.sql, for a
 -- project that has already had the rest of this file run against it.
 --
 -- The board's pin in miniature, and without a deadline. Pinning a comment on your own profile does
@@ -1829,7 +1829,7 @@ end $$;
 -- -----------------------------------------------------------------------------
 -- 22. Lore pages: the world written down, and merged as it is typed.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260929_lore_pages.sql, for a project that has
+-- Also shipped on its own as supabase/migrations/20260929000022_lore_pages.sql, for a project that has
 -- already had the rest of this file run against it.
 --
 -- The archive's lore is written rather than drawn, and it is written *together*: a page is a Yjs
@@ -1908,7 +1908,7 @@ create policy "lore pages removed by their opener or admin" on public.lore_pages
 -- -----------------------------------------------------------------------------
 -- 23. The arcade: invitations, and the two columns the feed needs to carry them.
 -- -----------------------------------------------------------------------------
--- Also shipped on its own as supabase/migrations/20260930_arcade.sql, for a project that has already
+-- Also shipped on its own as supabase/migrations/20260930000023_arcade.sql, for a project that has already
 -- had the rest of this file run against it.
 --
 -- `game_invites` is one row per challenge: who asked, who was asked, which game, and whether it has

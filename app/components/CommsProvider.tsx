@@ -51,7 +51,7 @@ export type CommsContextValue = {
   /**
    * The owner's four. A group belongs to whoever opened it: renaming, handing it on and taking
    * a member out are theirs alone; anybody may leave, and an owner who leaves passes the group
-   * on. The database is what enforces it (`supabase/migrations/20260922_group_ownership.sql`);
+   * on. The database is what enforces it (`supabase/migrations/20260922000016_group_ownership.sql`);
    * these are how the screen asks.
    */
   renameGroup: (threadId: string, name: string) => Promise<CommsThread>;

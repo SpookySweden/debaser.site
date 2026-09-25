@@ -83,6 +83,32 @@ below the contrast floor. It also lists the handful of things no script can answ
 should walk through by hand. `Temp/check-ux.cjs` is the part of that pass the ordinary suite can
 hold, so a regression is caught without a server.
 
+Asking the database, and changing it
+------------------------------------
+Everything above talks to the project the way the *site* does: the publishable (anon) key over
+PostgREST, which reads the tables RLS allows and calls the functions the schema defines. That key
+cannot run SQL, so no check above can ask the database *why*. `Temp/sql.cjs` can, through the
+Supabase CLI, which is a devDependency:
+
+    npm run db -- "select count(*) from public.profiles;"
+    npm run db -- --file supabase/cleanup/verify-live-schema.sql
+
+And the schema itself is a CLI migration chain now, so a change reaches the project with a command
+rather than a paste into the SQL editor:
+
+    npm run db:list          # local and remote, side by side
+    npm run db:push:dry      # what a push would apply
+    npm run db:push          # apply it
+    npm run db:new -- name   # a new, empty migration
+
+Both need a personal access token (`sbp_...`, from
+https://supabase.com/dashboard/account/tokens) as `SUPABASE_ACCESS_TOKEN` in `.env.local` or in the
+environment, or `npx supabase login` once; and the checkout linked once
+(`npm run db:link -- --project-ref <ref>`). It is the only secret this repository ever asks for, it is
+never read by `app/` and never needed to build or run the site, and a statement that is not a read is
+refused without `--write`. `supabase/README.md` has the whole of it, including how the migration
+history was reconciled.
+
 Deploying
 ---------
 Vercel, straight from this repository. `next build` is what runs there, `.env.production` is what

@@ -198,7 +198,7 @@ function writeRecord(userId: string, record: LibraryRecord): void {
  *
  * Honest limit, the same one every mock store has: a like here is this browser's, so it is not on
  * another machine until `NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase` points the store at the tables in
- * `supabase/migrations/20260930_music_library.sql`.
+ * `supabase/migrations/20260930000025_music_library.sql`.
  */
 
 class MockMusicRepository implements MusicRepository {

@@ -32,7 +32,7 @@ type CommsGroupBarProps = {
  * pressed.
  *
  * Hiding a control is not the protection - anybody can call the API - so this is the polite
- * half of a rule that `supabase/migrations/20260922_group_ownership.sql` enforces for real.
+ * half of a rule that `supabase/migrations/20260922000016_group_ownership.sql` enforces for real.
  * What it fixes is the other half: a member being *offered* a rename box and a hand-over menu
  * on somebody else's group, which is what made a take-over look like a feature.
  */

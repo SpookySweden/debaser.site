@@ -8,7 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run build"
+    "verify": "npm run lint && npm run typecheck && npm run build",
+    "db": "node Temp/sql.cjs",
+    "db:link": "supabase link",
+    "db:list": "node Temp/db-cli.cjs migration list",
+    "db:pull": "node Temp/db-cli.cjs db pull",
+    "db:push": "node Temp/db-cli.cjs db push --include-all --yes",
+    "db:push:dry": "node Temp/db-cli.cjs db push --dry-run --include-all",
+    "db:new": "supabase migration new",
+    "db:repair:applied": "node Temp/db-repair.cjs --applied",
+    "db:repair:list": "node Temp/db-repair.cjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -29,6 +38,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.5",
+    "supabase": "^2.117.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -1,8 +1,16 @@
 'use client';
 
-import { useState, useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { formatClock, formatClockOrNothing } from '../lib/audio/format';
 import { trackCaption } from '../lib/audio/tracks';
+import {
+  musicAddressSpentByClose,
+  musicScreenForHref,
+  musicWindowState,
+  toggleMusic,
+} from '../lib/audio/music-window';
+import { SIDE_MUSIC } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -22,15 +30,30 @@ import PopoutWindow from './PopoutWindow';
  *
  * Two shapes, because a wide bar and a phone are not the same instrument:
  *
- * - A wide window gets the Win95 bar: the shelf badge, the LED display (track, running
- *   time, where it came from), the transport, the volume slider, the loop switch, the
- *   shelf and the fold.
+ * - A wide window gets the Win95 bar: the badge, the LED display (track, running time,
+ *   where it came from), the transport, the volume slider, the loop switch, the music
+ *   key and the fold.
  * - A phone gets a small card in the corner shaped the way a phone's player is shaped -
  *   what is playing at the top, a bar you can drag to seek, one big play button with the
  *   two skips beside it, repeat and volume under it - in the same retro chrome, because
  *   the shape is the part that has to be a phone player and the colour is the part that
  *   has to be this site. It is folded away to a `♪` button until it is asked for: a card
  *   sitting over the page it is playing to is not what a phone wants first.
+ *
+ * **`[ ♪ MUSIC ]`, and what it replaced.** The bar used to carry `[ SHELF (n) ]`, which opened
+ * `ShelfWindow` - the queue, in the order it would play. That was the only door to the queue, so
+ * removing it had to be a replacement rather than a deletion, and the question was what a *player*
+ * should offer. A player is the one place a reader is certain to be thinking about music, and the two
+ * things worth reaching from there are the two screens the music window already has: the reader's own
+ * (what they liked, the lists they made) and the archive. This key opens the same window the side
+ * panel's key does, on the same screen, through the same `toggleMusic` - so the panel and the bar are
+ * one behaviour written once, not two that will disagree.
+ *
+ * The queue is not lost. The archive screen is a file browser whose every row has `[ ▶ PLAY ]`, which
+ * hands that file to this player - so playing a specific track, which is what the shelf window was
+ * mostly for, is reachable. What has genuinely gone is the *list of the queue itself*, and that is a
+ * real subtraction rather than a tidy-up: it is noted here rather than hidden, because a reader who
+ * wants to see what is coming next has no screen for it now.
  */
 
 /** The card's buttons: thumb-sized, because a phone is what is pressing them. */
@@ -95,10 +118,37 @@ export default function MusicPlayer() {
   const setting = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
   const [shelfOpen, setShelfOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
   // What the listener chose, or - if they have never touched it - what this window wants:
   // showing in a wide one, folded away on a phone.
   const open = setting === null ? !compact : setting === 'open';
+
+  /**
+   * The music key on the bar.
+   *
+   * It is the side panel's press, to the letter: the same window, the screen `SIDE_MUSIC.href` names
+   * (the reader's own), and the same spending of the address afterwards. Written as a second copy of
+   * that logic rather than shared with `DesktopSidebar` because the two live in different trees - the
+   * bar is drawn on every page including the phone, the panel only from `md` - and because the shared
+   * part is one call plus one question, which is not enough to be worth a hook both must import. What
+   * *is* shared is everything that could drift: the `toggleMusic` and the screen, both derived.
+   *
+   * The address is read off `window.location` for the reason the panel gives: `useSearchParams` would
+   * opt every page that draws the bar out of static prerendering, and a click handler runs in the
+   * browser anyway so the value is right there.
+   */
+  const pressMusic = useCallback(() => {
+    const asked = window.location.search;
+    const wasOpen = musicWindowState().open;
+
+    toggleMusic(musicScreenForHref(SIDE_MUSIC.href));
+
+    // Same rule as the panel's key: a press that *shuts* the window has to spend the address it opened
+    // by, or the shut window disagrees with the URL and the window's own effect opens it straight back.
+    if (wasOpen && musicAddressSpentByClose(asked)) router.replace(pathname);
+  }, [pathname, router]);
 
   if (!open) {
     return (
@@ -116,9 +166,17 @@ export default function MusicPlayer() {
   return (
     <>
       {compact ? (
-        <CompactBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} onSettings={() => setSettingsOpen(true)} />
+        <CompactBar
+          onHide={() => setBarOpen(false)}
+          onMusic={pressMusic}
+          onSettings={() => setSettingsOpen(true)}
+        />
       ) : (
-        <DockedBar onHide={() => setBarOpen(false)} onShelf={() => setShelfOpen(true)} onSettings={() => setSettingsOpen(true)} />
+        <DockedBar
+          onHide={() => setBarOpen(false)}
+          onMusic={pressMusic}
+          onSettings={() => setSettingsOpen(true)}
+        />
       )}
 
       {shelfOpen ? <ShelfWindow onClose={() => setShelfOpen(false)} /> : null}
@@ -130,7 +188,8 @@ export default function MusicPlayer() {
 /** What either shape of bar needs from the component that draws it. */
 type BarControls = {
   onHide: () => void;
-  onShelf: () => void;
+  /** Opens the music window - the reader's own screen, the same one the side panel's key opens. */
+  onMusic: () => void;
   onSettings: () => void;
 };
 
@@ -138,11 +197,11 @@ type BarControls = {
  * The wide window's bar.
  *
  * One line, left to right: the badge, the LED display, the transport, the volume, the loop,
- * the shelf and the fold. The display carries the track, where it came from, the running
- * time and a bar that shows how far in it is - everything a reader wants to know about what
- * is coming out of the speakers, at a glance, without leaving the page they are reading.
+ * the settings, the music key and the fold. The display carries the track, where it came from,
+ * the running time and a bar that shows how far in it is - everything a reader wants to know
+ * about what is coming out of the speakers, at a glance, without leaving the page they are reading.
  */
-function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
+function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
@@ -227,8 +286,18 @@ function DockedBar({ onHide, onShelf, onSettings }: BarControls) {
             [ OPTIONS ]
           </button>
 
-          <button type="button" onClick={onShelf} className={PLATE_HARDWARE}>
-            [ SHELF ({player.queue.length}) ]
+          {/* The music key, wearing the same mark and word the side panel's key wears, so one thing is
+              one thing wherever it is pressed. It opens the reader's own music, which is what
+              `SIDE_MUSIC.href` names - see the note at the top of the file for what it replaced and why
+              the queue is still reachable. */}
+          <button
+            type="button"
+            onClick={onMusic}
+            className={PLATE_HARDWARE}
+            title="Open your music"
+            aria-haspopup="dialog"
+          >
+            [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
           </button>
 
           <button type="button" onClick={onHide} className={PLATE_HARDWARE} title="Fold the player away">
@@ -316,7 +385,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
  * phone's player is a solved shape.
  */
-function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
+function CompactBar({ onHide, onMusic, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
@@ -337,12 +406,17 @@ function CompactBar({ onHide, onShelf, onSettings }: BarControls) {
             ⚙
           </button>
 
+          {/* The same key the bar and the side panel carry: the mark, the word, and the thumb's own
+              affordances - the card's controls are text rather than plates, so this is underlined and
+              sized by the surrounding row rather than drawn as a button. */}
           <button
             type="button"
-            onClick={onShelf}
+            onClick={onMusic}
             className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-ena"
+            title="Open your music"
+            aria-haspopup="dialog"
           >
-            shelf ({player.queue.length})
+            {SIDE_MUSIC.mark} music
           </button>
 
           <button

@@ -30,7 +30,7 @@ const TABLE = 'forum_notifications';
  * board keeps working; only the feed is empty.
  */
 export const NOTIFICATIONS_NEED_MIGRATION =
-  'THE NOTIFICATION FEED NEEDS A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260923_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. POSTING AND REPLYING ARE UNAFFECTED.';
+  'THE NOTIFICATION FEED NEEDS A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260923000017_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. POSTING AND REPLYING ARE UNAFFECTED.';
 
 /**
  * What the bell is told when the table is there but its rules are not.
@@ -42,7 +42,7 @@ export const NOTIFICATIONS_NEED_MIGRATION =
  * truth) and the sentence that says which file to run is put beside it.
  */
 export const NOTIFICATIONS_NEED_POLICIES =
-  'THE FEED`S OWN RULES ARE NOT IN PLACE, SO NOTHING CAN BE FILED: RUN supabase/migrations/20260923_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD - IT RECREATES EACH POLICY BY NAME, SO IT IS SAFE TO RUN AGAIN. THE POST, THE REPLY AND THE TAG IN ITS WORDS ARE ALL UNAFFECTED.';
+  'THE FEED`S OWN RULES ARE NOT IN PLACE, SO NOTHING CAN BE FILED: RUN supabase/migrations/20260923000017_notifications.sql (OR SECTION 17 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD - IT RECREATES EACH POLICY BY NAME, SO IT IS SAFE TO RUN AGAIN. THE POST, THE REPLY AND THE TAG IN ITS WORDS ARE ALL UNAFFECTED.';
 
 /** The codes PostgREST and Postgres answer with when the database is behind the code. */
 const MISSING_SCHEMA_CODES = new Set(['PGRST200', 'PGRST204', 'PGRST205', 'PGRST106', '42P01', '42703']);
@@ -281,7 +281,7 @@ function openChannel(userId: string): void {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
         console.warn(
           'notification feed: realtime is not delivering - run the script in ' +
-            'supabase/migrations/20260923_notifications.sql and reload. The bell still refreshes on its poll.',
+            'supabase/migrations/20260923000017_notifications.sql and reload. The bell still refreshes on its poll.',
         );
       }
     });

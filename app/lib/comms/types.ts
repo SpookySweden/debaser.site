@@ -91,7 +91,7 @@ export type CommsThread = {
    * The owner is the only account that may rename the group, hand it to somebody else, or
    * take a member out - and ownership only moves two ways: the owner hands it over, or the
    * owner leaves and it passes to whoever has been in the group longest. The database
-   * enforces that (see `supabase/migrations/20260922_group_ownership.sql`); this field is
+   * enforces that (see `supabase/migrations/20260922000016_group_ownership.sql`); this field is
    * how the screen knows whether to draw the controls at all.
    */
   ownerId: string | null;

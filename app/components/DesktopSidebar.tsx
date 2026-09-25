@@ -15,6 +15,7 @@ import {
 } from '../lib/games/arcade-window';
 import {
   musicAddressSpentByClose,
+  musicScreenForHref,
   musicWindowState,
   subscribeToMusicWindow,
   toggleMusic,
@@ -169,8 +170,23 @@ export default function DesktopSidebar() {
     [pathname, router],
   );
 
+  /**
+   * The panel's MUSIC key.
+   *
+   * It opens the screen `SIDE_MUSIC.href` names - the reader's *own* music, `LIBRARY_HREF` - rather
+   * than the archive, and it asks the href instead of hardcoding the screen so the two cannot drift.
+   * That drift is exactly what was wrong here: `SIDE_MUSIC` has pointed at `LIBRARY_HREF` since the
+   * personal screen existed, `Temp/check-music-library.cjs` asserts it, and this press went on opening
+   * the archive because it called `toggleMusic()` with no argument. A key whose label, href and
+   * behaviour are three separate statements will eventually disagree; there are two now, and one of them
+   * is derived.
+   *
+   * The archive is still one press away and is not orphaned: the Start menu's MUSIC shelf, a post's
+   * `♪ MP3` plate and a track's tag badge all link at `MUSIC_HREF`, and the window's own tab strip
+   * switches between the two screens without closing.
+   */
   const pressMusic = useCallback(
-    () => pressShelf(musicWindowState().open, musicAddressSpentByClose, toggleMusic),
+    () => pressShelf(musicWindowState().open, musicAddressSpentByClose, () => toggleMusic(musicScreenForHref(SIDE_MUSIC.href))),
     [pressShelf],
   );
 

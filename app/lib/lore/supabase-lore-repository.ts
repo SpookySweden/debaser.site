@@ -47,7 +47,7 @@ const BROADCAST_EVENT = 'yjs';
  * site is unaffected, which is true: nothing else reads this table.
  */
 export const LORE_NEED_MIGRATION =
-  'LORE PAGES NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260929_lore_pages.sql (OR SECTION 22 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. THE REST OF THE SITE IS UNAFFECTED.';
+  'LORE PAGES NEED A ONE-TIME DATABASE UPDATE: RUN supabase/migrations/20260929000022_lore_pages.sql (OR SECTION 22 OF supabase/schema.sql) IN THE SUPABASE SQL EDITOR, THEN RELOAD. THE REST OF THE SITE IS UNAFFECTED.';
 
 /** The codes PostgREST and Postgres answer with when the database is behind the code. */
 const MISSING_SCHEMA_CODES = new Set(['PGRST200', 'PGRST204', 'PGRST205', 'PGRST106', '42P01', '42703']);
@@ -251,7 +251,7 @@ class SupabaseLoreRepository implements LoreRepository {
 
         if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
           console.warn(
-            'lore pages: realtime is not delivering - run supabase/migrations/20260929_lore_pages.sql and ' +
+            'lore pages: realtime is not delivering - run supabase/migrations/20260929000022_lore_pages.sql and ' +
               'reload. Editing still saves; the other editors simply will not see the keystrokes.',
           );
         }
