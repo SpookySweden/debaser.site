@@ -196,10 +196,14 @@ type BarControls = {
 /**
  * The wide window's bar.
  *
- * One line, left to right: the badge, the LED display, the transport, the volume, the loop,
- * the settings, the music key and the fold. The display carries the track, where it came from,
- * the running time and a bar that shows how far in it is - everything a reader wants to know
- * about what is coming out of the speakers, at a glance, without leaving the page they are reading.
+ * One line, left to right: the player's name and its fold, the LED display, the D-pad transport, the
+ * volume, the settings, and the music key. The display carries the track, where it came from, the
+ * running time and a bar that shows how far in it is - everything a reader wants to know about what
+ * is coming out of the speakers, at a glance, without leaving the page they are reading.
+ *
+ * The fold is next to the name rather than at the end, which is the one ordering change this bar has
+ * had: `[ HIDE ]` closed the strip from the opposite end to everything else, so the key that puts the
+ * player away was the furthest thing from the key that plays it.
  */
 function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
   const player = useMusicPlayer();
@@ -209,8 +213,24 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-sun-pale px-2 py-1 font-mono text-ink shadow-[0_-2px_0_theme(colors.ena-deep)]">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
-          <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[2px] text-[10px] font-bold text-paper">
-            ♪ DEBASER PLAYER
+          {/* The player's own name, and its fold, together: they are the same thing said twice - what
+              this strip is, and how to put it away. The fold used to sit at the far right, past the
+              music key, which made it the last of six controls rather than part of the bar's identity -
+              and a reader looking for it had to scan the whole line to find the one key that closes it.
+              Kept in one recess so the two read as a unit. */}
+          <span className="flex items-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-[2px]">
+            <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[10px] font-bold text-paper">
+              ♪ DEBASER PLAYER
+            </span>
+
+            <button
+              type="button"
+              onClick={onHide}
+              className={PLATE_HARDWARE}
+              title="Fold the player away"
+            >
+              [ HIDE ]
+            </button>
           </span>
 
           {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
@@ -236,36 +256,19 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
             </span>
           </span>
 
-          {/* The transport, in a recess: keys bolted into the panel rather than plates floating on
-              it, and the word written out on every one of them - a row of bare triangles is a
-              puzzle, and the house rule is that a mark is only ever drawn beside its own name. */}
-          <span className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-1">
-            <span className="flex flex-wrap items-center gap-1">
-              <button type="button" onClick={player.previous} className={PLATE_HARDWARE} title="Previous track">
-                [ PREV ]
-              </button>
-              <button
-                type="button"
-                onClick={player.toggle}
-                className={`${PLATE_HARDWARE} min-w-[7rem]`}
-                title={playing ? 'Pause' : 'Play'}
-              >
-                {playing ? '[ PAUSE ]' : '[ PLAY ]'}
-              </button>
-              <button type="button" onClick={player.next} className={PLATE_HARDWARE} title="Next track">
-                [ NEXT ]
-              </button>
-              <button
-                type="button"
-                onClick={() => player.setLoop(!loop)}
-                className={`${PLATE_HARDWARE} ${loop ? 'border-t-2 border-l-2 border-black border-r-2 border-b-2 border-white' : ''}`}
-                title="Repeat this track when it ends"
-                aria-pressed={loop}
-              >
-                {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
-              </button>
-            </span>
-          </span>
+          {/* The transport, in a recess: the D-pad. Left and right step the queue; the middle cell
+              is a live readout of what the player is doing rather than a label for a press, and it
+              carries stop and loop beneath it - see `TransportPad` for why those are separate keys. */}
+          <TransportPad
+            playing={playing}
+            loop={loop}
+            disabled={loading || player.queue.length === 0}
+            onPrevious={player.previous}
+            onToggle={player.toggle}
+            onStop={player.stop}
+            onNext={player.next}
+            onLoop={() => player.setLoop(!loop)}
+          />
 
           <label className="flex items-center gap-1 text-[10px] font-bold text-ink">
             VOL
@@ -299,13 +302,132 @@ function DockedBar({ onHide, onMusic, onSettings }: BarControls) {
           >
             [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
           </button>
-
-          <button type="button" onClick={onHide} className={PLATE_HARDWARE} title="Fold the player away">
-            [ HIDE ]
-          </button>
         </div>
       </div>
     );
+}
+
+/**
+ * The transport as a D-pad: left, a live readout in the middle, right.
+ *
+ * The middle cell is the whole idea, and it is the opposite of a normal button. A normal button says
+ * *what pressing it will do* (`[ PLAY ]` waits for a press and then becomes `[ PAUSE ]`), so it is
+ * always naming a state the reader is not in. This one names the state they *are* in, and moves, so
+ * it reads as a display rather than as something to press - which is what the brief asked for: the
+ * symbol says what is happening, not what would happen.
+ *
+ * It is still pressable - a reader who wants to pause has to be able to - so the animation carries the
+ * difference rather than the cursor or the border. `animate-blip` is a `steps(2)` blink and the `▶` on
+ * the LED already wears it for exactly this reason: a thing that is *running* should look like it is
+ * running. Paused sits still, because something that has stopped and is still blinking is lying about
+ * itself.
+ *
+ * **Stopped is not paused**, which is why there are three states rather than two. Paused keeps the
+ * position and play resumes from it; stopped returns to the start of the track. A shelf stereo has
+ * both and a reader expects both, which is the reason the square key exists separately from the
+ * triangle.
+ *
+ * The loop key is the fourth state and lives *inside* the pad rather than beside it, because loop is
+ * about this track in this player, which is what the pad is showing. It is the one cell that names what
+ * it *changes* rather than what is true, so it wears the lit bevel when it is on - the same trade
+ * `PLATE_PRESSED` makes elsewhere - and every mark is drawn with its own word beside it, per the house
+ * rule that a bare glyph is a puzzle.
+ */
+function TransportPad({
+  playing,
+  loop,
+  disabled,
+  onPrevious,
+  onToggle,
+  onStop,
+  onNext,
+  onLoop,
+}: {
+  playing: boolean;
+  loop: boolean;
+  disabled: boolean;
+  onPrevious: () => void;
+  onToggle: () => void;
+  onStop: () => void;
+  onNext: () => void;
+  onLoop: () => void;
+}) {
+  return (
+    <span className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-1">
+      <span className="flex items-stretch gap-1">
+        <button
+          type="button"
+          onClick={onPrevious}
+          disabled={disabled}
+          className={`${PLATE_HARDWARE} min-w-[2.25rem]`}
+          title="Previous track"
+          aria-label="Previous track"
+        >
+          <span aria-hidden="true" className="text-[13px] leading-none">
+            ◀
+          </span>
+        </button>
+
+        {/* The live cell: the readout on top, stop and loop under it, in one recess. */}
+        <span className="flex flex-col rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink p-[2px]">
+          <button
+            type="button"
+            onClick={onToggle}
+            disabled={disabled}
+            aria-pressed={playing}
+            title={playing ? 'Pause' : 'Play'}
+            className="flex min-w-[5.5rem] cursor-pointer items-center justify-center gap-1 rounded-none px-2 py-[3px] text-[12px] font-bold text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed disabled:text-chrome-dark"
+          >
+            {/* The animation is the message: blipping while audio runs, still while it does not. */}
+            <span aria-hidden="true" className={playing ? 'animate-blip' : undefined}>
+              {playing ? '▶' : '❚❚'}
+            </span>
+            <span className="text-[9px] leading-none">{playing ? 'PLAYING' : 'PAUSED'}</span>
+          </button>
+
+          <span className="mt-[2px] flex items-stretch gap-[2px]">
+            <button
+              type="button"
+              onClick={onStop}
+              disabled={disabled}
+              title="Stop, and go back to the start of the track"
+              className="flex-1 cursor-pointer rounded-none px-1 py-[2px] text-[10px] font-bold text-ena-deep hover:bg-ena hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed"
+            >
+              ■<span className="sr-only">Stop</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onLoop}
+              disabled={disabled}
+              aria-pressed={loop}
+              title={loop ? 'Repeating this track: press to play on through the shelf' : 'Repeat this track when it ends'}
+              className={`flex-1 cursor-pointer rounded-none border px-1 py-[2px] text-[10px] font-bold focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed ${
+                loop
+                  ? 'border-black bg-acid text-ink'
+                  : 'border-ena-deep bg-ink text-ena-deep hover:bg-ena hover:text-ink'
+              }`}
+            >
+              ↻<span className="sr-only">{loop ? 'Loop on' : 'Loop off'}</span>
+            </button>
+          </span>
+        </span>
+
+        <button
+          type="button"
+          onClick={onNext}
+          disabled={disabled}
+          className={`${PLATE_HARDWARE} min-w-[2.25rem]`}
+          title="Next track"
+          aria-label="Next track"
+        >
+          <span aria-hidden="true" className="text-[13px] leading-none">
+            ▶
+          </span>
+        </button>
+      </span>
+    </span>
+  );
 }
 
 /**

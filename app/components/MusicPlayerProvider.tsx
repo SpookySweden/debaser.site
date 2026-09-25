@@ -45,6 +45,15 @@ export type MusicPlayerValue = {
   toggle: () => void;
   next: () => void;
   previous: () => void;
+  /**
+   * Stops and returns to the start of the track - which is not `toggle` twice.
+   *
+   * A player has three states, not two: playing, paused (which keeps the position) and stopped (which
+   * gives it up). The middle cell of the D-pad shows the first two, and this is the third - the square
+   * key. Without it a reader who wants to start a track over has to pause, then seek to zero, which is
+   * a stereo that has been made worse rather than simpler.
+   */
+  stop: () => void;
   /** Plays a track, queueing it if the shelf does not hold it (a profile's song). */
   play: (track: AudioTrack) => void;
   /**
@@ -113,6 +122,23 @@ function persistSettings(settings: StoredSettings): void {
   }
 }
 
+/**
+ * What happens when a track ends: repeat it, or walk on.
+ *
+ * A pure function rather than a line inside the effect, and it is written out for one reason: this is
+ * the rule two *different* loop switches feed, and a rule that lives in a `useEffect` cannot be tested
+ * without a browser. Extracting it makes the separation checkable - `Temp/check-audio.cjs` drives this
+ * with both switches and asserts they do not touch each other.
+ *
+ * `ownLoop` is the handed-over track's repeat (a profile's own song, `null` when nothing was handed
+ * over); `shelfLoop` is the switch on the bar. The handed-over one wins while it is set, because it is
+ * the more specific statement - and the two are never written to each other, which is the fault this
+ * shape exists to prevent.
+ */
+export function repeatOnEnd(ownLoop: boolean | null, shelfLoop: boolean): 'repeat' | 'advance' {
+  return (ownLoop ?? shelfLoop) ? 'repeat' : 'advance';
+}
+
 export default function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   /** The src the element is already carrying, so it is only reloaded when it changes. */
@@ -138,6 +164,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [duration, setDuration] = useState(Number.NaN);
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
+
+  /**
+   * The repeat of a track that was *handed over* rather than chosen from the shelf - a profile's own
+   * song. `null` means "nothing was handed over, so the shelf's switch decides".
+   *
+   * It exists so the two cannot be confused, which they were: `assign({ loop: true })` used to write
+   * `loop` itself, and `loop` is persisted, so opening a profile with a song on it turned looping on
+   * for the whole board and left it on there. A handed-over track now repeats on its own without the
+   * shelf's switch being touched, and the reader who never asked for it keeps the setting they had.
+   */
+  const [ownLoop, setOwnLoop] = useState<boolean | null>(null);
   const [playByDefault, setPlayByDefaultState] = useState(() => loadSettings().playByDefault);
   const [promptDismissed, setPromptDismissedState] = useState(() => loadSettings().promptDismissed);
   /** Bumped by `refresh()`: the shelf is read again when it changes. */
@@ -302,12 +339,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   // Ending: repeat this one, or walk on to the next. Looping is done here rather than
   // with the element's own `loop` attribute, because the switch means "repeat this
   // one" - with it off, the queue keeps going, which is what a shelf of demos wants.
+  //
+  // Which switch decides is `repeatOnEnd` (above), which is pure so that the separation between the
+  // handed-over track's repeat and the shelf's can be tested. The two are deliberately independent: a
+  // profile's song repeating says nothing about whether the shelf's tracks repeat, and before this it
+  // said everything - `assign({ loop: true })` wrote the shelf's switch, which is persisted.
   useEffect(() => {
     const audio = audioRef.current;
     if (audio === null) return;
 
     const onEnded = () => {
-      if (loop) {
+      if (repeatOnEnd(ownLoop, loop) === 'repeat') {
         audio.currentTime = 0;
         void audio.play().catch(() => setPlaying(false));
         return;
@@ -320,7 +362,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     audio.addEventListener('ended', onEnded);
     return () => audio.removeEventListener('ended', onEnded);
-  }, [loop, queue.length]);
+  }, [loop, ownLoop, queue.length]);
 
   useEffect(() => {
     if (audioRef.current !== null) audioRef.current.volume = volume;
@@ -367,6 +409,21 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     setPlaying((current) => !current);
   }, [track]);
 
+  /**
+   * Stop: silence, and back to the start of the track.
+   *
+   * The element is rewound rather than unloaded, so pressing play afterwards starts this track again
+   * from the top without a fresh network read. `setPlaying(false)` rather than a pause call, because
+   * the playing state is what drives the element (see the effect that follows it) and setting it is
+   * how every other control here asks for silence.
+   */
+  const stop = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio !== null) audio.currentTime = 0;
+
+    setPlaying(false);
+  }, []);
+
   const next = useCallback(() => {
     setError(null);
     setIndex((current) => nextIndex(current, queue.length));
@@ -412,7 +469,19 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   );
 
   const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
-  const setLoop = useCallback((value: boolean) => setLoopState(value), []);
+
+  /**
+   * The shelf's repeat switch, and an explicit statement about the *shelf*.
+   *
+   * It clears any handed-over track's own repeat first (`ownLoop`), because a press on the loop key is
+   * the reader saying what they want to hear - and if a profile's song had claimed the repeat, a press
+   * that appeared to do nothing would be worse than one that overrules it. After this the shelf's
+   * switch governs, which is what its own key promises.
+   */
+  const setLoop = useCallback((value: boolean) => {
+    setOwnLoop(null);
+    setLoopState(value);
+  }, []);
   const setPlayByDefault = useCallback((value: boolean) => setPlayByDefaultState(value), []);
   const dismissPrompt = useCallback(() => setPromptDismissedState(true), []);
 
@@ -420,16 +489,28 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * Hands the player one track and leaves it there: the account page's own song, on a phone
    * that has the bar folded away.
    *
-   * The track is queued if the shelf does not hold it, `loop` sets the repeat switch, and
-   * `autoplay` asks for it to start on its own. A browser will not make a sound before the
-   * listener has touched the page, so a refusal is not reported as an error here: it is
-   * remembered, and the first touch or keypress anywhere starts it (see `armAutoplay`).
+   * **`loop` here is the *track's* repeat, not the shelf's.** Those were one switch once, and that
+   * was a fault: a profile's song arrives wanting to repeat itself, `assign` wrote the global `loop`
+   * - and the global one is *persisted to localStorage* (`persistSettings`) - so visiting a profile
+   * with a song on it turned looping on for the whole board and left it on. A reader who never
+   * touched the loop key found the shelf repeating a track and had no idea why.
+   *
+   * So a handed-over track carries its own repeat (`ownLoop`), which is read only by the `ended`
+   * handler while that track is the one loaded, and which is *not* written to storage. The shelf's
+   * switch is untouched, which is what makes the two independent: looping a song filed into the bar
+   * cannot affect any other playlist's loop.
+   *
+   * `autoplay` asks for it to start on its own. A browser will not make a sound before the listener
+   * has touched the page, so a refusal is not reported as an error here: it is remembered, and the
+   * first touch or keypress anywhere starts it (see `armAutoplay`).
    */
   const assign = useCallback(
     (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean }) => {
       setError(null);
 
-      if (options?.loop !== undefined) setLoopState(options.loop);
+      // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
+      // deliberately *not* `setLoopState`: that is the shelf's switch, and it persists.
+      if (options?.loop !== undefined) setOwnLoop(options.loop);
 
       const found = queue.findIndex((entry) => entry.src === wanted.src);
 
@@ -472,6 +553,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       volume,
       loop,
       toggle,
+      stop,
       next,
       previous,
       play,
@@ -498,6 +580,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       volume,
       loop,
       toggle,
+      stop,
       next,
       previous,
       play,
