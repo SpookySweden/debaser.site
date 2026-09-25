@@ -13,10 +13,13 @@ import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 import CharacterEditorPanel from './CharacterEditorPanel';
 
-type TabKey = 'profile' | 'privacy';
+type TabKey = 'profile' | 'character' | 'privacy';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'profile', label: '[ PICTURE, BIO & TAGS ]' },
+  // Between the two, because it is the middle thing: the page gets dressed first, the switches at the end are
+  // about who may look, and the figure is neither - it is something built rather than described.
+  { key: 'character', label: '[ CHAR 🐰 ]' },
   { key: 'privacy', label: '[ SHOW / HIDE ]' },
 ];
 
@@ -345,10 +348,16 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId), 'TAG REMOVED.')}
             onSetAllHidden={(hidden) => void handleSetAllHidden(hidden)}
           />
+        </div>
+      ) : null}
 
-          {/* The character workbench, last in the dressing tab: it is the one thing here that is not
-              *describing* the account but building something to go on it. See ./CharacterEditorPanel.tsx. */}
-          <PanelHeading>BUILD A CHARACTER</PanelHeading>
+      {/* The character workbench, on a tab of its own between the dressing and the switches.
+          It is the one thing in this console that is not *describing* the account but building an
+          artefact to sit beside it, and a workbench needs the window's whole width - the two
+          orthographic viewports and the layer list do not fit in a tab that is already three panels
+          deep. See ./CharacterEditorPanel.tsx. */}
+      {tab === 'character' ? (
+        <div className="space-y-3">
           <CharacterEditorPanel />
         </div>
       ) : null}

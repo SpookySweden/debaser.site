@@ -1,5 +1,6 @@
 'use client';
 
+import { PART_OF_JOINT } from '../lib/character/rig';
 import { useCharacterStore, type LayerId } from '../lib/character/store';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
@@ -37,12 +38,14 @@ export default function CharacterViewport() {
   const selectLayer = useCharacterStore((state) => state.selectLayer);
   const toggleLayer = useCharacterStore((state) => state.toggleLayer);
   const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
+  // Read from the rig rather than hardcoded, so the pane cannot claim a mapping the table does not have.
+  const partCount = Object.keys(PART_OF_JOINT).length;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Viewport label="FRONT" hint="X / Y" />
-        <Viewport label="SIDE" hint="Z / Y" />
+        <Viewport label="FRONT" hint="X / Y" joints={jointCount} parts={partCount} />
+        <Viewport label="SIDE" hint="Z / Y" joints={jointCount} parts={partCount} />
       </div>
 
       <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
@@ -99,7 +102,7 @@ export default function CharacterViewport() {
 }
 
 /** One orthographic pane. The label sits inside the frame, because a drag is constrained per pane. */
-function Viewport({ label, hint }: { label: string; hint: string }) {
+function Viewport({ label, hint, joints, parts }: { label: string; hint: string; joints: number; parts: number }) {
   return (
     <div className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink">
       <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-paper">
@@ -107,10 +110,25 @@ function Viewport({ label, hint }: { label: string; hint: string }) {
         <span className="text-sun">{hint}</span>
       </p>
 
-      {/* The canvas is drawn here in Phase 5. Until then this states what will be in it rather than showing a
-          blank rectangle that reads as a fault. */}
-      <div className="flex h-[26rem] items-center justify-center">
-        <p className="text-[10px] font-bold text-sun-pale">THE RIG IS DRAWN HERE</p>
+      {/*
+       * **There is no canvas yet, and that is why this reads as empty.**
+       *
+       * Phases 1 and 2 built the frame and the figure's arithmetic; the renderer is Phase 5, so nothing draws
+       * inside these panes and an owner looking at the live site sees two black boxes. That is a *true* state
+       * rather than a fault, but a black box does not say so - it reads as a broken feature.
+       *
+       * So the placeholder names the joint count the store actually holds, which is real data read from the
+       * figure that exists: it is the one thing here that can be shown without a GPU, and it is also the check
+       * that the tab is wired to the rig rather than to a mock. A dashed rule is used because a repeating
+       * dither or a dotted rule is explicitly allowed under the artwork rule; nothing here draws a character.
+       */}
+      <div className="flex h-[26rem] flex-col items-center justify-center gap-2 border border-dashed border-ink p-2 text-center">
+        <p className="text-[10px] font-bold text-sun-pale">NO RENDERER YET</p>
+        <p className="text-[10px] text-ice">
+          THE SKELETON IS BUILT AND EDITABLE - {joints} JOINTS, {parts} PRIMITIVES MAPPED - BUT NOTHING DRAWS THEM
+          UNTIL THE SHADER PASS LANDS.
+        </p>
+        <p className="text-[10px] text-sun">THIS PANE WILL HOLD THE {label} VIEW.</p>
       </div>
     </div>
   );
