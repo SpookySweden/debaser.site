@@ -248,6 +248,20 @@ warns about). Both `Temp/sql.cjs` and `Temp/db-cli.cjs` therefore run the CLI as
 `node node_modules/supabase/dist/supabase.js` - no shim, no shell, and the version pinned in
 `package.json` rather than whatever `npx` resolves.
 
+**Ask less; the repository already answers most of it.** `.clinerules` says to exhaust the codebase
+and the docs before asking, to assume and continue on a non-fatal detail, and to halt only for a
+destructive or irreversible choice or after two failed self-corrections. The distinction that needs
+care is what counts as destructive, because this project deletes live rows on purpose:
+
+    a destructive change whose blast radius is UNKNOWN   -> stop and ask
+    a destructive change that has been READ and BOUNDED  -> proceed
+
+The second is the `supabase/cleanup/` pattern: run `*-review.sql`, read the list, confirm the
+survivors, then run `*-sweep.sql`. That is how 30 throwaway accounts were removed without touching
+the 7 real ones, and it did not need a halt - the halt would have added nothing except a turn, since
+the list had already been read. What *would* need one: dropping a table, deleting a tracked file,
+force-pushing, or rewriting history - anything whose effect cannot be seen first or undone after.
+
 ## Build Order
 
 1. Static Web 1.0 UI frames + gallery placeholders

@@ -66,7 +66,24 @@
   guard rails around it, and the ship-and-verify loop. Read it before database or
   deployment work; do not restate it here, so the two cannot drift.
 
-## Best Practices
+## Self-Resolution & Assumptions
+- **Exhaust the codebase and the docs before asking anything.** `AGENTS.md`, the
+  module's own header comment, `README.md`, `Temp/check-*.cjs` - these answer most
+  questions already. A question that a search would have answered wastes a turn
+  and gets a worse answer.
+- **For a missing but non-fatal detail, assume and continue.** Make the assumption
+  consistent with the patterns already in the code, say it in one line in the
+  answer, and carry on. Only a destructive or irreversible choice needs a person.
+- **Halt only for**: a destructive or irreversible change (dropping a table,
+  deleting a tracked file, force-pushing, rewriting history), a schema change that
+  cannot be re-run, or two failed self-corrections on the same problem.
+- **A reviewed, scoped delete is not a halt.** `supabase/cleanup/*-review.sql`
+  first, read the list, confirm the survivors - then proceed. That is how 30
+  throwaway accounts went without touching the 7 real ones. The halt is for a
+  destructive change whose blast radius is *unknown*, not for one that has been
+  read and bounded.
+- **Do not ask what the repository already answers.** If the answer is inferable
+  from `package.json`, a migration, a check, or a comment, infer it.
 - Prefer native PowerShell cmdlets over shell commands.
 - Use `Where-Object` for filtering instead of piping to `findstr`.
 - For large outputs, use `-NoTypeInformation` with `Get-Content` to avoid clutter.
