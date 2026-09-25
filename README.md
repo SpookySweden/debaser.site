@@ -30,6 +30,8 @@ What is where
                           as migrations, and README.md - the order to run everything in
     Temp/                 local scratch: the check scripts, their logs and the commit messages
                           (gitignored, and never needed to run or to build the site)
+    scripts/              the tools that read the site and capture its HTML - tracked, because a
+                          viewer a fresh clone does not have is not a guarantee
 
 Running it
 ----------
@@ -71,6 +73,29 @@ the wire's rows to the Yjs handshake between two editors. Each compiles the modu
 `npx tsc` first, from the command written in its own header comment, so that one command is the
 whole run. The live probes beside them need a Supabase project and credentials, and are run by hand
 against the deployed one.
+
+Reading the site
+----------------
+There is no browser in this workflow - no screenshots, no clicking, no layout or colour - so
+`scripts/read-site.cjs` is what stands in for looking. It reads the HTML a visitor's browser gets and
+reports whether the text you name is present or absent:
+
+    npm run read                     # the deployed site, checking the player's keys
+    npm run read:local               # a local `next start` on :3210, before pushing
+    npm run read -- "[ ♪ MUSIC ]"    # expect this text to be there
+    npm run read -- --absent "x"     # expect this text to be gone
+    npm run read -- --url <route>    # read any page
+
+It strips React's text-node comments first, which is the whole reason it is a script rather than a
+grep: the player's music key is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so searching
+the raw HTML for `[ ♪ MUSIC ]` finds nothing and reports a present change as missing.
+
+    npm run capture                  # writes Temp/qa/<route>.html for the audit below
+
+`node Temp/qa-audit.cjs` reads those captures - the pre-JavaScript HTML of every route, which is also
+what a screen reader and a crawler see - and reports unnamed fields, controls too small for a thumb,
+text too small to read, and colour pairs below the contrast floor. **Capture first**: a snapshot older
+than the components makes the pass meaningless. `scripts/README.txt` has the whole of it.
 
 One pass is not part of that suite, because it needs a capture of the built site:
 

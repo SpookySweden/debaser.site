@@ -160,22 +160,25 @@ the agent - so the loop is: change, verify, push, confirm it is deployed, report
 3. `node Temp/qa-audit.cjs` - reads the HTML a visitor's browser gets before any JavaScript runs
    (which is also what a screen reader and a crawler see) and reports unnamed fields, controls too
    small for a thumb, text too small to read, and colour pairs below the contrast floor.
-   **Capture first: `node Temp/capture-qa.cjs --serve`.** The audit reads snapshots from `Temp/qa/`,
+   **Capture first: `npm run capture`.** The audit reads snapshots from `Temp/qa/`,
    not the current build, so without a fresh capture it happily reports on yesterday's HTML and the
    pass means nothing - which is exactly what happened on 2026-09-25, when the captures were two days
    older than the components. The two scripts share one route list (`ROUTES` in `qa-audit.cjs`), so
    they cannot disagree about what is being audited.
 4. **Commit and push to `main`.** Vercel builds from `github.com/SpookySweden/debaser.site`, and that
    is what puts the change where the owner can look at it. Only ever after 1 and 2 are green.
-5. **Fetch the deployed page and confirm the change is in the served HTML.**
-   `node Temp/verify-live.cjs` does this against `https://debaser-site.vercel.app/forum`, and
-   `--local` does it against a local `next start`. Use it rather than a hand-written grep, for a
-   reason worth knowing: **React wraps dynamic text in HTML comments.** The player's music key is
-   served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so a plain search for `[ ♪ MUSIC ]`
-   finds nothing and reports a present change as missing - which happened twice here, and each time
-   looked like a stale build rather than a wrong grep. The script strips the comments first.
+5. **Read the site and confirm the change is in the served HTML.** `npm run read` does this
+   against `https://debaser-site.vercel.app/forum`, and `npm run read:local` does it against a local
+   `next start`; `npm run read -- --url <address>` reads any route, and `--absent` asserts something
+   is gone. Use it rather than a hand-written grep, for a reason worth knowing: **React wraps dynamic
+   text in HTML comments.** The player's music key is served as
+   `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so a plain search for `[ ♪ MUSIC ]` finds nothing
+   and reports a present change as missing - which happened twice here, and each time looked like a
+   stale build rather than a wrong grep. The script strips the comments first.
    This is also the step that catches "uncommitted work is not deployed": on 2026-09-25 the player's
    `[ ♪ MUSIC ]` was reported done while the live site still served `[ SHELF (60) ]`.
+   **The tool is tracked in `scripts/`, not `Temp/`** - a viewer a fresh clone does not have is not a
+   guarantee, and these were scratch files for most of the project's life.
 6. **Report the limits out loud.** Not as a disclaimer but as part of the answer.
 
 **What the agent can and cannot do. State it every time; never imply more:**
@@ -214,14 +217,14 @@ and then the fix was restored and the file byte-compared. Both `check-music-libr
 `check-surreal.cjs` were treated this way. A check that has never failed is one whose failure mode
 is unknown.
 
-**A missing grep is not an absent feature.** `Temp/verify-live.cjs` exists because searching the
+**A missing grep is not an absent feature.** `scripts/read-site.cjs` exists because searching the
 served HTML for `[ ♪ MUSIC ]` finds nothing: React wraps the text in comments, so it is really
 `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`. This misled twice - both times it looked like a stale
 deploy rather than a wrong pattern. Strip comments before matching.
 
 **Derived data goes stale silently, and a stale pass is worse than no pass.** `Temp/qa/*.html` was
 written by hand and had gone two days older than the components, so `qa-audit` reported on a build
-nobody was shipping. `Temp/capture-qa.cjs` now produces them from a `next start` it starts itself,
+nobody was shipping. `npm run capture` now produces them from a `next start` it starts itself,
 and both scripts share one `ROUTES` list so they cannot disagree about what is being audited. The
 same class of trap: `/music` sat in that list long after the archive stopped being a route, so every
 capture 404'd and the audit read a leftover file - **the music screen had never once been audited**.
