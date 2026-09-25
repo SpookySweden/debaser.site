@@ -46,6 +46,16 @@ export const subscribeToQueueWindow = slot.subscribe;
 export const QUEUES_HREF = '/forum?queues=1';
 
 /**
+ * The address of the *list* tab specifically - where the people broadcasting are.
+ *
+ * Beside `QUEUES_HREF` rather than typed at the call site, for the reason every other address here is: a
+ * track heard by following a broadcast records this as its origin, so RADI-OH's globe can open the list
+ * again. Two spellings of that address would be two things to keep in step, and a globe that opened the
+ * wrong tab would look like it worked.
+ */
+export const QUEUES_LIST_HREF = '/forum?queues=queues';
+
+/**
  * Opens the window, on a tab or the default one.
  *
  * The tab is a parameter rather than a separate opener because its the same window - a reader switching

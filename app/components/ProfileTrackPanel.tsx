@@ -53,7 +53,15 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => (playing ? player.toggle() : player.play(elementAsTrack(profile, element)))}
+            onClick={() =>
+              playing
+                ? player.toggle()
+                : player.play(elementAsTrack(profile, element), {
+                    origin: 'profile',
+                    href: `/profile/${encodeURIComponent(profile.userId)}`,
+                    where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+                  })
+            }
             className={PLATE_MEDIUM}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}

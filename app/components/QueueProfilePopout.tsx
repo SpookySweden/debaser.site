@@ -14,6 +14,7 @@ import {
   type BroadcastQueue,
 } from '../lib/audio/broadcast';
 import { formatClock } from '../lib/audio/format';
+import { QUEUES_LIST_HREF } from '../lib/audio/queue-window';
 import { saveLoop } from '../lib/audio/loops';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
@@ -115,7 +116,13 @@ export default function QueueProfilePopout({
       });
     }
 
-    if (track !== undefined) player.play(track);
+    if (track !== undefined) {
+      player.play(track, {
+        origin: 'queue',
+        href: QUEUES_LIST_HREF,
+        where: 'THE QUEUES LIST',
+      });
+    }
 
     player.setPlaybackRate(rate);
     setJoined(true);

@@ -150,7 +150,15 @@ function AspectPreview({
 
           <button
             type="button"
-            onClick={() => (playing ? player.toggle() : player.play(elementAsTrack(profile, shown)))}
+            onClick={() =>
+        playing
+          ? player.toggle()
+          : player.play(elementAsTrack(profile, shown), {
+              origin: 'profile',
+              href: `/profile/${encodeURIComponent(profile.userId)}`,
+              where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+            })
+      }
             className={PLATE_MEDIUM}
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}

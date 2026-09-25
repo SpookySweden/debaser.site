@@ -53,6 +53,21 @@ export type LoopSource = {
   kind: 'own' | 'taken-over';
   /** Which of the icons this plate wears. */
   origin: LoopOrigin;
+  /**
+   * Where this track was first played from - what the caption's globe opens.
+   *
+   * Recorded at the moment of playing rather than worked out later, because the answer is only knowable
+   * then: a track played off somebody's profile and the *same file* played off the archive are the same
+   * `src`, so nothing in the file itself says which door the reader came through. A track whose source
+   * cannot be placed has no href, and the caption draws no globe rather than a link to somewhere wrong.
+   *
+   * A site-local address (`/profile/<id>`, `/forum?music=mine`). Absolute web addresses are not stored:
+   * every file here is one the site already serves, and an `href` to somewhere off-site would be a claim
+   * about provenance the player cannot make.
+   */
+  originHref?: string;
+  /** What the globe's own words are, so a caption can say where it goes before it is followed. */
+  originWhere?: string;
   /** When it was first saved, so a list can be read oldest-first for a pruned entry. */
   savedAt: string;
   /** When it was last touched, which for quick access is what the order is really by. */
@@ -63,8 +78,8 @@ export type LoopSource = {
   displacedBy?: string;
 };
 
-/** The most loops kept. Past this the oldest go, because a history nobody prunes is a list nobody reads. */
-export const MAX_LOOPS = 24;
+/** The most entries kept. Past this the oldest go, because a history nobody prunes is a list nobody reads. */
+export const MAX_LOOPS = 30;
 
 /**
  * How often the player writes your position into the grid.
@@ -111,23 +126,39 @@ export function loopLabel(loop: LoopSource, shelf: AudioTrack[]): string {
 }
 
 /**
- * The mark on a plate: what kind of thing this is, in one glyph.
+ * The mark on an icon: what kind of thing this is, in one glyph.
  *
  * A *character*, not a picture - the same rule as `app/lib/ui/icons.ts`, and the reason is the asset rules
- * rather than taste: nothing on this site draws an icon in CSS or SVG, and the grid needs the three kinds
- * tellable apart at a glance. A profile's song, an archive file and a broadcast are three different
- * things to go back to, and without this every plate would wear the same `↻` and read as the same kind.
+ * rather than taste: nothing on this site draws an icon in CSS or SVG, and the grid needs the kinds
+ * tellable apart at a glance.
+ *
+ * **The shelf's mark is a music note, and it is the only mark that carries a colour.** The glyph says
+ * *what* it is (a piece of music) and the colour says *where from* (your own listening, which is what most
+ * of the grid is). The other two are a person's head and a note for a broadcast, so no two entries read
+ * alike - which is the whole job, since the grid withholds the text that would otherwise explain them.
  */
 export function originMark(origin: LoopOrigin): string {
   switch (origin) {
     case 'profile':
       return '☻';
     case 'queue':
-      return '♪';
+      return '♫';
     case 'shelf':
     case 'own':
-      return '▤';
+      return '♪';
   }
+}
+
+/**
+ * The Tailwind ink each mark wears.
+ *
+ * A class rather than a colour value, because a component that writes a hex is the fault
+ * `Temp/check-surreal.cjs` fails on - every fill on this site resolves to one of the nine tokens. The
+ * shelf's note is Royal Blue (`ena`), which is the same blue the player's hardware plates use, so the
+ * site's own music reads as the site's own music.
+ */
+export function originInk(origin: LoopOrigin): string {
+  return origin === 'shelf' || origin === 'own' ? 'text-ena' : 'text-ink';
 }
 
 /** What a plate says about where it came from, under the title. */
@@ -142,10 +173,34 @@ export function originLabel(entry: LoopSource): string {
     case 'queue':
       return 'HEARD ON A QUEUE';
     case 'shelf':
-      return 'FROM THE ARCHIVE';
+      return 'PLAYED FROM THE MUSIC WINDOW';
     case 'own':
-      return 'YOU WERE HERE';
+      return 'YOU HAD THIS ON';
   }
+}
+
+/**
+ * The globe, as a glyph.
+ *
+ * A character like every other mark here (`app/lib/ui/icons.ts`), and the right one for the job: it is the
+ * universal sign for "this goes somewhere on the web", which is exactly what the link beside it does. The
+ * asset rules forbid drawing one, and a glyph is what a text-mode machine had.
+ */
+export const GLOBE = '⊕';
+
+/**
+ * Where an entry came from, in the reader's words - what the globe's link says it opens.
+ *
+ * Separate from `originLabel` because they answer different questions: that one says *what kind of thing*
+ * this is, and this one names the actual place. A caption shows both, so a reader knows where the globe
+ * goes before spending a press on it.
+ *
+ * A track with no recorded href reads as `null` rather than as a guess, and the caption then draws no
+ * globe at all. An empty link and a link to the wrong place look the same to a reader, and only one of
+ * them is honest.
+ */
+export function originWhereLabel(entry: LoopSource): string | null {
+  return entry.originHref === undefined ? null : (entry.originWhere ?? 'WHERE THIS CAME FROM');
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -267,6 +322,8 @@ export function saveLoop(entry: {
   positionSeconds: number;
   kind: LoopSource['kind'];
   origin?: LoopOrigin;
+  originHref?: string;
+  originWhere?: string;
   displacedBy?: string;
 }): LoopSource {
   const at = Math.max(0, Math.floor(entry.positionSeconds));
@@ -279,6 +336,8 @@ export function saveLoop(entry: {
     positionSeconds: at,
     kind: entry.kind,
     origin: entry.origin ?? 'own',
+    originHref: entry.originHref,
+    originWhere: entry.originWhere,
     savedAt: now,
     playedAt: now,
     plays: 0,
@@ -324,6 +383,8 @@ export function rememberPlay(entry: {
   trackId: string;
   positionSeconds: number;
   origin?: LoopOrigin;
+  originHref?: string;
+  originWhere?: string;
 }): LoopSource {
   const id = recentId(entry.trackId);
   const existing = loops.find((candidate) => candidate.id === id);
@@ -340,6 +401,11 @@ export function rememberPlay(entry: {
     positionSeconds: at,
     kind: 'own',
     origin: entry.origin ?? 'shelf',
+    // The source is only knowable at the *first* play, so an href already recorded is kept: playing the
+    // same file later from somewhere else does not rewrite where the reader first found it, which is what
+    // the brief asks the globe to point at ("where you initially started playing it from").
+    originHref: existing?.originHref ?? entry.originHref,
+    originWhere: existing?.originWhere ?? entry.originWhere,
     savedAt: existing?.savedAt ?? now,
     playedAt: now,
     plays: (existing?.plays ?? 0) + (isNewPlay ? 1 : 0),

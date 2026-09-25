@@ -47,7 +47,15 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
     // pop-up asks how it should behave - once - until the visitor says not to show it
     // again (the player's gear reopens it later).
     if (player.playByDefault && compact) {
-      player.assign(elementAsTrack(profile, ownTrack), { loop: true, autoplay: true });
+      player.assign(elementAsTrack(profile, ownTrack), {
+        loop: true,
+        autoplay: true,
+        origin: {
+          origin: 'profile',
+          href: `/profile/${encodeURIComponent(profile.userId)}`,
+          where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+        },
+      });
       return;
     }
 

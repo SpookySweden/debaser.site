@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
-import { LOOP_SAMPLE_MS, rememberPlay } from '../lib/audio/loops';
+import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
 import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
@@ -55,13 +55,20 @@ export type MusicPlayerValue = {
    * a stereo that has been made worse rather than simpler.
    */
   stop: () => void;
-  /** Plays a track, queueing it if the shelf does not hold it (a profile's song). */
-  play: (track: AudioTrack) => void;
+  /**
+   * Plays a track, queueing it if the shelf does not hold it (a profile's song).
+   *
+   * `origin` is where the reader pressed play *from*, and it is what RADI-OH's globe opens later. It is
+   * passed in rather than worked out here because this is the only place that cannot know it: `play` is
+   * handed a track, and a track played off a profile's page and the same file played off your own screen
+   * are the same `src`. The caller knows which door was used, so the caller says.
+   */
+  play: (track: AudioTrack, origin?: PlayOrigin) => void;
   /**
    * Hands over one track and leaves it there: the account page's own song, queued, set to
    * repeat, and - with `autoplay` - started at the first opportunity the browser allows.
    */
-  assign: (track: AudioTrack, options?: { loop?: boolean; autoplay?: boolean }) => void;
+  assign: (track: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => void;
   playAt: (index: number) => void;
   setVolume: (value: number) => void;
   setLoop: (value: boolean) => void;
@@ -87,6 +94,22 @@ export type MusicPlayerValue = {
 };
 
 const MusicPlayerContext = createContext<MusicPlayerValue | null>(null);
+
+/**
+ * Where a press on play came from - the two facts RADI-OH cannot work out afterwards.
+ *
+ * `href` is the address the globe will open, and `where` is what the caption calls it. Both are recorded
+ * at the moment of playing, because that is the only moment the answer exists: `play` receives a track and
+ * nothing else, and the same file can be reached through several doors.
+ *
+ * `origin` is the *kind*, matching `LoopOrigin`, so the icon's mark and the recorded link come from one
+ * decision rather than two that can disagree.
+ */
+export type PlayOrigin = {
+  origin?: LoopOrigin;
+  href?: string;
+  where?: string;
+};
 
 /** Where the listener's own settings live, so the bar sounds the same next visit. */
 const SETTINGS_KEY = 'debaser.audio.player.v1';
@@ -176,6 +199,16 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
   const [playbackRate, setPlaybackRateState] = useState(1);
+
+  /**
+   * Where the track now playing was pressed from.
+   *
+   * A ref rather than state, because nothing renders from it: it is a note the sampling effect reads when
+   * it writes to RADI-OH, and re-rendering the whole provider to record which link was used would be a
+   * render for a fact no component displays. It is set by `play` and `assign`, which are the two doors a
+   * track can come through, and it holds for as long as that track is the one on the display.
+   */
+  const playedFrom = useRef<PlayOrigin | null>(null);
 
   /**
    * The repeat of a track that was *handed over* rather than chosen from the shelf - a profile's own
@@ -398,8 +431,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     // A handed-over track carries its own repeat, which is the only thing that distinguishes a profile's
     // song from an archive file at this point - the player holds one queue and does not label its rows.
-    const origin = ownLoop === null ? 'shelf' : 'profile';
+    const fallback = ownLoop === null ? 'shelf' : 'profile';
     const source = track;
+    const recorded = playedFrom.current;
 
     const write = () => {
       const audio = audioRef.current;
@@ -409,7 +443,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
         label: source.title,
         trackId: source.src,
         positionSeconds: audio.currentTime,
-        origin,
+        // What the caller said, or the best guess left over. `rememberPlay` keeps the *first* recorded
+        // source, so a track already in the grid does not have its globe rewritten by a later play.
+        origin: recorded?.origin ?? fallback,
+        originHref: recorded?.href,
+        originWhere: recorded?.where,
       });
     };
 
@@ -501,7 +539,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * plays that song rather than the shelf's next track.
    */
   const play = useCallback(
-    (wanted: AudioTrack) => {
+    (wanted: AudioTrack, origin?: PlayOrigin) => {
+      playedFrom.current = origin ?? null;
+
       const found = queue.findIndex((entry) => entry.src === wanted.src);
 
       if (found === -1) {
@@ -555,8 +595,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * first touch or keypress anywhere starts it (see `armAutoplay`).
    */
   const assign = useCallback(
-    (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean }) => {
+    (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => {
       setError(null);
+      playedFrom.current = options?.origin ?? null;
 
       // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
       // deliberately *not* `setLoopState`: that is the shelf's switch, and it persists.
