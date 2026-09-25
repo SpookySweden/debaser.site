@@ -11,6 +11,7 @@ import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } fr
 import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
+import CharacterEditorPanel from './CharacterEditorPanel';
 
 type TabKey = 'profile' | 'privacy';
 
@@ -344,6 +345,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId), 'TAG REMOVED.')}
             onSetAllHidden={(hidden) => void handleSetAllHidden(hidden)}
           />
+
+          {/* The character workbench, last in the dressing tab: it is the one thing here that is not
+              *describing* the account but building something to go on it. See ./CharacterEditorPanel.tsx. */}
+          <PanelHeading>BUILD A CHARACTER</PanelHeading>
+          <CharacterEditorPanel />
         </div>
       ) : null}
 
