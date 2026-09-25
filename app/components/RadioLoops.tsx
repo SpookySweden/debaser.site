@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { formatClock } from '../lib/audio/format';
 import {
@@ -40,12 +41,20 @@ import LoopPopout from './LoopPopout';
  *   - **the pop-out, on a press.** `LoopPopout` is the fuller card, for the two things you can do with an
  *     entry rather than for reading it.
  *
- * **The caption is positioned `fixed`, from the icon's own rectangle, and that is not a style choice.** It
- * lives inside `DockWindow`'s `overflow-y-auto` scroller, and an absolutely positioned box *cannot escape a
- * scrolling ancestor* - which is why the first attempt at this was clipped by the window's foot and had to
- * be rewritten. `position: fixed` takes the box out of that clip, and measuring the icon is what keeps it
- * beside the right one. It also means the caption must be re-measured on scroll and on resize, or it
- * detaches from its icon the moment the reader moves the window's contents.
+ * **The caption is portalled to `document.body`, and that is the whole of why it shows at all.** It is the
+ * third attempt, and the first two failed for the same hidden reason:
+ *
+ *   - `absolute` was clipped, because `DockWindow` scrolls its contents with `overflow-y-auto` and an
+ *     absolutely positioned box cannot escape a scrolling ancestor.
+ *   - `fixed` was positioned *relative to the window* rather than the viewport, because `DockWindow` sets
+ *     `transform: translate(...)` on itself for dragging - and a transform makes an element the containing
+ *     block for every `fixed` descendant. So the rectangle read from `getBoundingClientRect()` (viewport
+ *     coordinates) and the `fixed` box (window coordinates) disagreed, and the caption landed off-screen.
+ *
+ * A portal renders into `document.body`, which is outside the transformed window, so `fixed` means the
+ * viewport again and the measured rectangle is the right coordinate space. The measurement still has to be
+ * maintained - scroll, resize and the window's own drag all move the icon - so all three are listened for
+ * while a caption is up.
  */
 export default function RadioLoops() {
   const loops = useSyncExternalStore(subscribeToLoops, loopState, loopServerState);
@@ -100,6 +109,17 @@ export default function RadioLoops() {
       )}
     </section>
   );
+}
+
+/**
+ * A store that never changes, for reading a fact about the *environment* rather than about state.
+ *
+ * `useSyncExternalStore` is the one hook React gives for "the server and the browser answer this
+ * differently", which is exactly the question a portal asks: is there a `document` to render into? The
+ * subscription is empty because the answer cannot change while the page is open.
+ */
+function subscribeToNothing(): () => void {
+  return () => undefined;
 }
 
 /**
@@ -207,6 +227,56 @@ function LoopIcon({
   // component that is gone.
   useEffect(() => stop, [stop]);
 
+  /**
+   * Whether this render is in a browser.
+   *
+   * `useSyncExternalStore` rather than a `mounted` flag set in an effect: the server snapshot is `false` and
+   * the client's is `true`, so React itself handles the switch without a second render and without the
+   * set-state-in-an-effect the lint rule (rightly) refuses. A portal needs a `document`, which the server
+   * does not have - so the caption renders only where there is one to render into.
+   */
+  const inBrowser = useSyncExternalStore(
+    subscribeToNothing,
+    () => true,
+    () => false,
+  );
+
+  const caption =
+    spot === null || !inBrowser
+      ? null
+      : createPortal(
+          <div
+            data-caption="loop"
+            style={{ left: spot.left, top: spot.top }}
+            onPointerEnter={hold}
+            onPointerLeave={stop}
+            className="fixed z-[130] w-[min(15rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 opacity-60"
+          >
+            <p className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-ink">{label}</p>
+            <p className={`text-[9px] leading-tight ${takenOver ? 'text-bubble-pale' : 'text-ink'}`}>
+              {originLabel(loop)}
+            </p>
+            <p className="text-[9px] leading-tight text-ink">
+              {formatClock(loop.positionSeconds)}
+              {loop.plays > 1 ? ` :: PLAYED ${loop.plays}x` : ''}
+            </p>
+
+            {/* The globe: a real link, and only when there is somewhere true to go. An entry with no recorded
+                source draws nothing here rather than a link to a guess. */}
+            {where === null ? null : (
+              <a
+                href={loop.originHref}
+                title={where}
+                className="mt-[2px] flex items-center gap-1 text-[9px] font-bold leading-tight text-ena underline underline-offset-2 hover:text-bubble-pale"
+              >
+                <span aria-hidden="true">{GLOBE}</span>
+                {where}
+              </a>
+            )}
+          </div>,
+          document.body,
+        );
+
   return (
     <div ref={icon} className="relative" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
       <button
@@ -246,37 +316,7 @@ function LoopIcon({
       >        ×
       </button>
 
-      {spot === null ? null : (
-        <div
-          data-caption="loop"
-          style={{ left: spot.left, top: spot.top }}
-          onPointerEnter={hold}
-          onPointerLeave={stop}
-          className="fixed z-[130] w-[min(15rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 opacity-60"
-        >
-          <p className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-ink">{label}</p>
-          <p className={`text-[9px] leading-tight ${takenOver ? 'text-bubble-pale' : 'text-ink'}`}>
-            {originLabel(loop)}
-          </p>
-          <p className="text-[9px] leading-tight text-ink">
-            {formatClock(loop.positionSeconds)}
-            {loop.plays > 1 ? ` :: PLAYED ${loop.plays}x` : ''}
-          </p>
-
-          {/* The globe: a real link, and only when there is somewhere true to go. An entry with no recorded
-              source draws nothing here rather than a link to a guess. */}
-          {where === null ? null : (
-            <a
-              href={loop.originHref}
-              title={where}
-              className="mt-[2px] flex items-center gap-1 text-[9px] font-bold leading-tight text-ena underline underline-offset-2 hover:text-bubble-pale"
-            >
-              <span aria-hidden="true">{GLOBE}</span>
-              {where}
-            </a>
-          )}
-        </div>
-      )}
+      {caption}
     </div>
   );
 }
