@@ -1,11 +1,12 @@
 'use client';
 
-import { useRef } from 'react';
-import { PART_OF_JOINT } from '../lib/character/rig';
-import { useCharacterStore, type LayerId } from '../lib/character/store';
-import { scaleOf } from '../lib/character/skeleton';
+import { MAX_SCALE, MIN_SCALE } from '../lib/character/drag';
 import type { ViewportKind } from '../lib/character/drag';
-import { FIELD, PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { massFor, PART_OF_JOINT } from '../lib/character/rig';
+import { scaleOf } from '../lib/character/skeleton';
+import { useCharacterStore, useInteractionMode, type InteractionMode, type LayerId } from '../lib/character/store';
+import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import CharacterScene from './CharacterScene';
 
 /**
  * The four layers, in the order the brief names them.
@@ -41,14 +42,15 @@ export default function CharacterViewport() {
   const selectLayer = useCharacterStore((state) => state.selectLayer);
   const toggleLayer = useCharacterStore((state) => state.toggleLayer);
   const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
+  const interactionMode = useInteractionMode();
   // Read from the rig rather than hardcoded, so the pane cannot claim a mapping the table does not have.
-  const partCount = Object.keys(PART_OF_JOINT).length;
+  const parts = Object.keys(PART_OF_JOINT).length;
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Viewport kind="front" label="FRONT" hint="X / Y" joints={jointCount} parts={partCount} />
-        <Viewport kind="side" label="SIDE" hint="Z / Y" joints={jointCount} parts={partCount} />
+        <Viewport kind="front" label="FRONT" hint="X / Y" />
+        <Viewport kind="side" label="SIDE" hint="Z / Y" />
       </div>
 
       <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
@@ -96,144 +98,140 @@ export default function CharacterViewport() {
         </ul>
       </div>
 
-      <JointPicker />
+      <LayerControls mode={interactionMode} />
 
       <p className="text-[10px] text-ink-plate">
         SELECTED: <span className="font-bold text-ink">{LAYERS.find((layer) => layer.id === activeLayer)?.label}</span>{' '}
-        - DRAGGING IN EITHER VIEWPORT DRIVES THIS LAYER. THE RIG HAS {jointCount} JOINTS.
+        -{' '}
+        {interactionMode === 'joints'
+          ? 'DRAG A JOINT HANDLE IN EITHER VIEWPORT TO MOVE IT. ' + jointCount + ' JOINTS.'
+          : interactionMode === 'mass'
+            ? 'CLICK A SHAPE IN THE VIEWPORT TO OPEN ITS CONTROLS. ' + parts + ' PRIMITIVES MAPPED.'
+            : interactionMode === 'light'
+              ? 'DRAG IN EITHER VIEWPORT TO TURN THE LIGHT.'
+              : 'NOTHING HERE IS EDITABLE. THIS LAYER IS TO LOOK AT.'}
       </p>
     </div>
   );
 }
 
 /**
- * Which joint a drag acts on, as a list.
+ * The stack of controls the selected layer needs, and nothing when it needs none.
  *
- * **A stand-in for picking a joint in the canvas, and it has to exist before the canvas does.** The natural way
- * to choose a joint is to click it, which needs the renderer; the renderer is Phase 5, and a drag with no
- * selectable target is a layer that cannot be exercised at all. So this is a real control over the real
- * skeleton - it lists the joints the store actually holds, with the selected one's scale read back - and it
- * stays useful afterwards, because a joint hidden behind another cannot be clicked and a list can name it.
+ * **The panel follows the layer, because that is what the layer *means*.** SKELETON has nothing to configure -
+ * its interaction is entirely the handles in the viewport - so it gets no panel at all, which is the honest
+ * answer rather than an empty box. MASS gets the rescaler, because a mass is something you size. LIGHT gets the
+ * readout, because it has no controls beyond the drag. BASE gets nothing, because it is a render to look at.
  *
- * A `<select>` rather than a row of plates: nineteen joints is past what fits across a sidebar, and the element
- * brings its own keyboard handling, which is the one part of a custom control that is easy to get wrong.
+ * This is where the `JointPicker` used to be, and its absence is the point: the owner's interaction is *click
+ * the shape, then open its tab*, so the tab is something the click opens rather than a list you consult first.
  */
-function JointPicker() {
-  /**
-   * **The joint list is stored, not derived in the selector.**
-   *
-   * This started as `useCharacterStore((state) => Object.keys(state.skeleton.joints))`, which is a new array
-   * on every call. Zustand v5 compares with `Object.is`, so it saw a change on every render, re-rendered, got
-   * another new array, and looped until React threw *"Maximum update depth exceeded"* - the error an owner
-   * hit simply by opening the CHAR tab. A selector must return a value that is stable between renders, and a
-   * fresh array never is.
-   *
-   * The fix is to select the object and derive the list in the component's own body. `state.skeleton.joints`
-   * is a stable reference that only changes when the rig does, so the comparison works, and the `Object.keys`
-   * costs nothing where it is.
-   *
-   * The count on the sidebar (a number) was always safe: numbers compare by value. It is specifically a
-   * *new object* per call that loops - which is why the bug hid behind a very similar-looking line.
-   */
-  const joints = useCharacterStore((state) => state.skeleton.joints);
-  const jointIds = Object.keys(joints);
+function LayerControls({ mode }: { mode: InteractionMode }) {
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const selectedJoint = selectedJointId === null ? undefined : joints[selectedJointId];
-  const scale = selectedJoint === undefined ? null : scaleOf(selectedJoint);
-  const selectJoint = useCharacterStore((state) => state.selectJoint);
+
+  if (mode === 'joints') {
+    return (
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
+        {selectedJointId === null
+          ? 'NOTHING IS SELECTED. THE HANDLES ARE THE GREEN DOTS - DRAG ONE IN EITHER VIEWPORT.'
+          : `HOLDING ${selectedJointId.toUpperCase()} - DRAG IT IN EITHER VIEWPORT. THE FRONT PANE MOVES IT ` +
+            'LEFT AND RIGHT, THE SIDE PANE MOVES IT FORWARD AND BACK.'}
+      </p>
+    );
+  }
+
+  if (mode === 'mass') {
+    return <MassRescaler jointId={selectedJointId} />;
+  }
+
+  if (mode === 'light') {
+    return (
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
+        THE LIGHT HAS NO CONTROLS OF ITS OWN. DRAG IN EITHER VIEWPORT - LEFT AND RIGHT TURNS IT AROUND THE
+        FIGURE, UP AND DOWN RAISES AND LOWERS IT.
+      </p>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * The mass tab: opened by clicking a shape, and it acts on what was clicked.
+ *
+ * **Nothing to show until something is clicked**, and it says so rather than showing a disabled slider - a
+ * greyed-out control invites a reader to work out why it is grey, when the answer is just "click a limb".
+ *
+ * The slider and the viewport drag write the same store field (`scale`), so they can never disagree: dragging a
+ * limb changes the number here, and moving the slider changes the limb. Two independent controls over one value
+ * is the arrangement that goes wrong when each keeps its own copy; this cannot, because there is only one copy.
+ */
+function MassRescaler({ jointId }: { jointId: string | null }) {
+  const joints = useCharacterStore((state) => state.skeleton.joints);
   const scaleJoint = useCharacterStore((state) => state.scaleJoint);
+  const joint = jointId === null ? undefined : joints[jointId];
+  const part = jointId === null ? undefined : massFor(jointId);
+
+  if (jointId === null || joint === undefined || part === undefined) {
+    return (
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
+        CLICK A SHAPE IN EITHER VIEWPORT. THE ONE YOU PICK OPENS HERE, WITH A SIZE TO SET.
+      </p>
+    );
+  }
+
+  const scale = scaleOf(joint);
+  // Read into a local before the handlers: the early return above narrows `jointId`, but a closure does not keep
+  // that narrowing, so `scaleJoint(jointId, ...)` inside the callbacks is a string-or-null. Binding it once is
+  // the fix the compiler is actually asking for - and a cast would have silenced it while keeping the hole.
+  const id = jointId;
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
-      <label className="text-[10px] font-bold text-ink" htmlFor="character-joint">
-        JOINT A DRAG ACTS ON
-      </label>
-      <select
-        id="character-joint"
-        value={selectedJointId ?? ''}
-        onChange={(event) => selectJoint(event.target.value === '' ? null : event.target.value)}
-        className={FIELD}
-      >
-        <option value="">(NONE SELECTED - A DRAG DOES NOTHING)</option>
-        {jointIds.map((id) => (
-          <option key={id} value={id}>
-            {id}
-          </option>
-        ))}
-      </select>
+      <p className="text-[10px] font-bold text-ink">
+        {id} :: {part.shape.toUpperCase()}
+      </p>
 
-      {selectedJointId === null ? (
-        <p className="mt-1 text-[10px] text-ink-plate">PICK A JOINT, THEN DRAG IN A VIEWPORT TO MOVE OR RESCALE IT.</p>
-      ) : (
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <input
-            id="character-scale"
-            type="range"
-            min={0.2}
-            max={4}
-            step={0.05}
-            value={scale ?? 1}
-            onChange={(event) => scaleJoint(selectedJointId, Number(event.target.value))}
-            className="w-40"
-            aria-label="scale of the selected joint"
-          />
-          <span className="text-[10px] font-bold text-ink">
-            SCALE {scale?.toFixed(2) ?? '1.00'} - DRAG UP IN EITHER PANE TO GROW, DOWN TO SHRINK
-          </span>
-          <button type="button" onClick={() => scaleJoint(selectedJointId, 1)} className={PLATE}>
-            RESET MASS
-          </button>
-        </div>
-      )}
+      <label className="mt-1 block text-[10px] text-ink-plate" htmlFor="character-mass-scale">
+        SIZE {scale.toFixed(2)} - THE SAME DRAG IN EITHER PANE, AND THIS SLIDER, DRIVE ONE NUMBER
+      </label>
+      <input
+        id="character-mass-scale"
+        type="range"
+        min={MIN_SCALE}
+        max={MAX_SCALE}
+        step={0.05}
+        value={scale}
+        onChange={(event) => scaleJoint(id, Number(event.target.value))}
+        className="mt-1 w-48 max-sm:min-h-11"
+      />
+
+      <button type="button" onClick={() => scaleJoint(id, 1)} className={`${PLATE} ml-2`}>
+        RESET SIZE
+      </button>
     </div>
   );
 }
 
-/** One orthographic pane. The label sits inside the frame, because a drag is constrained per pane. */
-function Viewport({
-  kind,
-  label,
-  hint,
-  joints,
-  parts,
-}: {
-  kind: ViewportKind;
-  label: string;
-  hint: string;
-  joints: number;
-  parts: number;
-}) {
-  const drag = useCharacterStore((state) => state.drag);
-  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  // Where the last move event was. A ref rather than state: it changes on every pointer move, and re-rendering
-  // to store a coordinate that only the next event reads would make every drag a render per pixel.
-  const last = useRef<{ x: number; y: number } | null>(null);
-
-  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    // Capture is what makes a fast drag survive leaving the pane - see the pane's own note below.
-    event.currentTarget.setPointerCapture(event.pointerId);
-    last.current = { x: event.clientX, y: event.clientY };
-  }
-
-  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (last.current === null) return;
-
-    const dx = event.clientX - last.current.x;
-    const dy = event.clientY - last.current.y;
-    last.current = { x: event.clientX, y: event.clientY };
-
-    // A delta per event rather than from the gesture's start: that is what lets the store stay a simple
-    // `position += offset`, and it means the store never has to remember where the drag began.
-    drag(kind, dx, dy, selectedJointId);
-  }
-
-  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    last.current = null;
-  }
-
+/**
+ * One orthographic pane, with a real WebGL surface in it.
+ *
+ * **This is the pane that stopped being an empty box.** Everything above it - the rig, the store, the drag
+ * arithmetic - was built to be driven by something, and this is that something: a `<Canvas>` rendering the
+ * figure from one fixed direction, with the joints drawn as grabbable handles in the SKELETON layer and the
+ * mass as clickable primitives in the MASS layer.
+ *
+ * **Orthographic, not perspective, and that is a requirement rather than a preference.** The drag arithmetic in
+ * `app/lib/character/drag.ts` converts pixels to model units with one constant, which is only correct when a
+ * unit is the same number of pixels everywhere on screen. A perspective camera makes it vary with depth, so a
+ * joint dragged near the camera would move faster than one dragged far away - and the whole point of having the
+ * front and side views at once is that a pixel means the same thing in both. `zoom` is set so the figure's
+ * ~2 units fill the pane, which is what makes `UNITS_PER_PIXEL` true rather than approximately true.
+ *
+ * **The label sits inside the frame**, because a drag is constrained by which pane it started in and a reader
+ * has to be able to tell at a glance which one their pointer is over.
+ */
+function Viewport({ kind, label, hint }: { kind: ViewportKind; label: string; hint: string }) {
   return (
     <div className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink">
       <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-paper">
@@ -242,36 +240,12 @@ function Viewport({
       </p>
 
       {/*
-       * **There is no canvas yet, and that is why this reads as empty.**
-       *
-       * Phases 1 and 2 built the frame and the figure's arithmetic; the renderer is Phase 5, so nothing draws
-       * inside these panes and an owner looking at the live site sees two black boxes. That is a *true* state
-       * rather than a fault, but a black box does not say so - it reads as a broken feature.
-       *
-       * So the placeholder names the joint count the store actually holds, which is real data read from the
-       * figure that exists: it is the one thing here that can be shown without a GPU, and it is also the check
-       * that the tab is wired to the rig rather than to a mock. A dashed rule is used because a repeating
-       * dither or a dotted rule is explicitly allowed under the artwork rule; nothing here draws a character.
-       *
-       * It is also the drag surface. `touch-none` stops a phone scrolling the page instead of dragging it, and
-       * the handlers above keep the moves coming once the gesture has started.
+       * `touch-none` on the wrapper stops a phone scrolling the page instead of dragging a joint, and the canvas
+       * fills the box rather than sizing itself - a canvas that sized to its content would have no height at all
+       * inside this fixed 26rem frame.
        */}
-      <div
-        role="presentation"
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-        className="flex h-[26rem] cursor-move touch-none flex-col items-center justify-center gap-2 border border-dashed border-ink p-2 text-center"
-      >
-        <p className="text-[10px] font-bold text-sun-pale">NO RENDERER YET</p>
-        <p className="text-[10px] text-ice">
-          THE SKELETON IS BUILT AND EDITABLE - {joints} JOINTS, {parts} PRIMITIVES MAPPED - BUT NOTHING DRAWS THEM
-          UNTIL THE SHADER PASS LANDS.
-        </p>
-        <p className="text-[10px] text-sun">
-          DRAG HERE TO DRIVE THE SELECTED LAYER. THIS PANE WILL HOLD THE {label} VIEW.
-        </p>
+      <div className="h-[26rem] touch-none">
+        <CharacterScene view={kind} />
       </div>
     </div>
   );
