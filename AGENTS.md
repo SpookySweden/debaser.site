@@ -192,6 +192,62 @@ When something genuinely needs eyes, ask a **specific** question ("is the pictur
 the right size?") rather than a general one ("does it look ok?"), because the second is not
 answerable by anybody.
 
+### Why these rules exist, in the order they were learned
+
+`.clinerules` carries the short version of these as triggers. This is the reasoning, kept here so
+the two files cannot drift: `.clinerules` says *what to do*, this says *what went wrong*.
+
+**A check that reads source cannot tell a used value from a decorative one.** `SIDE_MUSIC.href` was
+set to `LIBRARY_HREF` from the day the personal music screen existed, and `check-music-library.cjs`
+asserted exactly that - so the check passed for weeks while the side panel's MUSIC key opened the
+*archive*, because the key is a `<button>` calling `toggleMusic()` and never read its own href. The
+declaration and the behaviour were two statements and only the declaration was tested. The fix was
+to derive one from the other (`musicScreenForHref(SIDE_MUSIC.href)`); the lesson is to make the
+check drive the real module and assert what it *does*.
+
+**Prove a test fails before trusting it.** After adding the behavioural assertions above, the
+implementation was reverted to its old shape and the check watched. It reported:
+
+    the panel's MUSIC key opens "archive" - it must open MY MUSIC, the screen its own href names
+
+and then the fix was restored and the file byte-compared. Both `check-music-library.cjs` and
+`check-surreal.cjs` were treated this way. A check that has never failed is one whose failure mode
+is unknown.
+
+**A missing grep is not an absent feature.** `Temp/verify-live.cjs` exists because searching the
+served HTML for `[ ♪ MUSIC ]` finds nothing: React wraps the text in comments, so it is really
+`[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`. This misled twice - both times it looked like a stale
+deploy rather than a wrong pattern. Strip comments before matching.
+
+**Derived data goes stale silently, and a stale pass is worse than no pass.** `Temp/qa/*.html` was
+written by hand and had gone two days older than the components, so `qa-audit` reported on a build
+nobody was shipping. `Temp/capture-qa.cjs` now produces them from a `next start` it starts itself,
+and both scripts share one `ROUTES` list so they cannot disagree about what is being audited. The
+same class of trap: `/music` sat in that list long after the archive stopped being a route, so every
+capture 404'd and the audit read a leftover file - **the music screen had never once been audited**.
+The same shape again in SQL, where `db push` needed `--include-all` because the timestamps carry
+section numbers, and the history needed `migration repair` because the schema had been built by
+pasting into the editor.
+
+**`--include-all`, and why the push scripts carry it.** The CLI refuses to apply a migration older
+than the newest one on the remote, assuming a new migration is always the newest. This repository
+breaks that assumption on purpose: the timestamps are *section numbers* so the order `db push`
+applies matches the order of the sections in `supabase/schema.sql`. Every migration created from now
+on is therefore older than `20260930000027` by the clock, and without the flag `db push` answers
+*"Found local migration files to be inserted before the last migration on remote database"* and
+applies nothing. The flag is on `db:push` **and** `db:push:dry`, so the preview and the act agree.
+
+**Review before a destructive pattern, and never on an assumption.** 35 accounts were listed before
+any were removed, which is how the `cline-%` sweep was confirmed to leave exactly the 7 real ones.
+"The pattern looks right" is not the same as "I read the list", and the second is the one that
+counts.
+
+**Node 24 on Windows will not spawn a `.cmd` shim.** `execFileSync('npx.cmd', ...)` fails with
+`EINVAL`, and the `shell: true` workaround joins arguments unescaped (`DEP0190`, which Node itself
+warns about). Both `Temp/sql.cjs` and `Temp/db-cli.cjs` therefore run the CLI as
+`node node_modules/supabase/dist/supabase.js` - no shim, no shell, and the version pinned in
+`package.json` rather than whatever `npx` resolves.
+
 ## Build Order
 
 1. Static Web 1.0 UI frames + gallery placeholders

@@ -24,6 +24,47 @@
 ## Error Handling
 - If a command fails, analyze the error message and correct the PowerShell syntax.
 - Do not assume Linux/Bash commands will work in PowerShell.
+- **Two failures on one command means change approach, not wording.** Re-quoting a
+  regex a third time is wasted turns; write a script file instead (see below).
+
+## Verifying a Claim
+- **Never trust a missing grep.** React wraps dynamic text in HTML comments -
+  `[ ♪ MUSIC ]` is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]` - so a
+  pattern that does not match may be the wrong pattern, not an absent feature.
+  Strip comments first, or use `node Temp/verify-live.cjs` (which does).
+- **When a value and a behaviour must agree, test the behaviour.** A check that
+  reads source cannot tell a *used* href from a decorative one; assert what the
+  code does, not what a string nearby says.
+- **Prove a new test fails before trusting it.** Revert the fix, watch the check
+  catch it, restore. A test that has never failed is a test you do not know works.
+- **Check a snapshot's age against its source's.** If a tool reads captured files
+  (`Temp/qa/*.html`) or a recorded history, a pass means nothing unless the
+  snapshot is newer than the code.
+- **Never delete a failing check to make a suite green.** Update it deliberately
+  when the rule it holds genuinely changed, and say why in the commit.
+
+## Shell Discipline (this shell mangles things)
+- **Write `Temp/*.cjs` for anything with regex, `]`, or Unicode.** Inline
+  `node -e "..."` gets its quoting destroyed by PowerShell. `Temp/` is gitignored
+  and is the established home for scratch scripts.
+- **Redirect noisy commands to a file, then filter it:**
+  `node Temp/run-checks.cjs *> Temp\out.txt` then `Select-String -Path Temp\out.txt`.
+  Piping a build to `Select-Object` buries the one line that matters.
+- **Prefer a repo script over a hand-written command** when one exists:
+  `Temp/sql.cjs` for SQL, `capture-qa.cjs` for captures, `verify-live.cjs` for the
+  deployed HTML. They already handle the quoting and the comment-stripping.
+
+## Live Data and Honest Scope
+- **Review before any destructive pattern.** `supabase/cleanup/*-review.sql` runs
+  first and lists exactly what would go; read it and confirm the survivors before
+  sweeping. Never act on an assumption about what a `like` pattern matches.
+- **State what you could not check, inside the answer itself** - not as a
+  disclaimer. No pixels, no clicking, no judging the aesthetic.
+- **A prerendered `0` is not proof of an empty list.** `READING...` and
+  `[ SYNCING... ]` are pre-hydration states; a count beside them is "not read yet".
+- **`AGENTS.md` -> `## Working Rules` holds the rest**: the standing SQL grant, the
+  guard rails around it, and the ship-and-verify loop. Read it before database or
+  deployment work; do not restate it here, so the two cannot drift.
 
 ## Best Practices
 - Prefer native PowerShell cmdlets over shell commands.
