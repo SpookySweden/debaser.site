@@ -1,47 +1,83 @@
 import type { AudioTrack } from './tracks';
 
 /**
- * RADI-OH: the places you have been, kept so you can go back to them.
+ * RADI-OH: everything you have been listening to, kept so you can jump straight back in.
  *
- * A loop is a *place in a track*, not a track. That distinction is the whole feature: coming back to a
- * song from the beginning is what the shelf already does, and what this is for is coming back to the
- * bar you were on, or the point where somebody else's queue had got to before you followed it.
+ * **Two kinds of entry, and the difference is what they are keyed by.** A *recent* has one plate per
+ * track - press it months later and it takes you back to where you left off, however far in you got. A
+ * *loop* is one plate per **place**: a track and a second. That distinction is the whole of it, and it is
+ * why they share a store but not an identity:
  *
- * **Why a loop is created by following a queue.** Catching up takes the shared player over - the site
- * has one audio element, so listening along means your own track stops. Rather than losing it, whatever
- * was playing when the takeover happened is pushed here first, as a loop. That is the contract between
- * the two features: `queue` displaces, `radio` remembers. It also means the tab is never decorative,
- * which is why it exists at all rather than being a placeholder in the brief.
+ *   - listening to a track for three minutes must leave **one** plate, not 180. A recent is keyed by the
+ *     track, and playing it again updates that plate's position in place.
+ *   - a loop is deliberate - the bar you want to come back to. Two loops of one track at different
+ *     seconds are two places, and both are worth keeping.
+ *
+ * Getting this wrong is not a subtle bug: it is a tab that either fills with duplicates of the song you
+ * are playing, or forgets where you were. The store was loops-only to begin with, and the day this became
+ * quick access is the day the identity had to split (`isRecent` below).
+ *
+ * **Where entries come from.** The player's own listening (`rememberPlay`, throttled by the caller), and
+ * the queue window - following somebody takes the shared player over, so whatever was displaced lands
+ * here first as a `taken-over` loop. That contract is unchanged: `queue` displaces, `radio` remembers.
  *
  * Stored per browser, like the player's own settings (`debaser.audio.player.v1`), and for the same
  * reason: this is one reader's history of where they were, not something to be shared or synced. It
- * needs no table, no policy and no account - a loop you made signed out is still yours on this machine.
+ * needs no table, no policy and no account - a recent you made signed out is still yours on this machine.
  */
+
+/**
+ * Where an entry came from - which is what its icon says.
+ *
+ * `shelf` is a file played from the archive, `profile` is somebody's own song, `queue` is a track heard
+ * by following a broadcast. Kept because the plates are a *quick access* grid: a reader looking for the
+ * thing they were playing needs to tell a profile's song from an archive file at a glance, and the mark
+ * is the only place that can be said without a picture (AGENTS.md forbids drawing one).
+ */
+export type LoopOrigin = 'shelf' | 'profile' | 'queue' | 'own';
 
 export type LoopSource = {
   id: string;
-  /** What the loop is called on its plate: the track's title, or the account whose queue it came from. */
+  /** What the entry is called on its plate: the track's title. */
   label: string;
   /** The track's `src`: the same key the player queues on and a like points at. */
   trackId: string;
-  /** Where in that track the loop returns to. */
+  /** Where in that track the entry returns to. For a recent, this is kept up to date as you listen. */
   positionSeconds: number;
   /**
-   * Why this loop exists.
+   * Why this entry exists.
    *
-   * `own` is a place in your own listening. `taken-over` is what was playing when a queue was followed,
-   * which is the automatic kind and the one the tab exists for. Kept as a field rather than inferred
-   * because the row says different words for each - "YOU WERE HERE" against "DISPLACED BY <name>".
+   * `own` is your own listening - the quick-access kind, one per track. `taken-over` is what was playing
+   * when a queue was followed, which is the automatic one and the reason the tab was built.
    */
   kind: 'own' | 'taken-over';
-  /** When it was saved, so the list can be newest first and a loop can age out. */
+  /** Which of the icons this plate wears. */
+  origin: LoopOrigin;
+  /** When it was first saved, so a list can be read oldest-first for a pruned entry. */
   savedAt: string;
+  /** When it was last touched, which for quick access is what the order is really by. */
+  playedAt: string;
+  /** How many times it has been played, so the icon can say a track is one you return to. */
+  plays: number;
   /** For a taken-over loop: the account whose queue displaced it, so the plate can say whose fault it was. */
   displacedBy?: string;
 };
 
 /** The most loops kept. Past this the oldest go, because a history nobody prunes is a list nobody reads. */
 export const MAX_LOOPS = 24;
+
+/**
+ * How often the player writes your position into the grid.
+ *
+ * **Not per `timeupdate`.** That fires several times a second, and every write wakes every listener and
+ * re-serialises the whole list - a store write per tick is a page that stutters while it plays. Five
+ * seconds is fine enough that pressing a plate returns you to within a few bars of where you were, and
+ * coarse enough that a track costs about a dozen writes rather than three hundred.
+ *
+ * It is the loop's own clock, deliberately, not the queue's heartbeat: a broadcast has to stay under
+ * `QUEUE_STALE_SECONDS` to keep a lamp green, while this only has to be recent enough to be useful.
+ */
+export const LOOP_SAMPLE_MS = 5000;
 
 /** Where the loops live. Named like the player's own key so the storage reads as one set of settings. */
 const LOOPS_KEY = 'debaser.audio.loops.v1';
@@ -57,6 +93,44 @@ export function loopLabel(loop: LoopSource, shelf: AudioTrack[]): string {
   const track = shelf.find((entry) => entry.src === loop.trackId);
 
   return track?.title ?? `${loop.label} (NOT ON THE SHELF)`;
+}
+
+/**
+ * The mark on a plate: what kind of thing this is, in one glyph.
+ *
+ * A *character*, not a picture - the same rule as `app/lib/ui/icons.ts`, and the reason is the asset rules
+ * rather than taste: nothing on this site draws an icon in CSS or SVG, and the grid needs the three kinds
+ * tellable apart at a glance. A profile's song, an archive file and a broadcast are three different
+ * things to go back to, and without this every plate would wear the same `↻` and read as the same kind.
+ */
+export function originMark(origin: LoopOrigin): string {
+  switch (origin) {
+    case 'profile':
+      return '☻';
+    case 'queue':
+      return '♪';
+    case 'shelf':
+    case 'own':
+      return '▤';
+  }
+}
+
+/** What a plate says about where it came from, under the title. */
+export function originLabel(entry: LoopSource): string {
+  if (entry.kind === 'taken-over') {
+    return `TAKEN OVER BY ${(entry.displacedBy ?? 'SOMEONE').toUpperCase()}`;
+  }
+
+  switch (entry.origin) {
+    case 'profile':
+      return 'FROM A PROFILE';
+    case 'queue':
+      return 'HEARD ON A QUEUE';
+    case 'shelf':
+      return 'FROM THE ARCHIVE';
+    case 'own':
+      return 'YOU WERE HERE';
+  }
 }
 
 /* ------------------------------------------------------------------------------------------------
@@ -77,7 +151,15 @@ const listeners = new Set<() => void>();
 const NONE: LoopSource[] = [];
 
 /** Whether one parsed entry is really a loop - a hand-edited storage entry costs its own row, not a throw. */
-function isLoop(value: unknown): value is LoopSource {
+/**
+ * A stored entry that still makes sense.
+ *
+ * `origin`, `playedAt` and `plays` are *optional here and defaulted below*, which is a deliberate
+ * migration rather than laxity: the key `debaser.audio.loops.v1` held entries written before this store
+ * became quick access, and a reader who used the old tab would otherwise lose their whole history to a
+ * validation rule. Old entries read as `own` with no play count, which is the closest true thing.
+ */
+function isLoop(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return false;
 
   const entry = value as Partial<LoopSource>;
@@ -92,6 +174,16 @@ function isLoop(value: unknown): value is LoopSource {
   );
 }
 
+/** One stored entry, with the fields a pre-quick-access record does not have filled in. */
+function normalise(entry: LoopSource): LoopSource {
+  return {
+    ...entry,
+    origin: entry.origin ?? 'own',
+    playedAt: entry.playedAt ?? entry.savedAt,
+    plays: typeof entry.plays === 'number' ? entry.plays : 0,
+  };
+}
+
 function readStored(): LoopSource[] {
   if (typeof window === 'undefined') return NONE;
 
@@ -102,7 +194,7 @@ function readStored(): LoopSource[] {
     const parsed: unknown = JSON.parse(raw);
     if (!Array.isArray(parsed)) return NONE;
 
-    return parsed.filter(isLoop);
+    return parsed.filter(isLoop).map(normalise);
   } catch {
     // Storage blocked, or the entry is not JSON: an empty history is the honest answer.
     return NONE;
@@ -143,38 +235,104 @@ function commit(next: LoopSource[]): void {
 }
 
 /**
- * Save a loop.
+ * Save a *place*: a track and a second, deliberately.
  *
- * The newest goes first and the list is trimmed to `MAX_LOOPS` from the end, so the oldest fall off on
- * their own - a history that grows without limit is one that costs a slow read on every page, and nobody
- * scrolls to the bottom of it.
+ * Used by the queue window for what a takeover displaced, and by anything else that wants to keep one bar
+ * for its own sake. Saving the same place twice replaces rather than duplicates: two plates for one place
+ * would be a list that lies about how much history it holds. The identity is the track and the whole
+ * second, because a second is as fine as a position is worth keeping.
  *
- * Saving the *same place* twice replaces rather than duplicates: a loop is a place, and two plates for
- * one place would be a list that lies about how much history it holds. The identity is the track and the
- * whole second, because a second is as fine as a position is worth keeping.
+ * **This is not how listening is recorded** - that is `rememberPlay`, and the two are different on
+ * purpose. This one creates a *new* plate each time the place differs, which is right for a deliberate
+ * loop and wrong for a play.
  */
 export function saveLoop(entry: {
   label: string;
   trackId: string;
   positionSeconds: number;
   kind: LoopSource['kind'];
+  origin?: LoopOrigin;
   displacedBy?: string;
 }): LoopSource {
   const at = Math.max(0, Math.floor(entry.positionSeconds));
+  const now = new Date().toISOString();
 
   const loop: LoopSource = {
-    id: `${entry.trackId}@${at}`,
+    id: placeId(entry.trackId, at),
     label: entry.label,
     trackId: entry.trackId,
     positionSeconds: at,
     kind: entry.kind,
-    savedAt: new Date().toISOString(),
+    origin: entry.origin ?? 'own',
+    savedAt: now,
+    playedAt: now,
+    plays: 0,
     displacedBy: entry.displacedBy,
   };
 
   commit([loop, ...loops.filter((existing) => existing.id !== loop.id)].slice(0, MAX_LOOPS));
 
   return loop;
+}
+
+/**
+ * One plate per **track**, keyed by the track alone.
+ *
+ * The identity split this store's header explains, in one line: a recent is a track you played, so playing
+ * it again must find the same plate and move it up the list rather than adding a second one beside it.
+ * A *loop*, by contrast, is `placeId` - the track and the second.
+ */
+export function recentId(trackId: string): string {
+  return `recent:${trackId}`;
+}
+
+/** A deliberate place: the track and the whole second. */
+export function placeId(trackId: string, positionSeconds: number): string {
+  return `${trackId}@${Math.max(0, Math.floor(positionSeconds))}`;
+}
+
+/**
+ * Record that a track is playing, for the quick-access grid.
+ *
+ * **Called on a throttle, never per tick.** `timeupdate` fires several times a second, and the caller
+ * decides how often to write here - `LOOP_SAMPLE_MS` is how often the player's own listener does. That
+ * split is deliberate: this function is pure store work, so it can be called from a check with no clock
+ * at all, and the throttling lives with the thing that has the clock.
+ *
+ * Counting is the subtle part. `plays` increments when the *track changes*, not on every write - otherwise
+ * a three-minute song would report 60 plays and the icon's "you return to this" reading would be noise.
+ * A write for the track already at the top of the list is a position update; a write for a different track
+ * is a new play of that track.
+ */
+export function rememberPlay(entry: {
+  label: string;
+  trackId: string;
+  positionSeconds: number;
+  origin?: LoopOrigin;
+}): LoopSource {
+  const id = recentId(entry.trackId);
+  const existing = loops.find((candidate) => candidate.id === id);
+  const at = Math.max(0, Math.floor(entry.positionSeconds));
+  const now = new Date().toISOString();
+
+  // A different track from the one at the top is a new play; the same one is the clock moving.
+  const isNewPlay = loops.length === 0 || loops[0].id !== id;
+
+  const source: LoopSource = {
+    id,
+    label: entry.label,
+    trackId: entry.trackId,
+    positionSeconds: at,
+    kind: 'own',
+    origin: entry.origin ?? 'shelf',
+    savedAt: existing?.savedAt ?? now,
+    playedAt: now,
+    plays: (existing?.plays ?? 0) + (isNewPlay ? 1 : 0),
+  };
+
+  commit([source, ...loops.filter((candidate) => candidate.id !== id)].slice(0, MAX_LOOPS));
+
+  return source;
 }
 
 /** Clear one loop - what the red X in its corner does. */

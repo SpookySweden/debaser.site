@@ -9,6 +9,8 @@ import {
   loopLabel,
   loopServerState,
   loopState,
+  originLabel,
+  originMark,
   subscribeToLoops,
   type LoopSource,
 } from '../lib/audio/loops';
@@ -16,20 +18,20 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import LoopPopout from './LoopPopout';
 
 /**
- * RADI-OH: where you have been, kept as loops you can return to.
+ * RADI-OH: everything you have been listening to lately, as icons you press to jump back in.
  *
- * A loop is a *place* - a track and a second - rather than a track, which is the distinction the whole
- * tab rests on: the shelf already plays a song from the beginning, and this is for coming back to the
- * bar you were on, or to the point somebody else's queue had reached before you followed it.
+ * A **quick access** grid, like the recent files a desktop keeps: one plate per track, newest first, each
+ * one returning you to where you actually were in it rather than to its beginning. Anything that plays
+ * lands here - a file off the archive, somebody's profile song, a track heard by following a queue.
  *
- * **The tab earns its name through the queue window's other half.** Following a queue takes the shared
- * player over, so whatever you were listening to stops. That is not a loss, because it lands here first
- * as a loop - so the row that reads `TAKEN OVER BY <name>` is the tab doing its job rather than a
- * decoration. See `app/lib/audio/loops.ts` for the contract in full.
+ * **Two things share this grid, and the icons say which.** The player writes your own listening as you go
+ * (`rememberPlay`, on a sampling interval); the queue window writes a `taken-over` loop whenever following
+ * somebody displaces what you had on. The second is the contract the tab was built for - `queue`
+ * displaces, `radio` remembers - and it is why a plate can read `TAKEN OVER BY <name>` instead of a source.
  *
- * The grid is a shelf of plates rather than a list, and that is a layout decision worth stating: a loop
- * is a thing you press to *go back*, so the plates are big enough to hit and laid out so several fit
- * across - which is what "wide on a desktop" means for this screen.
+ * The grid is plates rather than a list, and that is a layout decision worth stating: these are things you
+ * press to *go back*, so they are big enough to hit and several fit across a wide window - which is what
+ * "quick access" means once it is drawn rather than described.
  */
 export default function RadioLoops() {
   const loops = useSyncExternalStore(subscribeToLoops, loopState, loopServerState);
@@ -44,14 +46,14 @@ export default function RadioLoops() {
       </div>
 
       <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">
-        A LOOP IS A PLACE IN A TRACK, NOT A TRACK. FOLLOWING SOMEBODY&apos;S QUEUE PUTS WHAT YOU WERE
-        LISTENING TO HERE FIRST, SO YOU CAN ALWAYS GET BACK TO IT.
+        EVERYTHING YOU HAD ON, NEWEST FIRST. PRESS ONE TO GO BACK TO WHERE YOU WERE IN IT - A FILE FROM THE
+        ARCHIVE, SOMEBODY&apos;S PROFILE SONG, OR WHAT A QUEUE DISPLACED.
       </p>
 
       {loops.length === 0 ? (
         <p className="p-3 text-[11px] font-bold text-ink">
-          NOTHING SAVED YET. FOLLOW SOMEBODY&apos;S QUEUE IN THE QUEUES TAB AND WHATEVER YOU WERE
-          LISTENING TO WILL BE KEPT HERE.
+          NOTHING HERE YET. PUT SOMETHING ON - FROM THE ARCHIVE, OR SOMEBODY&apos;S PROFILE - AND IT WILL
+          APPEAR, KEEPING YOUR PLACE.
         </p>
       ) : (
         <div className="p-2">
@@ -125,17 +127,20 @@ function LoopPlate({
         title={`${label} - press to play it again`}
         className="flex w-full cursor-pointer flex-col gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun p-2 text-left text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ice focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
       >
+        {/* The icon: a glyph, because the asset rules forbid drawing one - and it is the *kind* of thing
+            rather than the thing, so a profile's song is tellable from an archive file at a glance. */}
         <span aria-hidden="true" className="text-[20px] leading-none text-ink">
-          ↻
+          {originMark(loop.origin)}
         </span>
 
         <span className="line-clamp-2 min-w-0 break-words">{label}</span>
 
-        <span className={`text-[9px] ${takenOver ? 'text-bubble-pale' : 'text-ink'}`}>
-          {takenOver ? `TAKEN OVER BY ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}` : 'YOU WERE HERE'}
-        </span>
+        <span className={`text-[9px] ${takenOver ? 'text-bubble-pale' : 'text-ink'}`}>{originLabel(loop)}</span>
 
-        <span className="text-[9px] text-ink">{formatClock(loop.positionSeconds)}</span>
+        <span className="text-[9px] text-ink">
+          {formatClock(loop.positionSeconds)}
+          {loop.plays > 1 ? ` :: ${loop.plays}x` : ''}
+        </span>
       </button>
 
       {/* Just outside the bevel, so its growth has somewhere to go without covering the loop mark. */}

@@ -110,6 +110,7 @@ export default function QueueProfilePopout({
         trackId: playing.src,
         positionSeconds: player.elapsed,
         kind: 'taken-over',
+        origin: 'own',
         displacedBy: queue.userId.slice(0, 8),
       });
     }

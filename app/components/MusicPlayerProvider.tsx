@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
+import { LOOP_SAMPLE_MS, rememberPlay } from '../lib/audio/loops';
 import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
@@ -379,6 +380,44 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     if (audioRef.current !== null) audioRef.current.volume = volume;
     persistSettings({ volume, loop, src: track?.src ?? null, playByDefault, promptDismissed });
   }, [loop, track, volume, playByDefault, promptDismissed]);
+
+  /**
+   * RADI-OH's quick access: write what is playing into the grid, now and then.
+   *
+   * On an interval rather than on `timeupdate`, for the reason `LOOP_SAMPLE_MS` gives - a store write per
+   * tick is a page that stutters while it plays, and waking every listener several times a second to say
+   * "still 1:07" is work nobody asked for.
+   *
+   * The interval is set up from *which track* and reads the clock when it fires, which is the same shape
+   * as `BroadcastHeartbeat`'s and for the same reason: `elapsed` in the dependencies would rebuild the
+   * timer on every tick and it would never fire. `origin` is decided once per track here - a handed-over
+   * track (`ownLoop !== null`) is somebody's profile song, anything else came off the shelf.
+   */
+  useEffect(() => {
+    if (track === undefined || !playing) return;
+
+    // A handed-over track carries its own repeat, which is the only thing that distinguishes a profile's
+    // song from an archive file at this point - the player holds one queue and does not label its rows.
+    const origin = ownLoop === null ? 'shelf' : 'profile';
+    const source = track;
+
+    const write = () => {
+      const audio = audioRef.current;
+      if (audio === null) return;
+
+      rememberPlay({
+        label: source.title,
+        trackId: source.src,
+        positionSeconds: audio.currentTime,
+        origin,
+      });
+    };
+
+    write();
+
+    const timer = window.setInterval(write, LOOP_SAMPLE_MS);
+    return () => window.clearInterval(timer);
+  }, [ownLoop, playing, track]);
 
   /**
    * The system's own controls: media keys, a headset's buttons, and whatever a phone

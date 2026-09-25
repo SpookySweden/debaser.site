@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import { formatClock } from '../lib/audio/format';
 import type { LoopSource } from '../lib/audio/loops';
+import { originLabel } from '../lib/audio/loops';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
 /**
@@ -103,7 +104,7 @@ export default function LoopPopout({
           <p className="text-[10px] text-ink-plate">
             {loop.kind === 'taken-over'
               ? `THIS WAS PLAYING WHEN ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}'S QUEUE TOOK THE PLAYER OVER.`
-              : 'A PLACE YOU SAVED.'}
+              : `${originLabel(loop)}${loop.plays > 1 ? ` :: PLAYED ${loop.plays} TIMES` : ''}`}
           </p>
 
           <p className="text-[10px] font-bold text-ink">
