@@ -79,6 +79,21 @@ export const MAX_LOOPS = 24;
  */
 export const LOOP_SAMPLE_MS = 5000;
 
+/**
+ * How long a pointer has to rest on an icon before the grid says where the entry came from.
+ *
+ * **A second, and the length is the feature.** An icon-only grid withholds everything, so the caption is
+ * the only place the title, origin and position can be read without opening the pop-out. Showing it
+ * instantly would make a pointer crossing four icons strobe four captions - the reader did not stop to
+ * ask, so nothing should answer. A second is long enough that only a deliberate stop earns one, and short
+ * enough that it is not a wait.
+ *
+ * It is deliberately *not* a `wobble`-style animation and knows nothing about `prefers-reduced-motion`: a
+ * delay is not motion, and a reader who has asked for calm still needs to be able to read the caption. A
+ * check holds it under two seconds, because past that it stops being a hover aid and becomes a wait.
+ */
+export const CAPTION_DELAY_MS = 1000;
+
 /** Where the loops live. Named like the player's own key so the storage reads as one set of settings. */
 const LOOPS_KEY = 'debaser.audio.loops.v1';
 
