@@ -1,65 +1,82 @@
-# DEPLOYMENT STALLED — Vercel is serving 659d856
+# DEPLOYMENT: builds succeed, the production domain does not move
 
-**Written 2026-09-25 by the agent, because two pushes went to `main` and the live site did not move.**
+**Written 2026-09-25 by the agent. Supersedes an earlier note that named the wrong cause.**
 
-## What is true
+## The short version
 
-| | |
-| --- | --- |
-| `origin/main` | `73e4e6e` (CHAR tab) — pushed and confirmed by `git push` output |
-| Live `debaser-site.vercel.app` | still serving **`659d856`** (Phase 1, the workbench frame) |
-| Served build dir | `/_next/static/immutable/` — unchanged across all three commits |
-| `x-vercel-cache` | `HIT`, `age` up to ~670s |
+Every commit **built successfully**, and the address the site is read at still serves **`659d856`
+(Phase 1)**. So this is not a failed build and not a missed push — the domain
+`debaser-site.vercel.app` is not being updated by the builds, or is pinned to an old deployment.
 
-So the site is live and healthy — it is simply **two commits behind**, and nothing the agent can do
-from here changes that. `git push` succeeded; the build that follows it did not happen.
+| commit | Vercel status | GitHub deployment | on the domain? |
+| --- | --- | --- | --- |
+| `dd5cfd4` | success | Production, 19:07 | **no** |
+| `73e4e6e` | success | Production, 19:03 | **no** |
+| `4b089dd` | success | Production, 18:33 | **no** |
+| `659d856` | success | Production, 07:29 | **yes — this is what is served** |
 
-## How this was established (not assumed)
+## How this was established
 
 ```
-node Temp/probe-all-chunks.cjs "NO RENDERER YET" "upper-arm.left" "[ CHAR "
+node Temp/which-commit.cjs https://debaser-site.vercel.app
+node Temp/what-happened.cjs        # GitHub's record of Vercel's own statuses
+node Temp/where-deployed.cjs       # the URL each deployment claims
 ```
 
-| needle | where it comes from | deployed |
+`which-commit.cjs` searches every chunk a page references for one string from each commit:
+
+| marker | from | on the domain |
 | --- | --- | --- |
-| `BLOB HUMANOID` | commit `659d856` (Phase 1) | **PRESENT** |
-| `upper-arm.left` | commit `4b089dd` (Phase 2, the rig) | absent |
-| `[ CHAR ` / `NO RENDERER YET` | commit `73e4e6e` (the CHAR tab) | absent |
+| `BLOB HUMANOID` | `659d856` | **PRESENT** |
+| `upper-arm.left` | `4b089dd` | absent |
+| `NO RENDERER YET` | `73e4e6e` | absent |
 
-Polled three times over ~3.5 minutes after the third push, and four times over ~5 minutes after the
-second: the build directory never changed.
+`what-happened.cjs` asks **GitHub**, which is where Vercel reports its builds:
 
-## Why this took a while to see, and the trap worth remembering
+```
+combined : success
+  success    Vercel  https://vercel.com/lukekeatinglk03-4424/debaser-site/AxdFGBdh2yPMjC3y5kHdbEVSgFpA
 
-The first probe searched for **Phase 1's own strings**, found them, and exited `0` — a stale deploy
-reading as success. A chunk *hash* coming back identical across two phases is not evidence either
-way: it cannot distinguish "the deploy is stale" from "the chunk did not change".
+github deployments: 5
+  Production  dd5cfd4  2026-09-25T19:07:08Z
+  Production  73e4e6e  2026-09-25T19:03:05Z
+  Production  4b089dd  2026-09-25T18:33:28Z
+  Production  659d856  2026-09-25T07:29:50Z
+```
 
-Hence `Temp/probe-all-chunks.cjs`, which unions the chunk lists from a cache-busted page *and* the
-stored one (they listed different filenames), then reports PRESENT/ABSENT per needle. Two needles,
-one from each commit, is the shape that makes the answer unambiguous.
+That is what redirected the search: the builds are not missing, so an earlier guess (a failed or
+skipped build) was wrong.
 
-## What the agent could not do
+## Two traps that cost turns, both worth keeping
 
-- Authenticate to the Vercel API (`403`) — no token on this machine, so the deployment state, the
-  build log and whether the project is even wired to `main` are all unread.
-- Redeploy. There is no CLI linked in this repository (`no .vercel` directory).
+**1. A per-deployment URL is behind Vercel's SSO, and its status code does not say so.** The
+addresses in `where-deployed.cjs` (`debaser-site-<hash>-….vercel.app`) return **HTTP 200** and
+~340KB of HTML, so a check that reads only the status sees a healthy site. It is Vercel's login wall:
+the response carries `x-matched-path: /login` and `zeit-theme` in its markup. Counting *chunks* was
+the tell — 70 there against the real build's 12. Nothing in the deployment metadata says "protected".
 
-## What to check
+**2. A successful build is not a moved domain.** Vercel writes `success` and an `environment_url` for
+a deployment it has *built*, and neither implies the production alias points at it. The only evidence
+that the domain updated is fetching the domain and finding a string from the new commit.
 
-1. **Vercel → the project → Deployments.** Is there a build for `73e4e6e`, and did it fail?
-   A failed build would explain all of it and would not touch the live site.
-2. **Settings → Git.** Which branch and which repository is the production branch? If it is not
-   `SpookySweden/debaser.site` @ `main`, that is the cause.
-3. **Settings → Git → Ignored Build Step.** A command here that exits non-zero skips the build
-   silently — which produces exactly this symptom.
-4. **Deploy Hooks / the dashboard's "Redeploy"** on the newest commit, to confirm a manual build works.
+The rule, and the reason `which-commit.cjs` exists: **probe the address a visitor uses, with a marker
+from the newest commit, and treat everything else as circumstantial.**
 
-## Do not
+## What to check (dashboard-side; the agent cannot — the Vercel API returns 403 here)
 
-- Do not re-push the same commit expecting a different result; `git push` already succeeded and the
-  problem is downstream of it.
-- Do not "fix" this by building locally and committing `out/` or `.next/` — the deploy is Vercel's job
-  and a committed build directory would be a worse problem than a slow one.
+1. **Settings → Domains.** Which deployment is `debaser-site.vercel.app` assigned to? If a specific
+   deployment was pinned rather than "latest production", that is the cause.
+2. **Deployments.** Are the newest listed as **Production** there, matching GitHub? If Vercel shows
+   them as *Preview*, the production branch setting is wrong.
+3. **Instant Rollback.** If a rollback was ever triggered, the domain stays on the rolled-back
+   deployment until it is undone — and every later build reports success while the domain stays put.
+4. If it is 3, **promote the newest deployment**, or use "Redeploy" on `dd5cfd4`.
 
-Delete this file once a deployment carrying `73e4e6e` is live.
+## What not to do
+
+- Do not re-push. `git push` succeeded, the builds succeeded, the commit is on `origin/main`.
+- Do not commit a build directory (`.next/`, `out/`) to force the domain to change; that is a worse
+  problem than a slow one.
+- Do not trust a deployment URL's status code as evidence the site is served there.
+
+Delete this file once `which-commit.cjs` reports `73e4e6e` or newer on `debaser-site.vercel.app`.
