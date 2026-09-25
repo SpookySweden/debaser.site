@@ -20,8 +20,9 @@
  * its writes are per-track, not per-pixel.
  */
 import { create } from 'zustand';
+import { dragOffset, lightForDrag, scaleForDrag, type ViewportKind } from './drag';
 import { buildDefaultRig } from './rig';
-import { setPosition, setScale, type Skeleton, type Vec3 } from './skeleton';
+import { scaleOf, setPosition, setScale, type Skeleton, type Vec3 } from './skeleton';
 
 /**
  * The four layers, in the brief's order.
@@ -80,6 +81,18 @@ type CharacterState = {
   selectJoint: (id: string | null) => void;
   moveJoint: (id: string, offset: Vec3) => void;
   scaleJoint: (id: string, factor: number) => void;
+  /**
+   * Apply a pointer drag to whichever joint the current layer is pointed at.
+   *
+   * **One entry point rather than three**, because the layer decides what a drag *means* - move a joint, scale
+   * its mass, or turn the light - and a handler that had to choose between three store methods would be a
+   * second place that mapping is written. It reads the mode from the same derived function the UI uses, so a
+   * drag cannot do something the sidebar does not say it will.
+   *
+   * Returns nothing and silently ignores a drag with no target: a drag on empty space is not an error, it is a
+   * drag on nothing.
+   */
+  drag: (viewport: ViewportKind, dxPixels: number, dyPixels: number, jointId: string | null) => void;
   setLight: (angles: LightAngles) => void;
   reset: () => void;
 };
@@ -134,6 +147,44 @@ export const useCharacterStore = create<CharacterState>((set) => ({
     }),
 
   scaleJoint: (id, factor) => set((state) => ({ skeleton: setScale(state.skeleton, id, factor) })),
+
+  /**
+   * The one drag entry point. See the type's comment for why there is one and not three.
+   *
+   * The LIGHT case ignores `jointId` entirely - turning the light has no target - and the BASE layer reaches
+   * no branch at all, which is the `none` mode doing its job rather than a missing case. A reader who selects
+   * BASE gets a drag that does nothing, which is correct: there is nothing to edit there, and the alternative
+   * would be a drag that silently edited a layer that is not selected.
+   */
+  drag: (viewport, dxPixels, dyPixels, jointId) =>
+    set((state) => {
+      const mode = interactionModeFor(state.activeLayer);
+
+      if (mode === 'light') {
+        return { light: lightForDrag(state.light, dxPixels, dyPixels) };
+      }
+
+      if (mode === 'none' || jointId === null) return state;
+
+      const joint = state.skeleton.joints[jointId];
+      if (joint === undefined) return state;
+
+      if (mode === 'joints') {
+        const offset = dragOffset(viewport, dxPixels, dyPixels);
+
+        return {
+          skeleton: setPosition(state.skeleton, jointId, {
+            x: joint.position.x + offset.x,
+            y: joint.position.y + offset.y,
+            z: joint.position.z + offset.z,
+          }),
+        };
+      }
+
+      // 'mass': scale the joint the drag is on. The viewport is irrelevant here - a scale has no direction -
+      // which is why the same gesture works in both panes.
+      return { skeleton: setScale(state.skeleton, jointId, scaleForDrag(scaleOf(joint), dyPixels)) };
+    }),
 
   setLight: (angles) => set({ light: { ...angles } }),
 
