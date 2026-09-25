@@ -119,11 +119,27 @@ export default function CharacterViewport() {
  * brings its own keyboard handling, which is the one part of a custom control that is easy to get wrong.
  */
 function JointPicker() {
-  const jointIds = useCharacterStore((state) => Object.keys(state.skeleton.joints));
+  /**
+   * **The joint list is stored, not derived in the selector.**
+   *
+   * This started as `useCharacterStore((state) => Object.keys(state.skeleton.joints))`, which is a new array
+   * on every call. Zustand v5 compares with `Object.is`, so it saw a change on every render, re-rendered, got
+   * another new array, and looped until React threw *"Maximum update depth exceeded"* - the error an owner
+   * hit simply by opening the CHAR tab. A selector must return a value that is stable between renders, and a
+   * fresh array never is.
+   *
+   * The fix is to select the object and derive the list in the component's own body. `state.skeleton.joints`
+   * is a stable reference that only changes when the rig does, so the comparison works, and the `Object.keys`
+   * costs nothing where it is.
+   *
+   * The count on the sidebar (a number) was always safe: numbers compare by value. It is specifically a
+   * *new object* per call that loops - which is why the bug hid behind a very similar-looking line.
+   */
+  const joints = useCharacterStore((state) => state.skeleton.joints);
+  const jointIds = Object.keys(joints);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const scale = useCharacterStore((state) =>
-    state.selectedJointId === null ? null : scaleOf(state.skeleton.joints[state.selectedJointId]),
-  );
+  const selectedJoint = selectedJointId === null ? undefined : joints[selectedJointId];
+  const scale = selectedJoint === undefined ? null : scaleOf(selectedJoint);
   const selectJoint = useCharacterStore((state) => state.selectJoint);
   const scaleJoint = useCharacterStore((state) => state.scaleJoint);
 
