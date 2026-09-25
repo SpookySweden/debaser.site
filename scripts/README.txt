@@ -15,6 +15,21 @@ The distinction is deliberate:
                 thrown away. Temp/qa/*.html and Temp/check-*.cjs live here.
     scripts/    tools that outlive a session, and that a rule points at by name.
 
+run-checks.cjs
+--------------
+    npm run checks                      every scratch check that needs no network
+    node Temp/run-checks.cjs            the same thing, from the scratch copy
+
+Runs every `Temp/check-*.cjs`, in name order, compiling each one first from the `npx tsc ...` lines
+in its own header comment. The live checks are skipped by name (they need Supabase credentials and
+sometimes two accounts).
+
+**The header is read to its closing `*/`, not to line 20.** It used to be `slice(0, 20)`, and that
+broke a check whose header grew past twenty lines: its compiles never ran, so it was handed whatever
+the *previous* check had left in a scratch output directory. It reported a pass against stale
+compiled code, and when it failed it failed for a reason unrelated to the source - which made a
+working check look flaky for three separate turns. A header may now be as long as it needs to be.
+
 read-site.cjs
 -------------
     npm run read                        the deployed site, default expectations

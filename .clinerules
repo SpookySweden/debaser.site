@@ -48,12 +48,13 @@
   `node -e "..."` gets its quoting destroyed by PowerShell. `Temp/` is gitignored
   and is the established home for scratch scripts.
 - **Redirect noisy commands to a file, then filter it:**
-  `node Temp/run-checks.cjs *> Temp\out.txt` then `Select-String -Path Temp\out.txt`.
+  `npm run checks *> Temp\out.txt` then `Select-String -Path Temp\out.txt`.
   Piping a build to `Select-Object` buries the one line that matters.
 - **Prefer a repo script over a hand-written command** when one exists:
   `npm run read` for the served HTML, `npm run capture` for the audit's
-  snapshots, `npm run db` for SQL. They already handle the quoting and the
-  comment-stripping, and they are tracked in `scripts/` so they survive a clone.
+  snapshots, `npm run checks` for the check suite, `npm run db` for SQL. They
+  already handle the quoting and the comment-stripping, and they are tracked in
+  `scripts/` so they survive a clone.
 
 ## Live Data and Honest Scope
 - **Review before any destructive pattern.** `supabase/cleanup/*-review.sql` runs

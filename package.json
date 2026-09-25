@@ -12,6 +12,7 @@
     "read": "node scripts/read-site.cjs",
     "read:local": "node scripts/read-site.cjs --local",
     "capture": "node scripts/capture-qa.cjs",
+    "checks": "node scripts/run-checks.cjs",
     "db": "node Temp/sql.cjs",
     "db:link": "supabase link",
     "db:list": "node Temp/db-cli.cjs migration list",

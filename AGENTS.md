@@ -153,7 +153,7 @@ plainly what it checked and what it could not.** The owner cannot see a local bu
 the agent - so the loop is: change, verify, push, confirm it is deployed, report honestly.
 
 1. `npm run verify` - lint, typecheck and build. **Never push a red build.**
-2. `node Temp/run-checks.cjs` - the scratch checks. All must pass. A failing check is a *finding*,
+2. `npm run checks` - the scratch checks. All must pass. A failing check is a *finding*,
    not an obstacle: update the check deliberately (never delete it) when the rule it holds genuinely
    changed, and say why. `Temp/check-music-library.cjs` and `Temp/check-surreal.cjs` are recent
    examples, and both were proven to fail before being trusted.
@@ -231,6 +231,16 @@ capture 404'd and the audit read a leftover file - **the music screen had never 
 The same shape again in SQL, where `db push` needed `--include-all` because the timestamps carry
 section numbers, and the history needed `migration repair` because the schema had been built by
 pasting into the editor.
+
+**And the same shape once more, in the check runner itself - which is why it now reads a whole
+header.** `run-checks.cjs` collected a check's `npx tsc ...` lines with `slice(0, 20)`. A check whose
+header grew to 25 lines therefore had **its compiles silently skipped**, and was handed whatever the
+*previous* check had left in a scratch output directory - so it passed against stale compiled code, and
+when it failed it failed for a reason that had nothing to do with the source. That cost three separate
+turns of misdiagnosis, each time written off as "a stale build" when it was the harness. A check that
+fails for reasons unrelated to the code is worse than no check, because it teaches you to distrust the
+suite. The fix is in `scripts/run-checks.cjs` (tracked, so a clone gets it), the runner reads to the
+closing `*/`, and the check's own header keeps its steps in the first lines anyway as a belt.
 
 **`--include-all`, and why the push scripts carry it.** The CLI refuses to apply a migration older
 than the newest one on the remote, assuming a new migration is always the newest. This repository
