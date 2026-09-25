@@ -35,12 +35,18 @@ export const AXES_FOR_VIEW: Record<ViewportKind, { horizontal: keyof Vec3; verti
 /**
  * How many model units one pixel of drag is worth.
  *
- * The two panes are orthographic and framed to hold a figure about 2 units tall across roughly 400 pixels of
- * pane height, so 1/200 is a pixel-perfect scale for that framing. It is a named constant rather than a number
- * inside the arithmetic because it is the one value that depends on how the camera is framed, and framing is
- * something Phase 5 will tune against what the figure looks like - at which point this should move with it.
+ * **This is the number the camera is built from, not a preference to tune alongside it.** `CharacterScene` sets
+ * its orthographic `zoom` to `1 / UNITS_PER_PIXEL`, because Three divides the frustum by `zoom`: the visible
+ * world width is `paneWidthPx / zoom`, so a pixel is `1 / zoom` units and the two constants are the same fact.
+ * Having them as 120 and 200 - which they were - means a dragged joint moves 1.67 times further than the
+ * pointer, which reads as "the drag is a bit off" rather than as a bug, and is why the camera check exists.
+ *
+ * Changing this changes how much of the figure fits in the pane, since the pane size is fixed in rem. At 1/150
+ * a 26rem pane - 416px at a 16px root - shows 2.77 units, against a rig measured at 2.29 tall: about a quarter
+ * of a unit of margin above and below, which is enough that the hands and feet are inside the frame with the
+ * default pose. `Temp/check-character-camera.cjs` measures the rig and fails if the two stop agreeing.
  */
-export const UNITS_PER_PIXEL = 1 / 200;
+export const UNITS_PER_PIXEL = 1 / 150;
 
 /**
  * The offset a drag has produced, in the joint's own parent space.

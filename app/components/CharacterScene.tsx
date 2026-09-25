@@ -2,7 +2,7 @@
 
 import { Canvas } from '@react-three/fiber';
 import { useRef } from 'react';
-import type { ViewportKind } from '../lib/character/drag';
+import { UNITS_PER_PIXEL, type ViewportKind } from '../lib/character/drag';
 import { MODEL_HANDLE, MODEL_HANDLE_ACTIVE, MODEL_HIGHLIGHT, MODEL_INK, MODEL_VOID } from '../lib/character/palette';
 import { massFor } from '../lib/character/rig';
 import { scaleOf, type Joint } from '../lib/character/skeleton';
@@ -29,7 +29,15 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
   return (
     <Canvas
       orthographic
-      camera={{ position: view === 'front' ? [0, 0, 10] : [10, 0, 0], zoom: ZOOM, near: -20, far: 20 }}
+      camera={{
+        // Aimed at the figure's middle rather than the origin, and pulled back along the axis the pane cannot
+        // see - FRONT looks down -z, SIDE looks down -x. The distance is arbitrary for an orthographic camera;
+        // `near` and `far` are what actually decide whether anything is clipped.
+        position: view === 'front' ? [0, FIGURE_CENTRE_Y, 10] : [10, FIGURE_CENTRE_Y, 0],
+        zoom: ZOOM,
+        near: -20,
+        far: 20,
+      }}
       // Nothing here animates: the figure changes when the store does, and never on its own. Rendering 60fps of
       // a still life on every visit to the console is a battery cost nobody asked for.
       frameloop="demand"
@@ -44,8 +52,33 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
   );
 }
 
-/** How large the figure sits in the pane. Tuned so the rig's ~2 units fill the 26rem box. */
-const ZOOM = 120;
+/**
+ * How large the figure sits in the pane - **derived, not chosen.**
+ *
+ * Three's orthographic camera divides the frustum R3F hands it by `zoom`, and R3F sizes that frustum from the
+ * pane's pixel dimensions. So the visible world width is `paneWidthPx / zoom`, which means a pixel is `1 / zoom`
+ * world units. `UNITS_PER_PIXEL` is the drag's belief about that number, and the two agreeing is not a tidiness
+ * point: when they were 120 and 1/200 the joint moved 1.67 times further than the pointer, uniformly, in a way
+ * that reads as imprecision rather than as an error.
+ *
+ * Writing it as the reciprocal makes the relationship structural - there is no pair of numbers to keep in step,
+ * because there is only one number. The camera check asserts it anyway, so a future edit that hard-codes a zoom
+ * fails rather than quietly introducing the same drift.
+ */
+/**
+ * How far the figure's middle sits above the origin, so the camera can point at it.
+ *
+ * **The root is the hips, and the hips are not the middle.** Rooting at the pelvis is right - it is what makes a
+ * lean pivot on the body rather than on the ground - but it leaves the figure's visual centre *below* the
+ * origin: the legs hang further than the head rises. Measured from the real rig and mass table, that centre is
+ * at y = -0.125, so a camera aimed at y = 0 draws the figure hanging low in the pane with a gap above it.
+ *
+ * `Temp/check-character-camera.cjs` measures the rig and fails if this number stops matching it, which is what
+ * keeps a change to the rig's proportions from silently pushing the figure off centre.
+ */
+const FIGURE_CENTRE_Y = -0.125;
+
+const ZOOM = 1 / UNITS_PER_PIXEL;
 
 /**
  * The key light, turned by the store.
