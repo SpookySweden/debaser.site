@@ -21,6 +21,7 @@
  */
 import { create } from 'zustand';
 import { dragOffset, lightForDrag, scaleForDrag, type ViewportKind } from './drag';
+import type { RenderLayerId } from './layers';
 import { buildDefaultRig } from './rig';
 import { scaleOf, setPosition, setScale, type Skeleton, type Vec3 } from './skeleton';
 
@@ -70,14 +71,20 @@ export type LightAngles = { azimuth: number; elevation: number };
 type CharacterState = {
   skeleton: Skeleton;
   activeLayer: LayerId;
-  /** Per-layer visibility. Every layer hidden is a valid state; the figure just is not drawn. */
-  visible: Record<LayerId, boolean>;
+  /**
+   * Which render stage is showing. **One, not three booleans** - see `layers.ts` for why the three flags could
+   * not work: they were a priority order with PIXEL first and on by default, so BASE was unreachable.
+   */
+  renderLayer: RenderLayerId;
+  /** The skeleton's own eye, and the only layer where visibility is independent of the render stage. */
+  skeletonVisible: boolean;
   /** The joint a drag or the rescaler is pointed at, or null when nothing is selected. */
   selectedJointId: string | null;
   light: LightAngles;
 
   selectLayer: (layer: LayerId) => void;
-  toggleLayer: (layer: LayerId) => void;
+  setRenderLayer: (layer: RenderLayerId) => void;
+  toggleSkeleton: () => void;
   selectJoint: (id: string | null) => void;
   moveJoint: (id: string, offset: Vec3) => void;
   scaleJoint: (id: string, factor: number) => void;
@@ -97,30 +104,27 @@ type CharacterState = {
   reset: () => void;
 };
 
-/**
- * The light the editor opens on: from the front-left and slightly above.
- *
- * Straight-on lighting flattens a low-poly figure into a silhouette, and the whole point of the pixel pass is
- * that a reader can tell a cone from a box after it has been reduced to blocks. An angle gives every facet a
- * different shade, which is what survives the downsample.
- */
+/** The light the editor opens on: from the front-left and slightly above. */
 export const DEFAULT_LIGHT: LightAngles = { azimuth: -0.6, elevation: 0.9 };
-
-function initialVisible(): Record<LayerId, boolean> {
-  // The mass layer starts hidden: the editor opens on the skeleton, and a wireframe *through* a solid figure
-  // is unreadable. Which layer is drawn is the reader's first decision, and this is the one they want first.
-  return { skeleton: true, mass: false, base: true, pixel: true };
-}
 
 export const useCharacterStore = create<CharacterState>((set) => ({
   skeleton: buildDefaultRig(),
   activeLayer: 'skeleton',
-  visible: initialVisible(),
+  /**
+   * BASE opens: it is the figure at full resolution, which is the honest picture of what has been built. PIXEL
+   * is one switch away, and starting on it would mean the first thing a reader sees is the effect rather than
+   * the shape the effect is applied to.
+   */
+  renderLayer: 'base',
+  // The skeleton's handles start *on*: they are how a joint is selected, so hiding them would make the default
+  // SKELETON tab look like a figure with nothing to grab.
+  skeletonVisible: true,
   selectedJointId: null,
   light: { ...DEFAULT_LIGHT },
 
   selectLayer: (layer) => set({ activeLayer: layer }),
-  toggleLayer: (layer) => set((state) => ({ visible: { ...state.visible, [layer]: !state.visible[layer] } })),
+  setRenderLayer: (layer) => set({ renderLayer: layer }),
+  toggleSkeleton: () => set((state) => ({ skeletonVisible: !state.skeletonVisible })),
   selectJoint: (id) => set({ selectedJointId: id }),
 
   /**
@@ -198,7 +202,8 @@ export const useCharacterStore = create<CharacterState>((set) => ({
     set({
       skeleton: buildDefaultRig(),
       activeLayer: 'skeleton',
-      visible: initialVisible(),
+      renderLayer: 'base',
+      skeletonVisible: true,
       selectedJointId: null,
       light: { ...DEFAULT_LIGHT },
     }),

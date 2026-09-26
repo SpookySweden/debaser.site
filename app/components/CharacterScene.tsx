@@ -12,6 +12,7 @@ import {
   MODEL_WIRE,
 } from '../lib/character/palette';
 import { massFor } from '../lib/character/rig';
+import type { RenderLayerId } from '../lib/character/layers';
 import { scaleOf, type Joint } from '../lib/character/skeleton';
 import { useCharacterStore, useInteractionMode, type InteractionMode } from '../lib/character/store';
 import { PixelPass } from './CharacterPixelPass';
@@ -33,7 +34,7 @@ import { PixelPass } from './CharacterPixelPass';
  */
 export default function CharacterScene({ view }: { view: ViewportKind }) {
   const mode = useInteractionMode();
-  const pixelLayerOn = useCharacterStore((state) => state.visible.pixel);
+  const renderLayer = useCharacterStore((state) => state.renderLayer);
 
   return (
     <Canvas
@@ -59,8 +60,9 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
       <color attach="background" args={[MODEL_VOID]} />
       <ambientLight intensity={0.55} />
       <KeyLight />
-      <Figure view={view} mode={mode} />
-      <PixelPass enabled={pixelLayerOn} />
+      <Figure view={view} mode={mode} renderLayer={renderLayer} />
+      {/* The composer runs only for the PIXEL stage. The brief is specific that the others are not pixelated. */}
+      <PixelPass enabled={renderLayer === 'pixel'} />
     </Canvas>
   );
 }
@@ -131,35 +133,26 @@ function KeyLight() {
  * shader has not made yet. The one exception is selection, which has to be visible and uses the palette's
  * magenta so it still reads as the same site.
  */
-function MassAt({ jointId, scale, mode }: { jointId: string; scale: number; mode: InteractionMode }) {
+function MassAt({
+  jointId,
+  scale,
+  mode,
+  layer,
+}: {
+  jointId: string;
+  scale: number;
+  mode: InteractionMode;
+  layer: RenderLayerId;
+}) {
   const part = massFor(jointId);
   const selectJoint = useCharacterStore((state) => state.selectJoint);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const massVisible = useCharacterStore((state) => state.visible.mass);
-  const baseVisible = useCharacterStore((state) => state.visible.base);
-  const pixelVisible = useCharacterStore((state) => state.visible.pixel);
 
   if (part === undefined) return null;
 
   const isSelected = selectedJointId === jointId;
   const clickable = mode === 'mass';
   const size: [number, number, number] = [part.size.x * 2, part.size.y * 2, part.size.z * 2];
-
-  /**
-   * **What the mass looks like depends on which render layer is showing, and the layers are not decoration.**
-   *
-   *   MASS    wireframe only - edges to build against, with no surface to hide them. It is the layer where the
-   *           *shape* is the subject, so the surface is left out entirely.
-   *   BASE    solid and unshaded-flat, with no composer over it. The brief says BASE has no pixelation, and the
-   *           point of it is to see the figure cleanly at full resolution.
-   *   PIXEL   solid and lit, so there is something for `PixelPass` to reduce. A flat surface with no shading
-   *           pixelates to a single block of colour, which is why this one keeps the lambert material.
-   *
-   * A joint's mass is drawn if *any* of the three is visible, which is what `showMass` means - they are three
-   * views of the same geometry rather than three pieces of it.
-   */
-  const layer = pixelVisible ? 'pixel' : baseVisible ? 'base' : massVisible ? 'mass' : null;
-  if (layer === null) return null;
 
   return (
     <group position={[part.offset.x, part.offset.y, part.offset.z]} scale={scale}>
@@ -262,10 +255,10 @@ type Joints = Record<string, Joint>;
  * transform its children inherit - so a parent moved in the store carries its whole branch on screen with no
  * code here walking descendants or accumulating offsets. Storing absolute positions would have needed that walk.
  */
-function Figure({ view, mode }: { view: ViewportKind; mode: InteractionMode }) {
+function Figure({ view, mode, renderLayer }: { view: ViewportKind; mode: InteractionMode; renderLayer: RenderLayerId }) {
   const joints = useCharacterStore((state) => state.skeleton.joints);
   const rootId = useCharacterStore((state) => state.skeleton.rootId);
-  const visible = useCharacterStore((state) => state.visible);
+  const skeletonVisible = useCharacterStore((state) => state.skeletonVisible);
 
   if (joints[rootId] === undefined) return null;
 
@@ -275,8 +268,8 @@ function Figure({ view, mode }: { view: ViewportKind; mode: InteractionMode }) {
       jointId={rootId}
       view={view}
       mode={mode}
-      showHandles={visible.skeleton}
-      showMass={visible.mass || visible.base || visible.pixel}
+      renderLayer={renderLayer}
+      showHandles={skeletonVisible}
     />
   );
 }
@@ -286,15 +279,15 @@ function JointNode({
   jointId,
   view,
   mode,
+  renderLayer,
   showHandles,
-  showMass,
 }: {
   joints: Joints;
   jointId: string;
   view: ViewportKind;
   mode: InteractionMode;
+  renderLayer: RenderLayerId;
   showHandles: boolean;
-  showMass: boolean;
 }) {
   const joint = joints[jointId];
   if (joint === undefined) return null;
@@ -303,7 +296,7 @@ function JointNode({
 
   return (
     <group position={[joint.position.x, joint.position.y, joint.position.z]}>
-      {showMass ? <MassAt jointId={jointId} scale={scaleOf(joint)} mode={mode} /> : null}
+      <MassAt jointId={jointId} scale={scaleOf(joint)} mode={mode} layer={renderLayer} />
       {showHandles ? <JointHandle jointId={jointId} view={view} /> : null}
 
       {children.map((child) => (
@@ -313,8 +306,8 @@ function JointNode({
           jointId={child.id}
           view={view}
           mode={mode}
+          renderLayer={renderLayer}
           showHandles={showHandles}
-          showMass={showMass}
         />
       ))}
     </group>

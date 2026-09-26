@@ -2,6 +2,7 @@
 
 import { MAX_SCALE, MIN_SCALE } from '../lib/character/drag';
 import type { ViewportKind } from '../lib/character/drag';
+import { RENDER_LAYER_IDS, type RenderLayerId } from '../lib/character/layers';
 import { massFor, PART_OF_JOINT } from '../lib/character/rig';
 import { scaleOf } from '../lib/character/skeleton';
 import { useCharacterStore, useInteractionMode, type InteractionMode, type LayerId } from '../lib/character/store';
@@ -9,12 +10,12 @@ import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import CharacterScene from './CharacterScene';
 
 /**
- * The four layers, in the order the brief names them.
+ * What a drag in a viewport does, per selected layer - the *interaction* half of the layer model.
  *
- * **A layer is a thing you look *through*, so each one carries two controls and they are not the same
- * control.** The *eye* decides whether the layer is drawn; selecting a row decides what a drag in the
- * viewports does. Collapsing the two would mean looking at the wireframe required deselecting the layer you
- * were editing, which is exactly the moment you need both.
+ * **The edit and render layer lists are different lists and must not be merged.** This one is what the pointer
+ * does; the render list below is what is drawn. They are close enough to look like one list, which is the trap:
+ * a single list would say that selecting BASE means dragging edits nothing, when in fact BASE is a *render* and
+ * the two things a reader edits are the joints and the mass.
  */
 const LAYERS = [
   { id: 'skeleton', label: 'SKELETON', note: 'JOINTS AND BONES. DRAGGING MOVES A JOINT.' },
@@ -22,6 +23,25 @@ const LAYERS = [
   { id: 'base', label: 'BASE RENDER', note: 'SOLID, UNSHADED. NO PIXELATION.' },
   { id: 'pixel', label: 'LIVE PIXEL SHADER', note: 'LOW-RES TARGET AND THE OUTLINE. DRAGGING MOVES THE LIGHT.' },
 ] as const satisfies readonly { id: LayerId; label: string; note: string }[];
+
+/**
+ * The three render stages, as a radio group.
+ *
+ * **A radio group and not three eyes, and that is the fix for a real defect.** The three were independent
+ * visibility flags ordered by priority, with PIXEL on by default - so PIXEL always won, BASE was unreachable,
+ * and switching PIXEL's eye off replaced the whole render instead of removing the pixelation. They are stages
+ * of one pipeline: exactly one is showing.
+ *
+ * Keyed by `RENDER_LAYER_IDS`, so a stage added to the model without a label here is a **type error** rather
+ * than a stage a reader cannot reach - the same reason the edit list is typed against `LayerId`.
+ */
+const RENDER_LAYER_LABELS: Record<RenderLayerId, { label: string; note: string }> = {
+  mass: { label: 'MASS', note: 'THE SHAPE AS EDGES - TO BUILD AGAINST' },
+  base: { label: 'BASE', note: 'THE SOLID FIGURE, UNPIXELATED' },
+  pixel: { label: 'PIXEL', note: 'THE SOLID FIGURE, THROUGH THE COMPOSER' },
+};
+
+const RENDER_LAYERS = RENDER_LAYER_IDS.map((id) => ({ id, ...RENDER_LAYER_LABELS[id] }));
 
 /**
  * The workbench's two viewports and its sidebar.
@@ -38,9 +58,7 @@ const LAYERS = [
  */
 export default function CharacterViewport() {
   const activeLayer = useCharacterStore((state) => state.activeLayer);
-  const visible = useCharacterStore((state) => state.visible);
   const selectLayer = useCharacterStore((state) => state.selectLayer);
-  const toggleLayer = useCharacterStore((state) => state.toggleLayer);
   const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
   const interactionMode = useInteractionMode();
   // Read from the rig rather than hardcoded, so the pane cannot claim a mapping the table does not have.
@@ -55,48 +73,32 @@ export default function CharacterViewport() {
 
       <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className={TITLE_BAR_INACTIVE}>
-          <span>LAYERS</span>
+          <span>WHAT A DRAG EDITS</span>
           <span>[ {LAYERS.length} ]</span>
         </div>
 
         <ul className="divide-y divide-ink">
-          {LAYERS.map((layer) => {
-            const isHidden = !visible[layer.id];
-
-            return (
-              <li key={layer.id} className="flex items-center gap-2 p-1">
-                {/* The eye. It goes dark rather than disappearing when a layer is off, because a control that
-                    vanishes is one you cannot use to turn the thing back on. */}
-                <button
-                  type="button"
-                  onClick={() => toggleLayer(layer.id)}
-                  aria-pressed={!isHidden}
-                  aria-label={`${isHidden ? 'Show' : 'Hide'} the ${layer.label} layer`}
-                  className={`shrink-0 cursor-pointer rounded-none border border-black px-1 text-[11px] leading-none ${
-                    isHidden ? 'bg-chrome-dark text-ink' : 'bg-sun text-ink hover:bg-ice'
-                  }`}
-                >
-                  {isHidden ? '◌' : '●'}
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => selectLayer(layer.id)}
-                  aria-pressed={activeLayer === layer.id}
-                  className={`min-w-0 flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
-                    activeLayer === layer.id
-                      ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
-                      : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-                  }`}
-                >
-                  {layer.label}
-                  <span className="ml-2 font-normal text-ink-plate">{layer.note}</span>
-                </button>
-              </li>
-            );
-          })}
+          {LAYERS.map((layer) => (
+            <li key={layer.id} className="p-1">
+              <button
+                type="button"
+                onClick={() => selectLayer(layer.id)}
+                aria-pressed={activeLayer === layer.id}
+                className={`w-full cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
+                  activeLayer === layer.id
+                    ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                    : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
+                }`}
+              >
+                {layer.label}
+                <span className="ml-2 font-normal text-ink-plate">{layer.note}</span>
+              </button>
+            </li>
+          ))}
         </ul>
       </div>
+
+      <RenderStage />
 
       <LayerControls mode={interactionMode} />
 
@@ -116,15 +118,75 @@ export default function CharacterViewport() {
 }
 
 /**
- * The stack of controls the selected layer needs, and nothing when it needs none.
+ * What is drawn: the render stage, plus the skeleton's own eye.
  *
- * **The panel follows the layer, because that is what the layer *means*.** SKELETON has nothing to configure -
- * its interaction is entirely the handles in the viewport - so it gets no panel at all, which is the honest
- * answer rather than an empty box. MASS gets the rescaler, because a mass is something you size. LIGHT gets the
- * readout, because it has no controls beyond the drag. BASE gets nothing, because it is a render to look at.
+ * **The eye belongs to the skeleton alone, and that asymmetry is the honest model.** The three render stages are
+ * a pipeline, so exactly one shows and the control is a radio group. The skeleton is not a stage - it is an
+ * overlay you look *through* while working in either of the other two, which is why it is the one layer whose
+ * visibility is independent. Giving all four an eye is what produced the defect this replaces: three of them
+ * were fighting to be "the" render, and the fourth genuinely is not.
+ */
+function RenderStage() {
+  const renderLayer = useCharacterStore((state) => state.renderLayer);
+  const setRenderLayer = useCharacterStore((state) => state.setRenderLayer);
+  const skeletonVisible = useCharacterStore((state) => state.skeletonVisible);
+  const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
+
+  return (
+    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>WHAT IS DRAWN</legend>
+
+      <div className="p-1">
+        {/* The overlay, with the only eye on the page. */}
+        <div className="flex items-center gap-2 pb-1">
+          <button
+            type="button"
+            onClick={toggleSkeleton}
+            aria-pressed={skeletonVisible}
+            aria-label={`${skeletonVisible ? 'Hide' : 'Show'} the joints and bones`}
+            className={`shrink-0 cursor-pointer rounded-none border border-black px-1 text-[11px] leading-none ${
+              skeletonVisible ? 'bg-sun text-ink hover:bg-ice' : 'bg-chrome-dark text-ink'
+            }`}
+          >
+            {skeletonVisible ? '●' : '◌'}
+          </button>
+          <span className="text-[10px] font-bold text-ink">
+            JOINTS AND BONES
+            <span className="ml-2 font-normal text-ink-plate">AN OVERLAY - DRAWN OVER EITHER STAGE BELOW</span>
+          </span>
+        </div>
+
+        {RENDER_LAYERS.map((stage) => {
+          const chosen = renderLayer === stage.id;
+
+          return (
+            <button
+              key={stage.id}
+              type="button"
+              onClick={() => setRenderLayer(stage.id)}
+              aria-pressed={chosen}
+              className={`mb-1 w-full cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
+                chosen
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                  : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
+              }`}
+            >
+              {stage.label}
+              <span className="ml-2 font-normal text-ink-plate">{stage.note}</span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
+/**
+ * The panel follows the selected *edit* layer, and SKELETON gets nothing to configure.
  *
- * This is where the `JointPicker` used to be, and its absence is the point: the owner's interaction is *click
- * the shape, then open its tab*, so the tab is something the click opens rather than a list you consult first.
+ * MASS gets the rescaler, because a mass is something you size. LIGHT gets the readout, because its interaction
+ * is the drag and there is nothing else to set. BASE gets nothing, because it is a render to look at. A panel
+ * that showed the same controls for every layer would invite a reader to change something and see nothing move.
  */
 function LayerControls({ mode }: { mode: InteractionMode }) {
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
