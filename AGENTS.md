@@ -356,6 +356,18 @@ same reason: one experiment per suspect, because two faults mask each other.
 
 - **A `<canvas>` in the DOM is not a drawn figure, and pixels on the canvas are not a person.** The honest
   sentence is "72072/72072 pixels drawn in-frame, three colours, none of them grey" - never "it looks right".
+  `Temp/measure-stages.cjs` is what produces a per-stage reading; the numbers it gave on 2026-09-26 were:
+
+      MASS    2 colours    rgb(96,204,89) - the green wireframe alone, no surface at all
+      BASE    3 colours    Violet trunk + darker Violet limbs, flat and unlit
+      PIXEL   229 colours  the composer: outline, pixelation, shading - an order of magnitude more tones
+
+  Those three lines are the evidence that the stages are genuinely different, and `Temp/check-character-stages.cjs`
+  holds the source property they rest on: MASS is the only wireframe, BASE and PIXEL are not the same material,
+  and PIXEL alone is lit. **The failure to watch for is not a deleted stage but two stages quietly becoming the
+  same material** - and that is exactly what a first reading *looked* like, because the probe was clicking the
+  edit row `MASS GEOMETRY` instead of the stage button `MASS`. Two different requests giving byte-identical
+  readings is the tell; a real render differs at least slightly.
 - **Absence from a bundle grep is not absence from the site.** The workbench is `next/dynamic`, so its chunk is
   fetched by the client only once the CHAR tab is pressed behind a session. The deployed HTML names 300 `.js`
   references but only **12 distinct** chunks, none of them the workbench - so three separate bundle greps reported
