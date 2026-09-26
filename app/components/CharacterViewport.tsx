@@ -2,10 +2,18 @@
 
 import { MAX_SCALE, MIN_SCALE } from '../lib/character/drag';
 import type { ViewportKind } from '../lib/character/drag';
+import { RIG_PRESET_IDS, RIG_PRESETS } from '../lib/character/rig';
+import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
 import { RENDER_LAYER_IDS, type RenderLayerId } from '../lib/character/layers';
-import { massFor, PART_OF_JOINT } from '../lib/character/rig';
 import { scaleOf } from '../lib/character/skeleton';
-import { useCharacterStore, useInteractionMode, type InteractionMode, type LayerId } from '../lib/character/store';
+import { MASS_SHAPE_GLYPHS } from '../lib/ui/icons';
+import {
+  useCharacterStore,
+  useInteractionMode,
+  type InteractionMode,
+  type LayerId,
+  type MassTool,
+} from '../lib/character/store';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import CharacterScene from './CharacterScene';
 
@@ -61,8 +69,17 @@ export default function CharacterViewport() {
   const selectLayer = useCharacterStore((state) => state.selectLayer);
   const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
   const interactionMode = useInteractionMode();
-  // Read from the rig rather than hardcoded, so the pane cannot claim a mapping the table does not have.
-  const parts = Object.keys(PART_OF_JOINT).length;
+
+  /**
+   * Counted from the figure itself rather than from `PART_OF_JOINT`.
+   *
+   * The table is only the *seed* now, so counting it would report how many shapes the preset started with and not
+   * how many the reader has. A joint whose shape they took off, or a shoulder they added one to, would leave this
+   * line lying.
+   */
+  const parts = useCharacterStore(
+    (state) => Object.values(state.skeleton.joints).filter((joint) => joint.mass !== null).length,
+  );
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -70,6 +87,8 @@ export default function CharacterViewport() {
         <Viewport kind="front" label="FRONT" hint="X / Y" />
         <Viewport kind="side" label="SIDE" hint="Z / Y" />
       </div>
+
+      <PresetPicker />
 
       <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className={TITLE_BAR_INACTIVE}>
@@ -108,12 +127,55 @@ export default function CharacterViewport() {
         {interactionMode === 'joints'
           ? 'DRAG A JOINT HANDLE IN EITHER VIEWPORT TO MOVE IT. ' + jointCount + ' JOINTS.'
           : interactionMode === 'mass'
-            ? 'CLICK A SHAPE IN THE VIEWPORT TO OPEN ITS CONTROLS. ' + parts + ' PRIMITIVES MAPPED.'
-            : interactionMode === 'light'
-              ? 'DRAG IN EITHER VIEWPORT TO TURN THE LIGHT.'
-              : 'NOTHING HERE IS EDITABLE. THIS LAYER IS TO LOOK AT.'}
+            ? 'DRAG A SHAPE TO RESIZE IT, OR PICK ONE FROM THE PALETTE. ' + parts + ' SHAPES ON THE FIGURE.'
+            : interactionMode === 'massMove'
+              ? 'DRAG A SHAPE TO SLIDE IT. THE JOINT STAYS PUT. ' + parts + ' SHAPES ON THE FIGURE.'
+              : interactionMode === 'light'
+                ? 'DRAG IN EITHER VIEWPORT TO TURN THE LIGHT.'
+                : 'NOTHING HERE IS EDITABLE. THIS LAYER IS TO LOOK AT.'}
       </p>
     </div>
+  );
+}
+
+/**
+ * The preset skeletons, as a row of plates.
+ *
+ * **Pressing one rebuilds the figure and discards edits, and the note says so.** A preset is a starting point, so
+ * applying it has to be able to throw work away - the alternative is a state between the two with no name, where
+ * the figure is neither what the reader built nor what the preset describes. The note is on the control rather
+ * than in a confirmation dialogue, because this is a workbench and a dialogue for every preset would be worse than
+ * the loss it prevents.
+ *
+ * The current preset is shown as pressed, which is what tells a reader that their edits have taken the figure
+ * away from the preset it came from.
+ */
+function PresetPicker() {
+  const presetId = useCharacterStore((state) => state.presetId);
+  const applyPreset = useCharacterStore((state) => state.applyPreset);
+
+  return (
+    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>START FROM - REBUILDS THE FIGURE</legend>
+      <div className="flex gap-[2px] p-1">
+        {RIG_PRESET_IDS.map((id) => (
+          <button
+            key={id}
+            type="button"
+            onClick={() => applyPreset(id)}
+            aria-pressed={presetId === id}
+            title={RIG_PRESETS[id].note}
+            className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[3px] text-[10px] font-bold ${
+              presetId === id
+                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
+            }`}
+          >
+            {RIG_PRESETS[id].label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
   );
 }
 
@@ -232,30 +294,37 @@ function MassRescaler({ jointId }: { jointId: string | null }) {
   const joints = useCharacterStore((state) => state.skeleton.joints);
   const scaleJoint = useCharacterStore((state) => state.scaleJoint);
   const joint = jointId === null ? undefined : joints[jointId];
-  const part = jointId === null ? undefined : massFor(jointId);
 
-  if (jointId === null || joint === undefined || part === undefined) {
+  if (jointId === null || joint === undefined) {
     return (
       <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
-        CLICK A SHAPE IN EITHER VIEWPORT. THE ONE YOU PICK OPENS HERE, WITH A SIZE TO SET.
+        CLICK A SHAPE IN EITHER VIEWPORT, OR A JOINT HANDLE. THE ONE YOU PICK OPENS HERE.
       </p>
     );
   }
 
-  const scale = scaleOf(joint);
-  // Read into a local before the handlers: the early return above narrows `jointId`, but a closure does not keep
-  // that narrowing, so `scaleJoint(jointId, ...)` inside the callbacks is a string-or-null. Binding it once is
-  // the fix the compiler is actually asking for - and a cast would have silenced it while keeping the hole.
+  /**
+   * **A joint with no mass is the state the palette is *for*, not an error to hide behind a message.**
+   *
+   * This used to return a note saying "click a shape" and nothing else - which is the one case where the reader
+   * most needs the controls, because they are looking at a bare shoulder and the thing they want is to put
+   * something on it. So the palette renders in both states, and only the size readout is conditional.
+   */
   const id = jointId;
+  const part = joint.mass;
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
       <p className="text-[10px] font-bold text-ink">
-        {id} :: {part.shape.toUpperCase()}
+        {id} :: {part === null ? 'NOTHING HANGING HERE' : MASS_SHAPES[part.shape].label}
       </p>
 
+      <ShapePalette jointId={id} current={part?.shape ?? null} />
+      <MassToolSwitch />
+      <MassSize jointId={id} />
+
       <label className="mt-1 block text-[10px] text-ink-plate" htmlFor="character-mass-scale">
-        SIZE {scale.toFixed(2)} - THE SAME DRAG IN EITHER PANE, AND THIS SLIDER, DRIVE ONE NUMBER
+        JOINT SCALE {scaleOf(joint).toFixed(2)} - SCALES THE JOINT AND EVERYTHING BELOW IT
       </label>
       <input
         id="character-mass-scale"
@@ -263,15 +332,142 @@ function MassRescaler({ jointId }: { jointId: string | null }) {
         min={MIN_SCALE}
         max={MAX_SCALE}
         step={0.05}
-        value={scale}
+        value={scaleOf(joint)}
         onChange={(event) => scaleJoint(id, Number(event.target.value))}
-        className="mt-1 w-48 max-sm:min-h-11"
+        className={PLATE}
       />
-
-      <button type="button" onClick={() => scaleJoint(id, 1)} className={`${PLATE} ml-2`}>
-        RESET SIZE
-      </button>
     </div>
+  );
+}
+
+/**
+ * The six primitives, as a row of plates.
+ *
+ * **A pressed plate is the current shape, and pressing one applies it.** No separate confirm step, because there
+ * is nothing to confirm: the figure updates as the shape changes, so the plate *is* the preview. That is also why
+ * the control behaves as a radio group - one shape per joint.
+ *
+ * A joint with nothing gets the shape at a default size, which is `setMassShape`'s job rather than this
+ * component's, so the palette does not have to know what a sensible empty size is.
+ */
+function ShapePalette({ jointId, current }: { jointId: string; current: MassShapeId | null }) {
+  const setShape = useCharacterStore((state) => state.setShape);
+  const clearShape = useCharacterStore((state) => state.clearShape);
+
+  return (
+    <fieldset className="mt-1 rounded-none border border-ink">
+      <legend className="px-1 text-[9px] font-bold text-ink-plate">SHAPE - SIX PRIMITIVES</legend>
+
+      {/*
+       * **A 2D grid, so the vocabulary can be seen without turning the figure.** The glyph is the shape seen flat,
+       * which is what a reader is choosing between; the 3D primitive behind it is what they get. Each plate
+       * carries its own one-line note as a title, so the meaning is available without the grid growing to six
+       * sentences.
+       */}
+      <div className="grid grid-cols-3 gap-[2px] p-1">
+        {MASS_SHAPE_IDS.map((shape) => (
+          <button
+            key={shape}
+            type="button"
+            onClick={() => setShape(jointId, shape)}
+            aria-pressed={current === shape}
+            aria-label={`${MASS_SHAPES[shape].label} - ${MASS_SHAPES[shape].note}`}
+            title={MASS_SHAPES[shape].note}
+            className={`flex flex-col items-center gap-[2px] cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
+              current === shape
+                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
+            }`}
+          >
+            <span aria-hidden className="text-[16px] leading-none">
+              {MASS_SHAPE_GLYPHS[shape]}
+            </span>
+            {MASS_SHAPES[shape].label}
+          </button>
+        ))}
+      </div>
+      {current === null ? (
+        <p className="px-1 pb-1 text-[9px] text-ink-plate">THIS JOINT CARRIES NOTHING. PICK ONE.</p>
+      ) : (
+        <button
+          type="button"
+          onClick={() => clearShape(jointId)}
+          className="m-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 border-t-white border-l-white border-r-black border-b-black bg-chrome-dark px-1 py-[2px] text-[9px] font-bold text-ink hover:bg-bubble-pale"
+        >
+          [ TAKE THE SHAPE OFF ]
+        </button>
+      )}
+    </fieldset>
+  );
+}
+
+/**
+ * What a drag on a shape does: resize it, or slide it.
+ *
+ * **Two tools and not a modifier key.** The alternative is drag-to-resize with shift-drag-to-move, which is
+ * invisible: a reader who does not already know the convention never finds it, and the sidebar cannot say so
+ * without a paragraph. A visible switch costs one row and is discoverable by looking.
+ */
+function MassToolSwitch() {
+  const massTool = useCharacterStore((state) => state.massTool);
+  const setMassTool = useCharacterStore((state) => state.setMassTool);
+
+  const tools: { id: MassTool; label: string; note: string }[] = [
+    { id: 'resize', label: 'RESIZE', note: 'A DRAG MAKES THE SHAPE BIGGER OR SMALLER. IT DOES NOT MOVE THE JOINT.' },
+    { id: 'move', label: 'MOVE', note: 'A DRAG SLIDES THE SHAPE, LEAVING THE JOINT EXACTLY WHERE IT IS.' },
+  ];
+
+  return (
+    <fieldset className="mt-1 rounded-none border border-ink">
+      <legend className="px-1 text-[9px] font-bold text-ink-plate">DRAGGING A SHAPE</legend>
+      <div className="flex gap-[2px] p-1">
+        {tools.map((tool) => (
+          <button
+            key={tool.id}
+            type="button"
+            onClick={() => setMassTool(tool.id)}
+            aria-pressed={massTool === tool.id}
+            title={tool.note}
+            className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
+              massTool === tool.id
+                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
+            }`}
+          >
+            {tool.label}
+          </button>
+        ))}
+      </div>
+      <p className="px-1 pb-1 text-[9px] text-ink-plate">{tools.find((tool) => tool.id === massTool)?.note}</p>
+    </fieldset>
+  );
+}
+
+/**
+ * The shape's own size in the three axes - **a readout, not a control.**
+ *
+ * The drag is the control, and it is the one the brief asks for. Printing the numbers matters anyway: without them
+ * there is no way to tell a shape that is 0.02 wide from one that is 0.2, and no way to notice a drag reaching its
+ * clamp. Read-only by design rather than by omission - a second set of inputs writing the same field would be a
+ * second way for the shape and the numbers to disagree.
+ */
+function MassSize({ jointId }: { jointId: string }) {
+  const mass = useCharacterStore((state) => state.skeleton.joints[jointId]?.mass ?? null);
+
+  if (mass === null) {
+    return (
+      <p className="mt-1 text-[9px] text-ink-plate">
+        NO SHAPE HERE YET - PICK ONE ABOVE, THEN DRAG IT IN EITHER VIEWPORT.
+      </p>
+    );
+  }
+
+  const round = (value: number) => value.toFixed(2);
+
+  return (
+    <p className="mt-1 text-[9px] text-ink-plate">
+      W {round(mass.size.x)} H {round(mass.size.y)} D {round(mass.size.z)} - DRAGGING THE SHAPE CHANGES THESE
+    </p>
   );
 }
 

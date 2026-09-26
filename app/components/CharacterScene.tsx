@@ -13,6 +13,7 @@ import {
   MODEL_WIRE,
 } from '../lib/character/palette';
 import { massFor } from '../lib/character/rig';
+import type { MassShapeId } from '../lib/character/shapes';
 import type { RenderLayerId } from '../lib/character/layers';
 import { scaleOf, type Joint } from '../lib/character/skeleton';
 import { useCharacterStore, useInteractionMode, type InteractionMode } from '../lib/character/store';
@@ -123,41 +124,55 @@ function KeyLight() {
 }
 
 /**
- * The mass a joint carries: a clickable primitive.
+ * The mass a joint carries: a clickable, draggable primitive.
  *
- * **Clicking the shape is what opens its controls**, which is the interaction the owner asked for - "when mass
- * layer is selected you can click a shape and then open a tab to manipulate it". So this is a real target, not
- * decoration: a pointer up on it selects the joint, and the sidebar's rescale slider then acts on that
- * selection.
+ * **Clicking the shape is what opens its controls**, which is the interaction the owner asked for. So this is a
+ * real target, not decoration: a pointer down on it selects the joint, and then the palette reshapes it and the
+ * sidebar's tool decides what dragging it does.
+ *
+ * **Dragging the shape is handled here, and it is what makes the mass editable in its own right.** The joint's
+ * handle drags the *joint*; this drags the *mass*, and the store decides which gesture is in play from the
+ * selected layer and tool. Both funnel into the same `drag()` entry point, so the axis rules live in one place
+ * and a third gesture would be a member of one enum rather than a second branch here.
  *
  * **A cone's apex points up by default**, so a limb cone is rotated a half-turn about x to hang *downward* from
  * its joint. That one line is the difference between a figure and a row of party hats, and it belongs here
  * rather than baked into the rig: the rig stores where a joint is, not how a mesh happens to be wound.
- *
- * The material colour is deliberately **not** from the nine-token palette. This is the model, not the chrome -
- * it is what the pixel shader will recolour, and choosing a site colour now would hard-code a decision the
- * shader has not made yet. The one exception is selection, which has to be visible and uses the palette's
- * magenta so it still reads as the same site.
  */
 function MassAt({
   jointId,
   scale,
   mode,
   layer,
+  view,
 }: {
   jointId: string;
   scale: number;
   mode: InteractionMode;
   layer: RenderLayerId;
+  view: ViewportKind;
 }) {
-  const part = massFor(jointId);
+  const skeleton = useCharacterStore((state) => state.skeleton);
   const selectJoint = useCharacterStore((state) => state.selectJoint);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
+  const drag = useCharacterStore((state) => state.drag);
 
-  if (part === undefined) return null;
+  /**
+   * **Every hook runs before the early return, and this was a real bug rather than tidiness.**
+   *
+   * `useRef` sat below `if (part === null) return null`, so a joint that gained or lost its shape during an edit
+   * would change the number of hooks between renders - which React reports as *"rendered fewer hooks than
+   * expected"* and which unmounts the tree. Adding a shape to a bare shoulder is exactly the gesture that
+   * triggers it, and it is the first thing a reader does. The ref is declared first and the lookup second.
+   */
+  const last = useRef<{ x: number; y: number } | null>(null);
+
+  const part = massFor(skeleton, jointId);
+  if (part === null) return null;
 
   const isSelected = selectedJointId === jointId;
-  const clickable = mode === 'mass';
+  /** Both mass gestures are a drag on the shape; the mode only decides what the drag *means*. */
+  const draggable = mode === 'mass' || mode === 'massMove';
 
   /**
    * **A second tone for the limbs, so a joint reads as a joint.** Violet for the trunk and a darker Violet for
@@ -177,20 +192,52 @@ function MassAt({
     <group position={[part.offset.x, part.offset.y, part.offset.z]} scale={scale}>
       <mesh
         rotation={part.shape === 'cone' ? [Math.PI, 0, 0] : [0, 0, 0]}
-        onPointerUp={
-          clickable
+        onPointerDown={
+          draggable
             ? (event) => {
-                // Stopping propagation matters: without this the click also reaches whatever is behind, and in
-                // a scene of nested parts that means the *parent* wins and the reader selects the wrong joint.
                 event.stopPropagation();
                 selectJoint(jointId);
+                last.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY };
+                (event.target as Element | null)?.setPointerCapture?.(event.pointerId);
               }
             : undefined
         }
+        onPointerMove={
+          draggable
+            ? (event) => {
+                if (last.current === null) return;
+
+                const x = event.nativeEvent.clientX;
+                const y = event.nativeEvent.clientY;
+                const dx = x - last.current.x;
+                const dy = y - last.current.y;
+                last.current = { x, y };
+
+                drag(view, dx, dy, jointId);
+              }
+            : undefined
+        }
+        onPointerUp={
+          draggable
+            ? (event) => {
+                event.stopPropagation();
+                last.current = null;
+                (event.target as Element | null)?.releasePointerCapture?.(event.pointerId);
+              }
+            : undefined
+        }
+        onClick={
+          // In the joint tool the shape is a way to *select* a joint, so it stays clickable - the handles are
+          // small, and a reader aiming at a hand will hit the hand.
+          draggable
+            ? undefined
+            : (event: { stopPropagation: () => void }) => {
+                event.stopPropagation();
+                selectJoint(jointId);
+              }
+        }
       >
-        {part.shape === 'box' ? <boxGeometry args={size} /> : null}
-        {part.shape === 'sphere' ? <sphereGeometry args={[size[0] / 2, 12, 8]} /> : null}
-        {part.shape === 'cone' ? <coneGeometry args={[size[0] / 2, size[1], 10]} /> : null}
+        <MassGeometry shape={part.shape} size={size} />
 
         {/*
          * The colour is deliberately **not** from the nine-token palette. This is the model, not the chrome - it
@@ -210,6 +257,41 @@ function MassAt({
       </mesh>
     </group>
   );
+}
+
+/**
+ * Which geometry a shape uses, and how a size maps onto that geometry's arguments.
+ *
+ * **A switch over the union and not a chain of ternaries**, because three of the six take a box's *three
+ * half-extents* while the other three take a *radius and a length* - two different argument shapes, and getting a
+ * pair the wrong way round is the mistake this vocabulary invites. A switch over a union is exhaustive by
+ * construction: adding a seventh shape to `MassShapeId` without a case here is a type error, not a shape that
+ * silently renders as nothing.
+ *
+ * **The radius comes from `x` and the length from `y` for all three round shapes**, so a horizontal drag fattens
+ * them and a vertical one lengthens them - the same gesture meaning the same thing as it does on a box.
+ *
+ * Segment counts are low on purpose: this renders at about 96x128 through the pixel pass, so a high-resolution
+ * sphere is triangles nobody will ever see. `capsuleGeometry`'s third argument is its subdivision count, kept at
+ * four for the same reason.
+ */
+function MassGeometry({ shape, size }: { shape: MassShapeId; size: [number, number, number] }) {
+  switch (shape) {
+    case 'box':
+      return <boxGeometry args={size} />;
+    case 'sphere':
+      return <sphereGeometry args={[size[0] / 2, 12, 8]} />;
+    case 'cone':
+      return <coneGeometry args={[size[0] / 2, size[1], 10]} />;
+    case 'cylinder':
+      return <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[1], 10]} />;
+    case 'capsule':
+      return <capsuleGeometry args={[size[0] / 2, size[1], 4, 10]} />;
+    case 'wedge':
+      // Four sides rather than a box's six: a box whose top edge is narrower than its base is a wedge, and a
+      // four-sided cylinder is exactly that with flat faces - which is what a foot wants to be.
+      return <cylinderGeometry args={[size[0] / 2, size[0] / 3, size[1], 4]} />;
+  }
 }
 
 /**
@@ -317,7 +399,7 @@ function JointNode({
 
   return (
     <group position={[joint.position.x, joint.position.y, joint.position.z]}>
-      <MassAt jointId={jointId} scale={scaleOf(joint)} mode={mode} layer={renderLayer} />
+      <MassAt jointId={jointId} scale={scaleOf(joint)} mode={mode} layer={renderLayer} view={view} />
       {showHandles ? <JointHandle jointId={jointId} view={view} /> : null}
 
       {children.map((child) => (

@@ -98,6 +98,28 @@ export function scaleForDrag(currentScale: number, dyPixels: number): number {
 }
 
 /**
+ * The size change a drag in the MASS layer has produced, **per axis**, in joint space.
+ *
+ * **Per axis and not a single factor, which is the difference between this and `scaleForDrag`.** The joint's
+ * `scale` stays uniform on purpose - a limb 1.4 wide and 1.0 tall is not a shape anybody asked for - but a *mass*
+ * is exactly where a reader wants that: a foot is wider than it is tall, a head is a cube, a shoulder is a slab.
+ * Refusing it here would mean six shapes that can only be six similar blobs.
+ *
+ * **It reuses the pane's own axis mapping**, so the gesture is the same one as a joint drag: dragging right grows
+ * x, dragging up grows y, and in the SIDE pane dragging right grows z. A reader who can move a joint already knows
+ * how to resize a shape, and the sidebar does not have to teach a second convention.
+ *
+ * A horizontal drag grows the horizontal extent and a vertical one grows the vertical, both at the same rate as
+ * a joint moves - one unit per pixel - so the shape tracks the pointer rather than drifting away from it at a
+ * rate the reader has to discover. The dimensions are half-extents, hence the factor of two.
+ */
+export function resizeForDrag(view: ViewportKind, dxPixels: number, dyPixels: number): Vec3 {
+  const delta = dragOffset(view, dxPixels, dyPixels);
+
+  return { x: delta.x * 2, y: delta.y * 2, z: delta.z * 2 };
+}
+
+/**
  * Where the light ends up after a drag, in radians.
  *
  * Deliberately the same shape as `dragOffset` - a horizontal drag turns the light around the figure, a

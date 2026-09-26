@@ -20,10 +20,20 @@
  * its writes are per-track, not per-pixel.
  */
 import { create } from 'zustand';
-import { dragOffset, lightForDrag, scaleForDrag, type ViewportKind } from './drag';
+import { dragOffset, lightForDrag, resizeForDrag, type ViewportKind } from './drag';
 import type { RenderLayerId } from './layers';
-import { buildDefaultRig } from './rig';
-import { scaleOf, setPosition, setScale, type Skeleton, type Vec3 } from './skeleton';
+import { buildDefaultRig, type RigPresetId } from './rig';
+import type { MassShapeId } from './shapes';
+import {
+  clearMass,
+  offsetMass,
+  resizeMass,
+  setMassShape,
+  setPosition,
+  setScale,
+  type Skeleton,
+  type Vec3,
+} from './skeleton';
 
 /**
  * The four layers, in the brief's order.
@@ -39,11 +49,24 @@ export const LAYER_IDS: readonly LayerId[] = ['skeleton', 'mass', 'base', 'pixel
 /**
  * What a drag in the viewport does, given the selected layer.
  *
- * `none` is not an error state - it is what the BASE layer gives you. The base render is the solid figure
- * with no pixelation, so it is the one layer that is purely something to *look* at; there is nothing to drag,
- * and the viewports must not swallow a pointer to do nothing with it.
+ * **`mass` split into two, because a shape has two things a drag can change.** Dragging a primitive with the
+ * pointer can plausibly mean "make it bigger" or "slide it off the joint", and a single gesture cannot be both. So
+ * the layer carries which one, and the sidebar says which - a reader who wants the other presses one plate rather
+ * than learning a modifier key they cannot discover.
+ *
+ *   `mass`      drag resizes the shape
+ *   `massMove`  drag slides the shape within the joint's frame, leaving the joint alone
+ *
+ * `none` is not an error state - it is what the BASE layer gives you. The base render is the solid figure with no
+ * pixelation, so it is the one layer that is purely something to *look* at.
  */
-export type InteractionMode = 'joints' | 'mass' | 'light' | 'none';
+export type InteractionMode = 'joints' | 'mass' | 'massMove' | 'light' | 'none';
+
+/**
+ * How the MASS layer is being used. A single enum rather than a boolean, so a third gesture - rotate, say - is a
+ * member here and a case in one switch rather than a second flag that can disagree with the first.
+ */
+export type MassTool = 'resize' | 'move';
 
 /**
  * The mode for a layer. The single place the mapping is written.
@@ -53,13 +76,13 @@ export type InteractionMode = 'joints' | 'mass' | 'light' | 'none';
  * the shader is what the light is for: dragging a joint there would move the light's frame of reference while
  * looking like it did nothing.
  */
-export function interactionModeFor(layer: LayerId): InteractionMode {
+export function interactionModeFor(layer: LayerId, tool: MassTool): InteractionMode {
   switch (layer) {
     case 'skeleton':
       return 'joints';
     case 'mass':
     case 'base':
-      return 'mass';
+      return tool === 'move' ? 'massMove' : 'mass';
     case 'pixel':
       return 'light';
   }
@@ -81,13 +104,23 @@ type CharacterState = {
   /** The joint a drag or the rescaler is pointed at, or null when nothing is selected. */
   selectedJointId: string | null;
   light: LightAngles;
+  /** Whether the MASS layer's drag resizes a shape or slides it. See `MassTool`. */
+  massTool: MassTool;
+  /** Which preset the figure was built from, so the picker can show the current one. */
+  presetId: RigPresetId;
 
   selectLayer: (layer: LayerId) => void;
   setRenderLayer: (layer: RenderLayerId) => void;
   toggleSkeleton: () => void;
+  setMassTool: (tool: MassTool) => void;
   selectJoint: (id: string | null) => void;
   moveJoint: (id: string, offset: Vec3) => void;
   scaleJoint: (id: string, factor: number) => void;
+  /** Give the selected joint one of the six primitives, or take its primitive away. */
+  setShape: (id: string, shape: MassShapeId) => void;
+  clearShape: (id: string) => void;
+  /** Rebuild the whole figure from a preset, discarding edits. That is what a preset is for. */
+  applyPreset: (presetId: RigPresetId) => void;
   /**
    * Apply a pointer drag to whichever joint the current layer is pointed at.
    *
@@ -121,10 +154,15 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   skeletonVisible: true,
   selectedJointId: null,
   light: { ...DEFAULT_LIGHT },
+  // RESIZE opens, because it is the gesture a reader reaches for first: a shape that is the wrong size is far more
+  // common than one that is in the wrong place, and moving a shape is the correction you make *after* seeing it.
+  massTool: 'resize',
+  presetId: 'blob',
 
   selectLayer: (layer) => set({ activeLayer: layer }),
   setRenderLayer: (layer) => set({ renderLayer: layer }),
   toggleSkeleton: () => set((state) => ({ skeletonVisible: !state.skeletonVisible })),
+  setMassTool: (tool) => set({ massTool: tool }),
   selectJoint: (id) => set({ selectedJointId: id }),
 
   /**
@@ -162,7 +200,7 @@ export const useCharacterStore = create<CharacterState>((set) => ({
    */
   drag: (viewport, dxPixels, dyPixels, jointId) =>
     set((state) => {
-      const mode = interactionModeFor(state.activeLayer);
+      const mode = interactionModeFor(state.activeLayer, state.massTool);
 
       if (mode === 'light') {
         return { light: lightForDrag(state.light, dxPixels, dyPixels) };
@@ -185,9 +223,37 @@ export const useCharacterStore = create<CharacterState>((set) => ({
         };
       }
 
-      // 'mass': scale the joint the drag is on. The viewport is irrelevant here - a scale has no direction -
-      // which is why the same gesture works in both panes.
-      return { skeleton: setScale(state.skeleton, jointId, scaleForDrag(scaleOf(joint), dyPixels)) };
+      /**
+       * **Both mass gestures move the shape, and neither moves the joint.** That is the brief's two-way rule seen
+       * from the other side: a joint drag carries its mass along for free, so a mass drag must leave the joint
+       * exactly where it is or the two operations would be the same one wearing two names.
+       *
+       * A drag on a joint that carries nothing does nothing, in both tools. Inventing a shape from a resize
+       * gesture would hand a reader geometry they never asked for; the palette is how a shape gets added.
+       */
+      if (mode === 'massMove') {
+        return { skeleton: offsetMass(state.skeleton, jointId, dragOffset(viewport, dxPixels, dyPixels)) };
+      }
+
+      return { skeleton: resizeMass(state.skeleton, jointId, resizeForDrag(viewport, dxPixels, dyPixels)) };
+    }),
+
+  setShape: (id, shape) => set((state) => ({ skeleton: setMassShape(state.skeleton, id, shape) })),
+
+  clearShape: (id) => set((state) => ({ skeleton: clearMass(state.skeleton, id) })),
+
+  /**
+   * **Rebuild the figure from a preset, discarding every edit.**
+   *
+   * A preset is a *starting point*, so applying one has to be able to throw work away - otherwise "start from
+   * LANKY" on a figure you have already posed does something in between the two, which is a state with no name.
+   * The selection is cleared with it, because the joint a reader had selected may not be where they left it.
+   */
+  applyPreset: (presetId) =>
+    set({
+      skeleton: buildDefaultRig(presetId),
+      presetId,
+      selectedJointId: null,
     }),
 
   setLight: (angles) => set({ light: { ...angles } }),
@@ -200,16 +266,18 @@ export const useCharacterStore = create<CharacterState>((set) => ({
    */
   reset: () =>
     set({
-      skeleton: buildDefaultRig(),
+      skeleton: buildDefaultRig('blob'),
       activeLayer: 'skeleton',
       renderLayer: 'base',
       skeletonVisible: true,
       selectedJointId: null,
       light: { ...DEFAULT_LIGHT },
+      massTool: 'resize',
+      presetId: 'blob',
     }),
 }));
 
 /** The selected layer's interaction mode. Derive it; do not store it. */
 export function useInteractionMode(): InteractionMode {
-  return useCharacterStore((state) => interactionModeFor(state.activeLayer));
+  return useCharacterStore((state) => interactionModeFor(state.activeLayer, state.massTool));
 }

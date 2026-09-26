@@ -51,7 +51,30 @@ export const ICON_BELL = '☼';
  */
 export const ICON_LOOP = '↻';
 
-/** What a mark means, so a page can print the legend once rather than beside every key. */
+/**
+ * The six mass shapes, as glyphs.
+ *
+ * **A 2D stand-in for a 3D vocabulary, and it is glyphs rather than drawings.** The asset rules forbid code-drawn
+ * artwork, and a shape picker is the one control where a picture is genuinely wanted - so this is the same answer
+ * `icons.ts` gives for every other key: a character off the font. The glyph face this site loads renders them as
+ * whole blocks, which is exactly the right register next to the six-shape grid.
+ *
+ * **Read from `MASS_SHAPE_IDS` rather than declared as a parallel list**, so a shape added to the vocabulary
+ * without a glyph is a missing mark in a grid rather than a control that silently cannot be drawn - and
+ * `Temp/check-character-shapes.cjs` fails on the gap either way.
+ *
+ * The box characters are chosen to be *distinguishable at 10px* first and descriptive second: `█` for a filled
+ * box, `●` for a sphere, `▲` for a cone's taper, `▮` for an even cylinder, `⬭` for a capsule's rounded end, and
+ * `◣` for a wedge's single slope. A reader learns them in one pass of the grid.
+ */
+export const MASS_SHAPE_GLYPHS: Record<string, string> = {
+  box: '█',
+  sphere: '●',
+  cone: '▲',
+  cylinder: '▮',
+  capsule: '⬭',
+  wedge: '◣',
+};
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },
   { key: 'games', mark: ICON_ARCADE, meaning: 'THE ARCADE FLOOR' },

@@ -18,9 +18,38 @@
  * This file holds **no React and no rendering** on purpose, for the reason `app/lib/forum/post-layout.ts`
  * holds none: the rules a figure obeys should be readable, and checkable, without a browser.
  */
+import type { MassShapeId } from './shapes';
 
 /** A point or a scale in space. Always its own object - never shared between two joints. */
 export type Vec3 = { x: number; y: number; z: number };
+
+/**
+ * The mass hung off a joint: a primitive, and where it sits.
+ *
+ * **This is authored data, and it lives on the joint - which is the change that makes the brief's "vice versa"
+ * true.** It used to be a frozen table in `rig.ts` keyed by joint id: the renderer looked a shape up, and a drag
+ * could only scale the *joint*. So "move the hand vertex and the mass follows" worked, and "move the mass and the
+ * vertex follows" had nothing to move - there was no per-joint mass to edit, only a lookup.
+ *
+ * Holding it on the joint makes the relationship the brief describes a real two-way one:
+ *
+ *   move the JOINT   the mass rides along, because it is drawn in the joint's frame (free, from the tree)
+ *   move the MASS    its offset changes, and its *size* changes - nothing about the joint moves
+ *
+ * **Offset is in the joint's own space, not the parent's**, so a rotated joint carries its mass around with it
+ * rather than sliding it sideways. That is the same reasoning as `position` being parent-relative, one level
+ * down: every transform is expressed in the frame of the thing it hangs off.
+ */
+export type Mass = {
+  shape: MassShapeId;
+  /**
+   * Half-extents for a box or sphere, radius and half-length for the round-ended shapes. In joint space, so a
+   * scaled joint scales this with it and there is no second place to apply the factor.
+   */
+  size: Vec3;
+  /** Where the primitive's centre sits relative to the joint. Lets a limb's cone start at its hinge. */
+  offset: Vec3;
+};
 
 /**
  * One joint: a bone's origin, and the frame its children hang off.
@@ -37,6 +66,16 @@ export type Joint = {
   rotation: Vec3;
   /** Scale of the mass hung off this joint. Uniform by construction - see `setScale`. */
   scale: Vec3;
+  /**
+   * The primitive this joint carries, or `null` for a joint that carries none.
+   *
+   * **`null` is a first-class value and not a missing entry.** It used to be "absent from `PART_OF_JOINT`",
+   * which meant the renderer consulted a second structure and a joint's emptiness was a fact about a *table*
+   * rather than about the joint. `spine` and both shoulders carry nothing by definition - they exist so rotating
+   * the chest swings the arms - and saying so on the joint is what lets a reader *add* a shape to one, which is
+   * the first thing anybody will want to do to a shoulder.
+   */
+  mass: Mass | null;
 };
 
 /** A rig in the form the editor and the renderer both read: by id, plus the root to start from. */
@@ -46,8 +85,15 @@ export type Skeleton = {
   rootId: string;
 };
 
-/** What the renderer hangs off a joint: a box, a sphere or a cone, or nothing at all. */
-export type MassShape = 'box' | 'sphere' | 'cone';
+/**
+ * What the renderer hangs off a joint.
+ *
+ * **Re-exported from `shapes.ts` rather than declared here, and that is the whole point of the indirection.** The
+ * vocabulary grew from three primitives to six when the palette was added, and the *shape list* is what the
+ * palette, the rig, the renderer and the checks all need to agree about. Declaring the union in this file would
+ * make `shapes.ts`'s table a second copy that can fall behind it.
+ */
+export type MassShape = MassShapeId;
 
 export const ORIGIN: Vec3 = { x: 0, y: 0, z: 0 };
 export const UNIT: Vec3 = { x: 1, y: 1, z: 1 };
@@ -140,7 +186,7 @@ export function isDescendant(skeleton: Skeleton, id: string, candidateParentId: 
 /** Add a joint. The parent must exist, and the new joint comes back in a new skeleton. */
 export function addJoint(
   skeleton: Skeleton,
-  joint: { id: string; parentId: string; position?: Vec3; rotation?: Vec3; scale?: Vec3 },
+  joint: { id: string; parentId: string; position?: Vec3; rotation?: Vec3; scale?: Vec3; mass?: Mass | null },
 ): Skeleton {
   if (skeleton.joints[joint.id] !== undefined) return skeleton;
   if (skeleton.joints[joint.parentId] === undefined) return skeleton;
@@ -155,6 +201,9 @@ export function addJoint(
         position: cloneVec3(joint.position ?? ORIGIN),
         rotation: cloneVec3(joint.rotation ?? ORIGIN),
         scale: cloneVec3(joint.scale ?? UNIT),
+        // A joint added without a mass carries none, which is the same state as a structural joint - so a caller
+        // that wants a shape passes one, and a caller that does not gets a joint that is purely a hinge.
+        mass: joint.mass ?? null,
       },
     },
   };
@@ -233,6 +282,105 @@ export function setScale(skeleton: Skeleton, id: string, factor: number): Skelet
 /** The scale factor a joint carries, read back from its (uniform) triple. */
 export function scaleOf(joint: Joint): number {
   return joint.scale.x;
+}
+
+/**
+ * The smallest and largest a mass dimension may be.
+ *
+ * **Clamped rather than validated, because a zero-size shape is unclickable.** A box of no extent has no surface
+ * to hit, so a reader who dragged it to nothing could never select it again and the shape would be gone with no
+ * way to bring it back. The floor is small enough to read as "the smallest it goes" and large enough to still be
+ * a target at the panes' zoom.
+ */
+export const MIN_MASS_EXTENT = 0.02;
+export const MAX_MASS_EXTENT = 1.2;
+
+function clampExtent(value: number): number {
+  if (!Number.isFinite(value)) return MIN_MASS_EXTENT;
+  return Math.min(MAX_MASS_EXTENT, Math.max(MIN_MASS_EXTENT, value));
+}
+
+/**
+ * Set the primitive on a joint, **keeping its size and offset** where it has one.
+ *
+ * Changing a shape is a change of vocabulary, not a reset: a reader who has sized a limb into a cone and switches
+ * it to a capsule wants the capsule that size. A joint with no mass gets the shape at a size derived from its
+ * place in the figure, so a newly added shape arrives *visible* rather than as a zero-extent speck the reader has
+ * to hunt for.
+ *
+ * Returns the skeleton unchanged for an unknown joint id.
+ */
+export function setMassShape(skeleton: Skeleton, id: string, shape: MassShapeId): Skeleton {
+  const joint = skeleton.joints[id];
+  if (joint === undefined) return skeleton;
+
+  if (joint.mass === null) {
+    return {
+      ...skeleton,
+      joints: {
+        ...skeleton.joints,
+        [id]: { ...joint, mass: { shape, size: vec3(0.08, 0.08, 0.08), offset: cloneVec3(ORIGIN) } },
+      },
+    };
+  }
+
+  return {
+    ...skeleton,
+    joints: { ...skeleton.joints, [id]: { ...joint, mass: { ...joint.mass, shape } } },
+  };
+}
+
+/** Take the primitive off a joint. A joint with no mass is a joint with no mass; it is not an error. */
+export function clearMass(skeleton: Skeleton, id: string): Skeleton {
+  const joint = skeleton.joints[id];
+  if (joint === undefined || joint.mass === null) return skeleton;
+
+  return { ...skeleton, joints: { ...skeleton.joints, [id]: { ...joint, mass: null } } };
+}
+
+/**
+ * Resize a joint's mass by an offset, in joint space.
+ *
+ * An offset rather than an absolute size, for the same reason `setPosition` takes one: that is what a drag
+ * produces, and it lets the same gesture grow a big shape and a small one by the same *amount* rather than by the
+ * same *factor*. That distinction is the point of the two-tone model - the joint's `scale` is proportional and
+ * scales the shape with the joint, while this changes the shape itself.
+ *
+ * Each axis is clamped independently, so a drag that flattens a shape against the floor cannot also erase it.
+ * A joint with no mass is left alone: there is nothing to resize, and inventing a shape from a resize gesture
+ * would mean a reader who dragged on an empty joint got geometry they never asked for.
+ */
+export function resizeMass(skeleton: Skeleton, id: string, delta: Vec3): Skeleton {
+  const joint = skeleton.joints[id];
+  if (joint === undefined || joint.mass === null) return skeleton;
+
+  const size = vec3(
+    clampExtent(joint.mass.size.x + delta.x),
+    clampExtent(joint.mass.size.y + delta.y),
+    clampExtent(joint.mass.size.z + delta.z),
+  );
+
+  return { ...skeleton, joints: { ...skeleton.joints, [id]: { ...joint, mass: { ...joint.mass, size } } } };
+}
+
+/**
+ * Move a joint's mass within the joint's own frame, **leaving the joint where it is**.
+ *
+ * This is the other half of the brief's two-way rule: moving the joint carries the mass because the mass is drawn
+ * in the joint's frame, and moving the *mass* changes only this offset. Two separate facts, so neither can
+ * silently rewrite the other.
+ */
+export function offsetMass(skeleton: Skeleton, id: string, delta: Vec3): Skeleton {
+  const joint = skeleton.joints[id];
+  if (joint === undefined || joint.mass === null) return skeleton;
+
+  const offset = vec3(
+    joint.mass.offset.x + delta.x,
+    joint.mass.offset.y + delta.y,
+    joint.mass.offset.z + delta.z,
+  );
+
+  return { ...skeleton, joints: { ...skeleton.joints, [id]: { ...joint, mass: { ...joint.mass, offset } } } };
 }
 
 /**
