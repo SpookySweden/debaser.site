@@ -30,12 +30,27 @@ import { MODEL_HIGHLIGHT } from '../lib/character/palette';
 export const PIXEL_GRANULARITY = 4;
 
 export function PixelPass({ enabled }: { enabled: boolean }) {
-  // Not mounted at all unless the PIXEL layer is selected and shown. Mounting a composer that renders nothing
-  // would still cost a render target and a second pass over the frame.
+  // Not mounted at all unless the PIXEL stage is selected. Mounting a composer that renders nothing would still
+  // cost a render target and a second pass over the frame.
   if (!enabled) return null;
 
   return (
-    <EffectComposer>
+    /**
+     * **`autoClear={false}` is required, not a preference, and the scene was invisible without it.**
+     *
+     * `EffectComposer` clears the frame before each pass by default. `Outline` renders the figure to its own
+     * target to find edges, so the default clear wipes the very pass that produced the image - the composer then
+     * presents an empty buffer. Three.js says so at runtime:
+     *
+     *     Outline requires <EffectComposer autoClear={false}> to render correctly.
+     *
+     * It is a `console.warn`, not an error, which is why this was invisible to every check in the repository and
+     * had to be found by running the page in a browser. With `frameloop="demand"` also in play the canvas stayed
+     * empty even after invalidation, so "the figure does not draw" and "the composer eats the frame" looked
+     * identical from outside - see `Temp/cdp-look.cjs`, which reads the drawing buffer inside a
+     * `requestAnimationFrame` so a zero is a statement about the renderer rather than about buffer policy.
+     */
+    <EffectComposer autoClear={false}>
       {/*
        * The outline is what makes the figure read as a *drawing* rather than as a low-poly render: a one-pixel
        * edge is the single strongest pixel-art signifier, and the palette's magenta is used for it so the edge

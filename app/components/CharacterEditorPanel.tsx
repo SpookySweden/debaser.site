@@ -23,11 +23,16 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  * The character workbench: a 3D rig on the left, the mass that hangs off it on the right, and the controls
  * that drive both.
  *
- * **A panel at the end of the dressing tab, not a tab of its own.** The customiser's two tabs are about
- * *describing* an account - its name, its picture, what visitors may see - and this is a third thing: a
- * workbench you sit at. It goes at the foot of the tab that dresses the page, so a reader reaches it by
- * scrolling past the tags they have just been editing, and so the sidebar and the two viewports get the
- * panel's full width rather than a tab body's.
+ * **A tab of its own, `[ CHAR 🐰 ]`, and it is the middle of the customiser's three.** The other two describe an
+ * account - its name, its picture, what visitors may see - and this is a third kind of thing: a workbench you sit
+ * at. It is a tab rather than a panel at the foot of another one because it needs the window's full width for its
+ * sidebar and two viewports, and (the reason it moved) because a workbench reached by scrolling past the dressing
+ * controls reads as one more field on a form rather than as a place.
+ *
+ * This comment previously said the opposite - "a panel at the end of the dressing tab, not a tab of its own" -
+ * and was left behind when the workbench got its own tab in `ProfileCustomiserWindow`'s `TABS`. A comment that
+ * contradicts the code is worse than no comment, so it is corrected rather than deleted: the reasoning above is
+ * why the tab exists, and the note is what stops the old wording coming back.
  *
  * **The layout is a 50/50 split with a sidebar, and the split is the point.** A figure being built from a
  * skeleton is easy to get wrong in one axis and right in another - an arm that reads correctly from the

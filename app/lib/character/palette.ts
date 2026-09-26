@@ -10,8 +10,25 @@
  * They live in `app/lib/character/` next to the rig, not in `controls.ts`: that file is the *site's* palette and
  * adding three model colours to it would say they are part of the chrome. `check-surreal.cjs` reads components
  * for hexes; a named constant in a library file is the established way to keep one.
+ *
+ * ---
+ *
+ * **`MODEL_INK` was `#FFFFFF`, and that was the bug that made the figure a grey silhouette.**
+ *
+ * The measurement is what found it. Once the canvas actually drew, `Temp/measure-panes.cjs` reported every pane
+ * as exactly two colours: the `MODEL_VOID` clear, and **`rgb(226,226,226)`** - 6,976 pixels in the front pane and
+ * 5,235 in the side. A grey. The palette forbids greys, and the reason is not fussiness: white geometry under a
+ * `meshLambertMaterial` is darkened by whatever light reaches it, and no light on this stage reaches 1.0, so
+ * `#FFFFFF` plus lighting rounds to a grey *every time*. The figure had no colour of its own at all - it was a
+ * white mass pretending to be one.
+ *
+ * So the ink is a real pigment, Violet, and the lighting has room to shade it darker *and* lighter without the
+ * result ever being grey - because a saturated hue stays a hue as it dims. `MODEL_LIMB` gives the arms and legs
+ * a second tone so a joint reads as a joint rather than as more of the same mass, which is also what makes the
+ * two panes distinguishable rather than two silhouettes.
  */
-export const MODEL_INK = '#FFFFFF';
+export const MODEL_INK = '#7A5CC4';
+export const MODEL_LIMB = '#4A3A7A';
 export const MODEL_HIGHLIGHT = '#FF00A0';
 export const MODEL_HANDLE = '#28C745';
 export const MODEL_HANDLE_ACTIVE = '#FFF000';

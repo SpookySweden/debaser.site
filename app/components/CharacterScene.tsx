@@ -8,6 +8,7 @@ import {
   MODEL_HANDLE_ACTIVE,
   MODEL_HIGHLIGHT,
   MODEL_INK,
+  MODEL_LIMB,
   MODEL_VOID,
   MODEL_WIRE,
 } from '../lib/character/palette';
@@ -48,9 +49,14 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
         near: -20,
         far: 20,
       }}
-      // Nothing here animates: the figure changes when the store does, and never on its own. Rendering 60fps of
-      // a still life on every visit to the console is a battery cost nobody asked for.
-      frameloop="demand"
+      // **`frameloop="demand"` is correct for the site but was wrong for the first frame.**
+      //
+      // It renders only when something calls `invalidate()`, and nothing in this scene does: the figure changes
+      // when the store changes, but an r3f root does not watch an external store, so a canvas can mount and never
+      // draw once. That is invisible to every check in the repository - the DOM is perfect, GL is live, the
+      // console is quiet - and the canvas is simply empty. `frameloop="always"` costs a few idle frames and
+      // removes the whole class of defect; revisit when there is a measured reason to, not before.
+      frameloop="always"
       // `NearestFilter` is set here rather than on the composer because it is the *canvas* that does the final
       // blit, and a nearest-filtered canvas is what keeps the pixel blocks hard-edged instead of smoothing them
       // back out. Antialiasing is off for the same reason: smoothing edges is the opposite of the effect.
@@ -152,6 +158,19 @@ function MassAt({
 
   const isSelected = selectedJointId === jointId;
   const clickable = mode === 'mass';
+
+  /**
+   * **A second tone for the limbs, so a joint reads as a joint.** Violet for the trunk and a darker Violet for
+   * arms and legs: at this resolution two masses of one colour merge into one blob, and the whole point of showing
+   * front *and* side is that a limb in the wrong axis is visible.
+   *
+   * **The names are the rig's own, read from `rig.ts` rather than guessed.** They are `upper-arm.left`,
+   * `forearm.right`, `thigh.left`, `shin.right`, `hand.*` and `foot.*` - hyphenated, dotted, with a side suffix.
+   * The first version of this matched `/^(arm|leg|hand|foot)/`, which caught only `hand` and `foot`: `upper-arm`
+   * starts with `upper`, and the limbs kept the trunk's colour. That is the same defect as a check that reads the
+   * wrong pattern, and it is why the list is written out against the rig instead of approximated.
+   */
+  const limb = /^(upper-arm|forearm|thigh|shin|hand|foot)\./.test(jointId);
   const size: [number, number, number] = [part.size.x * 2, part.size.y * 2, part.size.z * 2];
 
   return (
@@ -182,9 +201,11 @@ function MassAt({
         {layer === 'mass' ? (
           <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_WIRE} wireframe />
         ) : null}
-        {layer === 'base' ? <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_INK} /> : null}
+        {layer === 'base' ? (
+          <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : (limb ? MODEL_LIMB : MODEL_INK)} />
+        ) : null}
         {layer === 'pixel' ? (
-          <meshLambertMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_INK} />
+          <meshLambertMaterial color={isSelected ? MODEL_HIGHLIGHT : (limb ? MODEL_LIMB : MODEL_INK)} />
         ) : null}
       </mesh>
     </group>
