@@ -18,7 +18,7 @@
  * This file holds no geometry and no React: which shapes exist, and what they are called, is a fact the rig, the
  * palette, the renderer and the checks all need, and none of them should be the one that declares it.
  */
-export type MassShapeId = 'box' | 'sphere' | 'cone' | 'cylinder' | 'capsule' | 'wedge';
+export type MassShapeId = 'box' | 'sphere' | 'cone' | 'cylinder' | 'capsule' | 'wedge' | 'prism';
 
 export const MASS_SHAPE_IDS: readonly MassShapeId[] = [
   'box',
@@ -27,6 +27,7 @@ export const MASS_SHAPE_IDS: readonly MassShapeId[] = [
   'cylinder',
   'capsule',
   'wedge',
+  'prism',
 ];
 
 export type MassShapeInfo = {
@@ -44,6 +45,11 @@ export const MASS_SHAPES: Record<MassShapeId, MassShapeInfo> = {
   cylinder: { label: 'CYLINDER', note: 'EVENLY THICK, FLAT ENDS. UPPER ARMS, NECKS.', uses: 'radius+length' },
   capsule: { label: 'CAPSULE', note: 'A CYLINDER WITH ROUNDED ENDS. LIMBS THAT BEND.', uses: 'radius+length' },
   wedge: { label: 'WEDGE', note: 'FLAT ON ONE SIDE, SLOPED ON THE OTHER. SHOULDERS, CHINS.', uses: 'xyz' },
+  prism: {
+    label: 'PRISM',
+    note: 'A TRIANGLE SEEN FROM THE FRONT, RUNNING FORWARD. FEET AND SNOUTS.',
+    uses: 'xyz',
+  },
 };
 
 /** True for an unknown string, so a corrupt persisted value cannot reach the renderer as a shape. */

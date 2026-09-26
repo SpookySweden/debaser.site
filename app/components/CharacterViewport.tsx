@@ -2,6 +2,7 @@
 
 import { MAX_SCALE, MIN_SCALE } from '../lib/character/drag';
 import type { ViewportKind } from '../lib/character/drag';
+import { MASS_DYES, MODEL_INK, MODEL_LIMB } from '../lib/character/palette';
 import { RIG_PRESET_IDS, RIG_PRESETS } from '../lib/character/rig';
 import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
 import { RENDER_LAYER_IDS, type RenderLayerId } from '../lib/character/layers';
@@ -68,6 +69,7 @@ export default function CharacterViewport() {
   const activeLayer = useCharacterStore((state) => state.activeLayer);
   const selectLayer = useCharacterStore((state) => state.selectLayer);
   const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
+  const massTool = useCharacterStore((state) => state.massTool);
   const interactionMode = useInteractionMode();
 
   /**
@@ -132,7 +134,11 @@ export default function CharacterViewport() {
               ? 'DRAG A SHAPE TO SLIDE IT. THE JOINT STAYS PUT. ' + parts + ' SHAPES ON THE FIGURE.'
               : interactionMode === 'light'
                 ? 'DRAG IN EITHER VIEWPORT TO TURN THE LIGHT.'
-                : 'NOTHING HERE IS EDITABLE. THIS LAYER IS TO LOOK AT.'}
+                : massTool === 'colour'
+                  ? 'PICK A DYE IN THE PANEL BELOW. THE COLOUR TOOL HAS NO DRAG. ' +
+                    parts +
+                    ' SHAPES ON THE FIGURE.'
+                  : 'NOTHING HERE IS EDITABLE. THIS LAYER IS TO LOOK AT.'}
       </p>
     </div>
   );
@@ -210,7 +216,7 @@ function RenderStage() {
               skeletonVisible ? 'bg-sun text-ink hover:bg-ice' : 'bg-chrome-dark text-ink'
             }`}
           >
-            {skeletonVisible ? '●' : '◌'}
+            {skeletonVisible ? 'â—' : 'â—Œ'}
           </button>
           <span className="text-[10px] font-bold text-ink">
             JOINTS AND BONES
@@ -244,27 +250,27 @@ function RenderStage() {
 }
 
 /**
- * The panel follows the selected *edit* layer, and SKELETON gets nothing to configure.
- *
- * MASS gets the rescaler, because a mass is something you size. LIGHT gets the readout, because its interaction
- * is the drag and there is nothing else to set. BASE gets nothing, because it is a render to look at. A panel
- * that showed the same controls for every layer would invite a reader to change something and see nothing move.
+ * The panel follows the selected *edit* layer. MASS and SKELETON get the shape controls because both can reshape
+ * a shape; LIGHT gets a readout because its interaction is the drag; BASE gets nothing, having no target in it.
  */
 function LayerControls({ mode }: { mode: InteractionMode }) {
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
 
-  if (mode === 'joints') {
-    return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
-        {selectedJointId === null
-          ? 'NOTHING IS SELECTED. THE HANDLES ARE THE GREEN DOTS - DRAG ONE IN EITHER VIEWPORT.'
-          : `HOLDING ${selectedJointId.toUpperCase()} - DRAG IT IN EITHER VIEWPORT. THE FRONT PANE MOVES IT ` +
-            'LEFT AND RIGHT, THE SIDE PANE MOVES IT FORWARD AND BACK.'}
-      </p>
-    );
-  }
-
-  if (mode === 'mass') {
+  /**
+   * **MASS and SKELETON both reach the shape controls, and that is the fix for a real defect.**
+   *
+   * The controls - the shape palette, the tool row and the dye row - used to hang off the mass mode alone,
+   * and the editor opens on SKELETON. So a reader arriving at the CHAR tab saw a skeleton, a note about
+   * dragging handles, and **no palette at all**: the one thing the brief asked for was behind a layer they had
+   * to know to press first. Measured in Chrome - zero shape plates on arrival, seven after pressing MASS.
+   *
+   * SKELETON is where the palette is most needed, not least: a bare shoulder is the state a shape gets added
+   * *from*, and the reader is looking straight at the handle they want to hang it off.
+   *
+   * BASE is deliberately excluded. It is a render to look at, with no drag and no target, so a palette there
+   * would offer to reshape a figure the reader is only viewing - and say nothing about which shape.
+   */
+  if (mode === 'mass' || mode === 'joints') {
     return <MassRescaler jointId={selectedJointId} />;
   }
 
@@ -281,6 +287,97 @@ function LayerControls({ mode }: { mode: InteractionMode }) {
 }
 
 /**
+ * The control for whichever tool is selected, so the tool row and the panel cannot disagree.
+ *
+ * **One component reading `massTool` rather than three panels switched in the parent**, because the parent already
+ * knows which joint is selected and should not also have to know which control that joint's tool implies. Both
+ * facts are facts about the same thing, so they are read in the same place.
+ *
+ * MOVE gets the offset readout rather than a control: the drag is the control, and a pair of number inputs writing
+ * the same field would be a second way for the shape and the numbers to disagree - the same reasoning as
+ * `MassSize`.
+ */
+function MassToolPanel({ jointId, tool }: { jointId: string; tool: MassTool }) {
+  const mass = useCharacterStore((state) => state.skeleton.joints[jointId]?.mass ?? null);
+
+  if (mass === null) return null;
+
+  if (tool === 'colour') return <MassColourRow jointId={jointId} current={mass.colour} />;
+
+  if (tool === 'move') {
+    const round = (value: number) => value.toFixed(2);
+
+    return (
+      <p className="mt-1 text-[9px] text-ink-plate">
+        OFFSET X {round(mass.offset.x)} Y {round(mass.offset.y)} Z {round(mass.offset.z)} - DRAGGING SLIDES THE
+        SHAPE FROM HERE. THE JOINT AND THE FIGURE UNDER IT DO NOT MOVE.
+      </p>
+    );
+  }
+
+  return null;
+}
+
+/**
+ * The dyes a shape may wear, as swatches.
+ *
+ * **A swatch is a colour, so a swatch has to *be* the colour rather than name it.** The one place on this site
+ * where a control cannot be a plate is here: a row reading `[ ROYAL BLUE ] [ EMERALD ] [ ROSE ]` makes a reader
+ * translate seven words into seven colours, and the whole job is picking one by eye. So these are small filled
+ * boxes, drawn from `MASS_DYES` - which is a *library* constant, so this is still not a component writing a hex.
+ *
+ * The first swatch is deliberately not a colour: `FIGURE` means "no tint of its own", and it is drawn as a
+ * diagonal split so it reads as *absent* rather than as an eighth dye. Without it there would be no way back to
+ * the two-tone figure a shape starts in.
+ *
+ * `aria-label` carries the name, because a coloured box announces nothing to a screen reader.
+ */
+function MassColourRow({ jointId, current }: { jointId: string; current: string | null }) {
+  const setMassColour = useCharacterStore((state) => state.setMassColour);
+
+  return (
+    <fieldset className="mt-1 rounded-none border border-ink">
+      <legend className="px-1 text-[9px] font-bold text-ink-plate">COLOUR - THIS SHAPE ONLY</legend>
+
+      <div className="flex flex-wrap gap-[2px] p-1">
+        {MASS_DYES.map((dye) => {
+          const chosen = current === dye.value;
+
+          return (
+            <button
+              key={dye.id}
+              type="button"
+              onClick={() => setMassColour(jointId, dye.value)}
+              aria-pressed={chosen}
+              aria-label={dye.label}
+              title={dye.label}
+              className={`h-5 w-5 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 ${
+                chosen
+                  ? 'border-t-black border-l-black border-r-white border-b-white'
+                  : 'border-t-white border-l-white border-r-black border-b-black'
+              }`}
+              // Inline, because the value is data rather than a class - there is no Tailwind utility for an
+              // arbitrary dye that is not in the theme, and the swatch's whole point is to show the real colour.
+              style={
+                dye.value === null
+                  ? { background: `linear-gradient(135deg, ${MODEL_INK} 50%, ${MODEL_LIMB} 50%)` }
+                  : { background: dye.value }
+              }
+            />
+          );
+        })}
+      </div>
+
+      <p className="px-1 pb-1 text-[9px] text-ink-plate">
+        {current === null
+          ? 'THIS SHAPE WEARS THE FIGUREâ€™S OWN TWO TONES.'
+          : `THIS SHAPE IS PAINTED ${MASS_DYES.find((dye) => dye.value === current)?.label ?? 'IN A DYE'}.`}
+      </p>
+    </fieldset>
+  );
+}
+
+/**
  * The mass tab: opened by clicking a shape, and it acts on what was clicked.
  *
  * **Nothing to show until something is clicked**, and it says so rather than showing a disabled slider - a
@@ -293,6 +390,7 @@ function LayerControls({ mode }: { mode: InteractionMode }) {
 function MassRescaler({ jointId }: { jointId: string | null }) {
   const joints = useCharacterStore((state) => state.skeleton.joints);
   const scaleJoint = useCharacterStore((state) => state.scaleJoint);
+  const massTool = useCharacterStore((state) => state.massTool);
   const joint = jointId === null ? undefined : joints[jointId];
 
   if (jointId === null || joint === undefined) {
@@ -321,6 +419,8 @@ function MassRescaler({ jointId }: { jointId: string | null }) {
 
       <ShapePalette jointId={id} current={part?.shape ?? null} />
       <MassToolSwitch />
+      {/* The panel follows the tool: size for RESIZE, offset for MOVE, the dye row for COLOUR. */}
+      <MassToolPanel jointId={id} tool={massTool} />
       <MassSize jointId={id} />
 
       <label className="mt-1 block text-[10px] text-ink-plate" htmlFor="character-mass-scale">
@@ -356,7 +456,7 @@ function ShapePalette({ jointId, current }: { jointId: string; current: MassShap
 
   return (
     <fieldset className="mt-1 rounded-none border border-ink">
-      <legend className="px-1 text-[9px] font-bold text-ink-plate">SHAPE - SIX PRIMITIVES</legend>
+      <legend className="px-1 text-[9px] font-bold text-ink-plate">SHAPE - SEVEN PRIMITIVES</legend>
 
       {/*
        * **A 2D grid, so the vocabulary can be seen without turning the figure.** The glyph is the shape seen flat,
@@ -402,19 +502,26 @@ function ShapePalette({ jointId, current }: { jointId: string; current: MassShap
 }
 
 /**
- * What a drag on a shape does: resize it, or slide it.
+ * The three things a shape has, as one row of tools.
  *
- * **Two tools and not a modifier key.** The alternative is drag-to-resize with shift-drag-to-move, which is
- * invisible: a reader who does not already know the convention never finds it, and the sidebar cannot say so
- * without a paragraph. A visible switch costs one row and is discoverable by looking.
+ * **This is the merge the brief asks for, and it replaces a switch that could not hold a third idea.** The shape
+ * row, the RESIZE/MOVE pair and the joint slider used to sit in three separate places, which meant a reader looking
+ * for "make this foot smaller" had to know that the answer was a *layer*, then a *tool*, then a *slider* - three
+ * presses through two vocabularies for one intention. A tool row is how a paint program does it and it is why: the
+ * verbs a shape has are all in one strip, and picking one is one press.
+ *
+ * **COLOUR is a tool, and it is what the row gained.** A colour is not a drag, so it has no gesture of its own -
+ * what it has is a panel, and the tool is what opens it. That is the honest arrangement: the row states what you
+ * are doing to the shape, and the panel below shows the control for whichever of the three that is.
  */
 function MassToolSwitch() {
   const massTool = useCharacterStore((state) => state.massTool);
   const setMassTool = useCharacterStore((state) => state.setMassTool);
 
   const tools: { id: MassTool; label: string; note: string }[] = [
-    { id: 'resize', label: 'RESIZE', note: 'A DRAG MAKES THE SHAPE BIGGER OR SMALLER. IT DOES NOT MOVE THE JOINT.' },
+    { id: 'resize', label: 'RESIZE', note: 'A DRAG SIZES THE SHAPE. IT DOES NOT MOVE THE JOINT.' },
     { id: 'move', label: 'MOVE', note: 'A DRAG SLIDES THE SHAPE, LEAVING THE JOINT EXACTLY WHERE IT IS.' },
+    { id: 'colour', label: 'COLOUR', note: 'PICK A DYE BELOW. THIS TOOL HAS NO DRAG, SO NOTHING MOVES BY ACCIDENT.' },
   ];
 
   return (

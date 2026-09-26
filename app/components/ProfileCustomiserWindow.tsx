@@ -89,6 +89,16 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [figureTouched, setFigureTouched] = useState(false);
 
   /**
+   * Bumped when the reader throws their changes away, so the workbench can put its figure back.
+   *
+   * **A counter rather than a callback, because the workbench is a `next/dynamic` child.** Passing a function down
+   * would be a new identity on every render of this window, so an effect in the child keyed on it would re-run
+   * constantly; a number that only changes when something actually happens is the cheap way to signal an event to
+   * a child without giving it a subscription. The panel resets on a change of value and never on a re-render.
+   */
+  const [discardToken, setDiscardToken] = useState(0);
+
+  /**
    * What the reader asked for, held while the prompt is up.
    *
    * **The intent is stored, not re-derived when the prompt is answered.** A reader can press "switch tab", think
@@ -190,6 +200,49 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     }
 
     setTab(intent.tab);
+  }
+
+  /**
+   * Throw every draft away, and put the workbench back where it was kept.
+   *
+   * **This is what `[ THROW THEM AWAY ]` promises, and it was a lie until this existed.** The prompt said the work
+   * would be lost, the reader agreed, and `finish()` merely cleared the prompt and carried on with the drafts
+   * intact - so the one control whose entire purpose is to discard discarded nothing. A confirmation dialogue that
+   * does not do what it says is worse than no dialogue, because it teaches the reader that the words on the
+   * buttons are decoration.
+   *
+   * **Every field, not just the ones the prompt happened to list.** The prompt lists what `unsavedChanges` found,
+   * and that function is deliberately conservative - it ignores a draft that matches what is stored. So a reader
+   * who typed their old bio back would be shown one fewer row than there are drafts. Discarding resets all of them
+   * regardless, because "throw away my changes" means the drafts, not the rows in a list.
+   *
+   * **The figure is rebuilt rather than reset to the default**, for the one case that matters: if a saved character
+   * was loaded and then edited, throwing the edits away has to put the *saved* figure back, not the blob the editor
+   * opens on. The library is what knows which figure that was; this asks it through the panel's own load path.
+   */
+  function discardEverything() {
+    setNameDraft(null);
+    setBioDraft(null);
+    setLocationDraft(null);
+    setStatusDraft(null);
+    setNameColourDraft(null);
+    setVisibilityDraft({});
+
+    // The uploads, both halves: the file that was staged and the note written about it.
+    setPendingSrc(null);
+    setNote('');
+    setUploadMessage(null);
+    setSongSrc(null);
+    setSongTitle('');
+    setSongCredit('');
+    setSongNote('');
+    setSongMessage(null);
+
+    // Reported to the character panel so it can put the workbench back - it alone knows where a figure was kept.
+    setDiscardToken((current) => current + 1);
+
+    setMessage('CHANGES THROWN AWAY.');
+    setError(null);
   }
 
   /**
@@ -494,7 +547,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           deep. See ./CharacterEditorPanel.tsx. */}
       {tab === 'character' ? (
         <div className="space-y-3">
-          <CharacterEditorPanel onTouched={() => setFigureTouched(true)} />
+          <CharacterEditorPanel
+            onTouched={() => setFigureTouched(true)}
+            onKept={() => setFigureTouched(false)}
+            discardToken={discardToken}
+          />
         </div>
       ) : null}
 
@@ -537,7 +594,12 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         changes={unsaved}
         intent={pendingIntent.kind === 'close' ? 'close' : 'switch-tab'}
         onStay={() => setPendingIntent(null)}
-        onDiscard={() => finish(pendingIntent)}
+        onDiscard={() => {
+          // Discard first, then carry out what was asked: the order matters, because `finish` closes the window
+          // or moves the tab and there would be nothing left to reset if the drafts were cleared afterwards.
+          discardEverything();
+          finish(pendingIntent);
+        }}
         // Offered only when there is something a save can actually keep - see `saveThenFinish`.
         onSave={unsaved.some((change) => change.tab !== 'character') ? saveThenFinish : undefined}
       />

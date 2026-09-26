@@ -93,12 +93,17 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
  * **The root is the hips, and the hips are not the middle.** Rooting at the pelvis is right - it is what makes a
  * lean pivot on the body rather than on the ground - but it leaves the figure's visual centre *below* the
  * origin: the legs hang further than the head rises. Measured from the real rig and mass table, that centre is
- * at y = -0.125, so a camera aimed at y = 0 draws the figure hanging low in the pane with a gap above it.
+ * at y = -0.170, so a camera aimed at y = 0 draws the figure hanging low in the pane with a gap above it.
+ *
+ * **That number moved when the feet became prisms, and this check is how it was caught.** The old seeds were flat
+ * plates 0.05 tall; the triangular feet are 0.10 tall and reach forward, so the figure is measurably taller and
+ * its middle sits 0.045 lower. Nothing about the camera changed - the figure did, which is the drift this check
+ * exists to make loud rather than quiet.
  *
  * `Temp/check-character-camera.cjs` measures the rig and fails if this number stops matching it, which is what
  * keeps a change to the rig's proportions from silently pushing the figure off centre.
  */
-const FIGURE_CENTRE_Y = -0.125;
+const FIGURE_CENTRE_Y = -0.17;
 
 const ZOOM = 1 / UNITS_PER_PIXEL;
 
@@ -188,10 +193,23 @@ function MassAt({
   const limb = /^(upper-arm|forearm|thigh|shin|hand|foot)\./.test(jointId);
   const size: [number, number, number] = [part.size.x * 2, part.size.y * 2, part.size.z * 2];
 
+  /**
+   * What the solid stages draw this shape in.
+   *
+   * **Selection outranks everything, then the shape's own colour, then the two-tone scheme.** That order is the
+   * whole rule and it is written once, here, rather than in two `meshMaterial` branches that could disagree: a
+   * selected shape is always magenta, because a reader who cannot see what they have selected cannot edit it -
+   * and that has to hold even for a shape they have painted Brilliant Pink.
+   */
+  const ink = isSelected ? MODEL_HIGHLIGHT : (part.colour ?? (limb ? MODEL_LIMB : MODEL_INK));
+
+  // The geometry and the turn it needs, decided together - see `massGeometryFor`.
+  const { rotation, node } = massGeometryFor(part.shape, size);
+
   return (
     <group position={[part.offset.x, part.offset.y, part.offset.z]} scale={scale}>
       <mesh
-        rotation={part.shape === 'cone' ? [Math.PI, 0, 0] : [0, 0, 0]}
+        rotation={rotation}
         onPointerDown={
           draggable
             ? (event) => {
@@ -237,62 +255,78 @@ function MassAt({
               }
         }
       >
-        <MassGeometry shape={part.shape} size={size} />
+        {node}
 
         {/*
          * The colour is deliberately **not** from the nine-token palette. This is the model, not the chrome - it
          * is what the pixel shader recolours, and choosing a site colour now would hard-code a decision the
          * shader has not made yet. Selection is the one exception: it has to be visible, and uses the palette's
          * magenta so it still reads as the same site.
+         *
+         * **A shape's own tint wins over the stage's, and the wireframe ignores it entirely.** A recoloured shape
+         * in the MASS stage has to stay the green wireframe, because that stage is for seeing the *edges* - a
+         * recoloured edge on a black field is an edge that has stopped being visible, which is the one thing that
+         * stage is for.
          */}
         {layer === 'mass' ? (
           <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_WIRE} wireframe />
         ) : null}
-        {layer === 'base' ? (
-          <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : (limb ? MODEL_LIMB : MODEL_INK)} />
-        ) : null}
-        {layer === 'pixel' ? (
-          <meshLambertMaterial color={isSelected ? MODEL_HIGHLIGHT : (limb ? MODEL_LIMB : MODEL_INK)} />
-        ) : null}
+        {layer === 'base' ? <meshBasicMaterial color={ink} /> : null}
+        {layer === 'pixel' ? <meshLambertMaterial color={ink} /> : null}
       </mesh>
     </group>
   );
 }
 
 /**
- * Which geometry a shape uses, and how a size maps onto that geometry's arguments.
+ * The geometry for a shape, and the mesh rotation it needs to sit the way it should.
  *
- * **A switch over the union and not a chain of ternaries**, because three of the six take a box's *three
- * half-extents* while the other three take a *radius and a length* - two different argument shapes, and getting a
- * pair the wrong way round is the mistake this vocabulary invites. A switch over a union is exhaustive by
- * construction: adding a seventh shape to `MassShapeId` without a case here is a type error, not a shape that
- * silently renders as nothing.
- *
- * **The radius comes from `x` and the length from `y` for all three round shapes**, so a horizontal drag fattens
- * them and a vertical one lengthens them - the same gesture meaning the same thing as it does on a box.
- *
- * Segment counts are low on purpose: this renders at about 96x128 through the pixel pass, so a high-resolution
- * sphere is triangles nobody will ever see. `capsuleGeometry`'s third argument is its subdivision count, kept at
- * four for the same reason.
+ * **The rotation comes back with the geometry rather than being set by the caller**, because for one shape the two
+ * are the same decision: a triangular prism is only a triangle seen end-on if it is rolled a quarter turn, so a
+ * caller that took the geometry and forgot the rotation would get a triangle lying on its edge and no error. The
+ * `<mesh>` applies it - a Three geometry has no rotation of its own, and the error is what made that plain.
  */
-function MassGeometry({ shape, size }: { shape: MassShapeId; size: [number, number, number] }) {
+function massGeometryFor(
+  shape: MassShapeId,
+  size: [number, number, number],
+): { rotation: [number, number, number]; node: React.ReactNode } {
   switch (shape) {
     case 'box':
-      return <boxGeometry args={size} />;
+      return { rotation: NO_TURN, node: <boxGeometry args={size} /> };
     case 'sphere':
-      return <sphereGeometry args={[size[0] / 2, 12, 8]} />;
+      return { rotation: NO_TURN, node: <sphereGeometry args={[size[0] / 2, 12, 8]} /> };
     case 'cone':
-      return <coneGeometry args={[size[0] / 2, size[1], 10]} />;
+      // A cone's apex points up, so a limb cone is turned a half-turn about x to hang *downward* from its joint.
+      // That one turn is the difference between a figure and a row of party hats, and it belongs here rather than
+      // baked into the rig: the rig stores where a joint is, not how a mesh happens to be wound.
+      return { rotation: [Math.PI, 0, 0], node: <coneGeometry args={[size[0] / 2, size[1], 10]} /> };
     case 'cylinder':
-      return <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[1], 10]} />;
+      return { rotation: NO_TURN, node: <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[1], 10]} /> };
     case 'capsule':
-      return <capsuleGeometry args={[size[0] / 2, size[1], 4, 10]} />;
+      return { rotation: NO_TURN, node: <capsuleGeometry args={[size[0] / 2, size[1], 4, 10]} /> };
     case 'wedge':
       // Four sides rather than a box's six: a box whose top edge is narrower than its base is a wedge, and a
-      // four-sided cylinder is exactly that with flat faces - which is what a foot wants to be.
-      return <cylinderGeometry args={[size[0] / 2, size[0] / 3, size[1], 4]} />;
+      // four-sided cylinder is exactly that with flat faces.
+      return { rotation: NO_TURN, node: <cylinderGeometry args={[size[0] / 2, size[0] / 3, size[1], 4]} /> };
+    case 'prism':
+      /**
+       * **The triangular foot: a triangle in the front pane, extruded forward.**
+       *
+       * Three radial segments and a quarter-turn about z, so the prism's own axis lies along x and one vertex
+       * faces straight down - which is what puts an apex above a flat base on screen. `size[2]` is the length, so
+       * it drives how far the toe reaches, and `size[0]` how wide the foot is across the figure. That is the same
+       * reading of the three dials a box has, which is the point: a reader sizing a foot is not learning a second
+       * vocabulary. Four segments would be a square prism, which is what `wedge` already is.
+       */
+      return {
+        rotation: [0, 0, Math.PI / 2],
+        node: <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[2], 3, 1]} />,
+      };
   }
 }
+
+/** No rotation, as a stable value so the mesh does not get a new array every render. */
+const NO_TURN: [number, number, number] = [0, 0, 0];
 
 /**
  * A joint, drawn as a small grabbable handle.

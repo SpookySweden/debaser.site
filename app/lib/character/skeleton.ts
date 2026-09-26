@@ -24,7 +24,7 @@ import type { MassShapeId } from './shapes';
 export type Vec3 = { x: number; y: number; z: number };
 
 /**
- * The mass hung off a joint: a primitive, and where it sits.
+ * The mass hung off a joint: a primitive, where it sits, and what colour it is.
  *
  * **This is authored data, and it lives on the joint - which is the change that makes the brief's "vice versa"
  * true.** It used to be a frozen table in `rig.ts` keyed by joint id: the renderer looked a shape up, and a drag
@@ -49,6 +49,16 @@ export type Mass = {
   size: Vec3;
   /** Where the primitive's centre sits relative to the joint. Lets a limb's cone start at its hinge. */
   offset: Vec3;
+  /**
+   * The shape's own tint, or `null` for "whatever the render stage says a limb of this part is".
+   *
+   * **Per shape, not per figure, because the brief asks for recolouring *an element*.** A figure whose every
+   * primitive was the same colour would not need a control at all; what makes one worth having is a boot that is a
+   * different colour from the leg above it, and that is a fact about *this* mass. `null` is the default and is
+   * meaningful rather than empty: it is what keeps the two-tone trunk/limb scheme working for a reader who never
+   * opens the colour tool, so tinting one hand does not flatten the rest of the figure to one colour.
+   */
+  colour: string | null;
 };
 
 /**
@@ -319,7 +329,10 @@ export function setMassShape(skeleton: Skeleton, id: string, shape: MassShapeId)
       ...skeleton,
       joints: {
         ...skeleton.joints,
-        [id]: { ...joint, mass: { shape, size: vec3(0.08, 0.08, 0.08), offset: cloneVec3(ORIGIN) } },
+        [id]: {
+          ...joint,
+          mass: { shape, size: vec3(0.08, 0.08, 0.08), offset: cloneVec3(ORIGIN), colour: null },
+        },
       },
     };
   }
@@ -328,6 +341,24 @@ export function setMassShape(skeleton: Skeleton, id: string, shape: MassShapeId)
     ...skeleton,
     joints: { ...skeleton.joints, [id]: { ...joint, mass: { ...joint.mass, shape } } },
   };
+}
+
+/**
+ * Recolour one shape, leaving every other shape on the figure alone.
+ *
+ * **Per joint, and `null` is a real value rather than "no change".** The brief asks for recolouring an *element*,
+ * so this writes to the joint it was handed; and because `null` is what the render stage reads as "use the limb
+ * scheme", passing it is how a reader puts a shape back rather than a separate clear method. That is the same
+ * shape `clearMass` has, one field over, and it means the colour row needs one callback and not two.
+ *
+ * Returns the skeleton unchanged for an unknown joint or one that carries nothing: there is no colour on a shape
+ * that does not exist, and inventing one would mean a reader who recoloured an empty joint got geometry later.
+ */
+export function setMassColour(skeleton: Skeleton, id: string, colour: string | null): Skeleton {
+  const joint = skeleton.joints[id];
+  if (joint === undefined || joint.mass === null) return skeleton;
+
+  return { ...skeleton, joints: { ...skeleton.joints, [id]: { ...joint, mass: { ...joint.mass, colour } } } };
 }
 
 /** Take the primitive off a joint. A joint with no mass is a joint with no mass; it is not an error. */

@@ -44,23 +44,39 @@ type MassPart = Mass;
  * producing one sphere.
  */
 export const PART_OF_JOINT: Record<string, MassPart> = {
-  head: { shape: 'box', size: vec3(0.30, 0.30, 0.30), offset: vec3(0, 0.16, 0) },
-  chest: { shape: 'sphere', size: vec3(0.34, 0.42, 0.26), offset: vec3(0, -0.18, 0) },
-  hips: { shape: 'sphere', size: vec3(0.32, 0.26, 0.24), offset: vec3(0, -0.06, 0) },
+  head: { shape: 'box', size: vec3(0.30, 0.30, 0.30), offset: vec3(0, 0.16, 0), colour: null },
+  chest: { shape: 'sphere', size: vec3(0.34, 0.42, 0.26), offset: vec3(0, -0.18, 0), colour: null },
+  hips: { shape: 'sphere', size: vec3(0.32, 0.26, 0.24), offset: vec3(0, -0.06, 0), colour: null },
 
-  'upper-arm.left': { shape: 'cylinder', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0) },
-  'upper-arm.right': { shape: 'cylinder', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0) },
-  'forearm.left': { shape: 'capsule', size: vec3(0.09, 0.26, 0.09), offset: vec3(0, -0.22, 0) },
-  'forearm.right': { shape: 'capsule', size: vec3(0.09, 0.26, 0.09), offset: vec3(0, -0.22, 0) },
-  'hand.left': { shape: 'box', size: vec3(0.10, 0.10, 0.10), offset: vec3(0, -0.06, 0) },
-  'hand.right': { shape: 'box', size: vec3(0.10, 0.10, 0.10), offset: vec3(0, -0.06, 0) },
+  'upper-arm.left': { shape: 'cylinder', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0), colour: null },
+  'upper-arm.right': { shape: 'cylinder', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0), colour: null },
+  'forearm.left': { shape: 'capsule', size: vec3(0.09, 0.26, 0.09), offset: vec3(0, -0.22, 0), colour: null },
+  'forearm.right': { shape: 'capsule', size: vec3(0.09, 0.26, 0.09), offset: vec3(0, -0.22, 0), colour: null },
+  'hand.left': { shape: 'box', size: vec3(0.10, 0.10, 0.10), offset: vec3(0, -0.06, 0), colour: null },
+  'hand.right': { shape: 'box', size: vec3(0.10, 0.10, 0.10), offset: vec3(0, -0.06, 0), colour: null },
 
-  'thigh.left': { shape: 'capsule', size: vec3(0.14, 0.34, 0.14), offset: vec3(0, -0.30, 0) },
-  'thigh.right': { shape: 'capsule', size: vec3(0.14, 0.34, 0.14), offset: vec3(0, -0.30, 0) },
-  'shin.left': { shape: 'capsule', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0) },
-  'shin.right': { shape: 'capsule', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0) },
-  'foot.left': { shape: 'wedge', size: vec3(0.12, 0.05, 0.18), offset: vec3(0, 0, 0.06) },
-  'foot.right': { shape: 'wedge', size: vec3(0.12, 0.05, 0.18), offset: vec3(0, 0, 0.06) },
+  'thigh.left': { shape: 'capsule', size: vec3(0.14, 0.34, 0.14), offset: vec3(0, -0.30, 0), colour: null },
+  'thigh.right': { shape: 'capsule', size: vec3(0.14, 0.34, 0.14), offset: vec3(0, -0.30, 0), colour: null },
+  'shin.left': { shape: 'capsule', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0), colour: null },
+  'shin.right': { shape: 'capsule', size: vec3(0.11, 0.30, 0.11), offset: vec3(0, -0.26, 0), colour: null },
+
+  /**
+   * **The feet are triangles pointing the way the figure faces**, and that is a shape choice rather than a taste.
+   *
+   * The seed used to be a `wedge` at `vec3(0.12, 0.05, 0.18)`, and it was wrong twice over. A wedge's geometry is a
+   * four-sided cylinder of radius `x/2` and height `y`, so 0.06 across and **0.05 tall** - a flat plate, not a
+   * foot. And a wedge faces *sideways*: it slopes across x, so from the front pane it read as a lean, while a foot
+   * has to read as a triangle seen head-on, which is how a foot is drawn in every pixel figure ever made.
+   *
+   * `prism` is that triangle: an apex along the top, the base on the floor, extruded forward along z. `y` is the
+   * height, `x` the width across the figure and `z` how far the toe reaches - so the three dials mean what the
+   * three dials mean on a box, and a front view shows the triangle a reader is expecting.
+   *
+   * They are pushed forward with `offset.z`, because the root is the hips: the ankle sits under the shin, and the
+   * foot has to reach out in front of it or the figure stands on its heels.
+   */
+  'foot.left': { shape: 'prism', size: vec3(0.13, 0.10, 0.22), offset: vec3(0, -0.04, 0.07), colour: null },
+  'foot.right': { shape: 'prism', size: vec3(0.13, 0.10, 0.22), offset: vec3(0, -0.04, 0.07), colour: null },
 };
 
 /**
@@ -235,6 +251,7 @@ export function buildDefaultRig(presetId: RigPresetId = 'blob'): Skeleton {
       shape: part.shape,
       size: vec3(part.size.x * preset.girth, part.size.y * preset.girth, part.size.z * preset.girth),
       offset: cloneVec3(part.offset),
+      colour: part.colour,
     };
   };
 

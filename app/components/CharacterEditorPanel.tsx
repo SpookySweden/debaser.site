@@ -2,8 +2,11 @@
 
 import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
-import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { openCharacterBrowser } from '../lib/character/browser-window';
+import { readLibrary } from '../lib/character/library';
+import type { RigPresetId } from '../lib/character/rig';
 import { useCharacterStore } from '../lib/character/store';
+import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
  * The canvas is loaded in the browser only, and this is the whole reason the import is wrapped.
@@ -46,33 +49,84 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  * and one that stretched would fight the scroll box. The figure sits in a `sticky` frame inside that height
  * so scrolling the customiser moves the controls past and leaves the model where it is.
  */
-export default function CharacterEditorPanel({ onTouched }: { onTouched?: () => void }) {
+export default function CharacterEditorPanel({
+  onTouched,
+  onKept,
+  discardToken = 0,
+}: {
+  /** The figure changed, so the console has unsaved work it can no longer deny. */
+  onTouched?: () => void;
+  /** The figure was put on the shelf, so that unsaved work is now saved. */
+  onKept?: () => void;
+  /** Bumped when the reader throws their changes away; see the effect below. */
+  discardToken?: number;
+}) {
   /**
    * **The panel reports that the figure was touched, because the figure has no stored form to compare against.**
    *
    * Every other field in the customiser can answer "is this unsaved?" by comparing a draft with what is stored.
-   * This one cannot: the workbench has no persistence at all, so the moment anything is dragged, scaled or
-   * reshaped, the figure is different from what a reload would bring back and nothing can say so except this.
+   * This one cannot: a figure is built by dragging, so the moment anything is moved, scaled or reshaped it differs
+   * from what a reload would bring back, and nothing outside this store knows that happened.
    *
    * The subscription is a store *event* rather than a field: it fires on any change to the skeleton, which is the
    * only thing the workbench edits. Reporting per-edit is deliberate - a reader who moves a joint back to where it
-   * started is still told the figure is unsaved, which is true, because there is no saved state to return to.
+   * started is still told the figure is unsaved until they keep it, which is true.
    */
   useEffect(() => {
     if (onTouched === undefined) return;
 
     const unsubscribe = useCharacterStore.subscribe((state, previous) => {
-      if (state.skeleton !== previous.skeleton) onTouched();
+      if (state.skeleton === previous.skeleton) return;
+
+      // A load or a save is also a change to the skeleton, and neither is unsaved work - so the one store fact
+      // that says "this is storage's figure" is what separates an edit from arriving at one.
+      if (state.keptAt !== previous.keptAt) {
+        onKept?.();
+        return;
+      }
+
+      onTouched();
     });
 
     return unsubscribe;
-  }, [onTouched]);
+  }, [onTouched, onKept]);
+
+  /**
+   * Put the workbench back after the reader threw their changes away.
+   *
+   * **The one thing the console cannot do for itself, because the figure's last kept state is only knowable here.**
+   * `[ THROW THEM AWAY ]` resets every draft in the console, and for this tab the honest equivalent is not the blob
+   * the editor opens on - it is the figure that was last saved or loaded, if there was one. Reading the shelf again
+   * rather than holding a copy means there is no second copy of a figure to go stale, and `shelf[0]` is the newest
+   * save because the library orders them that way.
+   *
+   * `discardToken` starts at zero, so this never runs on mount: a fresh workbench must not be replaced by whatever
+   * happened to be saved last.
+   */
+  useEffect(() => {
+    if (discardToken === 0) return;
+
+    const newest = readLibrary()[0];
+    if (newest === undefined) {
+      useCharacterStore.getState().reset();
+      return;
+    }
+
+    useCharacterStore.getState().loadSkeleton(newest.skeleton, newest.presetId as RigPresetId);
+  }, [discardToken]);
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>
         <span>CHARACTER // BLOB HUMANOID</span>
-        <span>[ 4 LAYERS ]</span>
+        <span className="flex items-center gap-2">
+          {/* The door to the shelf. A plain function rather than a prop, the way every other window here opens -
+              and it is inside the title bar so it reads as part of the workbench's chrome. */}
+          <button type="button" onClick={openCharacterBrowser} className={PLATE}>
+            [ SAVED CHARACTERS ]
+          </button>
+          <span>[ 4 LAYERS ]</span>
+        </span>
       </div>
 
       <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">

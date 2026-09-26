@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
 import BroadcastHeartbeat from './components/BroadcastHeartbeat';
 import AuthProvider from './components/AuthProvider';
+import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
 import CommsProvider from './components/CommsProvider';
 import ForumProvider from './components/ForumProvider';
@@ -101,6 +102,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           make. It is not behind the Suspense boundary with the other two, because it
                           reads no address and has nothing to catch up on. */}
                       <PreferencesWindow />
+
+                      {/* Saved characters: also addressless, and for a stronger reason - a saved figure
+                          is one account's own work in one browser, so there is nobody for a link to
+                          name. It reads the character store, which is why it is drawn here rather than
+                          inside the customiser: the shelf outlives the window that opened it. */}
+                      <CharacterBrowserWindow />
                     </MusicLibraryProvider>
                   </MusicPlayerProvider>
                 </NotificationsProvider>

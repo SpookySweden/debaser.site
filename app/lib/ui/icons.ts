@@ -74,6 +74,7 @@ export const MASS_SHAPE_GLYPHS: Record<string, string> = {
   cylinder: '▮',
   capsule: '⬭',
   wedge: '◣',
+  prism: '△',
 };
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },

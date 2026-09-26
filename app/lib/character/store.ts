@@ -28,6 +28,7 @@ import {
   clearMass,
   offsetMass,
   resizeMass,
+  setMassColour,
   setMassShape,
   setPosition,
   setScale,
@@ -49,24 +50,32 @@ export const LAYER_IDS: readonly LayerId[] = ['skeleton', 'mass', 'base', 'pixel
 /**
  * What a drag in the viewport does, given the selected layer.
  *
- * **`mass` split into two, because a shape has two things a drag can change.** Dragging a primitive with the
- * pointer can plausibly mean "make it bigger" or "slide it off the joint", and a single gesture cannot be both. So
- * the layer carries which one, and the sidebar says which - a reader who wants the other presses one plate rather
- * than learning a modifier key they cannot discover.
+ * **`mass` split into three, because a shape has three things worth editing and a drag can only be one at a time.**
+ * Dragging a primitive with the pointer can plausibly mean "make it bigger", "slide it off the joint" or "give it a
+ * different colour", and a single gesture cannot be all three. So the tool carries which one, and the sidebar says
+ * which - a reader who wants another presses one plate rather than learning a modifier key they cannot discover.
  *
  *   `mass`      drag resizes the shape
  *   `massMove`  drag slides the shape within the joint's frame, leaving the joint alone
+ *   `massPaint` drag ... nothing. See below.
  *
- * `none` is not an error state - it is what the BASE layer gives you. The base render is the solid figure with no
- * pixelation, so it is the one layer that is purely something to *look* at.
+ * **COLOUR is a tool with no drag, and that is deliberate rather than an omission.** A colour is not a quantity, so
+ * there is nothing for a pointer drag to interpolate - a drag that swept through the palette would change a shape's
+ * colour a hundred times while the reader was trying to move past it. It maps to `none` so a drag in that tool does
+ * nothing at all, which is honest: the swatch row is the control, and the tool exists so the *other* two gestures
+ * are not competing with it. The alternative - leaving the last drag tool active while the colour row is open -
+ * means a reader who goes to press a swatch and misses moves the limb instead.
+ *
+ * `none` is not an error state - it is also what the BASE layer gives you. The base render is the solid figure with
+ * no pixelation, so it is the one layer that is purely something to *look* at.
  */
 export type InteractionMode = 'joints' | 'mass' | 'massMove' | 'light' | 'none';
 
 /**
- * How the MASS layer is being used. A single enum rather than a boolean, so a third gesture - rotate, say - is a
- * member here and a case in one switch rather than a second flag that can disagree with the first.
+ * How the MASS layer is being used. A single enum rather than a boolean, so a fourth gesture is a member here and a
+ * case in one switch rather than a second flag that can disagree with the first.
  */
-export type MassTool = 'resize' | 'move';
+export type MassTool = 'resize' | 'move' | 'colour';
 
 /**
  * The mode for a layer. The single place the mapping is written.
@@ -82,6 +91,8 @@ export function interactionModeFor(layer: LayerId, tool: MassTool): InteractionM
       return 'joints';
     case 'mass':
     case 'base':
+      // COLOUR has no drag, so the two drag tools are the only ones that reach a mode - see `MassTool`.
+      if (tool === 'colour') return 'none';
       return tool === 'move' ? 'massMove' : 'mass';
     case 'pixel':
       return 'light';
@@ -108,6 +119,15 @@ type CharacterState = {
   massTool: MassTool;
   /** Which preset the figure was built from, so the picker can show the current one. */
   presetId: RigPresetId;
+  /**
+   * When the figure was last saved or loaded, so "has the workbench been touched since it was kept?" is answerable.
+   *
+   * **A timestamp rather than a boolean, and it is what the unsaved prompt reads.** A flag would have to be set on
+   * every edit *and* cleared on every save, which is two writes that can disagree; one clock value changes only
+   * when one of those two things actually happens. `null` means "never saved", which is the honest state of a
+   * figure built since the page opened.
+   */
+  keptAt: number | null;
 
   selectLayer: (layer: LayerId) => void;
   setRenderLayer: (layer: RenderLayerId) => void;
@@ -116,9 +136,15 @@ type CharacterState = {
   selectJoint: (id: string | null) => void;
   moveJoint: (id: string, offset: Vec3) => void;
   scaleJoint: (id: string, factor: number) => void;
-  /** Give the selected joint one of the six primitives, or take its primitive away. */
+  /** Give the selected joint one of the primitives, or take its primitive away. */
   setShape: (id: string, shape: MassShapeId) => void;
   clearShape: (id: string) => void;
+  /** Recolour one joint's shape. `null` puts it back into the figure's own two-tone scheme. */
+  setMassColour: (id: string, colour: string | null) => void;
+  /** Put a whole saved figure on the bench, keeping the preset it was built from. */
+  loadSkeleton: (skeleton: Skeleton, presetId: RigPresetId) => void;
+  /** Record that the figure on the bench is now the same as a saved one, clearing the unsaved prompt. */
+  markKept: () => void;
   /** Rebuild the whole figure from a preset, discarding edits. That is what a preset is for. */
   applyPreset: (presetId: RigPresetId) => void;
   /**
@@ -158,6 +184,9 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   // common than one that is in the wrong place, and moving a shape is the correction you make *after* seeing it.
   massTool: 'resize',
   presetId: 'blob',
+  // The figure that opens has never been saved, so it *is* unsaved work from the first drag until somebody keeps
+  // it. That is the truthful state rather than a pessimistic one.
+  keptAt: null,
 
   selectLayer: (layer) => set({ activeLayer: layer }),
   setRenderLayer: (layer) => set({ renderLayer: layer }),
@@ -242,6 +271,28 @@ export const useCharacterStore = create<CharacterState>((set) => ({
 
   clearShape: (id) => set((state) => ({ skeleton: clearMass(state.skeleton, id) })),
 
+  setMassColour: (id, colour) => set((state) => ({ skeleton: setMassColour(state.skeleton, id, colour) })),
+
+  /**
+   * Put a saved figure on the bench.
+   *
+   * **Deep-copied in, and `keptAt` set, because loading is the one action that makes the bench match storage.**
+   * The copy matters: the browser holds the same object it hands over, so an edit after loading would rewrite the
+   * saved figure in memory and the next save would persist the reader's edits under the old entry's identity.
+   *
+   * The selection is cleared, for the same reason `applyPreset` clears it - the joint that was selected may not
+   * exist in the figure just arrived.
+   */
+  loadSkeleton: (skeleton, presetId) =>
+    set({
+      skeleton: JSON.parse(JSON.stringify(skeleton)) as Skeleton,
+      presetId,
+      selectedJointId: null,
+      keptAt: Date.now(),
+    }),
+
+  markKept: () => set({ keptAt: Date.now() }),
+
   /**
    * **Rebuild the figure from a preset, discarding every edit.**
    *
@@ -254,6 +305,8 @@ export const useCharacterStore = create<CharacterState>((set) => ({
       skeleton: buildDefaultRig(presetId),
       presetId,
       selectedJointId: null,
+      // A rebuilt figure is not the saved one any more, so it is unsaved work again.
+      keptAt: null,
     }),
 
   setLight: (angles) => set({ light: { ...angles } }),
@@ -274,6 +327,7 @@ export const useCharacterStore = create<CharacterState>((set) => ({
       light: { ...DEFAULT_LIGHT },
       massTool: 'resize',
       presetId: 'blob',
+      keptAt: null,
     }),
 }));
 
