@@ -11,6 +11,19 @@ type PopoutWindowProps = {
   /** Optional right-hand title bar text, e.g. `[ COMPOSE ]`. */
   badge?: string;
   onClose: () => void;
+  /**
+   * Whether a click on the desktop behind the window dismisses it.
+   *
+   * **`true` for everything except a window holding unsaved work.** A composer or a picker is a thing you either
+   * finish or abandon, and the backdrop click is the quick way out. The customiser is a *workbench*: a reader
+   * mid-edit aiming at a control that happens to sit near the edge of the window would lose everything to one
+   * stray click, and a mis-aimed press is not a decision to discard.
+   *
+   * The prop exists rather than the behaviour changing for every window, because a dialogue that *cannot* be
+   * dismissed by clicking away is a worse dialogue - the reader has to find the `×`. So this is opt-out, and only
+   * the window with something to lose opts out.
+   */
+  dismissOnBackdrop?: boolean;
   /** Status bar text, left of the buttons. */
   status?: string;
   /** Status bar controls, right of the default close button. */
@@ -41,6 +54,7 @@ export default function PopoutWindow({
   actions,
   maxWidth = 'max-w-2xl',
   bodyClassName = 'bg-sun-pale',
+  dismissOnBackdrop = true,
   children,
 }: PopoutWindowProps) {
   const titleId = useId();
@@ -75,7 +89,7 @@ export default function PopoutWindow({
   return createPortal(
     <div
       className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-ink/60 p-4 sm:p-8"
-      onMouseDown={onClose}
+      onMouseDown={dismissOnBackdrop ? onClose : undefined}
     >
       <div
         ref={windowRef}

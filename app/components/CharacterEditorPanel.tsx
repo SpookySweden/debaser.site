@@ -1,7 +1,9 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { useEffect } from 'react';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { useCharacterStore } from '../lib/character/store';
 
 /**
  * The canvas is loaded in the browser only, and this is the whole reason the import is wrapped.
@@ -44,7 +46,28 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  * and one that stretched would fight the scroll box. The figure sits in a `sticky` frame inside that height
  * so scrolling the customiser moves the controls past and leaves the model where it is.
  */
-export default function CharacterEditorPanel() {
+export default function CharacterEditorPanel({ onTouched }: { onTouched?: () => void }) {
+  /**
+   * **The panel reports that the figure was touched, because the figure has no stored form to compare against.**
+   *
+   * Every other field in the customiser can answer "is this unsaved?" by comparing a draft with what is stored.
+   * This one cannot: the workbench has no persistence at all, so the moment anything is dragged, scaled or
+   * reshaped, the figure is different from what a reload would bring back and nothing can say so except this.
+   *
+   * The subscription is a store *event* rather than a field: it fires on any change to the skeleton, which is the
+   * only thing the workbench edits. Reporting per-edit is deliberate - a reader who moves a joint back to where it
+   * started is still told the figure is unsaved, which is true, because there is no saved state to return to.
+   */
+  useEffect(() => {
+    if (onTouched === undefined) return;
+
+    const unsubscribe = useCharacterStore.subscribe((state, previous) => {
+      if (state.skeleton !== previous.skeleton) onTouched();
+    });
+
+    return unsubscribe;
+  }, [onTouched]);
+
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>

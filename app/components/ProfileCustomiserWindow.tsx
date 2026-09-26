@@ -5,8 +5,14 @@ import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { validateBio, validateLocation, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
+import {
+  figureIsUnsaved,
+  unsavedChanges,
+  type UnsavedChange,
+} from '../lib/profile/unsaved-changes';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
+import UnsavedPrompt from './UnsavedPrompt';
 import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } from './ProfileCustomiserOptionsTabs';
 import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
@@ -76,6 +82,58 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
+  /**
+   * Whether the character workbench has been touched, which the store cannot tell us because the figure has no
+   * stored form to compare against. Set the first time any joint or shape is edited - see `CharacterEditorPanel`.
+   */
+  const [figureTouched, setFigureTouched] = useState(false);
+
+  /**
+   * What the reader asked for, held while the prompt is up.
+   *
+   * **The intent is stored, not re-derived when the prompt is answered.** A reader can press "switch tab", think
+   * about it, and the `onStay` handler has to put them back where they were - so the tab they were *leaving* is
+   * what has to be remembered, and `pendingIntent` carries both which action and where it was going.
+   */
+  const [pendingIntent, setPendingIntent] = useState<
+    { kind: 'close' } | { kind: 'tab'; tab: TabKey } | null
+  >(null);
+
+  /**
+   * Everything unsaved, in tab order, recomputed on every render from the drafts.
+   *
+   * **Derived, never stored.** There is no `hasUnsavedChanges` flag to fall out of step with the drafts, for the
+   * reason `interactionMode` is derived in the character store: two stored facts can disagree and one derived
+   * fact cannot. The cost is a comparison over nine fields on each render, which is not a cost.
+   */
+  const unsaved: UnsavedChange[] = [
+    ...unsavedChanges(
+      {
+        displayName: profile.displayName,
+        bio: profile.bio,
+        location: profile.location,
+        status: profile.status,
+        nameColour: profile.nameColour ?? null,
+        visibility: {
+          showTags: profile.visibility.showTags,
+          showProfileComments: profile.visibility.showProfileComments,
+          showAvatarComments: profile.visibility.showAvatarComments,
+        },
+      },
+      {
+        name: nameDraft,
+        bio: bioDraft,
+        location: locationDraft,
+        status: statusDraft,
+        nameColour: nameColourDraft,
+        visibility: visibilityDraft,
+        pendingPicture: pendingSrc,
+        pendingSong: songSrc,
+      },
+    ),
+    ...(figureIsUnsaved(figureTouched) === null ? [] : [figureIsUnsaved(figureTouched) as UnsavedChange]),
+  ];
+
   const name = nameDraft ?? profile.displayName;
   const bio = bioDraft ?? profile.bio;
   const location = locationDraft ?? profile.location;
@@ -99,6 +157,84 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     } finally {
       setBusy(false);
     }
+  }
+
+  /**
+   * Ask before doing something that would lose unsaved work, and do it straight away if there is none.
+   *
+   * **One gate for both exits**, because "close" and "switch tab" have identical rules and writing the check twice
+   * is how the second one comes to disagree with the first. The caller says what it wants; this decides whether the
+   * reader has to be asked.
+   *
+   * **A tab press for the tab already showing is not a change of tab**, so it never prompts - a reader pressing the
+   * current tab is either checking which one they are on or missing the one beside it, and a warning for that would
+   * be noise.
+   */
+  function guard(intent: { kind: 'close' } | { kind: 'tab'; tab: TabKey }) {
+    if (intent.kind === 'tab' && intent.tab === tab) return;
+    if (unsaved.length === 0) {
+      finish(intent);
+      return;
+    }
+
+    setPendingIntent(intent);
+  }
+
+  /** Carry out what was asked, once it is safe to. */
+  function finish(intent: { kind: 'close' } | { kind: 'tab'; tab: TabKey }) {
+    setPendingIntent(null);
+
+    if (intent.kind === 'close') {
+      onClose();
+      return;
+    }
+
+    setTab(intent.tab);
+  }
+
+  /**
+   * Save whatever the prompt can save, then continue.
+   *
+   * **Only the identity and privacy drafts, and only when they are valid.** The picture and track are *uploaded*
+   * rather than saved - the file is already somewhere and filing it is a separate press on a separate tab - so
+   * "save what can be saved" cannot silently file them. A bio that fails validation is reported and the prompt
+   * stays up, because saving half of it and closing would lose the other half without saying so.
+   */
+  async function saveThenFinish() {
+    const intent = pendingIntent;
+    if (intent === null) return;
+
+    if (bioProblem !== undefined || locationProblem !== undefined || statusProblem !== undefined) {
+      setError(bioProblem ?? locationProblem ?? statusProblem ?? 'SOMETHING IN THE PROFILE IS NOT VALID.');
+      return;
+    }
+
+    const profileChanges = unsaved.filter((change) => change.tab === 'profile');
+    const privacyChanges = unsaved.filter((change) => change.tab === 'privacy');
+
+    await run(async () => {
+      if (profileChanges.length > 0) {
+        await repository.saveProfile(userId, { displayName: name, bio, location, status, nameColour });
+
+        if (name.trim().length > 0 && name !== auth.user?.displayName) {
+          const result = await auth.updateDisplayName(name);
+          if (!result.ok) throw new Error(result.error);
+        }
+
+        setNameDraft(null);
+        setBioDraft(null);
+        setLocationDraft(null);
+        setStatusDraft(null);
+        setNameColourDraft(null);
+      }
+
+      if (privacyChanges.length > 0) {
+        await repository.saveProfile(userId, { visibility: visibilityDraft });
+        setVisibilityDraft({});
+      }
+    }, 'SAVED, THEN WENT WHERE YOU ASKED.');
+
+    finish(intent);
   }
 
   async function handleUpload(file: File) {
@@ -259,7 +395,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           <button
             key={entry.key}
             type="button"
-            onClick={() => setTab(entry.key)}
+            onClick={() => guard({ kind: 'tab', tab: entry.key })}
             className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold ${
               tab === entry.key ? 'bg-ena text-paper' : 'bg-sun-pale text-ink hover:bg-ice'
             }`}
@@ -358,7 +494,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           deep. See ./CharacterEditorPanel.tsx. */}
       {tab === 'character' ? (
         <div className="space-y-3">
-          <CharacterEditorPanel />
+          <CharacterEditorPanel onTouched={() => setFigureTouched(true)} />
         </div>
       ) : null}
 
@@ -387,23 +523,50 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     </div>
   );
 
+  /**
+   * The prompt, when something is unsaved and the window is trying to shut.
+   *
+   * **A window of its own rather than a panel inside this one**, which is the shape the brief asks for and the
+   * right one for a second reason: the customiser's body scrolls and is three panels deep, so a decision about
+   * losing work would arrive below the fold of a document the reader is already part-way down. A pop-up is in
+   * front of everything by construction, and it stacks correctly because `PopoutWindow` portals to `<body>`.
+   */
+  const prompt =
+    pendingIntent === null ? null : (
+      <UnsavedPrompt
+        changes={unsaved}
+        intent={pendingIntent.kind === 'close' ? 'close' : 'switch-tab'}
+        onStay={() => setPendingIntent(null)}
+        onDiscard={() => finish(pendingIntent)}
+        // Offered only when there is something a save can actually keep - see `saveThenFinish`.
+        onSave={unsaved.some((change) => change.tab !== 'character') ? saveThenFinish : undefined}
+      />
+    );
+
   return (
-    <PopoutWindow
-      title="CUSTOMISE PUBLIC PROFILE"
-      badge="[ ACCOUNT ]"
-      onClose={onClose}
-      maxWidth="max-w-3xl"
-      status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC CLOSES"
-      actions={
-        <a
-          href={`/profile/${encodeURIComponent(userId)}`}
-          className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice"
-        >
-          [ VIEW PUBLIC PAGE ]
-        </a>
-      }
-    >
-      {panel}
-    </PopoutWindow>
+    <>
+      <PopoutWindow
+        title="CUSTOMISE PUBLIC PROFILE"
+        badge="[ ACCOUNT ]"
+        onClose={() => guard({ kind: 'close' })}
+        // Clicking the desktop does not close this one: it holds unsaved work, and a mis-aimed press is not a
+        // decision to discard it. Every other window keeps the behaviour - see `PopoutWindow`.
+        dismissOnBackdrop={false}
+        maxWidth="max-w-3xl"
+        status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC ASKS BEFORE CLOSING"
+        actions={
+          <a
+            href={`/profile/${encodeURIComponent(userId)}`}
+            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice"
+          >
+            [ VIEW PUBLIC PAGE ]
+          </a>
+        }
+      >
+        {panel}
+      </PopoutWindow>
+
+      {prompt}
+    </>
   );
 }
