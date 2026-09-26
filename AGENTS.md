@@ -79,6 +79,15 @@ preferences:
   bell), `/forum?challenge=<userId>&game=<gameId>` (a post's `[ CHALLENGE ]` plate), and
   `/forum?music=1` (`/forum?music=1&tag=…` for a filtered one - the MUSIC shelf, a post's plate, a
   track's tag badge). Closing a window spends its address, so the same link works twice.
+- **A window holding unsaved work does not close on a stray click, and asks before it closes at all.**
+  `PopoutWindow`'s `dismissOnBackdrop` defaults to `true` so every other window is unchanged, and the
+  customiser is the one that opts out: it is a workbench, and a mis-aimed press near the edge of it is
+  not a decision to discard. Both exits - closing and switching tabs - go through one `guard()`, so they
+  cannot disagree, and the question is `UnsavedPrompt`, its own window rather than a panel, because the
+  customiser's body scrolls and the choice must not arrive below the fold. What counts as unsaved is
+  `app/lib/profile/unsaved-changes.ts`: a draft that *differs* from what is stored, so typing a
+  character and deleting it again is not work. The character figure has no store yet, so it is reported
+  as its own entry that says so out loud rather than being offered a save button that would do nothing.
 - **Utility windows dock; dialogues take the screen.** `DockWindow` is for the two screens a reader
   consults while standing in a thread: no scrim, draggable by its title bar, docked to the side of the
   feed on a wide screen and a sheet above the player bar on a phone - **the feed must never be
