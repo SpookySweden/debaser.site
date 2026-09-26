@@ -307,3 +307,65 @@ force-pushing, or rewriting history - anything whose effect cannot be seen first
 3. Database schema: Users, Lore_Pages, Comments, Messages (with RLS)
 4. Message board UGC forms wired to Supabase Realtime
 5. Tiptap + Yjs collaborative lore editor (last — most complex)
+
+## There IS a browser, and the old claim was wrong
+
+An earlier version of this file said "There is no browser here. `npm run read` is the eyes." The second half is
+true; **the first half was false**, and believing it cost a whole session's worth of verification. The evidence
+was Puppeteer's `launch_browser` failing with *"Could not find expected browser (chrome) locally"* - which says
+**Puppeteer's download cache is empty**, not that the machine has no browser. Chrome 153 is installed at
+`C:\Program Files\Google\Chrome\Application\chrome.exe`, and it needs no Puppeteer, no download and no dependency:
+
+    chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
+    chrome.exe --headless=new --remote-debugging-port=9334 about:blank      # then drive it over CDP
+
+`--use-angle=swiftshader` is the load-bearing flag: without the software GL a headless build has **no WebGL**, and
+a blank canvas would say nothing about the code under test.
+
+### What that unlocked
+
+`CharacterEditorPanel` is `ssr: false`, so every server-rendered check in this repository sees the literal string
+`LOADING THE WORKBENCH...` and can say nothing about the canvas. The figure was unobservable **by construction**,
+not merely unobserved - and three faults were hiding there, each behind the one before, with **every check green
+for all three**:
+
+1. `frameloop="demand"` never drew a frame, because nothing in the scene called `invalidate()`. Worse:
+   `Temp/check-character-render.cjs` **asserted `demand`**, describing it as "not 60fps of a still life" - so a
+   green check held the defect in place. A check on the wrong value is worse than no check, because it is
+   evidence *for* the bug.
+2. `EffectComposer` cleared the frame before `Outline`'s own pass, wiping the image it had just produced.
+   Three.js warned about it at runtime - *"Outline requires `<EffectComposer autoClear={false}>` to render
+   correctly"* - and a `console.warn` is invisible to anything that reads source.
+3. `MODEL_INK` was `#FFFFFF`, which under a lambert light renders as `rgb(226,226,226)` - a grey, in a palette
+   that forbids greys. The figure had no colour of its own; it was a white mass pretending to be one.
+
+### The instruments, tracked in `Temp/`
+
+    Temp/cdp-look.cjs         drive Chrome over CDP; read the drawing buffer and the DOM
+    Temp/measure-panes.cjs    decode the screenshot's PNG by hand; count colours per pane
+    Temp/check-deployed.cjs   load the deployed site; read response BODIES, never hashed filenames
+    Temp/png-read.cjs         the PNG decoder, no dependency added for a diagnostic
+
+**Read pixels inside a `requestAnimationFrame`.** A WebGL drawing buffer is cleared when it is presented unless
+the context was made with `preserveDrawingBuffer`, so `readPixels` from outside a frame legitimately returns all
+zeros on a perfectly drawn figure. The first run reported `0/72072` and that number alone did not distinguish
+"nothing was drawn" from "the probe looked at the wrong moment". `--force-frames` and `--stages` are kept for the
+same reason: one experiment per suspect, because two faults mask each other.
+
+### Two limits to state plainly, both learned here
+
+- **A `<canvas>` in the DOM is not a drawn figure, and pixels on the canvas are not a person.** The honest
+  sentence is "72072/72072 pixels drawn in-frame, three colours, none of them grey" - never "it looks right".
+- **Absence from a bundle grep is not absence from the site.** The workbench is `next/dynamic`, so its chunk is
+  fetched by the client only once the CHAR tab is pressed behind a session. The deployed HTML names 300 `.js`
+  references but only **12 distinct** chunks, none of them the workbench - so three separate bundle greps reported
+  three live fixes as missing. A false absence is worse than no check, because it is indistinguishable from a
+  true one. What *does* prove the deploy is current: `npm run read -- --absent <old text>`.
+
+### And a `Temp/*.tsx` used to be part of the project
+
+`tsconfig.json` included `**/*.tsx`, which reaches into the gitignored scratch tree. `next build` therefore tried
+to compile a probe page written into `Temp/`, and Turbopack panicked on a Chrome profile directory a headless run
+had left behind - a build failure caused by a browser profile. `Temp` is now excluded.
+
+---

@@ -88,8 +88,22 @@
   from `package.json`, a migration, a check, or a comment, infer it.
 
 ## Reading the Site (do this every time)
-- **There is no browser here. `npm run read` is the eyes.** After *any* change
-  that alters what a visitor sees, read the site before calling the work done:
+- **`npm run read` is the eyes for served HTML, and there IS a browser for everything else.** The old version of
+  this line said "There is no browser here" and that was **false**, believed for a whole session on the strength of
+  Puppeteer reporting *"Could not find expected browser (chrome) locally"* - which only means Puppeteer's download
+  cache is empty. Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and runs headless
+  with no dependency at all:
+
+      chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
+
+  `--use-angle=swiftshader` is load-bearing - without the software GL there is no WebGL and a blank canvas would
+  say nothing. Use it whenever a component is `ssr: false`, because server-side rendering cannot see such a
+  component at all: `CharacterEditorPanel` emits the literal string `LOADING THE WORKBENCH...` to every check that
+  renders markup, which is how three faults hid with the suite green. Templates are `Temp/cdp-look.cjs` (CDP),
+  `Temp/measure-panes.cjs` and `Temp/png-read.cjs` (pixels), and `Temp/check-deployed.cjs` (the live site).
+  **Read pixels inside a `requestAnimationFrame`** - a WebGL buffer is cleared on present, so a zero read from
+  outside a frame is a statement about the probe, not the renderer.
+- **After *any* change that alters what a visitor sees, read the served HTML before calling the work done:**
   `npm run read` for the deployed one, `npm run read:local` against a local build
   to check before pushing. It is tracked in `scripts/`, so it exists on every
   clone - and the same is true of `npm run capture` for the audit's snapshots.
