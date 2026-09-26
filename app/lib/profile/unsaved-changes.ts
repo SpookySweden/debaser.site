@@ -157,21 +157,45 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
 }
 
 /**
- * The figure, as its own unsaved entry, when the workbench has been touched at all.
+ * The figure, as an unsaved entry - **by comparing it with what was kept, not by remembering that it was touched.**
  *
- * **Separate from `unsavedChanges` because it is not a draft - it is a missing save.** Every other field in this
- * console writes to the profile store; the character figure has no persistence at all, so there is no stored value
- * to compare a draft against and no way for the reader to save it. The honest thing is to say so in the prompt
- * rather than to leave it out: a reader who has spent ten minutes on a rig should be told that closing loses it,
- * and told *why* - which is more useful than silence, and more useful than a save button that would not work.
+ * **This replaced a latched boolean, and the two bugs it caused are the reason.** The old shape was
+ * `figureIsUnsaved(figureTouched: boolean)`, where the flag was set by an effect watching the skeleton for any
+ * change. That was wrong in both directions at once:
+ *
+ *   - **Throwing changes away re-marked the figure as unsaved.** Discarding puts the workbench back, and putting
+ *     it back *is* a change to the skeleton - so the effect fired, set the flag again, and the prompt returned
+ *     immediately citing a figure the reader had just discarded. Nothing was altered and the list still named it.
+ *   - **The flag could never be cleared by discarding at all.** `discardEverything` reset the drafts and left the
+ *     flag alone, so `CHARACTER FIGURE` sat in the list permanently once the workbench had been touched once.
+ *
+ * A comparison has neither failure: it is a function of what is on the bench and what is on the shelf, so
+ * discarding clears it for free (the bench now equals the kept figure) and a figure that was never edited is
+ * never reported. That is the same model every other field in this console uses - a draft compared against what
+ * is stored - and the figure was the one field that had opted out of it.
+ *
+ * **`null` kept means "never saved", and an untouched default is still reported then.** The workbench opens on a
+ * blob that is not on the shelf, so closing would lose whatever has been built on top of it - and the panel is
+ * inside a console the reader is already editing, so being told once that the figure is not kept is the honest
+ * reading rather than a false alarm. What the comparison fixes is the case that was actually wrong: a figure
+ * *equal to what was kept* is never reported, however many times it was moved to get there.
  */
-export function figureIsUnsaved(figureTouched: boolean): UnsavedChange | null {
-  if (!figureTouched) return null;
+export function figureIsUnsaved(input: {
+  /** The figure on the bench, serialised the same way the library stores it. */
+  bench: string;
+  /** The figure as last kept, or `null` when nothing was ever saved or loaded. */
+  kept: string | null;
+}): UnsavedChange | null {
+  // Identical to what was kept: there is nothing to lose, so there is nothing to report.
+  if (input.kept !== null && input.bench === input.kept) return null;
 
   return {
     tab: 'character',
     label: 'CHARACTER FIGURE',
-    detail: 'NOT SAVED ANYWHERE - THE WORKBENCH HAS NO STORE YET',
+    detail:
+      input.kept === null
+        ? 'NOT SAVED YET - USE [ SAVED CHARACTERS ] TO KEEP IT'
+        : 'CHANGED SINCE IT WAS LAST KEPT',
   };
 }
 

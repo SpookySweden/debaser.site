@@ -10,6 +10,7 @@ import {
   unsavedChanges,
   type UnsavedChange,
 } from '../lib/profile/unsaved-changes';
+import { useBenchFigure, useKeptFigure } from '../lib/character/store';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import UnsavedPrompt from './UnsavedPrompt';
@@ -83,12 +84,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
   /**
-   * Whether the character workbench has been touched, which the store cannot tell us because the figure has no
-   * stored form to compare against. Set the first time any joint or shape is edited - see `CharacterEditorPanel`.
-   */
-  const [figureTouched, setFigureTouched] = useState(false);
-
-  /**
    * Bumped when the reader throws their changes away, so the workbench can put its figure back.
    *
    * **A counter rather than a callback, because the workbench is a `next/dynamic` child.** Passing a function down
@@ -115,7 +110,15 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
    * **Derived, never stored.** There is no `hasUnsavedChanges` flag to fall out of step with the drafts, for the
    * reason `interactionMode` is derived in the character store: two stored facts can disagree and one derived
    * fact cannot. The cost is a comparison over nine fields on each render, which is not a cost.
+   *
+   * **The two figure fingerprints are read here for the same reason**, and they are the fix for two bugs: the
+   * character entry used to be a `figureTouched` boolean the panel latched on any skeleton change, so throwing
+   * changes away - which *is* a skeleton change - re-marked the figure as edited and the prompt named it again
+   * at once. A comparison has no such state to corrupt: if the bench equals what was kept, nothing is at risk.
    */
+  const benchFigure = useBenchFigure();
+  const keptFigure = useKeptFigure();
+
   const unsaved: UnsavedChange[] = [
     ...unsavedChanges(
       {
@@ -141,7 +144,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         pendingSong: songSrc,
       },
     ),
-    ...(figureIsUnsaved(figureTouched) === null ? [] : [figureIsUnsaved(figureTouched) as UnsavedChange]),
+    ...(() => {
+      // The figure, compared with what was kept - the same model as every field above it, rather than a latch.
+      const change = figureIsUnsaved({ bench: benchFigure, kept: keptFigure });
+      return change === null ? [] : [change];
+    })(),
   ];
 
   const name = nameDraft ?? profile.displayName;
@@ -547,11 +554,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           deep. See ./CharacterEditorPanel.tsx. */}
       {tab === 'character' ? (
         <div className="space-y-3">
-          <CharacterEditorPanel
-            onTouched={() => setFigureTouched(true)}
-            onKept={() => setFigureTouched(false)}
-            discardToken={discardToken}
-          />
+          <CharacterEditorPanel discardToken={discardToken} />
         </div>
       ) : null}
 

@@ -50,55 +50,24 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  * so scrolling the customiser moves the controls past and leaves the model where it is.
  */
 export default function CharacterEditorPanel({
-  onTouched,
-  onKept,
   discardToken = 0,
 }: {
-  /** The figure changed, so the console has unsaved work it can no longer deny. */
-  onTouched?: () => void;
-  /** The figure was put on the shelf, so that unsaved work is now saved. */
-  onKept?: () => void;
   /** Bumped when the reader throws their changes away; see the effect below. */
   discardToken?: number;
 }) {
   /**
-   * **The panel reports that the figure was touched, because the figure has no stored form to compare against.**
-   *
-   * Every other field in the customiser can answer "is this unsaved?" by comparing a draft with what is stored.
-   * This one cannot: a figure is built by dragging, so the moment anything is moved, scaled or reshaped it differs
-   * from what a reload would bring back, and nothing outside this store knows that happened.
-   *
-   * The subscription is a store *event* rather than a field: it fires on any change to the skeleton, which is the
-   * only thing the workbench edits. Reporting per-edit is deliberate - a reader who moves a joint back to where it
-   * started is still told the figure is unsaved until they keep it, which is true.
-   */
-  useEffect(() => {
-    if (onTouched === undefined) return;
-
-    const unsubscribe = useCharacterStore.subscribe((state, previous) => {
-      if (state.skeleton === previous.skeleton) return;
-
-      // A load or a save is also a change to the skeleton, and neither is unsaved work - so the one store fact
-      // that says "this is storage's figure" is what separates an edit from arriving at one.
-      if (state.keptAt !== previous.keptAt) {
-        onKept?.();
-        return;
-      }
-
-      onTouched();
-    });
-
-    return unsubscribe;
-  }, [onTouched, onKept]);
-
-  /**
    * Put the workbench back after the reader threw their changes away.
    *
    * **The one thing the console cannot do for itself, because the figure's last kept state is only knowable here.**
-   * `[ THROW THEM AWAY ]` resets every draft in the console, and for this tab the honest equivalent is not the blob
-   * the editor opens on - it is the figure that was last saved or loaded, if there was one. Reading the shelf again
-   * rather than holding a copy means there is no second copy of a figure to go stale, and `shelf[0]` is the newest
-   * save because the library orders them that way.
+   * `[ THROW THEM AWAY ]` resets every draft in the console, and for this tab the honest equivalent is the figure
+   * that was last saved or loaded - not the blob the editor opens on. Reading the shelf again rather than holding a
+   * copy means there is no second copy of a figure to go stale, and `shelf[0]` is the newest save because the
+   * library orders them that way.
+   *
+   * **`loadSkeleton` sets `keptFigure` to what it just loaded, so discarding clears the unsaved prompt for free.**
+   * That is the whole reason the prompt now behaves: putting the bench back is a change to the skeleton, and under
+   * the old latch it re-marked the figure as edited - so the prompt reappeared citing a figure the reader had just
+   * thrown away. A comparison cannot do that, because the figure it compares against is the one being restored.
    *
    * `discardToken` starts at zero, so this never runs on mount: a fresh workbench must not be replaced by whatever
    * happened to be saved last.

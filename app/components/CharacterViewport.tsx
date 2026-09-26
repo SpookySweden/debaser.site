@@ -380,12 +380,14 @@ function MassColourRow({ jointId, current }: { jointId: string; current: string 
 /**
  * The mass tab: opened by clicking a shape, and it acts on what was clicked.
  *
- * **Nothing to show until something is clicked**, and it says so rather than showing a disabled slider - a
- * greyed-out control invites a reader to work out why it is grey, when the answer is just "click a limb".
+ * **The palette renders whether or not anything is selected, and that was a real defect.** This used to return only
+ * a note when no joint was picked - so a reader arriving at the CHAR tab saw the words "CLICK A SHAPE IN EITHER
+ * VIEWPORT" and *no shape palette at all*. Chrome measured it: two fieldsets on the page, neither of them the
+ * palette, `shape plates: 0`. The one control the brief asked for was behind a selection the reader had no reason
+ * to make first, because the palette is how a shape gets added in the first place.
  *
- * The slider and the viewport drag write the same store field (`scale`), so they can never disagree: dragging a
- * limb changes the number here, and moving the slider changes the limb. Two independent controls over one value
- * is the arrangement that goes wrong when each keeps its own copy; this cannot, because there is only one copy.
+ * What is conditional is what *needs* a target: the size readout, the offset readout and the joint scale slider.
+ * Those say which joint they act on, and with none picked there is nothing for them to name.
  */
 function MassRescaler({ jointId }: { jointId: string | null }) {
   const joints = useCharacterStore((state) => state.skeleton.joints);
@@ -395,9 +397,21 @@ function MassRescaler({ jointId }: { jointId: string | null }) {
 
   if (jointId === null || joint === undefined) {
     return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] text-ink-plate">
-        CLICK A SHAPE IN EITHER VIEWPORT, OR A JOINT HANDLE. THE ONE YOU PICK OPENS HERE.
-      </p>
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+        <p className="text-[10px] font-bold text-ink">NO JOINT IS HELD</p>
+
+        <p className="mt-1 text-[10px] text-ink-plate">
+          CLICK A JOINT HANDLE IN EITHER VIEWPORT - THE GREEN DOTS - OR A SHAPE, AND THIS PANEL ACTS ON IT. THE
+          SHAPES BELOW ARE THE VOCABULARY YOU WILL BE CHOOSING FROM.
+        </p>
+
+        <ShapePalette jointId={null} current={null} />
+        <MassToolSwitch />
+        <p className="mt-1 text-[9px] text-ink-plate">
+          PICK A JOINT TO USE THESE. THE SEVEN PRIMITIVES ARE WHAT A JOINT CAN CARRY; WHICH ONE IT CARRIES, HOW BIG
+          IT IS AND WHAT COLOUR IT WEARS ARE ALL SET ONCE A JOINT IS HELD.
+        </p>
+      </div>
     );
   }
 
@@ -441,18 +455,24 @@ function MassRescaler({ jointId }: { jointId: string | null }) {
 }
 
 /**
- * The six primitives, as a row of plates.
+ * The seven primitives, as a row of plates.
  *
  * **A pressed plate is the current shape, and pressing one applies it.** No separate confirm step, because there
  * is nothing to confirm: the figure updates as the shape changes, so the plate *is* the preview. That is also why
  * the control behaves as a radio group - one shape per joint.
  *
+ * **With no joint held the grid is shown disabled rather than hidden.** The grid is the vocabulary, and a reader
+ * who cannot see what shapes exist cannot decide whether to pick a joint to use them on. Disabled says "these are
+ * the choices and they need a target"; hidden said "there is nothing here", which was wrong and is what the
+ * browser measurement caught.
+ *
  * A joint with nothing gets the shape at a default size, which is `setMassShape`'s job rather than this
  * component's, so the palette does not have to know what a sensible empty size is.
  */
-function ShapePalette({ jointId, current }: { jointId: string; current: MassShapeId | null }) {
+function ShapePalette({ jointId, current }: { jointId: string | null; current: MassShapeId | null }) {
   const setShape = useCharacterStore((state) => state.setShape);
   const clearShape = useCharacterStore((state) => state.clearShape);
+  const armed = jointId !== null;
 
   return (
     <fieldset className="mt-1 rounded-none border border-ink">
@@ -461,7 +481,7 @@ function ShapePalette({ jointId, current }: { jointId: string; current: MassShap
       {/*
        * **A 2D grid, so the vocabulary can be seen without turning the figure.** The glyph is the shape seen flat,
        * which is what a reader is choosing between; the 3D primitive behind it is what they get. Each plate
-       * carries its own one-line note as a title, so the meaning is available without the grid growing to six
+       * carries its own one-line note as a title, so the meaning is available without the grid growing to seven
        * sentences.
        */}
       <div className="grid grid-cols-3 gap-[2px] p-1">
@@ -469,11 +489,14 @@ function ShapePalette({ jointId, current }: { jointId: string; current: MassShap
           <button
             key={shape}
             type="button"
-            onClick={() => setShape(jointId, shape)}
+            disabled={!armed}
+            onClick={() => {
+              if (jointId !== null) setShape(jointId, shape);
+            }}
             aria-pressed={current === shape}
             aria-label={`${MASS_SHAPES[shape].label} - ${MASS_SHAPES[shape].note}`}
             title={MASS_SHAPES[shape].note}
-            className={`flex flex-col items-center gap-[2px] cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
+            className={`flex flex-col items-center gap-[2px] cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
               current === shape
                 ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
                 : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
@@ -486,7 +509,9 @@ function ShapePalette({ jointId, current }: { jointId: string; current: MassShap
           </button>
         ))}
       </div>
-      {current === null ? (
+      {!armed ? (
+        <p className="px-1 pb-1 text-[9px] text-ink-plate">PICK A JOINT FIRST - THEN THESE APPLY TO IT.</p>
+      ) : current === null ? (
         <p className="px-1 pb-1 text-[9px] text-ink-plate">THIS JOINT CARRIES NOTHING. PICK ONE.</p>
       ) : (
         <button

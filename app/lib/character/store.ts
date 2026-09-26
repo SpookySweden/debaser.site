@@ -120,14 +120,19 @@ type CharacterState = {
   /** Which preset the figure was built from, so the picker can show the current one. */
   presetId: RigPresetId;
   /**
-   * When the figure was last saved or loaded, so "has the workbench been touched since it was kept?" is answerable.
+   * The figure as it was last saved or loaded, serialised - or `null` when it has never been kept.
    *
-   * **A timestamp rather than a boolean, and it is what the unsaved prompt reads.** A flag would have to be set on
-   * every edit *and* cleared on every save, which is two writes that can disagree; one clock value changes only
-   * when one of those two things actually happens. `null` means "never saved", which is the honest state of a
-   * figure built since the page opened.
+   * **This was `keptAt: number | null`, a timestamp, and the timestamp was not enough.** The unsaved prompt needs
+   * to know whether the bench *differs* from what was kept, and a time says only that a save happened - so the two
+   * bugs that followed were both about a fact the store could not express. Keeping the figure itself makes
+   * "is this the kept one?" a comparison, which is the same question every other draft in the console answers, and
+   * it is why throwing changes away now clears the prompt: the bench is put back to exactly this.
+   *
+   * Serialised rather than held as an object, because the comparison that matters is deep equality and a string is
+   * the one form of it that cannot be accidentally mutated by a later drag. `JSON.stringify` of the skeleton is
+   * also exactly what the library writes, so a figure that survives a save and reload compares equal.
    */
-  keptAt: number | null;
+  keptFigure: string | null;
 
   selectLayer: (layer: LayerId) => void;
   setRenderLayer: (layer: RenderLayerId) => void;
@@ -166,8 +171,39 @@ type CharacterState = {
 /** The light the editor opens on: from the front-left and slightly above. */
 export const DEFAULT_LIGHT: LightAngles = { azimuth: -0.6, elevation: 0.9 };
 
+/**
+ * The figure the workbench opens on, built once.
+ *
+ * **Built once and shared, because it is also the baseline the unsaved prompt compares against.** The editor opens
+ * on this blob, and a reader who has not touched it has no work to lose - so the prompt must not appear. That was
+ * a real bug: `keptFigure` started `null`, "never kept" was reported as unsaved, and switching tabs with nothing
+ * altered asked anyway.
+ *
+ * Module scope rather than inside `create`, so the *same* rig is both the initial state and the recorded baseline.
+ * Two calls to `buildDefaultRig` would produce two structurally identical figures, which would stringify the same
+ * and hide the mistake - but the sharing makes the intent plain, and `figureFingerprint` copies before storing.
+ */
+const OPENING_FIGURE = buildDefaultRig('blob');
+
+/**
+ * A figure as one string, for asking "is this the one that was kept?".
+ *
+ * **Serialised rather than compared field by field**, because the skeleton is a record of nineteen joints each
+ * carrying vectors and an optional mass - and a hand-written comparison would be nineteen chances to forget a
+ * field, which is the exact failure `unsaved-changes.ts` exists to avoid one level up. `JSON.stringify` is also
+ * what the library writes to storage, so a figure that has been saved and loaded back compares *equal* rather than
+ * merely equivalent, which is what makes the prompt disappear after a load.
+ *
+ * Declared above the store rather than beside its exports, because the store's own initial state needs it: the
+ * opening figure is recorded as the baseline, and a `const` declared below would be in its temporal dead zone at
+ * that point. That is what the compiler said, and it was right.
+ */
+function fingerprint(skeleton: Skeleton): string {
+  return JSON.stringify(skeleton);
+}
+
 export const useCharacterStore = create<CharacterState>((set) => ({
-  skeleton: buildDefaultRig(),
+  skeleton: OPENING_FIGURE,
   activeLayer: 'skeleton',
   /**
    * BASE opens: it is the figure at full resolution, which is the honest picture of what has been built. PIXEL
@@ -184,9 +220,14 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   // common than one that is in the wrong place, and moving a shape is the correction you make *after* seeing it.
   massTool: 'resize',
   presetId: 'blob',
-  // The figure that opens has never been saved, so it *is* unsaved work from the first drag until somebody keeps
-  // it. That is the truthful state rather than a pessimistic one.
-  keptAt: null,
+  /**
+   * The figure it opened on, recorded as the baseline - **not `null`.**
+   *
+   * `null` here meant "never kept", and the prompt treated that as unsaved, so a reader who had touched nothing was
+   * asked before switching tabs. The opening blob is not work: nothing has been built on it yet, so it is what the
+   * bench is compared against until the first save or load replaces it.
+   */
+  keptFigure: fingerprint(OPENING_FIGURE),
 
   selectLayer: (layer) => set({ activeLayer: layer }),
   setRenderLayer: (layer) => set({ renderLayer: layer }),
@@ -283,15 +324,26 @@ export const useCharacterStore = create<CharacterState>((set) => ({
    * The selection is cleared, for the same reason `applyPreset` clears it - the joint that was selected may not
    * exist in the figure just arrived.
    */
-  loadSkeleton: (skeleton, presetId) =>
+  loadSkeleton: (skeleton, presetId) => {
+    // The copy is what goes on the bench; the serialised form of that same copy is what "kept" means, so the two
+    // cannot disagree about spacing or key order - they are the same object, stringified once.
+    const arrived = JSON.parse(JSON.stringify(skeleton)) as Skeleton;
+
     set({
-      skeleton: JSON.parse(JSON.stringify(skeleton)) as Skeleton,
+      skeleton: arrived,
       presetId,
       selectedJointId: null,
-      keptAt: Date.now(),
-    }),
+      keptFigure: fingerprint(arrived),
+    });
+  },
 
-  markKept: () => set({ keptAt: Date.now() }),
+  /**
+   * Record that the bench now matches a kept figure.
+   *
+   * The shelf calls this after writing, and the store reads its own skeleton rather than being handed one - so a
+   * save can never record a figure other than the one on the bench.
+   */
+  markKept: () => set((state) => ({ keptFigure: fingerprint(state.skeleton) })),
 
   /**
    * **Rebuild the figure from a preset, discarding every edit.**
@@ -300,14 +352,18 @@ export const useCharacterStore = create<CharacterState>((set) => ({
    * LANKY" on a figure you have already posed does something in between the two, which is a state with no name.
    * The selection is cleared with it, because the joint a reader had selected may not be where they left it.
    */
-  applyPreset: (presetId) =>
+  applyPreset: (presetId) => {
+    const rebuilt = buildDefaultRig(presetId);
+
     set({
-      skeleton: buildDefaultRig(presetId),
+      skeleton: rebuilt,
       presetId,
       selectedJointId: null,
-      // A rebuilt figure is not the saved one any more, so it is unsaved work again.
-      keptAt: null,
-    }),
+      // The rebuilt figure becomes the baseline: switching preset is *choosing a starting point*, not editing one -
+      // the row says so on its face - so prompting about it would be asking a reader to confirm a labelled button.
+      keptFigure: fingerprint(rebuilt),
+    });
+  },
 
   setLight: (angles) => set({ light: { ...angles } }),
 
@@ -317,9 +373,11 @@ export const useCharacterStore = create<CharacterState>((set) => ({
    * Rebuilds the skeleton rather than keeping a copy of the first one: `buildDefaultRig` returns fresh
    * objects, so a reset can never hand back a skeleton that a previous edit had already mutated.
    */
-  reset: () =>
+  reset: () => {
+    const blob = buildDefaultRig('blob');
+
     set({
-      skeleton: buildDefaultRig('blob'),
+      skeleton: blob,
       activeLayer: 'skeleton',
       renderLayer: 'base',
       skeletonVisible: true,
@@ -327,9 +385,21 @@ export const useCharacterStore = create<CharacterState>((set) => ({
       light: { ...DEFAULT_LIGHT },
       massTool: 'resize',
       presetId: 'blob',
-      keptAt: null,
-    }),
+      // Back to the opening figure, which is the baseline - so a reset is not reported as unsaved work.
+      keptFigure: fingerprint(blob),
+    });
+  },
 }));
+
+/** The kept figure, serialised, so the console can compare the bench against it. */
+export function useKeptFigure(): string | null {
+  return useCharacterStore((state) => state.keptFigure);
+}
+
+/** The bench figure, serialised the same way. Pair with `useKeptFigure` to ask whether anything is unsaved. */
+export function useBenchFigure(): string {
+  return useCharacterStore((state) => fingerprint(state.skeleton));
+}
 
 /** The selected layer's interaction mode. Derive it; do not store it. */
 export function useInteractionMode(): InteractionMode {
