@@ -88,6 +88,16 @@ preferences:
   `app/lib/profile/unsaved-changes.ts`: a draft that *differs* from what is stored, so typing a
   character and deleting it again is not work. The character figure has no store yet, so it is reported
   as its own entry that says so out loud rather than being offered a save button that would do nothing.
+- **The char workbench is reachable in two presses and its palette is on the layer you arrive on.**
+  `[ SAVED CHARACTERS ]` in the panel's title bar opens the shelf (`app/lib/character/library.ts`,
+  localStorage, save / load / two-press remove; everything read back is validated and an invalid figure is
+  dropped rather than repaired). The shape palette, the tool row and the dye row render on **SKELETON as well
+  as MASS**, because SKELETON is the layer the editor opens on and a bare shoulder is the state a shape gets
+  added *from* - gating them on MASS alone left the palette unreachable until a reader knew to press it, which
+  is what Chrome measured as `shape plates on arrival: 0`. The tools are one row - RESIZE / MOVE / COLOUR -
+  with the panel below following the tool; COLOUR has no drag by design (a colour is not a quantity, so it maps
+  to `none`), and each shape's `colour` is drawn from the site's own dyes with `null` meaning the figure's
+  two-tone scheme.
 - **Utility windows dock; dialogues take the screen.** `DockWindow` is for the two screens a reader
   consults while standing in a thread: no scrim, draggable by its title bar, docked to the side of the
   feed on a wide screen and a sheet above the player bar on a phone - **the feed must never be
