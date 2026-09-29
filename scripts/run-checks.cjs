@@ -4,9 +4,11 @@
  *
  * **Tracked in `scripts/`, not `Temp/`.** It lived in the gitignored scratch folder for most of this
  * project's life, which meant a fresh clone had no check runner at all - and, worse, that a *fix* to the
- * runner stayed on one machine. The checks themselves are still scratch files (`Temp/check-*.cjs`): they
- * are written against whatever is being worked on and are not a suite the site ships. What is tracked is
- * the thing that runs them.
+ * runner stayed on one machine. Most of the checks are still scratch files (`Temp/check-*.cjs`): they are
+ * written against whatever is being worked on and are not a suite the site ships. What is tracked is the
+ * thing that runs them - and a check the documentation points at by name, such as the deployed-site one
+ * (`scripts/check-deployed.cjs`, also run standalone as `npm run deployed`), is tracked with it. Both
+ * directories are scanned for `check-*.cjs` for that reason.
  *
  * Each check documents its own steps in a header comment - the `npx tsc ...` lines that
  * compile the few modules it needs - so those are read from the file and run before it, in
@@ -33,8 +35,15 @@ const { execSync } = require('node:child_process');
 const { existsSync, readdirSync, readFileSync } = require('node:fs');
 const { join } = require('node:path');
 
-/** Where the scratch checks live, found from this file so either copy of the runner works. */
-const CHECK_DIR = existsSync('Temp') ? 'Temp' : join(__dirname, '..', 'Temp');
+/**
+ * Where the checks live. `Temp/` holds the scratch ones, written against whatever is being worked on;
+ * `scripts/` may also hold one, when a check is a *tool* the documentation points at by name and a fresh
+ * clone therefore has to have it. `check-deployed.cjs` is that case - it was in `Temp/` and tracked
+ * nowhere, and moving it to `scripts/` silently left it out of this suite, because this loop globbed one
+ * directory. It globs both now: **a check that leaves the suite by being tidied is the same fault as a
+ * check that never fails**, and it is worse, because the run still says "all passed".
+ */
+const CHECK_DIRS = [existsSync('Temp') ? 'Temp' : join(__dirname, '..', 'Temp'), __dirname];
 const ROOT = join(__dirname, '..');
 
 const SKIP = new Set([
@@ -52,9 +61,18 @@ const SKIP = new Set([
   'check-resend.cjs',
 ]);
 
-const files = readdirSync(CHECK_DIR)
-  .filter((name) => name.startsWith('check-') && name.endsWith('.cjs') && !SKIP.has(name))
-  .sort();
+/** Every `check-*.cjs` in either directory, as `{ dir, name }`, in name order and deduplicated by name. */
+const files = [];
+const seen = new Set();
+for (const dir of CHECK_DIRS) {
+  for (const name of readdirSync(dir).sort()) {
+    if (!name.startsWith('check-') || !name.endsWith('.cjs')) continue;
+    if (SKIP.has(name) || seen.has(name)) continue;
+    seen.add(name);
+    files.push({ dir, name });
+  }
+}
+files.sort((a, b) => a.name.localeCompare(b.name));
 
 const failures = [];
 
@@ -68,8 +86,8 @@ const failures = [];
  * is the worst possible failure mode for a check to have. The block is read to its closing `*&#47;` instead,
  * so a header may be as long as it needs to be.
  */
-function compileSteps(file) {
-  const lines = readFileSync(join(CHECK_DIR, file), 'utf8').split('\n');
+function compileSteps(dir, file) {
+  const lines = readFileSync(join(dir, file), 'utf8').split('\n');
   const header = [];
 
   for (const line of lines) {
@@ -103,18 +121,18 @@ function compileSteps(file) {
     .filter((line) => line.startsWith('npx tsc '));
 }
 
-for (const file of files) {
-  const steps = compileSteps(file);
+for (const { dir, name } of files) {
+  const steps = compileSteps(dir, name);
 
   try {
     for (const step of steps) execSync(step, { stdio: 'pipe', cwd: ROOT });
 
-    const output = execSync(`node ${join(CHECK_DIR, file)}`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
-    console.log(`ok   ${file.padEnd(34)} ${output.trim()}`);
+    const output = execSync(`node ${join(dir, name)}`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
+    console.log(`ok   ${name.padEnd(34)} ${output.trim()}`);
   } catch (error) {
     const detail = (error.stdout?.toString() ?? error.message).split('\n').slice(0, 4).join(' / ');
-    console.log(`FAIL ${file.padEnd(34)} ${detail.trim()}`);
-    failures.push(file);
+    console.log(`FAIL ${name.padEnd(34)} ${detail.trim()}`);
+    failures.push(name);
   }
 }
 

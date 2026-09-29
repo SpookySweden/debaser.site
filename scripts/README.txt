@@ -17,11 +17,18 @@ The distinction is deliberate:
 
 run-checks.cjs
 --------------
-    npm run checks                      every scratch check that needs no network
+    npm run checks                      every check, in both directories
 
-Runs every `Temp/check-*.cjs`, in name order, compiling each one first from the `npx tsc ...` lines
-in its own header comment. The live checks are skipped by name (they need Supabase credentials and
-sometimes two accounts).
+Runs every `check-*.cjs` in `Temp/` **and** in `scripts/`, in name order, compiling each one first
+from the `npx tsc ...` lines in its own header comment. The live checks are skipped by name (they need
+Supabase credentials and sometimes two accounts).
+
+**Both directories, and that is a fix rather than a convenience.** It globbed only `Temp/` until the
+CDP instruments were moved into `scripts/` - and moving `check-deployed.cjs` with them silently
+dropped it from the suite, because the file changed address and the loop did not. The run still said
+"all passed"; it just said it about 59 checks instead of 60. A check that leaves a suite by being
+tidied is the same fault as a check that has never failed, and harder to notice, so a check the
+documentation names is now tracked in `scripts/` *and* still run here.
 
 **The checks that run are not the quiet ones.** A live check is skipped here, but several of the rest
 sign accounts up too - a policy cannot be asked anything without a session - and the client cannot
