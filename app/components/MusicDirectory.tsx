@@ -160,7 +160,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             <Link
               href={row.href}
               title={row.threadTitle}
-              className={`${LINK_PIXEL} block truncate text-[9px] font-bold text-ena`}
+              className={`${LINK_PIXEL} block truncate text-[9px] font-bold text-accent-ink`}
             >
               OPEN THE POST
             </Link>
@@ -184,7 +184,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             aria-pressed={liked}
             title={liked ? `Take ${row.track.title} out of liked` : `Like ${row.track.title}`}
             className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
-              liked ? 'bg-bubble-pale text-paper hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
+              liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
             }`}
           >
             {liked ? '♥' : '♡'}
@@ -284,7 +284,7 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-ink">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink hover:bg-sun-pale">
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun-pale">
           <span className="w-4 shrink-0 text-ink">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
           <span className="shrink-0 text-ink">
@@ -573,7 +573,7 @@ export default function MusicDirectory() {
         <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
           {/* The directory's own column labels, and nothing else. */}
           <div
-            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[9px] font-bold text-ink sm:grid`}
+            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[9px] font-bold text-ink-bar sm:grid`}
           >
             <span>#</span>
             <span>NAME</span>

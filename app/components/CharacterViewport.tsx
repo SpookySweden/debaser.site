@@ -210,7 +210,7 @@ function EditLayerStrip() {
               title={layer.note}
               className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
                 chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
                   : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
               }`}
             >
@@ -259,7 +259,7 @@ function ShapeStrip({ jointId }: { jointId: string | null }) {
               title={MASS_SHAPES[shape].note}
               className={`flex min-w-12 flex-1 cursor-pointer flex-col items-center gap-[2px] rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
                 chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
                   : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
               }`}
             >
@@ -319,7 +319,7 @@ function ToolOptions({
 }) {
   if (mode === 'light') {
     return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink-plate">
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
         THE LIGHT HAS NO OPTIONS. DRAG IN EITHER PANE - LEFT AND RIGHT TURNS IT AROUND THE FIGURE, UP AND DOWN
         RAISES AND LOWERS IT.
       </p>
@@ -328,7 +328,7 @@ function ToolOptions({
 
   if (mode === 'none' && tool !== 'colour') {
     return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink-plate">
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
         NOTHING HERE IS EDITABLE. PICK ANOTHER LAYER ABOVE.
       </p>
     );
@@ -336,7 +336,7 @@ function ToolOptions({
 
   if (jointId === null) {
     return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink-plate">
+      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
         PICK A JOINT IN EITHER PANE AND ITS OPTIONS APPEAR HERE.
       </p>
     );
@@ -374,7 +374,7 @@ function PresetPicker() {
             title={RIG_PRESETS[id].note}
             className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[3px] text-[10px] font-bold ${
               presetId === id
-                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
                 : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
@@ -414,7 +414,7 @@ function RenderStage() {
             aria-pressed={skeletonVisible}
             aria-label={`${skeletonVisible ? 'Hide' : 'Show'} the joints and bones`}
             className={`shrink-0 cursor-pointer rounded-none border border-black px-1 text-[11px] leading-none ${
-              skeletonVisible ? 'bg-sun text-ink hover:bg-ice' : 'bg-chrome-dark text-ink'
+              skeletonVisible ? 'bg-sun text-ink-plate hover:bg-ice' : 'bg-chrome-dark text-ink'
             }`}
           >
             {skeletonVisible ? 'ÃƒÂ¢Ã¢â‚¬â€Ã‚Â' : 'ÃƒÂ¢Ã¢â‚¬â€Ã…â€™'}
@@ -436,7 +436,7 @@ function RenderStage() {
               aria-pressed={chosen}
               className={`mb-1 w-full cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
                 chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
                   : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
               }`}
             >
@@ -624,7 +624,7 @@ function MassToolSwitch() {
             title={tool.note}
             className={`flex flex-1 cursor-pointer flex-col items-center gap-[2px] rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
               massTool === tool.id
-                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-paper'
+                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
                 : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
@@ -689,8 +689,8 @@ function MassSize({ jointId }: { jointId: string }) {
  */
 function Viewport({ kind, label, hint }: { kind: ViewportKind; label: string; hint: string }) {
   return (
-    <div className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink">
-      <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-paper">
+    <div className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware">
+      <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-ink-bar">
         <span>{label}</span>
         <span className="text-sun">{hint}</span>
       </p>

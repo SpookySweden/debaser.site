@@ -35,7 +35,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-ink';
+const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-ink-bar';
 
 /**
  * One line of the feed.
@@ -120,7 +120,7 @@ function NotificationRow({
   );
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
-    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink'
+    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar'
   } hover:bg-ice-pale max-sm:min-h-11`;
 
   if (target === null) {

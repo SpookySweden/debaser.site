@@ -78,7 +78,7 @@ export default function SidebarComms() {
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
           title={expanded ? 'Hide the conversations' : 'Show the conversations'}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ena hover:text-sun"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun"
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
         </button>

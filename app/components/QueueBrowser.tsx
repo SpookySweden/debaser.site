@@ -99,7 +99,7 @@ export default function QueueBrowser() {
       />
 
       {notice === null ? null : (
-        <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-[10px] font-bold text-paper">{notice}</p>
+        <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar">{notice}</p>
       )}
 
       {queues === null ? (
@@ -238,7 +238,7 @@ function BroadcastSwitch({
           title={isPublic ? 'Take your queue off the list' : 'Put your queue on the list'}
           className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-[10px] font-bold disabled:cursor-not-allowed ${
             isPublic
-              ? 'border-t-black border-l-black border-r-white border-b-white bg-acid text-ink'
+              ? 'border-t-black border-l-black border-r-white border-b-white bg-acid text-ink-plate'
               : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice'
           }`}
         >

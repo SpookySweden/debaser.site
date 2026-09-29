@@ -53,7 +53,7 @@ export default function TicTacToeBoard({
                     : 'border-t-black border-l-black border-r-white border-b-white bg-paper'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
             >
-              <span className={cell === 'X' ? 'text-ena' : 'text-bubble-pale'}>
+              <span className={cell === 'X' ? 'text-accent-ink' : 'text-bubble-pale'}>
                 {cell === null ? (open ? '' : '·') : cell}
               </span>
             </button>

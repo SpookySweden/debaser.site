@@ -516,8 +516,8 @@ function InviteLine({
     tone === 'firm'
       ? 'border-black bg-paper text-ink'
       : tone === 'plain'
-        ? 'border-ink bg-bubble-pale text-ink'
-        : 'border-ink bg-bubble-pale text-ink';
+        ? 'border-ink bg-bubble-pale text-ink-bar'
+        : 'border-ink bg-bubble-pale text-ink-bar';
 
   return (
     <div className={`flex flex-wrap items-center gap-2 rounded-none border px-2 py-1 text-[10px] font-bold ${frame}`}>

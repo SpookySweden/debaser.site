@@ -10,9 +10,12 @@
  * theme is currently ticked. Nothing else in the site reads this.
  */
 import { createWindowSlot } from './window-slot';
-import { DEFAULT_THEME, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
+import { DEFAULT_THEME, THEMES, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
 
 const STORAGE_KEY = 'debaser.site.theme.v1';
+
+/** The stored key, exported so the browser tooling can seed a theme without guessing at a string. */
+export const THEME_STORAGE_KEY = STORAGE_KEY;
 
 /** What the store holds: the id, and nothing else - the theme itself is looked up from the library. */
 export type ThemeState = { id: ThemeId };
@@ -39,9 +42,15 @@ function propertyFor(token: string): string {
  * Writes a theme onto the document.
  *
  * Every token is written, not just the ones that differ, so switching back to the default cannot leave
- * a value from the previous theme behind. The `data-theme` attribute is written too, and it is what
- * anything that needs to branch on the theme *in CSS* reads - there is nothing today, and it is there
- * so that a future rule does not have to invent a second mechanism.
+ * a value from the previous theme behind. `color-scheme` is written too: it is not a colour and no
+ * component reads it, but it is the only way to tell the browser what the page *is* - the popup of a
+ * `<select>`, a date picker, the caret and the default canvas background are drawn by Chrome, Safari and
+ * Firefox and no stylesheet can reach them. A dark theme without it gets a white caret and a white
+ * dropdown inside a dark window, which is a fault no component could have fixed.
+ *
+ * The `data-theme` attribute is written as well, and it is what anything that needs to branch on the
+ * theme *in CSS* reads - there is nothing today, and it is there so that a future rule does not have to
+ * invent a second mechanism.
  */
 export function applyTheme(theme: Theme, root: HTMLElement): void {
   for (const token of THEME_TOKEN_NAMES) {
@@ -49,6 +58,7 @@ export function applyTheme(theme: Theme, root: HTMLElement): void {
   }
 
   root.dataset.theme = theme.id;
+  root.style.colorScheme = theme.scheme;
 }
 
 /**
@@ -114,6 +124,42 @@ export function setTheme(id: ThemeId): void {
 /** The theme the store is on. */
 export function currentTheme(): Theme {
   return themeById(slot.state().id);
+}
+
+/**
+ * The first paint of a themed site, as a string of JavaScript for `<head>`.
+ *
+ * `initTheme` runs in a React effect, which is after the browser has already painted the default
+ * colours - so a reader who chose the dark theme got one frame of the light one. On a site whose whole
+ * look is a hard switch that frame is a visible white flash, and the fix has to happen before the
+ * browser has anything to paint, which in HTML means an inline `<script>` in `<head>`.
+ *
+ * It is *generated from this module's own library* rather than written out as a second copy of the
+ * values. That matters more than it looks: a hand-written boot script is a place for the theme to be
+ * said twice, and the two sayings drift - the tokens would be added to `themes.ts` and forgotten here,
+ * and the flash would come back one token at a time. So the writes below are built from
+ * `THEME_TOKEN_NAMES` and serialised from `THEMES`, which is the same data `applyTheme` walks. The
+ * comment in `globals.css` that asks the library and the stylesheet to agree has a third party here.
+ *
+ * It is deliberately *not* a general-purpose script: it reads one key, picks one theme, writes its
+ * tokens, and swallows every error. A browser with storage blocked gets the default theme - which is
+ * exactly what the site looks like without this script at all.
+ */
+export function themeBootScript(): string {
+  const themes = Object.fromEntries(THEMES.map((theme) => [theme.id, theme]));
+  const writes = THEME_TOKEN_NAMES.map(
+    (token) => `r.style.setProperty('--color-${token}',t.tokens[${JSON.stringify(token)}]);`,
+  ).join('');
+
+  return [
+    '(function(){try{',
+    `var k=${JSON.stringify(STORAGE_KEY)},d=${JSON.stringify(DEFAULT_THEME.id)},`,
+    `a=${JSON.stringify(themes)};`,
+    'var t=a[localStorage.getItem(k)||d]||a[d],r=document.documentElement;',
+    writes,
+    'r.setAttribute("data-theme",t.id);r.style.colorScheme=t.scheme;',
+    '}catch(e){}})();',
+  ].join('');
 }
 
 /** The picker's own list, so a component never imports the library's shape directly. */

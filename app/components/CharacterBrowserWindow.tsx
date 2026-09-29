@@ -163,7 +163,7 @@ export default function CharacterBrowserWindow() {
                     <>
                       <button
                         type="button"
-                        className={`${PLATE} bg-bubble-pale text-paper`}
+                        className={`${PLATE} bg-bubble-pale text-ink-bar`}
                         onClick={() => {
                           update(removeCharacter(shelf, character.id));
                           confirmCharacterRemoval(null);

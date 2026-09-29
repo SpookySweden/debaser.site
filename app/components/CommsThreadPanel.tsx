@@ -174,7 +174,7 @@ export default function CommsThreadPanel({
                 <p className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-ink">
                   <span
                     className={`rounded-none border border-ink px-1 ${
-                      message.event.kind === 'invite' ? 'bg-ena text-paper' : 'bg-paper text-ink'
+                      message.event.kind === 'invite' ? 'bg-ena text-ink-bar' : 'bg-paper text-ink'
                     }`}
                   >
                     {EVENT_LABELS[message.event.kind]} {gameTitle(message.event.gameId)}

@@ -158,7 +158,7 @@ export function originMark(origin: LoopOrigin): string {
  * site's own music reads as the site's own music.
  */
 export function originInk(origin: LoopOrigin): string {
-  return origin === 'shelf' || origin === 'own' ? 'text-ena' : 'text-ink';
+  return origin === 'shelf' || origin === 'own' ? 'text-accent-ink' : 'text-ink';
 }
 
 /** What a plate says about where it came from, under the title. */

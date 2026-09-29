@@ -86,7 +86,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         aria-selected={selected}
                         onClick={() => onChange(item.key)}
                         className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold ${
-                          selected ? 'bg-ena text-paper' : 'text-ink hover:bg-ice-pale'
+                          selected ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice-pale'
                         }`}
                       >
                         <span className="inline-block w-4 shrink-0 text-center font-mono">-</span>

@@ -97,7 +97,7 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
 
       <p className="mt-2 text-[10px] font-bold text-ink">
         LIVES AT:{' '}
-        <span className="text-ena">
+        <span className="text-accent-ink">
           {usable ? lorePagePath(slug) : 'AN ADDRESS NEEDS A LETTER OR A DIGIT IN THE TITLE'}
         </span>
       </p>

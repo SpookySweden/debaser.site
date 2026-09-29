@@ -18,6 +18,7 @@
     "look": "node scripts/look.cjs",
     "panes": "node scripts/measure-panes.cjs",
     "stages": "node scripts/measure-stages.cjs",
+    "contrast": "node scripts/contrast.cjs",
     "deployed": "node scripts/check-deployed.cjs",
     "checks": "node scripts/run-checks.cjs",
     "db": "node scripts/db.cjs",

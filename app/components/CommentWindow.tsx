@@ -155,7 +155,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
 
               {/* A thread with audio in it says so: the players are in the replies below. */}
               {filedTracks === 0 ? null : (
-                <p className="mt-1 text-[10px] font-bold text-ena">
+                <p className="mt-1 text-[10px] font-bold text-accent-ink">
                   {filedTracks} MP3{filedTracks === 1 ? '' : 'S'} FILED HERE - PRESS PLAY ON ONE TO HEAR IT.
                 </p>
               )}

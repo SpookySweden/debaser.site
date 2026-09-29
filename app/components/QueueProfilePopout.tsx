@@ -130,7 +130,7 @@ export default function QueueProfilePopout({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-hardware/40 p-4"
       onPointerDown={(event) => {
         // A press on the backdrop closes; one that started inside the card does not, which is why the
         // card stops the event rather than this testing where the pointer landed.
@@ -150,7 +150,7 @@ export default function QueueProfilePopout({
             onClick={onClose}
             aria-label="Close"
             title="Close - or press anywhere off this card"
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-paper hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
           </button>
@@ -204,9 +204,9 @@ function QueueCardBody({
         <span className="ml-2 font-normal text-ink-plate">{queueTrackBadge(queue)}</span>
       </p>
 
-      <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+      <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
         <p className="truncate text-[12px] font-bold text-acid">{title}</p>
-        <p className="truncate text-[9px] text-ena-deep">
+        <p className="truncate text-[9px] text-ink-quiet">
           {formatClock(Math.max(0, queue.positionSeconds))} IN ::{' '}
           <span className={state === 'live' ? 'text-acid' : 'text-sun'}>{queueStateLabel(state)}</span>
           {rate > 1 ? ` :: CATCHING UP AT ${rate.toFixed(1)}x` : ''}

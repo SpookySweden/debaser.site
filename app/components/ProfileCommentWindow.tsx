@@ -140,9 +140,9 @@ function AspectPreview({
         />
       ) : aspect === 'song' && shown !== undefined ? (
         <>
-          <div className="w-64 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+          <div className="w-64 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
             <p className="truncate text-[11px] font-bold text-acid">{shown.title}</p>
-            <p className="mt-1 truncate text-[9px] text-ena-deep">
+            <p className="mt-1 truncate text-[9px] text-ink-quiet">
               {shown.tag}
               {shown.current ? ' (current)' : ''} :: {shown.credit}
             </p>

@@ -60,11 +60,11 @@ export default function ProfileCustomiserSongTab({
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-64">
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
-            <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+            <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
               <p className="truncate text-[11px] font-bold text-acid">
                 {current === undefined ? 'NOTHING FILED YET' : current.title}
               </p>
-              <p className="mt-1 truncate text-[9px] text-ena-deep">
+              <p className="mt-1 truncate text-[9px] text-ink-quiet">
                 {current === undefined ? 'THE PROFILE SHOWS AN EMPTY TRACK SLOT' : `V${current.version}`}
               </p>
             </div>

@@ -18,7 +18,7 @@ const MENU_ITEM =
   'flex w-full items-center gap-2 rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 const LOG_IN_BUTTON =
-  'shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-3 py-1 text-xs font-bold text-ink hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
+  'shrink-0 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-3 py-1 text-xs font-bold text-ink-plate hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble';
 
 const PICTURE_BUTTON = `${GLYPH_BUTTON} gap-1 p-[2px] border-r-2 border-b-2`;
 
@@ -41,7 +41,7 @@ const PICTURE_SIZE = { desktop: 26, compact: 40 };
  * screen. The 2px bevel, the square corners and the flat yellow are the same as everywhere else.
  */
 const MENU_PANEL =
-  'absolute right-0 top-full z-30 mt-1 w-64 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun p-2 text-[10px] font-bold text-ink';
+  'absolute right-0 top-full z-30 mt-1 w-64 space-y-1 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun p-2 text-[10px] font-bold text-ink-plate';
 
 
 /**

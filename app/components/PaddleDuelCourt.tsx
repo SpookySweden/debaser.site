@@ -98,7 +98,7 @@ export default function PaddleDuelCourt({
 
         <span
           aria-hidden
-          className="absolute border border-black bg-ink"
+          className="absolute border border-black bg-hardware"
           style={{
             width: `${(BALL_RADIUS * 2 / COURT_WIDTH) * 100}%`,
             height: `${(BALL_RADIUS * 2 / COURT_HEIGHT) * 100}%`,

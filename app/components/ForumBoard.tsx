@@ -269,10 +269,10 @@ export default function ForumBoard() {
               </button>
 
               {musicOnly ? (
-                <span className="border border-black bg-ena px-1 text-[10px] font-bold text-paper">MUSIC ONLY</span>
+                <span className="border border-black bg-ena px-1 text-[10px] font-bold text-ink-bar">MUSIC ONLY</span>
               ) : null}
               {musicTagKeys.length === 0 ? null : (
-                <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink">
+                <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">
                   {musicTagKeys.length} MUSIC TAG(S)
                 </span>
               )}
@@ -299,7 +299,7 @@ export default function ForumBoard() {
                           : `Include posts tagged ${option.label} (${option.count} in use)`
                       }
                       className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
-                        active ? 'bg-ena text-paper' : 'text-ink hover:underline'
+                        active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                       }`}
                     >
                       <TagMark colour={tagMarkColour(tag)} compact />
@@ -577,7 +577,7 @@ export default function ForumBoard() {
                   aria-current={number === currentPage ? 'page' : undefined}
                   className={
                     number === currentPage
-                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-1 text-[10px] font-bold text-ink'
+                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-1 text-[10px] font-bold text-ink-plate'
                       : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[10px] font-bold text-ink hover:bg-ice'
                   }
                 >

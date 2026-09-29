@@ -66,7 +66,7 @@ export default function LoopPopout({
 
   return (
     <div
-      className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/40 p-4"
+      className="fixed inset-0 z-[120] flex items-center justify-center bg-hardware/40 p-4"
       onPointerDown={(event) => {
         // A press on the backdrop closes; a press that started inside the card does not, which is why
         // the card stops the event rather than this testing where the pointer landed.
@@ -87,7 +87,7 @@ export default function LoopPopout({
             onClick={onClose}
             aria-label="Close"
             title="Close - or press anywhere off this card"
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-paper hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
           </button>

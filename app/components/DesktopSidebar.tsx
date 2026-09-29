@@ -125,7 +125,7 @@ function ShelfKey({
       className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold ${
         isOpen
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-          : 'border-t-white border-l-white border-black bg-sun text-ink hover:animate-bump hover:bg-ena hover:text-sun'
+          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:animate-bump hover:bg-ena hover:text-sun'
       }`}
     >
       <span aria-hidden="true" className="text-[13px] leading-none">

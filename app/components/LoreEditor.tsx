@@ -40,7 +40,7 @@ export const LORE_STATUS_LINES: Record<LoreStatus, string> = {
 /** A toolbar plate that reads as pressed while the mark it toggles is on the cursor. */
 function toolClass(isOn: boolean): string {
   return isOn
-    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-[2px] text-[10px] font-bold text-ink'
+    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-[2px] text-[10px] font-bold text-ink-plate'
     : PLATE;
 }
 

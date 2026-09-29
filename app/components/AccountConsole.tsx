@@ -29,7 +29,7 @@ export default function AccountConsole() {
   return (
     <div className="space-y-3">
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
           <span>ACCOUNT TERMINAL</span>
           <span>
             {status === 'loading' ? '[ READING... ]' : signedIn ? '[ SIGNED IN ]' : '[ GUEST ]'}
@@ -51,7 +51,7 @@ export default function AccountConsole() {
       </section>
 
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-paper">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
           <span>WHAT LIVES UNDER THIS TAB</span>
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
         </div>

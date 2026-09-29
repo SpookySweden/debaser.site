@@ -9,7 +9,7 @@ import { formatStamp } from '../lib/forum/format';
  * text itself comes from `formatStamp` (UTC, no trailing `Z`), so the server and
  * the browser still agree to the byte.
  */
-export const TIME_STAMP_CLASS = 'text-ena';
+export const TIME_STAMP_CLASS = 'text-accent-ink';
 
 type TimeStampProps = {
   /** The stored ISO instant; missing or blank prints as `--:--` rather than failing. */

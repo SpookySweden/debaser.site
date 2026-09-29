@@ -209,7 +209,7 @@ export default function PersonalLibrary() {
 
         <Link
           href="/account"
-          className="mt-2 inline-block cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ink px-2 py-[3px] text-[10px] font-bold text-paper hover:bg-ena hover:text-sun"
+          className="mt-2 inline-block cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-hardware px-2 py-[3px] text-[10px] font-bold text-ink-bar hover:bg-ena hover:text-sun"
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>

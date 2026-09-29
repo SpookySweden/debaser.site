@@ -49,7 +49,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
               aria-checked={value === ''}
               onClick={() => onChange('')}
               className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                value === '' ? 'border-black bg-ena text-paper' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
+                value === '' ? 'border-black bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
               }`}
             >
               <span className="flex h-12 items-center justify-center border border-ink bg-paper text-[9px] font-bold text-ink">
@@ -70,7 +70,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   title={item.label}
                   onClick={() => onChange(item.id)}
                   className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
-                    picked ? 'border-black bg-ena text-paper' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
+                    picked ? 'border-black bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
                   }`}
                 >
                   <span className="flex h-12 items-center justify-center overflow-hidden border border-ink bg-paper">
@@ -89,19 +89,23 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
           </div>
         </div>
 
+        {/* Rose is one of the surfaces that does *not* move with the theme, so every ink on it is the
+            bar ink: Black on Rose is 4.47:1 - a hair under the floor, and it is the pair the audit
+            caught here - while Pure White is 4.70:1 in either theme. The children name their own ink
+            rather than inheriting, so each one has to say it. */}
         <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 sm:flex-1 ${heightClass}`}>
           {selected === undefined ? (
-            <p className="text-[10px] font-bold text-ink">
+            <p className="text-[10px] font-bold text-ink-bar">
               {NONE}
               <br />
-              <span className="font-normal text-ink">PICK A SHEET TO ATTACH IT.</span>
+              <span className="font-normal text-ink-bar">PICK A SHEET TO ATTACH IT.</span>
             </p>
           ) : (
             <>
               <MediaThumbnail media={selected.preview} size={56} />
-              <span className="min-w-0 flex-1 text-[10px] font-bold text-ink">
+              <span className="min-w-0 flex-1 text-[10px] font-bold text-ink-bar">
                 <span className="block truncate">{selected.label}</span>
-                <span className="mt-[2px] block font-normal text-ink">
+                <span className="mt-[2px] block font-normal text-ink-bar">
                   {selected.preview.width} x {selected.preview.height}
                 </span>
                 <button

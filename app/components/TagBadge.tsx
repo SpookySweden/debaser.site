@@ -26,9 +26,9 @@ const CHIP_BASE =
  * housekeeping tag and stays inset, which is how a reader can still tell the two apart at a glance.
  */
 const KIND_CLASSES: Record<ForumTag['kind'], string> = {
-  user: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
-  category: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
-  content: 'bg-bubble-pale text-ink border-t-white border-l-white border-r-ink border-b-ink',
+  user: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
+  category: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
+  content: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
   source: 'bg-sun-pale text-ink border-t-ink border-l-ink border-r-white border-b-white',
 };
 

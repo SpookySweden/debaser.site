@@ -36,11 +36,11 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
       </div>
 
       {/* The readout, in the player's own colours: it is the same shelf, one track over. */}
-      <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+      <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
         <p className="truncate text-[11px] font-bold text-acid">
           {element === undefined ? 'NOTHING FILED YET' : element.title}
         </p>
-        <p className="mt-1 truncate text-[9px] text-ena-deep">
+        <p className="mt-1 truncate text-[9px] text-ink-quiet">
           {element === undefined
             ? owner
               ? 'FILE A TRACK IN THE CUSTOMISER AND IT PLAYS FROM THE BAR BELOW.'

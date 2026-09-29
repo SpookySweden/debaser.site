@@ -17,6 +17,7 @@ import NotificationsProvider from './components/NotificationsProvider';
 import PreferencesWindow from './components/PreferencesWindow';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
+import { themeBootScript } from './lib/ui/theme-slot';
 import './globals.css';
 
 /**
@@ -54,6 +55,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="en" className={`${pixel.variable} h-full`}>
+      {/* The theme, before the browser has anything to paint. It is generated from the theme library
+          (`themeBootScript`), so the values cannot drift from the ones `ThemeHost` writes a moment
+          later - and it exists because those writes land in a React effect, which is one painted frame
+          too late: a reader who chose the dark theme saw a white flash first. */}
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeBootScript() }} />
+      </head>
       <body className="min-h-full flex flex-col">
         {/* The reader's theme, written onto <html> before anything else the client does. It draws
             nothing: a theme is CSS custom properties, not markup. */}

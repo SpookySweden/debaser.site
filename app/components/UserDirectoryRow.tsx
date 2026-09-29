@@ -91,10 +91,10 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
 
-        {row.admin ? <span className="shrink-0 border border-black bg-ena px-1 text-paper">[ A ]</span> : null}
+        {row.admin ? <span className="shrink-0 border border-black bg-ena px-1 text-ink-bar">[ A ]</span> : null}
         {row.you ? <span className="shrink-0 border border-black bg-paper px-1">[ YOU ]</span> : null}
         {row.account.banned === true ? (
-          <span className="shrink-0 border border-black bg-bubble-pale px-1 text-paper">[ X ]</span>
+          <span className="shrink-0 border border-black bg-bubble-pale px-1 text-ink-bar">[ X ]</span>
         ) : null}
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
@@ -131,13 +131,13 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
         {row.admin ? (
-          <span className="border border-black bg-ena px-1 text-paper">[ ADMIN ]</span>
+          <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
         ) : null}
         {row.you ? <span className="border border-black bg-paper px-1">[ YOU ]</span> : null}
         {/* Banned is worth saying out loud: their posts are hidden from everybody
             but the admin, so the name would otherwise just look quiet. */}
         {row.account.banned === true ? (
-          <span className="border border-black bg-bubble-pale px-1 text-paper">[ BANNED ]</span>
+          <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ BANNED ]</span>
         ) : null}
       </span>
 

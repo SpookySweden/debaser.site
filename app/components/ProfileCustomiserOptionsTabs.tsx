@@ -21,7 +21,7 @@ export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-ink';
  * the name drawn in the colour that was picked - which is the only part that has to be loud.
  */
 const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-ink uppercase hover:bg-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-ink-bar uppercase hover:bg-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [

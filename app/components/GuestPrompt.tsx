@@ -51,7 +51,7 @@ export default function GuestPrompt() {
           *field* alternated could not be read for half of every second, whichever ink it used. The
           alarm is therefore the border, which carries no text, and the text is on the one surface that
           does not change. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 bg-ink px-2 py-1 text-[10px] font-bold text-paper">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 bg-hardware px-2 py-1 text-[10px] font-bold text-ink-bar">
         {/* A glyph rather than a lamp: this is a sentence, and a blinking colon would imply it is
             waiting for something. */}
         <span aria-hidden="true" className="shrink-0 text-[13px] leading-none">
@@ -66,7 +66,7 @@ export default function GuestPrompt() {
 
         <Link
           href="/account"
-          className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ink px-2 py-[3px] text-[10px] font-bold text-paper hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white"
+          className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-hardware px-2 py-[3px] text-[10px] font-bold text-ink-bar hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white"
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>

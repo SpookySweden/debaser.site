@@ -267,7 +267,7 @@ function LoopIcon({
               <a
                 href={loop.originHref}
                 title={where}
-                className="mt-[2px] flex items-center gap-1 text-[9px] font-bold leading-tight text-ena underline underline-offset-2 hover:text-bubble-pale"
+                className="mt-[2px] flex items-center gap-1 text-[9px] font-bold leading-tight text-accent-ink underline underline-offset-2 hover:text-bubble-pale"
               >
                 <span aria-hidden="true">{GLOBE}</span>
                 {where}
@@ -309,7 +309,7 @@ function LoopIcon({
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
         aria-label={`Clear ${label} from your recent listening`}
-        className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[10px] font-bold leading-none text-paper hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
+        className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[10px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}

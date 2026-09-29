@@ -161,7 +161,7 @@ export default function CommentComposer({
         ) : null}
 
         {error === null && status !== null ? (
-          <span className="text-[10px] font-bold text-ena-deep">OK: {status}</span>
+          <span className="text-[10px] font-bold text-ink-quiet">OK: {status}</span>
         ) : null}
       </div>
     </form>

@@ -22,7 +22,7 @@ const SMALL =
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-1 text-[10px] font-bold leading-none text-ink hover:bg-ena hover:text-sun';
+  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-1 text-[10px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =

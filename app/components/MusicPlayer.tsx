@@ -288,7 +288,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
           <span className="flex items-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-[2px]">
-            <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[10px] font-bold text-paper">
+            <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[10px] font-bold text-ink-bar">
               ♪ DEBASER PLAYER
             </span>
 
@@ -303,7 +303,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           </span>
 
           {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
-          <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+          <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
             <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] font-bold text-acid">
               <MarqueeText
                 className="min-w-0 flex-1"
@@ -315,8 +315,13 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
                 {formatClockOrNothing(Number.isFinite(duration) ? duration : undefined)}
               </span>
             </span>
+            {/* The caption is on the black LED above, which is Black in *both* themes - so it takes the
+                bar ink. `ena-deep` was Nigrosine on Black (1.18:1) and went Black-on-Black in the dark
+                theme; the quiet ink is no better here, because Nigrosine on Black is the same 1.18:1.
+                Pure White is 21:1 either way, and it still reads as the screen's second line beside the
+                Emerald title. */}
             <MarqueeText
-              className="mt-1 block text-[9px] text-ena-deep"
+              className="mt-1 block text-[9px] text-ink-bar"
               durationSeconds={22}
               text={`${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
             />
@@ -461,13 +466,13 @@ function TransportPad({
 
         {/* The one cell: a single symbol, the state it is showing, and the next state as the tooltip -
             so a reader who is unsure gets the answer from the title rather than from guessing. */}
-        <span className="flex items-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-1 py-[2px]">
+        <span className="flex items-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-1 py-[2px]">
           <button
             type="button"
             onClick={onCycle}
             disabled={disabled}
             title={`${WORD[state]} - press for ${WORD[state === 'playing' ? 'paused' : state === 'paused' ? 'looping' : 'playing']}`}
-            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink disabled:cursor-not-allowed disabled:text-chrome-dark"
+            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-chrome-dark"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
               {MARK[state]}
@@ -578,14 +583,14 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
 
   return (
     <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-paper">
+      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-ink-bar">
         <span className="truncate">♪ DEBASER PLAYER</span>
 
         <span className="flex shrink-0 items-center gap-2">
           <button
             type="button"
             onClick={onSettings}
-            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-ena"
+            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Player options"
           >
             ⚙
@@ -597,7 +602,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onMusic}
-            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-ena"
+            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open your music"
             aria-haspopup="dialog"
           >
@@ -607,7 +612,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onQueues}
-            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-ena"
+            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open queues"
             aria-haspopup="dialog"
           >
@@ -617,7 +622,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onHide}
-            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-ena"
+            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Fold the player away"
           >
             ▾
@@ -627,11 +632,12 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
 
       <div className="p-2">
         {/* The readout, the same green on black the bar has. */}
-        <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ink px-2 py-1">
+        <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
           <p className="truncate text-[12px] font-bold text-acid">
             {loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
           </p>
-          <p className="truncate text-[9px] text-ena-deep">
+          {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
+          <p className="truncate text-[9px] text-ink-bar">
             {error ?? trackCaption(track)}
             {loop ? ' :: LOOPING' : ''}
           </p>

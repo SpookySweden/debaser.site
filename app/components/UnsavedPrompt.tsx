@@ -123,7 +123,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
           <button
             type="button"
             onClick={onDiscard}
-            className={`${PLATE} border-bubble-pale bg-bubble-pale text-paper hover:bg-bubble`}
+            className={`${PLATE} border-bubble-pale bg-bubble-pale text-ink-bar hover:bg-bubble`}
           >
             [ THROW THEM AWAY ]
           </button>

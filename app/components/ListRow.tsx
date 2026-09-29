@@ -51,7 +51,7 @@ export default function ListRow({
           title={`Delete the playlist ${label}`}
           aria-label={`Delete the playlist ${label}`}
           className={`shrink-0 cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
-            selected ? 'bg-ink text-paper hover:bg-chrome' : 'bg-paper text-ink hover:bg-ice'
+            selected ? 'bg-hardware text-ink-bar hover:bg-chrome' : 'bg-paper text-ink hover:bg-ice'
           }`}
         >
           ×

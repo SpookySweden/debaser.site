@@ -88,7 +88,7 @@ export default function PopoutWindow({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-ink/60 p-4 sm:p-8"
+      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-hardware/60 p-4 sm:p-8"
       onMouseDown={dismissOnBackdrop ? onClose : undefined}
     >
       <div

@@ -158,7 +158,7 @@ function tabClass(isActive: boolean): string {
 
   return isActive
     ? `${base} border-t-2 border-l-2 border-black border-r border-b border-white bg-ena text-sun`
-    : `${base} border-t border-l border-white border-r-2 border-b-2 border-black bg-sun text-ink hover:animate-bump hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble active:text-ink`;
+    : `${base} border-t border-l border-white border-r-2 border-b-2 border-black bg-sun text-ink-plate hover:animate-bump hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble active:text-ink-plate`;
 }
 
 /**

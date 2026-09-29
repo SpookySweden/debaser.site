@@ -1,16 +1,20 @@
 @import "tailwindcss";
 
+/* The field, before any theme is applied.
+   These are the *default theme's* own values, and they are here rather than only in
+   `app/lib/ui/themes.ts` so that a page whose JavaScript has not run yet - or never runs - is the
+   site rather than an unstyled document. `applyTheme` overwrites every one of them with the active
+   theme's values, which is why the library and this block have to agree; `Temp/check-themes.cjs`
+   reads this block and fails if the names or the values drift apart.
+   `--background`/`--foreground` are gone: `body` names the tokens directly. They were a second name
+   for the same two things, and a name that only `body` used was a place for a theme to be missed. */
 :root {
-  --background: #ff00a0;
-  --foreground: #000000;
   /* What the pixel face falls back to where it cannot be had: the bitmap UI faces a Web 1.0
      desktop was drawn with, then anything monospace. */
   --font-pixel-fallback: 'MS Sans Serif', Tahoma, 'Courier New', monospace;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
   /* One face for the whole site: the pixel one `app/layout.tsx` loads, with the fallbacks above.
      The names `font-sans` and `font-mono` are kept because every component already asks for them
      by name; what they resolve to is this site's business, not each component's. */
@@ -26,21 +30,26 @@ html {
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--color-desktop);
+  color: var(--color-ink);
   font-family: var(--font-pixel), var(--font-pixel-fallback);
 }
 
 /* The desktop surface --------------------------------------------------------
-   The surface behind the window is Brilliant Pink with Nigrosine dithered through it: 4px way, the
-   way a Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in the
-   sense AGENTS.md asks for - and not an illustration: nothing here draws a character, an icon or a
-   scene, which is what the artwork rule is about. */
+   The surface behind the window: one dye with a second dithered through it in 4px squares, the way a
+   Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in the sense
+   AGENTS.md asks for - and not an illustration: nothing here draws a character, an icon or a scene,
+   which is what the artwork rule is about.
+
+   Both halves are tokens, and that is the whole point of the pair: the tile is the largest surface on
+   the site, so a dark theme that could not reach it produced a dark page on a Brilliant Pink desktop.
+   A theme sets `desktop` and `desktop-dither` together - a dither equal to the fill is a tile with no
+   texture, which is a mistake the eye cannot see and the check can. */
 .desktop-tile {
-  background-color: #ff00a0;
+  background-color: var(--color-desktop);
   background-image:
-    linear-gradient(45deg, #1a1525 25%, transparent 25%, transparent 75%, #1a1525 75%),
-    linear-gradient(45deg, #1a1525 25%, transparent 25%, transparent 75%, #1a1525 75%);
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%);
   background-position:
     0 0,
     2px 2px;
@@ -244,29 +253,36 @@ summary::-webkit-details-marker {
    a bevel with a grip on it, a selection is two flat colours, and artwork is scaled in whole pixels
    rather than resampled into a blur. Nothing here is an illustration - see AGENTS.md, Asset Rules. */
 
-/* A scrollbar is a 16px grey trough with a bevelled thumb, and it inverts while it is dragged. The
-   standard property is what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read.
-   Both are given the same values, so a scrollbar is the same scrollbar wherever the site is opened. */
+/* A 16px trough with a bevelled grip, and it inverts while it is dragged. The standard property is
+   what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read. Both are given the
+   same values, so a scrollbar is the same scrollbar wherever the site is opened.
+
+   The trough is the desktop tile - the same dye with the same dither - because that is what a
+   scrollbar is a window onto, and because it is the only surface on the site wide enough to show that
+   the tile is a tile. Every value here is a token, and none of them was: a scrollbar painted from
+   literals kept its Brilliant Pink dither in a dark theme, which is a pink stripe down the side of a
+   night desktop. The grip is the plate dye, and its bevel is the site's one bevel, white then black -
+   the two dyes that are the same in every theme, which is exactly why a bevel can be written down. */
 html {
-  scrollbar-color: #fff000 #1a1525;
+  scrollbar-color: var(--color-sun) var(--color-desktop);
 }
 
 ::-webkit-scrollbar {
   width: 16px;
   height: 16px;
-  background: #1a1525;
+  background: var(--color-desktop);
 }
 
 ::-webkit-scrollbar-track {
-  background-image: linear-gradient(45deg, #ff00a0 25%, transparent 25%, transparent 75%, #ff00a0 75%),
-    linear-gradient(45deg, #ff00a0 25%, transparent 25%, transparent 75%, #ff00a0 75%);
+  background-image: linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%);
   background-position: 0 0, 2px 2px;
   background-size: 4px 4px;
-  background-color: #1a1525;
+  background-color: var(--color-desktop);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #fff000;
+  background: var(--color-sun);
   border: 2px solid;
   border-color: #ffffff #000000 #000000 #ffffff;
 }
@@ -277,13 +293,18 @@ html {
 }
 
 ::-webkit-scrollbar-corner {
-  background: #1a1525;
+  background: var(--color-desktop);
 }
 
-/* Selected text is a flat navy block with white letters, the way a text-mode editor marked it. */
+/* Selected text is a flat block with dark letters on it, the way a text-mode editor marked it.
+   Daffodil and the plate ink rather than Brilliant Pink and the field ink, which is what it was: the
+   field ink *flips*, so the dark theme selected Black on pink at 3.65:1 - a third of the site's
+   selected text, unreadable. Daffodil is the same yellow in both themes and Black on it is 17.72:1 in
+   both, and it is the colour of every plate on the site, so a selection now looks like the site's own
+   furniture rather than like an accent. */
 ::selection {
-  background: var(--color-bubble);
-  color: var(--color-ink);
+  background: var(--color-sun);
+  color: var(--color-ink-plate);
 }
 
 /* Artwork is hand-drawn at its own size and scaled in whole pixels, never resampled. */
@@ -332,6 +353,26 @@ img {
      asks for this token instead, so a theme can darken the page without darkening its controls. */
   --color-ink-plate: #000000;
 
+  /* The ink that reads on a *bar*: a chip, a row, a strip.
+     The third ink, and it exists because a bar's colour does not move with the theme. A chip is Royal
+     Blue in every theme, so the ink on it has to be the same in every theme, and `paper` - which is
+     White in one theme and Nigrosine in the other - cannot be it. White in both, and the pair is held
+     by `Temp/check-themes.cjs`: 9.34:1 on Royal Blue, 4.70:1 on Rose, 17.83:1 on Nigrosine. */
+  --color-ink-bar: #ffffff;
+
+  /* The brand ink on the field, and the caption ink on the field.
+     Both are here because a dye that is a *surface* was being asked to be an *ink*: `text-ena` printed
+     Royal Blue on the field, which is 9.34:1 on White and 1.91:1 on the dark theme's Nigrosine, and
+     `text-ena-deep` printed Nigrosine, which becomes Black in the dark theme and vanishes into it
+     (1.18:1, and 1:1 on hardware). Neither number can be fixed by choosing a better surface, because it
+     is the ink that has to move - so each has a token whose value moves with the field:
+       `accent-ink` is Royal Blue here and Daffodil in the dark theme (15.04:1 on the field).
+       `ink-quiet` is Nigrosine here and Flavine there (16.08:1 on the field).
+     Both of these are the colours the site already drew, so the field ink, the plate ink, the bar ink
+     and these two are five names for the same two values until a theme needs them apart. */
+  --color-accent-ink: #1d3ca6;
+  --color-ink-quiet: #1a1525;
+
   /* The quiet furniture, in dye rather than grey.
      Both tokens below are *surfaces with ink on them*, and the distinction that decides them is
      lightness, not hue: a surface whose job is to be quiet cannot do that job by being dark, because
@@ -347,6 +388,12 @@ img {
      check saying so. */
   --color-chrome: #1a1525;
   --color-chrome-dark: #e1ff00;
+  /* The hardware panel: the Black inset a readout is printed on - a player's screen, the scrim behind
+     a window, the reverse-video chip. It was `bg-ink` until a dark theme existed, which is where the
+     fault showed: `ink` flips (Black here, White there), so the panel became a *pale* screen with
+     Emerald and Daffodil readouts printed on it at 2.25:1 and 1.13:1. Black in both themes, and the
+     default theme cannot tell the difference - it was drawing Black already. */
+  --color-hardware: #000000;
 
   /* The desktop, the title bar of the window you are in, anything pressed. */
   --color-ena: #1d3ca6;
@@ -368,26 +415,27 @@ img {
   --color-acid: #28c745;
   --color-acid-pale: #e1ff00;
 
-  /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
-  --color-sun: #fff000;
-  --color-sun-pale: #e1ff00;
+  /* The desktop: the tile behind every window, and the scrollbar's trough, which is the same tile.
+     Two tokens because the tile is a fill *and* a texture, and a theme has to move both: the default is
+     Brilliant Pink with Nigrosine dithered through it, the dark theme is Nigrosine with Black through
+     it. Set them equal and the tile is flat - which is not a contrast failure, so only this comment and
+     the check that reads this block will notice. */
+  --color-desktop: #ff00a0;
+  --color-desktop-dither: #1a1525;
 
-  /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
-  --color-ice: #e1ff00;
-  --color-ice-pale: #e1ff00;
+  /* The dye a native control's own accent names - the checkbox tick, the filled half of a slider, the
+     caret. It is a token because the browser draws those and no component can style them, so an accent
+     is only readable against the surface it sits on: Royal Blue is 1.91:1 on the dark theme's field and
+     Daffodil is 15.04:1. `app/lib/ui/controls.ts` exports it as an inline-style value for the three
+     controls that ask for one. */
+  --color-accent: #1d3ca6;
 
-  /* Brilliant Pink and Rose: the accent, and the warning. */
-  --color-bubble: #ff00a0;
-  --color-bubble-pale: #e6004c;
-
-  /* Emerald: status bars, the online lamp, anything that is a "go". */
-  --color-acid: #28c745;
-  --color-acid-pale: #e1ff00;
-
-  /* What were the red and the orange are now the swatch's own two hot colours, so nothing on the
-     site is a hex from outside the dye pot. */
-  --color-blood: #e6004c;
-  --color-flame: #ff00a0;
+  /* What were the red and the orange used to be declared here, as `blood` and `flame`. They are gone:
+     neither was a colour any *theme* knew, `blood` was asked for by nothing at all, and `flame` was a
+     second name for `bubble` - the same #ff00a0 in both themes - reached only by `.sun-stripe`, which
+     now asks for `bubble`. `Temp/check-themes.cjs` is what found them: it holds this block and the
+     default theme to the same names and the same values, in both directions, so a `--color-*` that
+     exists only here is a colour no theme can move with the field. */
 
   /* The reactivity, as Tailwind utilities: `animate-wobble` on a plate's hover, `animate-marquee`
      on a ticker, `animate-flash` on the press. */
@@ -564,7 +612,7 @@ img {
 /* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like
    they came off a 1998 "under construction" page without saying so. */
 .sun-stripe {
-  background-image: repeating-linear-gradient(45deg, var(--color-sun) 0 4px, var(--color-flame) 4px 8px);
+  background-image: repeating-linear-gradient(45deg, var(--color-sun) 0 4px, var(--color-bubble) 4px 8px);
 }
 
 /* Everything above, off for anybody who has asked for less motion - the wobble, the ticker, the

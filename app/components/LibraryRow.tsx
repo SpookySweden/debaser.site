@@ -92,7 +92,7 @@ export default function LibraryRow({
             aria-pressed={liked}
             title={liked ? `Take ${track.title} out of liked` : `Like ${track.title}`}
             className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
-              liked ? 'bg-bubble-pale text-paper hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
+              liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
             }`}
           >
             {liked ? '♥' : '♡'}
