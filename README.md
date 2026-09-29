@@ -93,12 +93,14 @@ the raw HTML for `[ ♪ MUSIC ]` finds nothing and reports a present change as m
 
 Its limits are real and worth stating: it proves the served bytes contain the text named, and it
 cannot judge an aesthetic or watch motion. **A picture, though, is readable now.** `npm run shot`
-writes a PNG through Chrome's own debug protocol (`scripts/screenshot.cjs`), `npm run panes` counts
+writes a PNG of the installed Chrome's own rendering (`scripts/screenshot.cjs`, via `playwright-core`,
+which bundles no browser and downloads none), `npm run panes` counts
 the colours inside a box of it, `npm run stages` does that per render stage, and the file-reading
 tool opens the file itself. Chrome is installed at
-`C:\Program Files\Google\Chrome\Application\chrome.exe` and needs no dependency at all:
+`C:\Program Files\Google\Chrome\Application\chrome.exe`:
 
-    npm run shot -- --url http://localhost:3100/forum --out Temp/browse/forum.png
+    npm run browser -- --start --signin                                      one browser, one session
+    npm run shot -- --url http://localhost:3210/forum --out Temp/browse/forum.png
     npm run panes -- --png Temp/browse/forum.png --box 0,0,300,200
 
 `--use-angle=swiftshader` (carried by every one of those tools) is load-bearing: without the software

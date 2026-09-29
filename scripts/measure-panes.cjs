@@ -15,27 +15,48 @@
  *
  * `--png` with no value means the newest PNG in `Temp/browse/`. **A `--png` file that is not there is a
  * refusal, not a capture** - and that is not a nicety: this tool used to launch Chrome for any run and
- * write its capture to the very path it had been asked to read, so `--png stage-mass.png` returned a
- * pane count for a file the tool had itself just overwritten. A measurement of a file the measurer
- * wrote proves nothing about the file that was asked for, and the two are indistinguishable afterwards.
+ * write its capture to the very path it had been asked to read, so `--png stage-mass.png` returned a pane
+ * count for a file the tool had itself just overwritten. A measurement of a file the measurer wrote proves
+ * nothing about the file that was asked for, and the two are indistinguishable afterwards.
  *
- * **The refusal on a page that did not answer is the shared one** (`scripts/cdp-page.cjs`), because
- * Chrome's own error page is a page: it renders, it has a body, and it answers `0` canvases - a zero
- * that reads as "the pane is empty" when the truth is "there was no server". `--allow-error-page`
- * captures the refusal deliberately.
+ * **The default address is the local account page, and it used to be a dead one.** It was
+ * `http://localhost:3100/probe-character` - a page that has not existed since the probe it was named after
+ * was deleted, on a port that is not the one the local server uses. So the bare `npm run panes` launched a
+ * browser, was refused by nothing listening, and its own refusal told the reader to check the address. The
+ * two things it got wrong are now one thing: `localhost:3210` is the local server (`npm run capture` uses
+ * the same port), and `--signin`/`--click` reach a screen whose canvas only appears after a press, which is
+ * every canvas on this site.
+ *
+ * **The refusal on a page that did not answer is the shared one** (`scripts/browser.cjs`), because Chrome's
+ * own error page is a page: it renders, it has a body, and it answers `0` canvases - a zero that reads as
+ * "the pane is empty" when the truth is "there was no server". `--allow-error-page` captures the refusal
+ * deliberately.
  *
  * Usage:
  *   node scripts/measure-panes.cjs [--png [file]] [--box x,y,w,h]...
- *   node scripts/measure-panes.cjs --url <address> [--out <file>] [--width n] [--height n] [--settle ms]
+ *   node scripts/measure-panes.cjs --url <address> [--out <file>] [--width n] [--height n] [--at ms]
+ *   node scripts/measure-panes.cjs --url <address> --signin --click "[ CUSTOMISE PUBLIC PROFILE ]"
  */
 const { existsSync, readdirSync, statSync } = require('node:fs');
 const path = require('node:path');
 const { readPng } = require('./png-read.cjs');
-const { arrive, capture, close, evaluate, flags, launch, noAnswerOf, socketOn } = require('./cdp-page.cjs');
+const {
+  capture,
+  click,
+  close,
+  flags,
+  goto,
+  holdsSession,
+  mustFind,
+  noAnswerOf,
+  open,
+  report: reportPage,
+  signInPage,
+  sleep,
+} = require('./browser.cjs');
 
 const { all, at, has, number } = flags();
 
-const PORT = 9336;
 const BROWSE = path.join('Temp', 'browse');
 
 /** The canvases on the page, as rectangles - read from the page rather than guessed. */
@@ -83,47 +104,88 @@ function boxesFrom(image) {
 }
 
 /**
- * The browser path: launch, arrive, read the pane rectangles, take the picture.
+ * The browser path: open, arrive, press what it takes to reach a canvas, read the pane rectangles, capture.
  *
- * `arrive` is where a page that did not answer **throws instead of returning**, and that is the whole
- * reason the capture goes through it: the throw happens before any file exists, so a refusal cannot
- * land in the captures folder wearing the name of a page that worked.
+ * `goto` is where a page that did not answer **throws instead of returning**, and that is the whole reason
+ * the capture goes through it: the throw happens before any file exists, so a refusal cannot land in the
+ * captures folder wearing the name of a page that worked.
  */
 async function capturePanes(out) {
-  const url = at('--url', 'http://localhost:3100/probe-character');
+  const url = at('--url', 'http://localhost:3210/account');
   const width = number('--width', 1440);
   const height = number('--height', 1200);
-  const settle = number('--settle', 9000);
-  const profile = path.join(BROWSE, 'measure-profile');
+  const settle = number('--settle', number('--at', 9000));
+  const attach = has('--attach');
+  const signIn = has('--signin');
+  const reuse = has('--reuse');
+  const presses = all('--click');
+  const within = at('--within', null);
+  let session = null;
 
-  const { child } = launch({ port: PORT, profile, size: [width, height] });
-
-  let socket;
   try {
-    socket = await socketOn(PORT);
-    const arrival = await arrive(socket, url, { settle, allowErrorPage: has('--allow-error-page') });
+    session = await open({
+      size: [width, height],
+      attach,
+      profile: path.join(BROWSE, 'measure-profile'),
+      keepProfile: attach,
+    });
+
+    if (signIn && !attach) {
+      const account = await signInPage(session.page, { label: 'cline-panes' });
+      if (account.error) {
+        console.log(`session: NO - ${account.error}`);
+        return { panes: null, file: null, error: account.error };
+      }
+
+      console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+    }
+
+    const arrival = await goto(session.page, url, { settle, allowErrorPage: has('--allow-error-page') });
+    console.log(`arrived: ${arrival.title} - ${arrival.href}`);
+
+    if (reuse || attach) {
+      const held = await holdsSession(session.page);
+      console.log(`session: ${held ? 'the profile already holds one' : 'NONE - a screen behind a session will not open'}`);
+
+      if (signIn && !held) {
+        const account = await signInPage(session.page, { label: 'cline-panes' });
+        if (account.error) return { panes: null, file: null, error: account.error };
+
+        console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+        await goto(session.page, url, { settle });
+      }
+    }
+
+    // The presses that reach a canvas, in the order they were given, each one failing the run if the
+    // control is not there.
+    for (const plate of presses) {
+      const found = await mustFind(session.page, plate, { within, allowAmbiguous: true });
+      await click(session.page, found.x, found.y);
+      console.log(`press  : ${found.label.replace(/\n/g, ' / ')} at ${found.x},${found.y} (matched by ${found.how})`);
+      await sleep(1500);
+    }
 
     /*
-     * `--allow-error-page` means "keep the refusal", and the refusal has no `<canvas>` in it - so the
-     * pane query must not be asked. Asking it is what a first version did, and it answered with a
+     * `--allow-error-page` means "keep the refusal", and the refusal has no `<canvas>` in it - so the pane
+     * query must not be asked. Asking it is what a first version did, and it answered with a
      * `Runtime.evaluate` timeout, which reads as a fault in the tool rather than "this is an error page".
      * The whole image is measured instead, which is the only pane such a page has.
      */
-    if (noAnswerOf(arrival) !== null) {
-      console.log(`THE PAGE THAT ANSWERED IS AN ERROR PAGE: ${noAnswerOf(arrival)}`);
-      console.log('  --allow-error-page keeps it; there are no panes on it, so the whole image is measured.');
-      await capture(socket, { out });
+    if (noAnswerOf(await session.page.evaluate(`(() => ({ href: location.href, documentClass: document.documentElement.className }))()`)) !== null) {
+      console.log('THE PAGE THAT ANSWERED IS AN ERROR PAGE: --allow-error-page keeps it; there are no panes on it');
+      await capture(session.page, { out });
 
       return { panes: null, file: out };
     }
 
-    const panes = JSON.parse((await evaluate(socket, PANE_QUERY)) ?? '[]');
-    await capture(socket, { out });
+    const panes = JSON.parse((await session.page.evaluate(PANE_QUERY)) ?? '[]');
+    await capture(session.page, { out });
+
+    reportPage(session.log);
 
     return { panes, file: out };
   } finally {
-    if (socket) socket.close();
-    await close({ child, profile });
+    await close(session, { keep: attach });
   }
 }
 
@@ -148,6 +210,7 @@ function report(file, panes) {
     console.log('');
     console.log('0 canvases on that page: this tool has nothing to measure there.');
     console.log('  A page with no <canvas> is a page with no pane, not a pane that drew nothing.');
+    console.log('  If the canvas appears behind a press, name it: --click "[ CUSTOMISE PUBLIC PROFILE ]"');
     return;
   }
 
@@ -207,7 +270,10 @@ async function main() {
   if (asked !== null) {
     console.log(`reading ${path.relative(process.cwd(), asked) || asked} - no browser started, nothing written`);
   } else {
-    ({ panes } = await capturePanes(out));
+    const captured = await capturePanes(out);
+    if (captured.error) process.exit(3);
+
+    panes = captured.panes;
   }
 
   report(asked ?? out, panes);
@@ -224,3 +290,5 @@ main().catch((error) => {
   console.log('FAILED: ' + error.message);
   process.exit(1);
 });
+
+

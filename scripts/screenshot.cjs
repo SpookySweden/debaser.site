@@ -8,70 +8,105 @@
  * which cannot wait for a client-rendered page, cannot press anything, cannot capture past the first
  * screen, and - the one that cost the most - **writes a picture of "This site can't be reached" to disk
  * under whatever name it was given**. `Temp/browse/account.png` is exactly that file: a refused
- * connection, filed under the name of the account page, with nothing anywhere to say so. Two
- * instruments then read it and reported `0 panes` and `no WebGL context`, which both read as statements
- * about the site.
+ * connection, filed under the name of the account page, with nothing anywhere to say so. Two instruments
+ * then read it and reported `0 panes` and `no WebGL context`, which both read as statements about the site.
  *
  * So this refuses loudly instead: when the page is the browser's own error page it says **NOTHING IS
- * LISTENING at that address**, prints the `ERR_...`, and writes nothing. A capture that did not happen
- * is a hundred times more useful than a capture that lies. `--allow-error-page` overrides it, because a
- * guard with no way past it is a guard that gets deleted.
+ * LISTENING at that address**, prints the `ERR_...`, and writes nothing. A capture that did not happen is a
+ * hundred times more useful than a capture that lies. `--allow-error-page` overrides it, because a guard
+ * with no way past it is a guard that gets deleted.
  *
  * **What it can and cannot do.** It can name one page, wait for it, name a sequence of controls by their
- * *text* (or a selector), hover, focus or press them, and write the PNG - then read the PNG back and
- * report its size, its distinct colours and whether any pixel is a grey. It cannot decide what to press
- * for you, it cannot judge whether the result looks right, and one still frame cannot show motion: a
- * `READING...` in a capture is a pre-hydration state and not a result.
+ * *text* (or a selector), hover, focus or press them, **type into one, press keys, drag one onto another,
+ * and scroll** - then write the PNG, read it back, and report its size, its distinct colours and whether
+ * any pixel is a grey. It cannot decide what to press for you, it cannot judge whether the result looks
+ * right, and one still frame cannot show motion: a `READING...` in a capture is a pre-hydration state and
+ * not a result.
  *
  *     npm run shot                                          the deployed board
- *     npm run shot -- --url http://localhost:3100/account   a local build
+ *     npm run shot -- --url http://localhost:3210/account    a local build
  *     npm run shot -- --out Temp/browse/account.png --full-page
  *     npm run shot -- --clip "fieldset:first-of-type"       one element
  *     npm run shot -- --hover "[ MUSIC ]"                   with a real pointer on it
  *     npm run shot -- --click "[ CUSTOMISE PUBLIC PROFILE ]" --click "[ CHAR" --at 12000
  *     npm run shot -- --width 390 --height 844 --mobile     a phone
+ *     npm run shot -- --scale 0.5                           a cheap reading, half the pixels
+ *     npm run shot -- --wait-for "WHAT IS DRAWN"            wait for a chunk, not for a stopwatch
  *     npm run shot -- --signin                              a throwaway session, for a page behind one
+ *     npm run shot -- --attach                              use the session `npm run browser -- --start` left
  *     npm run shot -- --profile Temp/browse/owner-profile   a profile signed in by hand, kept
  *
- * `--signin` makes one of the throwaway accounts the checks make and hands the page its session, so a
- * page behind a session can be reached without a password. It leaves the account behind - removing it
- * takes the service role - so `npm run db:sweep` is what clears it up, after the last check run.
+ * `--attach` is the cheap way round: `npm run browser -- --start --signin` opens one browser and signs one
+ * account into it, and every capture after that costs seconds and no account at all. An attached browser is
+ * *stateful* - the page may already have been scrolled, pressed and signed in - so the output says it is
+ * attached, and `--fresh` reloads before the steps if the capture is meant to be a first visit.
+ *
+ * Actions run in a fixed order - hovers, then focuses, then presses, then the input hands (`--type`,
+ * `--key`, `--scroll`, `--drag`) in the order they were given - and **every one of them fails the run when
+ * its control is not there**. A sequence that quietly skipped its second press would capture a page nobody
+ * asked for and report success. A control whose text matches several others is a refusal too, unless
+ * `--allow-ambiguous` says the ambiguity is intended: pressing the first of several matches is how a press
+ * lands somewhere nobody named while the transcript says otherwise.
+ *
+ * `--signin` makes one of the throwaway accounts the checks make and hands the page its session, so a page
+ * behind a session can be reached without a password. It leaves the account behind - removing it takes the
+ * service role - so `npm run db:sweep` is what clears it up, after the last check run. `--reuse` makes no
+ * account at all: it asks whether the profile already holds a session, and says which it found.
  */
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
 const {
-  arrive,
   capture,
   click,
   close,
-  findControl,
+  drag,
+  flags,
   forceFocus,
+  goto,
+  holdsSession,
   hover,
-  installSession,
-  launch,
-  signUp,
+  key,
+  mustFind,
+  open,
+  report,
+  scroll,
+  sessionAlive,
+  signInPage,
   sleep,
-  socketOn,
-} = require('./cdp-page.cjs');
+  type,
+} = require('./browser.cjs');
 const { readPng } = require('./png-read.cjs');
 
-const { all, at, has, number } = require('./cdp-page.cjs').flags();
+const { all, at, has, number } = flags();
 
 const url = at('--url', 'https://debaser-site.vercel.app/forum');
 const out = path.resolve(at('--out', path.join('Temp', 'browse', 'shot.png')));
 const width = number('--width', 1440);
 const height = number('--height', 1000);
 const settle = number('--at', 4000);
+const scale = number('--scale', 1);
 const fullPage = has('--full-page');
 const mobile = has('--mobile');
+const reducedMotion = has('--reduced-motion');
 const allowErrorPage = has('--allow-error-page');
+const allowAmbiguous = has('--allow-ambiguous');
 const signIn = has('--signin');
+const reuse = has('--reuse');
+const attach = has('--attach');
+const fresh = has('--fresh');
 const keepProfile = at('--profile', null);
 const clipTarget = at('--clip', null);
 const within = at('--within', null);
+const waitFor = at('--wait-for', null);
 const hovers = all('--hover');
 const focuses = all('--focus');
 const presses = all('--click');
+const types = all('--type');
+const keys = all('--key');
+const scrolls = all('--scroll');
+const drags = all('--drag');
+const by = at('--by', null);
+const onto = at('--onto', null);
 
 /**
  * The nine dyes, named from the stylesheet rather than copied out of it.
@@ -154,97 +189,172 @@ function readBack(file) {
   };
 }
 
-
 /** One line per thing done, so the transcript reads as the sequence of presses it was. */
 function note(label, value) {
   console.log(`${label.padEnd(9)}: ${value}`);
 }
 
+/**
+ * The session, handed over before the page's own scripts run.
+ *
+ * `--signin` is the old behaviour: make one throwaway account and give the page its session. `--reuse`
+ * makes **no account at all** - it asks the profile whether it already holds one, and the answer is printed
+ * either way, because "this capture is signed in" and "this capture is of a signed-out page" look identical
+ * afterwards.
+ */
+async function readySession(browser, { reload }) {
+  const stored = await holdsSession(browser.page);
+
+  if (reuse) {
+    note(
+      'session',
+      stored
+        ? 'the profile already holds one - no account made'
+        : 'NONE in this profile: this capture is signed out, and --signin would make one',
+    );
+    return;
+  }
+
+  if (!signIn) return;
+
+  if (stored) {
+    note('session', 'the profile already holds one, and --signin makes another; --reuse would have kept it');
+  }
+
+  const account = await signInPage(browser.page, { label: 'cline-shot' });
+
+  if (account.error) {
+    note('session', `NO: ${account.error}`);
+    process.exitCode = 3;
+    return;
+  }
+
+  note('session', `${account.userId} - left behind for \`npm run db:sweep\``);
+
+  if (reload) await goto(browser.page, url, { settle });
+}
+
 async function main() {
+  const running = await sessionAlive();
   const profile = keepProfile ?? path.join('Temp', 'browse', 'shot-profile');
-  const port = 9333 + Math.floor(Math.random() * 400);
 
   note('address', url);
-  note('capture', `${out}${clipTarget ? ` (clipped to ${clipTarget})` : fullPage ? ' (whole page)' : ''}`);
+  note(
+    'capture',
+    `${out}${clipTarget ? ` (clipped to ${clipTarget})` : fullPage ? ' (whole page)' : ''}${scale === 1 ? '' : ` at ${scale}x`}`,
+  );
 
-  const { child } = launch({ port, profile, size: [width, height], keepProfile: keepProfile !== null });
-  let socket = null;
+  let browser = null;
+  let clip = null;
 
   try {
-    socket = await socketOn(port);
-
-    // The viewport is set through the protocol rather than trusted to `--window-size`, because
-    // `--window-size` includes the browser chrome and is ignored once a tab is restored.
-    await socket.send('Emulation.setDeviceMetricsOverride', {
-      width,
-      height,
-      deviceScaleFactor: 1,
-      mobile,
-      screenWidth: width,
-      screenHeight: height,
-    });
-    if (mobile) await socket.send('Emulation.setTouchEmulationEnabled', { enabled: true, maxTouchPoints: 5 });
-
-    if (signIn) {
-      const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-      // `cline-` is the prefix the sweep already reviews (`supabase/cleanup/throwaway-accounts-review.sql`),
-      // so an account this tool makes is one `npm run db:sweep` already knows how to find.
-      const account = await signUp(`cline-shot-${stamp}@debaser.site`, `shot-${stamp}-pw`, `shot ${stamp}`);
-
-      if (account.error) {
-        note('session', `NO: ${account.error}`);
-        process.exitCode = 3;
-        return;
-      }
-
-      await installSession(socket, account);
-      note('session', `${account.userId} - left behind for \`npm run db:sweep\``);
+    if (!attach && running) {
+      note('session', `one is running on port ${running.port} - add --attach to use it and leave it running`);
     }
 
-    const arrival = await arrive(socket, url, { settle, allowErrorPage });
+    browser = await open({
+      size: [width, height],
+      mobile,
+      scale,
+      profile,
+      keepProfile: keepProfile !== null,
+      attach,
+      reducedMotion,
+    });
 
+    if (browser.attached) {
+      note('attached', `port ${browser.port} - stateful, so this is not a first visit`);
+    }
+
+    /*
+     * A throwaway profile has no session by construction, so the session is handed over *before* the first
+     * navigation and the page never renders signed out. An attached browser is the opposite problem - it is
+     * already somewhere - so there the profile is asked first and the page is re-navigated only if a
+     * session was handed to it.
+     */
+    if (!browser.attached) await readySession(browser, { reload: false });
+
+    const arrival = await goto(browser.page, url, { settle: fresh ? 0 : settle, waitFor, allowErrorPage });
     note('arrived', `${arrival.title} - ${arrival.href}`);
     if (allowErrorPage) note('warning', 'the error-page guard is off: this may be a picture of a refusal');
+    if (waitFor !== null) note('wait-for', `${waitFor} appeared`);
 
-    /**
-     * The actions, in the order they were given, each one a real event through the browser's own input
-     * path - and each one **failing the run when the control is not there**. A sequence that quietly
-     * skipped its second press would capture a page nobody asked for and report success.
-     */
+    if (browser.attached) await readySession(browser, { reload: true });
+
+    if (fresh) {
+      // A cold document: an attached page may have been scrolled, pressed and hydrated minutes ago.
+      await goto(browser.page, url, { settle, allowErrorPage });
+      note('fresh', 'reloaded before the steps');
+    }
+
     for (const target of hovers) {
-      const found = await findControl(socket, target, { within });
-      if (!found.found) throw new Error(`cannot hover ${JSON.stringify(target)}: ${found.why}`);
-
-      await hover(socket, found.x, found.y);
-      note('hover', `${found.label.replace(/\n/g, ' / ')} at ${found.x},${found.y}`);
+      const found = await mustFind(browser.page, target, 'hover');
+      await hover(browser.page, found.x, found.y);
+      note('hover', `${found.label.replace(/\n/g, ' / ')} at ${found.x},${found.y} (matched by ${found.how})`);
     }
 
     for (const target of focuses) {
-      const forced = await forceFocus(socket, target);
+      const forced = await forceFocus(browser.page, target);
       if (!forced.forced) throw new Error(`cannot focus ${JSON.stringify(target)}: ${forced.why}`);
 
       note('focus', target);
     }
 
     for (const target of presses) {
-      const found = await findControl(socket, target, { within });
-      if (!found.found) throw new Error(`cannot press ${JSON.stringify(target)}: ${found.why}`);
-
-      await click(socket, found.x, found.y);
-      note('press', `${found.label.replace(/\n/g, ' / ')} at ${found.x},${found.y}`);
+      const found = await mustFind(browser.page, target, 'press');
+      await click(browser.page, found.x, found.y);
+      note('press', `${found.label.replace(/\n/g, ' / ')} at ${found.x},${found.y} (matched by ${found.how})`);
       await sleep(900); // a screen behind the press mounts its own chunks; the next lookup needs them
     }
 
-    let clip = null;
-    if (clipTarget !== null) {
-      const found = await findControl(socket, clipTarget, { within });
-      if (!found.found) throw new Error(`cannot clip to ${JSON.stringify(clipTarget)}: ${found.why}`);
+    /*
+     * The input hands, in the order they were given. They come after the presses because that is what they
+     * are for - pressing a plate opens a field, and then something has to go into it.
+     */
+    for (const text of types) {
+      await type(browser.page, text, { target: into, within, allowAmbiguous });
+      note('type', `${JSON.stringify(text)}${into === null ? ' into whatever has focus' : ` into ${JSON.stringify(into)}`}`);
+      await sleep(250);
+    }
 
-      clip = { x: found.x - found.w / 2, y: found.y - found.h / 2, w: found.w, h: found.h };
+    for (const name of keys) {
+      await key(browser.page, name);
+      note('key', name);
+      await sleep(250);
+    }
+
+    for (const amount of scrolls) {
+      await scroll(browser.page, Number(amount));
+      note('scroll', `${amount}px`);
+      await sleep(250);
+    }
+
+    for (const source of drags) {
+      const from = await mustFind(browser.page, source, 'drag');
+      let to = null;
+
+      if (by !== null) {
+        const [dx, dy] = by.split(',').map(Number);
+        to = { x: from.x + dx, y: from.y + dy };
+      } else if (onto !== null) {
+        const target = await mustFind(browser.page, onto, 'drag onto');
+        to = { x: target.x, y: target.y };
+      } else {
+        throw new Error('--drag needs a destination: --by dx,dy or --onto "<control text>"');
+      }
+
+      await drag(browser.page, { x: from.x, y: from.y }, to);
+      note('drag', `${JSON.stringify(source)} from ${from.x},${from.y} to ${to.x},${to.y}`);
+      await sleep(600);
+    }
+
+    if (clipTarget !== null) {
+      const found = await mustFind(browser.page, clipTarget, 'clip to');
+      clip = { pageX: found.pageX, pageY: found.pageY, w: found.w, h: found.h };
       note('clipped', `${found.label.replace(/\n/g, ' / ')} ${found.w}x${found.h}`);
     }
 
-    const shot = await capture(socket, { out, fullPage, clip });
+    const shot = await capture(browser.page, { out, fullPage, clip });
     note('wrote', `${path.relative(process.cwd(), shot.file)} (${shot.bytes} bytes)`);
 
     const reading = readBack(shot.file);
@@ -258,10 +368,13 @@ async function main() {
       note('greys', reading.greys === 0 ? 'none' : `${reading.greys} of ${reading.sampled} - the palette has no greys`);
     }
 
-    /**
-     * What this run does and does not establish, printed every time rather than kept in a document,
-     * because the sentence that matters is the one that travels with the file.
+    /*
+     * What the page said while this was happening, and what the run does *not* establish - printed every
+     * time rather than kept in a document, because the sentence that matters is the one that travels with
+     * the file.
      */
+    report(browser.log);
+
     console.log('');
     console.log('That file is a picture of that address after those actions. Nothing above looked at it:');
     console.log('read it with the file-reading tool to describe its layout, its colours and its text.');
@@ -273,22 +386,19 @@ async function main() {
       console.log('');
       console.log('Nothing is listening at that address, so no file was written - a refused capture kept');
       console.log('under a page name is a capture that lies. Start the server, or check the address.');
+      process.exitCode = 4;
     } else {
       throw error;
     }
-    process.exitCode = 4;
   } finally {
-    // Chrome is a child process and will outlive this script if it is not ended; the profile it held
-    // open is given back unless `--profile` asked for it to be kept.
-    if (socket) {
-      try {
-        await socket.send('Browser.close');
-      } catch {
-        /* already gone */
-      }
-    }
-    await close({ child, profile, keep: keepProfile !== null });
+    await close(browser, { keep: keepProfile !== null });
   }
 }
 
-main();
+main().catch((error) => {
+  console.log('FAILED: ' + error.message);
+  process.exit(1);
+});
+
+
+

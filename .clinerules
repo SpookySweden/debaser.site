@@ -99,11 +99,18 @@
 - **`npm run read` is the eyes for served HTML, and there IS a browser for everything else.** The old version of
   this line said "There is no browser here" and that was **false**, believed for a whole session on the strength of
   Puppeteer reporting *"Could not find expected browser (chrome) locally"* - which only means Puppeteer's download
-  cache is empty. Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and runs headless
-  with no dependency at all:
+  cache is empty. Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`, and the one
+  thing added to reach it is `playwright-core` - the *core* package, which bundles no browser and downloads none,
+  so a fresh clone runs these after `npm install` and nothing else:
 
-      npm run shot -- --url <address> --out Temp/browse/out.png     a capture, through Chrome's debug protocol
+      npm run shot -- --url <address> --out Temp/browse/out.png     a capture, through the installed Chrome
       npm run panes -- --png Temp/browse/out.png --box 0,0,300,200  the colours inside a box of it
+
+  **Start the browser once and every tool attaches to it.** `npm run browser -- --start --signin` opens one
+  Chrome, keeps its profile, and signs one throwaway account into it; `--attach` on `shot`, `look`, `panes` and
+  `stages` then costs seconds and **no account at all**. Because an attached session is stateful, those tools
+  print that they are attached, and `--fresh` reloads when the capture is meant to be a first visit.
+  `npm run browser` reports the session, `--stop` ends it and removes the profile.
 
   **A capture is readable evidence - `npm run shot` writes it, `npm run panes` counts inside it, and the
   file-reading tool opens it** - so *"the agent cannot see pixels"* is not true any more and must not be repeated.
@@ -113,10 +120,14 @@
   `--use-angle=swiftshader` is load-bearing - without the software GL there is no WebGL and a blank canvas would
   say nothing. Use it whenever a component is `ssr: false`, because server-side rendering cannot see such a
   component at all: `CharacterEditorPanel` emits the literal string `LOADING THE WORKBENCH...` to every check that
-  renders markup, which is how three faults hid with the suite green. Templates are `npm run look` (CDP),
-  `npm run panes` and `scripts/png-read.cjs` (pixels), `npm run stages` (one stage at a time), and
-  `npm run deployed` (the live site) - all tracked in `scripts/`, because a template in gitignored `Temp/`
-  is one a clone does not have.
+  renders markup, which is how three faults hid with the suite green. Templates are `npm run look` (the drawing
+  buffer, read in-frame, plus the DOM), `npm run panes` and `scripts/png-read.cjs` (pixels), `npm run stages`
+  (one stage at a time), and `npm run deployed` (the live site) - all tracked in `scripts/`, because a template
+  in gitignored `Temp/` is one a clone does not have.
+  **A press is a real press, and a control is found by its own label.** `--click`, `--type`, `--key`,
+  `--scroll` and `--drag` drive the browser's own input path, and a control whose text matches several others is
+  a *refusal* unless `--allow-ambiguous` says the ambiguity was meant: pressing the first of several matches is
+  how a press lands somewhere nobody named while the transcript says otherwise.
   **Read pixels inside a `requestAnimationFrame`** - a WebGL buffer is cleared on present, so a zero read from
   outside a frame is a statement about the probe, not the renderer.
 - **After *any* change that alters what a visitor sees, read the served HTML before calling the work done:**

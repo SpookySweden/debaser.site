@@ -5,9 +5,11 @@
  * so it is the honest thing to measure. `readPixels` inside `requestAnimationFrame` told us the renderer runs;
  * this tells us what survived to the screen.
  *
- * A PNG is decompressed here by hand because this is a scratch script and `pngjs` would be a dependency added
- * for one diagnostic. Only what a screenshot from Chrome produces is supported: 8-bit RGBA, no interlacing,
- * filter types 0-4. Anything else returns a clear refusal rather than a wrong count.
+ * A PNG is decompressed here by hand, and that is a deliberate choice rather than a rule about dependencies:
+ * a decoder for what Chrome's screenshots contain is about sixty lines, and the dependency this project did
+ * take - `playwright-core`, for driving the browser - is for *pressing things*, not for reading a file. Only
+ * what a screenshot from Chrome produces is supported: 8-bit RGBA, no interlacing, filter types 0-4. Anything
+ * else returns a clear refusal rather than a wrong count.
  */
 const { inflateSync } = require('node:zlib');
 

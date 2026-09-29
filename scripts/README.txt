@@ -132,33 +132,62 @@ end up in the directory on `/users`, which is where visitors meet them: 284 of t
 on 2026-09-29 were the suite's. This runs the reviewed pair in `supabase/cleanup/`, review first, so
 the survivors are read rather than assumed. **Run it after the last check run, never before it.**
 
-screenshot.cjs, cdp-look.cjs, measure-panes.cjs, measure-stages.cjs, check-deployed.cjs
-------------------------------------------------------------------------------------------
+browser.cjs
+-----------
+    npm run browser                     what session is up, if any
+    npm run browser -- --start          open the reusable browser (detached, profile kept)
+    npm run browser -- --start --signin ... and sign one throwaway account into it
+    npm run browser -- --open <address> attach, arrive, and print what the page says
+    npm run browser -- --stop           close it, and remove its profile
+
+**Every browser tool here goes through this one file, and it is `playwright-core`, not a hand-rolled CDP
+client.** The hand-rolled one worked, and was replaced on purpose: typing, keys, drags and media emulation are
+a lot of protocol to write by hand, and each of them was a question that had to be answered by reading source
+instead of by pressing something. `playwright-core` is the *core* package - it has no bundled browser and no
+download step, which matters here: a full `playwright` install wants ~130MB of Chromium, and that download is
+exactly what had silently failed before. It drives the Chrome already on the machine, with the same
+`--use-angle=swiftshader --enable-unsafe-swiftshader` args, so WebGL still exists in a headless build.
+
+**`--start` is what makes a session cost one sign-in instead of one per capture.** The browser is detached and
+its profile is kept, so the signed-in page state, the loaded chunks and the cookies survive between tools;
+every tool with `--attach` joins it. An attached browser is *stateful* - a capture from it is not a first visit
+- so the tools say when they are attached, and `--fresh` reloads before the steps when it needs to be.
+
+**A page that did not answer is a refusal, not a page.** Chrome's own error page renders, has a body, and
+answers `0` canvases, so a capture taken at a dead address reads as "the pane is empty" - which is how
+`Temp/browse/account.png` came to be a picture of *"This site can't be reached"* under the name of a page that
+worked. The arrival **throws `NoAnswer`** before any file is written, and it does so on two independent
+signals: the `net::ERR_*` name Chrome refuses the navigation with, and the arrival probe read out of the page
+afterwards. `--allow-error-page` is the deliberate opt-out.
+
+**A control is found by tier, and each tier was earned by a wrong press**: exact text, the first line, a
+*prefix* of the whole text, then a substring - where an ambiguous substring is now a *refusal* rather than a
+coin toss (`--allow-ambiguous` accepts it on purpose). The prefix tier is what stops `MASS` from finding the
+palette's help text instead of the stage button, and the `within` scope is the **innermost** container holding
+the phrase, because the first match in document order is the outer `<main>` and scopes to nothing.
+
+screenshot.cjs, look.cjs, measure-panes.cjs, measure-stages.cjs, check-deployed.cjs
+------------------------------------------------------------------------------------
     npm run shot -- --url <address>     take a picture after named presses; read it back as colour counts
-    npm run look -- --url <address>     drive Chrome over CDP; read the drawing buffer and the DOM
+    npm run look -- --url <address>     read the drawing buffer in-frame, and the DOM
     npm run panes -- --png <file>       read a PNG that is on disk - or capture one - and count colours per pane
     npm run stages -- --signin          the same, per render stage, reached through the workbench's own plates
     npm run deployed                    load the deployed site; read response BODIES, never hashed names
-    scripts/cdp-page.cjs                what they share: the launch, the arrival, and the refusal
-    scripts/cdp-socket.cjs              the CDP socket all of them require
-    scripts/png-read.cjs                the PNG decoder, no dependency added for a diagnostic
+    scripts/png-read.cjs                the PNG decoder
 
-`npm run shot` is the one to reach for when a question is about what the page *is*: it can name a
-sequence of controls by their text (or a selector), hover them, focus them, press them, capture past the
-first screen or into one element, and it prints what it pressed - because a sequence that quietly skipped
-its second press would write a picture nobody asked for and call it a success.
+`npm run shot` is the one to reach for when a question is about what the page *is*: it can name a sequence of
+controls by their text (or a selector), hover them, focus them, press them, **type into one, press keys, drag
+one onto another and scroll**, capture past the first screen or into one element, and it prints what it
+pressed - because a sequence that quietly skipped its second press would write a picture nobody asked for and
+call it a success. `--attach` reuses the session; `--scale 0.5` is a cheap reading; `--wait-for` waits for a
+chunk to appear instead of for a stopwatch.
 
-Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and needs no Puppeteer
-and no download; `--use-angle=swiftshader` is load-bearing, since without the software GL a headless
-build has no WebGL and a blank canvas would say nothing. **Read pixels inside a
-`requestAnimationFrame`**: a WebGL buffer is cleared on present, so a zero read from outside a frame
-is a statement about the probe, not the renderer.
-
-**And a page that did not answer is a refusal, not a page.** Chrome's own error page renders, has a body,
-and answers `0` canvases, so a capture taken at a dead address reads as "the pane is empty" - which is how
-`Temp/browse/account.png` came to be a picture of *"This site can't be reached"* under the name of a page
-that worked. `scripts/cdp-page.cjs` throws `NoAnswer` before any file is written, every tool here goes
-through it, and `--allow-error-page` is the deliberate opt-out.
+Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`; `--use-angle=swiftshader` is
+load-bearing, since without the software GL a headless build has no WebGL and a blank canvas would say
+nothing. **Read pixels inside a `requestAnimationFrame`**: a WebGL buffer is cleared on present, so a zero read
+from outside a frame is a statement about the probe, not the renderer. **And count colours, not lit pixels** -
+an opaque clear makes every pixel non-zero-alpha, so an alpha count reported the same `21112/21112` for the
+wireframe, the flat figure and the lit composer, which is a probe that cannot tell two states apart.
 
 What they prove is narrow and worth saying: pixels on the canvas means the renderer ran - never that
 it drew a person, or that the person looks right. A screenshot lands in `Temp/browse/`, which is

@@ -224,13 +224,13 @@ the agent - so the loop is: change, verify, push, confirm it is deployed, report
 
 **The middle row is new on 2026-09-29, and until then the table said the opposite**: *"**see pixels** - no
 screenshots, no layout, no colour"*. That was a statement about the leftovers in `Temp/`, not about the
-machine. The browser is installed and always was (see below); `npm run shot` now writes a PNG through Chrome's
-own debug protocol, `npm run panes` counts the colours inside a box of it, `npm run stages` does that per render
+machine. The browser is installed and always was (see below); `npm run shot` now writes a PNG through the
+installed Chrome, `npm run panes` counts the colours inside a box of it, `npm run stages` does that per render
 stage, and the file-reading tool opens the file - so a picture is evidence that can be quoted. Two things
 follow from that. **A capture is evidence only if it is newer than the code it is claimed to prove** - a
 screenshot of yesterday's build is the same fault as the two-day-old `Temp/qa/*.html` above. And **a capture of
 a page nobody read is not evidence either**: `Temp/browse/account.png` was a picture of *"This site can't be
-reached"* filed under the name of a page that worked, which is why `scripts/cdp-page.cjs` refuses to write a
+reached"* filed under the name of a page that worked, which is why `scripts/browser.cjs` refuses to write a
 capture at all when the address did not answer.
 
 So the sentence is *"the served HTML contains X, and the checks pass"* - or *"the capture is 1440x1000, 217
@@ -372,7 +372,8 @@ An earlier version of this file said "There is no browser here. `npm run read` i
 true; **the first half was false**, and believing it cost a whole session's worth of verification. The evidence
 was Puppeteer's `launch_browser` failing with *"Could not find expected browser (chrome) locally"* - which says
 **Puppeteer's download cache is empty**, not that the machine has no browser. Chrome 153 is installed at
-`C:\Program Files\Google\Chrome\Application\chrome.exe`, and it needs no Puppeteer, no download and no dependency:
+`C:\Program Files\Google\Chrome\Application\chrome.exe`, and one package drives it: `playwright-core`, which
+bundles no browser and downloads none (`npm install`, and nothing else):
 
     chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
     chrome.exe --headless=new --remote-debugging-port=9334 about:blank      # then drive it over CDP
@@ -399,20 +400,38 @@ for all three**:
 
 ### The instruments, tracked in `scripts/`
 
+    npm run browser           what session is up - and `--start --signin` / `--stop` to open and close one
     npm run shot              take a picture of a page after named presses; read it back as colour counts
-    npm run look              drive Chrome over CDP; read the drawing buffer and the DOM
+    npm run look              read the drawing buffer in-frame, and the DOM, through the installed Chrome
     npm run panes             decode the screenshot's PNG by hand; count colours per pane
     npm run stages            the same, per render stage, so two stages can be told apart
     npm run deployed          load the deployed site; read response BODIES, never hashed filenames
-    scripts/cdp-page.cjs      what they share: the launch, the software GL, the arrival, and the refusal
-    scripts/png-read.cjs      the PNG decoder, no dependency added for a diagnostic
-    scripts/cdp-socket.cjs    the CDP socket every one of them requires
+    scripts/browser.cjs       what they share: the launch, the software GL, the arrival, and the refusal
+    scripts/png-read.cjs      the PNG decoder, no dependency added for that
 
-**`scripts/cdp-page.cjs` is the newest and the least obvious.** It holds the arrival probe, and the arrival
-*throws* `NoAnswer` when the page is the browser's own error page - which is the difference between "the figure
-did not draw" and "there was no server". It is shared so that `shot`, `look`, `panes` and `stages` cannot come to
-disagree about what an answer looks like, and a capture that did not happen is never written: `--allow-error-page`
-is the deliberate opt-out.
+**`scripts/browser.cjs` is the one file every instrument goes through, and it is Playwright's
+`playwright-core` rather than a hand-rolled CDP client.** The hand-rolled one was replaced deliberately: typing,
+keys, drags, media emulation and traces are a lot of protocol to write by hand, and every one of them was a
+question that had to be answered by reading source instead of by pressing something. `playwright-core` is the
+*core* package - **it bundles no browser and downloads none**, which matters, because a full `playwright`
+install wants ~130MB of Chromium and that is exactly the download that had silently failed here before. It
+drives the Chrome already on the machine, with the same `--use-angle=swiftshader --enable-unsafe-swiftshader`
+args, so WebGL still exists in a headless build.
+
+**It holds the arrival probe, and the arrival *throws* `NoAnswer` when the page is the browser's own error
+page** - which is the difference between "the figure did not draw" and "there was no server". It does so on two
+independent signals: the `net::ERR_*` name Chrome refuses the navigation with, and the probe read out of the
+page afterwards. They are both kept because they fail differently. It is shared so that `shot`, `look`, `panes`,
+`stages` and `deployed` cannot come to disagree about what an answer looks like, and a capture that did not
+happen is never written: `--allow-error-page` is the deliberate opt-out.
+
+**A control is found by tier, and the tiers were each earned by a wrong press**: exact text, then the first
+line, then a *prefix* of the whole text, then a substring - and an ambiguous substring is a refusal rather than
+a coin toss. The prefix tier exists because the stage buttons render as `MASSTHE SHAPE AS EDGES - A
+WIREFRAME...`, so `MASS` is not an *equality* on them and a substring pass reaches the palette's help text
+(*BUILD A FIGURE FROM A SKELETON AND THE MASS HUNG*) first. That is what a `within` scope is for as well - and
+the scope is the **innermost** container holding the phrase, because the first match in document order is the
+outer `<main>`, which scopes to nothing at all.
 
 **That heading said `Temp/` once, and it was wrong twice over.** `.gitignore` carries `/Temp/`,
 `git ls-files Temp` is empty, so nothing there is tracked - and a fresh clone therefore had none of
