@@ -76,6 +76,22 @@ export const MASS_SHAPE_GLYPHS: Record<string, string> = {
   wedge: '◣',
   prism: '△',
 };
+
+/**
+ * The three tool marks, as glyphs - the strip a reader picks a verb from.
+ *
+ * **This is the CSP arrangement**: a row of small marks for *what you are doing*, and the options for the one you
+ * picked directly below it. That is why these are marks rather than labelled plates - a tool strip is scanned, not
+ * read, and three full-width rows would be the form-under-the-canvas layout this replaces.
+ *
+ * A resize corner, a four-way move, and a droplet. Each is a character off the font like every other mark here, so
+ * none of them is code-drawn artwork.
+ */
+export const MASS_TOOL_GLYPHS: Record<string, string> = {
+  resize: '⤡',
+  move: '✥',
+  colour: '◐',
+};
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },
   { key: 'games', mark: ICON_ARCADE, meaning: 'THE ARCADE FLOOR' },
