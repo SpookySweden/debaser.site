@@ -11,6 +11,7 @@
     "verify": "npm run lint && npm run typecheck && npm run build",
     "read": "node scripts/read-site.cjs",
     "read:local": "node scripts/read-site.cjs --local",
+    "shot": "node scripts/screenshot.cjs",
     "capture": "node scripts/capture-qa.cjs",
     "audit": "node scripts/qa-audit.cjs",
     "look": "node scripts/cdp-look.cjs",

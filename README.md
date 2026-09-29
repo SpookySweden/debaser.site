@@ -92,14 +92,20 @@ grep: the player's music key is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!
 the raw HTML for `[ ♪ MUSIC ]` finds nothing and reports a present change as missing.
 
 Its limits are real and worth stating: it proves the served bytes contain the text named, and it
-cannot see pixels, press a button or judge an aesthetic. **Chrome is installed** at
-`C:\Program Files\Google\Chrome\Application\chrome.exe` and runs headless with no dependency at all,
-which is how pixel questions are answered when they genuinely need eyes:
+cannot judge an aesthetic or watch motion. **A picture, though, is readable now.** `npm run shot`
+writes a PNG through Chrome's own debug protocol (`scripts/screenshot.cjs`), `npm run panes` counts
+the colours inside a box of it, `npm run stages` does that per render stage, and the file-reading
+tool opens the file itself. Chrome is installed at
+`C:\Program Files\Google\Chrome\Application\chrome.exe` and needs no dependency at all:
 
-    chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
+    npm run shot -- --url http://localhost:3100/forum --out Temp/browse/forum.png
+    npm run panes -- --png Temp/browse/forum.png --box 0,0,300,200
 
-`--use-angle=swiftshader` is load-bearing: without the software GL a headless build has no WebGL, and
-a blank canvas would say nothing. `AGENTS.md` has the instruments and the two faults they found.
+`--use-angle=swiftshader` (carried by every one of those tools) is load-bearing: without the software
+GL a headless build has no WebGL, and a blank canvas would say nothing. **A capture is refused when
+the address did not answer**, so a picture of *"This site can't be reached"* cannot be filed under a
+page's name - which is exactly how `Temp/browse/account.png` came to exist under `account`.
+`AGENTS.md` has the instruments and the faults they found.
 
     npm run capture                  # writes Temp/qa/<route>.html for the audit below
     npm run audit                    # reads those captures and reports

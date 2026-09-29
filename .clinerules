@@ -102,8 +102,14 @@
   cache is empty. Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and runs headless
   with no dependency at all:
 
-      chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
+      npm run shot -- --url <address> --out Temp/browse/out.png     a capture, through Chrome's debug protocol
+      npm run panes -- --png Temp/browse/out.png --box 0,0,300,200  the colours inside a box of it
 
+  **A capture is readable evidence - `npm run shot` writes it, `npm run panes` counts inside it, and the
+  file-reading tool opens it** - so *"the agent cannot see pixels"* is not true any more and must not be repeated.
+  A picture is evidence only if it is **newer than the code it is claimed to prove**, and `npm run shot` refuses to
+  write one at all when the address did not answer: `Temp/browse/account.png` was a picture of *"This site can't be
+  reached"* filed under the name of a page that worked, and two instruments then read it as `0 panes`, `no WebGL`.
   `--use-angle=swiftshader` is load-bearing - without the software GL there is no WebGL and a blank canvas would
   say nothing. Use it whenever a component is `ssr: false`, because server-side rendering cannot see such a
   component at all: `CharacterEditorPanel` emits the literal string `LOADING THE WORKBENCH...` to every check that
@@ -122,7 +128,10 @@
   with the read, and the push is not the finish line - the read is.
 - **Say what the read proves, and what it does not.** It proves the served bytes
   contain the text named. It does not prove the page looks right, and it cannot
-  press anything. Never upgrade one into the other in the answer.
+  judge an aesthetic or watch motion - a capture is one state, never a hover or a
+  wobble. A press can be issued at a control found by its text (`npm run shot --
+  --click "..."`), but nothing here picks the sequence for you, feels a drag or
+  types. Never upgrade one into the other in the answer.
 - **When the read passes but the change was visual, ask the owner a specific
   question** ("is the picture beside the name the right size?"). That is the only
   remaining check, and a vague question cannot be answered by anybody.

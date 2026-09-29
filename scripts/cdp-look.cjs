@@ -15,21 +15,22 @@
  *   - **It reads the drawing buffer.** `readPixels` separates "a canvas element exists" from "something was drawn
  *     into it", which no source check and no server render can tell apart.
  *
- * What it still cannot do, and the output says so: **it cannot see.** Pixels on the canvas means the renderer
- * ran, not that it drew a person, and not that the person looks right.
+ * What it still cannot do, and the output says so: **it cannot judge.** Pixels on the canvas means the renderer
+ * ran, not that it drew a person, and not that the person looks right. It cannot hover, drag or press anything
+ * that is not a `<button>` it can find by its text, and the still it writes is read by `scripts/png-read.cjs` (a
+ * colour count per box) and by a person (what shape those colours make) - never by this file.
  *
- * Run: node scripts/cdp-look.cjs [--url <address>] [--out <file.png>]
+ * **A page that did not answer is a refusal, not an empty page** (`scripts/cdp-page.cjs`). Chrome's own error page
+ * renders, has a body, and answers `0` canvases, so a probe pointed at a dead address reports `no` for every row
+ * below and writes a screenshot of *"This site can't be reached"*. That is not hypothetical: it is how
+ * `Temp/browse/account.png` came to exist, under the name of a page that worked. `arrive` throws before the capture
+ * is written now, and `--allow-error-page` keeps the refusal on purpose.
+ *
+ * Run: node scripts/cdp-look.cjs [--url <address>] [--out <file.png>] [--allow-error-page]
  */
-const { spawn } = require('node:child_process');
-const { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
+const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
-const { Socket, getJson } = require('./cdp-socket.cjs');
-
-const CANDIDATES = [
-  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
-  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
-];
+const { arrive, findChrome, flags, launch, socketOn } = require('./cdp-page.cjs');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -71,47 +72,21 @@ const PROBE = `(() => {
 const consoleLog = [];
 
 async function main() {
-  const chrome = CANDIDATES.find((candidate) => existsSync(candidate));
-  if (!chrome) {
-    console.log(`NO BROWSER: tried ${CANDIDATES.join(', ')}`);
-    process.exit(2);
-  }
-
-  const argv = process.argv.slice(2);
-  const at = (flag, fallback) => {
-    const index = argv.indexOf(flag);
-    return index === -1 ? fallback : argv[index + 1];
-  };
+  const chrome = findChrome();
+  const { argv, at, has } = flags();
 
   const url = at('--url', 'http://localhost:3100/account');
   const outFile = path.resolve(at('--out', path.join('Temp', 'browse', 'account.png')));
   const PORT = 9334;
   const profile = path.join('Temp', 'browse', 'cdp-profile');
 
-  rmSync(profile, { recursive: true, force: true });
-  mkdirSync(profile, { recursive: true });
   mkdirSync(path.dirname(outFile), { recursive: true });
 
-  const child = spawn(
-    chrome,
-    [
-      `--user-data-dir=${path.resolve(profile)}`,
-      '--headless=new',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--disable-extensions',
-      '--hide-scrollbars',
-      '--window-size=1440,2400',
-      // The software GL. Without it a headless build has no WebGL, and a blank canvas would say nothing at all
-      // about the code under test - the single most important flag here.
-      '--use-gl=angle',
-      '--use-angle=swiftshader',
-      '--enable-unsafe-swiftshader',
-      `--remote-debugging-port=${PORT}`,
-      'about:blank',
-    ],
-    { stdio: 'ignore' },
-  );
+  /*
+   * The launch, the port wait and the software GL all come from `cdp-page.cjs`, so this probe cannot
+   * come to disagree with the others about what a browser is - or about what an answer looks like.
+   */
+  const { child } = launch({ port: PORT, profile, size: [1440, 2400] });
 
   let socket;
 
@@ -119,24 +94,7 @@ async function main() {
     console.log(`browser : ${chrome}`);
     console.log(`url     : ${url}`);
 
-    // Wait for the debugger port rather than guessing a sleep long enough for a slow machine.
-    let targets = [];
-    for (let attempt = 0; attempt < 40; attempt += 1) {
-      try {
-        targets = await getJson(PORT, '/json/list');
-        if (targets.some((target) => target.type === 'page')) break;
-      } catch {
-        /* not listening yet */
-      }
-      await sleep(500);
-    }
-
-    const page = targets.find((target) => target.type === 'page');
-    if (!page) throw new Error('no page target appeared');
-
-    socket = await Socket.connect(page.webSocketDebuggerUrl);
-    await socket.send('Page.enable');
-    await socket.send('Runtime.enable');
+    socket = await socketOn(PORT);
 
     /**
      * Listen for console output, which is where this class of defect is *supposed* to be loud. r3f log a bare
@@ -156,11 +114,13 @@ async function main() {
       }
     };
 
-    await socket.send('Page.navigate', { url });
-
-    // The panel is dynamic-imported and the canvas is built after hydration, so this waits rather than sleeping
-    // a fixed amount: a fixed sleep passes on a fast machine and reports "no canvas" on a slow one.
-    await sleep(9000);
+    /*
+     * The arrival, and the guard that makes a refusal loud. Navigating to a dead address used to produce
+     * rows of `no` and a screenshot of *"This site can't be reached"* - which is how `Temp/browse/account.png`
+     * came to be a captured error page under the name of a page that worked. `arrive` throws `NoAnswer`
+     * before the capture is written, so the file cannot be made by accident any more.
+     */
+    await arrive(socket, url, { settle: 9000, allowErrorPage: has('--allow-error-page') });
 
     /**
      * The CHAR tab has to be pressed before the workbench exists, and finding that out was the point of running
@@ -542,7 +502,8 @@ async function main() {
     console.log('');
     console.log('NOT PROVEN: that the figure is a person, or that it looks right.');
     console.log('  Pixels on the canvas means the renderer ran, not that it drew something correct.');
-    console.log("  Nothing here can read the screenshot. That is a person's job.");
+    console.log("  What shape those pixels make is what a person reads in " + outFile + '.');
+    console.log('  For a count that can be quoted, run it through measure-panes.cjs --png.');
   } finally {
     if (socket) socket.close();
     child.kill();
@@ -550,6 +511,13 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (error.noAnswer) {
+    console.log(`REFUSED: ${error.message}`);
+    console.log('  Nothing was written. Chrome\'s error page renders, so every row below would read `no`');
+    console.log('  and the screenshot would be a picture of the refusal. Pass --allow-error-page to keep it.');
+    process.exit(1);
+  }
+
   console.log('FAILED: ' + error.message);
   process.exit(1);
 });

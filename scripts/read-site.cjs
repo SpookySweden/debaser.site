@@ -1,7 +1,10 @@
 /*
  * Reads the site - the deployed one, or a local build - and confirms what is actually in the served
- * HTML. **This is the agent's eyes.** There is no browser here: no screenshots, no clicking, no
- * layout, no colour. This script is what stands in for looking, so it is tracked in `scripts/` rather
+ * HTML. **This is the agent's eyes for the bytes**, and it is not the only instrument: a capture is
+ * readable as well (`npm run shot` writes one through Chrome's debug protocol, `npm run panes` counts
+ * the colours inside a box of it, `npm run stages` does that per render stage, and the file-reading
+ * tool opens the file). What none of them does is judge an aesthetic or watch motion, and a capture is
+ * evidence only if it is newer than the code it is claimed to prove. Still tracked in `scripts/` rather
  * than kept in `Temp/` as scratch - a viewer that a fresh clone does not have is not a guarantee.
  *
  *   npm run read                       the deployed site, default expectations

@@ -217,12 +217,24 @@ the agent - so the loop is: change, verify, push, confirm it is deployed, report
 
 | can | cannot |
 | --- | --- |
-| read the served HTML of any page, local or deployed | **see pixels** - no screenshots, no layout, no colour, no fonts, no cursor art |
-| read and write SQL, and query the live database directly | **click, hover, press or drag anything** - no way to exercise an interaction |
-| run the check suite, lint, typecheck and build | **judge the aesthetic** - whether it reads as Web 1.0, or feels like ENA |
-| grep the deployed HTML for a control's text | **tell a placeholder from a result** - `READING...` / `[ SYNCING... ]` are pre-hydration states, so a prerendered `0` is not proof that a list is empty |
+| read the served HTML of any page, local or deployed | **see motion** - one still frame shows a state, never a hover, a wobble, or the transition between two states |
+| **read a captured PNG** - open the file, describe its layout, its text, its colours, and whether a pane has a figure drawn in it - and count those colours (`npm run panes`) | **decide a sequence, drag anything, or type** - a press is a real event at a coordinate found from a control's text, but nothing here can choose what to press, feel a drag, or know the press landed where it meant without the label being printed back |
+| read and write SQL, and query the live database directly | **judge the aesthetic** - whether it reads as Web 1.0, or feels like ENA |
+| run the check suite, lint, typecheck and build | **tell a placeholder from a result** - `READING...` / `[ SYNCING... ]` are pre-hydration states, so a prerendered `0` is not proof that a list is empty |
 
-So the sentence is *"the served HTML contains X, and the checks pass"* - never *"it looks right"*.
+**The middle row is new on 2026-09-29, and until then the table said the opposite**: *"**see pixels** - no
+screenshots, no layout, no colour"*. That was a statement about the leftovers in `Temp/`, not about the
+machine. The browser is installed and always was (see below); `npm run shot` now writes a PNG through Chrome's
+own debug protocol, `npm run panes` counts the colours inside a box of it, `npm run stages` does that per render
+stage, and the file-reading tool opens the file - so a picture is evidence that can be quoted. Two things
+follow from that. **A capture is evidence only if it is newer than the code it is claimed to prove** - a
+screenshot of yesterday's build is the same fault as the two-day-old `Temp/qa/*.html` above. And **a capture of
+a page nobody read is not evidence either**: `Temp/browse/account.png` was a picture of *"This site can't be
+reached"* filed under the name of a page that worked, which is why `scripts/cdp-page.cjs` refuses to write a
+capture at all when the address did not answer.
+
+So the sentence is *"the served HTML contains X, and the checks pass"* - or *"the capture is 1440x1000, 217
+colours in pane 0 and none of them grey, written after the change"* - never *"it looks right"*.
 When something genuinely needs eyes, ask a **specific** question ("is the picture beside the name
 the right size?") rather than a general one ("does it look ok?"), because the second is not
 answerable by anybody.
@@ -387,12 +399,20 @@ for all three**:
 
 ### The instruments, tracked in `scripts/`
 
+    npm run shot              take a picture of a page after named presses; read it back as colour counts
     npm run look              drive Chrome over CDP; read the drawing buffer and the DOM
     npm run panes             decode the screenshot's PNG by hand; count colours per pane
     npm run stages            the same, per render stage, so two stages can be told apart
     npm run deployed          load the deployed site; read response BODIES, never hashed filenames
+    scripts/cdp-page.cjs      what they share: the launch, the software GL, the arrival, and the refusal
     scripts/png-read.cjs      the PNG decoder, no dependency added for a diagnostic
-    scripts/cdp-socket.cjs    the CDP socket `look`, `panes`, `stages` and `deployed` all require
+    scripts/cdp-socket.cjs    the CDP socket every one of them requires
+
+**`scripts/cdp-page.cjs` is the newest and the least obvious.** It holds the arrival probe, and the arrival
+*throws* `NoAnswer` when the page is the browser's own error page - which is the difference between "the figure
+did not draw" and "there was no server". It is shared so that `shot`, `look`, `panes` and `stages` cannot come to
+disagree about what an answer looks like, and a capture that did not happen is never written: `--allow-error-page`
+is the deliberate opt-out.
 
 **That heading said `Temp/` once, and it was wrong twice over.** `.gitignore` carries `/Temp/`,
 `git ls-files Temp` is empty, so nothing there is tracked - and a fresh clone therefore had none of

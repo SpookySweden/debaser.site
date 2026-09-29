@@ -132,6 +132,10 @@ rule quietly eroded along the way.
 Each phase ends per `AGENTS.md`: `verify` -> `checks` -> `capture` + `qa-audit` -> commit -> push -> `read`,
 then a plain report of what was checked and what was not.
 
-**The limit stated every time:** the agent cannot see pixels, click, hover or drag. From Phase 3 on, what can
-be proved is that the code is wired and the checks pass - **not that the figure looks like anything**, and
-not that a drag feels right.
+**The limit stated every time:** the agent cannot judge an aesthetic and cannot drag, type or choose a
+sequence; it *can* press a control it was told to look for, and it *can* read a capture - a PNG is a file, so
+its layout, its text and its colours are readable, and the colours inside a box are countable
+(`npm run panes`, `npm run stages`). What one still frame cannot show is motion: a hover, a wobble, a
+transition. So from Phase 3 on, what can be proved is that the code is wired, that the checks pass, and that a
+capture taken *after* the change has a figure drawn in a pane with a hundred-odd distinct colours and no grey -
+**not that the figure looks like anything**, and not that a drag feels right.

@@ -54,10 +54,12 @@ read-site.cjs
     npm run read -- --absent "[ SHELF (" expect this text to be gone
     npm run read -- --url <address>     read any route
 
-**This is the agent's eyes.** There is no browser here - no screenshots, no clicking, no layout, no
-colour - so this script is what stands in for looking at the site, and it is the one that matters
-most. It reads the HTML a visitor's browser gets and reports whether the text the caller names is
-present or absent.
+**This is the agent's eyes for the *bytes*.** It reads the HTML a visitor's browser gets and reports
+whether the text the caller names is present or absent - and it is not the only instrument now: a
+capture is readable too (`npm run shot` writes one, `npm run panes` counts the colours inside a box of
+it, `npm run stages` does that per render stage, and the file-reading tool opens the file). What no
+tool here does is judge an aesthetic or watch motion - one still frame is one state, not a hover, and
+a capture is evidence only if it is newer than the code it is said to prove.
 
 It strips React's text-node comments before matching, which is the whole reason it is a script: the
 player's music key is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so a plain grep for
@@ -130,20 +132,33 @@ end up in the directory on `/users`, which is where visitors meet them: 284 of t
 on 2026-09-29 were the suite's. This runs the reviewed pair in `supabase/cleanup/`, review first, so
 the survivors are read rather than assumed. **Run it after the last check run, never before it.**
 
-cdp-look.cjs, measure-panes.cjs, measure-stages.cjs, check-deployed.cjs (and their two libraries)
--------------------------------------------------------------------------------------------------
+screenshot.cjs, cdp-look.cjs, measure-panes.cjs, measure-stages.cjs, check-deployed.cjs
+------------------------------------------------------------------------------------------
+    npm run shot -- --url <address>     take a picture after named presses; read it back as colour counts
     npm run look -- --url <address>     drive Chrome over CDP; read the drawing buffer and the DOM
-    npm run panes -- --png <file>       decode the screenshot's PNG by hand; count colours per pane
-    npm run stages -- --url <address>   the same, per render stage, so two stages can be told apart
+    npm run panes -- --png <file>       read a PNG that is on disk - or capture one - and count colours per pane
+    npm run stages -- --signin          the same, per render stage, reached through the workbench's own plates
     npm run deployed                    load the deployed site; read response BODIES, never hashed names
-    scripts/cdp-socket.cjs              the CDP socket all four require
+    scripts/cdp-page.cjs                what they share: the launch, the arrival, and the refusal
+    scripts/cdp-socket.cjs              the CDP socket all of them require
     scripts/png-read.cjs                the PNG decoder, no dependency added for a diagnostic
+
+`npm run shot` is the one to reach for when a question is about what the page *is*: it can name a
+sequence of controls by their text (or a selector), hover them, focus them, press them, capture past the
+first screen or into one element, and it prints what it pressed - because a sequence that quietly skipped
+its second press would write a picture nobody asked for and call it a success.
 
 Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and needs no Puppeteer
 and no download; `--use-angle=swiftshader` is load-bearing, since without the software GL a headless
 build has no WebGL and a blank canvas would say nothing. **Read pixels inside a
 `requestAnimationFrame`**: a WebGL buffer is cleared on present, so a zero read from outside a frame
 is a statement about the probe, not the renderer.
+
+**And a page that did not answer is a refusal, not a page.** Chrome's own error page renders, has a body,
+and answers `0` canvases, so a capture taken at a dead address reads as "the pane is empty" - which is how
+`Temp/browse/account.png` came to be a picture of *"This site can't be reached"* under the name of a page
+that worked. `scripts/cdp-page.cjs` throws `NoAnswer` before any file is written, every tool here goes
+through it, and `--allow-error-page` is the deliberate opt-out.
 
 What they prove is narrow and worth saying: pixels on the canvas means the renderer ran - never that
 it drew a person, or that the person looks right. A screenshot lands in `Temp/browse/`, which is
