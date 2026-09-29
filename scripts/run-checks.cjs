@@ -16,9 +16,18 @@
  *
  * A live check signs accounts up to ask the database anything (a policy needs a session, and a
  * tag needs two accounts), and it cannot delete them: that takes the service role, which the
- * site never holds. Those accounts show up in the user directory on /users, so after a session
- * of live checks, run `supabase/cleanup/throwaway-accounts-review.sql` and then
- * `supabase/cleanup/throwaway-accounts-sweep.sql` in the SQL editor.
+ * site never holds. Those accounts show up in the user directory on /users, so a session of
+ * live checks is not finished until they are swept - and **the sweep goes after the last run of
+ * them, never before it**, because this runner is what re-creates them (284 of the 293 accounts
+ * on 2026-09-29 were its):
+ *
+ *     npm run db:sweep:review    the list, and it changes nothing
+ *     npm run db:sweep           the same list, then the removal
+ *
+ * `scripts/sweep-throwaways.cjs` is that pair. It holds no SQL of its own - it runs the two
+ * reviewed files in `supabase/cleanup/` in order, review first, so the survivors are read before
+ * they are assumed. It used to say "in the SQL editor", which was two manual steps nobody could
+ * run from a clone.
  */
 const { execSync } = require('node:child_process');
 const { existsSync, readdirSync, readFileSync } = require('node:fs');

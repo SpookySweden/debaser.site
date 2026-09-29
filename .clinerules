@@ -52,14 +52,22 @@
   Piping a build to `Select-Object` buries the one line that matters.
 - **Prefer a repo script over a hand-written command** when one exists:
   `npm run read` for the served HTML, `npm run capture` for the audit's
-  snapshots, `npm run checks` for the check suite, `npm run db` for SQL. They
-  already handle the quoting and the comment-stripping, and they are tracked in
-  `scripts/` so they survive a clone.
+  snapshots, `npm run audit` for the audit itself, `npm run checks` for the check
+  suite, `npm run db` for SQL, `npm run db:sweep` to clear what the checks left
+  behind. They already handle the quoting and the comment-stripping, and they are
+  tracked in `scripts/` so they survive a clone.
 
 ## Live Data and Honest Scope
 - **Review before any destructive pattern.** `supabase/cleanup/*-review.sql` runs
   first and lists exactly what would go; read it and confirm the survivors before
   sweeping. Never act on an assumption about what a `like` pattern matches.
+  `npm run db:sweep:review` is that list as a command; `npm run db:sweep` prints it
+  and then acts on it.
+- **Sweep the checks' accounts last, never first.** `npm run checks` signs throwaway
+  accounts up because a policy cannot be asked anything without a session, and it
+  cannot delete them - that takes the service role. So a session is not finished
+  until `npm run db:sweep` has run *after* the final check run; sweeping before it
+  leaves the directory on `/users` exactly as full as it started.
 - **State what you could not check, inside the answer itself** - not as a
   disclaimer. No pixels, no clicking, no judging the aesthetic.
 - **A prerendered `0` is not proof of an empty list.** `READING...` and

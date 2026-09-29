@@ -66,18 +66,19 @@ Checks
     npm run build         # next build, which typechecks and prerenders every route
     npm run verify        # the three above, in that order
 
-    node Temp/run-checks.cjs
+    npm run checks
 
 The last one runs the scratch checks: the assertions behind each feature, from the pin durations to
 the wire's rows to the Yjs handshake between two editors. Each compiles the modules it needs with
 `npx tsc` first, from the command written in its own header comment, so that one command is the
 whole run. The live probes beside them need a Supabase project and credentials, and are run by hand
-against the deployed one.
+against the deployed one. **Run `npm run db:sweep` after the last one, never before it**: the checks
+that talk to the project sign accounts up, and cannot delete them - see `scripts/README.txt`.
 
 Reading the site
 ----------------
-There is no browser in this workflow - no screenshots, no clicking, no layout or colour - so
-`scripts/read-site.cjs` is what stands in for looking. It reads the HTML a visitor's browser gets and
+**There is a browser here, and it is Chrome.** Reading the served HTML is `scripts/read-site.cjs`,
+which is what stands in for looking at the bytes - it reads the HTML a visitor's browser gets and
 reports whether the text you name is present or absent:
 
     npm run read                     # the deployed site, checking the player's keys
@@ -90,33 +91,36 @@ It strips React's text-node comments first, which is the whole reason it is a sc
 grep: the player's music key is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so searching
 the raw HTML for `[ ♪ MUSIC ]` finds nothing and reports a present change as missing.
 
+Its limits are real and worth stating: it proves the served bytes contain the text named, and it
+cannot see pixels, press a button or judge an aesthetic. **Chrome is installed** at
+`C:\Program Files\Google\Chrome\Application\chrome.exe` and runs headless with no dependency at all,
+which is how pixel questions are answered when they genuinely need eyes:
+
+    chrome.exe --headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --screenshot=out.png <url>
+
+`--use-angle=swiftshader` is load-bearing: without the software GL a headless build has no WebGL, and
+a blank canvas would say nothing. `AGENTS.md` has the instruments and the two faults they found.
+
     npm run capture                  # writes Temp/qa/<route>.html for the audit below
+    npm run audit                    # reads those captures and reports
 
-`node Temp/qa-audit.cjs` reads those captures - the pre-JavaScript HTML of every route, which is also
-what a screen reader and a crawler see - and reports unnamed fields, controls too small for a thumb,
-text too small to read, and colour pairs below the contrast floor. **Capture first**: a snapshot older
-than the components makes the pass meaningless. `scripts/README.txt` has the whole of it.
-
-One pass is not part of that suite, because it needs a capture of the built site:
-
-    node Temp/qa-audit.cjs
-
-It reads the HTML `next start` serves - one file per route, the same bytes a visitor's browser gets
-before any JavaScript runs, which is also what a screen reader sees - and reports what a person
-meets: fields with no name, controls too small for a thumb, text too small to read, colour pairs
-below the contrast floor. It also lists the handful of things no script can answer and somebody
-should walk through by hand. `Temp/check-ux.cjs` is the part of that pass the ordinary suite can
-hold, so a regression is caught without a server.
+`npm run audit` reads the pre-JavaScript HTML of every route - which is also what a screen reader and
+a crawler see - and reports unnamed fields, controls too small for a thumb, text too small to read,
+and colour pairs below the contrast floor. It also lists the handful of things no script can answer
+and somebody should walk through by hand; `Temp/check-ux.cjs` is the part of that pass the ordinary
+suite can hold, so a regression is caught without a server. **Capture first**: a snapshot older than
+the components makes the pass meaningless. `scripts/README.txt` has the whole of it.
 
 Asking the database, and changing it
 ------------------------------------
 Everything above talks to the project the way the *site* does: the publishable (anon) key over
 PostgREST, which reads the tables RLS allows and calls the functions the schema defines. That key
-cannot run SQL, so no check above can ask the database *why*. `Temp/sql.cjs` can, through the
+cannot run SQL, so no check above can ask the database *why*. `scripts/db.cjs` can, through the
 Supabase CLI, which is a devDependency:
 
     npm run db -- "select count(*) from public.profiles;"
     npm run db -- --file supabase/cleanup/verify-live-schema.sql
+    npm run db -- --write "..."        # a statement that is not a read is refused without this
 
 And the schema itself is a CLI migration chain now, so a change reaches the project with a command
 rather than a paste into the SQL editor:
@@ -126,13 +130,17 @@ rather than a paste into the SQL editor:
     npm run db:push          # apply it
     npm run db:new -- name   # a new, empty migration
 
-Both need a personal access token (`sbp_...`, from
+    npm run db:sweep:review  # the throwaway accounts a check run left, listed - changes nothing
+    npm run db:sweep         # the same list, then the removal
+
+All of them need a personal access token (`sbp_...`, from
 https://supabase.com/dashboard/account/tokens) as `SUPABASE_ACCESS_TOKEN` in `.env.local` or in the
-environment, or `npx supabase login` once; and the checkout linked once
-(`npm run db:link -- --project-ref <ref>`). It is the only secret this repository ever asks for, it is
-never read by `app/` and never needed to build or run the site, and a statement that is not a read is
-refused without `--write`. `supabase/README.md` has the whole of it, including how the migration
-history was reconciled.
+environment, and `scripts/db-cli.cjs` supplies `--linked --project-ref <ref>` itself, reading the ref
+out of `NEXT_PUBLIC_SUPABASE_URL` - because `supabase link` writes per-machine state that a fresh
+clone does not have. It is the only secret this repository ever asks for, it is never read by `app/`
+and never needed to build or run the site, and a statement that is not a read is refused without
+`--write`. `supabase/README.md` has the whole of it, including how the migration history was
+reconciled.
 
 Deploying
 ---------

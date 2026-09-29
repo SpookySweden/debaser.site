@@ -18,9 +18,14 @@ SQL editor's job, and this is how to make them a command instead:
     npm run db -- --file supabase/cleanup/verify-live-schema.sql
     npm run db -- --json "select * from pg_policies where tablename = 'profiles';"
 
-`npm run db` (`Temp/sql.cjs`) drives `supabase db query`, which is the same
+`npm run db` (`scripts/db.cjs`) drives `supabase db query`, which is the same
 instrument the SQL editor is: it goes to the Management API with a *personal*
 access token, not with the site's key.
+
+It is tracked in `scripts/` rather than `Temp/` for the reason every other tool
+here is: `package.json` names it, so a copy in the gitignored folder would mean
+`npm run db` does not exist on a fresh clone - and this is the instrument the
+standing SQL grant in `AGENTS.md` depends on.
 
 **The credential is the whole story, so read this part.** A token (`sbp_...`)
 from https://supabase.com/dashboard/account/tokens belongs to *your account*, not
@@ -49,8 +54,8 @@ A statement that is not a read is **refused** without `--write`, and printed in
 full first, so the review is of the SQL rather than of the flag. `--read-only`
 refuses the other way: it errors if the statement turns out to be a write. The
 CLI has no read-only mode of its own, so this is a courtesy rather than a guard -
-but it is the difference between a typo and an outage. `Temp/` is gitignored, and
-so is `.env.local`.
+but it is the difference between a typo and an outage. Only the credential lives
+outside the repository, in the gitignored `.env.local`.
 
 ### The migrations, and how the history was adopted
 
@@ -870,6 +875,17 @@ and `diag <stamp>` accounts.
 The sweep matches on the names the checks use - `cline-*@debaser.site`, `probe actor`, `probe to`,
 `diag <stamp>`, `PROBE ACCOUNT` - so an account somebody really made is not touched by it. Run the
 review first and read it.
+
+Both halves are a command, and it is two of them because the first has to be read:
+
+    npm run db:sweep:review    runs the review above and stops there - nothing is removed
+    npm run db:sweep           prints that same list, then runs the sweep
+
+`scripts/sweep-throwaways.cjs` holds no SQL: it runs the two reviewed files above, in order, through
+`npm run db`. **The sweep goes after the last run of the live checks and never before it** -
+`npm run checks` is what creates those accounts, so sweeping early leaves the directory exactly as
+full as it started.
+
 
 `Temp/check-games-live.cjs` is the same ground, live: it signs two accounts up and walks the whole
 path against the project - the challenger files an invitation and reads it back (allowed, because the

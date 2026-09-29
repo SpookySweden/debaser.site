@@ -148,14 +148,23 @@ holds the whole setup, including how the history was adopted.
 
 **What the grant does not change:**
 
-- **Writes still need `--write`.** `Temp/sql.cjs` refuses a statement that is not a read and prints
+- **Writes still need `--write`.** `scripts/db.cjs` - the file behind `npm run db` - refuses a
+  statement that is not a read and prints
   it in full first, so the review is of the SQL rather than of the flag that was typed. Leave that
   guard alone: it is the difference between a typo and an outage.
 - **Destructive work is reviewed before it runs.** `supabase/cleanup/` is the pattern:
   `throwaway-accounts-review.sql` (read-only, lists exactly what would go) and then
   `throwaway-accounts-sweep.sql`. Run the review, read the list, and confirm the survivors are the
   accounts that should survive - that is how 30 throwaway accounts went without touching the 7 real
-  ones. Never sweep on an assumption about what a `like` pattern matches.
+  ones. Never sweep on an assumption about what a `like` pattern matches. Both halves are a command
+  rather than a pair of files to paste into the SQL editor:
+
+      npm run db:sweep:review    the list, and it changes nothing
+      npm run db:sweep           the same list, then the removal
+
+  **The sweep comes after the last run of the live checks, never before it**, because
+  `npm run checks` is what creates those accounts - 284 of the 293 on 2026-09-29 were its. Sweeping
+  first and checking afterwards leaves the directory exactly as full as it started.
 - **Schema changes go through the migration chain, never ad-hoc DDL.** `npm run db:new -- name`,
   write the SQL with `if not exists` / `drop policy if exists`, `npm run db:push:dry`, then
   `npm run db:push`. This repository's timestamps carry *section numbers*, so `--include-all` is
@@ -176,7 +185,11 @@ the agent - so the loop is: change, verify, push, confirm it is deployed, report
    not an obstacle: update the check deliberately (never delete it) when the rule it holds genuinely
    changed, and say why. `Temp/check-music-library.cjs` and `Temp/check-surreal.cjs` are recent
    examples, and both were proven to fail before being trusted.
-3. `node Temp/qa-audit.cjs` - reads the HTML a visitor's browser gets before any JavaScript runs
+   **The checks create accounts.** A live check signs up to ask a policy anything and cannot delete
+   what it made - that takes the service role - so they accumulate where visitors can see them, in
+   the directory on `/users`. The suite ends with `npm run db:sweep` for that reason, *after* the
+   last check run and never before it.
+3. `npm run audit` - reads the HTML a visitor's browser gets before any JavaScript runs
    (which is also what a screen reader and a crawler see) and reports unnamed fields, controls too
    small for a thumb, text too small to read, and colour pairs below the contrast floor.
    **Capture first: `npm run capture`.** The audit reads snapshots from `Temp/qa/`,
@@ -301,7 +314,7 @@ counts.
 
 **Node 24 on Windows will not spawn a `.cmd` shim.** `execFileSync('npx.cmd', ...)` fails with
 `EINVAL`, and the `shell: true` workaround joins arguments unescaped (`DEP0190`, which Node itself
-warns about). Both `Temp/sql.cjs` and `Temp/db-cli.cjs` therefore run the CLI as
+warns about). Both `scripts/db.cjs` and `scripts/db-cli.cjs` therefore run the CLI as
 `node node_modules/supabase/dist/supabase.js` - no shim, no shell, and the version pinned in
 `package.json` rather than whatever `npx` resolves.
 
@@ -318,6 +331,20 @@ survivors, then run `*-sweep.sql`. That is how 30 throwaway accounts were remove
 the 7 real ones, and it did not need a halt - the halt would have added nothing except a turn, since
 the list had already been read. What *would* need one: dropping a table, deleting a tracked file,
 force-pushing, or rewriting history - anything whose effect cannot be seen first or undone after.
+
+**`package.json` named tools the repository did not contain.** Every `npm run db*` command pointed
+into `Temp/` - `sql.cjs`, `db-cli.cjs`, `db-repair.cjs`, and `qa-audit.cjs` as well, which is step 3
+of the ship loop above. `Temp/` is gitignored, so on a fresh clone the standing SQL grant in this
+file had no instrument at all and the documented ship loop had a step that could not be run. The
+four are now `scripts/db.cjs`, `scripts/db-cli.cjs`, `scripts/db-repair.cjs` and
+`scripts/qa-audit.cjs` (as `npm run audit`), the gitignored originals are gone so there cannot be
+two, and the sweep the live checks need is a command - `npm run db:sweep` - rather than a file to
+paste into the SQL editor. This is the same fault `read-site.cjs` and `run-checks.cjs` were moved
+out of, and the lesson is where it was found rather than what it looks like: the move was visible by
+reading `package.json`, not by reading the scripts, because a tool is only tracked when something
+that *is* tracked names it. The scratch checks stay scratch - they are written against whatever is
+being worked on - and `Temp/run-checks.cjs` was deleted on the spot, being a stale 4,160-byte copy
+of the 5,199-byte runner that a README still invited people to run.
 
 ## Build Order
 

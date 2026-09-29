@@ -3,13 +3,13 @@
  *
  *   npm run build
  *   npm run capture           # build must already be done; starts its own server on :3210
- *   node Temp/qa-audit.cjs    # then reads what it wrote
+ *   npm run audit              # then reads what it wrote
  *
  * Tracked in `scripts/` rather than kept in `Temp/`, for the same reason as `read-site.cjs`: a viewer
  * that a fresh clone does not have is not a guarantee. The *output* is scratch (`Temp/qa/` is
  * gitignored); the ability to produce it is part of the repository.
  *
- * Why this exists. `Temp/qa-audit.cjs` is a reader: it reports unnamed fields, sub-thumb controls,
+ * Why this exists. `scripts/qa-audit.cjs` is a reader: it reports unnamed fields, sub-thumb controls,
  * small text and contrast failures from HTML *files*. What it does not do is produce them, and for a
  * while those files were written by hand - which meant they went stale silently. On 2026-09-25 the
  * captures were two days older than the components, so the audit reported on a build nobody was
@@ -22,7 +22,7 @@
  * screenshot. What it cannot show is anything that fills in afterwards, which is why the audit also
  * ends by listing the questions a person has to walk through.
  *
- * The routes are read from `Temp/qa-audit.cjs` itself rather than repeated here, so the two cannot
+ * The routes are read from `scripts/qa-audit.cjs` itself rather than repeated here, so the two cannot
  * disagree about what is being audited. A route that fails to capture is reported and the run exits
  * non-zero, rather than quietly leaving yesterday's file in place for the audit to read.
  */
@@ -36,11 +36,12 @@ const OUT = join('Temp', 'qa');
 
 /** The route list, taken from the audit so there is one of them. */
 function routes() {
-  const audit = readFileSync(join('Temp', 'qa-audit.cjs'), 'utf8');
+  // Read from this file's own folder, not the scratch tree: the route list is part of the repository.
+  const audit = readFileSync(join(__dirname, 'qa-audit.cjs'), 'utf8');
   const block = /const ROUTES = \[([\s\S]*?)\];/.exec(audit)?.[1];
 
   if (block === undefined) {
-    throw new Error('could not read ROUTES out of Temp/qa-audit.cjs - has it been renamed?');
+    throw new Error('could not read ROUTES out of scripts/qa-audit.cjs - has it been renamed?');
   }
 
   return [...block.matchAll(/\['([^']+)',\s*'([^']+)'\]/g)].map(([, name, path]) => ({ name, path }));
@@ -63,11 +64,20 @@ async function up() {
 
   if (!(await up())) {
     console.log(`starting next start on :${PORT} ...`);
-    // `shell: true` because `npx` is a batch shim on Windows and Node 24 refuses to spawn that
-    // directly (the EINVAL this repository has already hit once - see Temp/sql.cjs).
-    server = spawn('npx', ['next', 'start', '-p', String(PORT)], {
+    /**
+     * `node node_modules/next/dist/bin/next`, not `npx next` with `shell: true`.
+     *
+     * The shim version had two faults and both were visible: Node 24 warns about `shell: true`
+     * (`DEP0190` - arguments are concatenated, not escaped), and `server.kill()` killed the `cmd.exe`
+     * that *wrapped* the server rather than the server, so a `next start` was left listening on :3210
+     * after every capture. A leftover server is worse than untidy here: the next capture sees a
+     * listener that answers, decides the site is already up, and captures whatever that stale build
+     * serves - which is the exact staleness this script exists to prevent. Spawning the CLI entry with
+     * `process.execPath` gives one process, and killing it kills the server. Same reasoning, and the
+     * same fix, as `scripts/db-cli.cjs`.
+     */
+    server = spawn(process.execPath, [join('node_modules', 'next', 'dist', 'bin', 'next'), 'start', '-p', String(PORT)], {
       stdio: 'ignore',
-      shell: true,
       detached: false,
     });
 
@@ -119,7 +129,7 @@ async function up() {
     console.log('the audit is trusted - a missing file is a route the audit silently skips.');
     process.exitCode = 1;
   } else {
-    console.log(`${list.length}/${list.length} captured. Run \`node Temp/qa-audit.cjs\` against them now -`);
+    console.log(`${list.length}/${list.length} captured. Run \`npm run audit\` against them now -`);
     console.log('and re-capture after every change to a component, or the audit reads yesterday`s build.');
   }
 
