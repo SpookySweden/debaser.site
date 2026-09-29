@@ -385,12 +385,22 @@ for all three**:
 3. `MODEL_INK` was `#FFFFFF`, which under a lambert light renders as `rgb(226,226,226)` - a grey, in a palette
    that forbids greys. The figure had no colour of its own; it was a white mass pretending to be one.
 
-### The instruments, tracked in `Temp/`
+### The instruments, tracked in `scripts/`
 
-    Temp/cdp-look.cjs         drive Chrome over CDP; read the drawing buffer and the DOM
-    Temp/measure-panes.cjs    decode the screenshot's PNG by hand; count colours per pane
-    Temp/check-deployed.cjs   load the deployed site; read response BODIES, never hashed filenames
-    Temp/png-read.cjs         the PNG decoder, no dependency added for a diagnostic
+    npm run look              drive Chrome over CDP; read the drawing buffer and the DOM
+    npm run panes             decode the screenshot's PNG by hand; count colours per pane
+    npm run stages            the same, per render stage, so two stages can be told apart
+    npm run deployed          load the deployed site; read response BODIES, never hashed filenames
+    scripts/png-read.cjs      the PNG decoder, no dependency added for a diagnostic
+    scripts/cdp-socket.cjs    the CDP socket `look`, `panes`, `stages` and `deployed` all require
+
+**That heading said `Temp/` once, and it was wrong twice over.** `.gitignore` carries `/Temp/`,
+`git ls-files Temp` is empty, so nothing there is tracked - and a fresh clone therefore had none of
+these, which is the same defect the DB tools had (see the line about the standing SQL grant above).
+The code moved; the *outputs* did not, and `Temp/browse/` is still where a screenshot lands, because
+scratch goes on being scratch. Seven one-off probes in `Temp/` also `require` the two libraries, and
+were repointed at `../scripts/` in the same move rather than left with a broken import - a probe that
+cannot load is a probe that reports nothing, and the failure reads like a fault in the site.
 
 **Read pixels inside a `requestAnimationFrame`.** A WebGL drawing buffer is cleared when it is presented unless
 the context was made with `preserveDrawingBuffer`, so `readPixels` from outside a frame legitimately returns all
@@ -402,7 +412,7 @@ same reason: one experiment per suspect, because two faults mask each other.
 
 - **A `<canvas>` in the DOM is not a drawn figure, and pixels on the canvas are not a person.** The honest
   sentence is "72072/72072 pixels drawn in-frame, three colours, none of them grey" - never "it looks right".
-  `Temp/measure-stages.cjs` is what produces a per-stage reading; the numbers it gave on 2026-09-26 were:
+  `npm run stages` is what produces a per-stage reading; the numbers it gave on 2026-09-26 were:
 
       MASS    2 colours    rgb(96,204,89) - the green wireframe alone, no surface at all
       BASE    3 colours    Violet trunk + darker Violet limbs, flat and unlit

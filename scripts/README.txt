@@ -122,3 +122,24 @@ a session - and it cannot delete them, because that takes the service role the s
 end up in the directory on `/users`, which is where visitors meet them: 284 of the 293 accounts there
 on 2026-09-29 were the suite's. This runs the reviewed pair in `supabase/cleanup/`, review first, so
 the survivors are read rather than assumed. **Run it after the last check run, never before it.**
+
+cdp-look.cjs, measure-panes.cjs, measure-stages.cjs, check-deployed.cjs (and their two libraries)
+-------------------------------------------------------------------------------------------------
+    npm run look -- --url <address>     drive Chrome over CDP; read the drawing buffer and the DOM
+    npm run panes -- --png <file>       decode the screenshot's PNG by hand; count colours per pane
+    npm run stages -- --url <address>   the same, per render stage, so two stages can be told apart
+    npm run deployed                    load the deployed site; read response BODIES, never hashed names
+    scripts/cdp-socket.cjs              the CDP socket all four require
+    scripts/png-read.cjs                the PNG decoder, no dependency added for a diagnostic
+
+Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe` and needs no Puppeteer
+and no download; `--use-angle=swiftshader` is load-bearing, since without the software GL a headless
+build has no WebGL and a blank canvas would say nothing. **Read pixels inside a
+`requestAnimationFrame`**: a WebGL buffer is cleared on present, so a zero read from outside a frame
+is a statement about the probe, not the renderer.
+
+What they prove is narrow and worth saying: pixels on the canvas means the renderer ran - never that
+it drew a person, or that the person looks right. A screenshot lands in `Temp/browse/`, which is
+where it belongs: the code is tracked, the machine-local output is not. `AGENTS.md` has the two faults
+that were hiding behind these (a `frameloop="demand"` nothing invalidated, and an `EffectComposer`
+that cleared its own frame), and both were found only because a headless Chrome could be driven.

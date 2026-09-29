@@ -107,8 +107,10 @@
   `--use-angle=swiftshader` is load-bearing - without the software GL there is no WebGL and a blank canvas would
   say nothing. Use it whenever a component is `ssr: false`, because server-side rendering cannot see such a
   component at all: `CharacterEditorPanel` emits the literal string `LOADING THE WORKBENCH...` to every check that
-  renders markup, which is how three faults hid with the suite green. Templates are `Temp/cdp-look.cjs` (CDP),
-  `Temp/measure-panes.cjs` and `Temp/png-read.cjs` (pixels), and `Temp/check-deployed.cjs` (the live site).
+  renders markup, which is how three faults hid with the suite green. Templates are `npm run look` (CDP),
+  `npm run panes` and `scripts/png-read.cjs` (pixels), `npm run stages` (one stage at a time), and
+  `npm run deployed` (the live site) - all tracked in `scripts/`, because a template in gitignored `Temp/`
+  is one a clone does not have.
   **Read pixels inside a `requestAnimationFrame`** - a WebGL buffer is cleared on present, so a zero read from
   outside a frame is a statement about the probe, not the renderer.
 - **After *any* change that alters what a visitor sees, read the served HTML before calling the work done:**
