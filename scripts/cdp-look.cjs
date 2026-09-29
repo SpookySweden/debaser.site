@@ -30,7 +30,7 @@
  */
 const { mkdirSync, readFileSync, writeFileSync } = require('node:fs');
 const path = require('node:path');
-const { arrive, findChrome, flags, launch, socketOn } = require('./cdp-page.cjs');
+const { arrive, close, findChrome, flags, launch, socketOn } = require('./cdp-page.cjs');
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -506,7 +506,7 @@ async function main() {
     console.log('  For a count that can be quoted, run it through measure-panes.cjs --png.');
   } finally {
     if (socket) socket.close();
-    child.kill();
+    await close({ child, profile });
   }
 }
 

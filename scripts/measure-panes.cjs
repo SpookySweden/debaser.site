@@ -31,7 +31,7 @@
 const { existsSync, readdirSync, statSync } = require('node:fs');
 const path = require('node:path');
 const { readPng } = require('./png-read.cjs');
-const { arrive, capture, evaluate, flags, launch, noAnswerOf, socketOn } = require('./cdp-page.cjs');
+const { arrive, capture, close, evaluate, flags, launch, noAnswerOf, socketOn } = require('./cdp-page.cjs');
 
 const { all, at, has, number } = flags();
 
@@ -123,7 +123,7 @@ async function capturePanes(out) {
     return { panes, file: out };
   } finally {
     if (socket) socket.close();
-    child.kill();
+    await close({ child, profile });
   }
 }
 

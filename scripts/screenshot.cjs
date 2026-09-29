@@ -43,6 +43,7 @@ const {
   arrive,
   capture,
   click,
+  close,
   findControl,
   forceFocus,
   hover,
@@ -278,7 +279,7 @@ async function main() {
     process.exitCode = 4;
   } finally {
     // Chrome is a child process and will outlive this script if it is not ended; the profile it held
-    // open is what `--profile` chooses to keep.
+    // open is given back unless `--profile` asked for it to be kept.
     if (socket) {
       try {
         await socket.send('Browser.close');
@@ -286,7 +287,7 @@ async function main() {
         /* already gone */
       }
     }
-    child.kill();
+    await close({ child, profile, keep: keepProfile !== null });
   }
 }
 

@@ -33,7 +33,7 @@
 const { writeFileSync } = require('node:fs');
 const path = require('node:path');
 const { readPng } = require('./png-read.cjs');
-const { arrive, click, findControl, flags, installSession, launch, signUp, sleep, socketOn } = require('./cdp-page.cjs');
+const { arrive, click, close, findControl, flags, installSession, launch, signUp, sleep, socketOn } = require('./cdp-page.cjs');
 
 const { at, has, number } = flags();
 
@@ -256,7 +256,7 @@ async function main() {
     console.log('  measured again without a browser: npm run panes -- --png Temp/browse/stage-mass.png');
   } finally {
     if (socket) socket.close();
-    child.kill();
+    await close({ child, profile });
   }
 }
 

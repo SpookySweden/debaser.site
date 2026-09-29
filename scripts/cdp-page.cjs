@@ -331,6 +331,36 @@ async function capture(socket, { out, fullPage = false, clip = null }) {
   return { file: out, bytes: bytes.length };
 }
 
+/**
+ * End the browser and give the profile back.
+ *
+ * `launch()` removes the profile when it *starts*, which leaves one behind after every run - the last one.
+ * Twelve of them (about 36MB each, mostly `model.tflite`) were sitting in `Temp/browse/` when this was
+ * written, which is not what "every tool using this module cleans up" should mean. Each tool awaits this in
+ * its `finally`.
+ *
+ * The wait is not decoration: Chrome holds the directory open for a moment after the kill, and a `rmSync`
+ * that races it fails on Windows. A profile kept for a hand-made sign-in (`--profile`) is never removed.
+ */
+async function close({ child, profile, keep = false }) {
+  child.kill();
+
+  if (keep) return;
+
+  const ended = new Promise((resolve) => {
+    if (child.exitCode !== null || child.signalCode !== null) resolve();
+    else child.once('exit', resolve);
+  });
+
+  await Promise.race([ended, sleep(2000)]);
+
+  try {
+    rmSync(path.resolve(profile), { recursive: true, force: true });
+  } catch {
+    /* Chrome still holds a file. The next run removes it at launch, which is what used to be the only rule. */
+  }
+}
+
 /** The small flag reader the three tools share: `--flag value`, or `--flag` for a boolean. */
 function flags(argv = process.argv.slice(2)) {
   const at = (flag, fallback) => {
@@ -404,6 +434,7 @@ module.exports = {
   arrive,
   capture,
   click,
+  close,
   evaluate,
   findChrome,
   findControl,
