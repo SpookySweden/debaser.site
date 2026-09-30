@@ -308,11 +308,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               <ThreadPinControl thread={thread} />
             </div>
 
-            {/* The preview fills the reserved right half while the row is collapsed. On open it goes,
+            {/* The preview fills the reserved right column while the row is collapsed. On open it goes,
                 because the body it was previewing is now on screen - but the *box* it lived in does
                 not, so opening a post never widens the row under the reader's finger. The outer div
-                is the slot; `PostHoverPreview` fills it in both states and swaps only its contents. */}
-            <div className="hidden w-1/2 min-w-0 shrink-0 sm:flex">
+                is the slot; `PostHoverPreview` fills it in both states and swaps only its contents.
+
+                Two fifths rather than half, since the credit strip became one line: the strip and the
+                title both live in the column beside this, and at half the row they were one long place
+                line away from wrapping under themselves. The preview is a preview - 370px is a
+                comfortable reading measure for one. */}
+            <div className="hidden w-2/5 min-w-0 shrink-0 sm:flex">
               {isOpen ? null : (
                 <PostHoverPreview body={layout.right.body} comments={thread.comments} />
               )}

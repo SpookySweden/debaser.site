@@ -128,8 +128,8 @@ preferences:
   one-line credit strip (the picture leading, then the name, the stamp) and an `[ IMG ]` badge when
   there is something to see; the drawing itself is drawn only on the expanded card. A 72px thumbnail
   behind `group-hover` put the picture a post was filed for out of reach of anything without a
-  pointer, and a phone has no hover. What hover *does* fill is the reserved right half: the post's own
-  words, expanded to the box, over a reel of its replies (`PostHoverPreview`).
+  pointer, and a phone has no hover. What hover *does* fill is the reserved right column: the post's
+  own words, expanded to the box it has, over a reel of its replies (`PostHoverPreview`).
 
 - **A page about a person shows a person.** No account ids, no counts of how much is filed, no row of
   switch states - those are the customiser's business and the store's, and reading them back at

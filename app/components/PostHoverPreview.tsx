@@ -12,13 +12,14 @@ type PostHoverPreviewProps = {
 };
 
 /**
- * Past a couple of dozen lines the tail of the writing waits for the expanded card.
+ * Past a couple of lines the tail of the writing waits for the expanded card.
  *
- * The half of the row this fills is about 500px wide, which is eight or nine lines of 12px text and
- * therefore somewhere around 600 characters: past that the box is telling the reader there is more
- * rather than showing what there is, which is what the hint under it is for.
+ * This is the *box's* capacity, not a taste for short posts. The half of a row this fills is around
+ * 370px wide and about as tall as the credit strip beside it (six or seven lines of 12px text), and
+ * the text is clipped by that box - so a longer slice would be cut mid-sentence with the hint that
+ * explains it pushed off the bottom. 320 characters is what fits with the hint still visible.
  */
-const BODY_SLICE = 600;
+const BODY_SLICE = 320;
 /** Longest slice of one reply the crawl prints. */
 const COMMENT_SLICE = 90;
 /** Seconds of crawl per reply, so a long thread does not scroll any faster. */
