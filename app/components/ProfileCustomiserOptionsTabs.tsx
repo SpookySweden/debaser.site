@@ -1,9 +1,11 @@
 'use client';
 
+import type { CSSProperties } from 'react';
 import {
   NAME_COLOURS_THAT_GLOW,
   NAME_COLOURS_THAT_READ,
   nameColourContrast,
+  nameColourDark,
   nameColourLabel,
 } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
@@ -100,7 +102,7 @@ export function ProfileIdentityTab({
                   type="button"
                   onClick={() => onNameColourChange(colour.hex)}
                   aria-pressed={chosen}
-                  title={`${colour.label} :: ${nameColourContrast(colour.hex).toFixed(1)}:1 on the page`}
+                  title={`${colour.label} :: ${nameColourContrast(colour.hex).toFixed(1)}:1 wherever the name is read`}
                   className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-ink' : ''}`}
                 >
                   <TagMark colour={colour.hex} />
@@ -113,9 +115,16 @@ export function ProfileIdentityTab({
       ))}
 
       <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-ink pt-1">
+        {/* The preview is drawn through the same pair the board uses, so what an account sees here is
+            what a reader sees: the swatch on the field it is standing on. `name-ink` is what picks
+            between the two on `[data-theme='dark']` - see the rule in globals.css. */}
         <span
-          className="text-sm font-bold"
-          style={nameColour.length === 0 ? undefined : { color: nameColour }}
+          className="name-ink text-sm font-bold"
+          style={
+            nameColour.length === 0
+              ? undefined
+              : ({ '--name-ink': nameColour, '--name-ink-dark': nameColourDark(nameColour) } as CSSProperties)
+          }
         >
           {preview}
         </span>
@@ -123,8 +132,9 @@ export function ProfileIdentityTab({
       </div>
 
       <p className="mt-1 text-[10px] text-ink">
-        AN INK SWATCH IS A NAME THAT READS ON THE PAGE. A GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH -
-        PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
+        AN INK SWATCH IS A NAME THAT READS ON THE PAGE, IN EITHER THEME - WHERE THE FIELD IS DARK THE
+        COLOUR IS RESTATED RATHER THAN KEPT (BLACK BECOMES PURE WHITE, ROYAL BLUE BECOMES DAFFODIL). A
+        GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
       </p>
 
       <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-location">

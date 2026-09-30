@@ -609,6 +609,23 @@ img {
   background-image: repeating-linear-gradient(45deg, #1a1525 0 2px, #000000 2px 4px);
 }
 
+/* A username drawn in the colour its account chose.
+   This is the one place the theme is branched on *in CSS*, and `data-theme` is what makes it possible -
+   `theme-slot.ts` writes it for exactly this, and its own comment says so. The colour cannot be a token,
+   because every account picks a different one; what it can be is a pair of custom properties set on the
+   element, with the stylesheet choosing between them. See `app/lib/profile/name-colours.ts`: a name is
+   the one ink a reader chooses and everybody else reads, so a swatch is stored as a *choice* and drawn as
+   the value that reads on the field it lands on - Black on White becomes White on Nigrosine (21:1), and
+   Royal Blue becomes Daffodil (15.04:1), where the dye alone was 1.91:1 and unreadable.
+   `--name-ink-dark` is absent for a colour that is not on the swatch, and then the light value stands. */
+.name-ink {
+  color: var(--name-ink);
+}
+
+[data-theme='dark'] .name-ink {
+  color: var(--name-ink-dark, var(--name-ink));
+}
+
 /* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like
    they came off a 1998 "under construction" page without saying so. */
 .sun-stripe {

@@ -1,10 +1,10 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import { authorLabel } from '../lib/auth/author';
 import { showsPresenceLamp } from '../lib/auth/builtin-account';
 import type { ForumAuthor } from '../lib/forum/types';
-import { profileNameColour } from '../lib/profile/name-colours';
+import { nameColourDark, profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { usePresence } from './PresenceProvider';
 import StatusDot from './StatusDot';
@@ -47,8 +47,21 @@ export default function ProfileName({ author, children, className, colour, lamp 
   // so `showsPresenceLamp` keeps the dot off it - see ./builtin-account.ts.
   const showsLamp = lamp && showsPresenceLamp(author.id);
 
+  // The name is drawn through two custom properties rather than one `color`, because the swatch is a
+  // *choice* and the value it is drawn in depends on the field it lands on: `.name-ink` in globals.css
+  // picks between them on `[data-theme='dark']`, which is the attribute the theme system writes onto
+  // `<html>` for exactly this. Nothing in this component knows which themes exist, and a colour that is
+  // not on the swatch (a caller passing a hex) has no dark counterpart, so the light value stands - the
+  // behaviour every caller had before the pair existed.
+  const ink =
+    chosen === undefined
+      ? undefined
+      : ({ '--name-ink': chosen, '--name-ink-dark': nameColourDark(chosen) } as CSSProperties);
+
+  const classes = ink === undefined ? className : className === undefined ? 'name-ink' : `${className} name-ink`;
+
   return (
-    <span className={className} style={chosen === undefined ? undefined : { color: chosen }}>
+    <span className={classes} style={ink}>
       {showsLamp && status !== undefined ? <StatusDot status={status} record={record} className="mr-1" /> : null}
       {children ?? authorLabel(author)}
     </span>
