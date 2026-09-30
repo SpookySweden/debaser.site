@@ -7,6 +7,7 @@ import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/direc
 import { arcadeHref } from '../lib/games/arcade-window';
 import { PANEL, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import ChallengeControl from './ChallengeControl';
 import { useComms } from './CommsProvider';
 import { usePresenceDirectory } from './PresenceProvider';
 import UserDirectoryRow from './UserDirectoryRow';
@@ -31,7 +32,9 @@ const COMPACT_LIMIT = 6;
  * in the colour that account chose, and the green / yellow / red lamp beside it.
  * One row component serves this page, the side panel and the arcade (`./UserDirectoryRow`),
  * so the lamp, the marks and the name are the same wherever an account is listed;
- * what differs between the screens is only the verb offered at the end of the row.
+ * what differs between the screens is only the verb offered at the end of the row -
+ * `[ MESSAGE ]` everywhere, and `[ CHALLENGE ]` on the full listing, where the row is
+ * read rather than glanced at.
  *
  * The house account is pinned to the top by `buildUserDirectory`, and it does draw
  * a lamp here: the rule that leaves the lamp off `debaser.site` on the board is
@@ -117,6 +120,18 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 viewerId={user?.id ?? null}
                 busy={busyId === row.account.id}
                 onMessage={(otherId) => void startConversation(otherId)}
+                actions={
+                  /* The full listing offers the arcade's verb as well as the message: a challenge is
+                     a question asked of an account, and this is the screen that lists the accounts.
+                     A compact row is a glance down the side panel, where two plates are one too many. */
+                  compact ? undefined : (
+                    <ChallengeControl
+                      author={{ id: row.account.id, displayName: row.account.displayName }}
+                      status={row.status}
+                      viewerId={user?.id ?? null}
+                    />
+                  )
+                }
               />
             ))}
           </ul>

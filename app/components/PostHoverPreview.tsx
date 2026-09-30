@@ -11,8 +11,14 @@ type PostHoverPreviewProps = {
   comments: ForumComment[];
 };
 
-/** Past a couple of lines the tail of the writing waits for the expanded card. */
-const BODY_SLICE = 320;
+/**
+ * Past a couple of dozen lines the tail of the writing waits for the expanded card.
+ *
+ * The half of the row this fills is about 500px wide, which is eight or nine lines of 12px text and
+ * therefore somewhere around 600 characters: past that the box is telling the reader there is more
+ * rather than showing what there is, which is what the hint under it is for.
+ */
+const BODY_SLICE = 600;
 /** Longest slice of one reply the crawl prints. */
 const COMMENT_SLICE = 90;
 /** Seconds of crawl per reply, so a long thread does not scroll any faster. */
@@ -22,11 +28,11 @@ const SECONDS_PER_REPLY = 7;
  * What a collapsed row shows when it is pointed at.
  *
  * The right half of a collapsed row is empty, and this fills it: the body of the
- * post, clipped to the space that is there, and - when the thread has replies - a
- * crawl of the conversation underneath, like the information bar along the foot
- * of a news channel. Each item is the account's little picture, their name in the
- * colour they chose, and what they said, in quotes; the list runs twice through
- * the track so the slide has no seam.
+ * post, expanded to what the space actually holds rather than clipped to a teaser
+ * line, and - when the thread has replies - a crawl of the conversation under it,
+ * like the information bar along the foot of a news channel. Each item is the
+ * account's little picture, their name in the colour they chose, and what they
+ * said, in quotes; the list runs twice through the track so the slide has no seam.
  *
  * It is a reading aid, not a control: the whole block is pointer-events-free, so
  * pointing at it still belongs to the row underneath, and it is hidden from
@@ -62,6 +68,9 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
 
         {comments.length === 0 ? null : (
           <div className="shrink-0 overflow-hidden" aria-hidden="true">
+            {/* The reel is labelled, because a line of quoted fragments sliding past on its own reads
+                as stray text: `LATEST REPLIES` says what the strip is before the first name arrives. */}
+            <p className="text-[9px] font-bold text-ink">LATEST REPLIES</p>
             <div
               className="crawl flex w-max"
               style={{ animationDuration: `${Math.max(24, comments.length * SECONDS_PER_REPLY)}s` }}

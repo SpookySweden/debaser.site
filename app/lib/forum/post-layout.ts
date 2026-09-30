@@ -1,5 +1,7 @@
 import type { ForumAuthor, ForumPreview, ForumTag, ForumThread } from './types';
 import { displayTags } from './tags';
+import { countReplies, formatStamp } from './format';
+import { collectThreadImages, imageSourceLabel } from './media';
 import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
 import { profileNameColour } from '../profile/name-colours';
 import type { GivenTag, PublicProfile } from '../profile/types';
@@ -11,13 +13,16 @@ import { currentAvatarVersion, visibleGivenTags } from '../profile/visibility';
  * The layout rules the board cares about live here rather than inline in JSX,
  * so they can be reasoned about (and tested) on their own:
  *
- *   expanded   title, posted stamp and the author row, then a two column body -
- *              picture and small tags down the left, the body of the text and
+ *   expanded   title, then the one-line author/date strip, then a two column body
+ *              - picture and small tags down the left, the body of the text and
  *              the replies on the right.
- *   collapsed  only the title, the posted stamp, the author and the small tags;
- *              no hand-drawn bulk. The picture and the avatar are marked as
- *              hover-reveal, so the collapsed list stays tight until somebody
- *              points at the title or the name.
+ *   collapsed  the title, and the strip under it: the poster's picture leading,
+ *              then their name, the stamp and the small tags. The post's own
+ *              picture is not drawn while a row is collapsed, so the strip carries
+ *              an `[ IMG ]` badge instead and the drawing itself waits for the
+ *              click that opens the post. The right half of the row is held open
+ *              for the hover preview (`./components/PostHoverPreview.tsx`), which
+ *              is where the writing and the reply reel show themselves.
  *
  * Who the header credits is part of the layout too: a thread opened by an item's
  * comment box belongs to that item, so it is credited to the site rather than to
@@ -73,9 +78,16 @@ export type PostLayout = {
     /** Auto-filed threads link back to the item instead of showing a body. */
     isAnchorPost: boolean;
   };
-  /** Whether the avatar and picture are visible, and whether hovering reveals them. */
-  avatar: 'shown' | 'hover' | 'hidden';
-  image: 'shown' | 'hover' | 'hidden';
+  /**
+   * Whether the strip draws the poster's picture at all.
+   *
+   * `shown` for anybody the board can name (a real account, the house account
+   * included, which has a default pfp to fall back on); `hidden` for a guest,
+   * who has no profile and therefore no picture. There is no hover state any
+   * more: the picture *leads* the strip, and a picture that arrives on hover
+   * cannot lead anything.
+   */
+  avatar: 'shown' | 'hidden';
 };
 
 export type PostLayoutInput = {
@@ -134,11 +146,37 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
       body: thread.body,
       isAnchorPost: itemOwned,
     },
-    // Collapsed rows keep the ink for the text: the avatar and the picture only
-    // appear when the row is hovered, which the card wires to the title/name. A
-    // site-owned post has a default pfp to show; a guest post has none at all.
-    avatar: showsPicture ? (isOpen ? 'shown' : 'hover') : 'hidden',
-    image: postImage === undefined ? 'hidden' : isOpen ? 'shown' : 'hover',
+    // The strip is one line either way, and the poster's picture leads it: a row
+    // that is open and a row that is shut draw the same strip, so opening a post
+    // moves nothing that the reader was already looking at. A guest has no
+    // profile, so a guest post has no picture to draw.
+    avatar: showsPicture ? 'shown' : 'hidden',
+  };
+}
+
+/**
+ * The layout input for a thread, with the labels read off the thread itself.
+ *
+ * `buildPostLayout` takes its three label strings pre-formatted so it stays free of date formatting
+ * and of the media rules. That made every caller spell the same three derivations, and there are
+ * three of them now - the board's card, the gallery tile, and the check - so they live here, where
+ * they can only disagree in one place.
+ */
+export function postLayoutInput(
+  thread: ForumThread,
+  isOpen: boolean,
+  authorProfile?: PublicProfile | null,
+): PostLayoutInput {
+  const images = collectThreadImages(thread);
+
+  return {
+    thread,
+    isOpen,
+    authorProfile,
+    postedLabel: `POSTED ${formatStamp(thread.createdAt)}`,
+    repliesLabel: countReplies(thread.comments.length),
+    imageSourceLabel: imageSourceLabel(images.source),
+    postImage: images.preview,
   };
 }
 

@@ -34,6 +34,15 @@ type PostAuthorRowProps = {
   picture?: string;
   /** The author's place line, when their profile sets one. */
   location?: string;
+  /**
+   * The posting instant, drawn between the name and the given tags.
+   *
+   * A slot rather than a `stamp` string so the caller keeps owning the drawing of it: on the board it
+   * is `<TimeStamp />`, which prints the minute in the retro link blue, and this row has no business
+   * knowing that. It sits *after* the name because the strip reads as a credit - who wrote this, and
+   * when - and the picture leads the whole line (`avatarSize` is small here for the same reason).
+   */
+  stamp?: ReactNode;
   /** Tags other users gave the author, filtered to the ones they display. */
   displayedTags?: GivenTag[];
   /**
@@ -48,10 +57,11 @@ type PostAuthorRowProps = {
 /**
  * The "posted ... by ..." line that opens every post.
  *
- * Order matches the board's reading order: the stamp, the poster with their
- * picture, the place line, then the tags the author chose to display. Guests
- * fall back to a plain name with no picture, and the whole row drops its
-   * decoration when collapsed (`avatar="hover"`). Anonymous rows use the shared placeholder.
+ * Order matches the board's reading order: the poster's picture, their name, the
+ * place line, the stamp (`stamp`), then the tags the author chose to display.
+ * Guests fall back to a plain name with no picture, and a row that wants the
+ * picture out of the way until it is pointed at can still ask for `avatar="hover"`
+ * - the board no longer does, because the picture leads its one-line strip.
  *
  * `picture` is for rows that are not a person at all: a post owned by the item
  * itself is credited to the site, so it draws the house default pfp instead of
@@ -66,6 +76,7 @@ export default function PostAuthorRow({
   picture,
   location = '',
   displayedTags = [],
+  stamp,
   actions,
 }: PostAuthorRowProps) {
   const label = authorLabel(author);
@@ -110,6 +121,8 @@ export default function PostAuthorRow({
           :: {location}
         </span>
       )}
+
+      {stamp}
 
       {displayedTags.length === 0 ? null : (
         <span className="inline-flex flex-wrap items-center gap-1">

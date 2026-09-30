@@ -76,7 +76,8 @@ preferences:
 - **A window opens from an address.** `app/lib/games/arcade-window.ts` and
   `app/lib/audio/music-window.ts` each build and read their own, so a link and the code that answers
   it cannot drift: `/forum?arcade=1` (the header key and Start menu row), `/forum?invite=<id>` (the
-  bell), `/forum?challenge=<userId>&game=<gameId>` (a post's `[ CHALLENGE ]` plate), and
+  bell), `/forum?challenge=<userId>&game=<gameId>` (an account's `[ CHALLENGE ]` in the
+  directory), and
   `/forum?music=1` (`/forum?music=1&tag=…` for a filtered one - the MUSIC shelf, a post's plate, a
   track's tag badge). Closing a window spends its address, so the same link works twice.
 - **A window holding unsaved work does not close on a stray click, and asks before it closes at all.**
@@ -115,6 +116,20 @@ preferences:
   question to ask an account adds it there rather than writing the row again. A verb that reaches
   *out* of a window and onto the board wears `PLATE_ACCENT` (`[ INJECT TO POST ]`), so it is findable
   in a list of grey.
+- **The board is read two ways, and the view is not a page.** `[ FEED ]` is one row per post, opened
+  one at a time; `[ GALLERY ]` is the same list as a wall of the posts that carry a picture, drawn
+  open (`ForumGalleryView` / `ForumGalleryTile`, narrowed by `imageOnly` in
+  `app/lib/forum/board-query.ts`). Both are the board's own query, paging and tag filter, so a search
+  or a tag narrows the gallery exactly as it narrows the feed - and a tile's one plate goes back to
+  the feed with that post open, because the conversation is not read in a grid. The view is local
+  state like the sort and the source filter, deliberately *not* an address: a link to the board means
+  the board.
+- **A post's picture waits for the click that opens the post.** A collapsed row carries the title, a
+  one-line credit strip (the picture leading, then the name, the stamp) and an `[ IMG ]` badge when
+  there is something to see; the drawing itself is drawn only on the expanded card. A 72px thumbnail
+  behind `group-hover` put the picture a post was filed for out of reach of anything without a
+  pointer, and a phone has no hover. What hover *does* fill is the reserved right half: the post's own
+  words, expanded to the box, over a reel of its replies (`PostHoverPreview`).
 
 - **A page about a person shows a person.** No account ids, no counts of how much is filed, no row of
   switch states - those are the customiser's business and the store's, and reading them back at

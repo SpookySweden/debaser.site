@@ -4,20 +4,19 @@ import { useState } from 'react';
 import { authorLabel } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { commentDomId, threadDomId } from '../lib/forum/anchors';
-import { threadTagMatches } from '../lib/forum/board-query';
-import { countReplies, formatStamp } from '../lib/forum/format';
-import { collectThreadImages, imageSourceLabel } from '../lib/forum/media';
+import { carriesImage, threadTagMatches } from '../lib/forum/board-query';
+import { countReplies } from '../lib/forum/format';
+import { collectThreadImages } from '../lib/forum/media';
 import { mentionsIn } from '../lib/forum/mentions';
 import { pinLabel, pinSummary } from '../lib/forum/pins';
-import { buildPostLayout } from '../lib/forum/post-layout';
+import { buildPostLayout, postLayoutInput } from '../lib/forum/post-layout';
 import { postCredit } from '../lib/forum/site-author';
 import { displayTags } from '../lib/forum/tags';
 import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { PLATE, REVEAL_CONTENTS, REVEAL_SLOT } from '../lib/ui/controls';
+import { PLATE } from '../lib/ui/controls';
 import AnchorLink from './AnchorLink';
-import ChallengeControl from './ChallengeControl';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
 import { useComms } from './CommsProvider';
@@ -25,12 +24,10 @@ import { useForum } from './ForumProvider';
 import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
 import InlineTrackPlayer from './InlineTrackPlayer';
-import MediaThumbnail from './MediaThumbnail';
 import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
-import { usePresenceDirectory } from './PresenceProvider';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
@@ -52,11 +49,14 @@ type ForumThreadCardProps = {
 /**
  * One collapsible post.
  *
- * The header is text, not a bar: collapsed, the title, the stamp, the poster and
- * the post's tags carry the row, and the drawing plus the poster's picture only
- * appear when the header is pointed at (`group-hover`). Expanding puts the
- * picture and the small tags in a left column with the body of the text beside
- * them - the rules live in app/lib/forum/post-layout.ts.
+ * The header is text, not a bar: collapsed, the title and the one-line credit strip
+ * under it - the poster's picture leading, then their name, the stamp and the
+ * post's tags - carry the row. The drawing a post was filed with is *not* drawn
+ * while the row is collapsed: the title says `[ IMG ]` and the picture waits for
+ * the click that opens the post. Pointing at the row fills its right half with the
+ * post's own words and a reel of its replies (./PostHoverPreview.tsx). Expanding
+ * puts the picture and the small tags in a left column with the body of the text
+ * beside them - the rules live in app/lib/forum/post-layout.ts.
  *
  * A thread an item's comment box opened is credited to the item, so its header
  * names the site and shows the default pfp rather than repeating the account that
@@ -79,8 +79,6 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   // which of the two applies (app/lib/forum/site-author.ts).
   const { profile } = usePublicProfile(postCredit(thread).id);
   const { accounts } = useComms();
-  /** The lamps, so `[ CHALLENGE ]` can say whether the account is on before it is pressed. */
-  const presence = usePresenceDirectory();
   const notifications = useNotifications();
   /** The moderator's pin on this post, if it has one: the card says so in its title row. */
   const pin = forum.pinForThread(thread.id);
@@ -171,15 +169,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
     );
   }
 
-  const layout = buildPostLayout({
-    thread,
-    isOpen,
-    authorProfile: profile,
-    postedLabel: `POSTED ${formatStamp(thread.createdAt)}`,
-    repliesLabel: countReplies(thread.comments.length),
-    imageSourceLabel: imageSourceLabel(images.source),
-    postImage: images.preview,
-  });
+  const layout = buildPostLayout(postLayoutInput(thread, isOpen, profile));
+  /** Whether the post came with a picture of its own: the strip's badge, and the tile's subject. */
+  const hasImage = carriesImage(thread);
 
   // While the card is open its left column already draws the item's own sheet, so
   // the links back to that item must not pop a second copy of it on hover: the
@@ -221,6 +213,17 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   </span>
                 )}
                 <span className="shrink-0 text-[10px] text-ink">{layout.repliesLabel}</span>
+                {/* A post filed with a picture says so before it is opened: the drawing itself now
+                    waits for the click (see the strip below), so this badge is what tells a reader
+                    there is one to see. `x2` counts a picture in a reply as well. */}
+                {hasImage ? (
+                  <span
+                    className="shrink-0 border border-black bg-acid px-1 text-[9px] font-bold text-ink-plate"
+                    title="A picture is filed with this post: open it to see the drawing"
+                  >
+                    [ IMG{images.count > 1 ? ` x${images.count}` : ''} ]
+                  </span>
+                ) : null}
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
                   <span className="shrink-0 border border-black bg-ena px-1 text-[9px] font-bold text-ink-bar" title="An MP3 is filed with this post">
@@ -229,45 +232,32 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 )}
               </div>
 
-              {/* Posted stamp, poster (picture on hover), place line, displayed tags. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-ink">
-                {/* The instant is the one blue thing in the header: POSTED stays black. */}
-                <span className="font-bold">
-                  POSTED <TimeStamp at={thread.createdAt} />
-                </span>
+              {/* The credit strip, and the whole of it when a row is collapsed: the poster's picture
+                  leading, then their name, the place line, the stamp and the tags other people gave
+                  them - one line, because the title above it is what a reader is scanning.
 
+                  The picture leads now, which is why it is drawn rather than revealed:
+                  `avatar="hover"` put it off until a pointer arrived, and a pointer is not what a
+                  phone has. The post's own drawing is not here at all any more - it used to appear as
+                  a 72px thumbnail while the row was pointed at, which meant the picture a post was
+                  filed for was invisible until somebody hovered. It waits for the click that opens the
+                  post, and the title row wears `[ IMG ]` until then. */}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-ink">
                 <PostAuthorRow
                   author={layout.author.credit}
                   avatar={layout.avatar}
-                  avatarSize={56}
+                  avatarSize={28}
                   nameColour={layout.author.nameColour}
                   picture={layout.author.picture}
                   location={layout.author.location}
                   displayedTags={layout.author.displayedTags}
-                  actions={
-                    // A post credited to the item itself has no account to ask; a post by an account
-                    // carries the verb that asks it for a game, right where the account is named.
-                    layout.author.picture === undefined ? (
-                      <ChallengeControl
-                        author={layout.author.credit}
-                        status={presence.statusFor(layout.author.credit.id ?? '')}
-                        viewerId={forum.author.id}
-                      />
-                    ) : undefined
+                  stamp={
+                    /* The instant is the one blue thing in the strip: POSTED stays black. */
+                    <span className="font-bold">
+                      POSTED <TimeStamp at={thread.createdAt} />
+                    </span>
                   }
                 />
-
-                {/* The picture that a post was filed with, revealed on hover. The slot reserves the
-                    72px either way, so the row's second line does not re-lay-out and the author's
-                    name does not slide sideways when the pointer arrives (AGENTS.md, "Reveals take
-                    their space in both states"). */}
-                {layout.image === 'hover' && images.preview !== undefined ? (
-                  <span className={REVEAL_SLOT} style={{ width: 72 }} title={layout.left.imageSource}>
-                    <span className={REVEAL_CONTENTS}>
-                      <MediaThumbnail media={images.preview} size={72} />
-                    </span>
-                  </span>
-                ) : null}
               </div>
 
               {/* The post's own tags, one line of `theme:design` tokens: the few that say what the

@@ -13,11 +13,31 @@ import ForumThreadCard from './ForumThreadCard';
 import ForumPinPanel from './ForumPinPanel';
 import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
+import ForumGalleryView from './ForumGalleryView';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { PANEL, PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+
+/**
+ * How the board is read.
+ *
+ * `feed` is the board as it has always been: one row per post, collapsed, opened one at a time.
+ * `gallery` is the same list read as a wall of pictures - Explorer's large-icons view - filtered to
+ * the posts that carry a picture (`imageOnly` in app/lib/forum/board-query.ts) and drawn open, so
+ * nothing on a tile has to be pressed before it can be read.
+ */
+type BoardView = 'feed' | 'gallery';
+
+const VIEWS: { value: BoardView; label: string; title: string }[] = [
+  { value: 'feed', label: '[ FEED ]', title: 'Every post as one row: the reading order the board has always had' },
+  {
+    value: 'gallery',
+    label: '[ GALLERY ]',
+    title: 'Only the posts filed with a picture, drawn open - the Explorer view',
+  },
+];
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'all', label: 'ALL SOURCES' },
@@ -43,6 +63,14 @@ export default function ForumBoard() {
 
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  /**
+   * How the board is read here, the feed or the gallery.
+   *
+   * Local state rather than an address, like the sort and the source filter beside it: this is the
+   * same list read two ways, not somewhere else to be. So it is deliberately *not* a query
+   * parameter - a link to the board means the board.
+   */
+  const [view, setView] = useState<BoardView>('feed');
   const [query, setQuery] = useState('');
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [tagMatchMode, setTagMatchMode] = useState<TagMatchMode>('any');
@@ -71,10 +99,13 @@ export default function ForumBoard() {
           sortMode,
           musicOnly,
           musicTagKeys,
+          // The gallery is a *reading* of the board, not a second board: the same filter, sort and
+          // paging, narrowed to the posts that carry a picture of their own.
+          imageOnly: view === 'gallery',
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, musicOnly, musicTagKeys],
+    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, musicOnly, musicTagKeys, view],
   );
 
   const totalReplies = useMemo(
@@ -137,6 +168,32 @@ export default function ForumBoard() {
       if (open) return current.includes(threadId) ? current : [...current, threadId];
       return current.filter((id) => id !== threadId);
     });
+  }, []);
+
+  /**
+   * A tile's `[ OPEN THE POST ]`: the board goes back to the feed with that post open.
+   *
+   * Two frames, and for the same reason the tag filter's `[ OPEN THE REPLY ]` waits for two
+   * (`./ForumThreadCard.tsx`): the first lets the board re-render with the row open, and by the
+   * second the row is in the document to scroll to. Without the pair the scroll happens against a
+   * tile that is no longer there.
+   */
+  const openFromGallery = useCallback((threadId: string) => {
+    setView('feed');
+    setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
+
+    if (typeof window === 'undefined') return;
+
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(threadDomId(threadId))?.scrollIntoView({ block: 'center' }),
+      ),
+    );
+  }, []);
+
+  const handleView = useCallback((next: BoardView) => {
+    setView(next);
+    setPage(1);
   }, []);
 
   const handleCreated = useCallback((thread: ForumThread) => {
@@ -474,6 +531,26 @@ export default function ForumBoard() {
             SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
             {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
           </span>
+
+          {/* How the board is read: two plates, and the one you are standing on is pressed in
+              (`PLATE_PRESSED`), which is the same way every other switch on the site says "on". The
+              label is a word rather than an icon, because a pair of glyphs is a puzzle. */}
+          <span className="flex items-center gap-1 text-[10px] font-bold text-ink">
+            VIEW:
+            {VIEWS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => handleView(option.value)}
+                aria-pressed={view === option.value}
+                title={option.title}
+                className={view === option.value ? PLATE_PRESSED : PLATE}
+              >
+                {option.label}
+              </button>
+            ))}
+          </span>
+
           {forum.source === 'mock' ? (
             <button
               type="button"
@@ -486,18 +563,28 @@ export default function ForumBoard() {
         </div>
       </section>
 
-      <div
-        id="forum-thread-list"
-        className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
-      >
-        {visibleThreads.length === 0 ? (
+      {visibleThreads.length === 0 ? (
+        <div
+          id="forum-thread-list"
+          className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
+        >
           <p className="p-3 text-xs font-bold text-ink">
             {forum.threads.length === 0
               ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
-              : 'NO THREADS MATCH THIS FILTER.'}
+              : view === 'gallery'
+                ? 'NO POST WITH A PICTURE MATCHES THIS FILTER. THE GALLERY SHOWS THE POSTS SOMEBODY FILED A DRAWING WITH.'
+                : 'NO THREADS MATCH THIS FILTER.'}
           </p>
-        ) : (
-          pageThreads.map((thread) => (
+        </div>
+      ) : view === 'gallery' ? (
+        /* The wall of pictures. The tiles are the same posts the feed draws, already open. */
+        <ForumGalleryView threads={pageThreads} onOpen={openFromGallery} tagFilter={tagFilters} />
+      ) : (
+        <div
+          id="forum-thread-list"
+          className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
+        >
+          {pageThreads.map((thread) => (
             <ForumThreadCard
               key={thread.id}
               thread={thread}
@@ -505,9 +592,9 @@ export default function ForumBoard() {
               tagFilter={tagFilters}
               onToggle={handleToggle}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (

@@ -47,6 +47,18 @@ export type BoardQuery = {
    */
   musicOnly?: boolean;
   /**
+   * Keep only posts that carry a picture of their own: artwork attached to the post, or to one of its
+   * replies.
+   *
+   * This is what the board's gallery view reads the list through, and it is deliberately narrower
+   * than `collectThreadImages` (./media.ts). That one falls back to the artwork of the *item* a
+   * thread is filed under, which is why a collapsed row can preview a concept sheet - but a gallery
+   * of "the posts with pictures in them" that showed every comment on every sheet would be the
+   * archive drawn a second time, and the artwork would belong to the item rather than to the post
+   * the reader is looking at.
+   */
+  imageOnly?: boolean;
+  /**
    * Music tag keys to include: keep posts whose tracks wear at least one of them.
    *
    * These are the sound's own vocabulary (`app/lib/audio/tags.ts`), not the board's - a music tag
@@ -177,6 +189,17 @@ export function carriesMusic(thread: ForumThread): boolean {
 }
 
 /**
+ * True when a post carries a picture of its own - attached to the post, or to one of its replies.
+ *
+ * Written as the twin of `carriesMusic` on purpose: both answer "does this thread have one of these
+ * in it", both count a reply's attachment, and both are read by a filter rather than by a drawing.
+ * The item's own artwork is not counted (see `BoardQuery.imageOnly`).
+ */
+export function carriesImage(thread: ForumThread): boolean {
+  return thread.media !== undefined || thread.comments.some((comment) => comment.media !== undefined);
+}
+
+/**
  * True when the thread's tracks wear any of the chosen music tags; no choice takes everything.
  *
  * A track's tags are written in the site's one tag grammar (`app/lib/audio/tags.ts`), so they are
@@ -199,6 +222,7 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
     if (options.sourceFilter !== 'all' && thread.anchor.kind !== options.sourceFilter) return false;
     if (!matchesTagFilter(thread, options.tagKeys, options.tagMatchMode)) return false;
     if (options.musicOnly === true && !carriesMusic(thread)) return false;
+    if (options.imageOnly === true && !carriesImage(thread)) return false;
     if (!matchesMusicTags(thread, options.musicTagKeys)) return false;
     if (needle.length === 0) return true;
 
