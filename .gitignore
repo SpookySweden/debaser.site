@@ -46,3 +46,7 @@ next-env.d.ts
 
 # scratch verification output (logs and the throwaway check scripts beside them)
 /Temp/
+
+# the revert tools leave their backup beside the file they moved (Temp/revert.cjs): a `.revert-bak`
+# is a copy of a tracked source file, so it must never be committed
+*.revert-bak

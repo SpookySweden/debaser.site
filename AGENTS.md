@@ -43,18 +43,20 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
   whether or not it is filled, so **the thing you are pointing at never moves and the surrounding
   content never reflows**. Two shapes are allowed: `position: absolute` (out of flow, so filling it
   cannot push anything - see `ProfileCommentWindow`'s thumbnail), or a box that is laid out in both
-  states whose *contents* are what swaps (see `PostHoverPreview`, whose own comment is where this rule
-  was first written down, and `ForumThreadCard`'s reserved right-hand column). What is never allowed is
-  `hidden` becoming visible on hover inside a laid-out row: the reveal arrives and shoves its siblings
-  sideways. `Temp/check-reveals.cjs` fails on one.
+  states whose *contents* are what swaps (see `ForumThreadCard`'s reserved right-hand column and the
+  band `PostRowDetails` draws into it - the two comments where this rule is written out). What is
+  never allowed is `hidden` becoming visible on hover inside a laid-out row: the reveal arrives and
+  shoves its siblings sideways. `Temp/check-reveals.cjs` fails on one.
 - **A reveal answers `:focus-visible`, never `:focus-within`.** `:focus-within` matches for *any*
   focus, and a mouse click leaves focus behind: clicking a `<summary>` puts `document.activeElement`
-  on it and `:focus` matches while `:focus-visible` stays false. `PostHoverPreview` revealed itself on
-  `:focus-within`, so a reader who opened a post and clicked the row again to put it away still had the
-  panel lying over the rows below - the click that collapsed the row was the click that kept the panel
-  open. A reveal is dismissed by pointing somewhere else, and the pointer leaving must be enough, so
-  the keyboard half is `group-has-[:focus-visible]:flex` and nothing broader. `:focus-within` belongs
-  on a text field, where a click *should* hold something open.
+  on it and `:focus` matches while `:focus-visible` stays false. The panel that used to fill a
+  collapsed post's right column revealed itself on `:focus-within`, so a reader who opened a post and
+  clicked the row again to put it away still had the panel lying over the rows below - the click that
+  collapsed the row was the click that kept the panel open. That panel is gone (the band is filled in
+  both states now, and pointing at a row is only a highlight), but the rule it taught is not: a reveal
+  is dismissed by pointing somewhere else, and the pointer leaving must be enough, so the keyboard
+  half is `group-has-[:focus-visible]:flex` and nothing broader. `:focus-within` belongs on a text
+  field, where a click *should* hold something open.
 - **Artwork**: sprites, sheets, avatars and cursors are hand-drawn files, pointed at from a slot
   (`SpriteSlot`, `assets/sprites/README.txt`) - code never draws a character, an icon or an
   illustration, though repeating tile patterns, dithers and dotted rules are fine.
@@ -143,13 +145,17 @@ preferences:
   one-line credit strip (the picture leading, then the name, the stamp) and an `[ IMG ]` badge when
   there is something to see; the drawing itself is drawn only on the expanded card. A 72px thumbnail
   behind `group-hover` put the picture a post was filed for out of reach of anything without a
-  pointer, and a phone has no hover. What hover *does* fill is the reserved right column: the post's
-  own words, expanded to what the panel holds, over a reel of its replies (`PostHoverPreview`) - and
-  **the panel is out of flow**, absolute inside the reserved column and `pointer-events-none`. In flow
-  it made the row as tall as itself (a 187px panel beside 66px of title), so pointing at a post pushed
-  the list down under the pointer and the row below was never the row the pointer was over: the panel
-  re-opened on a row the reader had left, which reads as "the hover will not collapse". The rule it
-  broke is the one below, and out-of-flow is the first of its two legal shapes.
+  pointer, and a phone has no hover. **The rest of the band is carried in both states too**: the right
+  two fifths of a collapsed row hold as much of the post's own words as the row's height allows, faded
+  into a small `[ EXPAND ]` (`PostRowDetails`), with the thread's replies going past under them as the
+  board's own wire rows (`buildReplyNews` in `app/lib/forum/news-feed.ts`, drawn by `PostReplyReel`
+  through the one `NewsCrawl`). Pointing at a row is the highlight on the summary and nothing else -
+  nothing is revealed, so there is nothing to dismiss and nothing that can be left open. The band is
+  `absolute inset-0` inside the column the card reserves, which keeps the row's height the *left*
+  column's business: in flow it once made a 66px row 187px tall the moment a pointer arrived, so the
+  list slid down under the pointer and the row below was never the row the pointer was over. Below
+  `sm` that column is `hidden` and the same strip is drawn under the credit strip instead, so a phone
+  gets the conversation at every width.
 - **A post and a reply are each quiet once read.** Opening a post goes quiet (`ROW_READ`), one nobody
   has opened stays on the field (`ROW_UNREAD`), and every reply is asked the same question about its
   *own* instant - so a post read last week with two replies filed since is a quiet post with two white

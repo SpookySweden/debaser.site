@@ -28,8 +28,8 @@ import InlineTrackPlayer from './InlineTrackPlayer';
 import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
-import PostHoverPreview from './PostHoverPreview';
 import PostReplyReel from './PostReplyReel';
+import PostRowDetails from './PostRowDetails';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
@@ -55,10 +55,12 @@ type ForumThreadCardProps = {
  * under it - the poster's picture leading, then their name, the stamp and the
  * post's tags - carry the row. The drawing a post was filed with is *not* drawn
  * while the row is collapsed: the title says `[ IMG ]` and the picture waits for
- * the click that opens the post. Pointing at the row fills its right half with the
- * post's own words and a reel of its replies (./PostHoverPreview.tsx). Expanding
- * puts the picture and the small tags in a left column with the body of the text
- * beside them - the rules live in app/lib/forum/post-layout.ts.
+ * the click that opens the post. The band down the right of a collapsed row carries
+ * the post's own words, clipped to the row's height and faded into an `[ EXPAND ]`,
+ * with a wire of the thread's replies under them (./PostRowDetails.tsx) - in both
+ * states, so pointing at a row is only a highlight. Expanding puts the picture and
+ * the small tags in a left column with the body of the text beside them - the rules
+ * live in app/lib/forum/post-layout.ts.
  *
  * A thread an item's comment box opened is credited to the item, so its header
  * names the site and shows the default pfp rather than repeating the account that
@@ -204,10 +206,11 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
         */}
         <summary className="cursor-pointer select-none list-none hover:bg-sun">
           {/*
-            Two columns: the row itself on the left, and the space that stays empty
-            until somebody points at the row on the right - which is where the
-            writing and the reply crawl show themselves. The space is held open in
-            both states, so hovering never reflows the list.
+            Two columns: the row itself on the left, and the band down the right carrying the post's
+            words and the wire of its replies - filled whether or not a pointer is on the row, because
+            it is the row's own detail rather than a reward for hovering. Hover is now only the
+            highlight `hover:bg-sun` puts on the whole summary, so nothing about a row arrives, and
+            the column is held open in both states so nothing moves either.
           */}
           <div className="flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
@@ -330,22 +333,23 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               <ThreadPinControl thread={thread} />
             </div>
 
-            {/* The preview fills the reserved right column while the row is collapsed. On open it goes,
-                because the body it was previewing is now on screen - but the *box* it lived in does
-                not, so opening a post never widens the row under the reader's finger.
+            {/* The band fills the reserved right column of a collapsed row (./PostRowDetails.tsx). On
+                open its contents go, because the body they were carrying is on screen in full - but
+                the *box* does not, so opening a post never widens the row under the reader's finger,
+                and neither does pointing at one.
 
-                The slot is `relative` and the panel inside it is absolute: the width is reserved here,
-                the panel is out of the row's flow, so pointing at a post moves nothing at all - and
-                because nothing moves, the pointer reaches the row it was heading for instead of
-                landing on the row that had just grown under it (see ./PostHoverPreview.tsx).
+                The slot is `relative` and what it holds is absolute, and that is deliberate: the row's
+                height is decided by the title, the credit strip and the tags in the column beside it,
+                and the band is *clipped* to that height rather than setting it. A band that made the
+                row taller would put the list under the pointer the moment a post was pointed at, and
+                the row below would never be the row the pointer was over.
 
                 Two fifths rather than half, since the credit strip became one line: the strip and the
                 title both live in the column beside this, and at half the row they were one long place
-                line away from wrapping under themselves. The panel is a preview - 360px is a
-                comfortable reading measure for one. */}
+                line away from wrapping under themselves. 360px is a comfortable reading measure. */}
             <div className="relative hidden w-2/5 min-w-0 shrink-0 sm:flex">
               {isOpen ? null : (
-                <PostHoverPreview body={layout.right.body} comments={thread.comments} />
+                <PostRowDetails body={layout.right.body} comments={thread.comments} />
               )}
             </div>
           </div>

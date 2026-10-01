@@ -93,7 +93,12 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
   if (variant === 'compact') {
     return (
       <li
-        className={`flex items-center gap-1 whitespace-nowrap text-[10px] ${
+        /* `whitespace-nowrap` is what keeps a wire's row on one line as it goes past, and the
+           `motion-reduce` pair is its other half: a still wire wraps its rows (see
+           ./NewsCrawl.tsx's `motion-reduce:flex-wrap`), and a row that could not wrap would
+           run off the edge of the strip and be lost - the words would be there and unreadable,
+           which is worse than moving. */
+        className={`flex items-center gap-1 whitespace-nowrap text-[10px] motion-reduce:flex-wrap motion-reduce:whitespace-normal ${
           pinned === null ? 'pr-5' : 'mr-2 border border-black bg-sun-pale px-1'
         }`}
       >

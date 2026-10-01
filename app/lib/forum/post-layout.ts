@@ -21,9 +21,10 @@ import { currentAvatarVersion, visibleGivenTags } from '../profile/visibility';
  *              then their name, the stamp and the small tags. The post's own
  *              picture is not drawn while a row is collapsed, so the strip carries
  *              an `[ IMG ]` badge instead and the drawing itself waits for the
- *              click that opens the post. The right half of the row is held open
- *              for the hover preview (`./components/PostHoverPreview.tsx`), which
- *              is where the writing and the reply reel show themselves.
+ *              click that opens the post. The right two fifths of the row are the
+ *              row's own band (`./components/PostRowDetails.tsx`), carried in both
+ *              states: as much of the writing as the row's height allows, faded
+ *              into an `[ EXPAND ]`, with the thread's replies crawling under it.
  *
  * Who the header credits is part of the layout too: a thread opened by an item's
  * comment box belongs to that item, so it is credited to the site rather than to

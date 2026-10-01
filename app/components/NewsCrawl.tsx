@@ -36,8 +36,10 @@ type NewsCrawlProps = {
  *
  * The second copy is hidden from assistive tech: it is there to make the loop seamless, not
  * to say everything twice. A reader who has asked their system for less motion gets a still
- * line that can be scrolled by hand, which is the `crawl` rule in app/globals.css doing it,
- * not this component.
+ * line instead of a moving one, and that still line is *this* component's business rather
+ * than only the stylesheet's: the `crawl` rule stops the animation, and the `motion-reduce`
+ * variants below drop the duplicate copy and let the rows wrap, so a still wire is a legible
+ * list instead of a long line clipped to its first row.
  */
 export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCrawlProps) {
   if (items.length === 0) {
@@ -48,12 +50,25 @@ export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCra
 
   return (
     <div className={className}>
+      {/* **The `motion-reduce` variants are what a still wire needs to be readable.** The site rule is
+          that everything moving goes quiet under `prefers-reduced-motion: reduce`, and the `crawl` rule
+          in app/globals.css does it with `animation: none` - which leaves a single clipped line of a
+          track hundreds of pixels wide, readable to its first row and no further, and scrollable by
+          nobody, because a wire is not a control. A crawl nobody can scroll is not a reduced-motion
+          alternative, it is a truncation: so in that one setting the duplicate copy goes, the track
+          stops being one long line, and the rows wrap into the width they have - the same words, still,
+          and legible. (A row's own `whitespace-nowrap` is paired with the same variant in
+          ./CommentRow.tsx, or one long reply would still run off the edge.) */}
       <div
-        className="crawl flex w-max items-center"
+        className="crawl flex w-max items-center motion-reduce:w-full motion-reduce:flex-wrap"
         style={{ animationDuration: `${Math.max(SECONDS_FLOOR, items.length * SECONDS_PER_ITEM)}s` }}
       >
         {[0, 1].map((copy) => (
-          <ul key={copy} className="flex items-center" aria-hidden={copy === 1 ? 'true' : undefined}>
+          <ul
+            key={copy}
+            className={`flex items-center${copy === 1 ? ' motion-reduce:hidden' : ''}`}
+            aria-hidden={copy === 1 ? 'true' : undefined}
+          >
             {items.map((item) => (
               <CommentRow
                 key={`${copy}-${item.id}`}

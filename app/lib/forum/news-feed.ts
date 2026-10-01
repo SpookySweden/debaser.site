@@ -1,6 +1,6 @@
 import { threadDomId } from './anchors';
 import { livePins, pinLabel } from './pins';
-import type { ForumAuthor, ForumThread, ThreadPin } from './types';
+import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
 
 /**
  * A wire as a list of rows.
@@ -114,3 +114,35 @@ export function buildNewsFeed(
 
   return items.slice(0, Math.max(0, limit));
 }
+
+/** How many of a post's replies the strip beside a collapsed row carries. */
+export const NEWS_REPLY_LIMIT = 6;
+
+/**
+ * One post's replies, as the wire's rows: the conversation beside a collapsed row.
+ *
+ * The band down the right of a collapsed board row carries the post's own words and, under them,
+ * its replies going past. Those replies are built *here*, out of the wire's own row shape, rather
+ * than in the panel that draws them: a reply met beside a post is then drawn exactly as the same
+ * reply is on the newswire at the top of the board and on a profile's feed - the little picture,
+ * the name, `[ REPLY ]`, the stamp and the words (`./components/NewsCrawl.tsx` draws them all
+ * with one crawl, which is the point of building the rows here).
+ *
+ * Newest first, like every wire, one line each, and **no `href`**: a strip hanging beside the row
+ * a reader is about to click is not a place to press, and the band it lives in takes no pointer at
+ * all (`./components/PostRowDetails.tsx`). Pure, like the rest of this file, so the order and the
+ * clipping can be reasoned about without a browser.
+ */
+export function buildReplyNews(comments: ForumComment[], limit: number = NEWS_REPLY_LIMIT): NewsRow[] {
+  return [...comments]
+    .sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt))
+    .slice(0, Math.max(0, limit))
+    .map((comment) => ({
+      id: `news-reply-${comment.id}`,
+      tag: newsTag({ kind: 'reply' }),
+      author: comment.author,
+      text: clipForNews(comment.body),
+      createdAt: comment.createdAt,
+    }));
+}
+
