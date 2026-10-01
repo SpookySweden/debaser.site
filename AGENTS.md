@@ -47,6 +47,14 @@ Strictly Web 1.0 / weirdcore / retro MS-DOS, inspired by Joel G's ENA universe.
   was first written down, and `ForumThreadCard`'s reserved right-hand column). What is never allowed is
   `hidden` becoming visible on hover inside a laid-out row: the reveal arrives and shoves its siblings
   sideways. `Temp/check-reveals.cjs` fails on one.
+- **A reveal answers `:focus-visible`, never `:focus-within`.** `:focus-within` matches for *any*
+  focus, and a mouse click leaves focus behind: clicking a `<summary>` puts `document.activeElement`
+  on it and `:focus` matches while `:focus-visible` stays false. `PostHoverPreview` revealed itself on
+  `:focus-within`, so a reader who opened a post and clicked the row again to put it away still had the
+  panel lying over the rows below - the click that collapsed the row was the click that kept the panel
+  open. A reveal is dismissed by pointing somewhere else, and the pointer leaving must be enough, so
+  the keyboard half is `group-has-[:focus-visible]:flex` and nothing broader. `:focus-within` belongs
+  on a text field, where a click *should* hold something open.
 - **Artwork**: sprites, sheets, avatars and cursors are hand-drawn files, pointed at from a slot
   (`SpriteSlot`, `assets/sprites/README.txt`) - code never draws a character, an icon or an
   illustration, though repeating tile patterns, dithers and dotted rules are fine.

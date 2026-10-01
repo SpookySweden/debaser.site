@@ -1,13 +1,12 @@
 'use client';
 
 import type { ForumComment } from '../lib/forum/types';
-import ProfileAvatarLink from './ProfileAvatarLink';
-import ProfileName from './ProfileName';
+import PostReplyReel from './PostReplyReel';
 
 type PostHoverPreviewProps = {
   /** The post's own words: empty for a thread an item's comment box opened. */
   body: string;
-  /** Replies, oldest first: the crawl shows them in the order they were filed. */
+  /** Replies, oldest first: the reel shows them in the order they were filed. */
   comments: ForumComment[];
 };
 
@@ -20,10 +19,6 @@ type PostHoverPreviewProps = {
  * somebody should be reading on the card, where the rest of it is.
  */
 const BODY_SLICE = 320;
-/** Longest slice of one reply the crawl prints. */
-const COMMENT_SLICE = 90;
-/** Seconds of crawl per reply, so a long thread does not scroll any faster. */
-const SECONDS_PER_REPLY = 7;
 
 /**
  * What a collapsed row shows when it is pointed at.
@@ -62,11 +57,21 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
        instead of arriving at the second. Passing the pointer through means hovering a row is decided
        by the row it is over - which is also what this component's first version said it was for.
 
-       `focus-within` matches as well, because a keyboard reader does not hover; `data-reveal` is how
-       `Temp/check-reveals.cjs` knows this one is allowed. */
+       **The keyboard half is `:focus-visible`, and `:focus-within` was the bug.** `:focus-within`
+       matches for *any* focus inside the `<details>`, and a mouse click leaves focus behind: a real
+       click on a `<summary>` puts `document.activeElement` on it, `:focus` matches and `:focus-visible`
+       does not. So the reader's own sequence - open a post, read it, click the row again to put it
+       away, move the pointer off the list - ended with the panel still over the rows below, because
+       the click that collapsed the row had focused it. Measured on the deployed board, with the
+       pointer already away: `:focus-within` true, `:focus-visible` false, panel `display: flex`.
+       `:focus-within` is right for a text field and wrong for a reveal: a keyboard reader does not
+       hover, so the reveal must answer a keyboard focus and only a keyboard focus - which is exactly
+       what `:focus-visible` asks, and the same click reports it false.
+
+       `data-reveal` is how `Temp/check-reveals.cjs` knows this one is allowed. */
     <div
       data-reveal="reserved"
-      className="pointer-events-none absolute top-0 right-0 z-10 hidden w-full flex-col gap-1 border border-black bg-paper p-2 group-hover:flex group-focus-within:flex"
+      className="pointer-events-none absolute top-0 right-0 z-10 hidden w-full flex-col gap-1 border border-black bg-paper p-2 group-hover:flex group-has-[:focus-visible]:flex"
     >
         {shown.length === 0 ? null : (
           <>
@@ -79,31 +84,9 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
           </>
         )}
 
-        {comments.length === 0 ? null : (
-          <div className="shrink-0 overflow-hidden" aria-hidden="true">
-            {/* The reel is labelled, because a line of quoted fragments sliding past on its own reads
-                as stray text: `LATEST REPLIES` says what the strip is before the first name arrives. */}
-            <p className="text-[9px] font-bold text-ink">LATEST REPLIES</p>
-            <div
-              className="crawl flex w-max"
-              style={{ animationDuration: `${Math.max(24, comments.length * SECONDS_PER_REPLY)}s` }}
-            >
-              {[0, 1].map((copy) => (
-                <ul key={copy} className="flex items-center">
-                  {comments.map((comment) => (
-                    <li key={comment.id} className="flex items-center gap-1 whitespace-nowrap pr-4 text-[10px]">
-                      <ProfileAvatarLink author={comment.author} size={20} showName={false} variant="plain" />
-                      <ProfileName author={comment.author} className="font-bold" />
-                      <span className="text-ink">
-                        &quot;{comment.body.replace(/\s+/g, ' ').trim().slice(0, COMMENT_SLICE)}&quot;
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              ))}
-            </div>
-          </div>
-        )}
+        {/* The reel of replies, which is its own component because the narrow board draws the same
+            one under the credit strip of a collapsed row (see ./PostReplyReel.tsx). */}
+        <PostReplyReel comments={comments} className="shrink-0" />
       </div>
   );
 }

@@ -29,6 +29,7 @@ import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
 import PostAuthorRow from './PostAuthorRow';
 import PostHoverPreview from './PostHoverPreview';
+import PostReplyReel from './PostReplyReel';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
@@ -270,6 +271,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   }
                 />
               </div>
+
+              {/* The replies, for a phone and for any window narrower than `sm`. Below that breakpoint
+                  the right-hand column - where the reel normally lives, on a pointed-at row - is
+                  `hidden`, and no reveal can reach a box that is not drawn: measured on a 600px
+                  window, `reel drawn 0/5` collapsed rows. So the narrow board draws the same reel
+                  (./PostReplyReel.tsx) under the credit strip, where it needs no pointer at all, and
+                  the unexpanded row carries the conversation at every width. `sm:hidden` is what keeps
+                  the two copies from ever both being on screen. It is not a reveal - it is always
+                  there on the width that gets it - so nothing about it appears from nothing. */}
+              {isOpen ? null : <PostReplyReel comments={thread.comments} className="mt-1 sm:hidden" />}
 
               {/* The post's own tags, one line of `theme:design` tokens: the few that say what the
                   post is about, with the rest behind `[+n]` (see ./TagStrip.tsx).
