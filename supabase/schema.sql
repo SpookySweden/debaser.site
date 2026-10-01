@@ -54,6 +54,13 @@ create table if not exists public.profiles (
   -- the page's own black. The check keeps a hand-written colour off a username.
   name_colour text check (name_colour is null or name_colour ~ '^#[0-9a-fA-F]{6}$'),
   bio text not null default '',
+  -- The country this account wears as a flag: an ISO 3166-1 alpha-2 code, or '' for none. The 249
+  -- codes the site accepts are the closed list in app/lib/profile/countries.ts, and the shape check
+  -- is the backstop that keeps a sentence out of the column (20260930000029_profile_country_flag.sql).
+  country_code text not null default '' check (country_code = '' or country_code ~ '^[A-Z]{2}$'),
+  -- RETIRED, and kept only so nothing a visitor wrote is thrown away. This held a free-text place
+  -- line until the flag replaced it; nothing reads it any more. Dropping it is a deliberate act with
+  -- a review first - the migration that added `country_code` carries the SQL and the reasoning.
   location text not null default '',
   -- What the account is doing, in its own words. Not the presence lamp: that is a fact the store
   -- keeps, and this is a sentence the owner chose. Empty means they have not written one.
@@ -79,6 +86,21 @@ create table if not exists public.profiles (
 -- table that is already there, so the column is added explicitly. Idempotent.
 alter table public.profiles
   add column if not exists status text not null default '';
+
+-- The same for the country flag, which replaced the free-text place line. The constraint is added by
+-- name so re-running the schema is still a no-op (20260930000029_profile_country_flag.sql carries it
+-- for a live project).
+alter table public.profiles
+  add column if not exists country_code text not null default '';
+
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'profiles_country_code_shape') then
+    alter table public.profiles
+      add constraint profiles_country_code_shape
+      check (country_code = '' or country_code ~ '^[A-Z]{2}$');
+  end if;
+end $$;
 
 alter table public.profiles enable row level security;
 

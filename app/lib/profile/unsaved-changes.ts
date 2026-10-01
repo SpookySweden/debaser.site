@@ -13,6 +13,7 @@
  * difference between the draft and the stored value, and *setting a draft back to what was stored clears it* -
  * which is the behaviour a reader expects and the one a naive `!== null` test gets wrong.
  */
+import { countryName } from './countries';
 import type { ProfileVisibility } from './types';
 
 /** One thing the reader changed, in the two forms the prompt needs. */
@@ -29,7 +30,8 @@ export type UnsavedChange = {
 export type StoredProfile = {
   displayName: string;
   bio: string;
-  location: string;
+  /** An ISO 3166-1 alpha-2 code, or `''` for no flag. */
+  country: string;
   status: string;
   nameColour: string | null;
   visibility: {
@@ -53,7 +55,8 @@ export type VisibilityDraft = Partial<ProfileVisibility>;
 export type ProfileDrafts = {
   name: string | null;
   bio: string | null;
-  location: string | null;
+  /** A country code, or `''` to take the flag off. `null` is "not edited". */
+  country: string | null;
   status: string | null;
   nameColour: string | null;
   visibility: VisibilityDraft;
@@ -88,6 +91,10 @@ function show(value: string, limit = 28): string {
  * `bioDraft === profile.bio`, and reporting that as unsaved work would train a reader to dismiss the prompt -
  * which is how a prompt stops doing its job. `nameColour` is compared through `?? ''` because empty is how the
  * window spells "the page's own black", so an unset stored colour and a cleared draft are the same state.
+ *
+ * **The country is compared as the code and *reported* as the name.** `SE` is what is stored and `SE` is what a
+ * picker hands back, so that is what the difference is taken on; `SWEDEN -> NORWAY` is what the prompt says,
+ * because a reader recognising their own edit is the only thing the line is for.
  */
 export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): UnsavedChange[] {
   const changes: UnsavedChange[] = [];
@@ -108,11 +115,13 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
     changes.push({ tab: 'profile', label: 'BIO', detail: `${show(stored.bio)} -> ${show(drafts.bio)}` });
   }
 
-  if (drafts.location !== null && drafts.location !== stored.location) {
+  if (drafts.country !== null && drafts.country !== stored.country) {
+    // The *names*, not the codes: `SE -> NO` is a change nobody can read, and the prompt's whole job
+    // is to be recognised. `''` reads as `(EMPTY)` through `show`, the same as a cleared bio.
     changes.push({
       tab: 'profile',
-      label: 'PLACE LINE',
-      detail: `${show(stored.location)} -> ${show(drafts.location)}`,
+      label: 'COUNTRY FLAG',
+      detail: `${show(countryName(stored.country))} -> ${show(countryName(drafts.country))}`,
     });
   }
 

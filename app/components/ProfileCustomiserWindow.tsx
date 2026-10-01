@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { validateBio, validateLocation, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
+import { validateBio, validateCountry, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
 import {
   figureIsUnsaved,
   unsavedChanges,
@@ -83,7 +83,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   // Text and visibility drafts: null / empty means "show what is stored".
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [bioDraft, setBioDraft] = useState<string | null>(null);
-  const [locationDraft, setLocationDraft] = useState<string | null>(null);
+  const [countryDraft, setCountryDraft] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string | null>(null);
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
@@ -129,7 +129,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       {
         displayName: profile.displayName,
         bio: profile.bio,
-        location: profile.location,
+        country: profile.country,
         status: profile.status,
         nameColour: profile.nameColour ?? null,
         visibility: {
@@ -141,7 +141,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       {
         name: nameDraft,
         bio: bioDraft,
-        location: locationDraft,
+        country: countryDraft,
         status: statusDraft,
         nameColour: nameColourDraft,
         visibility: visibilityDraft,
@@ -158,12 +158,12 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
   const name = nameDraft ?? profile.displayName;
   const bio = bioDraft ?? profile.bio;
-  const location = locationDraft ?? profile.location;
+  const country = countryDraft ?? profile.country;
   const status = statusDraft ?? profile.status;
   // Empty means the default: usernames are drawn in the page's own black.
   const nameColour = nameColourDraft ?? profile.nameColour ?? '';
   const bioProblem = validateBio(bio);
-  const locationProblem = validateLocation(location);
+  const countryProblem = validateCountry(country);
   const statusProblem = validateStatus(status);
 
   async function run(action: () => Promise<unknown>, ok: string) {
@@ -235,7 +235,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   function discardEverything() {
     setNameDraft(null);
     setBioDraft(null);
-    setLocationDraft(null);
+    setCountryDraft(null);
     setStatusDraft(null);
     setNameColourDraft(null);
     setVisibilityDraft({});
@@ -269,8 +269,8 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     const intent = pendingIntent;
     if (intent === null) return;
 
-    if (bioProblem !== undefined || locationProblem !== undefined || statusProblem !== undefined) {
-      setError(bioProblem ?? locationProblem ?? statusProblem ?? 'SOMETHING IN THE PROFILE IS NOT VALID.');
+    if (bioProblem !== undefined || countryProblem !== undefined || statusProblem !== undefined) {
+      setError(bioProblem ?? countryProblem ?? statusProblem ?? 'SOMETHING IN THE PROFILE IS NOT VALID.');
       return;
     }
 
@@ -279,7 +279,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
     await run(async () => {
       if (profileChanges.length > 0) {
-        await repository.saveProfile(userId, { displayName: name, bio, location, status, nameColour });
+        await repository.saveProfile(userId, { displayName: name, bio, country, status, nameColour });
 
         if (name.trim().length > 0 && name !== auth.user?.displayName) {
           const result = await auth.updateDisplayName(name);
@@ -288,7 +288,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
         setNameDraft(null);
         setBioDraft(null);
-        setLocationDraft(null);
+        setCountryDraft(null);
         setStatusDraft(null);
         setNameColourDraft(null);
       }
@@ -407,8 +407,8 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       return;
     }
 
-    if (locationProblem !== undefined) {
-      setError(locationProblem);
+    if (countryProblem !== undefined) {
+      setError(countryProblem);
       return;
     }
 
@@ -418,7 +418,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     }
 
     await run(async () => {
-      await repository.saveProfile(userId, { displayName: name, bio, location, status, nameColour });
+      await repository.saveProfile(userId, { displayName: name, bio, country, status, nameColour });
 
       // The public name and the account name stay in step, so posts and the
       // profile page never disagree about who wrote something.
@@ -429,10 +429,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
       setNameDraft(null);
       setBioDraft(null);
-      setLocationDraft(null);
+      setCountryDraft(null);
       setStatusDraft(null);
       setNameColourDraft(null);
-    }, 'NAME, NAME COLOUR, PLACE LINE, STATUS AND BIO SAVED.');
+    }, 'NAME, NAME COLOUR, COUNTRY FLAG, STATUS AND BIO SAVED.');
   }
 
   async function handleSavePrivacy() {
@@ -516,23 +516,23 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             uploadMessage={songMessage}
           />
 
-          <PanelHeading>NAME, NAME COLOUR, PLACE LINE, STATUS AND BIO</PanelHeading>
+          <PanelHeading>NAME, NAME COLOUR, COUNTRY FLAG, STATUS AND BIO</PanelHeading>
           <ProfileIdentityTab
             profile={profile}
             name={name}
             bio={bio}
-            location={location}
+            country={country}
             status={status}
             nameColour={nameColour}
             onNameChange={setNameDraft}
             onBioChange={setBioDraft}
-            onLocationChange={setLocationDraft}
+            onCountryChange={setCountryDraft}
             onStatusChange={setStatusDraft}
             onNameColourChange={setNameColourDraft}
             onSave={() => void handleSaveIdentity()}
             busy={busy}
             bioProblem={bioProblem}
-            locationProblem={locationProblem}
+            countryProblem={countryProblem}
             statusProblem={statusProblem}
           />
 

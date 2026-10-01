@@ -1,6 +1,8 @@
 'use client';
 
 import type { CSSProperties } from 'react';
+import { useMemo } from 'react';
+import { countryName, countryOptions } from '../lib/profile/countries';
 import {
   NAME_COLOURS_THAT_GLOW,
   NAME_COLOURS_THAT_READ,
@@ -11,6 +13,7 @@ import {
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import CountryFlag from './CountryFlag';
 import { TagMark } from './TagBadge';
 
 export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-ink';
@@ -37,42 +40,46 @@ export type ProfileIdentityTabProps = {
   profile: PublicProfile;
   name: string;
   bio: string;
-  location: string;
+  /** An ISO 3166-1 alpha-2 code, or `''` for no flag. A list, not a sentence (./countries). */
+  country: string;
   status: string;
   /** Swatch hex for the username, or '' for the default black. */
   nameColour: string;
   onNameChange: (value: string) => void;
   onBioChange: (value: string) => void;
-  onLocationChange: (value: string) => void;
+  onCountryChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onNameColourChange: (hex: string) => void;
   onSave: () => void;
   busy: boolean;
   bioProblem: string | undefined;
-  locationProblem: string | undefined;
+  countryProblem: string | undefined;
   statusProblem: string | undefined;
 };
 
-/** Public name, its colour, place line, status and bio: the text half of the public face. */
+/** Public name, its colour, country flag, status and bio: the text half of the public face. */
 export function ProfileIdentityTab({
   profile,
   name,
   bio,
-  location,
+  country,
   status,
   nameColour,
   onNameChange,
   onBioChange,
-  onLocationChange,
+  onCountryChange,
   onStatusChange,
   onNameColourChange,
   onSave,
   busy,
   bioProblem,
-  locationProblem,
+  countryProblem,
   statusProblem,
 }: ProfileIdentityTabProps) {
   const preview = name.trim().length === 0 ? profile.displayName : name;
+  // Built once per mount rather than per render: 249 names off a formatter, and the list cannot
+  // change while a reader has the tab open (app/lib/profile/countries.ts).
+  const countries = useMemo(() => countryOptions(), []);
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
@@ -137,21 +144,40 @@ export function ProfileIdentityTab({
         GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
       </p>
 
-      <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-location">
-        PLACE LINE: SHOWN NEXT TO YOUR NAME ON YOUR POSTS (LEAVE EMPTY TO HIDE IT)
+      {/* A select rather than a text box, and that is the whole change: a place line was a sentence
+          the site could not draw, and a country is a code off the list below, which it can. */}
+      <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-country">
+        COUNTRY FLAG: DRAWN BESIDE YOUR NAME ON YOUR POSTS AND ON YOUR PAGE
       </label>
-      <input
-        id="customise-location"
-        value={location}
-        onChange={(event) => onLocationChange(event.target.value)}
-        placeholder="e.g. Sweden"
-        className={FIELD}
-      />
-      {locationProblem === undefined ? null : (
-        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{locationProblem}</p>
+      <div className="mt-1 flex flex-wrap items-center gap-2">
+        <select
+          id="customise-country"
+          value={country}
+          onChange={(event) => onCountryChange(event.target.value)}
+          className={`${FIELD} min-w-56`}
+        >
+          <option value="">NONE - NO FLAG</option>
+          {countries.map((option) => (
+            <option key={option.code} value={option.code}>
+              {option.name}
+            </option>
+          ))}
+        </select>
+        {/* The preview, drawn through the same component the board's byline uses, so what an account
+            sees here is what a reader sees. Reserved at a fixed size so choosing a country cannot
+            reflow the row (`SpriteSlot` holds its box whether or not the drawing exists). */}
+        <CountryFlag code={country} width={24} height={16} />
+        <span className="text-[10px] text-ink">{country.length === 0 ? 'NO FLAG PICKED' : countryName(country)}</span>
+      </div>
+      <p className="mt-1 text-[10px] text-ink">
+        A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE
+        STAND IN FOR IT.
+      </p>
+      {countryProblem === undefined ? null : (
+        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{countryProblem}</p>
       )}
 
-      {/* The status, beside the place line because the two are the same kind of thing: one short
+      {/* The status, beside the country flag because the two are the same kind of thing: one short
           sentence about the account, shown next to the name. It is the owner's own words and not the
           presence lamp, which is why the label says so - the panel shows both, one above the other,
           and a reader should be able to tell which is which. */}

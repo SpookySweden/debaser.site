@@ -244,7 +244,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               </div>
 
               {/* The credit strip, and the whole of it when a row is collapsed: the poster's picture
-                  leading, then their name, the place line, the stamp and the tags other people gave
+                  leading, then their name, the country flag, the stamp and the tags other people gave
                   them - one line, because the title above it is what a reader is scanning.
 
                   The picture leads now, which is why it is drawn rather than revealed:
@@ -260,7 +260,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   avatarSize={28}
                   nameColour={layout.author.nameColour}
                   picture={layout.author.picture}
-                  location={layout.author.location}
+                  country={layout.author.country}
                   displayedTags={layout.author.displayedTags}
                   stamp={
                     /* The instant is the one blue thing in the strip: POSTED stays black. */

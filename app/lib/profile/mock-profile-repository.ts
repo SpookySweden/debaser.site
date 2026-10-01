@@ -5,6 +5,7 @@ import {
   SITE_ACCOUNT_NAME_COLOUR,
 } from '../auth/builtin-account';
 import { isNameColour } from './name-colours';
+import { NO_COUNTRY, normalizeCountryCode } from './countries';
 import type { PresenceRecord } from './presence';
 import {
   DEFAULT_VISIBILITY,
@@ -17,7 +18,7 @@ import {
   tagArrivesApproved,
   validateAvatarNote,
   validateBio,
-  validateLocation,
+  validateCountry,
   validateStatus,
   validateNameColour,
   validateProfileComment,
@@ -129,7 +130,9 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
     // an arbitrary colour onto a username.
     ...(typeof row.nameColour === 'string' && isNameColour(row.nameColour) ? { nameColour: row.nameColour } : {}),
     bio: typeof row.bio === 'string' ? row.bio : '',
-    location: typeof row.location === 'string' ? row.location : '',
+    // Through the list, so a row from an older build - which stored a free-text place line - cannot
+    // put a sentence where a country goes. A place is not a country and is not guessed at.
+    country: normalizeCountryCode(typeof row.country === 'string' ? row.country : ''),
     status: typeof row.status === 'string' ? row.status : '',
     avatar: {
       versions: Array.isArray(avatar.versions) ? avatar.versions.filter(isVersionShaped) : [],
@@ -225,7 +228,7 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     userId,
     displayName,
     bio: '',
-    location: '',
+    country: NO_COUNTRY,
     status: '',
     avatar: { versions: [], currentVersionId: null },
     song: { versions: [], currentVersionId: null },
@@ -353,8 +356,8 @@ class MockProfileRepository implements ProfileRepository {
       if (problem !== undefined) throw new Error(problem);
     }
 
-    if (patch.location !== undefined) {
-      const problem = validateLocation(patch.location);
+    if (patch.country !== undefined) {
+      const problem = validateCountry(patch.country);
       if (problem !== undefined) throw new Error(problem);
     }
 
@@ -375,7 +378,7 @@ class MockProfileRepository implements ProfileRepository {
         ...profile,
         displayName: displayName.length === 0 ? profile.displayName : displayName,
         bio: patch.bio === undefined ? profile.bio : patch.bio.trim(),
-        location: patch.location === undefined ? profile.location : patch.location.trim(),
+        country: patch.country === undefined ? profile.country : normalizeCountryCode(patch.country),
         status: patch.status === undefined ? profile.status : patch.status.trim(),
         // An empty string is a real choice here: it means "back to the default".
         ...(patch.nameColour === undefined

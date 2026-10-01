@@ -4,6 +4,7 @@ import { countReplies, formatStamp } from './format';
 import { collectThreadImages, imageSourceLabel } from './media';
 import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
 import { profileNameColour } from '../profile/name-colours';
+import { countryName } from '../profile/countries';
 import type { GivenTag, PublicProfile } from '../profile/types';
 import { currentAvatarVersion, visibleGivenTags } from '../profile/visibility';
 
@@ -32,7 +33,7 @@ export type PostLayout = {
   /** "POSTED 2026-09-21 04:12" */
   postedLabel: string;
   title: string;
-  /** Author information for the meta row: name, place line, chosen tags. */
+  /** Author information for the meta row: name, country flag, chosen tags. */
   author: {
     /**
      * Who the header names: the poster, or the site itself when the thread is the
@@ -53,7 +54,15 @@ export type PostLayout = {
      * carries a picture, and for a guest with no profile at all.
      */
     picture: string | undefined;
-    location: string;
+    /**
+     * The country the author wears, as an ISO 3166-1 alpha-2 code - or `''`.
+     *
+     * **A code rather than a name, and rather than a place line.** The byline *draws* this
+     * (`CountryFlag`), and a drawing is an asset slot keyed by a code; the meta line, which is text
+     * for a screen reader and a search result, asks `countryName` for the words. A place line was
+     * neither, which is why it went.
+     */
+    country: string;
     /** Tags other users gave the author and the author chose to display. */
     displayedTags: GivenTag[];
   };
@@ -93,7 +102,7 @@ export type PostLayout = {
 export type PostLayoutInput = {
   thread: ForumThread;
   isOpen: boolean;
-  /** The author's profile when it is known, for the place line and tags. */
+  /** The author's profile when it is known, for the country flag and tags. */
   authorProfile?: PublicProfile | null;
   /** Pre-formatted stamp, so this module stays free of date formatting. */
   postedLabel: string;
@@ -127,7 +136,7 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
       name: displayNameFor(credit),
       nameColour: profileNameColour(creditProfile),
       picture: usesDefaultPicture ? SITE_AUTHOR_PICTURE : undefined,
-      location: itemOwned ? '' : (creditProfile?.location ?? ''),
+      country: itemOwned ? '' : (creditProfile?.country ?? ''),
       displayedTags,
     },
     hasProfile: credit.id !== null,
@@ -184,10 +193,16 @@ function displayNameFor(author: ForumAuthor): string {
   return author.displayName.length > 0 ? author.displayName : 'Anonymous';
 }
 
-/** Convenience for callers that only need the meta line. */
+/**
+ * Convenience for callers that only need the meta line.
+ *
+ * The country appears as its *name* here, because this is the site's text of a byline - what a
+ * screen reader reads and a search result quotes. The drawing beside the name is the byline's own
+ * business (`PostAuthorRow`), so a reader without a pointer gets the same fact in words.
+ */
 export function postMetaLine(layout: PostLayout): string {
   const parts = [layout.postedLabel, layout.author.name];
-  if (layout.author.location.length > 0) parts.push(layout.author.location);
+  if (layout.author.country.length > 0) parts.push(countryName(layout.author.country));
 
   return parts.join(' :: ');
 }

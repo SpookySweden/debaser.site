@@ -1,12 +1,13 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isNameColour } from './name-colours';
+import { normalizeCountryCode } from './countries';
 import type { PresenceRecord } from './presence';
 import {
   tagArrivesApproved,
   validateAvatarNote,
   validateBio,
-  validateLocation,
+  validateCountry,
   validateStatus,
   validateNameColour,
   validateProfileComment,
@@ -38,7 +39,7 @@ import type {
  * Tables this code expects (all created by that script, with the RLS rules the
  * mock store keeps by construction):
  *
- *   profiles                 id, display_name, name_colour, bio, location,
+ *   profiles                 id, display_name, name_colour, bio, country_code,
  *                            show_tags, show_profile_comments, show_avatar_comments,
  *                            current_version_id, last_seen_at, is_online, updated_at
  *   profile_avatar_versions  id, user_id, version, src, alt, note,
@@ -50,7 +51,7 @@ import type {
  *
  * Two differences from the mock store, both on purpose:
  *
- *   - Validation runs here as it does there (bio, place line, swatch, notes, tags,
+ *   - Validation runs here as it does there (bio, country flag, swatch, notes, tags,
  *     comments), so a hand-written request cannot get past the rules the forms keep.
  *   - Realtime is one channel for the whole page rather than one per name: every
  *     name on the board reads a profile, and a channel each would eat Supabase's
@@ -121,7 +122,13 @@ type ProfileRow = {
   display_name: string;
   name_colour: string | null;
   bio: string;
-  location: string;
+  /**
+   * An ISO 3166-1 alpha-2 code, or an empty string for no flag. Optional in the type for the same
+   * reason `status` is: a database without `20260930000029_profile_country_flag.sql` has no such
+   * column, and a select that named it would fail the whole read. A row that came back without one
+   * reads as no country.
+   */
+  country_code?: string | null;
   /**
    * The owner's own one-liner. Optional in the type for the same reason `created_by` is optional on a
    * message row: a database without `20260930000026_profile_status.sql` has no such column, and a select
@@ -198,7 +205,9 @@ function toProfile(row: ProfileRow): PublicProfile {
     // colour cannot smuggle an arbitrary hex onto a username.
     ...(row.name_colour !== null && isNameColour(row.name_colour) ? { nameColour: row.name_colour } : {}),
     bio: row.bio,
-    location: row.location,
+    // Through the list, so a row that was written before the flag existed - when this column held a
+    // free-text place line - cannot put a sentence where a country goes.
+    country: normalizeCountryCode(typeof row.country_code === 'string' ? row.country_code : ''),
     status: typeof row.status === 'string' ? row.status : '',
     avatar: { versions, currentVersionId: row.current_version_id },
     song: { versions: songs, currentVersionId: row.current_song_version_id },
@@ -295,8 +304,8 @@ class SupabaseProfileRepository implements ProfileRepository {
       if (problem !== undefined) throw new Error(problem);
     }
 
-    if (patch.location !== undefined) {
-      const problem = validateLocation(patch.location);
+    if (patch.country !== undefined) {
+      const problem = validateCountry(patch.country);
       if (problem !== undefined) throw new Error(problem);
     }
 
@@ -316,7 +325,7 @@ class SupabaseProfileRepository implements ProfileRepository {
       update.display_name = patch.displayName.trim();
     }
     if (patch.bio !== undefined) update.bio = patch.bio.trim();
-    if (patch.location !== undefined) update.location = patch.location.trim();
+    if (patch.country !== undefined) update.country_code = normalizeCountryCode(patch.country);
     if (patch.status !== undefined) update.status = patch.status.trim();
     // An empty string is a real choice: it means "back to the page's own black".
     if (patch.nameColour !== undefined) update.name_colour = patch.nameColour.length === 0 ? null : patch.nameColour;

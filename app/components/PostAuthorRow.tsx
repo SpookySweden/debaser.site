@@ -4,8 +4,10 @@ import type { ReactNode } from 'react';
 import { authorLabel } from '../lib/auth/author';
 import type { ForumAuthor } from '../lib/forum/types';
 import { tagColour } from '../lib/forum/tag-vocabulary';
+import { countryName } from '../lib/profile/countries';
 import type { GivenTag } from '../lib/profile/types';
 import { REVEAL_CONTENTS, REVEAL_SLOT } from '../lib/ui/controls';
+import CountryFlag from './CountryFlag';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileLink from './ProfileLink';
@@ -32,8 +34,8 @@ type PostAuthorRowProps = {
    * pfp (`app/lib/forum/site-author.ts`).
    */
   picture?: string;
-  /** The author's place line, when their profile sets one. */
-  location?: string;
+  /** The author's country flag, as a code (`app/lib/profile/countries.ts`). */
+  country?: string;
   /**
    * The posting instant, drawn between the name and the given tags.
    *
@@ -58,7 +60,7 @@ type PostAuthorRowProps = {
  * The "posted ... by ..." line that opens every post.
  *
  * Order matches the board's reading order: the poster's picture, their name, the
- * place line, the stamp (`stamp`), then the tags the author chose to display.
+ * country flag, the stamp (`stamp`), then the tags the author chose to display.
  * Guests fall back to a plain name with no picture, and a row that wants the
  * picture out of the way until it is pointed at can still ask for `avatar="hover"`
  * - the board no longer does, because the picture leads its one-line strip.
@@ -74,7 +76,7 @@ export default function PostAuthorRow({
   avatarSize = 56,
   nameColour,
   picture,
-  location = '',
+  country = '',
   displayedTags = [],
   stamp,
   actions,
@@ -116,9 +118,13 @@ export default function PostAuthorRow({
         </ProfileName>
       </ProfileLink>
 
-      {location.length === 0 ? null : (
-        <span className="text-[10px] text-ink" title="Place line from this account's public profile">
-          :: {location}
+      {/* The country, drawn and named. Both, because the flag alone asks a reader to know 249
+          drawings by sight, and the name alone was what the place line already was. */}
+      {country.length === 0 ? null : (
+        <span className="inline-flex items-center gap-1 text-[10px] text-ink">
+          ::
+          <CountryFlag code={country} />
+          {countryName(country)}
         </span>
       )}
 

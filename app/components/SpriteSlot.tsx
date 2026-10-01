@@ -1,7 +1,7 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { SPRITE_SLOT } from '../lib/ui/controls';
 
 type SpriteSlotProps = {
@@ -13,6 +13,15 @@ type SpriteSlotProps = {
   height: number;
   /** What the file is, when the hover needs to say more than the path does. */
   title?: string;
+  /**
+   * What to draw *in* the slot when the file has not arrived.
+   *
+   * The default is nothing, which is right for a sprite - an empty field is the honest picture of
+   * a drawing that is not made yet. It is wrong for a slot that *stands for a value*, though: a
+   * country flag with no file would leave a profile's country readable only from a tooltip, and a
+   * reader with no pointer has no tooltip. `CountryFlag` is that case and passes the code.
+   */
+  fallback?: ReactNode;
 };
 
 /**
@@ -28,7 +37,7 @@ type SpriteSlotProps = {
  * holds its shape (and its dither) whether or not the artwork has arrived yet - which is what keeps
  * the layout honest while the drawing is still being made.
  */
-export default function SpriteSlot({ src, alt, width, height, title }: SpriteSlotProps) {
+export default function SpriteSlot({ src, alt, width, height, title, fallback }: SpriteSlotProps) {
   const [missing, setMissing] = useState(false);
 
   return (
@@ -37,7 +46,9 @@ export default function SpriteSlot({ src, alt, width, height, title }: SpriteSlo
       style={{ width, height }}
       title={title ?? `${src} is not in the assets folder yet`}
     >
-      {missing ? null : (
+      {missing ? (
+        fallback
+      ) : (
         <Image
           src={src}
           alt={alt}

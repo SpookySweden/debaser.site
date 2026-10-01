@@ -10,6 +10,8 @@ assets/concepts/     concept sheets shown on /concepts
 assets/audio/        the music shelf's tracks, played on /music
 assets/icons/        sign-in marks (google-retro.png) and other small marks
 assets/cursors/      the retro pointers named in app/globals.css
+assets/flags/        the country flags a profile may wear (ISO 3166-1 alpha-2 names,
+                     lowercase: se.png, gb.png), read by app/lib/profile/countries.ts
 assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
 assets/profiles/     public profile pictures (avatar-slot-NN.png, the default pfp

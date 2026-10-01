@@ -3,10 +3,10 @@ import { SITE_AUTHOR } from '../forum/site-author';
 import type { ForumAuthor } from '../forum/types';
 import { ACCENT_COLOUR } from '../ui/controls';
 import { isNameColour } from './name-colours';
+import { isCountryCode } from './countries';
 import {
   MAX_BIO_LENGTH,
   MAX_COMMENT_LENGTH,
-  MAX_LOCATION_LENGTH,
   MAX_SONG_CREDIT_LENGTH,
   MAX_SONG_TITLE_LENGTH,
   MAX_STATUS_LENGTH,
@@ -329,8 +329,11 @@ export function validateBio(bio: string): string | undefined {
   return undefined;
 }
 
-export function validateLocation(location: string): string | undefined {
-  if (location.length > MAX_LOCATION_LENGTH) return `PLACE LINE MUST BE ${MAX_LOCATION_LENGTH} CHARACTERS OR FEWER.`;
+export function validateCountry(country: string): string | undefined {
+  // Empty is a real choice - a profile with no flag - so only a value the list does not hold is a
+  // problem. `normalizeCountryCode` is the lenient read; this is the strict one, applied where a
+  // reader could otherwise file anything at all: the customiser's picker and the repository.
+  if (country.length > 0 && !isCountryCode(country)) return 'CHOOSE A COUNTRY FROM THE LIST.';
   return undefined;
 }
 

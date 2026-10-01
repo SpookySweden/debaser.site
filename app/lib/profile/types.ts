@@ -19,7 +19,6 @@ export type ProfileDataSource = 'mock' | 'supabase';
 export const MAX_BIO_LENGTH = 400;
 export const MAX_COMMENT_LENGTH = 400;
 export const MAX_TAG_LABEL_LENGTH = 24;
-export const MAX_LOCATION_LENGTH = 40;
 export const MAX_STATUS_LENGTH = 60;
 export const MAX_SONG_TITLE_LENGTH = 60;
 export const MAX_SONG_CREDIT_LENGTH = 40;
@@ -142,8 +141,15 @@ export type PublicProfile = {
    */
   nameColour?: string;
   bio: string;
-  /** Optional place line, shown next to the name on posts and on the profile. */
-  location: string;
+  /**
+   * The country this account wears as a flag, as an ISO 3166-1 alpha-2 code - or `''`.
+   *
+   * **This replaced a free-text place line.** A flag is a code off a closed list
+   * (`./countries`), which is the whole point: the site can draw it beside a name, count
+   * it, and refuse a value it does not know, and two accounts cannot disagree about how
+   * the same country is spelled. `''` is a real choice and the only way to say nothing.
+   */
+  country: string;
   /**
    * What the account is doing, in its own words: one line, the owner's own.
    *
@@ -174,7 +180,8 @@ export type PublicProfile = {
 export type ProfilePatch = {
   displayName?: string;
   bio?: string;
-  location?: string;
+  /** A code from ./countries; an empty string takes the flag off. */
+  country?: string;
   /** The owner's own one-liner. An empty string is a real choice: it means "not written". */
   status?: string;
   /** A swatch hex from name-colours.ts; an empty string clears it to the default. */

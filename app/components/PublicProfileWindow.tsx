@@ -10,6 +10,7 @@ import {
   profileElementById,
 } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
+import { countryName } from '../lib/profile/countries';
 import { getProfileRepository } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -18,6 +19,7 @@ import { canCommentOnProfile, profileComments, visibleFeedComments, visibleProfi
 import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
+import CountryFlag from './CountryFlag';
 import ElementComments from './ElementComments';
 import { useForum } from './ForumProvider';
 import ProfileAvatar from './ProfileAvatar';
@@ -205,15 +207,24 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         <ProfileWire userId={userId} comments={feedComments} />
 
 
-        {/* What is left of the account's own details now that the console furniture is gone: where
-            they say they are, and the tags other users have given them. The counts left, and so did
-            the row of switches: how many versions of a drawing exist and which of the four threads is
-            open are the customiser's business, and reading them back at somebody is a console rather
-            than a profile. Presence left too - it is the window's status bar now. The owner's way to
-            the page that changes any of it is one link on the line that names the thing it changes. */}
+        {/* What is left of the account's own details now that the console furniture is gone: the
+            country they wear as a flag, and the tags other users have given them. The counts left, and
+            so did the row of switches: how many versions of a drawing exist and which of the four
+            threads is open are the customiser's business, and reading them back at somebody is a
+            console rather than a profile. Presence left too - it is the window's status bar now. The
+            owner's way to the page that changes any of it is one link on the line that names the thing
+            it changes. */}
         <div className="min-w-0 border-t border-ink p-3 text-[10px] font-bold text-ink">
-          <p>
-            PLACE: {profile.location.length === 0 ? 'NOT GIVEN' : profile.location}
+          <p className="flex flex-wrap items-center gap-1">
+            COUNTRY:
+            {profile.country.length === 0 ? (
+              'NOT GIVEN'
+            ) : (
+              <>
+                <CountryFlag code={profile.country} />
+                {countryName(profile.country)}
+              </>
+            )}
             {owner && !compact ? (
               <>
                 {' [ '}
