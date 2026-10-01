@@ -150,6 +150,17 @@ preferences:
   looked at and not part of what was written; `ForumProvider` holds it, and every way a post can open
   marks it - a click, a gallery tile, a `#thread-` link, filing one.
 
+- **A short file behaves like a GIF.** A media file attached to a post or a profile whose filed
+  running time is at or under twenty seconds repeats itself instead of handing the player on - it is a
+  *motion*, not a piece of music. One number and one function
+  (`app/lib/audio/clip-loop.ts`: `CLIP_LOOP_SECONDS`, `clipRepeats`), applied where a file is handed
+  to the player, and written to the *track's own* repeat (`ownLoop`) rather than to the shelf's switch,
+  which persists - looping one clip must not turn looping on for the whole board. A file with no filed
+  running time (`--:--`, a profile's own song, a row nobody measured) answers *no opinion* and leaves
+  the shelf's switch to decide, and the bar is handed the effective answer (`loop: ownLoop ?? loop`)
+  rather than the switch that decided it, so its `↻` never disagrees with the transport. Video is out
+  of scope by fact rather than by choice: the site draws no `<video>` element.
+
 - **A page about a person shows a person.** No account ids, no counts of how much is filed, no row of
   switch states - those are the customiser's business and the store's, and reading them back at
   somebody turns a profile into a console. What a profile ends with is the last-online reading, in

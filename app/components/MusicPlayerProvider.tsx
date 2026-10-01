@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { clipRepeats } from '../lib/audio/clip-loop';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
 import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
 import { getMusicRepository } from '../lib/audio/repository';
@@ -41,7 +42,17 @@ export type MusicPlayerValue = {
   elapsed: number;
   duration: number;
   volume: number;
-  /** True repeats one track; false walks on to the next when it ends. */
+  /**
+   * True when the track on the display repeats itself; false when the queue walks on at the end of
+   * it.
+   *
+   * **The effective answer, not the switch's.** Two things can say "repeat this one": the shelf's
+   * own switch, and a file that carries its own repeat because it is short enough to behave like a
+   * GIF (`app/lib/audio/clip-loop.ts`). The bar draws one symbol for what the player is *doing*, so
+   * this reports what will happen at the end of the track rather than which switch happened to
+   * decide it - a `↻` beside a file that is about to stop would be the bar lying about its own
+   * transport.
+   */
   loop: boolean;
   toggle: () => void;
   next: () => void;
@@ -62,6 +73,10 @@ export type MusicPlayerValue = {
    * passed in rather than worked out here because this is the only place that cannot know it: `play` is
    * handed a track, and a track played off a profile's page and the same file played off your own screen
    * are the same `src`. The caller knows which door was used, so the caller says.
+   *
+   * A file whose filed running time is twenty seconds or shorter repeats itself from here (`clipRepeats`),
+   * which is the GIF rule rather than a second loop switch: it is written to the *track's* own repeat, so
+   * the shelf's switch - and what it is persisted as - is untouched.
    */
   play: (track: AudioTrack, origin?: PlayOrigin) => void;
   /**
@@ -209,6 +224,18 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * track can come through, and it holds for as long as that track is the one on the display.
    */
   const playedFrom = useRef<PlayOrigin | null>(null);
+
+  /**
+   * True while the track on the display came through `assign` - handed over by a screen rather than
+   * pressed off the shelf.
+   *
+   * It exists because RADI-OH has to label an entry that nobody labelled (`origin` is optional), and
+   * the label used to be inferred from `ownLoop !== null`. That inference stopped being true the day
+   * a short file started carrying its own repeat: a seven-second clip played from a thread is handed
+   * over by nobody and would have been filed in the grid as somebody's profile song. The door is
+   * recorded instead of guessed at.
+   */
+  const handedOver = useRef(false);
 
   /**
    * The repeat of a track that was *handed over* rather than chosen from the shelf - a profile's own
@@ -423,15 +450,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    *
    * The interval is set up from *which track* and reads the clock when it fires, which is the same shape
    * as `BroadcastHeartbeat`'s and for the same reason: `elapsed` in the dependencies would rebuild the
-   * timer on every tick and it would never fire. `origin` is decided once per track here - a handed-over
-   * track (`ownLoop !== null`) is somebody's profile song, anything else came off the shelf.
+   * timer on every tick and it would never fire. `origin` is decided once per track here, from the door
+   * it came through (`handedOver`).
    */
   useEffect(() => {
     if (track === undefined || !playing) return;
 
-    // A handed-over track carries its own repeat, which is the only thing that distinguishes a profile's
-    // song from an archive file at this point - the player holds one queue and does not label its rows.
-    const fallback = ownLoop === null ? 'shelf' : 'profile';
+    // Which door the track came through, for a track that arrived without an origin: a handed-over
+    // track is somebody's profile song (that is what `assign` is for), anything else was pressed off
+    // the shelf. `ownLoop` used to answer this and no longer can - a short file carries its own
+    // repeat whether or not anybody handed it over.
+    const fallback = handedOver.current ? 'profile' : 'shelf';
     const source = track;
     const recorded = playedFrom.current;
 
@@ -455,7 +484,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     const timer = window.setInterval(write, LOOP_SAMPLE_MS);
     return () => window.clearInterval(timer);
-  }, [ownLoop, playing, track]);
+  }, [playing, track]);
 
   /**
    * The system's own controls: media keys, a headset's buttons, and whatever a phone
@@ -541,6 +570,14 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const play = useCallback(
     (wanted: AudioTrack, origin?: PlayOrigin) => {
       playedFrom.current = origin ?? null;
+      handedOver.current = false;
+
+      // The GIF rule: a file short enough to behave like an animation keeps playing instead of
+      // handing the player on. It is the track's own repeat, not the shelf's switch, because the
+      // shelf's switch is persisted - and a file repeating itself says nothing about the next one.
+      // A file with no filed running time (a profile's song, a row nobody measured) answers `null`
+      // here, which leaves the shelf's switch to decide as it always did.
+      setOwnLoop(clipRepeats(wanted));
 
       const found = queue.findIndex((entry) => entry.src === wanted.src);
 
@@ -598,6 +635,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => {
       setError(null);
       playedFrom.current = options?.origin ?? null;
+      handedOver.current = true;
 
       // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
       // deliberately *not* `setLoopState`: that is the shelf's switch, and it persists.
@@ -659,7 +697,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       elapsed,
       duration,
       volume,
-      loop,
+      // What happens at the end of the track on the display: the file's own repeat beats the shelf's
+      // switch, exactly as the `ended` handler reads them (see `repeatOnEnd`). The bar draws one symbol
+      // for what the player is *doing*, so it is handed the answer rather than the switch that decided
+      // it - a `↻` beside a file that is about to stop would be the bar lying about its own transport.
+      loop: ownLoop ?? loop,
       toggle,
       stop,
       next,
@@ -689,6 +731,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       duration,
       volume,
       loop,
+      ownLoop,
       toggle,
       stop,
       next,
