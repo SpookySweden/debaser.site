@@ -11,7 +11,7 @@ import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
 import TrackControl from './TrackControl';
-import { PLATE_LARGE } from '../lib/ui/controls';
+import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 
 type CommentComposerProps = {
   id: string;
@@ -43,6 +43,17 @@ type CommentComposerProps = {
   error?: string | null;
   status?: string | null;
   rows?: number;
+  /**
+   * How much of the composer the caller wants.
+   *
+   * `full` is the window's own form: the byline, the count, every attachment control laid out under
+   * the box. `reply` is the box that opens inside a post, and it is the textarea and the plate and
+   * nothing else - a reader who has just opened a post is answering it, and the tag chooser, the
+   * account tagger, the picture picker and the MP3 control were seven lines of form standing between
+   * the words and the button. They are all still there, behind one plate, because a reply *can* carry
+   * a picture or a track and a feature nobody can find is a feature that was removed.
+   */
+  variant?: 'full' | 'reply';
 };
 
 /**
@@ -74,37 +85,37 @@ export default function CommentComposer({
   error = null,
   status = null,
   rows = 3,
+  variant = 'full',
 }: CommentComposerProps) {
   const { tagVocabulary } = useForum();
   const showTagChooser = tags !== undefined && onTagsChange !== undefined;
   const showMediaPicker = mediaId !== undefined && onMediaIdChange !== undefined;
   const showTrackPicker = onTrackChange !== undefined;
+  const condensed = variant === 'reply';
 
-  return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        onSubmit();
-      }}
-      className="mt-2 border border-ink bg-sun-pale p-2"
-    >
-      <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-ink">
-        <span>
-          AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
-        </span>
-        <span>{value.trim().length} CHARS</span>
-      </div>
+  const field = (
+    <textarea
+      id={id}
+      aria-label="Comment body"
+      rows={rows}
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      placeholder={placeholder}
+      className={`w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:p-3${
+        condensed ? ' sm:flex-1' : ''
+      }`}
+    />
+  );
 
-      <textarea
-        id={id}
-        aria-label="Comment body"
-        rows={rows}
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder={placeholder}
-        className="w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:p-3"
-      />
+  const submit = (
+    <button type="submit" disabled={busy} className={`${PLATE_LARGE}${condensed ? ' sm:shrink-0' : ''}`}>
+      {busy ? '[ WORKING... ]' : submitLabel}
+    </button>
+  );
 
+  /** What a reply can carry besides its words: every control the window's own form has. */
+  const attachmentControls = (
+    <>
       {previewTags !== undefined && previewTags.length > 0 ? (
         <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
           <span>AUTO TAGS:</span>
@@ -146,16 +157,60 @@ export default function CommentComposer({
           author={author}
         />
       ) : null}
+    </>
+  );
 
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <button
-          type="submit"
-          disabled={busy}
-          className={PLATE_LARGE}
-        >
-          {busy ? '[ WORKING... ]' : submitLabel}
-        </button>
+  const hasAttachmentControls =
+    showTagChooser ||
+    showMediaPicker ||
+    showTrackPicker ||
+    accounts.length > 0 ||
+    (previewTags !== undefined && previewTags.length > 0);
 
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      className="mt-2 border border-ink bg-sun-pale p-2"
+    >
+      {/* The byline and the count say nothing a reply's reader does not already know: the board names
+          the account it is posting as, and the count is not a thing anybody writes to. They stay in
+          the window's own form, where a post is being composed rather than answered. */}
+      {condensed ? null : (
+        <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-ink">
+          <span>
+            AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
+          </span>
+          <span>{value.trim().length} CHARS</span>
+        </div>
+      )}
+
+      {condensed ? (
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
+          {field}
+          {submit}
+        </div>
+      ) : (
+        <>
+          {field}
+          {attachmentControls}
+          <div className="mt-2 flex flex-wrap items-center gap-3">{submit}</div>
+        </>
+      )}
+
+      {condensed && hasAttachmentControls ? (
+        // One plate, one line: what a reply can carry is here rather than in the way. The word list is
+        // spelled out because `[ + ]` is a puzzle - a reader has to be able to see that the picture
+        // they want is behind it.
+        <details className="mt-1">
+          <summary className={PLATE}>[ + TAGS / PICTURE / MP3 / @NAME ]</summary>
+          <div className="mt-1">{attachmentControls}</div>
+        </details>
+      ) : null}
+
+      <div className={`flex flex-wrap items-center gap-3${condensed ? ' mt-1' : ' mt-2'}`}>
         {error !== null ? (
           <span className="text-[10px] font-bold text-bubble-pale">ERROR: {error}</span>
         ) : null}

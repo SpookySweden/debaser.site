@@ -10,12 +10,13 @@ import { collectThreadImages } from '../lib/forum/media';
 import { mentionsIn } from '../lib/forum/mentions';
 import { pinLabel, pinSummary } from '../lib/forum/pins';
 import { buildPostLayout, postLayoutInput } from '../lib/forum/post-layout';
+import { postIsRead } from '../lib/forum/read-state';
 import { postCredit } from '../lib/forum/site-author';
 import { displayTags } from '../lib/forum/tags';
 import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { PLATE } from '../lib/ui/controls';
+import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -172,6 +173,16 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const layout = buildPostLayout(postLayoutInput(thread, isOpen, profile));
   /** Whether the post came with a picture of its own: the strip's badge, and the tile's subject. */
   const hasImage = carriesImage(thread);
+  /**
+   * Whether this reader has opened this post before, and when.
+   *
+   * The fill follows it - quiet once read, white while there is something new - and the replies below
+   * are asked the same question about the instant, so a post read a week ago still shows the two
+   * replies filed since in white (app/lib/forum/read-state.ts). Opening a post is what marks it, and
+   * the board does that when a row opens rather than the row itself: a card is drawn for a post the
+   * reader may only be scrolling past.
+   */
+  const isRead = postIsRead(forum.seenByThread, thread.id);
 
   // While the card is open its left column already draws the item's own sheet, so
   // the links back to that item must not pop a second copy of it on hover: the
@@ -179,7 +190,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const anchorPreview = isOpen && images.source === 'item' ? 'none' : 'hover';
 
   return (
-    <article id={threadDomId(thread.id)} className="rule-pixel px-2 py-2">
+    <article id={threadDomId(thread.id)} className={`rule-pixel px-2 py-2 ${isRead ? ROW_READ : ROW_UNREAD}`}>
       <details
         className="group"
         open={isOpen}
@@ -310,14 +321,18 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
 
             {/* The preview fills the reserved right column while the row is collapsed. On open it goes,
                 because the body it was previewing is now on screen - but the *box* it lived in does
-                not, so opening a post never widens the row under the reader's finger. The outer div
-                is the slot; `PostHoverPreview` fills it in both states and swaps only its contents.
+                not, so opening a post never widens the row under the reader's finger.
+
+                The slot is `relative` and the panel inside it is absolute: the width is reserved here,
+                the panel is out of the row's flow, so pointing at a post moves nothing at all - and
+                because nothing moves, the pointer reaches the row it was heading for instead of
+                landing on the row that had just grown under it (see ./PostHoverPreview.tsx).
 
                 Two fifths rather than half, since the credit strip became one line: the strip and the
                 title both live in the column beside this, and at half the row they were one long place
-                line away from wrapping under themselves. The preview is a preview - 370px is a
+                line away from wrapping under themselves. The panel is a preview - 360px is a
                 comfortable reading measure for one. */}
-            <div className="hidden w-2/5 min-w-0 shrink-0 sm:flex">
+            <div className="relative hidden w-2/5 min-w-0 shrink-0 sm:flex">
               {isOpen ? null : (
                 <PostHoverPreview body={layout.right.body} comments={thread.comments} />
               )}
@@ -389,6 +404,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 thread={thread}
                 avatarSize={48}
                 matchedIds={matchedIds}
+                seenByThread={forum.seenByThread}
                 emptyLabel="NO REPLIES YET. BE THE FIRST ANONYMOUS POSTER."
               />
 
@@ -397,6 +413,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 value={reply}
                 onChange={setReply}
                 onSubmit={handleReply}
+                variant="reply"
                 submitLabel="[ FILE REPLY ]"
                 placeholder="Reply to this thread..."
                 author={forum.author}

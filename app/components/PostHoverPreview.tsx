@@ -12,12 +12,12 @@ type PostHoverPreviewProps = {
 };
 
 /**
- * Past a couple of lines the tail of the writing waits for the expanded card.
+ * How much of the post the panel carries before it says the rest is on the card.
  *
- * This is the *box's* capacity, not a taste for short posts. The half of a row this fills is around
- * 370px wide and about as tall as the credit strip beside it (six or seven lines of 12px text), and
- * the text is clipped by that box - so a longer slice would be cut mid-sentence with the hint that
- * explains it pushed off the bottom. 320 characters is what fits with the hint still visible.
+ * The panel is as tall as its own content (see the note on the element below), so this is not a
+ * clipping limit but a judgement about what a hover should cost: 320 characters is six or seven lines
+ * of 12px text in the panel's ~360px measure - a paragraph, not a wall. Anything longer is a post
+ * somebody should be reading on the card, where the rest of it is.
  */
 const BODY_SLICE = 320;
 /** Longest slice of one reply the crawl prints. */
@@ -46,15 +46,27 @@ export default function PostHoverPreview({ body, comments }: PostHoverPreviewPro
 
   return (
     /* The caller reserves the box (see ./ForumThreadCard.tsx): the width is held whether or not this
-       is filled, so pointing at a row never reflows the list. What is inside is what the pointer
-       reveals - and `focus-within` matches, because a keyboard reader does not hover.
+       is filled, so pointing at a row never reflows the list.
 
-       `data-reveal` is how `Temp/check-reveals.cjs` knows this one is allowed: an element that fills a
-       space somebody else reserved is the legal shape, and the attribute is the declaration of it
-       rather than something a regex has to guess from the surrounding markup. */
+       **Out of flow, and that is what makes it a reveal rather than a jump.** It used to fill that box
+       in the row's own flow, which meant the row grew to fit it - 66px of title and strip beside a
+       187px panel - so pointing at a post pushed everything below it down, and moving the pointer on
+       to the next post landed on the row that had just grown underneath instead. The row you pointed
+       at stayed open and re-opened every time it closed, which is what "the hover does not collapse"
+       looks like from the outside. An absolutely positioned panel cannot push anything (AGENTS.md,
+       "Reveals take their space in both states", first of the two legal shapes), so nothing moves but
+       the pointer, and the row that is pointed at is the row that answers.
+
+       `pointer-events-none` is the second half of the same fix: the panel hangs over the rows below
+       it, and if it took the pointer a reader moving down the list would keep the first row open
+       instead of arriving at the second. Passing the pointer through means hovering a row is decided
+       by the row it is over - which is also what this component's first version said it was for.
+
+       `focus-within` matches as well, because a keyboard reader does not hover; `data-reveal` is how
+       `Temp/check-reveals.cjs` knows this one is allowed. */
     <div
       data-reveal="reserved"
-      className="hidden min-h-0 w-full flex-col gap-1 overflow-hidden border-l border-dashed border-ink pl-3 group-hover:flex group-focus-within:flex"
+      className="pointer-events-none absolute top-0 right-0 z-10 hidden w-full flex-col gap-1 border border-black bg-paper p-2 group-hover:flex group-focus-within:flex"
     >
         {shown.length === 0 ? null : (
           <>

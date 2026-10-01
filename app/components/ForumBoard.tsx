@@ -60,6 +60,10 @@ const PAGE_SIZES = [5, 10, 20, 50];
 export default function ForumBoard() {
   const forum = useForum();
   const clearLocalPosts = forum.clearLocalPosts;
+  // Read out here rather than reached for as `forum.markThreadRead` in each deps list: it is stable
+  // per account, and the four ways a post can open (a click, a tile, a `#thread-` link, filing one)
+  // then share one dependency instead of depending on the whole context value.
+  const markThreadRead = forum.markThreadRead;
 
   const [sortMode, setSortMode] = useState<SortMode>('newest');
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
@@ -163,12 +167,19 @@ export default function ForumBoard() {
     [forum.threads],
   );
 
-  const handleToggle = useCallback((threadId: string, open: boolean) => {
-    setOpenThreadIds((current) => {
-      if (open) return current.includes(threadId) ? current : [...current, threadId];
-      return current.filter((id) => id !== threadId);
-    });
-  }, []);
+  const handleToggle = useCallback(
+    (threadId: string, open: boolean) => {
+      // Opening a post is reading it: the row goes quiet from here on, and any reply filed after this
+      // instant stays white on it (`app/lib/forum/read-state.ts`). Closing marks nothing.
+      if (open) markThreadRead(threadId);
+
+      setOpenThreadIds((current) => {
+        if (open) return current.includes(threadId) ? current : [...current, threadId];
+        return current.filter((id) => id !== threadId);
+      });
+    },
+    [markThreadRead],
+  );
 
   /**
    * A tile's `[ OPEN THE POST ]`: the board goes back to the feed with that post open.
@@ -178,38 +189,47 @@ export default function ForumBoard() {
    * second the row is in the document to scroll to. Without the pair the scroll happens against a
    * tile that is no longer there.
    */
-  const openFromGallery = useCallback((threadId: string) => {
-    setView('feed');
-    setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
+  const openFromGallery = useCallback(
+    (threadId: string) => {
+      setView('feed');
+      markThreadRead(threadId);
+      setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
 
-    if (typeof window === 'undefined') return;
+      if (typeof window === 'undefined') return;
 
-    window.requestAnimationFrame(() =>
       window.requestAnimationFrame(() =>
-        document.getElementById(threadDomId(threadId))?.scrollIntoView({ block: 'center' }),
-      ),
-    );
-  }, []);
+        window.requestAnimationFrame(() =>
+          document.getElementById(threadDomId(threadId))?.scrollIntoView({ block: 'center' }),
+        ),
+      );
+    },
+    [markThreadRead],
+  );
 
   const handleView = useCallback((next: BoardView) => {
     setView(next);
     setPage(1);
   }, []);
 
-  const handleCreated = useCallback((thread: ForumThread) => {
-    setComposerOpen(false);
-    setPage(1);
-    setOpenThreadIds((current) => (current.includes(thread.id) ? current : [...current, thread.id]));
-    setSortMode('newest');
-    setSourceFilter('all');
-    setTagFilters([]);
-    setQuery('');
+  const handleCreated = useCallback(
+    (thread: ForumThread) => {
+      setComposerOpen(false);
+      setPage(1);
+      // The reader has just written it, so it is read by definition.
+      markThreadRead(thread.id);
+      setOpenThreadIds((current) => (current.includes(thread.id) ? current : [...current, thread.id]));
+      setSortMode('newest');
+      setSourceFilter('all');
+      setTagFilters([]);
+      setQuery('');
 
-    if (typeof window === 'undefined') return;
-    window.requestAnimationFrame(() => {
-      document.getElementById(threadDomId(thread.id))?.scrollIntoView({ block: 'center' });
-    });
-  }, []);
+      if (typeof window === 'undefined') return;
+      window.requestAnimationFrame(() => {
+        document.getElementById(threadDomId(thread.id))?.scrollIntoView({ block: 'center' });
+      });
+    },
+    [markThreadRead],
+  );
 
   const handleReset = useCallback(() => {
     void clearLocalPosts();
@@ -236,6 +256,8 @@ export default function ForumBoard() {
       if (!hash.startsWith('#thread-')) return;
 
       const id = hash.slice('#thread-'.length);
+      // A link that opens a post is a reader arriving at it, so it is read the same way a click is.
+      markThreadRead(id);
       setOpenThreadIds((current) => (current.includes(id) ? current : [...current, id]));
       document.getElementById(threadDomId(id))?.scrollIntoView({ block: 'center' });
     };
@@ -247,7 +269,7 @@ export default function ForumBoard() {
       window.cancelAnimationFrame(frame);
       window.removeEventListener('hashchange', applyHash);
     };
-  }, []);
+  }, [markThreadRead]);
 
   return (
     <div className="space-y-3">
@@ -389,7 +411,7 @@ export default function ForumBoard() {
                       title={`Stop including ${label}`}
                       className="cursor-pointer rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold hover:bg-ice"
                     >
-                      {label} ×
+                      {label} Ã—
                     </button>
                   );
                 })}
@@ -702,3 +724,4 @@ export default function ForumBoard() {
     </div>
   );
 }
+

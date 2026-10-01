@@ -9,6 +9,7 @@ import { profileAnchorTarget } from '../lib/forum/anchors';
 import { profileCommentThreads } from '../lib/forum/profile-threads';
 import type { ProfileCommentEntry } from '../lib/profile/types';
 import { pinForThread as livePinForThread } from '../lib/forum/pins';
+import { accountOf, loadMarks, saveThreadRead, type ReadMarks } from '../lib/forum/read-state';
 import { readTagColours, rememberTagColour as rememberTagColourInStore } from '../lib/forum/tag-colours';
 import { buildTagVocabulary, canonicalTagLabel, type TagOption } from '../lib/forum/tag-vocabulary';
 import type {
@@ -75,6 +76,16 @@ export type ForumContextValue = {
   tagColours: Record<string, string>;
   /** Stores a picked colour so the tag always comes back in it. */
   rememberTagColour: (label: string, colour: string) => void;
+  /**
+   * Posts this reader has already opened, by post id, and when.
+   *
+   * The board's reading state rather than the archive's: it lives in this browser, belongs to the
+   * account that is signed in, and is what the rows are drawn quiet or white from
+   * (`app/lib/forum/read-state.ts`). A post nobody has opened is simply absent from the map.
+   */
+  seenByThread: ReadMarks;
+  /** Marks a post read, as of now. Opening a row is what the board calls this from. */
+  markThreadRead: (threadId: string) => void;
   createThread: (request: CreateThreadRequest) => Promise<ForumThread>;
   addComment: (request: AddCommentRequest) => Promise<AddCommentResult>;
   /**
@@ -230,6 +241,29 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     rememberTagColourInStore(label, colour);
     setTagColours(readTagColours());
   }, []);
+
+  /**
+   * What this reader has read, loaded per account and written back on every open.
+   *
+   * The provider is where it lives because *the board* is what opens a post - a card is drawn for a
+   * post the reader may only be scrolling past - and because the marks are read by rows all over the
+   * tree. Loading is keyed on the account: signing out drops to the guest's own list rather than
+   * showing one account's reading as another's.
+   */
+  const [seenByThread, setSeenByThread] = useState<ReadMarks>({});
+  const account = accountOf(author);
+
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => setSeenByThread(loadMarks(account)));
+    return () => window.cancelAnimationFrame(frame);
+  }, [account]);
+
+  const markThreadRead = useCallback(
+    (threadId: string) => {
+      setSeenByThread(saveThreadRead(account, threadId, new Date().toISOString()));
+    },
+    [account],
+  );
 
   /**
    * The board everything reads: its own threads, then one more for every profile subject that
@@ -397,6 +431,8 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       tagVocabulary,
       tagColours,
       rememberTagColour,
+      seenByThread,
+      markThreadRead,
       createThread,
       addComment,
       updateThread,
@@ -420,6 +456,8 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       tagVocabulary,
       tagColours,
       rememberTagColour,
+      seenByThread,
+      markThreadRead,
       createThread,
       addComment,
       updateThread,

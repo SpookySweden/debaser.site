@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { buildCommentTree, type CommentNode } from '../lib/forum/comment-tree';
 import { answeredAuthor, mentionsIn } from '../lib/forum/mentions';
+import { replyIsRead, type ReadMarks } from '../lib/forum/read-state';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import CommentNodeCard from './CommentNodeCard';
 import { useComms } from './CommsProvider';
@@ -24,6 +25,15 @@ type CommentThreadListProps = {
    * marker on the post alone would leave the reader hunting through the thread for it.
    */
   matchedIds?: string[];
+  /**
+   * What this reader has read, so each reply can be drawn quiet or white (`app/lib/forum/read-state.ts`).
+   *
+   * Passed down rather than read here, because the *answer* is per post and this list is drawn in
+   * several places - a post's replies, an asset's comment window, a profile's conversation - and only
+   * the board has an account's marks to hand. Empty means nothing read, which is the state a comment
+   * window on an asset is in anyway.
+   */
+  seenByThread?: ReadMarks;
 };
 
 /**
@@ -44,6 +54,7 @@ export default function CommentThreadList({
   maxIndentDepth = 3,
   emptyLabel = 'NO REPLIES YET.',
   matchedIds = [],
+  seenByThread = {},
 }: CommentThreadListProps) {
   const forum = useForum();
   const { accounts } = useComms();
@@ -121,6 +132,7 @@ export default function CommentThreadList({
         replyOpen={replyOpen}
         repliesHidden={repliesHidden}
         matched={matchedIds.includes(comment.id)}
+        read={replyIsRead(seenByThread, thread.id, comment.createdAt)}
         accounts={accounts}
         busy={busyId === comment.id}
         error={error !== null && error.id === comment.id ? error.message : null}

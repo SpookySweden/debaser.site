@@ -180,6 +180,26 @@ export const REVEAL_SLOT = 'shrink-0 empty:hidden';
 export const REVEAL_CONTENTS = 'hidden group-hover:flex group-focus-within:flex';
 
 /**
+ * The two fills a row of the board wears, depending on whether the reader has read it.
+ *
+ * A forum's oldest reading habit, kept in this site's own two colours rather than a grey: a row that
+ * has been read goes quiet in the surface the furniture is made of (`chrome-dark`, the same fill an
+ * inactive title bar and a disabled plate wear - "this one is dealt with"), and a row with something
+ * new in it stays on the field (`paper`, the plain white a visitor arrives to). The pair is the one
+ * the dark theme can also hold, which is the point of it being these two tokens and not a new one:
+ * Flavine carries Black ink at 19:1 and the dark theme's Royal Blue carries White at 9.34:1, so a
+ * read row is readable in either theme without a second ink.
+ *
+ * Both posts and replies ask for them, and independently: a post the reader has opened can still
+ * carry replies filed since, so a quiet post with a white reply in it is the ordinary state of a
+ * thread that has been answered while nobody was looking (`app/lib/forum/read-state.ts`).
+ */
+export const ROW_READ = 'bg-chrome-dark text-ink';
+
+/** The same row, with something in it this reader has not read yet. */
+export const ROW_UNREAD = 'bg-paper text-ink';
+
+/**
  * The plate that carries a verb onto the board: the one magenta face on the site.
  *
  * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not

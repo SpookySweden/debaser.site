@@ -18,7 +18,7 @@ import ProfileName from './ProfileName';
 import TagStrip from './TagStrip';
 import TimeStamp from './TimeStamp';
 
-import { PLATE } from '../lib/ui/controls';
+import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 
 type CommentNodeCardProps = {
   comment: ForumComment;
@@ -51,6 +51,14 @@ type CommentNodeCardProps = {
    * and land on the reply that carried the tag.
    */
   matched?: boolean;
+  /**
+   * True when this reply was already there the last time its post was opened.
+   *
+   * Decided by the list, which holds the thread id and the reader's marks
+   * (`app/lib/forum/read-state.ts`); the row only draws the answer. A reply filed since is left white
+   * even inside a post the reader has read, which is what makes the post's own fill worth having.
+   */
+  read?: boolean;
   onToggleReply: () => void;
   onToggleReplies: () => void;
   onSubmit: () => void;
@@ -85,6 +93,7 @@ export default function CommentNodeCard({
   onTrackChange,
   accounts = [],
   matched = false,
+  read = false,
   onToggleReply,
   onToggleReplies,
   onSubmit,
@@ -94,9 +103,13 @@ export default function CommentNodeCard({
   // A matched reply is ringed, so the eye finds it once the post it answers is open. `scroll-mt`
   // keeps the marker clear of the window's own chrome when the board scrolls to it.
   const marker = matched ? ' scroll-mt-24 outline-2 outline-ena outline-offset-2' : '';
+  // The fill is the reply's own reading state, independent of the post's: white while it is newer than
+  // the last time the post was opened, quiet once it has been read. `p-1` is the room a fill needs -
+  // without it the words touch the edge of the colour and the row stops looking like a row.
+  const fill = read ? ROW_READ : ROW_UNREAD;
 
   return (
-    <li id={commentDomId(comment.id)} className={`flex items-start gap-2 ${indent}${marker}`}>
+    <li id={commentDomId(comment.id)} className={`flex items-start gap-2 p-1 ${fill} ${indent}${marker}`}>
       <ProfileAvatarLink
         author={comment.author}
         size={depth === 0 ? avatarSize : Math.max(30, avatarSize - 12)}
@@ -169,6 +182,7 @@ export default function CommentNodeCard({
             value={draft}
             onChange={onDraftChange}
             onSubmit={onSubmit}
+            variant="reply"
             submitLabel="[ FILE COMMENT ]"
             placeholder="Add to this reply thread..."
             author={viewer}

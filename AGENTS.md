@@ -111,6 +111,13 @@ preferences:
   game, filing a track with a post - is two presses: one to open the thing, one to commit it. The
   composer's own entry and submit presses are separate and are the floor. `Temp/check-flows.cjs`
   holds both flows to this, so change the flows and that check is what tells you.
+- **The reply box is the words and the button, and the rest is one plate away.** A box opened inside
+  a post carries a textarea and `[ FILE REPLY ]`; the tag chooser, the account tagger, the picture
+  picker and the MP3 control - what a reply can carry, which is all still there - sit behind one
+  closed `[ + TAGS / PICTURE / MP3 / @NAME ]` disclosure that names each of them. The byline and the
+  character count are the composer *window's*: a reader who has just opened a post is answering it,
+  and seven lines of form between the words and the button is not a form, it is a wall
+  (`variant="reply"` in `CommentComposer`).
 - **Verbs go where the account or the file is named.** `PostAuthorRow` and `UserDirectoryRow` both
   carry an `actions` slot for a screen's own verb (`[ CHALLENGE ]`, `[ MESSAGE ]`); a screen with a
   question to ask an account adds it there rather than writing the row again. A verb that reaches
@@ -129,7 +136,19 @@ preferences:
   there is something to see; the drawing itself is drawn only on the expanded card. A 72px thumbnail
   behind `group-hover` put the picture a post was filed for out of reach of anything without a
   pointer, and a phone has no hover. What hover *does* fill is the reserved right column: the post's
-  own words, expanded to the box it has, over a reel of its replies (`PostHoverPreview`).
+  own words, expanded to what the panel holds, over a reel of its replies (`PostHoverPreview`) - and
+  **the panel is out of flow**, absolute inside the reserved column and `pointer-events-none`. In flow
+  it made the row as tall as itself (a 187px panel beside 66px of title), so pointing at a post pushed
+  the list down under the pointer and the row below was never the row the pointer was over: the panel
+  re-opened on a row the reader had left, which reads as "the hover will not collapse". The rule it
+  broke is the one below, and out-of-flow is the first of its two legal shapes.
+- **A post and a reply are each quiet once read.** Opening a post goes quiet (`ROW_READ`), one nobody
+  has opened stays on the field (`ROW_UNREAD`), and every reply is asked the same question about its
+  *own* instant - so a post read last week with two replies filed since is a quiet post with two white
+  rows in it. The marker is one instant per post per account, in `localStorage`
+  (`app/lib/forum/read-state.ts`), because "read" is this browser's memory of what this reader has
+  looked at and not part of what was written; `ForumProvider` holds it, and every way a post can open
+  marks it - a click, a gallery tile, a `#thread-` link, filing one.
 
 - **A page about a person shows a person.** No account ids, no counts of how much is filed, no row of
   switch states - those are the customiser's business and the store's, and reading them back at
