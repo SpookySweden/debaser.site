@@ -8,7 +8,7 @@ import { displayTags } from '../lib/forum/tags';
 import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { PLATE } from '../lib/ui/controls';
+import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import PostAuthorRow from './PostAuthorRow';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
@@ -24,6 +24,14 @@ type ForumGalleryTileProps = {
   onOpen: (threadId: string) => void;
   /** The board's tag filter, so a tile marks the tags it matched on exactly as a row does. */
   tagFilter?: string[];
+  /**
+   * True when this reader has opened the post behind the tile.
+   *
+   * A tile is the same post the feed draws, so it goes quiet by the same rule and from the same marks
+   * (`app/lib/forum/read-state.ts`); the tile's own surface was already the quiet colour, so this is
+   * what makes an unopened post stand out on the wall rather than blending into it.
+   */
+  read?: boolean;
 };
 
 /**
@@ -42,7 +50,7 @@ type ForumGalleryTileProps = {
  * badges are each their own target, and a tile that swallowed them would make every one of them
  * unreachable. The plate at the foot is the way through - one press, named.
  */
-export default function ForumGalleryTile({ thread, onOpen, tagFilter = [] }: ForumGalleryTileProps) {
+export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read = false }: ForumGalleryTileProps) {
   const { profile } = usePublicProfile(postCredit(thread).id);
   // Pre-expanded: the layout is asked for the open shape, so the picture, the tags and the body are
   // all present without anybody having pressed anything.
@@ -57,7 +65,11 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [] }: For
   ];
 
   return (
-    <li className="flex min-w-0 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <li
+      className={`flex min-w-0 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black ${
+        read ? ROW_READ : ROW_UNREAD
+      }`}
+    >
       {/* The bar over the drawing says where the picture came from, because "a picture in this post"
           and "a picture somebody replied with" are different things to be shown - the second is why a
           reply can put a post in this view at all (app/lib/forum/media.ts). */}

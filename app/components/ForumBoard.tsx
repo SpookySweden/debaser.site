@@ -599,8 +599,14 @@ export default function ForumBoard() {
           </p>
         </div>
       ) : view === 'gallery' ? (
-        /* The wall of pictures. The tiles are the same posts the feed draws, already open. */
-        <ForumGalleryView threads={pageThreads} onOpen={openFromGallery} tagFilter={tagFilters} />
+        /* The wall of pictures. The tiles are the same posts the feed draws, already open - and
+           drawn in the same reading state, from the same marks. */
+        <ForumGalleryView
+          threads={pageThreads}
+          onOpen={openFromGallery}
+          tagFilter={tagFilters}
+          seenByThread={forum.seenByThread}
+        />
       ) : (
         <div
           id="forum-thread-list"
