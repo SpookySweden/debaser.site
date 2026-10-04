@@ -15,6 +15,7 @@
     "shot": "node scripts/screenshot.cjs",
     "capture": "node scripts/capture-qa.cjs",
     "audit": "node scripts/qa-audit.cjs",
+    "art": "node scripts/art-audit.cjs",
     "look": "node scripts/look.cjs",
     "panes": "node scripts/measure-panes.cjs",
     "stages": "node scripts/measure-stages.cjs",

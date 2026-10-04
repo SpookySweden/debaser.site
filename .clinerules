@@ -52,7 +52,8 @@
   Piping a build to `Select-Object` buries the one line that matters.
 - **Prefer a repo script over a hand-written command** when one exists:
   `npm run read` for the served HTML, `npm run capture` for the audit's
-  snapshots, `npm run audit` for the audit itself, `npm run checks` for the check
+  snapshots, `npm run audit` for the audit itself, `npm run art` for the artwork
+  registry against the files on disk, `npm run checks` for the check
   suite, `npm run db` for SQL, `npm run db:sweep` to clear what the checks left
   behind. They already handle the quoting and the comment-stripping, and they are
   tracked in `scripts/` so they survive a clone.
