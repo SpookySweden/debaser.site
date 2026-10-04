@@ -1,10 +1,14 @@
 PLACEHOLDERS FOR NOW
 ====================
-The three PNGs here are placeholders rather than drawings: a black block at the hotspot in the
-corner, over transparency, one size per kind - `arrow` 4x4, `pointer` 6x6, `text` 8x8 - so the
-plumbing can be seen working (the pointer is where it should be, and each rule reaches the file it
-names) without pretending to be the finished thing. They are deliberately not artwork: nothing here
-is generated, and a stand-in illustration is the one thing this archive does not do (AGENTS.md).
+The three PNGs here are placeholders rather than drawings: each is a 32x32 canvas with a small black
+block at the hotspot in the corner, over transparency - `arrow` 4x4, `pointer` 6x6, `text` 8x8 - so
+the plumbing can be seen working (the pointer is where it should be, and each rule reaches the file it
+names) without pretending to be the finished thing. The canvas is already the size a finished cursor
+needs; it is the drawing on it that is missing. They are deliberately not artwork: nothing here is
+generated, and a stand-in illustration is the one thing this archive does not do (AGENTS.md).
+
+`npm run art` reads this folder against `app/lib/ui/art/slots.ts` and prints each of the three as a
+stand-in every run, so a placeholder is never mistaken for a finished drawing.
 
 Replace each one with the hand-drawn PNG described below and nothing else has to change - no code,
 no path, no size in the CSS.

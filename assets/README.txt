@@ -12,10 +12,16 @@ assets/icons/        sign-in marks (google-retro.png) and other small marks
 assets/cursors/      the retro pointers named in app/globals.css
 assets/flags/        the country flags a profile may wear (ISO 3166-1 alpha-2 names,
                      lowercase: se.png, gb.png), read by app/lib/profile/countries.ts
-assets/placeholders/ stand-in slots for artwork that does not exist yet
 assets/sprites/      the looping avatar sprites used by the taskbar
-assets/profiles/     public profile pictures (avatar-slot-NN.png, the default pfp
-                     avatar-default.png, and uploads/)
+assets/profiles/     public profile pictures (the default pfp avatar-default.png,
+                     and uploads/ written by the app itself)
+
+There is no `placeholders/` folder, deliberately: a drawing that does not exist
+yet is not represented by a stand-in picture (AGENTS.md - "no CSS/SVG art", and
+the asset rules above). Every component that has room for artwork draws its own
+missing state instead - a dithered field, a `[ ? ]`, or the two letters of a
+country code - so an undrawn file is visible as a gap rather than as a picture
+that is not yours.
 
 How it is served
 ----------------
@@ -25,6 +31,32 @@ app/assets/[...path]/route.ts streams these files at the matching URL, e.g.
 
 Anything missing returns a 404 and the page shows an
 "[ ARTWORK FILE NOT FOUND ]" panel naming the path it wanted.
+
+The sizes, and the one rule that keeps a drawing crisp
+------------------------------------------------------
+`app/lib/ui/art/slots.ts` declares every slot this site has - what it is
+called, the size to draw it at, the size it is shown at, and where its file
+lives. `npm run art` reads that registry and holds the files on disk to it.
+
+The rule, and it is the only one that matters for how a drawing looks:
+
+    natural = shown x k        k a whole number, 1 or more
+
+The site never resamples. A drawn pixel either becomes a whole number of
+screen pixels or the browser blurs it into a smooth edge, and pixel art that
+has been blurred is no longer pixel art. So a slot shown at 18x12 is drawn at
+18x12 (k=1), or 36x24 (k=2), or 72x48 (k=4) - and **not** at 48x32, which is
+2.67 and gets refused by `npm run art`. Drawing larger and letting the site
+downscale is the right instinct and this is the arithmetic that makes it work:
+a 4x drawing on a 2x screen is still whole pixels, and it survives a 4x screen
+too. `assets/flags/README.txt` is where that correction was made on a real
+slot (it used to say 48x32).
+
+A second rule follows from the first and is what the audit's contact sheet
+(`npm run art -- --sheet`) is for: **a slot's file must be the size the
+registry declares**, because the registry is also what the layout reserves.
+A file drawn at another size is not a smaller mistake than a missing one - it
+is a row that reflows the moment the drawing lands.
 
 Adding a new concept sheet
 --------------------------

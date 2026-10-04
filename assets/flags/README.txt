@@ -28,8 +28,17 @@ Drawn at 3:2, two sizes are used:
     18x12   beside a name in a post's byline (PostAuthorRow)
     24x16   on a profile panel and in the customiser's preview
 
-Draw at 48x32 and let it downscale into those - the pixel face does not resample, so a file drawn
-at the size it is shown is the only one that stays crisp.
+**One file serves both, so it has to be a whole multiple of both at once.** The
+rule everywhere in this archive is `natural = shown x k` with `k` a whole number
+(assets/README.txt), and 18x12 and 24x16 have no common whole multiple below
+their lowest common multiple - so the file to draw is:
+
+    72x48    x4 into the byline slot, x3 into the profile slot
+
+This README said "draw at 48x32" until 2026-10-04, and that is x2.67 and x1.5 -
+two different fractions of a pixel, which is exactly what makes a flag look
+smeared rather than drawn. `npm run art` now fails on a file whose size is not a
+whole multiple of its slot, so the old number could not have landed quietly.
 
 UNTIL A FILE LANDS
 ------------------

@@ -7,11 +7,15 @@ import { readFile, stat } from 'node:fs/promises';
  * `public/` or anywhere outside the project.
  *
  *   assets/concepts/concept-sheet-01.png  ->  /assets/concepts/concept-sheet-01.png
- *   assets/placeholders/avatar-sprite.png ->  /assets/placeholders/avatar-sprite.png
+ *   assets/sprites/walk-cycle.gif         ->  /assets/sprites/walk-cycle.gif
  *
  * Drop a drawing into the folder and reference it with that path in
  * `next/image`; anything missing returns a 404, which the `<SheetImage />`
  * component turns into an "[ ARTWORK FILE NOT FOUND ]" notice naming the path.
+ *
+ * Every piece of artwork the site has a slot for is declared - with the size to draw it at and the
+ * size it is shown at - in `app/lib/ui/art/slots.ts`, and `npm run art` holds the files on disk to
+ * what that registry says. This route is only the pump; the registry is the contract.
  */
 
 const ASSET_ROOT = path.join(process.cwd(), 'assets');
@@ -27,6 +31,12 @@ const ASSET_ROOT = path.join(process.cwd(), 'assets');
  * Note: responses are whole-file with a Content-Length and no byte ranges, which is
  * plenty for a track that is a few megabytes. Range requests are the thing to add
  * first if a long recording ever needs to scrub before it has buffered.
+ *
+ * **`.svg` is not on the list, and that is the asset rule rather than an oversight.** AGENTS.md says
+ * code never draws a character, an icon or an illustration - and an SVG is vector drawing code, so a
+ * file the archive served would be the one exception the rule exists to prevent. Everything here is a
+ * raster file hand-drawn on the tablet; a `.svg` asked for by name is refused with a 400, the same as
+ * any other type this folder does not know.
  */
 const CONTENT_TYPES: Record<string, string> = {
   '.png': 'image/png',
@@ -35,7 +45,6 @@ const CONTENT_TYPES: Record<string, string> = {
   '.gif': 'image/gif',
   '.webp': 'image/webp',
   '.avif': 'image/avif',
-  '.svg': 'image/svg+xml',
   '.txt': 'text/plain; charset=utf-8',
   '.mp3': 'audio/mpeg',
   '.m4a': 'audio/mp4',
@@ -48,7 +57,24 @@ type AssetRouteContext = {
   params: Promise<{ path: string[] }>;
 };
 
-export async function GET(_request: Request, context: AssetRouteContext) {
+/**
+ * How long a drawing may be held.
+ *
+ * Artwork is the one thing on this site that is *replaced in place*: the owner redraws
+ * `assets/sprites/walk-cycle.gif` and pushes, and that file's path is the same path it has always
+ * been. So this cannot be `immutable` - there is no hashed filename to make a year safe - and a long
+ * `max-age` would serve a redrawn sprite from cache with nothing on the site looking wrong.
+ *
+ * `must-revalidate` plus a validator is what makes a short max-age honest: the browser may reuse the
+ * bytes for five minutes, and after that it asks, and the ask is answered with a 304 rather than the
+ * file whenever the drawing has not changed. The validator used to be absent and the header read
+ * `max-age=60`, so every art request over a minute old re-downloaded the whole file - a 1.8MB upload
+ * re-fetched on every page view. Size and mtime is a weak validator in theory (two writes inside one
+ * millisecond) and exact for what this is: the drawing changed or it did not.
+ */
+const CACHE_CONTROL = 'public, max-age=300, must-revalidate';
+
+export async function GET(request: Request, context: AssetRouteContext) {
   const { path: segments } = await context.params;
   const relative = segments.join('/');
 
@@ -70,6 +96,21 @@ export async function GET(_request: Request, context: AssetRouteContext) {
     const info = await stat(resolved);
     if (!info.isFile()) return new Response('Not found.', { status: 404 });
 
+    /**
+     * The validator, and the reason it is `size-mtime` rather than a digest: a drawing is a few
+     * kilobytes to a couple of megabytes and this runs on every request, so hashing the bytes to
+     * decide whether to send the bytes would cost what it saves. A file that has been replaced has a
+     * different size or a different mtime; a file that has not, has neither.
+     */
+    const etag = `"${info.size}-${info.mtimeMs}"`;
+
+    if (request.headers.get('if-none-match') === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: { ETag: etag, 'Cache-Control': CACHE_CONTROL, 'Last-Modified': info.mtime.toUTCString() },
+      });
+    }
+
     const data = await readFile(resolved);
 
     return new Response(new Uint8Array(data), {
@@ -77,7 +118,8 @@ export async function GET(_request: Request, context: AssetRouteContext) {
       headers: {
         'Content-Type': contentType,
         'Content-Length': String(info.size),
-        'Cache-Control': 'public, max-age=60, must-revalidate',
+        'Cache-Control': CACHE_CONTROL,
+        ETag: etag,
         'Last-Modified': info.mtime.toUTCString(),
       },
     });
