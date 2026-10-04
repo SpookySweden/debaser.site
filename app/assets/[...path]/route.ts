@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { readFile, stat } from 'node:fs/promises';
 
 /**
@@ -69,8 +70,19 @@ type AssetRouteContext = {
  * bytes for five minutes, and after that it asks, and the ask is answered with a 304 rather than the
  * file whenever the drawing has not changed. The validator used to be absent and the header read
  * `max-age=60`, so every art request over a minute old re-downloaded the whole file - a 1.8MB upload
- * re-fetched on every page view. Size and mtime is a weak validator in theory (two writes inside one
- * millisecond) and exact for what this is: the drawing changed or it did not.
+ * re-fetched on every page view.
+ *
+ * **The validator is a digest of the bytes, and it was `size-mtime` until the deployed site was asked
+ * what it actually sends.** `Temp/probe-assets.cjs` read the headers off the live route and every file
+ * - the 95-byte cursor and the 77KB sheet alike - answered `Last-Modified: Sat, 20 Oct 2018 01:46:40
+ * GMT`, which is `1540000000000` for all of them: the build normalizes a file's mtime on the way in. So
+ * in production the validator was the *size alone*, and a redraw that happened to keep its size - a
+ * 32x32 cursor re-exported with a pixel moved is exactly that - would have been answered `304` for as
+ * long as the browser kept asking, which is a drawing that can no longer be corrected. A digest is
+ * correct in both places, needs nothing from the environment, and cannot silently degrade: it costs
+ * one pass over bytes this handler has already read to serve them, which is why the earlier reasoning
+ * ("hashing to decide whether to send costs what it saves") no longer holds - the old shape avoided the
+ * read, and the read was never the expensive half. `sha1` is a cache validator here, not a signature.
  */
 const CACHE_CONTROL = 'public, max-age=300, must-revalidate';
 
@@ -97,12 +109,21 @@ export async function GET(request: Request, context: AssetRouteContext) {
     if (!info.isFile()) return new Response('Not found.', { status: 404 });
 
     /**
-     * The validator, and the reason it is `size-mtime` rather than a digest: a drawing is a few
-     * kilobytes to a couple of megabytes and this runs on every request, so hashing the bytes to
-     * decide whether to send the bytes would cost what it saves. A file that has been replaced has a
-     * different size or a different mtime; a file that has not, has neither.
+     * Read first, then decide: the validator is a digest of these bytes, so there is nothing to work out
+     * before reading them. The read is from local disk - it is the *network* copy the 304 saves.
      */
-    const etag = `"${info.size}-${info.mtimeMs}"`;
+    const data = await readFile(resolved);
+
+    /**
+     * The validator: a digest of the drawing's own bytes, with the length in front of it.
+     *
+     * `size-mtime` was the first shape and the deployed site showed why it cannot be trusted (see the note
+     * on `CACHE_CONTROL`): mtime is normalized in the build, so the validator collapsed to the size. This
+     * cannot collapse - the bytes are the thing being validated - and it costs one hash of bytes already in
+     * hand. The length prefix is kept because it is what a human reads in devtools, and it makes a clash
+     * between two drawings of different sizes impossible rather than unlikely.
+     */
+    const etag = `"${data.length.toString(16)}-${createHash('sha1').update(data).digest('hex').slice(0, 20)}"`;
 
     if (request.headers.get('if-none-match') === etag) {
       return new Response(null, {
@@ -111,13 +132,11 @@ export async function GET(request: Request, context: AssetRouteContext) {
       });
     }
 
-    const data = await readFile(resolved);
-
     return new Response(new Uint8Array(data), {
       status: 200,
       headers: {
         'Content-Type': contentType,
-        'Content-Length': String(info.size),
+        'Content-Length': String(data.length),
         'Cache-Control': CACHE_CONTROL,
         ETag: etag,
         'Last-Modified': info.mtime.toUTCString(),
