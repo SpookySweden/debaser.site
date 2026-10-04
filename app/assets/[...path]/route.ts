@@ -73,7 +73,7 @@ type AssetRouteContext = {
  * re-fetched on every page view.
  *
  * **The validator is a digest of the bytes, and it was `size-mtime` until the deployed site was asked
- * what it actually sends.** `Temp/probe-assets.cjs` read the headers off the live route and every file
+ * what it actually sends.** Reading the headers off the live route showed that every file
  * - the 95-byte cursor and the 77KB sheet alike - answered `Last-Modified: Sat, 20 Oct 2018 01:46:40
  * GMT`, which is `1540000000000` for all of them: the build normalizes a file's mtime on the way in. So
  * in production the validator was the *size alone*, and a redraw that happened to keep its size - a
