@@ -47,9 +47,14 @@ body {
    texture, which is a mistake the eye cannot see and the check can. */
 .desktop-tile {
   background-color: var(--color-desktop);
-  background-image:
+  /* `--art-desktop-tile` replaces the two diagonals when a file is filed for it. A tile is the one
+     face whose fallback is a *pattern* rather than a fill, so the hook wraps the pattern and not the
+     colour: `background-repeat` and the size stay the element's business. */
+  background-image: var(
+    --art-desktop-tile,
     linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
-    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%);
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%)
+  );
   background-position:
     0 0,
     2px 2px;
@@ -549,6 +554,446 @@ img {
 }
 
 
+/* The control vocabulary --------------------------------------------------
+   Every plate, field, bar and chip on this site, written once, as real CSS classes rather than as a
+   string of utilities each component pastes (`app/lib/ui/controls.ts` is the registry of names; this
+   is what those names mean).
+
+   Three things are deliberate:
+
+   1. **`@layer components`, not loose rules.** Several of these classes write a property a component's
+      own utilities write too (the plate's Daffodil face against a caller's `bg-bubble`, the desktop
+      padding against a caller's `max-sm:` one). A component's utility has to win - asking for another
+      plate colour is not a bug - and the utilities layer is emitted after this one, so they do.
+   2. **Every face is a `--art-` hook.** The names come from the artwork registry
+      (`app/lib/ui/art/slots.ts`), which also holds the size each drawing is shown at. A hook is
+      consumed here with the *current* rendering as its fallback, so `npm run art` can hand an artist
+      the brief while the CSS keeps drawing what it draws today; dropping a file in later is one
+      declaration with no class touched. `none` is a real fallback and not a placeholder: it is what
+      the browser draws for a face nobody has filed artwork for.
+   3. **One bevel, one place.** The raised edge is `--art-frame`'s business and the sunken one is
+      `--art-frame-inset`'s, so the same two rules serve a window's frame, a plate's edge, a field's
+      well and a panel's inset - which is what "no control invents a third bevel" meant when it was
+      written in `controls.ts`.
+   --------------------------------------------------------------------------------------------- */
+@layer components {
+  /* The raised edge: light top-left, dark bottom-right. Every control that stands out of the page. */
+  .bevel-out,
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .title-bar-button,
+  .glyph-button,
+  .panel {
+    border-radius: 0;
+    border-style: solid;
+    border-width: 2px;
+    border-color: var(--color-white) var(--color-black) var(--color-black) var(--color-white);
+    border-image-source: var(--art-frame, none);
+    border-image-repeat: stretch;
+  }
+
+  /* The sunken edge: the same two colours, the other way round. A well inside the page. */
+  .bevel-in,
+  .panel-inset,
+  .field,
+  .field-tight {
+    border-radius: 0;
+    border-style: solid;
+    border-width: 2px;
+    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
+    border-image-source: var(--art-frame-inset, none);
+    border-image-repeat: stretch;
+  }
+
+  /* The plate's face: Daffodil, with the drawing over it when there is one. */
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent {
+    cursor: pointer;
+    background-color: var(--color-sun);
+    background-image: var(--art-plate-rest, var(--art-plate, none));
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--color-ink-plate);
+  }
+
+  /* A plate with a pointer over it: the navy face, and the label turns Daffodil. The wobble is whole
+     frames rather than a fade, because a pixel plate does not ease. */
+  .plate:hover,
+  .plate-large:hover,
+  .plate-medium:hover,
+  .plate-tap:hover,
+  .plate-link:hover,
+  .plate-hardware:hover,
+  .plate-accent:hover {
+    animation: var(--animate-wobble);
+    background-color: var(--color-ena);
+    background-image: var(--art-plate-hover, var(--art-plate, none));
+    color: var(--color-sun);
+  }
+
+  /* The press. Every one of the six rules is the same binary move: the bevel inverts, the plate turns
+     Brilliant Pink for one flash, and the label drops a pixel into the page. Nothing fades. */
+  .plate:active,
+  .plate-large:active,
+  .plate-medium:active,
+  .plate-tap:active,
+  .plate-link:active,
+  .plate-hardware:active,
+  .plate-accent:active {
+    animation: var(--animate-flash);
+    translate: 0 1px;
+    background-color: var(--color-bubble);
+    background-image: var(--art-plate-pressed, var(--art-plate, none));
+    color: var(--color-ink-plate);
+    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
+  }
+
+  /* The keyboard's ring. The browser's own outline is cancelled on a field, so this is the site's, and
+     it is drawn on `:focus-visible` rather than on `:focus` - a mouse click does not summon it. */
+  .plate:focus-visible,
+  .plate-large:focus-visible,
+  .plate-medium:focus-visible,
+  .plate-tap:focus-visible,
+  .plate-link:focus-visible,
+  .plate-hardware:focus-visible,
+  .plate-accent:focus-visible {
+    outline: 2px dotted var(--color-bubble);
+    outline-offset: 1px;
+  }
+
+  /* The accent plate rings in Emerald, because a magenta ring on a magenta plate is not a ring. */
+  .plate-accent:focus-visible {
+    outline-color: var(--color-acid);
+  }
+
+  /* A control that cannot be pressed: it goes quiet in the ink that reads on the field, and the pointer
+     says so. Written after the hover rule on purpose - both are two-class states, so the later one
+     decides, and a disabled plate under a pointer has to stay disabled. */
+  .plate:disabled,
+  .plate-large:disabled,
+  .plate-medium:disabled,
+  .plate-tap:disabled,
+  .plate-hardware:disabled,
+  .plate-accent:disabled {
+    cursor: not-allowed;
+    background-color: var(--color-chrome-dark);
+    background-image: var(--art-plate-disabled, none);
+    color: var(--color-ink);
+  }
+
+  /* The sizes. Named for the job rather than the numbers (`controls.ts`), because the choice has to be
+     readable off the page: a plate in a row of text, one that has its line to itself, a label-sized one
+     on a panel, and the thumb-sized pair a phone gets. Every `max-sm:` branch is a phone's, and the
+     `line-height` moves with the font size exactly as `text-sm`/`text-base` do - a font that grows
+     inside a line-height that does not is a control that changes height in the wrong direction. */
+  .plate,
+  .plate-accent {
+    padding: 2px 8px;
+    font-size: 10px;
+  }
+
+  .plate-large {
+    padding: 4px 12px;
+    font-size: 0.75rem;
+    line-height: 1rem;
+  }
+
+  .plate-medium {
+    padding: 4px 12px;
+    font-size: 10px;
+  }
+
+  .plate-tap {
+    padding: 8px 12px;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+  }
+
+  .plate-link {
+    padding: 4px 12px;
+    font-size: 10px;
+  }
+
+  /* The deck's own keys: bigger, always spelled out, and the one black face the site allows - a
+     transport key on a physical deck is not the same surface as the panel it is bolted to. */
+  .plate-hardware {
+    padding: 8px 12px;
+    font-size: 11px;
+    background-color: var(--color-hardware);
+    color: var(--color-acid);
+  }
+
+  @media (width < 640px) {
+    .plate,
+    .plate-accent {
+      min-height: 2.75rem;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    .plate-large {
+      min-height: 2.75rem;
+      padding: 8px 16px;
+      font-size: 1rem;
+      line-height: 1.5rem;
+    }
+
+    .plate-medium {
+      min-height: 2.75rem;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    .plate-link {
+      min-height: 2.75rem;
+      padding: 8px 12px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    .plate-hardware {
+      min-height: 2.75rem;
+      padding-inline: 16px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+  }
+
+  /* The accent plate's press is Emerald rather than pink, so the one magenta plate does not flash the
+     same colour it already is. Written after the shared press rule, because that is what decides. */
+  .plate-accent:active {
+    background-color: var(--color-acid);
+  }
+
+  /* A plate that is already down: the tab you are standing on, the switch that is on. It has no
+     pointer and no press of its own - it is the state a press arrives at, not a control. */
+  .plate-pressed {
+    border-radius: 0;
+    border-style: solid;
+    border-width: 2px;
+    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
+    border-image-source: var(--art-frame-inset, none);
+    background-color: var(--color-ena);
+    background-image: var(--art-plate-pressed, none);
+    padding: 2px 8px;
+    font-size: 10px;
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--color-sun);
+  }
+
+  /* The 18px key a title bar wears, and the glyph-shaped control beside it. One border, not two: these
+     sit inside a bar that is already framed. */
+  .title-bar-button,
+  .glyph-button {
+    cursor: pointer;
+    border-width: 1px;
+    background-color: var(--color-sun);
+    background-image: var(--art-title-bar-button, none);
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--color-ink-plate);
+  }
+
+  .title-bar-button:hover,
+  .glyph-button:hover {
+    background-color: var(--color-ena);
+    color: var(--color-sun);
+  }
+
+  .title-bar-button:active {
+    animation: var(--animate-flash);
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .glyph-button:active {
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .title-bar-button {
+    padding: 1px 8px;
+    font-size: 10px;
+    line-height: 1;
+  }
+
+  .glyph-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (width < 640px) {
+    .title-bar-button {
+      padding: 4px 12px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+
+    /* `-mx-1`: the box grows to a thumb, so the gap between two of them has to shrink or a row of them
+       stops fitting across a phone. The margin is what gives, never the tap area. */
+    .glyph-button {
+      margin-inline: -0.25rem;
+      min-height: 2.75rem;
+      min-width: 2.75rem;
+      padding-inline: 8px;
+      font-size: 1rem;
+      line-height: 1.5rem;
+    }
+  }
+
+  /* A field: the paper you write on, sunken into the page. The browser's outline is cancelled because
+     the site draws its own - a dotted magenta ring, offset one pixel, so the keyboard's position is
+     never a guess. */
+  .field,
+  .field-tight {
+    background-color: var(--color-paper);
+    background-image: var(--art-field, none);
+    font-size: 0.75rem;
+    line-height: 1rem;
+    color: var(--color-ink);
+    outline-style: none;
+  }
+
+  .field:focus,
+  .field-tight:focus {
+    background-color: var(--color-sun-pale);
+    outline: 2px dotted var(--color-bubble);
+    outline-offset: 1px;
+  }
+
+  .field {
+    margin-top: 0.25rem;
+    width: 100%;
+    padding: 6px;
+    font-family: var(--font-mono);
+  }
+
+  /* The same field where the row already carries its own spacing - the tag input. */
+  .field-tight {
+    padding: 4px;
+  }
+
+  @media (width < 640px) {
+    .field {
+      padding: 12px;
+    }
+
+    .field-tight {
+      padding: 8px;
+    }
+  }
+
+  /* A panel: a raised plinth for a group of controls, so it is Flavine inside a raised edge. */
+  .panel {
+    background-color: var(--color-sun-pale);
+    background-image: var(--art-panel, none);
+  }
+
+  /* A chip: small, flat, one hairline border - a shelf, a track, a label. */
+  .shelf-chip {
+    cursor: pointer;
+    border-radius: 0;
+    border: 1px solid var(--color-ink);
+    background-color: var(--color-sun-pale);
+    background-image: var(--art-chip, none);
+    padding: 2px 8px;
+    color: var(--color-ink);
+  }
+
+  .shelf-chip:hover {
+    animation: var(--animate-bump);
+    background-color: var(--color-ice);
+    color: var(--color-ink-plate);
+  }
+
+  @media (width < 640px) {
+    .shelf-chip {
+      display: inline-flex;
+      min-height: 2.75rem;
+      align-items: center;
+      padding-inline: 12px;
+      font-size: 0.875rem;
+      line-height: 1.25rem;
+    }
+  }
+
+  /* The bars. One slim line each, and the only difference between the two title bars is which window
+     the keyboard belongs to: Royal Blue is the one you are working in, Flavine is the furniture around
+     it. `leading-none` is load-bearing - a bar is four pixels of padding, not a line of prose. */
+  .title-bar,
+  .title-bar-inactive,
+  .window-title-bar,
+  .window-title-bar-inactive,
+  .status-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    font-weight: var(--font-weight-bold, 700);
+    line-height: 1;
+  }
+
+  .title-bar,
+  .window-title-bar {
+    background-color: var(--color-ena);
+    background-image: var(--art-title-bar, none);
+    color: var(--color-sun);
+  }
+
+  .title-bar-inactive,
+  .window-title-bar-inactive {
+    background-color: var(--color-chrome-dark);
+    background-image: var(--art-title-bar-inactive, none);
+    color: var(--color-ink);
+  }
+
+  .title-bar,
+  .title-bar-inactive {
+    padding: 3px 8px;
+    font-size: 11px;
+  }
+
+  .window-title-bar,
+  .window-title-bar-inactive {
+    padding: 4px 12px;
+    font-size: 13px;
+  }
+
+  .status-bar {
+    flex-wrap: wrap;
+    border-top: 1px solid var(--color-white);
+    background-color: var(--color-acid);
+    background-image: var(--art-status-bar, none);
+    padding: 3px 8px;
+    font-size: 10px;
+    color: var(--color-ink-plate);
+  }
+
+  /* The strip along the foot of the screen: Daffodil, squared off at the top by a white hairline, and
+     the one place the woven art goes. `relative order-last` stays on the element - that is where the
+     tray sits in the window, not what the tray looks like. */
+  .taskbar {
+    border-top: 2px solid var(--color-white);
+    background-color: var(--color-sun);
+    background-image: var(--art-taskbar, none);
+    padding: 3px 4px;
+    font-size: 10px;
+    font-weight: var(--font-weight-bold, 700);
+    color: var(--color-ink-plate);
+  }
+}
+
 /* The dotted link -------------------------------------------------------------
    Text links wear a 3px bar of 2-on/2-off dashes rather than a hairline, drawn with a repeating
    gradient so the dashes are pixels and not a smooth rule. Hovering turns the dashes magenta and
@@ -600,13 +1045,27 @@ img {
 }
 
 
-   The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
+/* The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
    same tile language as the desktop, so the space reads as *waiting for artwork* rather than as a
    hole. Nothing is drawn in it - see AGENTS.md, Asset Rules, and assets/sprites/README.txt for the
-   files that go in. */
+   files that go in.
+
+   **This comment had lost its opening `/*` and the rule had never been drawn.** The paragraph was
+   served as a selector rather than as prose, so a browser read the text and `.sprite-slot` together as
+   one invalid selector and dropped the whole rule - the slot rendered as a transparent hole, which is
+   the exact opposite of what the registry's brief for it asks for, and `Temp/check-surreal.cjs` passed
+   all the while because it reads this file's *text* and the text said `.sprite-slot {`. Found on
+   2026-10-04 by looking in the built stylesheet rather than at the source: `sprite-slot` was not in it
+   at all. */
 .sprite-slot {
   background-color: #000000;
-  background-image: repeating-linear-gradient(45deg, #1a1525 0 2px, #000000 2px 4px);
+  /* `--art-sprite-slot` is the drawing; until there is one, the slot is this dithered floor, which is
+     what a visitor sees today. The hook goes over the whole face - a slot's art is a tiled plate, not
+     an `<img>` - and `SpriteSlot.tsx` draws whatever file is filed *inside* it. */
+  background-image: var(
+    --art-sprite-slot,
+    repeating-linear-gradient(45deg, #1a1525 0 2px, #000000 2px 4px)
+  );
 }
 
 /* A username drawn in the colour its account chose.
@@ -636,7 +1095,19 @@ img {
    blinking glyph. The colours, the presses and the dotted links stay: they are how the site looks,
    not how it moves. */
 @media (prefers-reduced-motion: reduce) {
-  [class*='animate-'] {
+  [class*='animate-'],
+  /* The vocabulary above carries its own animations, so the class attribute no longer names one -
+     the `animate-wobble`/`animate-flash`/`animate-bump` a plate, a bar key and a chip used to wear are
+     inside `.plate`, `.title-bar-button` and `.shelf-chip` now. This list is what keeps the promise. */
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .title-bar-button,
+  .shelf-chip {
     animation: none !important;
   }
 }
