@@ -2,9 +2,9 @@
 /*
  * Claude Code hook guard (wired up in .claude/settings.json).
  *
- *   node guard.cjs pre    PreToolUse: keeps .env.local out of reach, refuses secret-looking
- *                         text in files and commands, and makes every database write wait
- *                         for Luke's click on a permission prompt.
+ *   node guard.cjs pre    PreToolUse: keeps .env.local out of reach and refuses secret-looking
+ *                         text in files and commands. Database and connector changes are not
+ *                         gated here: Luke approves those by typing in chat (CLAUDE.md, Safety).
  *   node guard.cjs stop   Stop: runs the typecheck once per turn and sends Claude back to
  *                         fix any errors (only once in a row, so it cannot loop).
  *
@@ -100,57 +100,13 @@ function secretIn(text) {
   return null;
 }
 
-// ---- 2. Database writes ----------------------------------------------------------------
-
-// Each rule is tested on one piece of a command line split at ; & | and newlines.
-const DB_WRITE_COMMANDS = [
-  [(c) => /\bnpm\s+run\s+db(\s|$)|\bdb\.cjs\b/.test(c) && /--write\b/.test(c), 'a database write (npm run db -- --write)'],
-  [(c) => /\bnpm\s+run\s+db:push(?![:\w])/.test(c), 'pushing migrations to the live database (db:push)'],
-  [(c) => /\bnpm\s+run\s+db:sweep(?![:\w])/.test(c), 'deleting throwaway accounts (db:sweep)'],
-  [(c) => /sweep-throwaways\.cjs/.test(c) && !/--review\b/.test(c), 'deleting throwaway accounts (sweep-throwaways)'],
-  [(c) => /\bdb:repair:applied\b/.test(c) || (/db-repair\.cjs/.test(c) && /--applied\b/.test(c)), "rewriting the database's migration history (db:repair:applied)"],
-  [
-    (c) =>
-      /(supabase|db-cli\.cjs)/.test(c) &&
-      (/\bdb\s+(push|reset)\b/.test(c) || /\bmigration\s+repair\b/.test(c)) &&
-      !/--dry-run\b/.test(c),
-    'running the Supabase command-line tool against the live database',
-  ],
-];
-
-const SUPABASE_SERVER = /6124b693-b24c-4b71-ab08-9bd36d2b6de9|supabase/i;
-const SUPABASE_ONLY_TOOLS = /__(execute_sql|apply_migration|create_branch|delete_branch|merge_branch|rebase_branch|reset_branch|restore_project|deploy_edge_function)$/;
-const SUPABASE_SHARED_TOOLS = /__(create_project|pause_project|confirm_cost)$/; // Vercel has tools with these names too
-
-// The Vercel connector can change the live site (env vars, domains, deployments, rollbacks).
-// Only its read-only tools run without a prompt.
-const VERCEL_SERVER = /492da935-e635-431e-af65-3db428409e1c|vercel/i;
-const VERCEL_READ_TOOLS = /__(get_\w+|list_\w+|search_\w+|aggregate_\w+|count_\w+|filter_\w+|read_\w+|git_namespaces|artifact_query|web_fetch_vercel_url)$/;
-
-function dbWrite(command) {
-  for (const piece of command.split(/[;&|\n]+/)) {
-    for (const [test, label] of DB_WRITE_COMMANDS) {
-      if (test(piece)) return label;
-    }
-  }
-  return null;
-}
-
 // ---- PreToolUse ------------------------------------------------------------------------
 
 function pre(input) {
   const tool = input.tool_name || '';
   const args = input.tool_input || {};
 
-  if (tool.startsWith('mcp__')) {
-    if (SUPABASE_ONLY_TOOLS.test(tool) || (SUPABASE_SHARED_TOOLS.test(tool) && SUPABASE_SERVER.test(tool))) {
-      answer('ask', `Supabase connector: ${tool.split('__').pop()} can change the live database directly. Luke must approve this.`);
-    }
-    if (VERCEL_SERVER.test(tool.split('__')[1] || '') && !VERCEL_READ_TOOLS.test(tool)) {
-      answer('ask', `Vercel connector: ${tool.split('__').pop()} can change the live site or its settings. Luke must approve this.`);
-    }
-    return;
-  }
+  if (tool.startsWith('mcp__')) return;
 
   // Paths a tool would touch.
   const paths = [args.file_path, args.notebook_path, args.path, args.pattern, args.glob].filter(
@@ -178,11 +134,6 @@ function pre(input) {
   const secret = secretIn(text);
   if (secret) {
     answer('deny', `This contains what looks like ${secret}. Secrets live in .env.local only, never in code, commands or commits.`);
-  }
-
-  if (tool === 'Bash' || tool === 'PowerShell') {
-    const write = dbWrite(text);
-    if (write) answer('ask', `This is ${write}. Luke must approve database changes.`);
   }
 }
 
