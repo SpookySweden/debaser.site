@@ -171,7 +171,7 @@ async function main() {
         return;
       }
 
-      console.log(`session  : ${account.userId} - left behind for \`npm run db:sweep\``);
+      console.log(`session  : ${account.userId} - ${account.who}`);
     }
 
     await goto(browser.page, url, { settle, allowErrorPage: has('--allow-error-page') });
@@ -191,7 +191,7 @@ async function main() {
           return;
         }
 
-        console.log(`session  : ${account.userId} - left behind for \`npm run db:sweep\``);
+        console.log(`session  : ${account.userId} - ${account.who}`);
         await goto(browser.page, url, { settle });
       }
     }

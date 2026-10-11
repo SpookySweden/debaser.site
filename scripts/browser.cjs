@@ -855,6 +855,53 @@ async function signUp(email, password, displayName) {
   };
 }
 
+/**
+ * The kept test accounts. The tools sign in as A instead of making a throwaway per run, so the directory on
+ * /users stops filling up; B is there for anything that needs a second person. The password is
+ * `DEBASER_TEST_PASSWORD` in `.env.test` (gitignored, kept apart from the real secrets), never in code, and
+ * the first sign-in makes the account. Neither
+ * address matches the sweep's patterns, so `npm run db:sweep` leaves them alone.
+ */
+const TEST_ACCOUNTS = {
+  A: { email: 'test-a@debaser.site', displayName: 'TEST ACCOUNT A' },
+  B: { email: 'test-b@debaser.site', displayName: 'TEST ACCOUNT B' },
+};
+
+function testPassword() {
+  try {
+    process.loadEnvFile('.env.test');
+  } catch {
+    // no file: the tools fall back to throwaways
+  }
+  return process.env.DEBASER_TEST_PASSWORD || null;
+}
+
+async function signInTestAccount(letter = 'A') {
+  loadEnv();
+
+  const password = testPassword();
+  if (!password) return { error: 'no DEBASER_TEST_PASSWORD in .env.test' };
+
+  const { createClient } = require('@supabase/supabase-js');
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) return { error: 'no Supabase project in the environment and no readable .env.local' };
+
+  const { email, displayName } = TEST_ACCOUNTS[letter];
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+  if (error === null) {
+    return { storageKey: storageKeyFor(url), session: data.session, userId: data.user.id, who: `kept test account ${letter}` };
+  }
+  if (!/invalid login credentials/i.test(error.message)) return { error: error.message };
+
+  // First use: the account does not exist yet, so make it once.
+  const made = await signUp(email, password, displayName);
+  return made.error ? made : { ...made, who: `kept test account ${letter} (made just now)` };
+}
+
 /** The localStorage key a Supabase session lives under, for a project. */
 function storageKeyFor(url) {
   return `sb-${new URL(url).hostname.split('.')[0]}-auth-token`;
@@ -900,6 +947,15 @@ async function mustFind(page, target, { within = null, allowAmbiguous = false, w
 async function signInPage(page, { label = 'cline-shoot', stamp = null } = {}) {
   loadEnv();
 
+  // The kept test account when its password is set; a throwaway only when it is not.
+  if (testPassword()) {
+    const kept = await signInTestAccount('A');
+    if (kept.error) return { error: kept.error };
+
+    await installSession(page, kept);
+    return kept;
+  }
+
   const at = stamp ?? new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
   const account = await signUp(`${label}-${at}@debaser.site`, `${label}-${at}-pw`, `${label} ${at}`);
 
@@ -907,7 +963,7 @@ async function signInPage(page, { label = 'cline-shoot', stamp = null } = {}) {
 
   await installSession(page, account);
 
-  return account;
+  return { ...account, who: 'a throwaway - left behind for `npm run db:sweep`' };
 }
 
 /** Whether this page's origin already holds a Supabase session for the project in `.env.local`. */
@@ -953,6 +1009,7 @@ module.exports = {
   scroll,
   sessionAlive,
   signInPage,
+  signInTestAccount,
   signUp,
   sleep,
   startSession,
@@ -1059,8 +1116,7 @@ async function signInSession(session, url) {
   try {
     page = await open({ attach: true });
 
-    const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-    const account = await signUp(`cline-shoot-${stamp}@debaser.site`, `shoot-${stamp}-pw`, `shoot ${stamp}`);
+    const account = await signInPage(page.page);
 
     if (account.error) {
       console.log(`session sign-in FAILED: ${account.error}`);
@@ -1068,10 +1124,9 @@ async function signInSession(session, url) {
       return;
     }
 
-    await installSession(page.page, account);
     const arrival = await goto(page.page, url, { settle: 3000 });
 
-    console.log(`  signed in as ${account.userId} - left behind for \`npm run db:sweep\``);
+    console.log(`  signed in as ${account.userId} - ${account.who}`);
     console.log(`  arrived: ${arrival.title}`);
   } finally {
     await close(page); // attached: the connection closes, the browser keeps running

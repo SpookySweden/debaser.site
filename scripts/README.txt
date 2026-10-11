@@ -136,7 +136,7 @@ browser.cjs
 -----------
     npm run browser                     what session is up, if any
     npm run browser -- --start          open the reusable browser (detached, profile kept)
-    npm run browser -- --start --signin ... and sign one throwaway account into it
+    npm run browser -- --start --signin ... and sign the kept TEST ACCOUNT A into it
     npm run browser -- --open <address> attach, arrive, and print what the page says
     npm run browser -- --stop           close it, and remove its profile
 

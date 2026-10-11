@@ -229,7 +229,7 @@ async function readySession(browser, { reload }) {
     return;
   }
 
-  note('session', `${account.userId} - left behind for \`npm run db:sweep\``);
+  note('session', `${account.userId} - ${account.who}`);
 
   if (reload) await goto(browser.page, url, { settle });
 }

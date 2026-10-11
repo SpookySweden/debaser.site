@@ -137,7 +137,7 @@ async function capturePanes(out) {
         return { panes: null, file: null, error: account.error };
       }
 
-      console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+      console.log(`session: ${account.userId} - ${account.who}`);
     }
 
     const arrival = await goto(session.page, url, { settle, allowErrorPage: has('--allow-error-page') });
@@ -151,7 +151,7 @@ async function capturePanes(out) {
         const account = await signInPage(session.page, { label: 'cline-panes' });
         if (account.error) return { panes: null, file: null, error: account.error };
 
-        console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+        console.log(`session: ${account.userId} - ${account.who}`);
         await goto(session.page, url, { settle });
       }
     }

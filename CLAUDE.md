@@ -14,7 +14,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - `npm run checks`: runs every scratch check in `Temp/check-*.cjs` (about 75, gitignored, so they only exist on this machine). It runs them all; there is no per-area filter. A failing check is a finding: update it on purpose when the rule really changed and say why, never delete it to go green.
 - `npm run capture` then `npm run audit`: the accessibility audit (unnamed controls, tiny tap targets, small text, low contrast). Always capture first, or the audit reads old snapshots.
 - `npm run read`: reads the deployed `/forum` and confirms a change is live (`-- --url <address>` for another page, `--absent <text>` to prove something is gone). Use it instead of a hand grep: React wraps text in `<!-- -->` comments, so a plain search for `[ ♪ MUSIC ]` finds nothing even when it's there.
-- Screenshots: Chrome is installed and `playwright-core` drives it. `npm run shot -- --url <address> --out Temp/browse/x.png` takes one; `npm run panes` counts the colours in it; `npm run browser -- --start --signin` opens a reusable session signed in as a throwaway account. The tracked tools are all in `scripts/` (see `scripts/README.txt`).
+- Screenshots: Chrome is installed and `playwright-core` drives it. `npm run shot -- --url <address> --out Temp/browse/x.png` takes one; `npm run panes` counts the colours in it; `npm run browser -- --start --signin` opens a reusable session signed in as the kept test account (`TEST ACCOUNT A`; `B` exists for two-person tests; password in the gitignored `.env.test`). The tracked tools are all in `scripts/` (see `scripts/README.txt`).
 - `npm run db -- "select ..."`: SQL against the live database. Writes need `--write`, and the script prints the statement first; leave that guard alone.
 
 ## Who I am and how to talk to me
@@ -37,7 +37,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - When a database change is OK'd: schema goes through migrations (`npm run db:new -- name`, `npm run db:push:dry`, then `npm run db:push`), written so it can be re-run (`if not exists`, policies dropped and recreated by name). Every table gets Row Level Security so people can only edit or delete their own things. Deletes are reviewed first: list exactly what would go, check the survivors, then remove (`supabase/cleanup/` is the pattern).
 - `npm run checks` signs up throwaway accounts that show up in the `/users` directory. `npm run db:sweep:review` lists them and `npm run db:sweep` removes them. The sweep is a delete, so ask me first, and only run it after the last check run, never before.
 - IMPORTANT: secrets (API keys, passwords, the Supabase access token) live in `.env.local` only. Never write them into code, logs, commits or this file. `.env.production` is committed, so it only holds `NEXT_PUBLIC_*` values.
-- Test with throwaway accounts only, never real user accounts.
+- Test with the kept test accounts or throwaways only, never real user accounts.
 - Tell me before deleting files or large blocks of code.
 - Hooks enforce some of this (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): `.env.local` can't be read or named in a command, secret-looking text can't be written, and the typecheck runs when a turn ends. Everything else runs without a click (bypass mode), so database writes and Vercel/Supabase connector changes wait for my typed OK in chat, per the rules above. A refusal from them is the rule working; don't route around it.
 

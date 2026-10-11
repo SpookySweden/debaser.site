@@ -181,7 +181,7 @@ async function main() {
       }
 
       // Handed over before the first navigation, so the page never renders signed-out at all.
-      console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+      console.log(`session: ${account.userId} - ${account.who}`);
     }
 
     // A page that did not answer throws here, before any stage image exists.
@@ -207,7 +207,7 @@ async function main() {
           return;
         }
 
-        console.log(`session: ${account.userId} - left behind for \`npm run db:sweep\``);
+        console.log(`session: ${account.userId} - ${account.who}`);
         await goto(browser.page, url, { settle });
       }
     }

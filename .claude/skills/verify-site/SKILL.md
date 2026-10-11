@@ -9,7 +9,7 @@ The ship loop from `CLAUDE.md`, as one run. Report pass/fail for every step in p
 two screenshots. Stop at the first failure, show the failing output, and say which step it was - do not
 carry on to later steps and do not "fix and retry" without telling Luke.
 
-Accounts: there are no account details to read or pass. `--signin` makes a fresh throwaway account
+Accounts: there are no account details to read or pass. `--signin` signs in as the kept `TEST ACCOUNT A`
 itself and the scripts load the Supabase address on their own. Never open or name `.env.local`.
 
 Arguments: if Luke gave a route (e.g. `/users`), use `https://debaser-site.vercel.app<route>` as ADDRESS;
@@ -43,7 +43,7 @@ for step 6.
 
 ## Part 2 - the deployed site
 
-5. Screenshots, one throwaway sign-in shared by both:
+5. Screenshots, one sign-in (the kept test account) shared by both:
 
    ```bash
    npm run browser -- --start --signin
@@ -64,6 +64,6 @@ for step 6.
 - The two screenshots.
 - What was **not** checked: whether it looks right is Luke's call; one still frame cannot show motion or
   hover/tap reveals; pages other than ADDRESS were not screenshotted; anything skipped and why.
-- Housekeeping: steps 2 and 5 left throwaway accounts on `/users`. Clearing them is a delete - offer
+- Housekeeping: step 2 (the checks) left throwaway accounts on `/users`. Clearing them is a delete - offer
   `npm run db:sweep:review` to list them, and run `npm run db:sweep` only after Luke says yes and only
   after the last check run.
