@@ -19,8 +19,13 @@ import { nameColourHex } from '../profile/name-colours';
  * it (or the account) before Supabase Auth is switched on for real. Changing the
  * account's address from the account page stops the identifier resolving, because
  * it is the address, not the identifier, that is stored.
+ *
+ * The id is `debaser-site` in the mock store, but Supabase gives every account a
+ * uuid, so a deployed site names the real one in `NEXT_PUBLIC_SITE_ACCOUNT_ID`.
+ * Without it the board asked Supabase for profile `debaser-site`, which is not a
+ * uuid, and every item-owned post's byline failed with a 400.
  */
-export const SITE_ACCOUNT_ID = 'debaser-site';
+export const SITE_ACCOUNT_ID = process.env.NEXT_PUBLIC_SITE_ACCOUNT_ID || 'debaser-site';
 
 /** What the owner types in the sign-in box, in place of an address. */
 export const SITE_ACCOUNT_IDENTIFIER = 'ADMIN1212';
