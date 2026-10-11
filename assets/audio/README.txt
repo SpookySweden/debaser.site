@@ -1,7 +1,7 @@
 MUSIC ARCHIVE
 =============
 
-The tracks on /music live here, as plain files, added by hand exactly the way the
+The tracks in the music archive (the window at /forum?music=1) live here, as plain files, added by hand exactly the way the
 drawings are: nothing on this site generates audio, and the page never guesses at a
 track it cannot find.
 
@@ -30,7 +30,7 @@ Filing a track
 --------------
 Two ways, and they end in the same place - the shelf the player reads:
 
-1. **From the page** (`/music`, `[ NEW FILE ]`): any signed-in account may pick an audio file, give
+1. **From the archive window** (`/forum?music=1`, `[ NEW FILE ]`): any signed-in account may pick an audio file, give
    it a name, choose the folder it is filed in (or type a new folder), and tag it. The audio goes
    to the `mp3` bucket when Supabase is configured, and into this folder through
    `/api/music/upload` when the site is running on its own stores. `[ NEW FOLDER ]`, and the

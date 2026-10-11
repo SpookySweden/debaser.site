@@ -7,7 +7,7 @@ files - artwork is never kept in public/ and never generated in code.
 Folder layout
 -------------
 assets/concepts/     concept sheets shown on /concepts
-assets/audio/        the music shelf's tracks, played on /music
+assets/audio/        the music shelf's tracks, played in the music window (/forum?music=1)
 assets/icons/        sign-in marks (google-retro.png) and other small marks
 assets/cursors/      the retro pointers named in app/globals.css
 assets/flags/        the country flags a profile may wear (ISO 3166-1 alpha-2 names,
@@ -74,7 +74,7 @@ Adding a track
    `<artist>-<album>-<number>`, built from the release in the catalogue.
 2. Add the release to RELEASES in app/lib/projects/tracks.ts (artist, album, year,
    tags, and the track list with a running time each).
-3. /music lists it under its artist and release, and the project page at
+3. The music window (/forum?music=1) lists it under its artist and release, and the project page at
    /projects/debaser counts it. Until the file is there, pressing play answers with
    the player's own words rather than a dead button.
 
