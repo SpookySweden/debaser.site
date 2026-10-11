@@ -402,7 +402,8 @@ console.log('  - open /lore, sign in, open a page, then open the same page in a 
 console.log('    appear in the other, and does the page say who else is in it?');
 console.log('  - on a phone: fold the side panel away, open the Start menu, and try to reach COMMS and LORE');
 console.log('    without scrolling the page behind it;');
-console.log('  - with the player playing, walk from the board to a profile to /music: does the track survive, and');
+console.log('  - with the player playing, walk from the board to a profile, then open the music window (the side');
+console.log('    panel\'s ♪ MUSIC key): does the track survive, and');
 console.log('    does any page put something under the player bar?');
 console.log('  - as a visitor with no account: can you read a lore page, a note and a post without being asked');
 console.log('    to sign in, and is it clear what an account would add?');
