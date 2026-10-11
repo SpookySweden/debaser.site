@@ -122,6 +122,11 @@ const SUPABASE_SERVER = /6124b693-b24c-4b71-ab08-9bd36d2b6de9|supabase/i;
 const SUPABASE_ONLY_TOOLS = /__(execute_sql|apply_migration|create_branch|delete_branch|merge_branch|rebase_branch|reset_branch|restore_project|deploy_edge_function)$/;
 const SUPABASE_SHARED_TOOLS = /__(create_project|pause_project|confirm_cost)$/; // Vercel has tools with these names too
 
+// The Vercel connector can change the live site (env vars, domains, deployments, rollbacks).
+// Only its read-only tools run without a prompt.
+const VERCEL_SERVER = /492da935-e635-431e-af65-3db428409e1c|vercel/i;
+const VERCEL_READ_TOOLS = /__(get_\w+|list_\w+|search_\w+|aggregate_\w+|count_\w+|filter_\w+|read_\w+|git_namespaces|artifact_query|web_fetch_vercel_url)$/;
+
 function dbWrite(command) {
   for (const piece of command.split(/[;&|\n]+/)) {
     for (const [test, label] of DB_WRITE_COMMANDS) {
@@ -140,6 +145,9 @@ function pre(input) {
   if (tool.startsWith('mcp__')) {
     if (SUPABASE_ONLY_TOOLS.test(tool) || (SUPABASE_SHARED_TOOLS.test(tool) && SUPABASE_SERVER.test(tool))) {
       answer('ask', `Supabase connector: ${tool.split('__').pop()} can change the live database directly. Luke must approve this.`);
+    }
+    if (VERCEL_SERVER.test(tool.split('__')[1] || '') && !VERCEL_READ_TOOLS.test(tool)) {
+      answer('ask', `Vercel connector: ${tool.split('__').pop()} can change the live site or its settings. Luke must approve this.`);
     }
     return;
   }

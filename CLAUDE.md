@@ -39,6 +39,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - IMPORTANT: secrets (API keys, passwords, the Supabase access token) live in `.env.local` only. Never write them into code, logs, commits or this file. `.env.production` is committed, so it only holds `NEXT_PUBLIC_*` values.
 - Test with throwaway accounts only, never real user accounts.
 - Tell me before deleting files or large blocks of code.
+- Hooks enforce some of this (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): `.env.local` can't be read or named in a command, secret-looking text can't be written, database writes and Vercel/Supabase connector changes raise a prompt only I can approve, and the typecheck runs when a turn ends. A refusal from them is the rule working; don't route around it.
 
 ## Continuing across sessions
 - At the start of a session, read HANDOFF.md if it exists.
