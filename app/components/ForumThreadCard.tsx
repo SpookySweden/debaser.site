@@ -291,7 +291,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   Drawn in both states. It used to be `isOpen ? null : ...`, which took a line out of
                   the row the moment it was opened - so the moderation and pin controls under it, and
                   every post below, jumped up by that line. Keeping it means opening a post reveals
-                  the body without the list moving under the reader's finger (AGENTS.md, "Reveals take
+                  the body without the list moving under the reader's finger (CLAUDE.md, "Reveals take
                   their space in both states"). `collapsedTags` is the same list the open card's left
                   column draws, so nothing is lost by it staying. */}
               <TagStrip tags={layout.collapsedTags} limit={5} className="mt-1" />

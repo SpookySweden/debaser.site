@@ -20,7 +20,7 @@ import { PANEL_INSET } from '../lib/ui/controls';
  * the court's own units (`./paddle-duel.ts` works in 1000 x 600), so the same match looks the same
  * on a desktop and on a phone held either way - there is no pixel arithmetic here and nothing to
  * overflow. Rects are not artwork: this is the same chrome the whole site is built from, moved by
- * rules (AGENTS.md, Asset Rules - a screen that wanted a character would point at a drawn file).
+ * rules (CLAUDE.md, Asset Rules - a screen that wanted a character would point at a drawn file).
  *
  * Aiming is by pointer: wherever the finger or mouse is on the court is where the paddle is asked to
  * be, at both ends, so one gesture serves both players' devices and no on-screen buttons are needed.

@@ -5,7 +5,7 @@ block at the hotspot in the corner, over transparency - `arrow` 4x4, `pointer` 6
 the plumbing can be seen working (the pointer is where it should be, and each rule reaches the file it
 names) without pretending to be the finished thing. The canvas is already the size a finished cursor
 needs; it is the drawing on it that is missing. They are deliberately not artwork: nothing here is
-generated, and a stand-in illustration is the one thing this archive does not do (AGENTS.md).
+generated, and a stand-in illustration is the one thing this archive does not do (CLAUDE.md).
 
 `npm run art` reads this folder against `app/lib/ui/art/slots.ts` and prints each of the three as a
 stand-in every run, so a placeholder is never mistaken for a finished drawing.

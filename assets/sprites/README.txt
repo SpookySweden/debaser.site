@@ -2,7 +2,7 @@ SPRITES - the looping pixel art the GUI leaves room for
 =======================================================
 
 Nothing in this folder is generated. Every file is drawn by hand on the tablet, the same
-way every sheet, avatar and cursor on this site is (see AGENTS.md, Asset Rules). Code
+way every sheet, avatar and cursor on this site is (see CLAUDE.md, Asset Rules). Code
 never stands in for artwork: a component that needs one points at a path in here and
 leaves a dark dithered field where the file will go, so the layout is already correct and
 the drawing can land later without touching a line of TypeScript.

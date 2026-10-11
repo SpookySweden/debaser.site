@@ -3,7 +3,7 @@ import { CONCEPT_SHEETS } from '../concepts/sheets';
 /**
  * The pictures a profile can wear.
  *
- * Artwork rule (see AGENTS.md): every drawing in this project is hand-drawn on the
+ * Artwork rule (see CLAUDE.md): every drawing in this project is hand-drawn on the
  * Kamvas tablet and added by hand. Nothing here draws a picture and nothing
  * generates one - the catalogue only lists what is already on disk.
  *

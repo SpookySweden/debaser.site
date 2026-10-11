@@ -33,7 +33,7 @@ const ASSET_ROOT = path.join(process.cwd(), 'assets');
  * plenty for a track that is a few megabytes. Range requests are the thing to add
  * first if a long recording ever needs to scrub before it has buffered.
  *
- * **`.svg` is not on the list, and that is the asset rule rather than an oversight.** AGENTS.md says
+ * **`.svg` is not on the list, and that is the asset rule rather than an oversight.** CLAUDE.md says
  * code never draws a character, an icon or an illustration - and an SVG is vector drawing code, so a
  * file the archive served would be the one exception the rule exists to prevent. Everything here is a
  * raster file hand-drawn on the tablet; a `.svg` asked for by name is refused with a 400, the same as

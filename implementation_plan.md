@@ -64,7 +64,7 @@ Target: `app/components/ProfileCustomiserWindow.tsx`
 
 1. **Four layers**, each row carrying **two independent controls** — a selection and an Eye. Collapsing them
    would make "look at the wireframe" require deselecting the layer you are editing.
-2. **The Eye goes dark** with the `chrome` / `chrome-dark` pair — the tokens `AGENTS.md` says exist exactly
+2. **The Eye goes dark** with the `chrome` / `chrome-dark` pair — the tokens `CLAUDE.md` says exist exactly
    for "an inactive title bar and a disabled plate". No invented grey.
 3. **The mode is derived, never stored.** One `activeLayer`; a `useInteractionMode()` returning
    `'joints' | 'mass' | 'light' | 'none'`. Two stored facts can disagree; one derived fact cannot.
@@ -129,7 +129,7 @@ rule quietly eroded along the way.
 | 4 | Mass geometry, rescaler, pick sets | Figure editable end to end |
 | 5 | View split, render target, outline, demand loop | Pixel output live |
 
-Each phase ends per `AGENTS.md`: `verify` -> `checks` -> `capture` + `qa-audit` -> commit -> push -> `read`,
+Each phase ends per `CLAUDE.md`: `verify` -> `checks` -> `capture` + `qa-audit` -> commit -> push -> `read`,
 then a plain report of what was checked and what was not.
 
 **The limit stated every time:** the agent cannot judge an aesthetic and cannot drag, type or choose a

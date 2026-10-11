@@ -38,7 +38,7 @@ body {
 /* The desktop surface --------------------------------------------------------
    The surface behind the window: one dye with a second dithered through it in 4px squares, the way a
    Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in the sense
-   AGENTS.md asks for - and not an illustration: nothing here draws a character, an icon or a scene,
+   CLAUDE.md asks for - and not an illustration: nothing here draws a character, an icon or a scene,
    which is what the artwork rule is about.
 
    Both halves are tokens, and that is the whole point of the pair: the tile is the largest surface on
@@ -64,7 +64,7 @@ body {
 
 /* Cursors ---------------------------------------------------------------------
    The retro pointer is a hand-drawn file, like every other mark on this site: nothing draws an
-   arrow in CSS or in SVG (see AGENTS.md, and assets/cursors/README.txt for the three files and
+   arrow in CSS or in SVG (see CLAUDE.md, and assets/cursors/README.txt for the three files and
    their sizes). Until they are drawn the URLs 404 and the browser falls back to the next entry
    in each list, which is the ordinary cursor - so the site reads normally either way, and a
    cursor that lands appears without another line of code.
@@ -256,7 +256,7 @@ summary::-webkit-details-marker {
 /* The artless surface --------------------------------------------------------
    Three rules that hold the whole GUI to one era, and none of them draws anything: a scrollbar is
    a bevel with a grip on it, a selection is two flat colours, and artwork is scaled in whole pixels
-   rather than resampled into a blur. Nothing here is an illustration - see AGENTS.md, Asset Rules. */
+   rather than resampled into a blur. Nothing here is an illustration - see CLAUDE.md, Asset Rules. */
 
 /* A 16px trough with a bevelled grip, and it inverts while it is dragged. The standard property is
    what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read. Both are given the
@@ -1047,7 +1047,7 @@ img {
 
 /* The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
    same tile language as the desktop, so the space reads as *waiting for artwork* rather than as a
-   hole. Nothing is drawn in it - see AGENTS.md, Asset Rules, and assets/sprites/README.txt for the
+   hole. Nothing is drawn in it - see CLAUDE.md, Asset Rules, and assets/sprites/README.txt for the
    files that go in.
 
    **This comment had lost its opening `/*` and the rule had never been drawn.** The paragraph was

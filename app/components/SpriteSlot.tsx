@@ -28,7 +28,7 @@ type SpriteSlotProps = {
  * The room a looping sprite is drawn into.
  *
  * The site draws no artwork of its own: a character, an icon or a little walking figure is a
- * hand-drawn file, and code never stands in for one (AGENTS.md, Asset Rules). So what this component
+ * hand-drawn file, and code never stands in for one (CLAUDE.md, Asset Rules). So what this component
  * is, is the *space* - a dark dithered field at the exact size the sprite will be, pointed at the path
  * the file belongs at. Until the file is dropped in, the field says which one is missing on hover;
  * when it lands, it loops there and nothing else has to change.

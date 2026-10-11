@@ -1,7 +1,7 @@
 /**
  * The emoticon shelf: text faces, no pictures, no Unicode.
  *
- * The whole site is drawn in ASCII (see AGENTS.md - nothing draws an illustration in
+ * The whole site is drawn in ASCII (see CLAUDE.md - nothing draws an illustration in
  * code), so the "emoji" a message can carry are the ones a keyboard can already type.
  * They are grouped so the picker can lay them out in rows, and every one that is not a
  * deliberate kaomoji is as short as typing it would be.

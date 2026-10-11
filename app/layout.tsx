@@ -23,7 +23,7 @@ import './globals.css';
 /**
  * The site's face: a pixel one, drawn on a grid, in the two weights the chrome needs.
  *
- * AGENTS.md asks for heavily pixelated monospace type, and this is the trade that gets it done
+ * CLAUDE.md asks for heavily pixelated monospace type, and this is the trade that gets it done
  * with one download: Silkscreen is a bitmap face with a *real* bold, which matters because every
  * label on this site is `font-bold` - a pixel face without one leaves the browser to fake the
  * weight, and a faked bold on a bitmap face is exactly the blur the face exists to avoid. The

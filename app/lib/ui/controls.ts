@@ -82,7 +82,7 @@ export const LINK_PIXEL = 'link-pixel cursor-pointer';
 /**
  * The dark dithered field a hand-drawn GIF or walking avatar loops in.
  *
- * The site draws no artwork of its own (AGENTS.md, Asset Rules), so a slot like this is the space
+ * The site draws no artwork of its own (CLAUDE.md, Asset Rules), so a slot like this is the space
  * *for* artwork: an empty room with the right size and the right floor, waiting for a file.
  */
 export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-black';
@@ -157,7 +157,7 @@ export const GLYPH_BUTTON =
 /**
  * A space that a reveal is allowed to fill, because it is already there either way.
  *
- * The rule (AGENTS.md, "Reveals take their space in both states"): pointing at something must not move
+ * The rule (CLAUDE.md, "Reveals take their space in both states"): pointing at something must not move
  * it, and must not move anything beside it. A hover reveal therefore has two honest shapes - out of
  * flow, or a box laid out in *both* states that merely swaps what is inside it. This is the second.
  *

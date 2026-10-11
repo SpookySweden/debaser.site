@@ -17,7 +17,7 @@ assets/profiles/     public profile pictures (the default pfp avatar-default.png
                      and uploads/ written by the app itself)
 
 There is no `placeholders/` folder, deliberately: a drawing that does not exist
-yet is not represented by a stand-in picture (AGENTS.md - "no CSS/SVG art", and
+yet is not represented by a stand-in picture (CLAUDE.md - "no CSS/SVG art", and
 the asset rules above). Every component that has room for artwork draws its own
 missing state instead - a dithered field, a `[ ? ]`, or the two letters of a
 country code - so an undrawn file is visible as a gap rather than as a picture

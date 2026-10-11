@@ -16,7 +16,7 @@ type CountryFlagProps = {
  * sentence, and the site cannot draw a sentence - so a profile that once said a place now says
  * *which country*, which is a code off a closed list and a picture that belongs to it. The picture
  * is a hand-drawn file (`assets/flags/<code>.png`, served at `/assets/flags/<code>.png`; the
- * folder's own README is the contract) because AGENTS.md's asset rules say code never draws
+ * folder's own README is the contract) because CLAUDE.md's asset rules say code never draws
  * artwork: not a CSS gradient, not an SVG, and not an emoji standing in for the drawing either.
  *
  * **So the slot is the whole component, and the code is what fills it until the file lands.** That

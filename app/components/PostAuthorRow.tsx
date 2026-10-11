@@ -88,7 +88,7 @@ export default function PostAuthorRow({
       {avatar === 'hidden' ? null : (
         /*
           The space the picture will take is reserved in both states, so pointing at a post reveals
-          the picture without shifting the name beside it (AGENTS.md, "Reveals take their space in
+          the picture without shifting the name beside it (CLAUDE.md, "Reveals take their space in
           both states"). The outer span is the slot and is laid out either way; the inner one is what
           is hidden until the pointer or the keyboard arrives.
         */

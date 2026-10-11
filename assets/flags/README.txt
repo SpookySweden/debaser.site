@@ -3,7 +3,7 @@ COUNTRY FLAGS
 
 Every file in this folder is hand-drawn, on the tablet, like every other picture on the site.
 No AI-generated artwork, no CSS gradients, no SVG and no emoji standing in for a drawing
-(AGENTS.md -> Asset Rules, and the rules at the foot of assets/README.txt).
+(CLAUDE.md -> Asset Rules, and the rules at the foot of assets/README.txt).
 
 NAMING
 ------

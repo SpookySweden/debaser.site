@@ -8,7 +8,7 @@
  * draws everything.
  *
  * That is exactly what these are, and the distinction matters: they are *characters*, not pictures.
- * Nothing here draws a joystick in CSS or in SVG - the asset rules (AGENTS.md) forbid code-drawn
+ * Nothing here draws a joystick in CSS or in SVG - the asset rules (CLAUDE.md) forbid code-drawn
  * artwork, and a line of box-drawing and dingbat glyphs is text, which the pixel face this site
  * loads renders as blocks in whole pixels anyway. When somebody wants a real hand-drawn icon, it
  * goes in `assets/icons/` and the component points a `<SpriteSlot>` at it (see

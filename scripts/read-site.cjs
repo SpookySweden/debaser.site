@@ -120,5 +120,5 @@ function target() {
   }
 
   console.log('the served HTML matches. This is not the same as looking at it: it says the bytes are');
-  console.log('right, not that the page reads well. See the limits table in AGENTS.md.');
+  console.log('right, not that the page reads well. See the limits table in CLAUDE.md.');
 })();

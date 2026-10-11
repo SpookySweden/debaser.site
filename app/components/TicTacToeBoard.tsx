@@ -9,7 +9,7 @@ import { PANEL_INSET } from '../lib/ui/controls';
  * A game surface is made of the site's own chrome - the raised grey plates every control is made of,
  * and the navy and maroon it already draws a choice in - never of drawn artwork: `X` and `O` are
  * letters, not pictures, and there is no character or illustration anywhere on this board. A screen
- * that wanted one would point at a hand-drawn file instead (see AGENTS.md, Asset Rules).
+ * that wanted one would point at a hand-drawn file instead (see CLAUDE.md, Asset Rules).
  *
  * Phone first: the board is a square that takes the width it is given, each plate is a thumb-sized
  * target, and the whole thing is one `grid` - so it cannot overflow whatever it is put in.

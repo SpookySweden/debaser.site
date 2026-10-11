@@ -17,11 +17,11 @@
  * two cannot disagree.
  *
  * `music` was in this list until 2026-09-25 and had to come out: `/music` is **not a route** (see
- * AGENTS.md - the archive is a screen inside `MusicWindow`, never a page), so the capture failed with
+ * CLAUDE.md - the archive is a screen inside `MusicWindow`, never a page), so the capture failed with
  * a 404 and this audit went on reading a file left from before the route was deleted. That is worse
  * than a missing entry: it reported on a screen that had never been looked at.
  *
- * **Tracked in `scripts/`, not `Temp/`.** `AGENTS.md` names this as step 3 of the ship loop, and
+ * **Tracked in `scripts/`, not `Temp/`.** `CLAUDE.md` names this as step 3 of the ship loop, and
  * `capture-qa.cjs` reads `ROUTES` out of this file so the two cannot disagree about what is being
  * audited - neither works if the file sits in the gitignored folder. Its *input* is a snapshot in
  * `Temp/qa/`; what it holds is the route list and the rules, and that belongs to the repository.

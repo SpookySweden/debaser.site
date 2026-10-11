@@ -31,7 +31,7 @@ const NONE = 'NONE - TEXT ONLY';
  * a highlighted icon: solid navy, white text.
  *
  * The artwork itself is hand-drawn and lives in the project assets folder: nothing here draws
- * a substitute, it only points at the file (see AGENTS.md).
+ * a substitute, it only points at the file (see CLAUDE.md).
  */
 export default function MediaPicker({ id, items, value, onChange, heightClass = 'h-28' }: MediaPickerProps) {
   const selected = items.find((item) => item.id === value);

@@ -40,7 +40,7 @@ type NewPostFormProps = {
  * drop-downs: the destination is a tree of pages you open and click into, the artwork is a pane
  * of thumbnails with the chosen sheet beside it, and the line under both restates the choice in
  * words. Nothing here draws artwork - a sheet is a file in the project assets folder, and the
- * picker only points at it (AGENTS.md).
+ * picker only points at it (CLAUDE.md).
  */
 export default function NewPostForm({ onClose, onCreated, initialTrack = null }: NewPostFormProps) {
   const forum = useForum();

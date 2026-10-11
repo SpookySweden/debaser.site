@@ -32,7 +32,7 @@ import type { AudioTrack } from './tracks';
  * `shelf` is a file played from the archive, `profile` is somebody's own song, `queue` is a track heard
  * by following a broadcast. Kept because the plates are a *quick access* grid: a reader looking for the
  * thing they were playing needs to tell a profile's song from an archive file at a glance, and the mark
- * is the only place that can be said without a picture (AGENTS.md forbids drawing one).
+ * is the only place that can be said without a picture (CLAUDE.md forbids drawing one).
  */
 export type LoopOrigin = 'shelf' | 'profile' | 'queue' | 'own';
 

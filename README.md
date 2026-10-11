@@ -7,7 +7,7 @@ lore pages written live by whoever is looking at one share a single window frame
 one set of stores.
 
 Every drawing is hand-drawn on a Kamvas tablet and filed by hand: nothing here generates artwork,
-and no character, icon or cursor is drawn in CSS or in SVG. AGENTS.md holds the look to that rule
+and no character, icon or cursor is drawn in CSS or in SVG. CLAUDE.md holds the look to that rule
 and to the rest of the aesthetic; `assets/README.txt` says where each kind of drawing goes.
 
 What is where
@@ -107,7 +107,7 @@ tool opens the file itself. Chrome is installed at
 GL a headless build has no WebGL, and a blank canvas would say nothing. **A capture is refused when
 the address did not answer**, so a picture of *"This site can't be reached"* cannot be filed under a
 page's name - which is exactly how `Temp/browse/account.png` came to exist under `account`.
-`AGENTS.md` has the instruments and the faults they found.
+`CLAUDE.md` has the instruments and the faults they found.
 
     npm run capture                  # writes Temp/qa/<route>.html for the audit below
     npm run audit                    # reads those captures and reports
