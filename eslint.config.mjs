@@ -21,6 +21,8 @@ const eslintConfig = defineConfig([
     // when the app is the thing that is broken. This config is for `app/`, which is
     // TypeScript and bundled, so the two rulesets are kept apart on purpose.
     "scripts/**",
+    // Claude Code's hook script: plain CommonJS for the same reason.
+    ".claude/**",
   ]),
 ]);
 
