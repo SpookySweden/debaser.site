@@ -21,6 +21,8 @@ import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/contr
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MarqueeText from './MarqueeText';
+import TrackDetails from './TrackDetails';
+import { lengthSeconds, queueContext, trackContext } from '../lib/audio/track-context';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import PopoutWindow from './PopoutWindow';
 
@@ -240,6 +242,33 @@ type BarControls = {
  * player away was the furthest thing from the key that plays it.
  */
 /**
+ * The track on the display, in the shared details format - on the bar's black LED.
+ *
+ * Its context is what the play recorded (a queue, a playlist, a profile), else the name of whoever is
+ * being followed, else the file's own folder - which is where an album or a project lives.
+ */
+function NowPlaying({ marquee = false, extra }: { marquee?: boolean; extra?: React.ReactNode }) {
+  const player = useMusicPlayer();
+  const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
+  const { track, loading, elapsed, duration } = player;
+
+  const recorded = player.heardFrom?.context ?? (follow.hostId === null ? undefined : queueContext(follow.hostName));
+
+  return (
+    <TrackDetails
+      tone="led"
+      marquee={marquee}
+      src={track?.src ?? null}
+      context={trackContext(recorded, track?.folderPath)}
+      title={loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
+      position={elapsed}
+      length={Number.isFinite(duration) ? duration : lengthSeconds(track?.length)}
+      extra={extra}
+    />
+  );
+}
+
+/**
  * What the bar says about following, ahead of the track's own caption.
  *
  * Said on the bar because that is where a reader looks when the music changes under them - a follow
@@ -321,17 +350,12 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
 
           {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
           <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
-            <span className="flex flex-wrap items-baseline gap-x-2 text-[11px] font-bold text-acid">
-              <MarqueeText
-                className="min-w-0 flex-1"
-                text={loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
-              />
-              <span className="shrink-0">
-                <span className={playing ? 'animate-blip' : undefined}>{playing ? '▶' : '❚❚'}</span>{' '}
-                {formatClock(elapsed)} /{' '}
-                {formatClockOrNothing(Number.isFinite(duration) ? duration : undefined)}
-              </span>
-            </span>
+            {/* The song, in the same details format RADI-OH uses (`TrackDetails`): the uploader's picture,
+                what it is being heard as part of, the name, and where it is out of its length. */}
+            <NowPlaying
+              marquee
+              extra={<span className={`shrink-0 ${playing ? 'animate-blip' : ''}`}>{playing ? '▶' : '❚❚'}</span>}
+            />
             {/* The caption is on the black LED above, which is Black in *both* themes - so it takes the
                 bar ink. `ena-deep` was Nigrosine on Black (1.18:1) and went Black-on-Black in the dark
                 theme; the quiet ink is no better here, because Nigrosine on Black is the same 1.18:1.
@@ -594,7 +618,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  */
 function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const player = useMusicPlayer();
-  const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
+  const { track, playing, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
   const seekable = lengthSeconds > 0;
@@ -651,9 +675,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
       <div className="p-2">
         {/* The readout, the same green on black the bar has. */}
         <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
-          <p className="truncate text-[12px] font-bold text-acid">
-            {loading ? 'READING THE SHELF...' : (track?.title ?? 'NO TRACKS ON THE SHELF')}
-          </p>
+          <NowPlaying />
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
           <p className="truncate text-[9px] text-ink-bar">
             {followNote(follow)}

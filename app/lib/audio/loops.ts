@@ -68,6 +68,17 @@ export type LoopSource = {
   originHref?: string;
   /** What the globe's own words are, so a caption can say where it goes before it is followed. */
   originWhere?: string;
+  /**
+   * What larger thing it was heard as part of - `SWEDEN'S QUEUE`, `PLAYLIST :: NIGHT DRIVE` - which the
+   * details line puts before the song's name (`trackContext`). Unlike the globe, this follows the *latest*
+   * play: it describes how you were listening, not where you first found it.
+   */
+  originContext?: string;
+  /**
+   * The file's full length, as the player measured it while it played - so the details strip can say
+   * `0:47 / 3:10` for a profile song or a forum file the shelf does not list and has no filed length for.
+   */
+  lengthSeconds?: number;
   /** When it was first saved, so a list can be read oldest-first for a pruned entry. */
   savedAt: string;
   /** When it was last touched, which for quick access is what the order is really by. */
@@ -94,20 +105,6 @@ export const MAX_LOOPS = 30;
  */
 export const LOOP_SAMPLE_MS = 5000;
 
-/**
- * How long a pointer has to rest on an icon before the grid says where the entry came from.
- *
- * **A second, and the length is the feature.** An icon-only grid withholds everything, so the caption is
- * the only place the title, origin and position can be read without opening the pop-out. Showing it
- * instantly would make a pointer crossing four icons strobe four captions - the reader did not stop to
- * ask, so nothing should answer. A second is long enough that only a deliberate stop earns one, and short
- * enough that it is not a wait.
- *
- * It is deliberately *not* a `wobble`-style animation and knows nothing about `prefers-reduced-motion`: a
- * delay is not motion, and a reader who has asked for calm still needs to be able to read the caption. A
- * check holds it under two seconds, because past that it stops being a hover aid and becomes a wait.
- */
-export const CAPTION_DELAY_MS = 1000;
 
 /** Where the loops live. Named like the player's own key so the storage reads as one set of settings. */
 const LOOPS_KEY = 'debaser.audio.loops.v1';
@@ -393,6 +390,7 @@ export function saveLoop(entry: {
   origin?: LoopOrigin;
   originHref?: string;
   originWhere?: string;
+  originContext?: string;
   displacedBy?: string;
 }): LoopSource {
   const at = Math.max(0, Math.floor(entry.positionSeconds));
@@ -407,6 +405,7 @@ export function saveLoop(entry: {
     origin: entry.origin ?? 'own',
     originHref: entry.originHref,
     originWhere: entry.originWhere,
+    originContext: entry.originContext,
     savedAt: now,
     playedAt: now,
     plays: 0,
@@ -454,6 +453,8 @@ export function rememberPlay(entry: {
   origin?: LoopOrigin;
   originHref?: string;
   originWhere?: string;
+  originContext?: string;
+  lengthSeconds?: number;
 }): LoopSource {
   const id = recentId(entry.trackId);
   const existing = loops.find((candidate) => candidate.id === id);
@@ -475,6 +476,10 @@ export function rememberPlay(entry: {
     // the brief asks the globe to point at ("where you initially started playing it from").
     originHref: existing?.originHref ?? entry.originHref,
     originWhere: existing?.originWhere ?? entry.originWhere,
+    // The latest play's, deliberately with no fallback: a song heard in a queue and replayed from the
+    // music window is no longer being heard as part of that queue.
+    originContext: entry.originContext,
+    lengthSeconds: entry.lengthSeconds ?? existing?.lengthSeconds,
     savedAt: existing?.savedAt ?? now,
     playedAt: now,
     plays: (existing?.plays ?? 0) + (isNewPlay ? 1 : 0),

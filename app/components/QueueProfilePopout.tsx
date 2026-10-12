@@ -22,6 +22,7 @@ import {
 } from '../lib/audio/follow';
 import { QUEUES_LIST_HREF } from '../lib/audio/queue-window';
 import { saveLoop } from '../lib/audio/loops';
+import { queueContext } from '../lib/audio/track-context';
 import { useQueueName } from '../lib/audio/use-queue-name';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
@@ -99,6 +100,7 @@ export default function QueueProfilePopout({
         positionSeconds: player.elapsed,
         kind: 'taken-over',
         origin: 'own',
+        originContext: player.heardFrom?.context,
         displacedBy: name,
       });
     }
@@ -107,7 +109,7 @@ export default function QueueProfilePopout({
 
     player.play(
       track,
-      { origin: 'queue', href: QUEUES_LIST_HREF, where: 'THE QUEUES LIST' },
+      { origin: 'queue', href: QUEUES_LIST_HREF, where: 'THE QUEUES LIST', context: queueContext(name) },
       { at: Math.max(0, live - lead), rate: 1, follow: true },
     );
 

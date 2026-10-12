@@ -1,5 +1,7 @@
 'use client';
 
+import { playlistContext } from '../lib/audio/track-context';
+import { LIBRARY_HREF } from '../lib/audio/music-window';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   playlistIds,
@@ -365,7 +367,17 @@ export default function PersonalLibrary() {
                     ? formatClock(player.duration)
                     : track.length
                 }
-                onPlay={() => (player.track?.src === track.src ? player.toggle() : player.play(track))}
+                onPlay={() =>
+                  player.track?.src === track.src
+                    ? player.toggle()
+                    : player.play(track, {
+                        origin: 'shelf',
+                        href: LIBRARY_HREF,
+                        where: 'YOUR MUSIC',
+                        // LIKED is a list too, and the one everybody has.
+                        context: playlistContext(current?.name ?? 'LIKED'),
+                      })
+                }
                 onLike={() => void toggleLike(track)}
                 onAddToList={(list) => void addToList(track, list)}
                 onComment={() => setPosting(track)}

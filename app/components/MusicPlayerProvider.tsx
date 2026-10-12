@@ -116,6 +116,8 @@ export type MusicPlayerValue = {
    * speed and is what everything but a catch-up writes.
    */
   playbackRate: number;
+  /** Where the track on the display was started from, or null when nobody said (the shelf walking on). */
+  heardFrom: PlayOrigin | null;
   setPlaybackRate: (rate: number) => void;
   /** Reads the shelf again, after an upload or a track dropped into the bucket. */
   refresh: () => void;
@@ -137,6 +139,8 @@ export type PlayOrigin = {
   origin?: LoopOrigin;
   href?: string;
   where?: string;
+  /** What larger thing it is being heard as part of - a queue, a playlist, a profile (`track-context.ts`). */
+  context?: string;
 };
 
 /**
@@ -254,6 +258,13 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * track can come through, and it holds for as long as that track is the one on the display.
    */
   const playedFrom = useRef<PlayOrigin | null>(null);
+
+  /**
+   * The same door, as state and pinned to the file it was recorded for, so the bar can draw it. Pinned to
+   * the src because the ref above outlives its track: after NEXT the ref still holds the last press's
+   * origin, and a bar that read it would call the shelf's next file part of somebody's queue.
+   */
+  const [heardFrom, setHeardFrom] = useState<{ src: string; origin: PlayOrigin } | null>(null);
 
   /** Where the next file to load should start, and how fast (see `PlayStart`). Spent on `loadedmetadata`. */
   const pendingStart = useRef<(PlayStart & { src: string }) | null>(null);
@@ -558,7 +569,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     // repeat whether or not anybody handed it over.
     const fallback = handedOver.current ? 'profile' : 'shelf';
     const source = track;
-    const recorded = playedFrom.current;
+    // Only the origin recorded *for this file*: after NEXT or a natural end the last press's origin is
+    // still in `playedFrom`, and reading it would file a shelf track under somebody's playlist or queue.
+    const recorded = heardFrom !== null && heardFrom.src === source.src ? heardFrom.origin : null;
 
     const write = () => {
       const audio = audioRef.current;
@@ -573,6 +586,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
         origin: recorded?.origin ?? fallback,
         originHref: recorded?.href,
         originWhere: recorded?.where,
+        originContext: recorded?.context,
+        lengthSeconds: Number.isFinite(audio.duration) ? audio.duration : undefined,
       });
     };
 
@@ -580,7 +595,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     const timer = window.setInterval(write, LOOP_SAMPLE_MS);
     return () => window.clearInterval(timer);
-  }, [playing, track]);
+  }, [heardFrom, playing, track]);
 
   /**
    * The system's own controls: media keys, a headset's buttons, and whatever a phone
@@ -686,6 +701,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       if (start?.follow !== true) stopFollowing('YOU PICKED SOMETHING ELSE');
 
       playedFrom.current = origin ?? null;
+      setHeardFrom(origin === undefined ? null : { src: wanted.src, origin });
       handedOver.current = false;
 
       // The same file already loaded will not fire `loadedmetadata` again, so its start is applied
@@ -771,6 +787,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setError(null);
       pendingStart.current = null;
       playedFrom.current = options?.origin ?? null;
+      setHeardFrom(options?.origin === undefined ? null : { src: wanted.src, origin: options.origin });
       handedOver.current = true;
 
       // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
@@ -859,6 +876,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       seek,
       playbackRate,
       setPlaybackRate,
+      heardFrom: heardFrom !== null && heardFrom.src === track?.src ? heardFrom.origin : null,
       refresh,
     }),
     [
@@ -890,6 +908,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       seek,
       playbackRate,
       setPlaybackRate,
+      heardFrom,
       refresh,
     ],
   );

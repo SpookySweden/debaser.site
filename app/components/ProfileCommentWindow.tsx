@@ -1,5 +1,6 @@
 'use client';
 
+import { profileContext } from '../lib/audio/track-context';
 import { useState, type ReactNode } from 'react';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import type { ForumAuthor } from '../lib/forum/types';
@@ -157,6 +158,7 @@ function AspectPreview({
               origin: 'profile',
               href: `/profile/${encodeURIComponent(profile.userId)}`,
               where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+              context: profileContext(profile.displayName),
             })
       }
             className={PLATE_MEDIUM}

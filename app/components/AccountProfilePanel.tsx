@@ -1,5 +1,6 @@
 'use client';
 
+import { profileContext } from '../lib/audio/track-context';
 import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { elementAsTrack } from '../lib/audio/profile-track';
@@ -54,6 +55,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
           origin: 'profile',
           href: `/profile/${encodeURIComponent(profile.userId)}`,
           where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+          context: profileContext(profile.displayName),
         },
       });
       return;

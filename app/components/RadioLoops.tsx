@@ -1,12 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
-import { createPortal } from 'react-dom';
+import { useState, useSyncExternalStore } from 'react';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
-import { formatClock } from '../lib/audio/format';
 import {
-  CAPTION_DELAY_MS,
-  GLOBE,
   clearAllLoops,
   clearLoop,
   loopFace,
@@ -14,55 +10,46 @@ import {
   loopNotes,
   loopServerState,
   loopState,
-  originLabel,
   originWhereLabel,
   subscribeToLoops,
   type LoopMood,
   type LoopSource,
 } from '../lib/audio/loops';
+import { lengthSeconds, trackContext } from '../lib/audio/track-context';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import LoopPopout from './LoopPopout';
+import TrackDetails from './TrackDetails';
 
 /**
- * RADI-OH: everything you have been listening to lately, as **icons you press to jump back in**.
+ * RADI-OH: everything you have been listening to lately, as **faces you press to jump back in**.
  *
- * A quick access grid, like the recent files a desktop keeps: up to `MAX_LOOPS` icons, newest first, each
+ * A quick access grid, like the recent files a desktop keeps: up to `MAX_LOOPS` faces, newest first, each
  * one returning you to where you actually were in it rather than to its beginning. Anything that plays
  * lands here - a file from the music window, somebody's profile song, a track heard by following a queue.
  *
- * **An icon is only an icon - and it is a face.** The resting cell is a text-character face and nothing
- * else (`loopFace`): its frame says where the track came from (headphones, a picture frame, radio
- * waves) and its expression answers the pointer - it perks up and hops when pointed at, winces when
- * pressed, panics when the pointer is on its X, and sings while its track is the one playing. A cell carrying a title, a clock and an origin line is a list
- * wearing a grid's clothes, which is what this was before the brief corrected it.
+ * **A face is only a face.** The resting cell is a text-character face and nothing else (`loopFace`): its
+ * frame says where the track came from (headphones, a picture frame, radio waves) and its expression
+ * answers the pointer - it perks up and hops when pointed at, winces when pressed, panics when the pointer
+ * is on its X, and sings while its track is the one playing.
  *
- * What the grid withholds is said in two places:
- *
- *   - **the caption, on hover.** Pointing at an icon lights it immediately; after `CAPTION_DELAY_MS` of
- *     staying there, a caption appears carrying the title, where it came from, the position, the play
- *     count, and a globe link to the place the reader first started it from.
- *   - **the pop-out, on a press.** `LoopPopout` is the fuller card, for the two things you can do with an
- *     entry rather than for reading it.
- *
- * **The caption is portalled to `document.body`, and that is the whole of why it shows at all.** It is the
- * third attempt, and the first two failed for the same hidden reason:
- *
- *   - `absolute` was clipped, because `DockWindow` scrolls its contents with `overflow-y-auto` and an
- *     absolutely positioned box cannot escape a scrolling ancestor.
- *   - `fixed` was positioned *relative to the window* rather than the viewport, because `DockWindow` sets
- *     `transform: translate(...)` on itself for dragging - and a transform makes an element the containing
- *     block for every `fixed` descendant. So the rectangle read from `getBoundingClientRect()` (viewport
- *     coordinates) and the `fixed` box (window coordinates) disagreed, and the caption landed off-screen.
- *
- * A portal renders into `document.body`, which is outside the transformed window, so `fixed` means the
- * viewport again and the measured rectangle is the right coordinate space. The measurement still has to be
- * maintained - scroll, resize and the window's own drag all move the icon - so all three are listened for
- * while a caption is up.
+ * **What a face withholds is said in the details strip**, left of `[ CLEAR ALL ]`: the uploader's picture,
+ * what it was heard as part of, its name, and where you were in it out of its length (`TrackDetails`, the
+ * same block the player bar uses). It replaced a floating caption that waited a second and then covered
+ * the window's foot. The strip is always there and always the same size, so pointing at a face can answer
+ * at once without anything moving; it keeps showing the last face pointed at, so the reader can move
+ * across to its globe link, and before anything is pointed at it shows what is playing, or the newest.
  */
 export default function RadioLoops() {
   const loops = useSyncExternalStore(subscribeToLoops, loopState, loopServerState);
   const player = useMusicPlayer();
   const [open, setOpen] = useState<LoopSource | null>(null);
+  const [pointedId, setPointedId] = useState<string | null>(null);
+
+  const playingSrc = player.track?.src;
+  const shown =
+    loops.find((loop) => loop.id === pointedId) ??
+    loops.find((loop) => loop.trackId === playingSrc) ??
+    loops[0];
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
@@ -72,8 +59,8 @@ export default function RadioLoops() {
       </div>
 
       <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-quiet">
-        EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT AN ICON TO SEE WHERE YOU GOT IT FROM, AND
-        PRESS IT TO GO BACK TO WHERE YOU WERE IN IT.
+        EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO
+        BACK TO WHERE YOU WERE IN IT.
       </p>
 
       {loops.length === 0 ? (
@@ -89,22 +76,27 @@ export default function RadioLoops() {
                 key={loop.id}
                 loop={loop}
                 label={loopLabel(loop, player.queue)}
-                singing={player.playing && player.track?.src === loop.trackId}
+                singing={player.playing && playingSrc === loop.trackId}
+                onPoint={() => setPointedId(loop.id)}
                 onOpen={() => setOpen(loop)}
                 onClear={() => clearLoop(loop.id)}
               />
             ))}
           </div>
 
-          <p className="mt-2 text-right">
+          <div className="mt-2 flex items-end gap-2 border-t border-dotted border-ink pt-2">
+            <div className="min-w-0 flex-1" data-details="loop">
+              {shown === undefined ? null : <LoopDetails loop={shown} />}
+            </div>
+
             <button
               type="button"
               onClick={clearAllLoops}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
             >
               [ CLEAR ALL ]
             </button>
-          </p>
+          </div>
         </div>
       )}
 
@@ -124,6 +116,41 @@ export default function RadioLoops() {
 }
 
 /**
+ * One entry, in the shared details format.
+ *
+ * The entry playing right now reads the player's live clock and the file's real length; any other reads
+ * where you left it and the length the shelf filed for it. A displaced track says who displaced it in
+ * the context line when nothing else was recorded, because that is the most useful thing to know about it.
+ */
+function LoopDetails({ loop }: { loop: LoopSource }) {
+  const player = useMusicPlayer();
+  const track = player.queue.find((entry) => entry.src === loop.trackId);
+  const live = player.track?.src === loop.trackId;
+
+  const recorded =
+    loop.originContext ??
+    (loop.kind === 'taken-over' ? `TAKEN OVER BY ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}` : undefined);
+
+  return (
+    <TrackDetails
+      tone="field"
+      src={loop.trackId}
+      context={trackContext(recorded, track?.folderPath)}
+      title={loopLabel(loop, player.queue)}
+      position={live ? player.elapsed : loop.positionSeconds}
+      length={
+        live && Number.isFinite(player.duration)
+          ? player.duration
+          : (loop.lengthSeconds ?? lengthSeconds(track?.length))
+      }
+      href={loop.originHref}
+      where={originWhereLabel(loop)}
+      extra={loop.plays > 1 ? <span className="shrink-0">PLAYED {loop.plays}x ::</span> : undefined}
+    />
+  );
+}
+
+/**
  * Each mood's ink. There is no tile: the face sits straight on the window's field, because a box around
  * it fenced the hop in and read as a button wearing a face rather than a face (the owner's call,
  * 2026-10-12). So the inks are the two that read on the field in *both* themes - the field's own ink
@@ -139,34 +166,17 @@ const MOOD_INK: Record<LoopMood, string> = {
 };
 
 /**
- * A store that never changes, for reading a fact about the *environment* rather than about state.
+ * One face, and its X.
  *
- * `useSyncExternalStore` is the one hook React gives for "the server and the browser answer this
- * differently", which is exactly the question a portal asks: is there a `document` to render into? The
- * subscription is empty because the answer cannot change while the page is open.
- */
-function subscribeToNothing(): () => void {
-  return () => undefined;
-}
-
-/**
- * One icon: the glyph, its X, and - after a second of pointing - the caption.
- *
- * **The glyph is the button.** No plate, no padded box: the mark sits on the site's own bevel and the cell
- * is only as big as the mark needs. The X hangs off that mark's corner rather than off a larger box, which
- * is what makes the two read as one control with a delete key on it.
- *
- * **The caption is `fixed`, measured from the icon.** `absolute` cannot escape `DockWindow`'s
- * `overflow-y-auto`, so the first attempt was clipped by the window's foot; `fixed` is outside that clip.
- * The cost is that the position has to be maintained - the icon's rectangle changes when the window
- * scrolls, when the reader drags it, and when the viewport resizes - so all three are listened for while a
- * caption is up. The rectangle is read in the handlers rather than in render, because a layout read during
- * render is what makes a component jitter.
+ * **The face is the button.** No plate, no padded box: the X hangs off the face's corner, which is what
+ * makes the two read as one control with a delete key on it. Pointing at it (or reaching it with the
+ * keyboard) tells the strip to show it.
  */
 function LoopIcon({
   loop,
   label,
   singing,
+  onPoint,
   onOpen,
   onClear,
 }: {
@@ -174,148 +184,24 @@ function LoopIcon({
   label: string;
   /** True while this entry's track is the one playing - the face sings. */
   singing: boolean;
+  /** This face is being pointed at, so the details strip should show it. */
+  onPoint: () => void;
   onOpen: () => void;
   onClear: () => void;
 }) {
   const [overX, setOverX] = useState(false);
   const [pointed, setPointed] = useState(false);
   const [pressed, setPressed] = useState(false);
-  const [spot, setSpot] = useState<{ left: number; top: number } | null>(null);
-  const icon = useRef<HTMLDivElement | null>(null);
-  const timer = useRef<number | null>(null);
 
   const takenOver = loop.kind === 'taken-over';
-  const where = originWhereLabel(loop);
-
-  /** Puts the caption just under the icon, clamped so it cannot run off either side of the screen. */
-  const place = useCallback(() => {
-    const box = icon.current?.getBoundingClientRect();
-    if (box === undefined) return;
-
-    const width = Math.min(240, window.innerWidth - 16);
-    const left = Math.min(Math.max(box.left, 8), Math.max(8, window.innerWidth - width - 8));
-
-    setSpot({ left, top: box.bottom + 4 });
-  }, []);
-
-  /**
-   * Asking for the caption: one timer, set once when the pointer arrives.
-   *
-   * **`onPointerEnter` only - never `onPointerMove`.** The first version restarted this timer on every
-   * movement, so the delay began again on each pixel the reader's hand travelled and the caption *never
-   * appeared* for anybody holding a mouse, which is everybody. A delay that waits for the pointer to be
-   * perfectly still is not a hover delay, it is a coincidence. The motion half of the problem - keeping the
-   * caption up while the reader reaches for the globe - is `hold` below, which is a different job.
-   */
-  const ask = useCallback(() => {
-    if (timer.current !== null) window.clearTimeout(timer.current);
-
-    timer.current = window.setTimeout(() => {
-      // The wait is over: clearing the handle is what tells `hold` that a caption is up and no longer
-      // pending, so moving toward it keeps it rather than restarting the delay.
-      timer.current = null;
-      place();
-    }, CAPTION_DELAY_MS);
-  }, [place]);
-
-  /**
-   * Keeping the caption up while the pointer is over it.
-   *
-   * The caption is `fixed`, so it sits outside the icon's own hit area - moving from the mark towards the
-   * globe therefore reads to the icon as a *leave*, and without this the caption would be taken away at the
-   * exact moment the reader reached for the thing they were asked to read. It re-places an already-visible
-   * caption rather than restarting the wait, because the wait is over by then.
-   */
-  const hold = useCallback(() => {
-    if (timer.current !== null) return;
-
-    place();
-  }, [place]);
-
-  const stop = useCallback(() => {
-    if (timer.current !== null) {
-      window.clearTimeout(timer.current);
-      timer.current = null;
-    }
-
-    setSpot(null);
-  }, []);
-
-  // A caption that is up has to follow its icon. Scrolling the window, dragging it and resizing the
-  // viewport all move the icon, and a fixed box that is not re-measured simply drifts away from it.
-  useEffect(() => {
-    if (spot === null) return;
-
-    window.addEventListener('scroll', place, true);
-    window.addEventListener('resize', place);
-
-    return () => {
-      window.removeEventListener('scroll', place, true);
-      window.removeEventListener('resize', place);
-    };
-  }, [place, spot]);
-
-  // Nothing may be left pending when the grid goes: a timer that fired after unmount would set state on a
-  // component that is gone.
-  useEffect(() => stop, [stop]);
-
-  /**
-   * Whether this render is in a browser.
-   *
-   * `useSyncExternalStore` rather than a `mounted` flag set in an effect: the server snapshot is `false` and
-   * the client's is `true`, so React itself handles the switch without a second render and without the
-   * set-state-in-an-effect the lint rule (rightly) refuses. A portal needs a `document`, which the server
-   * does not have - so the caption renders only where there is one to render into.
-   */
-  const inBrowser = useSyncExternalStore(
-    subscribeToNothing,
-    () => true,
-    () => false,
-  );
 
   /** One expression at a time, the most urgent first: the X beats a press beats a point beats a song. */
   const mood: LoopMood = overX ? 'scared' : pressed ? 'press' : pointed ? 'hover' : singing ? 'playing' : 'rest';
   const notes = loopNotes(mood);
   const ink = MOOD_INK[mood];
 
-  const caption =
-    spot === null || !inBrowser
-      ? null
-      : createPortal(
-          <div
-            data-caption="loop"
-            style={{ left: spot.left, top: spot.top }}
-            onPointerEnter={hold}
-            onPointerLeave={stop}
-            className="fixed z-[130] w-[min(15rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 opacity-60"
-          >
-            <p className="line-clamp-2 break-words text-[10px] font-bold leading-tight text-ink">{label}</p>
-            <p className={`text-[9px] leading-tight ${takenOver ? 'text-bubble-pale' : 'text-ink'}`}>
-              {originLabel(loop)}
-            </p>
-            <p className="text-[9px] leading-tight text-ink">
-              {formatClock(loop.positionSeconds)}
-              {loop.plays > 1 ? ` :: PLAYED ${loop.plays}x` : ''}
-            </p>
-
-            {/* The globe: a real link, and only when there is somewhere true to go. An entry with no recorded
-                source draws nothing here rather than a link to a guess. */}
-            {where === null ? null : (
-              <a
-                href={loop.originHref}
-                title={where}
-                className="mt-[2px] flex items-center gap-1 text-[9px] font-bold leading-tight text-accent-ink underline underline-offset-2 hover:text-bubble-pale"
-              >
-                <span aria-hidden="true">{GLOBE}</span>
-                {where}
-              </a>
-            )}
-          </div>,
-          document.body,
-        );
-
   return (
-    <div ref={icon} className="relative w-fit" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
+    <div className="relative w-fit" onPointerEnter={onPoint}>
       {/* The notes line: what floats over the face. Absolutely placed in the top of the button, whose
           height reserves it, so notes arriving never push the face or a neighbour. */}
       <span
@@ -333,13 +219,12 @@ function LoopIcon({
         onFocus={(event) => {
           // The keyboard's own pointing: a click also focuses, so only a visible focus counts, or a
           // mouse press would leave the face perked up after the pointer had gone (CLAUDE.md).
-          if (event.currentTarget.matches(':focus-visible')) setPointed(true);
-          ask();
+          if (event.currentTarget.matches(':focus-visible')) {
+            setPointed(true);
+            onPoint();
+          }
         }}
-        onBlur={() => {
-          setPointed(false);
-          stop();
-        }}
+        onBlur={() => setPointed(false)}
         onPointerEnter={() => setPointed(true)}
         onPointerLeave={() => {
           setPointed(false);
@@ -360,7 +245,7 @@ function LoopIcon({
         </span>
       </button>
 
-      {/* The X, on the *icon's* corner since the icon is the button now. It grows away from the mark when
+      {/* The X, on the face's corner since the face is the button. It grows away from the mark when
           pointed at, because the two targets touch and the movement is what makes "I mean the X" aimable. */}
       <button
         type="button"
@@ -381,8 +266,6 @@ function LoopIcon({
       >
         ×
       </button>
-
-      {caption}
     </div>
   );
 }

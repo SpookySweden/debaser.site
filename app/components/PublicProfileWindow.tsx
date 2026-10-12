@@ -1,5 +1,6 @@
 'use client';
 
+import { profileContext } from '../lib/audio/track-context';
 import Link from 'next/link';
 import { useState } from 'react';
 import { authorFromAccount } from '../lib/auth/author';
@@ -188,7 +189,14 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
                 owner={owner}
                 repository={repository}
                 onSelect={setTrackId}
-                onPlay={(element) => player.play(elementAsTrack(profile, element))}
+                onPlay={(element) =>
+                  player.play(elementAsTrack(profile, element), {
+                    origin: 'profile',
+                    href: `/profile/${encodeURIComponent(profile.userId)}`,
+                    where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+                    context: profileContext(profile.displayName),
+                  })
+                }
                 playing={(element) => player.track?.src === element.src && player.playing}
               />
             )}

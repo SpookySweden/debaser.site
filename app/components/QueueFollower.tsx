@@ -10,6 +10,7 @@ import {
   subscribeToFollow,
 } from '../lib/audio/follow';
 import { QUEUES_LIST_HREF } from '../lib/audio/queue-window';
+import { queueContext } from '../lib/audio/track-context';
 import { getMusicRepository } from '../lib/audio/repository';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
@@ -110,7 +111,12 @@ export default function QueueFollower() {
 
         now.play(
           track,
-          { origin: 'queue', href: QUEUES_LIST_HREF, where: 'THE QUEUES LIST' },
+          {
+            origin: 'queue',
+            href: QUEUES_LIST_HREF,
+            where: 'THE QUEUES LIST',
+            context: queueContext(followState().hostName),
+          },
           { at: step.at, rate: 1, follow: true },
         );
         if (!step.playing) now.steer(false);

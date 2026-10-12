@@ -1,5 +1,6 @@
 'use client';
 
+import { profileContext } from '../lib/audio/track-context';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import type { ProfileElement } from '../lib/profile/elements';
 import type { PublicProfile } from '../lib/profile/types';
@@ -60,6 +61,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
                     origin: 'profile',
                     href: `/profile/${encodeURIComponent(profile.userId)}`,
                     where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+                    context: profileContext(profile.displayName),
                   })
             }
             className={PLATE_MEDIUM}
