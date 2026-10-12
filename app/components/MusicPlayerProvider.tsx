@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { clipRepeats } from '../lib/audio/clip-loop';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
+import { isFollowing, stopFollowing } from '../lib/audio/follow';
 import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
 import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
@@ -78,7 +79,15 @@ export type MusicPlayerValue = {
    * which is the GIF rule rather than a second loop switch: it is written to the *track's* own repeat, so
    * the shelf's switch - and what it is persisted as - is untouched.
    */
-  play: (track: AudioTrack, origin?: PlayOrigin) => void;
+  play: (track: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => void;
+  /**
+   * Plays or pauses *for the queue follower*, without counting as the reader taking the controls.
+   *
+   * Every other transport key ends a follow (`stopFollowing`), because a press is the reader saying
+   * "my turn". The follower has to pause when the host pauses and resume when they resume, and doing
+   * that through `toggle` would end the very follow it is carrying out.
+   */
+  steer: (playing: boolean) => void;
   /**
    * Hands over one track and leaves it there: the account page's own song, queued, set to
    * repeat, and - with `autoplay` - started at the first opportunity the browser allows.
@@ -93,7 +102,11 @@ export type MusicPlayerValue = {
   /** True once the visitor has dismissed the options pop-up. */
   promptDismissed: boolean;
   dismissPrompt: () => void;
-  seek: (seconds: number) => void;
+  /**
+   * Moves the playhead. A drag on the scrubber is the reader taking the controls, so it ends a follow;
+   * the follower's own corrections pass `follow: true` and do not.
+   */
+  seek: (seconds: number, options?: { follow?: boolean }) => void;
   /**
    * How fast audio is played, so a listener can catch up to a queue they followed.
    *
@@ -124,6 +137,23 @@ export type PlayOrigin = {
   origin?: LoopOrigin;
   href?: string;
   where?: string;
+};
+
+/**
+ * Where and how a `play` should start, applied once the file has loaded.
+ *
+ * **Applied on `loadedmetadata`, not straight after the call - and that is a fix.** `play` only picks
+ * the track; the element swaps its source in an effect afterwards. A seek made right after `play` landed
+ * on the *old* file, and the new one then loaded from 0:00 - so RADI-OH's GO BACK and the queue card's
+ * SKIP AHEAD both started at the beginning while looking as though they worked. The rate has the same
+ * trap: a browser resets `playbackRate` when a new file loads.
+ *
+ * `follow` marks a play made by the queue follower, which must not end the follow it is carrying out.
+ */
+export type PlayStart = {
+  at?: number;
+  rate?: number;
+  follow?: boolean;
 };
 
 /** Where the listener's own settings live, so the bar sounds the same next visit. */
@@ -225,6 +255,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    */
   const playedFrom = useRef<PlayOrigin | null>(null);
 
+  /** Where the next file to load should start, and how fast (see `PlayStart`). Spent on `loadedmetadata`. */
+  const pendingStart = useRef<(PlayStart & { src: string }) | null>(null);
+
+  /**
+   * Whether the player *means* to be playing, as the element was last told - and when it last swapped
+   * file. Together they let `onPause` tell a pause this provider asked for from one that came from
+   * outside (headphones pulled, a phone call), which is the one a follow has to respect.
+   */
+  const intendsToPlay = useRef(false);
+  const swappedAt = useRef(0);
+
   /**
    * True while the track on the display came through `assign` - handed over by a screen rather than
    * pressed off the shelf.
@@ -263,8 +304,43 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     const onTime = () => setElapsed(audio.currentTime);
     const onDuration = () => setDuration(audio.duration);
+    // The start a `play` asked for, now that the file is the right one (see `PlayStart`).
+    const onMetadata = () => {
+      const start = pendingStart.current;
+      pendingStart.current = null;
+
+      // Only for the file it was asked for: a start left over from a press whose file never loaded must
+      // not land on whatever loads next (a profile song starting at 2:13 for no visible reason).
+      if (start !== null && start.src === loadedSrc.current) {
+        if (start.at !== undefined && Number.isFinite(start.at)) {
+          const end = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.5) : start.at;
+          audio.currentTime = Math.max(0, Math.min(start.at, end));
+          setElapsed(audio.currentTime);
+        }
+
+        if (start.rate !== undefined) audio.playbackRate = start.rate;
+      }
+
+      // A load resets the element's rate on its own, so the state is read back from the element here:
+      // the follower compares against the state, and a state left at 2.9x over an element at 1x is a
+      // catch-up that believes it is running and never closes the gap.
+      setPlaybackRateState(audio.playbackRate);
+    };
+    const onRateChange = () => setPlaybackRateState(audio.playbackRate);
     const onPlay = () => setPlaying(true);
-    const onPause = () => setPlaying(false);
+    /**
+     * A pause the provider did not ask for - headphones pulled, a call, the OS - lets go of a follow.
+     * Without this the follower would see "host playing, me paused" and start the music again a second
+     * later, out of the speaker. The end of a file and the swap to a new one are not that, so both are
+     * excluded.
+     */
+    const onPause = () => {
+      if (intendsToPlay.current && !audio.ended && Date.now() - swappedAt.current > 2000) {
+        stopFollowing('THE PLAYER WAS PAUSED');
+      }
+
+      setPlaying(false);
+    };
     // A new file: the readout goes back to zero here rather than in the effect that
     // assigns the source, so nothing writes state while React is rendering.
     const onLoadStart = () => {
@@ -277,6 +353,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('loadedmetadata', onDuration);
+    audio.addEventListener('loadedmetadata', onMetadata);
+    audio.addEventListener('ratechange', onRateChange);
     audio.addEventListener('durationchange', onDuration);
     audio.addEventListener('play', onPlay);
     audio.addEventListener('pause', onPause);
@@ -286,6 +364,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     return () => {
       audio.removeEventListener('timeupdate', onTime);
       audio.removeEventListener('loadedmetadata', onDuration);
+      audio.removeEventListener('loadedmetadata', onMetadata);
+      audio.removeEventListener('ratechange', onRateChange);
       audio.removeEventListener('durationchange', onDuration);
       audio.removeEventListener('play', onPlay);
       audio.removeEventListener('pause', onPause);
@@ -376,7 +456,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     const audio = audioRef.current;
     if (audio === null) return;
 
+    intendsToPlay.current = playing;
+
     if (track !== undefined && loadedSrc.current !== track.src) {
+      swappedAt.current = Date.now();
       loadedSrc.current = track.src;
       audio.src = track.src;
       audio.load();
@@ -388,6 +471,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     audio.play().catch(() => {
+      intendsToPlay.current = false;
+      // A follow cannot carry on through a browser that will not play: the follower would ask again
+      // every second and the error would flash for ever.
+      stopFollowing('THE BROWSER WOULD NOT START IT');
+
       // A track that was handed over to be started by itself is the one case where a
       // refusal is not the end of it: browsers allow sound after the listener has touched
       // the page, so the first touch or keypress is spent starting it (see `armAutoplay`).
@@ -424,6 +512,14 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       if (repeatOnEnd(ownLoop, loop) === 'repeat') {
         audio.currentTime = 0;
         void audio.play().catch(() => setPlaying(false));
+        return;
+      }
+
+      // Following somebody: their next track is the one to play, not the shelf's, and the follower
+      // loads it the moment their row says what it is. Walking on to the shelf's next file here would
+      // play a few seconds of something unrelated first.
+      if (isFollowing()) {
+        setPlaying(false);
         return;
       }
 
@@ -506,17 +602,28 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
 
-    navigator.mediaSession.setActionHandler('play', () => setPlaying(true));
-    navigator.mediaSession.setActionHandler('pause', () => setPlaying(false));
-    navigator.mediaSession.setActionHandler('nexttrack', () => setIndex((current) => nextIndex(current, queue.length)));
-    navigator.mediaSession.setActionHandler('previoustrack', () =>
-      setIndex((current) => previousIndex(current, queue.length)),
+    // A headset's buttons are the reader's hands as much as the bar's are, so they end a follow too.
+    const mine = (action: () => void) => () => {
+      stopFollowing('YOU TOOK THE CONTROLS BACK');
+      action();
+    };
+
+    navigator.mediaSession.setActionHandler('play', mine(() => setPlaying(true)));
+    navigator.mediaSession.setActionHandler('pause', mine(() => setPlaying(false)));
+    navigator.mediaSession.setActionHandler(
+      'nexttrack',
+      mine(() => setIndex((current) => nextIndex(current, queue.length))),
+    );
+    navigator.mediaSession.setActionHandler(
+      'previoustrack',
+      mine(() => setIndex((current) => previousIndex(current, queue.length))),
     );
   }, [playing, queue.length, track]);
 
 
   const toggle = useCallback(() => {
     setError(null);
+    stopFollowing('YOU TOOK THE CONTROLS BACK');
 
     if (track === undefined) {
       setError('THERE IS NOTHING ON THE SHELF TO PLAY YET.');
@@ -535,6 +642,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * how every other control here asks for silence.
    */
   const stop = useCallback(() => {
+    stopFollowing('YOU TOOK THE CONTROLS BACK');
     const audio = audioRef.current;
     if (audio !== null) audio.currentTime = 0;
 
@@ -543,17 +651,23 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const next = useCallback(() => {
     setError(null);
+    pendingStart.current = null;
+    stopFollowing('YOU TOOK THE CONTROLS BACK');
     setIndex((current) => nextIndex(current, queue.length));
   }, [queue.length]);
 
   const previous = useCallback(() => {
     setError(null);
+    pendingStart.current = null;
+    stopFollowing('YOU TOOK THE CONTROLS BACK');
     setIndex((current) => previousIndex(current, queue.length));
   }, [queue.length]);
 
   const playAt = useCallback(
     (target: number) => {
       setError(null);
+    pendingStart.current = null;
+      stopFollowing('YOU TOOK THE CONTROLS BACK');
       setIndex(Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0)));
       setPlaying(true);
     },
@@ -568,9 +682,26 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * plays that song rather than the shelf's next track.
    */
   const play = useCallback(
-    (wanted: AudioTrack, origin?: PlayOrigin) => {
+    (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => {
+      if (start?.follow !== true) stopFollowing('YOU PICKED SOMETHING ELSE');
+
       playedFrom.current = origin ?? null;
       handedOver.current = false;
+
+      // The same file already loaded will not fire `loadedmetadata` again, so its start is applied
+      // here; a new file's waits for the load (see `PlayStart`).
+      const audio = audioRef.current;
+
+      if (start !== undefined && audio !== null && loadedSrc.current === wanted.src) {
+        pendingStart.current = null;
+        if (start.at !== undefined && Number.isFinite(start.at)) {
+          audio.currentTime = Math.max(0, start.at);
+          setElapsed(audio.currentTime);
+        }
+        if (start.rate !== undefined) audio.playbackRate = start.rate;
+      } else {
+        pendingStart.current = start === undefined ? null : { ...start, src: wanted.src };
+      }
 
       // The GIF rule: a file short enough to behave like an animation keeps playing instead of
       // handing the player on. It is the track's own repeat, not the shelf's switch, because the
@@ -633,7 +764,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    */
   const assign = useCallback(
     (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => {
+      // A hand-over is automatic - a profile's song arriving because a page was opened - so it does not
+      // get to break a follow the reader chose. Nobody pressed anything.
+      if (isFollowing()) return;
+
       setError(null);
+      pendingStart.current = null;
       playedFrom.current = options?.origin ?? null;
       handedOver.current = true;
 
@@ -659,7 +795,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     [queue],
   );
 
-  const seek = useCallback((seconds: number) => {
+  const steer = useCallback((wanted: boolean) => setPlaying(wanted), []);
+
+  const seek = useCallback((seconds: number, options?: { follow?: boolean }) => {
+    if (options?.follow !== true) stopFollowing('YOU MOVED THE PLAYHEAD');
+
     const audio = audioRef.current;
     if (audio === null || !Number.isFinite(seconds)) return;
 
@@ -707,6 +847,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       next,
       previous,
       play,
+      steer,
       assign,
       playAt,
       setVolume,
@@ -737,6 +878,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       next,
       previous,
       play,
+      steer,
       assign,
       playAt,
       setVolume,

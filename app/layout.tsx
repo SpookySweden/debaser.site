@@ -3,6 +3,7 @@ import { Silkscreen } from 'next/font/google';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
 import BroadcastHeartbeat from './components/BroadcastHeartbeat';
+import QueueFollower from './components/QueueFollower';
 import AuthProvider from './components/AuthProvider';
 import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
@@ -92,6 +93,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           window that started it is open - so the heartbeat is drawn by the shell, next to
                           the player whose clock it reads, and not inside the queue window. */}
                       <BroadcastHeartbeat />
+                      <QueueFollower />
                       {/* The site's two utility windows, drawn once and docked beside whatever is
                           being read rather than being pages of their own: the arcade (a post's
                           `[ CHALLENGE ]`, the side panel's key or the bell) and the music window (the

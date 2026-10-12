@@ -640,8 +640,13 @@ class SupabaseMusicRepository implements MusicRepository {
     const client = getSupabaseBrowserClient();
     if (client === null) return () => undefined;
 
+    // A name of its own per subscription. Supabase hands back the *same* channel for the same name, so
+    // when the list and the follower both listened on `music-queues`, the second one added a callback to
+    // an already-subscribed channel - which throws, and took the whole page down mid-follow.
+    queueChannelCount += 1;
+
     const channel = client
-      .channel('music-queues')
+      .channel(`music-queues-${queueChannelCount}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: QUEUES_TABLE }, () => onChange())
       .subscribe();
 
@@ -650,6 +655,9 @@ class SupabaseMusicRepository implements MusicRepository {
     };
   }
 }
+
+/** Numbers each queue subscription's channel, so no two share a name (see `subscribeToQueues`). */
+let queueChannelCount = 0;
 
 let supabaseMusicRepository: MusicRepository | null = null;
 

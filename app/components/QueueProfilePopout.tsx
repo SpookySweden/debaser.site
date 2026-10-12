@@ -1,21 +1,28 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import {
-  catchUpRate,
-  distanceSeconds,
-  livePositionSeconds,
-  queueState,
-  queueStateLabel,
+  hostPositionSeconds,
+  hostState,
+  hostStateLabel,
   queueTrackBadge,
   resolveQueueTrack,
   unresolvedTrackTitle,
   type BroadcastQueue,
+  type HostState,
 } from '../lib/audio/broadcast';
 import { formatClock } from '../lib/audio/format';
+import {
+  CATCH_UP_LEAD_SECONDS,
+  followState,
+  startFollowing,
+  stopFollowing,
+  subscribeToFollow,
+} from '../lib/audio/follow';
 import { QUEUES_LIST_HREF } from '../lib/audio/queue-window';
 import { saveLoop } from '../lib/audio/loops';
+import { useQueueName } from '../lib/audio/use-queue-name';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
 /**
@@ -23,15 +30,17 @@ import { useMusicPlayer } from './MusicPlayerProvider';
  *
  * Condensed on purpose. The brief asks for a small card rather than a profile page, and that is also
  * what the site wants: this is a *decision* - listen along or do not - and a card holding a picture, a
- * bio and a wall of tags would be a profile that happens to have a play button. What is here is the
- * track, where they are in it, how far off you are, and the keys.
+ * bio and a wall of tags would be a profile that happens to have a play button.
  *
- * **`CATCH UP` and `SKIP AHEAD` are the same mechanism at two speeds**, which is the whole reason there
- * are two keys rather than one. Both play the host's track from where the host *is*:
+ * **`CATCH UP` and `SKIP AHEAD` both start a follow**, and differ only in where you land:
  *
- *   - `SKIP AHEAD` seeks straight there. Instant, and a jump - you miss whatever was between.
- *   - `CATCH UP` plays it from here at speed, easing back to normal as it closes (`catchUpRate`). You
- *     hear the part you missed, compressed.
+ *   - `SKIP AHEAD` puts you exactly where they are. Instant, and a jump.
+ *   - `CATCH UP` starts you `CATCH_UP_LEAD_SECONDS` back and plays fast until you are level, so you hear
+ *     the last stretch of what they played, compressed.
+ *
+ * From then on `QueueFollower` keeps you with them - their next track, their pauses - until you press
+ * something yourself or UNFOLLOW (`follow.ts`). The speed is the follower's to set and hand back, not
+ * this card's: it used to live here, and closing the card dropped a catch-up back to 1x halfway.
  *
  * Either way the shared player is taken over, and whatever was playing is saved into RADI-OH first - the
  * contract `app/lib/audio/loops.ts` describes. It is done *here*, at the moment of takeover, because
@@ -40,14 +49,18 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 export default function QueueProfilePopout({
   queue,
   now,
+  mine,
   onClose,
 }: {
   queue: BroadcastQueue;
   now: number;
+  /** True when this is the reader's own queue - which they can read, but not follow. */
+  mine: boolean;
   onClose: () => void;
 }) {
   const player = useMusicPlayer();
-  const [joined, setJoined] = useState(false);
+  const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
+  const name = useQueueName(queue.userId);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -58,51 +71,25 @@ export default function QueueProfilePopout({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  /**
-   * Eases the speed back to normal once the gap is closed, and puts it back when this card goes away.
-   *
-   * The reset on unmount is the important half and it is not tidiness: the audio element is shared with
-   * the whole site, so a card that closed while still at 1.6x would leave every later track - a profile's
-   * song, the shelf's own playback - running fast, with nothing on screen to explain why. `playbackRate`
-   * is player state, so the component that changed it is the one that has to hand it back.
-   */
-  useEffect(() => {
-    if (!joined) return;
-
-    const timer = window.setInterval(() => {
-      const live = livePositionSeconds(queue, Date.now());
-      const rate = catchUpRate(live - player.elapsed);
-
-      player.setPlaybackRate(rate);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(timer);
-      player.setPlaybackRate(1);
-    };
-  }, [joined, player, queue]);
-
-  const written = Date.parse(queue.updatedAt);
-  const ageSeconds = Number.isNaN(written) ? 0 : Math.max(0, (now - written) / 1000);
-  const distance = distanceSeconds(queue, player.elapsed, now);
-  const state = queueState(distance, ageSeconds);
-
+  const state = hostState(queue, now);
+  const where = hostPositionSeconds(queue, now);
   const track = resolveQueueTrack(queue, player.queue);
   const title = track?.title ?? unresolvedTrackTitle(queue);
-  const rate = catchUpRate(distance);
+  const following = follow.hostId === queue.userId;
 
   /**
-   * Take the player over, keeping what was displaced.
+   * Take the player over, keeping what was displaced, and start following.
    *
    * The order matters and is the whole of the contract: **save first, then displace.** A save after the
    * play would record the *host's* track as the loop, which is the opposite of the point - the reader
    * would have lost the thing they were listening to and gained a loop back to where they just went.
    *
-   * `rate` is how fast to play while catching up; `1` is the skip-ahead case, where there is nothing to
-   * make up. It is set *after* the play, because `play` swaps the source and a browser resets
-   * `playbackRate` to 1 when a new file loads - so a rate set first would be thrown away.
+   * The start position goes *with* the play rather than as a seek after it, because the file is not
+   * loaded yet when `play` returns (`PlayStart` in the provider explains the bug that was).
    */
-  const takeOver = (rate: number) => {
+  const takeOver = (lead: number) => {
+    if (track === undefined) return;
+
     const playing = player.track;
 
     if (playing !== undefined && playing.src !== queue.trackId) {
@@ -112,20 +99,19 @@ export default function QueueProfilePopout({
         positionSeconds: player.elapsed,
         kind: 'taken-over',
         origin: 'own',
-        displacedBy: queue.userId.slice(0, 8),
+        displacedBy: name,
       });
     }
 
-    if (track !== undefined) {
-      player.play(track, {
-        origin: 'queue',
-        href: QUEUES_LIST_HREF,
-        where: 'THE QUEUES LIST',
-      });
-    }
+    const live = hostPositionSeconds(queue, Date.now());
 
-    player.setPlaybackRate(rate);
-    setJoined(true);
+    player.play(
+      track,
+      { origin: 'queue', href: QUEUES_LIST_HREF, where: 'THE QUEUES LIST' },
+      { at: Math.max(0, live - lead), rate: 1, follow: true },
+    );
+
+    startFollowing(queue.userId, name);
   };
 
   return (
@@ -158,15 +144,20 @@ export default function QueueProfilePopout({
 
         <QueueCardBody
           queue={queue}
+          name={name}
           title={title}
           state={state}
-          rate={rate}
-          distance={distance}
-          joined={joined}
-          onTakeOver={() => takeOver(rate)}
-          onSkip={() => {
-            takeOver(1);
-            player.seek(livePositionSeconds(queue, Date.now()));
+          where={where}
+          playable={track !== undefined}
+          mine={mine}
+          following={following}
+          catchingUp={following && follow.catchingUp}
+          behind={following ? where - player.elapsed : 0}
+          onCatchUp={() => takeOver(CATCH_UP_LEAD_SECONDS)}
+          onSkip={() => takeOver(0)}
+          onUnfollow={() => {
+            player.setPlaybackRate(1);
+            stopFollowing('YOU UNFOLLOWED');
           }}
           onClose={onClose}
         />
@@ -175,69 +166,109 @@ export default function QueueProfilePopout({
   );
 }
 
-/** The card's own body: the readout, how far off you are, and the keys. */
+/** The card's own body: the readout, where you stand with them, and the keys. */
 function QueueCardBody({
   queue,
+  name,
   title,
   state,
-  rate,
-  distance,
-  joined,
-  onTakeOver,
+  where,
+  playable,
+  mine,
+  following,
+  catchingUp,
+  behind,
+  onCatchUp,
   onSkip,
+  onUnfollow,
   onClose,
 }: {
   queue: BroadcastQueue;
+  name: string;
   title: string;
-  state: ReturnType<typeof queueState>;
-  rate: number;
-  distance: number;
-  joined: boolean;
-  onTakeOver: () => void;
+  state: HostState;
+  where: number;
+  playable: boolean;
+  mine: boolean;
+  following: boolean;
+  catchingUp: boolean;
+  /** Seconds you are behind them - meaningful only while following, and zero otherwise. */
+  behind: number;
+  onCatchUp: () => void;
   onSkip: () => void;
+  onUnfollow: () => void;
   onClose: () => void;
 }) {
+  const canFollow = !mine && !following && playable && state !== 'silent';
+
   return (
     <div className="space-y-2 p-3">
       <p className="text-[11px] font-bold text-ink">
-        {queue.userId.slice(0, 8)}...
-        <span className="ml-2 font-normal text-ink-plate">{queueTrackBadge(queue)}</span>
+        {mine ? 'YOU' : name}
+        <span className="ml-2 font-normal text-ink-quiet">TRACK {queueTrackBadge(queue)}</span>
       </p>
 
       <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
         <p className="truncate text-[12px] font-bold text-acid">{title}</p>
-        <p className="truncate text-[9px] text-ink-quiet">
-          {formatClock(Math.max(0, queue.positionSeconds))} IN ::{' '}
-          <span className={state === 'live' ? 'text-acid' : 'text-sun'}>{queueStateLabel(state)}</span>
-          {rate > 1 ? ` :: CATCHING UP AT ${rate.toFixed(1)}x` : ''}
+        <p className="truncate text-[9px] text-ink-bar">
+          {formatClock(where)} IN ::{' '}
+          <span className={state === 'live' ? 'text-acid' : 'text-sun'}>{hostStateLabel(state)}</span>
         </p>
       </div>
 
-      <p className="text-[10px] text-ink-plate">
-        {state === 'silent'
-          ? 'THEY HAVE NOT MOVED THIS IN A WHILE, SO NOTHING IS PLAYING.'
-          : distance > 0
-            ? `${Math.round(distance)} SECONDS BEHIND THEM.`
-            : `${Math.round(-distance)} SECONDS AHEAD OF THEM.`}
+      <p className="text-[10px] text-ink-quiet">
+        {mine
+          ? 'THIS IS YOUR OWN QUEUE - THIS IS WHAT EVERYBODY ELSE SEES.'
+          : following
+            ? catchingUp
+              ? `FOLLOWING ${name}. ${Math.round(Math.max(0, behind))} SECONDS BEHIND - PLAYING FAST TO CATCH UP.`
+              : `FOLLOWING ${name}. YOU ARE LEVEL WITH THEM.`
+            : !playable
+              ? 'THEY ARE PLAYING A FILE THIS SHELF DOES NOT HOLD, SO IT CANNOT BE FOLLOWED.'
+              : state === 'silent'
+                ? 'THEY HAVE NOT MOVED THIS IN A WHILE, SO THERE IS NOTHING TO FOLLOW.'
+                : state === 'paused'
+                  ? 'THEY HAVE PAUSED. FOLLOW AND YOU WILL START WHEN THEY DO.'
+                  : 'FOLLOW AND YOUR PLAYER STAYS WITH THEIRS - THEIR NEXT TRACK, THEIR PAUSES - UNTIL YOU PRESS SOMETHING YOURSELF.'}
       </p>
 
       <p className="flex flex-wrap gap-2 pt-1">
-        <button type="button" onClick={onTakeOver} className={PLATE}>
-          [ CATCH UP ]
-        </button>
-        <button type="button" onClick={onSkip} className={PLATE}>
-          [ SKIP AHEAD ]
-        </button>
+        {following ? (
+          <button type="button" onClick={onUnfollow} className={PLATE}>
+            [ UNFOLLOW ]
+          </button>
+        ) : mine ? null : (
+          <>
+            <button
+              type="button"
+              onClick={onCatchUp}
+              disabled={!canFollow}
+              title="Start a little behind them and play fast until you are level"
+              className={PLATE}
+            >
+              [ CATCH UP ]
+            </button>
+            <button
+              type="button"
+              onClick={onSkip}
+              disabled={!canFollow}
+              title="Jump straight to where they are"
+              className={PLATE}
+            >
+              [ SKIP AHEAD ]
+            </button>
+          </>
+        )}
         <button type="button" onClick={onClose} className={PLATE}>
-          [ LEAVE IT ]
+          {following || mine ? '[ CLOSE ]' : '[ LEAVE IT ]'}
         </button>
       </p>
 
-      <p className="text-[9px] text-ink-plate">
-        {joined
-          ? 'FOLLOWING. WHAT YOU WERE PLAYING IS IN RADI-OH.'
-          : 'FOLLOWING TAKES THE PLAYER OVER. WHAT YOU HAVE NOW IS KEPT IN RADI-OH.'}
-      </p>
+      {following || mine ? null : (
+        <p className="text-[9px] text-ink-quiet">
+          FOLLOWING TAKES THE PLAYER OVER. WHAT YOU HAVE NOW IS KEPT IN RADI-OH.
+        </p>
+      )}
     </div>
   );
 }

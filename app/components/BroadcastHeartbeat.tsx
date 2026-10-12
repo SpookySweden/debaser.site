@@ -15,7 +15,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
  * writing whether or not anybody is looking at the window that started it, so the two are separate
  * things: the switch says "publish me", and this says "and here is where I am".
  *
- * **The row has to move or it reads as dead.** `queueState` marks a queue `silent` after
+ * **The row has to move or it reads as dead.** `hostState` marks a queue `silent` after
  * `QUEUE_STALE_SECONDS`, so a host who goes public and then reads a thread would fall off the list's
  * lamps - not because they stopped listening, but because nobody was writing. A heartbeat is what makes
  * `SILENT` mean "they stopped" rather than "nobody has typed a number in a while".
@@ -46,15 +46,28 @@ export default function BroadcastHeartbeat() {
    * Written in an effect, not during render: a ref touched while rendering is a value React cannot see
    * change, which is the fault the lint rule is there to catch.
    */
-  const clock = useRef({ position: 0, playing: false, rate: 1 });
+  const clock = useRef({ position: 0, playing: false, src: null as string | null });
 
   useEffect(() => {
     clock.current = {
-      position: player.elapsed,
+      // A new track: `elapsed` still holds the *old* file's clock until the element reports the new
+      // load, and the write a track change triggers (below) would otherwise tell every follower to start
+      // the new song at the old one's time - an audible jump on every change of track.
+      position: clock.current.src !== trackId ? 0 : player.elapsed,
       playing: player.playing,
-      rate: player.playbackRate,
+      src: trackId,
     };
-  }, [player.elapsed, player.playing, player.playbackRate]);
+  }, [player.elapsed, player.playing, trackId]);
+
+  /**
+   * Play and pause are written the moment they happen, not on the next beat.
+   *
+   * A listener reads a row that has gone quiet as a paused host (`QUEUE_PAUSED_SECONDS`), so the pause
+   * write is what pins the stored position to where the host actually stopped - and the play write is
+   * what wakes a follower who paused with them. It is in the interval effect's dependencies below for
+   * exactly that: a change restarts the effect, and the effect publishes once before it starts ticking.
+   */
+  const playing = player.playing;
 
   /**
    * Whether this account is broadcasting, re-read when they sign in or the switch is pressed.
@@ -111,12 +124,12 @@ export default function BroadcastHeartbeat() {
     let lastPublished = -1;
 
     const publish = () => {
-      const { position, playing, rate } = clock.current;
-      const at = publishablePosition(position, playing, rate);
+      const { position, playing: running } = clock.current;
+      const at = publishablePosition(position);
 
       // Nothing to say: a paused listener whose position has not moved. The row keeps its last write and
       // ages into `SILENT` on its own, which is the honest answer - they are not playing anything.
-      if (!shouldPublish(at, lastPublished, playing)) return;
+      if (!shouldPublish(at, lastPublished, running)) return;
 
       lastPublished = at;
 
@@ -141,7 +154,7 @@ export default function BroadcastHeartbeat() {
     const timer = window.setInterval(publish, QUEUE_HEARTBEAT_MS);
 
     return () => window.clearInterval(timer);
-  }, [broadcasting, index, repository, total, trackId, userId]);
+  }, [broadcasting, index, playing, repository, total, trackId, userId]);
 
   return null;
 }

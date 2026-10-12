@@ -4,6 +4,7 @@ import { useCallback, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { formatClock, formatClockOrNothing } from '../lib/audio/format';
 import { trackCaption } from '../lib/audio/tracks';
+import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
 import {
   musicAddressSpentByClose,
   musicScreenForHref,
@@ -238,9 +239,25 @@ type BarControls = {
  * had: `[ HIDE ]` closed the strip from the opposite end to everything else, so the key that puts the
  * player away was the furthest thing from the key that plays it.
  */
+/**
+ * What the bar says about following, ahead of the track's own caption.
+ *
+ * Said on the bar because that is where a reader looks when the music changes under them - a follow
+ * moves the player on its own, and a bar that did not say why would look like a player with a mind of
+ * its own. The end of a follow is said once too, so a reader who pressed pause knows they let go.
+ */
+function followNote(follow: FollowState): string {
+  if (follow.hostId !== null) {
+    return `FOLLOWING ${follow.hostName}${follow.catchingUp ? ' >> CATCHING UP' : ''} :: `;
+  }
+
+  return follow.ended === null ? '' : `STOPPED FOLLOWING - ${follow.ended} :: `;
+}
+
 function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
+  const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const progress = Number.isFinite(duration) && duration > 0 ? elapsed / duration : 0;
 
   /**
@@ -323,7 +340,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             <MarqueeText
               className="mt-1 block text-[9px] text-ink-bar"
               durationSeconds={22}
-              text={`${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
+              text={`${followNote(follow)}${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
             />
             <span className="mt-1 block h-1 w-full bg-ena-deep">
               <span className="block h-1 bg-acid" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -578,6 +595,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
 function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
+  const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
   const seekable = lengthSeconds > 0;
 
@@ -638,6 +656,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           </p>
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
           <p className="truncate text-[9px] text-ink-bar">
+            {followNote(follow)}
             {error ?? trackCaption(track)}
             {loop ? ' :: LOOPING' : ''}
           </p>

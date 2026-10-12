@@ -1,19 +1,20 @@
-import { QUEUE_STALE_SECONDS } from './broadcast';
+import { QUEUE_PAUSED_SECONDS } from './broadcast';
 
 /**
- * How often a broadcasting host tells the database where they are.
+ * How often a broadcasting host tells the database where they are, while playing.
  *
- * **The number is the contract.** `queueState` calls a queue `silent` once its row has not moved for
- * `QUEUE_STALE_SECONDS`, so a heartbeat slower than that would make a *working* broadcast read as dead -
- * which is the exact lie this module exists to prevent. Half the window leaves room for one dropped
- * write, a slow network and a background tab throttling timers, and still lands inside it.
+ * **The number is the contract, and it is set by the pause, not by the staleness window.** A listener
+ * reads a row that has gone quiet for `QUEUE_PAUSED_SECONDS` as a host who paused (there is no "paused"
+ * column; the silence is the signal). So a playing host has to write comfortably inside that, or a
+ * follower would pause along with a host who is still playing. Under half leaves room for a dropped
+ * write and a slow network.
  *
- * A backgrounded tab is the case that decides it: every browser throttles `setInterval` in a tab nobody
- * is looking at, to roughly once a minute, and a broadcast that goes quiet when its owner reads another
- * page is not a broadcast. So the interval is derived rather than chosen, and a change to
- * `QUEUE_STALE_SECONDS` moves it here too.
+ * It used to be half of the ninety-second staleness window, and that was the fault behind followers
+ * drifting: a host who paused or skipped went unheard for up to 45 seconds. A tab that is playing audio
+ * is not throttled by the browser the way an idle background tab is, so a short interval holds while
+ * the host reads another page.
  */
-export const QUEUE_HEARTBEAT_MS = Math.floor((QUEUE_STALE_SECONDS * 1000) / 2);
+export const QUEUE_HEARTBEAT_MS = Math.min(4000, Math.floor((QUEUE_PAUSED_SECONDS * 1000) / 2));
 
 /**
  * Whether a write is worth making.
@@ -44,17 +45,16 @@ export function shouldPublish(position: number, lastPublished: number, playing: 
 /**
  * Where to publish from, given what the player is showing.
  *
- * Separate from the publishing so the arithmetic can be read on its own, and it is one line of meaning
- * worth stating: the value written is where the host is *now*, and the `updated_at` the database stamps
+ * The value written is where the host is *now* in the track, and the `updated_at` the database stamps
  * is when that was true. The pair is the whole protocol (`broadcast.ts`).
+ *
+ * **The rate is not applied, and that is a correction.** This used to divide the clock by the playback
+ * rate, on the idea that a catch-up at 2x put the clock ahead of the track. It does not: `elapsed` is
+ * the element's `currentTime`, which *is* the position in the file at any speed. Dividing it told every
+ * listener a host who was catching up was half as far in as they really were.
  */
-export function publishablePosition(elapsed: number, playing: boolean, rate: number): number {
+export function publishablePosition(elapsed: number): number {
   if (!Number.isFinite(elapsed)) return 0;
 
-  // A catch-up runs the element faster than the track really goes, so the displayed clock is ahead of
-  // the file's own position - but a *broadcast* is where you are in the track, and playing at 2x does not
-  // move you twice as far through it. Dividing the elapsed clock by the rate gives the real position.
-  const real = playing && rate > 0 ? elapsed / rate : elapsed;
-
-  return Math.max(0, real);
+  return Math.max(0, elapsed);
 }

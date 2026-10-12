@@ -28,30 +28,90 @@ export type BroadcastQueue = {
   startedAt: string;
 };
 
-/** How close a listener has to be to count as live, in seconds. */
-export const LIVE_WINDOW_SECONDS = 8;
-
-/**
- * How far behind a listener may fall before the list calls it DELAY. A little wider than the live
- * window, so the label does not flicker between the two on the boundary - a lamp that changes colour
- * every second is a lamp nobody trusts.
- */
-export const DELAY_WINDOW_SECONDS = 15;
-
-/** The fastest catch-up will play. Past this it stops being "catching up" and starts being a chipmunk. */
-export const MAX_CATCH_UP_RATE = 4;
-
 /** A queue nobody has touched for this long is not live any more, whatever the row says. */
 export const QUEUE_STALE_SECONDS = 90;
 
 /**
- * A queue's state, as the Queues tab draws it.
+ * How long a row may sit unwritten before the host is read as *paused* rather than playing.
  *
- * `live` is the state a listener wants and the one the tab counts; `delayed` is the one with something
- * to do about it (`catchUpRate`); `silent` is a queue that is up but has not moved in long enough that
- * it is no longer playing - somebody closed their laptop.
+ * A playing host writes every `QUEUE_HEARTBEAT_MS` (a few seconds) and writes once more the moment
+ * they pause, so a row that has gone quiet for longer than a couple of beats is a host who stopped the
+ * tape. Without this the arithmetic would happily walk a paused host's position forward for the full
+ * ninety seconds before calling it silent, and a follower would play on into music the host is not
+ * hearing. `heartbeat.ts` holds its interval to well under this.
  */
-export type QueueState = 'live' | 'delayed' | 'silent';
+export const QUEUE_PAUSED_SECONDS = 10;
+
+/**
+ * A row this old is not shown at all.
+ *
+ * `SILENT` is for somebody who stopped a minute ago and may be back; a row from last week is a
+ * broadcast that was never switched off, and listing it beside the live ones is how the list came to
+ * carry a queue from 26 September reading NOT PLAYING. It is still the owner's row - only the list
+ * stops drawing it.
+ */
+export const QUEUE_GONE_SECONDS = 30 * 60;
+
+/**
+ * What a host is doing, as the list draws it - judged from the host's own row and nothing else.
+ *
+ * **This is about the host, not about you.** The old lamp measured the distance between the host and
+ * *whatever this player happened to be on*, so a reader who had never followed anybody was told they
+ * were 4095 seconds behind and catching up at 4x. How far behind *you* are only means something for
+ * the one queue you are following, and that is `followStep`'s business (`follow.ts`).
+ */
+export type HostState = 'live' | 'paused' | 'silent';
+
+/**
+ * How far this device's clock runs ahead of the database's, in milliseconds - as best it can be told.
+ *
+ * `updated_at` is stamped by the database's clock and read against this device's, so a device a dozen
+ * seconds fast would see every live host as PAUSED (the pause window is ten seconds). Each time a change
+ * arrives by realtime, the newest row in it was written a moment ago, so `now - updated_at` is the skew
+ * plus a little network delay; the smallest of the recent readings is the best estimate. Zero until
+ * the first reading, which is the old behaviour.
+ */
+const skewReadings: number[] = [];
+
+export function calibrateClock(queues: BroadcastQueue[], now: number): void {
+  const newest = Math.max(...queues.map((queue) => Date.parse(queue.updatedAt)).filter((at) => !Number.isNaN(at)));
+  if (!Number.isFinite(newest)) return;
+
+  const reading = now - newest;
+
+  // A change that was a delete leaves an older row as the newest, which would read as a huge skew. Real
+  // clocks are seldom two minutes out; a reading past that is the wrong row, not the clock.
+  if (Math.abs(reading) > 120000) return;
+
+  skewReadings.push(reading);
+  if (skewReadings.length > 12) skewReadings.shift();
+}
+
+/** The estimate, once there are two readings to take the smaller of - one alone could be a stale row. */
+export function clockSkewMs(): number {
+  return skewReadings.length < 2 ? 0 : Math.min(...skewReadings);
+}
+
+/** Forgets the readings - for the checks, which run several clocks in one process. */
+export function resetClockSkew(): void {
+  skewReadings.length = 0;
+}
+
+/** Seconds since the host last wrote their row, on the database's clock; zero for an unreadable stamp. */
+export function queueAgeSeconds(queue: BroadcastQueue, now: number): number {
+  const written = Date.parse(queue.updatedAt);
+
+  return Number.isNaN(written) ? 0 : Math.max(0, (now - clockSkewMs() - written) / 1000);
+}
+
+export function hostState(queue: BroadcastQueue, now: number): HostState {
+  const age = queueAgeSeconds(queue, now);
+
+  if (age > QUEUE_STALE_SECONDS) return 'silent';
+  if (age > QUEUE_PAUSED_SECONDS) return 'paused';
+
+  return 'live';
+}
 
 /**
  * Where the host *should* be now, in seconds.
@@ -65,64 +125,40 @@ export type QueueState = 'live' | 'delayed' | 'silent';
  * otherwise give a negative position and the audio would be asked to seek before the start.
  */
 export function livePositionSeconds(queue: BroadcastQueue, now: number): number {
-  const written = Date.parse(queue.updatedAt);
-  if (Number.isNaN(written)) return Math.max(0, queue.positionSeconds);
-
-  const ageSeconds = Math.max(0, (now - written) / 1000);
-
-  return Math.max(0, queue.positionSeconds + ageSeconds);
-}
-
-/** How far one listener is from a host, in seconds. Negative means they are *ahead*. */
-export function distanceSeconds(queue: BroadcastQueue, listenerSeconds: number, now: number): number {
-  return livePositionSeconds(queue, now) - listenerSeconds;
+  return Math.max(0, queue.positionSeconds + queueAgeSeconds(queue, now));
 }
 
 /**
- * Which of the three states a queue is in, judged on the clock.
- *
- * `ageSeconds` is how long since the host last moved. A queue that has not moved in
- * `QUEUE_STALE_SECONDS` is `silent` however live its position looks: the arithmetic would happily walk
- * the position forward for as long as the row existed, so something has to stop it, and that something
- * is the age of the write rather than the position it carries.
- *
- * The two windows overlap deliberately - between `LIVE_WINDOW_SECONDS` and `DELAY_WINDOW_SECONDS` a
- * listener still reads as live, so the label does not flicker on the boundary.
+ * Where the host is, allowing for a pause: walked forward while they are live, held where they
+ * stopped once the row has gone quiet. A paused host's last write is the moment they paused
+ * (`BroadcastHeartbeat` writes on the pause itself), so the stored position is exactly right.
  */
-export function queueState(distance: number, ageSeconds: number): QueueState {
-  if (ageSeconds > QUEUE_STALE_SECONDS) return 'silent';
-  if (Math.abs(distance) <= DELAY_WINDOW_SECONDS) return 'live';
-
-  return 'delayed';
+export function hostPositionSeconds(queue: BroadcastQueue, now: number): number {
+  return hostState(queue, now) === 'live' ? livePositionSeconds(queue, now) : Math.max(0, queue.positionSeconds);
 }
 
 /**
- * The speed to play at while catching up: 1 when there is nothing to do, up to `MAX_CATCH_UP_RATE`.
+ * The rows worth listing: anything written in the last half hour, live ones first.
  *
- * Proportional rather than stepped, because the brief asks for a catch-up that is *organic* - the
- * further behind you are the faster it goes, and it eases back to normal as it closes. A fixed 2x would
- * overshoot a two-second gap and crawl through a two-minute one.
- *
- * Only ever *forward*. A listener who is ahead of the host is not slowed down (a rate below 1 sounds
- * broken and stretches the track); they simply wait, which happens on its own because the host's
- * position keeps moving forward too.
+ * Sorted here rather than trusted from the database's `updated_at` order, because two live hosts
+ * swap places every heartbeat under that order and a list that reshuffles every four seconds is a list
+ * nobody can press a row on.
  */
-export function catchUpRate(distance: number): number {
-  if (!Number.isFinite(distance) || distance <= LIVE_WINDOW_SECONDS) return 1;
+export function visibleQueues(queues: BroadcastQueue[], now: number): BroadcastQueue[] {
+  const rank: Record<HostState, number> = { live: 0, paused: 1, silent: 2 };
 
-  // One second of gap buys a tenth of a rate step, so a 30-second gap is about 3x and a long one caps.
-  const rate = 1 + (distance - LIVE_WINDOW_SECONDS) / 10;
-
-  return Math.min(MAX_CATCH_UP_RATE, rate);
+  return queues
+    .filter((queue) => queueAgeSeconds(queue, now) <= QUEUE_GONE_SECONDS)
+    .sort((a, b) => rank[hostState(a, now)] - rank[hostState(b, now)] || a.userId.localeCompare(b.userId));
 }
 
-/** The queue's own words, for the row and the pop-out: the site says what is true, not "loading". */
-export function queueStateLabel(state: QueueState): string {
+/** The host's state in the list's own words. */
+export function hostStateLabel(state: HostState): string {
   switch (state) {
     case 'live':
       return 'LIVE';
-    case 'delayed':
-      return 'DELAY';
+    case 'paused':
+      return 'PAUSED';
     case 'silent':
       return 'SILENT';
   }
