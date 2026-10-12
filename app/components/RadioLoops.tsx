@@ -9,14 +9,15 @@ import {
   GLOBE,
   clearAllLoops,
   clearLoop,
+  loopFace,
   loopLabel,
+  loopNotes,
   loopServerState,
   loopState,
-  originInk,
   originLabel,
-  originMark,
   originWhereLabel,
   subscribeToLoops,
+  type LoopMood,
   type LoopSource,
 } from '../lib/audio/loops';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -29,8 +30,10 @@ import LoopPopout from './LoopPopout';
  * one returning you to where you actually were in it rather than to its beginning. Anything that plays
  * lands here - a file from the music window, somebody's profile song, a track heard by following a queue.
  *
- * **An icon is only an icon.** The resting cell is the glyph and nothing else, and the glyph *is* the
- * button: there is no plate around it. A cell carrying a title, a clock and an origin line is a list
+ * **An icon is only an icon - and it is a face.** The resting cell is a text-character face and nothing
+ * else (`loopFace`): its frame says where the track came from (headphones, a picture frame, radio
+ * waves) and its expression answers the pointer - it perks up and hops when pointed at, winces when
+ * pressed, panics when the pointer is on its X, and sings while its track is the one playing. A cell carrying a title, a clock and an origin line is a list
  * wearing a grid's clothes, which is what this was before the brief corrected it.
  *
  * What the grid withholds is said in two places:
@@ -68,7 +71,7 @@ export default function RadioLoops() {
         <span>[ {loops.length} ]</span>
       </div>
 
-      <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">
+      <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-quiet">
         EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT AN ICON TO SEE WHERE YOU GOT IT FROM, AND
         PRESS IT TO GO BACK TO WHERE YOU WERE IN IT.
       </p>
@@ -86,6 +89,7 @@ export default function RadioLoops() {
                 key={loop.id}
                 loop={loop}
                 label={loopLabel(loop, player.queue)}
+                singing={player.playing && player.track?.src === loop.trackId}
                 onOpen={() => setOpen(loop)}
                 onClear={() => clearLoop(loop.id)}
               />
@@ -105,11 +109,40 @@ export default function RadioLoops() {
       )}
 
       {open === null ? null : (
-        <LoopPopout loop={open} label={loopLabel(open, player.queue)} onClose={() => setOpen(null)} />
+        <LoopPopout
+          loop={open}
+          label={loopLabel(open, player.queue)}
+          onRemove={() => {
+            clearLoop(open.id);
+            setOpen(null);
+          }}
+          onClose={() => setOpen(null)}
+        />
       )}
     </section>
   );
 }
+
+/**
+ * Each mood's tile and ink - pairs, because a face's colour only means anything against its tile.
+ *
+ * Chosen from the plates' own pairs so every one reads in both themes: the field tokens move with the
+ * theme and the dyes do not, and the old icon ink (`accent-ink`) turned the same yellow as its tile in
+ * the dark theme, which made a resting icon invisible there. These are all dye-on-dye:
+ *
+ *   rest     Flavine tile, Black ink        - the plate at rest
+ *   hover    Royal Blue tile, yellow ink    - the plate's own hover
+ *   press    Rose tile, Black ink           - the plate's own press
+ *   scared   Crimson tile, White ink        - the X's own red, because that is what it is looking at
+ *   playing  Emerald tile, Black ink        - the LED's green: this one is on
+ */
+const MOOD_LOOK: Record<LoopMood, { tile: string; ink: string }> = {
+  rest: { tile: 'bg-sun', ink: 'text-ink-plate' },
+  hover: { tile: 'bg-ena', ink: 'text-sun' },
+  press: { tile: 'bg-bubble', ink: 'text-ink-plate' },
+  scared: { tile: 'bg-bubble-pale', ink: 'text-ink-bar' },
+  playing: { tile: 'bg-acid', ink: 'text-ink-plate' },
+};
 
 /**
  * A store that never changes, for reading a fact about the *environment* rather than about state.
@@ -139,15 +172,20 @@ function subscribeToNothing(): () => void {
 function LoopIcon({
   loop,
   label,
+  singing,
   onOpen,
   onClear,
 }: {
   loop: LoopSource;
   label: string;
+  /** True while this entry's track is the one playing - the face sings. */
+  singing: boolean;
   onOpen: () => void;
   onClear: () => void;
 }) {
   const [overX, setOverX] = useState(false);
+  const [pointed, setPointed] = useState(false);
+  const [pressed, setPressed] = useState(false);
   const [spot, setSpot] = useState<{ left: number; top: number } | null>(null);
   const icon = useRef<HTMLDivElement | null>(null);
   const timer = useRef<number | null>(null);
@@ -241,6 +279,11 @@ function LoopIcon({
     () => false,
   );
 
+  /** One expression at a time, the most urgent first: the X beats a press beats a point beats a song. */
+  const mood: LoopMood = overX ? 'scared' : pressed ? 'press' : pointed ? 'hover' : singing ? 'playing' : 'rest';
+  const notes = loopNotes(mood);
+  const look = MOOD_LOOK[mood];
+
   const caption =
     spot === null || !inBrowser
       ? null
@@ -279,19 +322,51 @@ function LoopIcon({
 
   return (
     <div ref={icon} className="relative" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
+      {/* The notes line: what floats over the face. Absolutely placed in the top of the tile, which the
+          tile's own padding reserves, so notes arriving never push the face or a neighbour. */}
+      <span
+        aria-hidden="true"
+        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[9px] font-bold leading-none ${look.ink} ${
+          mood === 'playing' ? 'animate-blip' : mood === 'hover' ? 'animate-hop' : ''
+        }`}
+      >
+        {notes}
+      </span>
+
       <button
         type="button"
         onClick={onOpen}
-        onFocus={ask}
-        onBlur={stop}
+        onFocus={(event) => {
+          // The keyboard's own pointing: a click also focuses, so only a visible focus counts, or a
+          // mouse press would leave the face perked up after the pointer had gone (CLAUDE.md).
+          if (event.currentTarget.matches(':focus-visible')) setPointed(true);
+          ask();
+        }}
+        onBlur={() => {
+          setPointed(false);
+          stop();
+        }}
+        onPointerEnter={() => setPointed(true)}
+        onPointerLeave={() => {
+          setPointed(false);
+          setPressed(false);
+        }}
+        onPointerDown={() => setPressed(true)}
+        onPointerUp={() => setPressed(false)}
         aria-label={`${label} - press to go back to where you were in it`}
-        className="group flex w-full cursor-pointer items-center justify-center rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun py-1 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+        className={`group flex h-11 w-full cursor-pointer items-end justify-center rounded-none border-t border-l border-r-2 border-b-2 pb-[6px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble ${look.tile} ${
+          pressed
+            ? 'border-t-black border-l-black border-r-white border-b-white'
+            : 'border-t-white border-l-white border-r-black border-b-black'
+        }`}
       >
         <span
           aria-hidden="true"
-          className={`text-[22px] leading-none group-hover:animate-wobble motion-reduce:group-hover:animate-none ${originInk(loop.origin)}`}
+          className={`whitespace-pre font-emote text-[13px] font-bold leading-none tracking-tighter ${look.ink} ${
+            mood === 'hover' ? 'animate-hop' : mood === 'scared' ? 'animate-shake' : ''
+          }`}
         >
-          {originMark(loop.origin)}
+          {loopFace(loop.origin, mood, takenOver)}
         </span>
       </button>
 
@@ -313,7 +388,8 @@ function LoopIcon({
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}
-      >        ×
+      >
+        ×
       </button>
 
       {caption}

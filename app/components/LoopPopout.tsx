@@ -29,10 +29,13 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 export default function LoopPopout({
   loop,
   label,
+  onRemove,
   onClose,
 }: {
   loop: LoopSource;
   label: string;
+  /** Takes the entry out of RADI-OH - the prompt's other answer, beside going back to it. */
+  onRemove: () => void;
   onClose: () => void;
 }) {
   const player = useMusicPlayer();
@@ -50,17 +53,18 @@ export default function LoopPopout({
   /**
    * Back to where the loop points.
    *
-   * The track is played by its `src` first, because `play` queues a track the shelf does not hold as well
-   * as one it does - so a loop whose file has been removed still resolves to a player that says so rather
-   * than to a press that does nothing. The seek comes after, in the same handler, because the element is
-   * loaded by then: `play` swaps `src` synchronously and the browser seeks once it has the metadata.
+   * The position travels *with* the play (`PlayStart`) rather than as a seek after it. It used to be a
+   * seek, on the belief that `play` swapped the source synchronously - it does not, the element loads in
+   * an effect afterwards, so the seek landed on the track that was playing before and the loop's own
+   * track then started from 0:00. A track the shelf no longer holds has nothing to go back to, and the
+   * button says so instead of pressing into nothing.
    */
+  const track = player.queue.find((entry) => entry.src === loop.trackId);
+
   const goBack = () => {
-    const track = player.queue.find((entry) => entry.src === loop.trackId);
+    if (track === undefined) return;
 
-    if (track !== undefined) player.play(track);
-
-    player.seek(loop.positionSeconds);
+    player.play(track, undefined, { at: loop.positionSeconds });
     onClose();
   };
 
@@ -101,7 +105,7 @@ export default function LoopPopout({
             <span className="min-w-0 break-words">{label}</span>
           </p>
 
-          <p className="text-[10px] text-ink-plate">
+          <p className="text-[10px] text-ink-quiet">
             {loop.kind === 'taken-over'
               ? `THIS WAS PLAYING WHEN ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}'S QUEUE TOOK THE PLAYER OVER.`
               : `${originLabel(loop)}${loop.plays > 1 ? ` :: PLAYED ${loop.plays} TIMES` : ''}`}
@@ -112,8 +116,17 @@ export default function LoopPopout({
           </p>
 
           <p className="flex flex-wrap gap-2 pt-1">
-            <button type="button" onClick={goBack} className={PLATE}>
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={track === undefined}
+              title={track === undefined ? 'That file is no longer on the shelf' : undefined}
+              className={PLATE}
+            >
               [ GO BACK TO IT ]
+            </button>
+            <button type="button" onClick={onRemove} className={PLATE}>
+              [ REMOVE IT ]
             </button>
             <button type="button" onClick={onClose} className={PLATE}>
               [ LEAVE IT ]

@@ -150,6 +150,75 @@ export function originMark(origin: LoopOrigin): string {
 }
 
 /**
+ * What an icon is feeling: the state of the pointer and the player, as an expression.
+ *
+ *   rest     nobody is pointing at it
+ *   hover    the pointer (or the keyboard) is on it - it perks up
+ *   press    held down - it winces
+ *   scared   the pointer is on its X - it sees what is coming
+ *   playing  its track is the one playing right now - it sings
+ */
+export type LoopMood = 'rest' | 'hover' | 'press' | 'scared' | 'playing';
+
+/**
+ * The face an icon wears: text-character art, built from type and nothing else.
+ *
+ * **Why characters.** The asset rules forbid drawing an icon in code (no CSS or SVG art) and no
+ * generated or rasterised pictures; the owner asked for these to be *constructed* from what is to hand
+ * instead, and a face made of letters is the oldest version of that - the emoticon. It is also the
+ * only kind of picture that is exactly as crisp at every size, because it is a font.
+ *
+ * **The frame says where it came from, the eyes say how it feels.** Two characters each side, three in
+ * the middle, always seven in all - so a change of mood swaps the letters inside a box that never
+ * changes width, and nothing beside the icon moves (the reveal rule in CLAUDE.md):
+ *
+ *   d(-_-)b   the shelf - a face in headphones
+ *   [(-_-)]   somebody's profile - a face in a picture frame
+ *   ((-_-))   heard on a queue - a face between radio waves
+ *
+ * A track a followed queue displaced rests with a sad face (`._.`), because it was not left by choice.
+ */
+export function loopFace(origin: LoopOrigin, mood: LoopMood, takenOver = false): string {
+  const [left, right] = FACE_FRAMES[origin];
+  const eyes = mood === 'rest' && takenOver ? '._.' : FACE_EYES[mood];
+
+  return `${left}${eyes}${right}`;
+}
+
+const FACE_FRAMES: Record<LoopOrigin, readonly [string, string]> = {
+  shelf: ['d(', ')b'],
+  own: ['d(', ')b'],
+  profile: ['[(', ')]'],
+  queue: ['((', '))'],
+};
+
+const FACE_EYES: Record<LoopMood, string> = {
+  rest: '-_-',
+  hover: '^o^',
+  press: '>_<',
+  scared: 'O_O',
+  playing: '^_^',
+};
+
+/**
+ * What floats above the face: notes while it is pointed at or singing, alarm while its X is.
+ * Empty at rest and when pressed. Drawn in a line the tile always reserves, so it appearing moves nothing.
+ */
+export function loopNotes(mood: LoopMood): string {
+  switch (mood) {
+    case 'hover':
+      return '♪ ♫';
+    case 'playing':
+      return '♪';
+    case 'scared':
+      return '! !';
+    case 'rest':
+    case 'press':
+      return '';
+  }
+}
+
+/**
  * The Tailwind ink each mark wears.
  *
  * A class rather than a colour value, because a component that writes a hex is the fault

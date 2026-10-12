@@ -20,6 +20,11 @@
      by name; what they resolve to is this site's business, not each component's. */
   --font-sans: var(--font-pixel), 'MS Sans Serif', Tahoma, sans-serif;
   --font-mono: var(--font-pixel), 'Courier New', 'Lucida Console', monospace;
+  /* The one exception: RADI-OH's text faces (`loopFace` in app/lib/audio/loops.ts). An emoticon is
+     drawn *with* its letters, so it needs a true lowercase `d` and `b` for the headphones and every
+     character the same width so a change of expression never shifts the face - the pixel face has
+     neither. A plain typewriter face has both, and is on every machine. */
+  --font-emote: 'Courier New', 'Lucida Console', ui-monospace, monospace;
 }
 
 html {
@@ -450,6 +455,7 @@ img {
   --animate-flash: flash 260ms steps(2, jump-none) 1;
   --animate-marquee: marquee 16s linear infinite;
   --animate-blip: blip 1s steps(2, jump-none) infinite;
+  --animate-hop: hop 320ms steps(2, jump-none) infinite;
   /* The alarm: Emerald and Rose, alternating in whole frames. `steps` with no easing again - an alarm
      that fades between its two colours reads as a decoration, and this one has to read as a fault. */
   --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
@@ -469,6 +475,18 @@ img {
 
   50% {
     transform: translate(-1px, 1px);
+  }
+}
+
+/* A RADI-OH face perking up under the pointer: a two-frame hop, the size of the text's own pixels. */
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
   }
 }
 
