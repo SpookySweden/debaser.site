@@ -490,8 +490,13 @@ class SupabaseForumRepository implements ForumRepository {
         .catch(() => undefined);
     };
 
+    // A name of its own per subscription: Supabase hands back the *same* channel for the same name, so a
+    // second subscriber would add callbacks to an already-subscribed channel - which throws (see the
+    // music queues, `subscribeToQueues`).
+    forumChannelCount += 1;
+
     const channel = client
-      .channel('forum-board')
+      .channel(`forum-board-${forumChannelCount}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: THREADS_TABLE }, refresh)
       .on('postgres_changes', { event: '*', schema: 'public', table: COMMENTS_TABLE }, refresh)
       .subscribe();
@@ -561,8 +566,10 @@ class SupabaseForumRepository implements ForumRepository {
         .catch(() => undefined);
     };
 
+    forumChannelCount += 1;
+
     const channel = client
-      .channel('forum-pins')
+      .channel(`forum-pins-${forumChannelCount}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: PINS_TABLE }, refresh)
       .subscribe();
 
@@ -571,6 +578,9 @@ class SupabaseForumRepository implements ForumRepository {
     };
   }
 }
+
+/** Numbers each board and pin subscription's channel, so no two share a name (see `subscribe`). */
+let forumChannelCount = 0;
 
 let supabaseRepository: SupabaseForumRepository | null = null;
 
