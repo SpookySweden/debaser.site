@@ -25,6 +25,12 @@ export type BroadcastQueue = {
   positionSeconds: number;
   /** When that was true. See `livePositionSeconds` for how the two are read together. */
   updatedAt: string;
+  /**
+   * Whether the host was playing when they wrote it. False is a host who paused - said by the pause
+   * write itself, so followers stop at once rather than ten seconds later when the row goes quiet.
+   * A row from before the column existed reads as playing (`is_playing default true`).
+   */
+  isPlaying: boolean;
   startedAt: string;
 };
 
@@ -108,6 +114,9 @@ export function hostState(queue: BroadcastQueue, now: number): HostState {
   const age = queueAgeSeconds(queue, now);
 
   if (age > QUEUE_STALE_SECONDS) return 'silent';
+  // Said outright by the host's own pause write. The silence rule below stays as the fallback for a host
+  // whose page stopped writing without pausing (a closed laptop, a phone that suspended the tab).
+  if (queue.isPlaying === false) return 'paused';
   if (age > QUEUE_PAUSED_SECONDS) return 'paused';
 
   return 'live';

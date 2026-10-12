@@ -74,6 +74,7 @@ function toBroadcastQueue(row: {
   track_total: number;
   position_seconds: number | string;
   is_public: boolean;
+  is_playing?: boolean | null;
   started_at: string;
   updated_at: string;
 }): BroadcastQueue {
@@ -88,6 +89,8 @@ function toBroadcastQueue(row: {
     positionSeconds: Number(row.position_seconds),
     updatedAt: row.updated_at,
     startedAt: row.started_at,
+    // Absent only on a project that has not run `20260930000030_music_queue_playing.sql`: read as playing.
+    isPlaying: row.is_playing !== false,
   };
 }
 /** The columns a track row is read with. `folder_path` is added where the column exists. */
@@ -546,7 +549,7 @@ class SupabaseMusicRepository implements MusicRepository {
 
     const { data, error } = await client
       .from(QUEUES_TABLE)
-      .select('user_id, track_id, track_index, track_total, position_seconds, is_public, started_at, updated_at')
+      .select('user_id, track_id, track_index, track_total, position_seconds, is_public, is_playing, started_at, updated_at')
       .eq('is_public', true)
       .order('updated_at', { ascending: false })
       .limit(QUEUE_LIMIT);
@@ -576,7 +579,7 @@ class SupabaseMusicRepository implements MusicRepository {
 
     const { data, error } = await client
       .from(QUEUES_TABLE)
-      .select('user_id, track_id, track_index, track_total, position_seconds, is_public, started_at, updated_at')
+      .select('user_id, track_id, track_index, track_total, position_seconds, is_public, is_playing, started_at, updated_at')
       .eq('user_id', userId)
       .maybeSingle();
 
@@ -610,6 +613,7 @@ class SupabaseMusicRepository implements MusicRepository {
         track_total: Math.max(1, input.trackTotal),
         position_seconds: Math.max(0, input.positionSeconds),
         is_public: input.isPublic,
+        is_playing: input.isPlaying ?? true,
       },
       { onConflict: 'user_id' },
     );

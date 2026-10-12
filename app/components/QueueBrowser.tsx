@@ -112,6 +112,7 @@ export default function QueueBrowser() {
         index={player.index}
         total={player.queue.length}
         position={player.elapsed}
+        playing={player.playing}
       />
 
       {notice === null ? null : (
@@ -171,6 +172,7 @@ function BroadcastSwitch({
   index,
   total,
   position,
+  playing,
 }: {
   signedIn: boolean;
   /** The signed-in account, or null. Passed in rather than read here, so this stays a plain component. */
@@ -180,6 +182,7 @@ function BroadcastSwitch({
   index: number;
   total: number;
   position: number;
+  playing: boolean;
 }) {
   const repository = getMusicRepository();
   const [busy, setBusy] = useState(false);
@@ -231,7 +234,15 @@ function BroadcastSwitch({
     const next = !isPublic;
 
     void repository
-      .publishQueue({ userId, trackId: track, trackIndex: index, trackTotal: total, positionSeconds: position, isPublic: next })
+      .publishQueue({
+        userId,
+        trackId: track,
+        trackIndex: index,
+        trackTotal: total,
+        positionSeconds: position,
+        isPublic: next,
+        isPlaying: playing,
+      })
       .then(() => {
         setIsPublic(next);
         setMessage(next ? 'YOU ARE ON THE LIST.' : 'YOU ARE OFF THE LIST.');

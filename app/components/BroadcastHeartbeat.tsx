@@ -141,6 +141,8 @@ export default function BroadcastHeartbeat() {
           trackTotal: total,
           positionSeconds: at,
           isPublic: true,
+          // The pause write carries `false`, which is what lets followers stop at once (`hostState`).
+          isPlaying: running,
         })
         .catch(() => {
           // A dropped heartbeat is not worth a banner: the next one is seconds away, and a screen that

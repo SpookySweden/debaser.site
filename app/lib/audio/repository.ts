@@ -214,6 +214,8 @@ export type PublishQueueInput = {
   trackTotal: number;
   positionSeconds: number;
   isPublic: boolean;
+  /** Whether the host is playing right now. Omitted means playing, which is what the column defaults to. */
+  isPlaying?: boolean;
 };
 
 let mockRepository: MusicRepository | null = null;

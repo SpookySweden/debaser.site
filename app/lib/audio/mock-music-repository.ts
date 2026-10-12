@@ -514,6 +514,7 @@ class MockMusicRepository implements MusicRepository {
       trackTotal: Math.max(1, input.trackTotal),
       positionSeconds: Math.max(0, input.positionSeconds),
       isPublic: input.isPublic,
+      isPlaying: input.isPlaying ?? true,
       // The start survives a move: `startedAt` is when this person began broadcasting, which is what a
       // listener reads as "how long they have been on", so re-writing it on every track change would
       // reset a number that is supposed to grow.
