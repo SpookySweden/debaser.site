@@ -83,7 +83,7 @@ export default function RadioLoops() {
         </p>
       ) : (
         <div className="p-2">
-          <div className="grid grid-cols-5 gap-2 sm:grid-cols-7 lg:grid-cols-10">
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
             {loops.map((loop) => (
               <LoopIcon
                 key={loop.id}
@@ -124,24 +124,18 @@ export default function RadioLoops() {
 }
 
 /**
- * Each mood's tile and ink - pairs, because a face's colour only means anything against its tile.
- *
- * Chosen from the plates' own pairs so every one reads in both themes: the field tokens move with the
- * theme and the dyes do not, and the old icon ink (`accent-ink`) turned the same yellow as its tile in
- * the dark theme, which made a resting icon invisible there. These are all dye-on-dye:
- *
- *   rest     Flavine tile, Black ink        - the plate at rest
- *   hover    Royal Blue tile, yellow ink    - the plate's own hover
- *   press    Rose tile, Black ink           - the plate's own press
- *   scared   Crimson tile, White ink        - the X's own red, because that is what it is looking at
- *   playing  Emerald tile, Black ink        - the LED's green: this one is on
+ * Each mood's ink. There is no tile: the face sits straight on the window's field, because a box around
+ * it fenced the hop in and read as a button wearing a face rather than a face (the owner's call,
+ * 2026-10-12). So the inks are the two that read on the field in *both* themes - the field's own ink
+ * (Black, or White in the dark theme) and the brand ink (Royal Blue, or Flavine in the dark theme) - and
+ * the mood is carried by the expression and the movement more than by colour.
  */
-const MOOD_LOOK: Record<LoopMood, { tile: string; ink: string }> = {
-  rest: { tile: 'bg-sun', ink: 'text-ink-plate' },
-  hover: { tile: 'bg-ena', ink: 'text-sun' },
-  press: { tile: 'bg-bubble', ink: 'text-ink-plate' },
-  scared: { tile: 'bg-bubble-pale', ink: 'text-ink-bar' },
-  playing: { tile: 'bg-acid', ink: 'text-ink-plate' },
+const MOOD_INK: Record<LoopMood, string> = {
+  rest: 'text-ink',
+  hover: 'text-accent-ink',
+  press: 'text-accent-ink',
+  scared: 'text-ink',
+  playing: 'text-accent-ink',
 };
 
 /**
@@ -282,7 +276,7 @@ function LoopIcon({
   /** One expression at a time, the most urgent first: the X beats a press beats a point beats a song. */
   const mood: LoopMood = overX ? 'scared' : pressed ? 'press' : pointed ? 'hover' : singing ? 'playing' : 'rest';
   const notes = loopNotes(mood);
-  const look = MOOD_LOOK[mood];
+  const ink = MOOD_INK[mood];
 
   const caption =
     spot === null || !inBrowser
@@ -321,12 +315,12 @@ function LoopIcon({
         );
 
   return (
-    <div ref={icon} className="relative" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
-      {/* The notes line: what floats over the face. Absolutely placed in the top of the tile, which the
-          tile's own padding reserves, so notes arriving never push the face or a neighbour. */}
+    <div ref={icon} className="relative w-fit" onPointerEnter={ask} onPointerMove={hold} onPointerLeave={stop}>
+      {/* The notes line: what floats over the face. Absolutely placed in the top of the button, whose
+          height reserves it, so notes arriving never push the face or a neighbour. */}
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[9px] font-bold leading-none ${look.ink} ${
+        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[10px] font-bold leading-none ${ink} ${
           mood === 'playing' ? 'animate-blip' : mood === 'hover' ? 'animate-hop' : ''
         }`}
       >
@@ -354,16 +348,12 @@ function LoopIcon({
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
         aria-label={`${label} - press to go back to where you were in it`}
-        className={`group flex h-11 w-full cursor-pointer items-end justify-center rounded-none border-t border-l border-r-2 border-b-2 pb-[6px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble ${look.tile} ${
-          pressed
-            ? 'border-t-black border-l-black border-r-white border-b-white'
-            : 'border-t-white border-l-white border-r-black border-b-black'
-        }`}
+        className="group flex h-11 cursor-pointer items-end justify-center rounded-none px-1 pb-[5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
       >
         <span
           aria-hidden="true"
-          className={`whitespace-pre font-emote text-[13px] font-bold leading-none tracking-tighter ${look.ink} ${
-            mood === 'hover' ? 'animate-hop' : mood === 'scared' ? 'animate-shake' : ''
+          className={`whitespace-pre font-emote text-[15px] font-bold leading-none tracking-tighter ${ink} ${
+            mood === 'hover' ? 'animate-hop' : mood === 'scared' ? 'animate-shake' : mood === 'press' ? 'translate-y-[2px]' : ''
           }`}
         >
           {loopFace(loop.origin, mood, takenOver)}
@@ -384,7 +374,7 @@ function LoopIcon({
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
         aria-label={`Clear ${label} from your recent listening`}
-        className={`absolute -right-1 -top-1 flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[10px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
+        className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[10px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}
