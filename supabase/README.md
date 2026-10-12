@@ -81,6 +81,9 @@ order `db push` applies them:
     20260930000025_music_library.sql
     20260930000026_profile_status.sql
     20260930000027_welcome_tag.sql
+    20260930000028_music_queues.sql
+    20260930000029_profile_country_flag.sql
+    20260930000030_music_queue_playing.sql     is_playing on a broadcast queue (add-only, default true)
 
 The date part is the date the section was written; the time part is **the
 schema section it holds**. That is deliberate: the old names were
