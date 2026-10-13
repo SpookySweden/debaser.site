@@ -20,6 +20,7 @@ import {
   duplicateShape,
   fingerprint,
   nearestJoint,
+  readFigure,
   pinShape,
   removeShape,
   renameShape,
@@ -134,6 +135,8 @@ type CharacterState = {
   applyPreset: (presetId: RigPresetId) => void;
   loadFigure: (figure: Figure, presetId: RigPresetId) => void;
   markKept: () => void;
+  /** Throw away everything since the last save or load: the bench goes back to exactly the kept figure. */
+  revert: () => void;
   reset: () => void;
 };
 
@@ -305,6 +308,17 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   },
 
   markKept: () => set((state) => ({ keptFigure: fingerprint(state.figure) })),
+
+  /**
+   * The kept figure is stored as text, so this is a fresh copy of it - nothing the bench does afterwards can reach
+   * back into the record of what was kept. The history goes too: the prompt that leads here says there is no undo.
+   */
+  revert: () =>
+    set((state) => {
+      const kept = readFigure(JSON.parse(state.keptFigure));
+      if (kept === null) return state;
+      return { figure: kept, past: [], future: [], gesture: null, selectedShapeId: null, selectedJointId: null };
+    }),
 
   reset: () => set(freshState()),
 }));

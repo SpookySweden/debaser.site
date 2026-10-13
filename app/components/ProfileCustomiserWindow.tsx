@@ -10,7 +10,7 @@ import {
   unsavedChanges,
   type UnsavedChange,
 } from '../lib/profile/unsaved-changes';
-import { useBenchFigure, useKeptFigure } from '../lib/character/store';
+import { useBenchFigure, useCharacterStore, useKeptFigure } from '../lib/character/store';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import UnsavedPrompt from './UnsavedPrompt';
@@ -88,15 +88,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
   const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
-  /**
-   * Bumped when the reader throws their changes away, so the workbench can put its figure back.
-   *
-   * **A counter rather than a callback, because the workbench is a `next/dynamic` child.** Passing a function down
-   * would be a new identity on every render of this window, so an effect in the child keyed on it would re-run
-   * constantly; a number that only changes when something actually happens is the cheap way to signal an event to
-   * a child without giving it a subscription. The panel resets on a change of value and never on a re-render.
-   */
-  const [discardToken, setDiscardToken] = useState(0);
 
   /**
    * What the reader asked for, held while the prompt is up.
@@ -228,9 +219,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
    * who typed their old bio back would be shown one fewer row than there are drafts. Discarding resets all of them
    * regardless, because "throw away my changes" means the drafts, not the rows in a list.
    *
-   * **The figure is rebuilt rather than reset to the default**, for the one case that matters: if a saved character
-   * was loaded and then edited, throwing the edits away has to put the *saved* figure back, not the blob the editor
-   * opens on. The library is what knows which figure that was; this asks it through the panel's own load path.
+   * **The figure goes back to exactly the one last kept**, not to the blob the editor opens on: if a saved character
+   * was loaded and then edited, throwing the edits away has to put the *saved* figure back. The store holds that
+   * figure (`keptFigure`), so it is restored here, directly. It used to be signalled to the character panel with a
+   * counter - which only worked while the CHAR tab was showing. Discarding on the way to another tab left the bench
+   * edited, and the prompt came back the moment the reader returned.
    */
   function discardEverything() {
     setNameDraft(null);
@@ -250,8 +243,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     setSongNote('');
     setSongMessage(null);
 
-    // Reported to the character panel so it can put the workbench back - it alone knows where a figure was kept.
-    setDiscardToken((current) => current + 1);
+    useCharacterStore.getState().revert();
 
     setMessage('CHANGES THROWN AWAY.');
     setError(null);
@@ -559,7 +551,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           deep. See ./CharacterEditorPanel.tsx. */}
       {tab === 'character' ? (
         <div className="space-y-3">
-          <CharacterEditorPanel discardToken={discardToken} />
+          <CharacterEditorPanel />
         </div>
       ) : null}
 

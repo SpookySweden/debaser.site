@@ -1,5 +1,6 @@
 /**
- * Measure each render stage from the SCREENSHOT, which is the only reading that reflects what a person sees.
+ * Measure each look of the character workbench (SHAPES, FINAL - there were three render stages, MASS / BASE / PIXEL,
+ * until the workbench was rebuilt) from the SCREENSHOT, which is the only reading that reflects what a person sees.
  *
  * **Why not `readPixels` on the canvas per stage.** `canvas.getContext('webgl2')` called from outside r3f does
  * not return r3f's context - the canvas already has one, and asking again yields an object whose drawing
@@ -20,7 +21,8 @@
  * `npm run shot -- --click MASS` reported, in its own transcript, pressing *BUILD A FIGURE FROM A SKELETON
  * AND THE MASS HUNG* - the palette's help text - and captured a picture of an unchanged stage. Two stages
  * then came back byte-identical and read as "the material never switches". Every stage press here is scoped
- * to the `WHAT IS DRAWN` fieldset, **and it is a real press at the button's own coordinates** rather than
+ * to the look switch (`--within FINAL`: the innermost box holding that word is the SHAPES / FINAL group; it was
+ * the `WHAT IS DRAWN` fieldset when there were three stages), **and it is a real press at the button's own coordinates** rather than
  * `element.click()` - so hit-testing is exercised, and the pressed state is read back afterwards to check
  * the press actually took. A press that lands on an overlay is reported as `NOT this stage` rather than
  * silently measured.
@@ -58,7 +60,7 @@ const {
 const { at, has, number } = flags();
 
 const BROWSE = path.join('Temp', 'browse');
-const STAGES = ['MASS', 'BASE', 'PIXEL'];
+const STAGES = ['SHAPES', 'FINAL'];
 
 /*
  * The plates a reader presses to stand in front of the workbench, in order. `CHAR` is a tab *inside* the
@@ -80,7 +82,7 @@ const signIn = has('--signin');
 const reuse = has('--reuse');
 const attach = has('--attach');
 const profile = path.join(BROWSE, 'stage-profile');
-const within = at('--within', 'WHAT IS DRAWN');
+const within = at('--within', 'FINAL');
 
 /** Count distinct colours inside a box, how much of it is not the dominant one, and any grey. */
 function measure(image, box) {
@@ -147,12 +149,10 @@ async function pressPlate(page, target, { scope = null, allowAmbiguous = true } 
  * pressed button in the fieldset made a correct run report "NOT this stage".
  */
 const LIT_QUERY = `(() => {
-  const fieldset = [...document.querySelectorAll('fieldset')].find(
-    (f) => f.innerText.includes('WHAT IS DRAWN')
-  );
-  const lit = fieldset
-    ? [...fieldset.querySelectorAll('button')].filter(
-        (b) => b.getAttribute('aria-pressed') === 'true' && /^(MASS|BASE|PIXEL)/.test(b.innerText.trim()),
+  const group = document.querySelector('[role=group][aria-label=Look]');
+  const lit = group
+    ? [...group.querySelectorAll('button')].filter(
+        (b) => b.getAttribute('aria-pressed') === 'true' && /^(SHAPES|FINAL)/.test(b.innerText.trim()),
       )
     : [];
   return lit.map((b) => b.innerText.trim().split(String.fromCharCode(10))[0].trim()).join(' + ');
@@ -286,7 +286,7 @@ async function main() {
     console.log('NOT PROVEN: that any of it is a figure, or a good one.');
     console.log('  Colours in a pane mean geometry is drawn. What shape is for whoever reads the image -');
     console.log('  the per-stage PNGs are in Temp/browse/ for exactly that, and one file can also be');
-    console.log('  measured again without a browser: npm run panes -- --png Temp/browse/stage-mass.png');
+    console.log('  measured again without a browser: npm run panes -- --png Temp/browse/stage-shapes.png');
   } finally {
     await close(browser, { keep: attach });
   }

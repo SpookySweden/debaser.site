@@ -29,16 +29,19 @@ import {
   MODEL_VOID,
   MODEL_WIRE,
 } from '../lib/character/palette';
-import type { MassShapeId } from '../lib/character/shapes';
+import { unitGeometry } from '../lib/character/geometry';
 import { childrenOf, jointFrames, lengthOf, type JointFrame, type Vec3 } from '../lib/character/skeleton';
 import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
 import { PixelPass } from './CharacterPixelPass';
 
-/** How much of the world a view shows, in model units. The figure is about 2.4 tall and 1.3 wide. */
-const VIEW_HEIGHT = 2.9;
+/** How much of the world a view shows, in model units: every starting figure (2.84 tall at most) with a margin. */
+const VIEW_HEIGHT = 3.1;
 const VIEW_WIDTH = 1.9;
-/** Where the views are centred vertically: halfway between the starting figure's crown (1.02) and soles (-1.36). */
-const FIGURE_CENTRE_Y = -0.17;
+/**
+ * Where the views are centred vertically: halfway between the highest crown (STOCKY, 1.12) and the lowest soles
+ * (LANKY, -1.73) of the starting figures, so all three fit without the view moving when a preset is picked.
+ */
+const FIGURE_CENTRE_Y = -0.3;
 /** Screen-sized things, in pixels. Larger on a touch screen, where a fingertip is the pointer. */
 const HANDLE_PX = { fine: 10, coarse: 18 };
 const JOINT_PX = { fine: 6, coarse: 11 };
@@ -282,55 +285,6 @@ function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; fr
       ) : null}
     </group>
   );
-}
-
-/**
- * Each primitive, built once and normalised to fill a 1 x 1 x 1 box, so a shape's `size` is exactly its width, height
- * and depth whatever it is. Low-poly on purpose: the figure is pixelated in the end.
- */
-const GEOMETRY_CACHE = new Map<MassShapeId, THREE.BufferGeometry>();
-
-function unitGeometry(kind: MassShapeId): THREE.BufferGeometry {
-  const cached = GEOMETRY_CACHE.get(kind);
-  if (cached !== undefined) return cached;
-
-  let geometry: THREE.BufferGeometry;
-  switch (kind) {
-    case 'box':
-      geometry = new THREE.BoxGeometry(1, 1, 1);
-      break;
-    case 'sphere':
-      geometry = new THREE.SphereGeometry(0.5, 14, 10);
-      break;
-    case 'cone':
-      // Point down: a cone on a forearm or a shin tapers towards the hand or the foot.
-      geometry = new THREE.ConeGeometry(0.5, 1, 12).rotateX(Math.PI);
-      break;
-    case 'cylinder':
-      geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
-      break;
-    case 'capsule':
-      geometry = new THREE.CapsuleGeometry(0.25, 0.5, 4, 12);
-      break;
-    case 'wedge':
-      geometry = new THREE.CylinderGeometry(0.33, 0.5, 1, 4);
-      break;
-    case 'prism':
-      // A triangle seen from the front, apex up, running forward (along depth).
-      geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3, 1).rotateX(-Math.PI / 2);
-      break;
-  }
-
-  geometry.computeBoundingBox();
-  const box = geometry.boundingBox as THREE.Box3;
-  const centre = box.getCenter(new THREE.Vector3());
-  const extent = box.getSize(new THREE.Vector3());
-  geometry.translate(-centre.x, -centre.y, -centre.z);
-  geometry.scale(1 / extent.x, 1 / extent.y, 1 / extent.z);
-  geometry.computeVertexNormals();
-
-  GEOMETRY_CACHE.set(kind, geometry);
-  return geometry;
 }
 
 /** For things drawn as guides only: pointer rays pass straight through them. */

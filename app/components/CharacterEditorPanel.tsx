@@ -1,11 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useEffect } from 'react';
 import { openCharacterBrowser } from '../lib/character/browser-window';
-import { readLibrary } from '../lib/character/library';
-import { isRigPresetId } from '../lib/character/rig';
-import { useCharacterStore } from '../lib/character/store';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
@@ -49,41 +45,7 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  * and one that stretched would fight the scroll box. The figure sits in a `sticky` frame inside that height
  * so scrolling the customiser moves the controls past and leaves the model where it is.
  */
-export default function CharacterEditorPanel({
-  discardToken = 0,
-}: {
-  /** Bumped when the reader throws their changes away; see the effect below. */
-  discardToken?: number;
-}) {
-  /**
-   * Put the workbench back after the reader threw their changes away.
-   *
-   * **The one thing the console cannot do for itself, because the figure's last kept state is only knowable here.**
-   * `[ THROW THEM AWAY ]` resets every draft in the console, and for this tab the honest equivalent is the figure
-   * that was last saved or loaded - not the blob the editor opens on. Reading the shelf again rather than holding a
-   * copy means there is no second copy of a figure to go stale, and `shelf[0]` is the newest save because the
-   * library orders them that way.
-   *
-   * **`loadSkeleton` sets `keptFigure` to what it just loaded, so discarding clears the unsaved prompt for free.**
-   * That is the whole reason the prompt now behaves: putting the bench back is a change to the skeleton, and under
-   * the old latch it re-marked the figure as edited - so the prompt reappeared citing a figure the reader had just
-   * thrown away. A comparison cannot do that, because the figure it compares against is the one being restored.
-   *
-   * `discardToken` starts at zero, so this never runs on mount: a fresh workbench must not be replaced by whatever
-   * happened to be saved last.
-   */
-  useEffect(() => {
-    if (discardToken === 0) return;
-
-    const newest = readLibrary()[0];
-    if (newest === undefined) {
-      useCharacterStore.getState().reset();
-      return;
-    }
-
-    useCharacterStore.getState().loadFigure(newest.figure, isRigPresetId(newest.presetId) ? newest.presetId : 'blob');
-  }, [discardToken]);
-
+export default function CharacterEditorPanel() {
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>
