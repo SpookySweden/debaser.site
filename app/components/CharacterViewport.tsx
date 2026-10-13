@@ -1,708 +1,639 @@
 'use client';
 
-import { MAX_SCALE, MIN_SCALE } from '../lib/character/drag';
-import type { ViewportKind } from '../lib/character/drag';
-import { MASS_DYES, MODEL_INK, MODEL_LIMB } from '../lib/character/palette';
-import { RIG_PRESET_IDS, RIG_PRESETS } from '../lib/character/rig';
-import { MASS_SHAPE_IDS, MASS_SHAPES } from '../lib/character/shapes';
-import { RENDER_LAYER_IDS, type RenderLayerId } from '../lib/character/layers';
-import { scaleOf } from '../lib/character/skeleton';
-import { MASS_SHAPE_GLYPHS, MASS_TOOL_GLYPHS } from '../lib/ui/icons';
-import {
-  useCharacterStore,
-  useInteractionMode,
-  type InteractionMode,
-  type LayerId,
-  type MassTool,
-} from '../lib/character/store';
-import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+/**
+ * The character workbench, laid out like a paint program's canvas window.
+ *
+ *   left    the tool strip - one tool in hand at a time, UNDO and REDO at the foot
+ *   middle  the tool's options in a bar, then the FRONT and SIDE views of the same figure
+ *   right   the shapes list (like a layers panel) and the properties of whatever is picked
+ *
+ * On a phone the strip becomes rows across the top (wrapped, so no tool hides off the edge), the views stack, and
+ * the two panels fold under them.
+ *
+ * **The options bar is always there, the same height, whatever the tool.** Its contents change when the tool does,
+ * but the views below it never jump - the same rule every reveal on this site follows.
+ *
+ * Loaded with `ssr: false` (see `CharacterEditorPanel`): Three.js needs a browser.
+ */
+import { useEffect, useState, type ReactNode } from 'react';
+import { findShape, MAX_NAME_LENGTH, type Shape } from '../lib/character/figure';
+import { MASS_DYES, MODEL_INK } from '../lib/character/palette';
+import { jointLabel, RIG_PRESET_IDS, RIG_PRESETS } from '../lib/character/rig';
+import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
+import type { Vec3 } from '../lib/character/skeleton';
+import { TOOL_IDS, useCharacterStore, type ToolId } from '../lib/character/store';
+import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { MASS_SHAPE_GLYPHS, TOOL_GLYPHS } from '../lib/ui/icons';
 import CharacterScene from './CharacterScene';
 
-/**
- * What a drag in a viewport does, per selected layer - the *interaction* half of the layer model.
- *
- * **The edit and render layer lists are different lists and must not be merged.** This one is what the pointer
- * does; the render list below is what is drawn. They are close enough to look like one list, which is the trap:
- * a single list would say that selecting BASE means dragging edits nothing, when in fact BASE is a *render* and
- * the two things a reader edits are the joints and the mass.
- */
-const LAYERS = [
-  { id: 'skeleton', label: 'SKELETON', note: 'JOINTS AND BONES. DRAGGING MOVES A JOINT.' },
-  { id: 'mass', label: 'MASS GEOMETRY', note: 'THE PRIMITIVES, WIREFRAME. DRAGGING SCALES THEM.' },
-  { id: 'base', label: 'BASE RENDER', note: 'SOLID, UNSHADED. NO PIXELATION.' },
-  { id: 'pixel', label: 'LIVE PIXEL SHADER', note: 'LOW-RES TARGET AND THE OUTLINE. DRAGGING MOVES THE LIGHT.' },
-] as const satisfies readonly { id: LayerId; label: string; note: string }[];
-
-/**
- * The three render stages, as a radio group.
- *
- * **A radio group and not three eyes, and that is the fix for a real defect.** The three were independent
- * visibility flags ordered by priority, with PIXEL on by default - so PIXEL always won, BASE was unreachable,
- * and switching PIXEL's eye off replaced the whole render instead of removing the pixelation. They are stages
- * of one pipeline: exactly one is showing.
- *
- * Keyed by `RENDER_LAYER_IDS`, so a stage added to the model without a label here is a **type error** rather
- * than a stage a reader cannot reach - the same reason the edit list is typed against `LayerId`.
- */
-const RENDER_LAYER_LABELS: Record<RenderLayerId, { label: string; note: string }> = {
-  mass: { label: 'MASS', note: 'THE SHAPE AS EDGES - TO BUILD AGAINST' },
-  base: { label: 'BASE', note: 'THE SOLID FIGURE, UNPIXELATED' },
-  pixel: { label: 'PIXEL', note: 'THE SOLID FIGURE, THROUGH THE COMPOSER' },
+const TOOLS: Record<ToolId, { label: string; hint: string }> = {
+  select: {
+    label: 'SELECT',
+    hint: 'CLICK A SHAPE TO PICK IT. DRAG IT TO MOVE, DRAG A YELLOW SQUARE TO SIZE IT, DRAG THE GREEN KNOB TO TURN IT.',
+  },
+  add: { label: 'ADD', hint: 'PICK A SHAPE, THEN CLICK IN EITHER VIEW TO PUT IT THERE.' },
+  move: { label: 'MOVE', hint: 'DRAG ANY SHAPE TO SLIDE IT. FRONT MOVES ACROSS AND UP; SIDE MOVES FORWARD AND UP.' },
+  turn: { label: 'TURN', hint: 'DRAG ANY SHAPE ROUND ITS MIDDLE TO SPIN IT, LIKE A DIAL.' },
+  size: { label: 'SIZE', hint: 'DRAG ANY SHAPE: RIGHT TO WIDEN, UP TO MAKE IT TALLER. IT GROWS FROM ITS MIDDLE.' },
+  pose: { label: 'POSE', hint: 'DRAG A GREEN JOINT. PINNED SHAPES FOLLOW AND TURN WITH THEIR BONE.' },
+  delete: { label: 'DELETE', hint: 'CLICK A SHAPE TO REMOVE IT. UNDO BRINGS IT BACK.' },
 };
 
-const RENDER_LAYERS = RENDER_LAYER_IDS.map((id) => ({ id, ...RENDER_LAYER_LABELS[id] }));
+/** A pressable square on this workbench: flat, inked, and inverted when on. No bevels - see `docs/design.md`. */
+function pressable(on: boolean): string {
+  return `cursor-pointer rounded-none border-2 border-ink font-bold max-sm:min-h-11 disabled:cursor-not-allowed disabled:opacity-40 ${
+    on ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
+  }`;
+}
 
-/**
- * The workbench's two viewports and its sidebar.
- *
- * **The sidebar reads and writes the store as of Phase 2**, rather than holding its own `useState`. That is
- * what makes the selection the *store's* fact instead of the sidebar's: a drag in a viewport (Phase 3) has to
- * know which layer is selected, and two components each holding their own copy of that is the drift this
- * feature's store exists to prevent. The state moved here the moment there was something to share it with,
- * rather than being written early and left unread - `Temp/check-structure.cjs` refuses a module nothing
- * imports, and it was right to.
- *
- * What is *not* here yet: the canvas, the rig and the drag handling. Phase 1 drew this frame; Phase 2 gave it
- * a real skeleton to point at; Phase 3 puts the figure in it.
- */
-/**
- * The workbench: the two viewports, and a docked column of tools beside them.
- *
- * **Everything used to be stacked below the viewports, and that is what this replaces.** The panel was a column -
- * two panes, then the presets, then the layer list, then the render stages, then the shape controls, then a status
- * line - so a reader choosing a shape and a reader looking at the figure could not see both at once, and the
- * shape tools sat four sections down the page from the thing they act on. Measured before the change: the bench
- * was about 1,900px of scrolling at 1440x900, and the shape palette alone started roughly 1,100px below the fold.
- *
- * **The dock is a column of sections, in the order a figure is built**, which is the one thing a vertical strip
- * buys that a toolbar of icons does not: the sections are *named*, so the arrangement teaches the model rather
- * than requiring it to be known. It is deliberately not a floating palette - a window inside a window would have to
- * be dismissed, dragged and re-found, and every one of those is work the reader did not ask for.
- *
- * The figure is drawn at a fixed proportion of the pane, so the two viewports stay in step whatever else changes.
- */
+const PANEL = 'rounded-none border-2 border-ink bg-sun-pale';
+
 export default function CharacterViewport() {
+  useUndoKeys();
+
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-2 lg:flex-row lg:items-start">
-      {/* The bench itself: the two panes, side by side, taking the room the dock does not. */}
-      <div className="flex min-w-0 flex-[3] flex-col gap-2 sm:flex-row">
-        <Viewport kind="front" label="FRONT" hint="X / Y" />
-        <Viewport kind="side" label="SIDE" hint="Z / Y" />
+    <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-start">
+      <ToolStrip />
+
+      <div className="flex min-w-0 flex-1 flex-col gap-2">
+        <OptionsBar />
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2">
+          <View kind="front" label="FRONT" hint="ACROSS / UP" />
+          <View kind="side" label="SIDE" hint="FORWARD / UP" />
+        </div>
       </div>
 
-      {/*
-       * The dock. Its max height is the pane's own `26rem` plus the label bar above it, so the two columns end
-       * together and the sections below the fold are reached *inside the dock* rather than by scrolling the page -
-       * which is what keeps the figure on screen while a reader works down the options.
-       *
-       * Measured before this: at 1440x900 the shape strip landed at y=654 against panes ending at y=683, so the
-       * palette sat below the bench and moving to it moved the bench off-screen.
-       */}
-      <div className="flex min-w-0 flex-[2] flex-col gap-2 lg:max-h-[27.4rem] lg:overflow-y-auto lg:pr-1">
-        <FigureStatus />
-        <ToolDock />
+      <div className="flex min-w-0 flex-col gap-2 lg:w-64 lg:shrink-0">
+        <ShapesList />
+        <Properties />
       </div>
     </div>
   );
 }
 
-/**
- * What the pointer will do, and what is held - **the status line, moved to the top of the dock.**
- *
- * It used to sit at the *foot* of a long column, which made it a report on work already done rather than a
- * statement of what a drag is about to do. At the head of the dock it reads as part of the tool: the reader picks
- * a tool below and this says what that tool does before they use it.
- *
- * The counts are read from the figure rather than from `PART_OF_JOINT`. The table is only the *seed*, so counting
- * it would report how many shapes the preset started with and not how many the reader has - a joint whose shape
- * they removed, or a shoulder they added one to, would leave those numbers lying.
- */
-function FigureStatus() {
-  const activeLayer = useCharacterStore((state) => state.activeLayer);
-  const massTool = useCharacterStore((state) => state.massTool);
-  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const jointCount = useCharacterStore((state) => Object.keys(state.skeleton.joints).length);
-  const parts = useCharacterStore(
-    (state) => Object.values(state.skeleton.joints).filter((joint) => joint.mass !== null).length,
-  );
-  const interactionMode = useInteractionMode();
-
-  const held = selectedJointId === null ? 'NOTHING HELD' : selectedJointId.toUpperCase();
-
-  return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
-      <div className={TITLE_BAR_INACTIVE}>
-        <span>TOOL</span>
-        <span>[ {LAYERS.find((layer) => layer.id === activeLayer)?.label} ]</span>
-      </div>
-
-      <p className="mt-1 text-[10px] font-bold text-ink">{held}</p>
-
-      <p className="text-[9px] text-ink-plate">
-        {interactionMode === 'joints'
-          ? 'DRAG A JOINT HANDLE IN EITHER PANE TO MOVE IT. ' + jointCount + ' JOINTS.'
-          : interactionMode === 'mass'
-            ? 'DRAG A SHAPE TO RESIZE IT. ' + parts + ' SHAPES ON THE FIGURE.'
-            : interactionMode === 'massMove'
-              ? 'DRAG A SHAPE TO SLIDE IT. THE JOINT STAYS PUT. ' + parts + ' SHAPES.'
-              : interactionMode === 'light'
-                ? 'DRAG EITHER PANE TO TURN THE LIGHT.'
-                : massTool === 'colour'
-                  ? 'PICK A DYE BELOW. THE COLOUR TOOL HAS NO DRAG. ' + parts + ' SHAPES.'
-                  : 'THIS LAYER IS TO LOOK AT.'}
-      </p>
-    </div>
-  );
+/** Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z, while the workbench is open - but not while typing in one of its boxes. */
+function useUndoKeys() {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey)) return;
+      const target = event.target as HTMLElement | null;
+      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      const key = event.key.toLowerCase();
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        useCharacterStore.getState().undo();
+      } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        useCharacterStore.getState().redo();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 }
 
-/**
- * The dock: the layer strip, the render stages, the shape strip, the tool strip, and the options.
- *
- * **This is the merge.** The layer list, the render stages, the shape palette, the tool row and the dye row were
- * five separate full-width sections stacked under the viewports. They are one column here, in the order a figure is
- * built, and each is a *strip* rather than a form: pick what you are editing, pick what is drawn, pick a shape,
- * pick a verb, then the options for that verb.
- *
- * **The options area is the only part that changes with the selection**, which is what makes it a palette rather
- * than a form - the strips above stay put and only the panel swaps, so the reader's target never moves under them.
- */
-function ToolDock() {
-  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const massTool = useCharacterStore((state) => state.massTool);
-  const interactionMode = useInteractionMode();
+function ToolStrip() {
+  const tool = useCharacterStore((state) => state.tool);
+  const setTool = useCharacterStore((state) => state.setTool);
+  const canUndo = useCharacterStore((state) => state.past.length > 0);
+  const canRedo = useCharacterStore((state) => state.future.length > 0);
+  const undo = useCharacterStore((state) => state.undo);
+  const redo = useCharacterStore((state) => state.redo);
+
+  const button = 'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[10px]';
 
   return (
-    <div className="flex min-w-0 flex-col gap-2">
-      <EditLayerStrip />
-      <RenderStage />
-      <ShapeStrip jointId={selectedJointId} />
-      <MassToolSwitch />
-      <ToolOptions jointId={selectedJointId} tool={massTool} mode={interactionMode} />
-      <PresetPicker />
-    </div>
-  );
-}
-
-/**
- * What a drag edits, as a strip of four plates.
- *
- * Each carries its one-line note as a `title` rather than as visible text: four sentences of prose printed under
- * four plates was the layout this replaces, and the note explains a control whose name is already the answer.
- */
-function EditLayerStrip() {
-  const activeLayer = useCharacterStore((state) => state.activeLayer);
-  const selectLayer = useCharacterStore((state) => state.selectLayer);
-
-  return (
-    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>WHAT A DRAG EDITS</legend>
-
-      <div className="flex flex-wrap gap-[2px] p-1">
-        {LAYERS.map((layer) => {
-          const chosen = activeLayer === layer.id;
-
-          return (
-            <button
-              key={layer.id}
-              type="button"
-              onClick={() => selectLayer(layer.id)}
-              aria-pressed={chosen}
-              title={layer.note}
-              className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
-                chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                  : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-              }`}
-            >
-              {layer.label}
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
-
-/**
- * The shape strip: the seven primitives, as the row a reader picks from.
- *
- * **Disabled rather than hidden with no joint held**, which was a measured defect: the grid is the *vocabulary*,
- * and a reader who cannot see what shapes exist cannot decide whether to pick a joint to use them on. Chrome
- * reported `shape plates: 0` on arrival when this was hidden behind a selection.
- */
-function ShapeStrip({ jointId }: { jointId: string | null }) {
-  const setShape = useCharacterStore((state) => state.setShape);
-  const clearShape = useCharacterStore((state) => state.clearShape);
-  const current = useCharacterStore((state) =>
-    jointId === null ? null : (state.skeleton.joints[jointId]?.mass?.shape ?? null),
-  );
-  const armed = jointId !== null;
-
-  return (
-    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>SHAPE - SEVEN PRIMITIVES</legend>
-
-      <div className="flex flex-wrap gap-[2px] p-1">
-        {MASS_SHAPE_IDS.map((shape) => {
-          const chosen = current === shape;
-
-          return (
-            <button
-              key={shape}
-              type="button"
-              disabled={!armed}
-              onClick={() => {
-                if (jointId !== null) setShape(jointId, shape);
-              }}
-              aria-pressed={chosen}
-              aria-label={`${MASS_SHAPES[shape].label} - ${MASS_SHAPES[shape].note}`}
-              title={MASS_SHAPES[shape].note}
-              className={`flex min-w-12 flex-1 cursor-pointer flex-col items-center gap-[2px] rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
-                chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                  : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-              }`}
-            >
-              <span aria-hidden className="text-[16px] leading-none">
-                {MASS_SHAPE_GLYPHS[shape]}
-              </span>
-              {MASS_SHAPES[shape].label}
-            </button>
-          );
-        })}
-      </div>
-
-      <p className="px-1 pb-1 text-[9px] text-ink-plate">
-        {!armed
-          ? 'PICK A JOINT IN EITHER PANE FIRST - THEN THESE APPLY TO IT.'
-          : current === null
-            ? 'THIS JOINT CARRIES NOTHING. PICK ONE.'
-            : `THIS JOINT IS CARRYING A ${MASS_SHAPES[current].label}.`}
-      </p>
-
-      {/*
-       * **Taking a shape off is its own control, and it has to be somewhere.** It was a plate under the palette
-       * before the merge; moved into the strip it would be an eighth choice among seven primitives, which is a
-       * different kind of thing wearing the same costume - so it lives on its own line, only when there is
-       * something to remove.
-       */}
-      {armed && current !== null ? (
+    <nav
+      aria-label="Workbench tools"
+      className={`${PANEL} flex shrink-0 flex-wrap gap-1 p-1 lg:flex-col lg:flex-nowrap`}
+    >
+      {TOOL_IDS.map((id) => (
         <button
+          key={id}
           type="button"
-          onClick={() => clearShape(jointId)}
-          className="mx-1 mb-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 border-t-white border-l-white border-r-black border-b-black bg-chrome-dark px-1 py-[2px] text-[9px] font-bold text-ink hover:bg-bubble-pale"
+          onClick={() => setTool(id)}
+          aria-pressed={tool === id}
+          title={TOOLS[id].hint}
+          className={`${button} ${pressable(tool === id)}`}
         >
-          [ TAKE THE SHAPE OFF ]
+          <span aria-hidden className="text-[16px] leading-none">
+            {TOOL_GLYPHS[id]}
+          </span>
+          {TOOLS[id].label}
         </button>
-      ) : null}
-    </fieldset>
+      ))}
+
+      <span aria-hidden className="hidden shrink-0 bg-ink lg:my-1 lg:block lg:h-[2px]" />
+
+      <button type="button" onClick={undo} disabled={!canUndo} title="UNDO (CTRL+Z)" className={`${button} ${pressable(false)}`}>
+        <span aria-hidden className="text-[16px] leading-none">
+          {TOOL_GLYPHS.undo}
+        </span>
+        UNDO
+      </button>
+      <button type="button" onClick={redo} disabled={!canRedo} title="REDO (CTRL+Y)" className={`${button} ${pressable(false)}`}>
+        <span aria-hidden className="text-[16px] leading-none">
+          {TOOL_GLYPHS.redo}
+        </span>
+        REDO
+      </button>
+    </nav>
   );
 }
 
-/**
- * The control for the selected tool - the one area of the dock that changes.
- *
- * **The panel follows the strip above it**, so a reader who presses COLOUR sees the dye row without asking where it
- * went. That is the CSP arrangement: the tool marks are fixed and the options swap beneath them.
- *
- * The two read-only branches are here rather than in `MassRescaler` because they are about there being nothing to
- * act on, which is a fact about the *tool*, not about the shape.
- */
-function ToolOptions({
-  jointId,
-  tool,
-  mode,
-}: {
-  jointId: string | null;
-  tool: MassTool;
-  mode: InteractionMode;
-}) {
-  if (mode === 'light') {
-    return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
-        THE LIGHT HAS NO OPTIONS. DRAG IN EITHER PANE - LEFT AND RIGHT TURNS IT AROUND THE FIGURE, UP AND DOWN
-        RAISES AND LOWERS IT.
-      </p>
-    );
-  }
-
-  if (mode === 'none' && tool !== 'colour') {
-    return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
-        NOTHING HERE IS EDITABLE. PICK ANOTHER LAYER ABOVE.
-      </p>
-    );
-  }
-
-  if (jointId === null) {
-    return (
-      <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[9px] text-ink">
-        PICK A JOINT IN EITHER PANE AND ITS OPTIONS APPEAR HERE.
-      </p>
-    );
-  }
-
-  return <MassRescaler jointId={jointId} />;
-}
-
-/**
- * The preset skeletons, as a row of plates.
- *
- * **Pressing one rebuilds the figure and discards edits, and the note says so.** A preset is a starting point, so
- * applying it has to be able to throw work away - the alternative is a state between the two with no name, where
- * the figure is neither what the reader built nor what the preset describes. The note is on the control rather
- * than in a confirmation dialogue, because this is a workbench and a dialogue for every preset would be worse than
- * the loss it prevents.
- *
- * The current preset is shown as pressed, which is what tells a reader that their edits have taken the figure
- * away from the preset it came from.
- */
-function PresetPicker() {
-  const presetId = useCharacterStore((state) => state.presetId);
-  const applyPreset = useCharacterStore((state) => state.applyPreset);
+/** The bar above the views: the tool's own choices, or one line saying how to use it. Always the same height. */
+function OptionsBar() {
+  const tool = useCharacterStore((state) => state.tool);
+  const look = useCharacterStore((state) => state.look);
+  const setLook = useCharacterStore((state) => state.setLook);
 
   return (
-    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>START FROM - REBUILDS THE FIGURE</legend>
-      <div className="flex gap-[2px] p-1">
-        {RIG_PRESET_IDS.map((id) => (
+    <div className={`${PANEL} flex min-h-[3.25rem] min-w-0 items-center gap-2 p-1`}>
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+        {tool === 'add' ? <AddOptions /> : tool === 'pose' ? <PoseOptions /> : (
+          <p className="px-1 text-[10px] leading-snug text-ink">
+            <span className="font-bold">{TOOLS[tool].label}:</span> {TOOLS[tool].hint}
+          </p>
+        )}
+      </div>
+
+      <div role="group" aria-label="Look" className="flex shrink-0 items-center gap-1">
+        <span className="text-[10px] font-bold text-ink max-sm:hidden">LOOK</span>
+        {(['shapes', 'final'] as const).map((id) => (
           <button
             key={id}
             type="button"
-            onClick={() => applyPreset(id)}
-            aria-pressed={presetId === id}
-            title={RIG_PRESETS[id].note}
-            className={`flex-1 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[3px] text-[10px] font-bold ${
-              presetId === id
-                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-            }`}
+            onClick={() => setLook(id)}
+            aria-pressed={look === id}
+            title={id === 'shapes' ? 'THE PLAIN SHAPES, TO BUILD AGAINST' : 'THE PIXELATED, OUTLINED FIGURE AS IT WILL LOOK'}
+            className={`px-2 py-1 text-[10px] ${pressable(look === id)}`}
           >
-            {RIG_PRESETS[id].label}
+            {id === 'shapes' ? 'SHAPES' : 'FINAL'}
           </button>
         ))}
       </div>
-    </fieldset>
-  );
-}
-
-/**
- * What is drawn: the render stage, plus the skeleton's own eye.
- *
- * **The eye belongs to the skeleton alone, and that asymmetry is the honest model.** The three render stages are
- * a pipeline, so exactly one shows and the control is a radio group. The skeleton is not a stage - it is an
- * overlay you look *through* while working in either of the other two, which is why it is the one layer whose
- * visibility is independent. Giving all four an eye is what produced the defect this replaces: three of them
- * were fighting to be "the" render, and the fourth genuinely is not.
- */
-function RenderStage() {
-  const renderLayer = useCharacterStore((state) => state.renderLayer);
-  const setRenderLayer = useCharacterStore((state) => state.setRenderLayer);
-  const skeletonVisible = useCharacterStore((state) => state.skeletonVisible);
-  const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
-
-  return (
-    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>WHAT IS DRAWN</legend>
-
-      <div className="p-1">
-        {/* The overlay, with the only eye on the page. */}
-        <div className="flex items-center gap-2 pb-1">
-          <button
-            type="button"
-            onClick={toggleSkeleton}
-            aria-pressed={skeletonVisible}
-            aria-label={`${skeletonVisible ? 'Hide' : 'Show'} the joints and bones`}
-            className={`shrink-0 cursor-pointer rounded-none border border-black px-1 text-[11px] leading-none ${
-              skeletonVisible ? 'bg-sun text-ink-plate hover:bg-ice' : 'bg-chrome-dark text-ink'
-            }`}
-          >
-            {skeletonVisible ? 'ÃƒÂ¢Ã¢â‚¬â€Ã‚Â' : 'ÃƒÂ¢Ã¢â‚¬â€Ã…â€™'}
-          </button>
-          <span className="text-[10px] font-bold text-ink">
-            JOINTS AND BONES
-            <span className="ml-2 font-normal text-ink-plate">AN OVERLAY - DRAWN OVER EITHER STAGE BELOW</span>
-          </span>
-        </div>
-
-        {RENDER_LAYERS.map((stage) => {
-          const chosen = renderLayer === stage.id;
-
-          return (
-            <button
-              key={stage.id}
-              type="button"
-              onClick={() => setRenderLayer(stage.id)}
-              aria-pressed={chosen}
-              className={`mb-1 w-full cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-left text-[10px] font-bold ${
-                chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                  : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-              }`}
-            >
-              {stage.label}
-              <span className="ml-2 font-normal text-ink-plate">{stage.note}</span>
-            </button>
-          );
-        })}
-      </div>
-    </fieldset>
-  );
-}
-
-function MassToolPanel({ jointId, tool }: { jointId: string; tool: MassTool }) {
-  const mass = useCharacterStore((state) => state.skeleton.joints[jointId]?.mass ?? null);
-
-  if (mass === null) return null;
-
-  if (tool === 'colour') return <MassColourRow jointId={jointId} current={mass.colour} />;
-
-  if (tool === 'move') {
-    const round = (value: number) => value.toFixed(2);
-
-    return (
-      <p className="mt-1 text-[9px] text-ink-plate">
-        OFFSET X {round(mass.offset.x)} Y {round(mass.offset.y)} Z {round(mass.offset.z)} - DRAGGING SLIDES THE
-        SHAPE FROM HERE. THE JOINT AND THE FIGURE UNDER IT DO NOT MOVE.
-      </p>
-    );
-  }
-
-  return null;
-}
-
-/**
- * The dyes a shape may wear, as swatches.
- *
- * **A swatch is a colour, so a swatch has to *be* the colour rather than name it.** The one place on this site
- * where a control cannot be a plate is here: a row reading `[ ROYAL BLUE ] [ EMERALD ] [ ROSE ]` makes a reader
- * translate seven words into seven colours, and the whole job is picking one by eye. So these are small filled
- * boxes, drawn from `MASS_DYES` - which is a *library* constant, so this is still not a component writing a hex.
- *
- * The first swatch is deliberately not a colour: `FIGURE` means "no tint of its own", and it is drawn as a
- * diagonal split so it reads as *absent* rather than as an eighth dye. Without it there would be no way back to
- * the two-tone figure a shape starts in.
- *
- * `aria-label` carries the name, because a coloured box announces nothing to a screen reader.
- */
-function MassColourRow({ jointId, current }: { jointId: string; current: string | null }) {
-  const setMassColour = useCharacterStore((state) => state.setMassColour);
-
-  return (
-    <fieldset className="mt-1 rounded-none border border-ink">
-      <legend className="px-1 text-[9px] font-bold text-ink-plate">COLOUR - THIS SHAPE ONLY</legend>
-
-      <div className="flex flex-wrap gap-[2px] p-1">
-        {MASS_DYES.map((dye) => {
-          const chosen = current === dye.value;
-
-          return (
-            <button
-              key={dye.id}
-              type="button"
-              onClick={() => setMassColour(jointId, dye.value)}
-              aria-pressed={chosen}
-              aria-label={dye.label}
-              title={dye.label}
-              className={`h-5 w-5 cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 ${
-                chosen
-                  ? 'border-t-black border-l-black border-r-white border-b-white'
-                  : 'border-t-white border-l-white border-r-black border-b-black'
-              }`}
-              // Inline, because the value is data rather than a class - there is no Tailwind utility for an
-              // arbitrary dye that is not in the theme, and the swatch's whole point is to show the real colour.
-              style={
-                dye.value === null
-                  ? { background: `linear-gradient(135deg, ${MODEL_INK} 50%, ${MODEL_LIMB} 50%)` }
-                  : { background: dye.value }
-              }
-            />
-          );
-        })}
-      </div>
-
-      <p className="px-1 pb-1 text-[9px] text-ink-plate">
-        {current === null
-          ? 'THIS SHAPE WEARS THE FIGUREÃƒÂ¢Ã¢â€šÂ¬Ã¢â€žÂ¢S OWN TWO TONES.'
-          : `THIS SHAPE IS PAINTED ${MASS_DYES.find((dye) => dye.value === current)?.label ?? 'IN A DYE'}.`}
-      </p>
-    </fieldset>
-  );
-}
-
-/**
- * The mass tab: opened by clicking a shape, and it acts on what was clicked.
- *
- * **The palette renders whether or not anything is selected, and that was a real defect.** This used to return only
- * a note when no joint was picked - so a reader arriving at the CHAR tab saw the words "CLICK A SHAPE IN EITHER
- * VIEWPORT" and *no shape palette at all*. Chrome measured it: two fieldsets on the page, neither of them the
- * palette, `shape plates: 0`. The one control the brief asked for was behind a selection the reader had no reason
- * to make first, because the palette is how a shape gets added in the first place.
- *
- * What is conditional is what *needs* a target: the size readout, the offset readout and the joint scale slider.
- * Those say which joint they act on, and with none picked there is nothing for them to name.
- */
-function MassRescaler({ jointId }: { jointId: string | null }) {
-  const joints = useCharacterStore((state) => state.skeleton.joints);
-  const scaleJoint = useCharacterStore((state) => state.scaleJoint);
-  const massTool = useCharacterStore((state) => state.massTool);
-  const joint = jointId === null ? undefined : joints[jointId];
-
-  if (jointId === null || joint === undefined) return null;
-
-  const id = jointId;
-  const part = joint.mass;
-
-  return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
-      <p className="text-[10px] font-bold text-ink">
-        {id.toUpperCase()}
-        <span className="ml-2 font-normal text-ink-plate">
-          {part === null ? 'CARRYING NOTHING' : `CARRYING A ${MASS_SHAPES[part.shape].label}`}
-        </span>
-      </p>
-
-      {/* The options follow the tool above: size for RESIZE, offset for MOVE, the dye row for COLOUR. */}
-      <MassToolPanel jointId={id} tool={massTool} />
-      <MassSize jointId={id} />
-
-      <label className="mt-1 block text-[10px] text-ink-plate" htmlFor="character-mass-scale">
-        JOINT SCALE {scaleOf(joint).toFixed(2)} - SCALES THE JOINT AND EVERYTHING BELOW IT
-      </label>
-      <input
-        id="character-mass-scale"
-        type="range"
-        min={MIN_SCALE}
-        max={MAX_SCALE}
-        step={0.05}
-        value={scaleOf(joint)}
-        onChange={(event) => scaleJoint(id, Number(event.target.value))}
-        className={PLATE}
-      />
     </div>
   );
 }
 
-/**
- * The three verbs a shape has, as a strip of marks with their names under them.
- *
- * **This is the merge, and it replaces a switch that could not hold a third idea.** The shape row, the RESIZE/MOVE
- * pair and the joint slider used to sit in three separate places, which meant a reader looking for "make this foot
- * smaller" had to know the answer was a *layer*, then a *tool*, then a *slider* - three presses through two
- * vocabularies for one intention. The verbs are one strip here, and picking one is one press.
- *
- * **COLOUR is a tool with no gesture**, which is why the strip has three members and only two drives a drag: a
- * colour is not a quantity, so there is nothing for a pointer to interpolate. Its name is still on a plate, because
- * a reader should not have to guess that `◐` opens a swatch row.
- */
-function MassToolSwitch() {
-  const massTool = useCharacterStore((state) => state.massTool);
-  const setMassTool = useCharacterStore((state) => state.setMassTool);
-
-  const tools: { id: MassTool; label: string; note: string }[] = [
-    { id: 'resize', label: 'RESIZE', note: 'A DRAG SIZES THE SHAPE. IT DOES NOT MOVE THE JOINT.' },
-    { id: 'move', label: 'MOVE', note: 'A DRAG SLIDES THE SHAPE, LEAVING THE JOINT EXACTLY WHERE IT IS.' },
-    { id: 'colour', label: 'COLOUR', note: 'PICK A DYE. THIS TOOL HAS NO DRAG, SO NOTHING MOVES BY ACCIDENT.' },
-  ];
+function AddOptions() {
+  const addKind = useCharacterStore((state) => state.addKind);
+  const setAddKind = useCharacterStore((state) => state.setAddKind);
 
   return (
-    <fieldset className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <legend className={`${TITLE_BAR_INACTIVE} w-full`}>WHAT A DRAG ON A SHAPE DOES</legend>
-
-      {/*
-       * **A mark above its name, where a wide screen has the room for both.** The glyph is what makes the row
-       * scannable - three marks are read at a glance where three words are read one at a time - and the name
-       * underneath is what keeps it honest, because `Ã¢Â¤Â¡` alone is a guess until it says RESIZE.
-       */}
-      <div className="flex gap-[2px] p-1">
-        {tools.map((tool) => (
-          <button
-            key={tool.id}
-            type="button"
-            onClick={() => setMassTool(tool.id)}
-            aria-pressed={massTool === tool.id}
-            title={tool.note}
-            className={`flex flex-1 cursor-pointer flex-col items-center gap-[2px] rounded-none border-t border-l border-r-2 border-b-2 px-1 py-[3px] text-[9px] font-bold ${
-              massTool === tool.id
-                ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                : 'border-t-white border-l-white border-black bg-sun-pale text-ink hover:bg-ice'
-            }`}
-          >
-            <span aria-hidden className="text-[14px] leading-none">
-              {MASS_TOOL_GLYPHS[tool.id]}
-            </span>
-            {tool.label}
-          </button>
-        ))}
-      </div>
-
-      <p className="px-1 pb-1 text-[9px] text-ink-plate">{tools.find((tool) => tool.id === massTool)?.note}</p>
-    </fieldset>
+    <>
+      <span className="shrink-0 px-1 text-[10px] font-bold text-ink">ADD A</span>
+      {MASS_SHAPE_IDS.map((kind) => (
+        <button
+          key={kind}
+          type="button"
+          onClick={() => setAddKind(kind)}
+          aria-pressed={addKind === kind}
+          title={MASS_SHAPES[kind].note}
+          className={`flex shrink-0 items-center gap-1 px-2 py-1 text-[10px] ${pressable(addKind === kind)}`}
+        >
+          <span aria-hidden className="text-[13px] leading-none">
+            {MASS_SHAPE_GLYPHS[kind]}
+          </span>
+          {MASS_SHAPES[kind].label}
+        </button>
+      ))}
+      <span className="shrink-0 px-1 text-[10px] text-ink">THEN CLICK A VIEW</span>
+    </>
   );
 }
 
-/**
- * The shape's own size in the three axes - **a readout, not a control.**
- *
- * The drag is the control, and it is the one the brief asks for. Printing the numbers matters anyway: without them
- * there is no way to tell a shape that is 0.02 wide from one that is 0.2, and no way to notice a drag reaching its
- * clamp. Read-only by design rather than by omission - a second set of inputs writing the same field would be a
- * second way for the shape and the numbers to disagree.
- */
-function MassSize({ jointId }: { jointId: string }) {
-  const mass = useCharacterStore((state) => state.skeleton.joints[jointId]?.mass ?? null);
-
-  if (mass === null) {
-    return (
-      <p className="mt-1 text-[9px] text-ink-plate">
-        NO SHAPE HERE YET - PICK ONE ABOVE, THEN DRAG IT IN EITHER VIEWPORT.
-      </p>
-    );
-  }
-
-  const round = (value: number) => value.toFixed(2);
+function PoseOptions() {
+  const stretch = useCharacterStore((state) => state.stretch);
+  const toggleStretch = useCharacterStore((state) => state.toggleStretch);
 
   return (
-    <p className="mt-1 text-[9px] text-ink-plate">
-      W {round(mass.size.x)} H {round(mass.size.y)} D {round(mass.size.z)} - DRAGGING THE SHAPE CHANGES THESE
-    </p>
+    <>
+      <span className="shrink-0 px-1 text-[10px] font-bold text-ink">A DRAG</span>
+      {[false, true].map((on) => (
+        <button
+          key={String(on)}
+          type="button"
+          onClick={() => {
+            if (stretch !== on) toggleStretch();
+          }}
+          aria-pressed={stretch === on}
+          className={`shrink-0 px-2 py-1 text-[10px] ${pressable(stretch === on)}`}
+        >
+          {on ? 'STRETCHES' : 'BENDS'}
+        </button>
+      ))}
+      <span className="shrink-0 px-1 text-[10px] text-ink">
+        {stretch ? 'BONES GET LONGER OR SHORTER.' : 'LIMBS SWING; BONES KEEP LENGTH.'}
+      </span>
+    </>
   );
 }
 
-/**
- * One orthographic pane, with a real WebGL surface in it.
- *
- * **This is the pane that stopped being an empty box.** Everything above it - the rig, the store, the drag
- * arithmetic - was built to be driven by something, and this is that something: a `<Canvas>` rendering the
- * figure from one fixed direction, with the joints drawn as grabbable handles in the SKELETON layer and the
- * mass as clickable primitives in the MASS layer.
- *
- * **Orthographic, not perspective, and that is a requirement rather than a preference.** The drag arithmetic in
- * `app/lib/character/drag.ts` converts pixels to model units with one constant, which is only correct when a
- * unit is the same number of pixels everywhere on screen. A perspective camera makes it vary with depth, so a
- * joint dragged near the camera would move faster than one dragged far away - and the whole point of having the
- * front and side views at once is that a pixel means the same thing in both. `zoom` is set so the figure's
- * ~2 units fill the pane, which is what makes `UNITS_PER_PIXEL` true rather than approximately true.
- *
- * **The label sits inside the frame**, because a drag is constrained by which pane it started in and a reader
- * has to be able to tell at a glance which one their pointer is over.
- */
-function Viewport({ kind, label, hint }: { kind: ViewportKind; label: string; hint: string }) {
+function View({ kind, label, hint }: { kind: 'front' | 'side'; label: string; hint: string }) {
   return (
-    <div className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware">
+    <section aria-label={`${label} view`} className="min-w-0 rounded-none border-2 border-ink bg-hardware">
       <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-ink-bar">
         <span>{label}</span>
         <span className="text-sun">{hint}</span>
       </p>
-
-      {/*
-       * `touch-none` on the wrapper stops a phone scrolling the page instead of dragging a joint, and the canvas
-       * fills the box rather than sizing itself - a canvas that sized to its content would have no height at all
-       * inside this fixed 26rem frame.
-       */}
-      <div className="h-[26rem] touch-none">
+      <div className="h-[20rem] touch-none sm:h-[28rem]">
         <CharacterScene view={kind} />
       </div>
+    </section>
+  );
+}
+
+function PanelTitle({ children }: { children: ReactNode }) {
+  return <div className={`${TITLE_BAR_INACTIVE} w-full`}>{children}</div>;
+}
+
+/** Every shape, top of the list first. A row picks its shape; the eye hides it; the arrows reorder. */
+function ShapesList() {
+  const shapes = useCharacterStore((state) => state.figure.shapes);
+  const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
+  const selectShape = useCharacterStore((state) => state.selectShape);
+  const setHidden = useCharacterStore((state) => state.setHidden);
+  const reorder = useCharacterStore((state) => state.reorder);
+
+  const small = 'h-7 w-7 shrink-0 text-[11px] leading-none max-sm:h-11 max-sm:w-11';
+
+  return (
+    <section aria-label="Shapes" className={PANEL}>
+      <PanelTitle>
+        <span>SHAPES</span>
+        <span>[ {shapes.length} ]</span>
+      </PanelTitle>
+
+      {shapes.length === 0 ? (
+        <p className="p-2 text-[10px] text-ink">NO SHAPES YET. PICK ADD IN THE TOOL STRIP.</p>
+      ) : (
+        <ul className="max-h-64 overflow-y-auto p-1 lg:max-h-56">
+          {shapes.map((shape, index) => {
+            const picked = shape.id === selectedShapeId;
+            return (
+              <li key={shape.id} className="flex items-center gap-[2px] pb-[2px]">
+                <button
+                  type="button"
+                  onClick={() => setHidden(shape.id, !shape.hidden)}
+                  aria-pressed={!shape.hidden}
+                  aria-label={`${shape.hidden ? 'Show' : 'Hide'} ${shape.name}`}
+                  title={shape.hidden ? 'HIDDEN - CLICK TO SHOW' : 'SHOWN - CLICK TO HIDE'}
+                  className={`${small} ${pressable(false)}`}
+                >
+                  {shape.hidden ? '◌' : '◉'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => selectShape(picked ? null : shape.id)}
+                  aria-pressed={picked}
+                  className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-[10px] ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
+                >
+                  <span aria-hidden className="w-4 shrink-0 text-center text-[12px] leading-none">
+                    {MASS_SHAPE_GLYPHS[shape.kind]}
+                  </span>
+                  <span className="truncate">{shape.name}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reorder(shape.id, -1)}
+                  disabled={index === 0}
+                  aria-label={`Move ${shape.name} up the list`}
+                  className={`${small} ${pressable(false)}`}
+                >
+                  ▲
+                </button>
+                <button
+                  type="button"
+                  onClick={() => reorder(shape.id, 1)}
+                  disabled={index === shapes.length - 1}
+                  aria-label={`Move ${shape.name} down the list`}
+                  className={`${small} ${pressable(false)}`}
+                >
+                  ▼
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+function Properties() {
+  const shape = useCharacterStore((state) => findShape(state.figure, state.selectedShapeId));
+  return shape === undefined ? <FigureSettings /> : <ShapeProperties shape={shape} />;
+}
+
+function ShapeProperties({ shape }: { shape: Shape }) {
+  const joints = useCharacterStore((state) => state.figure.skeleton.joints);
+  const rename = useCharacterStore((state) => state.rename);
+  const setKind = useCharacterStore((state) => state.setKind);
+  const setColour = useCharacterStore((state) => state.setColour);
+  const setPin = useCharacterStore((state) => state.setPin);
+  const setNumbers = useCharacterStore((state) => state.setNumbers);
+  const duplicate = useCharacterStore((state) => state.duplicate);
+  const deleteShape = useCharacterStore((state) => state.deleteShape);
+  const selectShape = useCharacterStore((state) => state.selectShape);
+
+  const degrees = { x: (shape.rotation.x * 180) / Math.PI, y: (shape.rotation.y * 180) / Math.PI, z: (shape.rotation.z * 180) / Math.PI };
+
+  return (
+    <section aria-label="Shape properties" className={PANEL}>
+      <PanelTitle>
+        <span>PROPERTIES</span>
+        <button type="button" onClick={() => selectShape(null)} className="px-1 text-[10px] font-bold underline max-sm:min-h-11">
+          [ DONE ]
+        </button>
+      </PanelTitle>
+
+      <div className="flex flex-col gap-2 p-2">
+        <TextField label="NAME" value={shape.name} onCommit={(name) => rename(shape.id, name)} />
+
+        <Field label="SHAPE">
+          <div className="flex flex-wrap gap-[2px]">
+            {MASS_SHAPE_IDS.map((kind: MassShapeId) => (
+              <button
+                key={kind}
+                type="button"
+                onClick={() => setKind(shape.id, kind)}
+                aria-pressed={shape.kind === kind}
+                aria-label={MASS_SHAPES[kind].label}
+                title={`${MASS_SHAPES[kind].label} - ${MASS_SHAPES[kind].note}`}
+                className={`h-8 w-8 text-[14px] leading-none max-sm:h-11 max-sm:w-11 ${pressable(shape.kind === kind)}`}
+              >
+                {MASS_SHAPE_GLYPHS[kind]}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label="COLOUR">
+          <div className="flex flex-wrap gap-[2px]">
+            {MASS_DYES.map((dye) => {
+              const on = shape.colour === dye.value;
+              return (
+                <button
+                  key={dye.id}
+                  type="button"
+                  onClick={() => setColour(shape.id, dye.value)}
+                  aria-pressed={on}
+                  aria-label={dye.label}
+                  title={dye.label}
+                  className={`h-7 w-7 cursor-pointer rounded-none border-2 max-sm:h-11 max-sm:w-11 ${on ? 'border-ink outline outline-2 outline-bubble' : 'border-ink'}`}
+                  style={{ background: dye.value ?? MODEL_INK }}
+                />
+              );
+            })}
+          </div>
+        </Field>
+
+        <Field label="PINNED TO" htmlFor="shape-pin">
+          <select
+            id="shape-pin"
+            value={shape.pin ?? ''}
+            onChange={(event) => setPin(shape.id, event.target.value === '' ? null : event.target.value)}
+            className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[11px] text-ink max-sm:min-h-11"
+          >
+            <option value="">NOTHING - STAYS PUT</option>
+            {Object.keys(joints).map((id) => (
+              <option key={id} value={id}>
+                {jointLabel(id)}
+              </option>
+            ))}
+          </select>
+          <span className="text-[10px] text-ink">
+            {shape.pin === null ? 'POSING THE SKELETON LEAVES THIS SHAPE WHERE IT IS.' : 'FOLLOWS AND TURNS WITH THIS JOINT WHEN YOU POSE.'}
+          </span>
+        </Field>
+
+        <TripleField
+          label={shape.pin === null ? 'POSITION' : 'POSITION FROM JOINT'}
+          names={['ACROSS', 'UP', 'FORWARD']}
+          value={shape.position}
+          step={0.01}
+          onCommit={(position) => setNumbers(shape.id, { position })}
+        />
+        <TripleField
+          label="TURN (DEGREES)"
+          names={['TILT', 'SPIN', 'ROLL']}
+          value={degrees}
+          step={1}
+          onCommit={(turn) =>
+            setNumbers(shape.id, {
+              rotation: { x: (turn.x * Math.PI) / 180, y: (turn.y * Math.PI) / 180, z: (turn.z * Math.PI) / 180 },
+            })
+          }
+        />
+        <TripleField
+          label="SIZE"
+          names={['WIDE', 'TALL', 'DEEP']}
+          value={shape.size}
+          step={0.01}
+          onCommit={(size) => setNumbers(shape.id, { size })}
+        />
+
+        <div className="flex gap-1">
+          <button type="button" onClick={() => duplicate(shape.id)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}>
+            [ DUPLICATE ]
+          </button>
+          <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}>
+            [ DELETE ]
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** With nothing picked: settings for the whole figure. */
+function FigureSettings() {
+  const presetId = useCharacterStore((state) => state.presetId);
+  const applyPreset = useCharacterStore((state) => state.applyPreset);
+  const light = useCharacterStore((state) => state.light);
+  const setLight = useCharacterStore((state) => state.setLight);
+  const showSkeleton = useCharacterStore((state) => state.showSkeleton);
+  const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
+  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
+  const tool = useCharacterStore((state) => state.tool);
+
+  return (
+    <section aria-label="Figure settings" className={PANEL}>
+      <PanelTitle>
+        <span>FIGURE</span>
+        <span>NOTHING PICKED</span>
+      </PanelTitle>
+
+      <div className="flex flex-col gap-2 p-2">
+        {tool === 'pose' && selectedJointId !== null ? (
+          <p className="text-[10px] font-bold text-ink">JOINT: {jointLabel(selectedJointId)}</p>
+        ) : (
+          <p className="text-[10px] text-ink">PICK A SHAPE IN A VIEW OR THE LIST TO EDIT IT.</p>
+        )}
+
+        <Field label="START FROM - REPLACES THE FIGURE (UNDO WORKS)">
+          <div className="flex gap-[2px]">
+            {RIG_PRESET_IDS.map((id) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => applyPreset(id)}
+                aria-pressed={presetId === id}
+                title={RIG_PRESETS[id].note}
+                className={`flex-1 px-1 py-1 text-[10px] ${pressable(presetId === id)}`}
+              >
+                {RIG_PRESETS[id].label}
+              </button>
+            ))}
+          </div>
+        </Field>
+
+        <Field label={`LIGHT FROM ${Math.round((light.azimuth * 180) / Math.PI)}°`} htmlFor="light-azimuth">
+          <input
+            id="light-azimuth"
+            type="range"
+            min={-Math.PI}
+            max={Math.PI}
+            step={0.05}
+            value={light.azimuth}
+            onChange={(event) => setLight({ ...light, azimuth: Number(event.target.value) })}
+            className="w-full accent-ena"
+          />
+        </Field>
+        <Field label={`LIGHT HEIGHT ${Math.round((light.elevation * 180) / Math.PI)}°`} htmlFor="light-elevation">
+          <input
+            id="light-elevation"
+            type="range"
+            min={-1.4}
+            max={1.4}
+            step={0.05}
+            value={light.elevation}
+            onChange={(event) => setLight({ ...light, elevation: Number(event.target.value) })}
+            className="w-full accent-ena"
+          />
+        </Field>
+
+        <button type="button" onClick={toggleSkeleton} aria-pressed={showSkeleton} className={`px-2 py-1 text-[10px] ${pressable(showSkeleton)}`}>
+          {showSkeleton ? '[ SKELETON SHOWN ]' : '[ SKELETON HIDDEN ]'}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {htmlFor === undefined ? (
+        <span className="text-[10px] font-bold text-ink">{label}</span>
+      ) : (
+        <label htmlFor={htmlFor} className="text-[10px] font-bold text-ink">
+          {label}
+        </label>
+      )}
+      {children}
     </div>
+  );
+}
+
+/**
+ * A name box: edits are kept locally and committed on Enter or on leaving the box - one undo step, not one a key.
+ * Keyed by its value, so when the name changes from outside (undo, another shape picked) the box starts afresh.
+ */
+function TextField(props: { label: string; value: string; onCommit: (value: string) => void }) {
+  return <TextFieldBox key={props.value} {...props} />;
+}
+
+function TextFieldBox({ label, value, onCommit }: { label: string; value: string; onCommit: (value: string) => void }) {
+  const [draft, setDraft] = useState(value);
+
+  const commit = () => {
+    if (draft.trim().toUpperCase() !== value) onCommit(draft);
+    else setDraft(value);
+  };
+
+  return (
+    <Field label={label} htmlFor="shape-name">
+      <input
+        id="shape-name"
+        value={draft}
+        maxLength={MAX_NAME_LENGTH}
+        onChange={(event) => setDraft(event.target.value)}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter') commit();
+          if (event.key === 'Escape') setDraft(value);
+        }}
+        className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[11px] uppercase text-ink max-sm:min-h-11"
+      />
+    </Field>
+  );
+}
+
+type TripleProps = {
+  label: string;
+  names: [string, string, string];
+  value: Vec3;
+  step: number;
+  onCommit: (value: Vec3) => void;
+};
+
+const shownAs = (step: number) => (n: number) => (step >= 1 ? String(Math.round(n)) : n.toFixed(2));
+
+/**
+ * Three number boxes. Like the name box, a change is committed on Enter or on leaving a box, and the boxes start
+ * afresh whenever the numbers change from outside - a drag, an undo.
+ */
+function TripleField(props: TripleProps) {
+  const shown = shownAs(props.step);
+  return <TripleFieldBoxes key={`${shown(props.value.x)}|${shown(props.value.y)}|${shown(props.value.z)}`} {...props} />;
+}
+
+function TripleFieldBoxes({
+  label,
+  names,
+  value,
+  step,
+  onCommit,
+}: TripleProps) {
+  const axes = ['x', 'y', 'z'] as const;
+  const shown = shownAs(step);
+  const [drafts, setDrafts] = useState(() => axes.map((axis) => shown(value[axis])));
+  const key = axes.map((axis) => shown(value[axis])).join('|');
+
+  const commit = () => {
+    const numbers = drafts.map(Number);
+    if (numbers.some((n) => !Number.isFinite(n))) {
+      setDrafts(key.split('|'));
+      return;
+    }
+    if (numbers.map(shown).join('|') === key) return;
+    onCommit({ x: numbers[0], y: numbers[1], z: numbers[2] });
+  };
+
+  return (
+    <fieldset className="flex flex-col gap-1">
+      <legend className="pb-1 text-[10px] font-bold text-ink">{label}</legend>
+      <div className="grid grid-cols-3 gap-1">
+        {axes.map((axis, index) => (
+          <label key={axis} className="flex flex-col text-[10px] text-ink">
+            {names[index]}
+            <input
+              type="number"
+              inputMode="decimal"
+              step={step}
+              value={drafts[index]}
+              onChange={(event) => setDrafts(drafts.map((d, i) => (i === index ? event.target.value : d)))}
+              onBlur={commit}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') commit();
+              }}
+              className="w-full min-w-0 rounded-none border-2 border-ink bg-paper px-1 py-[2px] text-[11px] text-ink max-sm:min-h-11"
+            />
+          </label>
+        ))}
+      </div>
+    </fieldset>
   );
 }

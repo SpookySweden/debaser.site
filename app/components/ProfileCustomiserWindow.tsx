@@ -622,7 +622,9 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         // Clicking the desktop does not close this one: it holds unsaved work, and a mis-aimed press is not a
         // decision to discard it. Every other window keeps the behaviour - see `PopoutWindow`.
         dismissOnBackdrop={false}
-        maxWidth="max-w-3xl"
+        // The workbench is a canvas window - a tool strip, two views and two panels - and needs the room. The other
+        // tabs are forms and stay at a reading width.
+        maxWidth={tab === 'character' ? 'max-w-6xl' : 'max-w-3xl'}
         status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC ASKS BEFORE CLOSING"
         actions={
           <a

@@ -1,143 +1,189 @@
 /**
- * Turning a pointer drag into a joint's next position.
+ * The two views, as directions in the world, and what a pointer drag in each one means.
  *
- * **This is arithmetic, so it lives here and not in a pointer handler.** A drag is the one place in this
- * feature where two coordinate spaces meet - the screen, where the pointer moves in pixels, and the model,
- * where a joint sits in units - and getting it wrong is the kind of bug that cannot be seen failing in a
- * screenshot. Keeping the maths in a pure function with no DOM and no Three.js means it can be driven in Node
- * and held to account, which `Temp/check-character.cjs` does. The handler's job is reduced to reading two
- * pointer positions and calling this.
+ * **Each view is flat (orthographic), and that is a requirement rather than a preference.** Every drag below turns
+ * pixels into model units with one number per view, which is only true when a unit is the same number of pixels
+ * everywhere on screen. A perspective camera would make it vary with depth, and a dragged shape would slide away
+ * from the pointer.
  *
- * **The viewport decides which axes are free, and that is the whole design.** A joint has three degrees of
- * freedom but a flat pane shows two of them, and the third is invisible - so dragging in the FRONT pane moves
- * x and y and leaves z exactly where it was, while the SIDE pane moves z and y. That is not a limitation to be
- * worked around by guessing: it is the reason both panes exist at once, because a movement the front pane
- * cannot express is one the side pane shows directly. The mapping lives in `AXES_FOR_VIEW` rather than in a
- * branch inside the handler, so the handler stays a single line and the rule is readable.
+ * **A view edits only the two directions it can see.** FRONT shows left/right and up/down, so a drag there never
+ * changes depth; SIDE shows forward/back and up/down, so it never changes width. That is what makes two flat views a
+ * complete editor: anything you cannot do in one, you can do in the other.
+ *
+ * **Every gesture is computed from the figure as it was when the drag began**, plus the pointer's *total* travel -
+ * never by adding up small per-frame steps. Adding steps drifts (a bent elbow creeps off the pointer), and a gesture
+ * computed from its start is also exactly one undo step: the start is what UNDO puts back.
  */
-import type { Vec3 } from './skeleton';
+import { clampSize, findShape, placeShape, placementOf, type Figure } from './figure';
+import { bendJoint, stretchJoint, worldPosition, addVec3, type Vec3 } from './skeleton';
+import { quatFromAxisAngle, quatInvert, quatMultiply, rotateVec } from './turns';
 
-/** Which orthographic pane a drag happened in. The two the brief asks for, and no third. */
 export type ViewportKind = 'front' | 'side';
 
 /**
- * The two model axes a pane's pointer can move, in the order (horizontal, vertical).
+ * The view's screen directions, in world terms.
  *
- * FRONT looks down -z, so the pane's horizontal is x and its vertical is y. SIDE looks down -x, so the
- * pane's horizontal is z and its vertical is y. Both share y, which is what makes them two views of one
- * object rather than two objects: an arm raised in the front pane is raised in the side pane too.
+ * FRONT looks along -z: screen right is +x. SIDE looks along +x from the figure's left-of-screen side, so screen
+ * right is +z - the figure faces right in that pane, and dragging right moves a shape forward. `toward` points out of
+ * the screen at the reader, and is the axis TURN spins about.
  */
-export const AXES_FOR_VIEW: Record<ViewportKind, { horizontal: keyof Vec3; vertical: keyof Vec3 }> = {
-  front: { horizontal: 'x', vertical: 'y' },
-  side: { horizontal: 'z', vertical: 'y' },
+export type ViewBasis = { right: Vec3; up: Vec3; toward: Vec3; axes: [keyof Vec3, keyof Vec3] };
+
+export const VIEW_BASIS: Record<ViewportKind, ViewBasis> = {
+  front: { right: { x: 1, y: 0, z: 0 }, up: { x: 0, y: 1, z: 0 }, toward: { x: 0, y: 0, z: 1 }, axes: ['x', 'y'] },
+  side: { right: { x: 0, y: 0, z: 1 }, up: { x: 0, y: 1, z: 0 }, toward: { x: -1, y: 0, z: 0 }, axes: ['z', 'y'] },
 };
 
-/**
- * How many model units one pixel of drag is worth.
- *
- * **This is the number the camera is built from, not a preference to tune alongside it.** `CharacterScene` sets
- * its orthographic `zoom` to `1 / UNITS_PER_PIXEL`, because Three divides the frustum by `zoom`: the visible
- * world width is `paneWidthPx / zoom`, so a pixel is `1 / zoom` units and the two constants are the same fact.
- * Having them as 120 and 200 - which they were - means a dragged joint moves 1.67 times further than the
- * pointer, which reads as "the drag is a bit off" rather than as a bug, and is why the camera check exists.
- *
- * Changing this changes how much of the figure fits in the pane, since the pane size is fixed in rem. At 1/150
- * a 26rem pane - 416px at a 16px root - shows 2.77 units, against a rig measured at 2.29 tall: about a quarter
- * of a unit of margin above and below, which is enough that the hands and feet are inside the frame with the
- * default pose. `Temp/check-character-camera.cjs` measures the rig and fails if the two stop agreeing.
- */
-export const UNITS_PER_PIXEL = 1 / 150;
-
-/**
- * The offset a drag has produced, in the joint's own parent space.
- *
- * `dy` is negated: screen coordinates grow downward and model y grows up, so dragging a joint *up* has to
- * increase its y. Forgetting that flip is the single most common way a drag ends up inverted, and having it
- * here - with a check asserting it - is cheaper than noticing it by eye on a figure nobody can screenshot.
- *
- * An untouched axis is exactly `0` rather than "left alone", because the caller adds this to the joint's
- * current position: adding zero is what leaves the other axis where it was, and it means the function needs no
- * knowledge of the joint at all.
- */
-export function dragOffset(view: ViewportKind, dxPixels: number, dyPixels: number): Vec3 {
-  const axes = AXES_FOR_VIEW[view];
-  const offset: Vec3 = { x: 0, y: 0, z: 0 };
-  if (!Number.isFinite(dxPixels) || !Number.isFinite(dyPixels)) return offset;
-
-  offset[axes.horizontal] = dxPixels * UNITS_PER_PIXEL;
-  // `+ 0` rather than a bare negation: negating a zero produces `-0`, and while `-0 === 0` is true and it
-  // renders identically, a signed zero in stored data is a value that compares oddly, serialises as `-0`, and
-  // trips `assert.equal`. Adding zero normalises it away, and it is the only reason this is not just `-dy`.
-  offset[axes.vertical] = -dyPixels * UNITS_PER_PIXEL + 0;
-
-  return offset;
-}
-
-/**
- * The scale a drag in the MASS layer has produced.
- *
- * A relative multiplier rather than an absolute size, because the joint already carries a scale and a drag
- * should adjust it rather than replace it: the same drag on a big limb and a small one should change both by
- * the same proportion, which is what "rescaling" means. Exponential in the drag distance so that dragging up
- * and then down by the same amount returns to where it started - a linear mapping would make a large scale
- * easy to leave and a small one hard to reach.
- *
- * Clamped at `MIN_SCALE`: a joint scaled to zero is a joint whose mass cannot be picked up again, because the
- * geometry has no extent to hit.
- */
-export const MIN_SCALE = 0.2;
-export const MAX_SCALE = 4;
-
-export function scaleForDrag(currentScale: number, dyPixels: number): number {
-  if (!Number.isFinite(dyPixels) || !Number.isFinite(currentScale) || currentScale <= 0) return currentScale;
-
-  // Dragging up (negative dy) grows: 200 pixels up is about 2.7x, and the clamp catches the rest.
-  const next = currentScale * Math.exp(-dyPixels / 200);
-
-  return Math.min(MAX_SCALE, Math.max(MIN_SCALE, next));
-}
-
-/**
- * The size change a drag in the MASS layer has produced, **per axis**, in joint space.
- *
- * **Per axis and not a single factor, which is the difference between this and `scaleForDrag`.** The joint's
- * `scale` stays uniform on purpose - a limb 1.4 wide and 1.0 tall is not a shape anybody asked for - but a *mass*
- * is exactly where a reader wants that: a foot is wider than it is tall, a head is a cube, a shoulder is a slab.
- * Refusing it here would mean six shapes that can only be six similar blobs.
- *
- * **It reuses the pane's own axis mapping**, so the gesture is the same one as a joint drag: dragging right grows
- * x, dragging up grows y, and in the SIDE pane dragging right grows z. A reader who can move a joint already knows
- * how to resize a shape, and the sidebar does not have to teach a second convention.
- *
- * A horizontal drag grows the horizontal extent and a vertical one grows the vertical, both at the same rate as
- * a joint moves - one unit per pixel - so the shape tracks the pointer rather than drifting away from it at a
- * rate the reader has to discover. The dimensions are half-extents, hence the factor of two.
- */
-export function resizeForDrag(view: ViewportKind, dxPixels: number, dyPixels: number): Vec3 {
-  const delta = dragOffset(view, dxPixels, dyPixels);
-
-  return { x: delta.x * 2, y: delta.y * 2, z: delta.z * 2 };
-}
-
-/**
- * Where the light ends up after a drag, in radians.
- *
- * Deliberately the same shape as `dragOffset` - a horizontal drag turns the light around the figure, a
- * vertical one raises or lowers it - because the LIGHT layer is a drag like any other and should feel like
- * one. `elevation` is clamped short of the poles: a light directly overhead or underneath flattens every
- * facet to the same shade, which is the one thing this layer exists to avoid.
- */
-export const MAX_ELEVATION = Math.PI / 2 - 0.05;
-
-export function lightForDrag(
-  current: { azimuth: number; elevation: number },
-  dxPixels: number,
-  dyPixels: number,
-): { azimuth: number; elevation: number } {
-  if (!Number.isFinite(dxPixels) || !Number.isFinite(dyPixels)) return { ...current };
+/** A pointer's travel in pixels, as a world-space offset in the view's plane. Screen y runs down; world y runs up. */
+export function dragOffset(view: ViewportKind, dxPixels: number, dyPixels: number, unitsPerPixel: number): Vec3 {
+  const basis = VIEW_BASIS[view];
+  if (!Number.isFinite(dxPixels) || !Number.isFinite(dyPixels) || !Number.isFinite(unitsPerPixel)) {
+    return { x: 0, y: 0, z: 0 };
+  }
+  const h = dxPixels * unitsPerPixel;
+  const v = -dyPixels * unitsPerPixel;
 
   return {
-    azimuth: current.azimuth + dxPixels * (Math.PI / 200),
-    elevation: Math.min(MAX_ELEVATION, Math.max(-MAX_ELEVATION, current.elevation - dyPixels * (Math.PI / 200))),
+    x: basis.right.x * h + basis.up.x * v,
+    y: basis.right.y * h + basis.up.y * v,
+    z: basis.right.z * h + basis.up.z * v,
+  };
+}
+
+function dot(a: Vec3, b: Vec3): number {
+  return a.x * b.x + a.y * b.y + a.z * b.z;
+}
+
+/** MOVE: slide a shape with the pointer, in the view's plane. */
+export function moveGesture(base: Figure, shapeId: string, view: ViewportKind, dx: number, dy: number, upp: number): Figure {
+  const shape = findShape(base, shapeId);
+  if (shape === undefined) return base;
+  const start = placementOf(base, shape);
+
+  return placeShape(base, shapeId, { ...start, position: addVec3(start.position, dragOffset(view, dx, dy, upp)) });
+}
+
+/**
+ * TURN: spin a shape about the axis pointing out of the view, by the angle the pointer has swept round its centre.
+ *
+ * `grab` is where the pointer went down, measured from the shape's centre in screen units (right, up). The angle is
+ * between that and where the pointer is now, so the shape follows the pointer round like a dial. A grab right on the
+ * centre has no angle yet; the turn starts once the pointer has moved off it.
+ */
+export function turnGesture(
+  base: Figure,
+  shapeId: string,
+  view: ViewportKind,
+  grab: { right: number; up: number },
+  dx: number,
+  dy: number,
+  upp: number,
+): Figure {
+  const shape = findShape(base, shapeId);
+  if (shape === undefined) return base;
+
+  const nowRight = grab.right + dx * upp;
+  const nowUp = grab.up - dy * upp;
+  if (Math.hypot(grab.right, grab.up) < 1e-6 || Math.hypot(nowRight, nowUp) < 1e-6) return base;
+
+  const angle = Math.atan2(nowUp, nowRight) - Math.atan2(grab.up, grab.right);
+  const start = placementOf(base, shape);
+  const spin = quatFromAxisAngle(VIEW_BASIS[view].toward, angle);
+
+  return placeShape(base, shapeId, { ...start, rotation: quatMultiply(spin, start.rotation) });
+}
+
+/**
+ * Which of a shape's own axes (0 = width, 1 = height, 2 = depth) lines up best with a world direction, given how the
+ * shape is turned. SIZE uses it so dragging sideways always widens what *looks* like the width, however the shape is
+ * turned.
+ */
+export function shapeAxisAlong(base: Figure, shapeId: string, direction: Vec3): 'x' | 'y' | 'z' {
+  const shape = findShape(base, shapeId);
+  if (shape === undefined) return 'x';
+  const local = rotateVec(quatInvert(placementOf(base, shape).rotation), direction);
+  const ax = Math.abs(local.x);
+  const ay = Math.abs(local.y);
+  const az = Math.abs(local.z);
+  if (ax >= ay && ax >= az) return 'x';
+  return ay >= az ? 'y' : 'z';
+}
+
+/**
+ * SIZE: grow or shrink a shape, about its centre.
+ *
+ * `handle` says which way each screen direction grows: `{h: 1, v: 0}` is the right-hand edge handle (drag right to
+ * widen), `{h: -1, v: 1}` the top-left corner. Dragging a shape's body with the SIZE tool is `{h: 1, v: 1}`: right
+ * widens, up heightens. The shape grows on both sides at once, so it stays centred on whatever it is pinned to.
+ */
+export function sizeGesture(
+  base: Figure,
+  shapeId: string,
+  view: ViewportKind,
+  handle: { h: -1 | 0 | 1; v: -1 | 0 | 1 },
+  dx: number,
+  dy: number,
+  upp: number,
+): Figure {
+  const shape = findShape(base, shapeId);
+  if (shape === undefined) return base;
+
+  const basis = VIEW_BASIS[view];
+  const size = { ...shape.size };
+  const growRight = handle.h * dx * upp * 2;
+  const growUp = handle.v * -dy * upp * 2;
+
+  if (handle.h !== 0) size[shapeAxisAlong(base, shapeId, basis.right)] += growRight;
+  if (handle.v !== 0) size[shapeAxisAlong(base, shapeId, basis.up)] += growUp;
+
+  return { ...base, shapes: base.shapes.map((s) => (s.id === shapeId ? { ...s, size: clampSize(size) } : s)) };
+}
+
+/**
+ * POSE: drag a joint. By default it bends - the joint swings round its parent, the bone keeps its length, and the
+ * limb below comes with it. With `stretch` it moves freely and the bone changes length. The root (the hips) has
+ * nothing to swing round, so dragging it always moves the whole figure.
+ */
+export function poseGesture(
+  base: Figure,
+  jointId: string,
+  view: ViewportKind,
+  dx: number,
+  dy: number,
+  upp: number,
+  stretch: boolean,
+): Figure {
+  const joint = base.skeleton.joints[jointId];
+  if (joint === undefined) return base;
+
+  const target = addVec3(worldPosition(base.skeleton, jointId), dragOffset(view, dx, dy, upp));
+  const skeleton =
+    stretch || joint.parentId === null
+      ? stretchJoint(base.skeleton, jointId, target)
+      : bendJoint(base.skeleton, jointId, target);
+
+  return skeleton === base.skeleton ? base : { ...base, skeleton };
+}
+
+/** Where a shape's handles go in a view: its centre, and its half-width and half-height as the view sees them. */
+export function screenBox(
+  base: Figure,
+  shapeId: string,
+  view: ViewportKind,
+): { centre: Vec3; halfRight: number; halfUp: number } | null {
+  const shape = findShape(base, shapeId);
+  if (shape === undefined) return null;
+  const placement = placementOf(base, shape);
+  const basis = VIEW_BASIS[view];
+  const axes: Vec3[] = [
+    rotateVec(placement.rotation, { x: shape.size.x / 2, y: 0, z: 0 }),
+    rotateVec(placement.rotation, { x: 0, y: shape.size.y / 2, z: 0 }),
+    rotateVec(placement.rotation, { x: 0, y: 0, z: shape.size.z / 2 }),
+  ];
+
+  return {
+    centre: placement.position,
+    halfRight: axes.reduce((sum, axis) => sum + Math.abs(dot(axis, basis.right)), 0),
+    halfUp: axes.reduce((sum, axis) => sum + Math.abs(dot(axis, basis.up)), 0),
   };
 }

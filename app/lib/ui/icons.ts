@@ -78,19 +78,23 @@ export const MASS_SHAPE_GLYPHS: Record<string, string> = {
 };
 
 /**
- * The three tool marks, as glyphs - the strip a reader picks a verb from.
+ * The workbench's tool strip, as glyphs: an arrow to pick, a plus to add, a four-way move, a turning arrow, a resize
+ * corner, a little person to pose, a cross to delete, and the two curved arrows for undo and redo.
  *
- * **This is the CSP arrangement**: a row of small marks for *what you are doing*, and the options for the one you
- * picked directly below it. That is why these are marks rather than labelled plates - a tool strip is scanned, not
- * read, and three full-width rows would be the form-under-the-canvas layout this replaces.
- *
- * A resize corner, a four-way move, and a droplet. Each is a character off the font like every other mark here, so
- * none of them is code-drawn artwork.
+ * **This is the CSP arrangement**: a column of small marks for *what you are doing*, each with its name under it, and
+ * the options for the one you picked in a bar beside the views. Each is a character off the font like every other
+ * mark here, so none of them is code-drawn artwork.
  */
-export const MASS_TOOL_GLYPHS: Record<string, string> = {
-  resize: '⤡',
+export const TOOL_GLYPHS: Record<string, string> = {
+  select: '↖',
+  add: '+',
   move: '✥',
-  colour: '◐',
+  turn: '↻',
+  size: '⤡',
+  pose: '웃',
+  delete: '✕',
+  undo: '↶',
+  redo: '↷',
 };
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },

@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import { useEffect } from 'react';
 import { openCharacterBrowser } from '../lib/character/browser-window';
 import { readLibrary } from '../lib/character/library';
-import type { RigPresetId } from '../lib/character/rig';
+import { isRigPresetId } from '../lib/character/rig';
 import { useCharacterStore } from '../lib/character/store';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
@@ -25,8 +25,8 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
 });
 
 /**
- * The character workbench: a 3D rig on the left, the mass that hangs off it on the right, and the controls
- * that drive both.
+ * The character workbench: a tool strip, two views of one figure, and the shapes and properties panels - laid out
+ * like a paint program's canvas window (see `CharacterViewport`).
  *
  * **A tab of its own, `[ CHAR 🐰 ]`, and it is the middle of the customiser's three.** The other two describe an
  * account - its name, its picture, what visitors may see - and this is a third kind of thing: a workbench you sit
@@ -81,29 +81,28 @@ export default function CharacterEditorPanel({
       return;
     }
 
-    useCharacterStore.getState().loadSkeleton(newest.skeleton, newest.presetId as RigPresetId);
+    useCharacterStore.getState().loadFigure(newest.figure, isRigPresetId(newest.presetId) ? newest.presetId : 'blob');
   }, [discardToken]);
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>
-        <span>CHARACTER // BLOB HUMANOID</span>
+        <span>CHARACTER // WORKBENCH</span>
         <span className="flex items-center gap-2">
           {/* The door to the shelf. A plain function rather than a prop, the way every other window here opens -
               and it is inside the title bar so it reads as part of the workbench's chrome. */}
           <button type="button" onClick={openCharacterBrowser} className={PLATE}>
             [ SAVED CHARACTERS ]
           </button>
-          <span>[ 4 LAYERS ]</span>
         </span>
       </div>
 
       <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">
-        BUILD A FIGURE FROM A SKELETON AND THE MASS HUNG OFF IT. FRONT AND SIDE ARE THE SAME MODEL FROM TWO
-        ANGLES - WHAT YOU DRAG IN ONE IS THE SAME JOINT THE OTHER SHOWS.
+        BUILD A FIGURE FROM SHAPES PINNED TO A SKELETON. FRONT AND SIDE ARE THE SAME FIGURE FROM TWO ANGLES -
+        WHAT YOU DRAG IN ONE, THE OTHER SHOWS. CTRL+Z UNDOES.
       </p>
 
-      <div className="flex flex-col gap-2 p-2 lg:flex-row">
+      <div className="p-2">
         <CharacterViewport />
       </div>
     </div>

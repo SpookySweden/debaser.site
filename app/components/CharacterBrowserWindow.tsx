@@ -14,7 +14,7 @@ import {
   saveCharacter,
   type SavedCharacter,
 } from '../lib/character/library';
-import { RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
+import { isRigPresetId, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
 import { MASS_SHAPES } from '../lib/character/shapes';
 import { useCharacterStore } from '../lib/character/store';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
@@ -37,9 +37,9 @@ const MAX_SAVED_LABEL = 40;
  */
 export default function CharacterBrowserWindow() {
   const state = useSyncExternalStore(subscribeToCharacterBrowser, characterBrowserState, characterBrowserState);
-  const skeleton = useCharacterStore((store) => store.skeleton);
+  const figure = useCharacterStore((store) => store.figure);
   const presetId = useCharacterStore((store) => store.presetId);
-  const loadSkeleton = useCharacterStore((store) => store.loadSkeleton);
+  const loadFigure = useCharacterStore((store) => store.loadFigure);
   const markKept = useCharacterStore((store) => store.markKept);
 
   /**
@@ -70,7 +70,7 @@ export default function CharacterBrowserWindow() {
   }, []);
 
   function keep() {
-    update(saveCharacter(shelf, { name, presetId, skeleton }));
+    update(saveCharacter(shelf, { name, presetId, figure }));
     setName('');
     // The figure on the bench is now the one just kept, so it stops being unsaved work.
     markKept();
@@ -130,7 +130,7 @@ export default function CharacterBrowserWindow() {
           <ul className="divide-y divide-ink rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
             {shelf.map((character) => {
               const presetLabel = RIG_PRESETS[character.presetId as RigPresetId]?.label ?? 'UNKNOWN';
-              const shapes = Object.values(character.skeleton.joints).filter((joint) => joint.mass !== null).length;
+              const shapes = character.figure.shapes.length;
               const confirming = state.confirmingId === character.id;
 
               return (
@@ -146,7 +146,7 @@ export default function CharacterBrowserWindow() {
                     type="button"
                     className={PLATE}
                     onClick={() => {
-                      loadSkeleton(character.skeleton, character.presetId as RigPresetId);
+                      loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'blob');
                       closeCharacterBrowser();
                     }}
                   >

@@ -44,6 +44,12 @@ export const MODEL_VOID = '#000000';
 export const MODEL_WIRE = '#28C745';
 
 /**
+ * The views' background grid and floor line. Royal blue on the black void: present enough to judge a shape's size
+ * against, quiet enough that it never reads as part of the figure. Unlit, like the handles.
+ */
+export const MODEL_GRID = '#1D3CA6';
+
+/**
  * What a shape may be recoloured to, as *the site's own nine dyes* rather than a new set.
  *
  * **Reusing the palette is the point, not a shortcut.** `check-surreal.cjs` fails a component that writes a hex,
@@ -62,6 +68,8 @@ export type MassDye = { id: string; label: string; value: string | null };
 
 export const MASS_DYES: readonly MassDye[] = [
   { id: 'figure', label: 'FIGURE', value: null },
+  // The starting figure's limbs wear this, so it has to be a dye a reader can pick back after trying another.
+  { id: 'limb', label: 'FIGURE DARK', value: MODEL_LIMB },
   { id: 'royal', label: 'ROYAL BLUE', value: '#1D3CA6' },
   { id: 'acid', label: 'FLAVINE', value: '#E1FF00' },
   { id: 'sun', label: 'DAFFODIL', value: '#FFF000' },

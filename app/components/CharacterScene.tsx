@@ -1,452 +1,502 @@
 'use client';
 
-import { Canvas } from '@react-three/fiber';
-import { useRef } from 'react';
-import { UNITS_PER_PIXEL, type ViewportKind } from '../lib/character/drag';
+/**
+ * One view of the figure: a flat (orthographic) camera, the grid, the shapes, their handles and the skeleton.
+ *
+ * **Every drag goes through `startDrag`, which listens on the window, not on the mesh.** A pointer that leaves the
+ * view mid-drag - off the edge, over the side panel - still moves the shape and still ends the gesture when it is
+ * released, so a drag is always exactly one undo step and never a half-finished one stuck to the pointer.
+ *
+ * **The camera zoom is fitted to the pane**, and the same number is what turns pixels into model units for every
+ * drag (`upp`, units per pixel). They are one fact: a shape follows the pointer exactly only when the drag and the
+ * camera agree on how big a pixel is.
+ *
+ * Handles and joints are drawn on top of everything (`depthTest` off), at a constant size in pixels, so they can
+ * always be seen and grabbed however the figure is posed.
+ */
+import { OrthographicCamera } from '@react-three/drei';
+import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
+import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import * as THREE from 'three';
+import { VIEW_BASIS, screenBox, type ViewportKind } from '../lib/character/drag';
+import { placementOf, type Figure, type Shape } from '../lib/character/figure';
 import {
+  MODEL_GRID,
   MODEL_HANDLE,
   MODEL_HANDLE_ACTIVE,
   MODEL_HIGHLIGHT,
   MODEL_INK,
-  MODEL_LIMB,
   MODEL_VOID,
   MODEL_WIRE,
 } from '../lib/character/palette';
-import { massFor } from '../lib/character/rig';
 import type { MassShapeId } from '../lib/character/shapes';
-import type { RenderLayerId } from '../lib/character/layers';
-import { scaleOf, type Joint } from '../lib/character/skeleton';
-import { useCharacterStore, useInteractionMode, type InteractionMode } from '../lib/character/store';
+import { childrenOf, jointFrames, lengthOf, type JointFrame, type Vec3 } from '../lib/character/skeleton';
+import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
 import { PixelPass } from './CharacterPixelPass';
 
-/**
- * The figure, drawn.
- *
- * **One `<Canvas>` per pane.** The Phase 5 plan called for a single canvas split into two drei `<View>`s, on the
- * grounds that a second `<Canvas>` is a second WebGL context and browsers cap those low. That reasoning still
- * holds - there *are* two contexts here - but `View` needs a shared renderer with scissor rectangles, and what
- * that buys is a compositor over nineteen joints of primitives. Two contexts is the simpler thing that works,
- * and the moment it stops working is the moment the figure is heavy enough to want the shared one. So this is a
- * decision to revisit when there is a reason to, not one to relitigate now.
- *
- * **Orthographic, and that is a requirement rather than a taste.** `dragOffset` converts pixels to model units
- * with a single constant, which is only correct when a unit is the same number of pixels everywhere on screen.
- * A perspective camera makes it vary with depth, so a joint near the camera would move faster than one far from
- * it - and the point of showing front and side at once is that a pixel means the same thing in both.
- */
+/** How much of the world a view shows, in model units. The figure is about 2.4 tall and 1.3 wide. */
+const VIEW_HEIGHT = 2.9;
+const VIEW_WIDTH = 1.9;
+/** Where the views are centred vertically: halfway between the starting figure's crown (1.02) and soles (-1.36). */
+const FIGURE_CENTRE_Y = -0.17;
+/** Screen-sized things, in pixels. Larger on a touch screen, where a fingertip is the pointer. */
+const HANDLE_PX = { fine: 10, coarse: 18 };
+const JOINT_PX = { fine: 6, coarse: 11 };
+const KNOB_GAP_PX = 26;
+
+type ViewContext = { view: ViewportKind; upp: number; coarse: boolean };
+
+const ViewInfo = createContext<ViewContext>({ view: 'front', upp: 1 / 150, coarse: false });
+
 export default function CharacterScene({ view }: { view: ViewportKind }) {
-  const mode = useInteractionMode();
-  const renderLayer = useCharacterStore((state) => state.renderLayer);
+  const tool = useCharacterStore((state) => state.tool);
+  const look = useCharacterStore((state) => state.look);
 
   return (
     <Canvas
-      orthographic
-      camera={{
-        // Aimed at the figure's middle rather than the origin, and pulled back along the axis the pane cannot
-        // see - FRONT looks down -z, SIDE looks down -x. The distance is arbitrary for an orthographic camera;
-        // `near` and `far` are what actually decide whether anything is clipped.
-        position: view === 'front' ? [0, FIGURE_CENTRE_Y, 10] : [10, FIGURE_CENTRE_Y, 0],
-        zoom: ZOOM,
-        near: -20,
-        far: 20,
-      }}
-      // **`frameloop="demand"` is correct for the site but was wrong for the first frame.**
-      //
-      // It renders only when something calls `invalidate()`, and nothing in this scene does: the figure changes
-      // when the store changes, but an r3f root does not watch an external store, so a canvas can mount and never
-      // draw once. That is invisible to every check in the repository - the DOM is perfect, GL is live, the
-      // console is quiet - and the canvas is simply empty. `frameloop="always"` costs a few idle frames and
-      // removes the whole class of defect; revisit when there is a measured reason to, not before.
       frameloop="always"
-      // `NearestFilter` is set here rather than on the composer because it is the *canvas* that does the final
-      // blit, and a nearest-filtered canvas is what keeps the pixel blocks hard-edged instead of smoothing them
-      // back out. Antialiasing is off for the same reason: smoothing edges is the opposite of the effect.
       gl={{ antialias: false }}
-      className="cursor-move"
+      className={CURSOR_FOR_TOOL[tool]}
     >
       <color attach="background" args={[MODEL_VOID]} />
-      <ambientLight intensity={0.55} />
-      <KeyLight />
-      <Figure view={view} mode={mode} renderLayer={renderLayer} />
-      {/* The composer runs only for the PIXEL stage. The brief is specific that the others are not pixelated. */}
-      <PixelPass enabled={renderLayer === 'pixel'} />
+      <Fitted view={view}>
+        <ambientLight intensity={0.55} />
+        <KeyLight />
+        {look === 'shapes' ? <Grid view={view} /> : null}
+        <Backdrop />
+        <Shapes />
+        {look === 'shapes' ? <SelectionBox /> : null}
+        {look === 'shapes' ? <Bones /> : null}
+      </Fitted>
+      <PixelPass enabled={look === 'final'} />
     </Canvas>
   );
 }
 
-/**
- * How large the figure sits in the pane - **derived, not chosen.**
- *
- * Three's orthographic camera divides the frustum R3F hands it by `zoom`, and R3F sizes that frustum from the
- * pane's pixel dimensions. So the visible world width is `paneWidthPx / zoom`, which means a pixel is `1 / zoom`
- * world units. `UNITS_PER_PIXEL` is the drag's belief about that number, and the two agreeing is not a tidiness
- * point: when they were 120 and 1/200 the joint moved 1.67 times further than the pointer, uniformly, in a way
- * that reads as imprecision rather than as an error.
- *
- * Writing it as the reciprocal makes the relationship structural - there is no pair of numbers to keep in step,
- * because there is only one number. The camera check asserts it anyway, so a future edit that hard-codes a zoom
- * fails rather than quietly introducing the same drift.
- */
-/**
- * How far the figure's middle sits above the origin, so the camera can point at it.
- *
- * **The root is the hips, and the hips are not the middle.** Rooting at the pelvis is right - it is what makes a
- * lean pivot on the body rather than on the ground - but it leaves the figure's visual centre *below* the
- * origin: the legs hang further than the head rises. Measured from the real rig and mass table, that centre is
- * at y = -0.170, so a camera aimed at y = 0 draws the figure hanging low in the pane with a gap above it.
- *
- * **That number moved when the feet became prisms, and this check is how it was caught.** The old seeds were flat
- * plates 0.05 tall; the triangular feet are 0.10 tall and reach forward, so the figure is measurably taller and
- * its middle sits 0.045 lower. Nothing about the camera changed - the figure did, which is the drift this check
- * exists to make loud rather than quiet.
- *
- * `Temp/check-character-camera.cjs` measures the rig and fails if this number stops matching it, which is what
- * keeps a change to the rig's proportions from silently pushing the figure off centre.
- */
-const FIGURE_CENTRE_Y = -0.17;
-
-const ZOOM = 1 / UNITS_PER_PIXEL;
+const CURSOR_FOR_TOOL: Record<ToolId, string> = {
+  select: 'cursor-default',
+  add: 'cursor-crosshair',
+  move: 'cursor-move',
+  turn: 'cursor-grab',
+  size: 'cursor-nwse-resize',
+  pose: 'cursor-pointer',
+  delete: 'cursor-crosshair',
+};
 
 /**
- * The key light, turned by the store.
+ * The view's camera, fitted to the pane, and the matching units-per-pixel handed to everything inside.
  *
- * Its distance is fixed; only the angles are authorable, which is why the store holds two numbers rather than a
- * position. LIGHT is the one layer where a drag has no target, so it is the one branch of `drag` that ignores
- * the joint it was handed.
+ * The rotation is explicit: left unset, a camera is aimed at the origin, which tilts one raised to the figure's
+ * centre - and a tilted camera is no longer a flat view.
  */
+function Fitted({ view, children }: { view: ViewportKind; children: ReactNode }) {
+  const size = useThree((state) => state.size);
+  const zoom = Math.max(20, Math.min(size.height / VIEW_HEIGHT, size.width / VIEW_WIDTH));
+  const coarse = useCoarsePointer();
+  const value = useMemo(() => ({ view, upp: 1 / zoom, coarse }), [view, zoom, coarse]);
+
+  return (
+    <ViewInfo.Provider value={value}>
+      <OrthographicCamera
+        makeDefault
+        position={view === 'front' ? [0, FIGURE_CENTRE_Y, 10] : [-10, FIGURE_CENTRE_Y, 0]}
+        rotation={view === 'front' ? [0, 0, 0] : [0, -Math.PI / 2, 0]}
+        zoom={zoom}
+        near={-20}
+        far={20}
+      />
+      {children}
+    </ViewInfo.Provider>
+  );
+}
+
+function useCoarsePointer(): boolean {
+  return useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
+    [],
+  );
+}
+
 function KeyLight() {
   const azimuth = useCharacterStore((state) => state.light.azimuth);
   const elevation = useCharacterStore((state) => state.light.elevation);
-
   const distance = 12;
-  const position: [number, number, number] = [
-    distance * Math.sin(azimuth) * Math.cos(elevation),
-    distance * Math.sin(elevation),
-    distance * Math.cos(azimuth) * Math.cos(elevation),
-  ];
-
-  return <directionalLight position={position} intensity={1.6} />;
-}
-
-/**
- * The mass a joint carries: a clickable, draggable primitive.
- *
- * **Clicking the shape is what opens its controls**, which is the interaction the owner asked for. So this is a
- * real target, not decoration: a pointer down on it selects the joint, and then the palette reshapes it and the
- * sidebar's tool decides what dragging it does.
- *
- * **Dragging the shape is handled here, and it is what makes the mass editable in its own right.** The joint's
- * handle drags the *joint*; this drags the *mass*, and the store decides which gesture is in play from the
- * selected layer and tool. Both funnel into the same `drag()` entry point, so the axis rules live in one place
- * and a third gesture would be a member of one enum rather than a second branch here.
- *
- * **A cone's apex points up by default**, so a limb cone is rotated a half-turn about x to hang *downward* from
- * its joint. That one line is the difference between a figure and a row of party hats, and it belongs here
- * rather than baked into the rig: the rig stores where a joint is, not how a mesh happens to be wound.
- */
-function MassAt({
-  jointId,
-  scale,
-  mode,
-  layer,
-  view,
-}: {
-  jointId: string;
-  scale: number;
-  mode: InteractionMode;
-  layer: RenderLayerId;
-  view: ViewportKind;
-}) {
-  const skeleton = useCharacterStore((state) => state.skeleton);
-  const selectJoint = useCharacterStore((state) => state.selectJoint);
-  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const drag = useCharacterStore((state) => state.drag);
-
-  /**
-   * **Every hook runs before the early return, and this was a real bug rather than tidiness.**
-   *
-   * `useRef` sat below `if (part === null) return null`, so a joint that gained or lost its shape during an edit
-   * would change the number of hooks between renders - which React reports as *"rendered fewer hooks than
-   * expected"* and which unmounts the tree. Adding a shape to a bare shoulder is exactly the gesture that
-   * triggers it, and it is the first thing a reader does. The ref is declared first and the lookup second.
-   */
-  const last = useRef<{ x: number; y: number } | null>(null);
-
-  const part = massFor(skeleton, jointId);
-  if (part === null) return null;
-
-  const isSelected = selectedJointId === jointId;
-  /** Both mass gestures are a drag on the shape; the mode only decides what the drag *means*. */
-  const draggable = mode === 'mass' || mode === 'massMove';
-
-  /**
-   * **A second tone for the limbs, so a joint reads as a joint.** Violet for the trunk and a darker Violet for
-   * arms and legs: at this resolution two masses of one colour merge into one blob, and the whole point of showing
-   * front *and* side is that a limb in the wrong axis is visible.
-   *
-   * **The names are the rig's own, read from `rig.ts` rather than guessed.** They are `upper-arm.left`,
-   * `forearm.right`, `thigh.left`, `shin.right`, `hand.*` and `foot.*` - hyphenated, dotted, with a side suffix.
-   * The first version of this matched `/^(arm|leg|hand|foot)/`, which caught only `hand` and `foot`: `upper-arm`
-   * starts with `upper`, and the limbs kept the trunk's colour. That is the same defect as a check that reads the
-   * wrong pattern, and it is why the list is written out against the rig instead of approximated.
-   */
-  const limb = /^(upper-arm|forearm|thigh|shin|hand|foot)\./.test(jointId);
-  const size: [number, number, number] = [part.size.x * 2, part.size.y * 2, part.size.z * 2];
-
-  /**
-   * What the solid stages draw this shape in.
-   *
-   * **Selection outranks everything, then the shape's own colour, then the two-tone scheme.** That order is the
-   * whole rule and it is written once, here, rather than in two `meshMaterial` branches that could disagree: a
-   * selected shape is always magenta, because a reader who cannot see what they have selected cannot edit it -
-   * and that has to hold even for a shape they have painted Brilliant Pink.
-   */
-  const ink = isSelected ? MODEL_HIGHLIGHT : (part.colour ?? (limb ? MODEL_LIMB : MODEL_INK));
-
-  // The geometry and the turn it needs, decided together - see `massGeometryFor`.
-  const { rotation, node } = massGeometryFor(part.shape, size);
 
   return (
-    <group position={[part.offset.x, part.offset.y, part.offset.z]} scale={scale}>
-      <mesh
-        rotation={rotation}
-        onPointerDown={
-          draggable
-            ? (event) => {
-                event.stopPropagation();
-                selectJoint(jointId);
-                last.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY };
-                (event.target as Element | null)?.setPointerCapture?.(event.pointerId);
-              }
-            : undefined
-        }
-        onPointerMove={
-          draggable
-            ? (event) => {
-                if (last.current === null) return;
-
-                const x = event.nativeEvent.clientX;
-                const y = event.nativeEvent.clientY;
-                const dx = x - last.current.x;
-                const dy = y - last.current.y;
-                last.current = { x, y };
-
-                drag(view, dx, dy, jointId);
-              }
-            : undefined
-        }
-        onPointerUp={
-          draggable
-            ? (event) => {
-                event.stopPropagation();
-                last.current = null;
-                (event.target as Element | null)?.releasePointerCapture?.(event.pointerId);
-              }
-            : undefined
-        }
-        onClick={
-          // In the joint tool the shape is a way to *select* a joint, so it stays clickable - the handles are
-          // small, and a reader aiming at a hand will hit the hand.
-          draggable
-            ? undefined
-            : (event: { stopPropagation: () => void }) => {
-                event.stopPropagation();
-                selectJoint(jointId);
-              }
-        }
-      >
-        {node}
-
-        {/*
-         * The colour is deliberately **not** from the nine-token palette. This is the model, not the chrome - it
-         * is what the pixel shader recolours, and choosing a site colour now would hard-code a decision the
-         * shader has not made yet. Selection is the one exception: it has to be visible, and uses the palette's
-         * magenta so it still reads as the same site.
-         *
-         * **A shape's own tint wins over the stage's, and the wireframe ignores it entirely.** A recoloured shape
-         * in the MASS stage has to stay the green wireframe, because that stage is for seeing the *edges* - a
-         * recoloured edge on a black field is an edge that has stopped being visible, which is the one thing that
-         * stage is for.
-         */}
-        {layer === 'mass' ? (
-          <meshBasicMaterial color={isSelected ? MODEL_HIGHLIGHT : MODEL_WIRE} wireframe />
-        ) : null}
-        {layer === 'base' ? <meshBasicMaterial color={ink} /> : null}
-        {layer === 'pixel' ? <meshLambertMaterial color={ink} /> : null}
-      </mesh>
-    </group>
-  );
-}
-
-/**
- * The geometry for a shape, and the mesh rotation it needs to sit the way it should.
- *
- * **The rotation comes back with the geometry rather than being set by the caller**, because for one shape the two
- * are the same decision: a triangular prism is only a triangle seen end-on if it is rolled a quarter turn, so a
- * caller that took the geometry and forgot the rotation would get a triangle lying on its edge and no error. The
- * `<mesh>` applies it - a Three geometry has no rotation of its own, and the error is what made that plain.
- */
-function massGeometryFor(
-  shape: MassShapeId,
-  size: [number, number, number],
-): { rotation: [number, number, number]; node: React.ReactNode } {
-  switch (shape) {
-    case 'box':
-      return { rotation: NO_TURN, node: <boxGeometry args={size} /> };
-    case 'sphere':
-      return { rotation: NO_TURN, node: <sphereGeometry args={[size[0] / 2, 12, 8]} /> };
-    case 'cone':
-      // A cone's apex points up, so a limb cone is turned a half-turn about x to hang *downward* from its joint.
-      // That one turn is the difference between a figure and a row of party hats, and it belongs here rather than
-      // baked into the rig: the rig stores where a joint is, not how a mesh happens to be wound.
-      return { rotation: [Math.PI, 0, 0], node: <coneGeometry args={[size[0] / 2, size[1], 10]} /> };
-    case 'cylinder':
-      return { rotation: NO_TURN, node: <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[1], 10]} /> };
-    case 'capsule':
-      return { rotation: NO_TURN, node: <capsuleGeometry args={[size[0] / 2, size[1], 4, 10]} /> };
-    case 'wedge':
-      // Four sides rather than a box's six: a box whose top edge is narrower than its base is a wedge, and a
-      // four-sided cylinder is exactly that with flat faces.
-      return { rotation: NO_TURN, node: <cylinderGeometry args={[size[0] / 2, size[0] / 3, size[1], 4]} /> };
-    case 'prism':
-      /**
-       * **The triangular foot: a triangle in the front pane, extruded forward.**
-       *
-       * Three radial segments and a quarter-turn about z, so the prism's own axis lies along x and one vertex
-       * faces straight down - which is what puts an apex above a flat base on screen. `size[2]` is the length, so
-       * it drives how far the toe reaches, and `size[0]` how wide the foot is across the figure. That is the same
-       * reading of the three dials a box has, which is the point: a reader sizing a foot is not learning a second
-       * vocabulary. Four segments would be a square prism, which is what `wedge` already is.
-       */
-      return {
-        rotation: [0, 0, Math.PI / 2],
-        node: <cylinderGeometry args={[size[0] / 2, size[0] / 2, size[2], 3, 1]} />,
-      };
-  }
-}
-
-/** No rotation, as a stable value so the mesh does not get a new array every render. */
-const NO_TURN: [number, number, number] = [0, 0, 0];
-
-/**
- * A joint, drawn as a small grabbable handle.
- *
- * **This is the "vertex" the owner drags.** It is sized in world units rather than pixels so it stays hittable
- * at any zoom - a mathematically exact point would be one pixel and unusable.
- *
- * The drag is *not* implemented here. `onPointerDown` only makes the joint the target and captures the pointer;
- * the movement is applied by `drag()`, which the store routes through the mode for the selected layer. Splitting
- * it that way keeps the axis rule in `AXES_FOR_VIEW` as the single place it is written rather than duplicating
- * it per handle - and it is what lets a handle in the MASS layer rescale instead of move, with this component
- * never knowing which layer is selected.
- */
-function JointHandle({ jointId, view }: { jointId: string; view: ViewportKind }) {
-  const selectJoint = useCharacterStore((state) => state.selectJoint);
-  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
-  const drag = useCharacterStore((state) => state.drag);
-  const isSelected = selectedJointId === jointId;
-
-  // Where the last move was, in screen pixels. A ref, because it changes on every pointer move and reading it
-  // never needs a render.
-  const last = useRef<{ x: number; y: number } | null>(null);
-
-  return (
-    <mesh
-      onPointerDown={(event) => {
-        event.stopPropagation();
-        selectJoint(jointId);
-        last.current = { x: event.nativeEvent.clientX, y: event.nativeEvent.clientY };
-        // Capture, so a fast drag that leaves the handle keeps sending its moves here.
-        (event.target as Element | null)?.setPointerCapture?.(event.pointerId);
-      }}
-      onPointerMove={(event) => {
-        if (last.current === null) return;
-
-        const x = event.nativeEvent.clientX;
-        const y = event.nativeEvent.clientY;
-        const dx = x - last.current.x;
-        const dy = y - last.current.y;
-        last.current = { x, y };
-
-        drag(view, dx, dy, jointId);
-      }}
-      onPointerUp={(event) => {
-        event.stopPropagation();
-        last.current = null;
-        (event.target as Element | null)?.releasePointerCapture?.(event.pointerId);
-      }}
-    >
-      <sphereGeometry args={[0.045, 8, 6]} />
-      <meshBasicMaterial color={isSelected ? MODEL_HANDLE_ACTIVE : MODEL_HANDLE} />
-    </mesh>
-  );
-}
-
-type Joints = Record<string, Joint>;
-
-/**
- * The rig, as a tree of `<group>`s.
- *
- * **The scene graph *is* the skeleton, and that is the payoff for storing relative transforms.** A child's
- * position in the store is measured from its parent, and a nested `<group position={...}>` is exactly a
- * transform its children inherit - so a parent moved in the store carries its whole branch on screen with no
- * code here walking descendants or accumulating offsets. Storing absolute positions would have needed that walk.
- */
-function Figure({ view, mode, renderLayer }: { view: ViewportKind; mode: InteractionMode; renderLayer: RenderLayerId }) {
-  const joints = useCharacterStore((state) => state.skeleton.joints);
-  const rootId = useCharacterStore((state) => state.skeleton.rootId);
-  const skeletonVisible = useCharacterStore((state) => state.skeletonVisible);
-
-  if (joints[rootId] === undefined) return null;
-
-  return (
-    <JointNode
-      joints={joints}
-      jointId={rootId}
-      view={view}
-      mode={mode}
-      renderLayer={renderLayer}
-      showHandles={skeletonVisible}
+    <directionalLight
+      position={[
+        distance * Math.sin(azimuth) * Math.cos(elevation),
+        distance * Math.sin(elevation),
+        distance * Math.cos(azimuth) * Math.cos(elevation),
+      ]}
+      intensity={1.6}
     />
   );
 }
 
-function JointNode({
-  joints,
-  jointId,
-  view,
-  mode,
-  renderLayer,
-  showHandles,
-}: {
-  joints: Joints;
-  jointId: string;
-  view: ViewportKind;
-  mode: InteractionMode;
-  renderLayer: RenderLayerId;
-  showHandles: boolean;
-}) {
-  const joint = joints[jointId];
-  if (joint === undefined) return null;
+/** A tile grid behind the figure, 0.2 units a square, in the plane the view looks at. */
+function Grid({ view }: { view: ViewportKind }) {
+  return (
+    <gridHelper
+      args={[8, 40, MODEL_GRID, MODEL_GRID]}
+      position={view === 'front' ? [0, 0, -4] : [4, 0, 0]}
+      rotation={view === 'front' ? [Math.PI / 2, 0, 0] : [0, 0, Math.PI / 2]}
+      raycast={IGNORE_POINTER}
+    />
+  );
+}
 
-  const children = Object.values(joints).filter((candidate) => candidate.parentId === jointId);
+/**
+ * Start a drag: tell the store, then follow the pointer on the window until it is let go.
+ *
+ * The store is handed the pointer's *total* travel each time, never a step, so the gesture is recomputed from where
+ * it began (see `drag.ts`) and cannot drift.
+ */
+function startDrag(event: ThreeEvent<PointerEvent>, start: GestureStart) {
+  const store = useCharacterStore.getState();
+  const originX = event.nativeEvent.clientX;
+  const originY = event.nativeEvent.clientY;
+
+  store.beginGesture(start);
+
+  const move = (pointer: PointerEvent) => {
+    useCharacterStore.getState().updateGesture(pointer.clientX - originX, pointer.clientY - originY);
+  };
+  const end = () => {
+    window.removeEventListener('pointermove', move);
+    window.removeEventListener('pointerup', end);
+    window.removeEventListener('pointercancel', end);
+    useCharacterStore.getState().endGesture();
+  };
+
+  window.addEventListener('pointermove', move);
+  window.addEventListener('pointerup', end);
+  window.addEventListener('pointercancel', end);
+}
+
+/** A world point's distance from `centre`, in the view's screen directions. */
+function screenOffset(view: ViewportKind, point: Vec3, centre: Vec3): { right: number; up: number } {
+  const basis = VIEW_BASIS[view];
+  const d = { x: point.x - centre.x, y: point.y - centre.y, z: point.z - centre.z };
+  return {
+    right: d.x * basis.right.x + d.y * basis.right.y + d.z * basis.right.z,
+    up: d.x * basis.up.x + d.y * basis.up.y + d.z * basis.up.z,
+  };
+}
+
+/** A world point with its depth (the axis pointing out of the view) set to zero. */
+function flatten(view: ViewportKind, point: Vec3): Vec3 {
+  return view === 'front' ? { ...point, z: 0 } : { ...point, x: 0 };
+}
+
+/**
+ * A large invisible plane behind the figure, so a press on empty space has a position: ADD puts a shape there, and
+ * every other tool lets go of the selection.
+ */
+function Backdrop() {
+  const { view } = useContext(ViewInfo);
 
   return (
-    <group position={[joint.position.x, joint.position.y, joint.position.z]}>
-      <MassAt jointId={jointId} scale={scaleOf(joint)} mode={mode} layer={renderLayer} view={view} />
-      {showHandles ? <JointHandle jointId={jointId} view={view} /> : null}
+    <mesh
+      position={view === 'front' ? [0, 0, -6] : [6, 0, 0]}
+      rotation={view === 'front' ? [0, 0, 0] : [0, -Math.PI / 2, 0]}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        const store = useCharacterStore.getState();
+        if (store.tool === 'add') {
+          store.addShapeAt(view, flatten(view, event.point));
+          return;
+        }
+        if (store.tool === 'pose') store.selectJoint(null);
+        else store.selectShape(null);
+      }}
+    >
+      <planeGeometry args={[40, 40]} />
+      <meshBasicMaterial visible={false} />
+    </mesh>
+  );
+}
 
-      {children.map((child) => (
-        <JointNode
-          key={child.id}
-          joints={joints}
-          jointId={child.id}
-          view={view}
-          mode={mode}
-          renderLayer={renderLayer}
-          showHandles={showHandles}
+function Shapes() {
+  const figure = useCharacterStore((state) => state.figure);
+  const frames = useMemo(() => jointFrames(figure.skeleton), [figure.skeleton]);
+
+  return (
+    <>
+      {figure.shapes.map((shape) =>
+        shape.hidden ? null : <ShapeMesh key={shape.id} figure={figure} shape={shape} frames={frames} />,
+      )}
+    </>
+  );
+}
+
+function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; frames: Record<string, JointFrame> }) {
+  const { view, upp } = useContext(ViewInfo);
+  const selected = useCharacterStore((state) => state.selectedShapeId === shape.id);
+  const look = useCharacterStore((state) => state.look);
+  const placement = placementOf(figure, shape, frames);
+  const geometry = unitGeometry(shape.kind);
+
+  const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
+    const store = useCharacterStore.getState();
+    // POSE reaches through shapes to the joints inside them.
+    if (store.tool === 'pose') return;
+    event.stopPropagation();
+
+    switch (store.tool) {
+      case 'add':
+        // Added on the surface that was clicked, following whatever this shape follows: an ear on a head.
+        store.addShapeAt(view, event.point, shape.pin);
+        return;
+      case 'delete':
+        store.deleteShape(shape.id);
+        return;
+      case 'select':
+      case 'move':
+        startDrag(event, { kind: 'move', shapeId: shape.id, view, upp });
+        return;
+      case 'size':
+        startDrag(event, { kind: 'size', shapeId: shape.id, view, upp, handle: { h: 1, v: 1 } });
+        return;
+      case 'turn': {
+        let grab = screenOffset(view, event.point, placement.position);
+        // Pressed near the middle: there is no angle to measure yet, so act as if the knob above were grabbed.
+        if (Math.hypot(grab.right, grab.up) < 20 * upp) grab = { right: 0, up: 40 * upp };
+        startDrag(event, { kind: 'turn', shapeId: shape.id, view, upp, grab });
+      }
+    }
+  };
+
+  const position = placement.position;
+  const q = placement.rotation;
+
+  return (
+    <group position={[position.x, position.y, position.z]} quaternion={[q.x, q.y, q.z, q.w]}>
+      <mesh geometry={geometry} scale={[shape.size.x, shape.size.y, shape.size.z]} onPointerDown={onPointerDown}>
+        <meshLambertMaterial color={shape.colour ?? MODEL_INK} />
+      </mesh>
+      {selected && look === 'shapes' ? (
+        <mesh geometry={geometry} scale={[shape.size.x * 1.01, shape.size.y * 1.01, shape.size.z * 1.01]} raycast={IGNORE_POINTER}>
+          <meshBasicMaterial color={MODEL_HIGHLIGHT} wireframe />
+        </mesh>
+      ) : null}
+    </group>
+  );
+}
+
+/**
+ * Each primitive, built once and normalised to fill a 1 x 1 x 1 box, so a shape's `size` is exactly its width, height
+ * and depth whatever it is. Low-poly on purpose: the figure is pixelated in the end.
+ */
+const GEOMETRY_CACHE = new Map<MassShapeId, THREE.BufferGeometry>();
+
+function unitGeometry(kind: MassShapeId): THREE.BufferGeometry {
+  const cached = GEOMETRY_CACHE.get(kind);
+  if (cached !== undefined) return cached;
+
+  let geometry: THREE.BufferGeometry;
+  switch (kind) {
+    case 'box':
+      geometry = new THREE.BoxGeometry(1, 1, 1);
+      break;
+    case 'sphere':
+      geometry = new THREE.SphereGeometry(0.5, 14, 10);
+      break;
+    case 'cone':
+      // Point down: a cone on a forearm or a shin tapers towards the hand or the foot.
+      geometry = new THREE.ConeGeometry(0.5, 1, 12).rotateX(Math.PI);
+      break;
+    case 'cylinder':
+      geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 12);
+      break;
+    case 'capsule':
+      geometry = new THREE.CapsuleGeometry(0.25, 0.5, 4, 12);
+      break;
+    case 'wedge':
+      geometry = new THREE.CylinderGeometry(0.33, 0.5, 1, 4);
+      break;
+    case 'prism':
+      // A triangle seen from the front, apex up, running forward (along depth).
+      geometry = new THREE.CylinderGeometry(0.5, 0.5, 1, 3, 1).rotateX(-Math.PI / 2);
+      break;
+  }
+
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox as THREE.Box3;
+  const centre = box.getCenter(new THREE.Vector3());
+  const extent = box.getSize(new THREE.Vector3());
+  geometry.translate(-centre.x, -centre.y, -centre.z);
+  geometry.scale(1 / extent.x, 1 / extent.y, 1 / extent.z);
+  geometry.computeVertexNormals();
+
+  GEOMETRY_CACHE.set(kind, geometry);
+  return geometry;
+}
+
+/** For things drawn as guides only: pointer rays pass straight through them. */
+const IGNORE_POINTER = () => undefined;
+
+/** A flat square facing the camera, drawn over everything. */
+function Square({ at, px, colour, onPointerDown }: { at: Vec3; px: number; colour: string; onPointerDown?: (e: ThreeEvent<PointerEvent>) => void }) {
+  const { view, upp } = useContext(ViewInfo);
+  const side = px * upp;
+
+  return (
+    <mesh
+      position={[at.x, at.y, at.z]}
+      rotation={view === 'front' ? [0, 0, 0] : [0, -Math.PI / 2, 0]}
+      renderOrder={30}
+      onPointerDown={onPointerDown}
+      // Always a function: handing R3F `undefined` after a no-op leaves the no-op in place, so a joint that was
+      // only a guide would stay unclickable after switching to POSE.
+      raycast={onPointerDown === undefined ? IGNORE_POINTER : THREE.Mesh.prototype.raycast}
+    >
+      <planeGeometry args={[side, side]} />
+      <meshBasicMaterial color={colour} depthTest={false} />
+    </mesh>
+  );
+}
+
+/**
+ * Lines between world points (pairs: each two points are one segment), drawn over everything. The geometry is
+ * rebuilt only when the points actually change, and the old one is released, so a drag does not leak a buffer a frame.
+ */
+function Segments({ points, colour }: { points: Vec3[]; colour: string }) {
+  const key = points.map((p) => `${p.x},${p.y},${p.z}`).join(';');
+  const geometry = useMemo(() => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(points.flatMap((p) => [p.x, p.y, p.z]), 3));
+    return g;
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps -- `key` is `points`, by value
+  useEffect(() => () => geometry.dispose(), [geometry]);
+
+  return (
+    <lineSegments geometry={geometry} renderOrder={25} raycast={IGNORE_POINTER}>
+      <lineBasicMaterial color={colour} depthTest={false} />
+    </lineSegments>
+  );
+}
+
+/**
+ * SELECT's transform box round the picked shape: drag an edge or corner square to size it, the knob above to turn
+ * it. Dragging the shape's body (inside the box) moves it - that is the shape's own handler.
+ */
+function SelectionBox() {
+  const { view, upp, coarse } = useContext(ViewInfo);
+  const figure = useCharacterStore((state) => state.figure);
+  const tool = useCharacterStore((state) => state.tool);
+  const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
+  const hidden = figure.shapes.find((shape) => shape.id === selectedShapeId)?.hidden ?? true;
+  const box = selectedShapeId === null || hidden ? null : screenBox(figure, selectedShapeId, view);
+
+  if (box === null || selectedShapeId === null || tool !== 'select') return null;
+
+  const { right, up, toward } = VIEW_BASIS[view];
+  const point = (h: number, v: number, extraUp = 0): Vec3 => ({
+    x: box.centre.x + right.x * h * box.halfRight + up.x * (v * box.halfUp + extraUp) + toward.x * 3,
+    y: box.centre.y + right.y * h * box.halfRight + up.y * (v * box.halfUp + extraUp) + toward.y * 3,
+    z: box.centre.z + right.z * h * box.halfRight + up.z * (v * box.halfUp + extraUp) + toward.z * 3,
+  });
+  const px = coarse ? HANDLE_PX.coarse : HANDLE_PX.fine;
+  const handles: { h: -1 | 0 | 1; v: -1 | 0 | 1 }[] = [
+    { h: -1, v: -1 }, { h: 0, v: -1 }, { h: 1, v: -1 },
+    { h: -1, v: 0 }, { h: 1, v: 0 },
+    { h: -1, v: 1 }, { h: 0, v: 1 }, { h: 1, v: 1 },
+  ];
+  const knobLift = KNOB_GAP_PX * upp;
+  const corners = [point(-1, -1), point(1, -1), point(1, 1), point(-1, 1)];
+  const outline = corners.flatMap((corner, index) => [corner, corners[(index + 1) % 4]]);
+
+  return (
+    <>
+      <Segments points={outline} colour={MODEL_HIGHLIGHT} />
+      <Segments points={[point(0, 1), point(0, 1, knobLift)]} colour={MODEL_HIGHLIGHT} />
+      {handles.map((handle) => (
+        <Square
+          key={`${handle.h}${handle.v}`}
+          at={point(handle.h, handle.v)}
+          px={px}
+          colour={MODEL_HANDLE_ACTIVE}
+          onPointerDown={(event) => {
+            event.stopPropagation();
+            startDrag(event, { kind: 'size', shapeId: selectedShapeId, view, upp, handle });
+          }}
         />
       ))}
-    </group>
+      <Square
+        at={point(0, 1, knobLift)}
+        px={px + 2}
+        colour={MODEL_HANDLE}
+        onPointerDown={(event) => {
+          event.stopPropagation();
+          startDrag(event, {
+            kind: 'turn',
+            shapeId: selectedShapeId,
+            view,
+            upp,
+            grab: { right: 0, up: box.halfUp + knobLift },
+          });
+        }}
+      />
+    </>
+  );
+}
+
+/**
+ * The skeleton: bones as lines, joints as squares. Grabbable only with POSE; otherwise drawn small, as a guide, and
+ * clicks pass straight through to the shapes. A joint sitting exactly on its parent (an upper arm on its shoulder)
+ * gets no square of its own - there would be two on one spot, and the one underneath could never be reached.
+ */
+function Bones() {
+  const { view, upp, coarse } = useContext(ViewInfo);
+  const skeleton = useCharacterStore((state) => state.figure.skeleton);
+  const tool = useCharacterStore((state) => state.tool);
+  const showSkeleton = useCharacterStore((state) => state.showSkeleton);
+  const selectedJointId = useCharacterStore((state) => state.selectedJointId);
+  const frames = useMemo(() => jointFrames(skeleton), [skeleton]);
+  const posing = tool === 'pose';
+
+  const lines = useMemo(() => {
+    const points: Vec3[] = [];
+    for (const joint of Object.values(skeleton.joints)) {
+      for (const child of childrenOf(skeleton, joint.id)) {
+        const a = frames[joint.id];
+        const b = frames[child.id];
+        if (a !== undefined && b !== undefined) points.push(a.position, b.position);
+      }
+    }
+    return points;
+  }, [skeleton, frames]);
+
+  if (!posing && !showSkeleton) return null;
+
+  // Finger-sized only when they can be grabbed; as a guide they stay small so they do not hide the figure.
+  const px = posing ? (coarse ? JOINT_PX.coarse : JOINT_PX.fine) * 2 : JOINT_PX.fine;
+
+  return (
+    <>
+      <Segments points={lines} colour={MODEL_WIRE} />
+      {Object.values(skeleton.joints).map((joint) => {
+        const frame = frames[joint.id];
+        if (frame === undefined || (joint.parentId !== null && lengthOf(joint.position) < 1e-6)) return null;
+        const id = joint.id;
+        return (
+          <Square
+            key={id}
+            at={frame.position}
+            px={px}
+            colour={selectedJointId === id ? MODEL_HANDLE_ACTIVE : MODEL_HANDLE}
+            onPointerDown={
+              posing
+                ? (event) => {
+                    event.stopPropagation();
+                    startDrag(event, { kind: 'pose', jointId: id, view, upp });
+                  }
+                : undefined
+            }
+          />
+        );
+      })}
+    </>
   );
 }
