@@ -105,6 +105,8 @@ const TOUCH = 1;
 export const SHAKE_TURNS = 4;
 export const SHAKE_SWING = 14;
 export const SHAKE_WINDOW = 500;
+/** The `sm` breakpoint: narrower than this is a phone, and has no layout. */
+export const PHONE_BELOW = 640;
 /** The least time between two saves. */
 export const SAVE_EVERY = 1000;
 
@@ -543,17 +545,30 @@ export function currentLayouts(): SavedLayouts {
   return { ...saved, [state.bucket]: snapshotBucket() };
 }
 
+/**
+ * Whether the screen is phone-width right now. A desktop browser narrowed below `sm` turns its windows
+ * into bottom sheets, which unmount and close - and none of that may be saved into a desktop layout.
+ */
+function phoneWidthNow(): boolean {
+  return typeof window !== 'undefined' && window.innerWidth < PHONE_BELOW;
+}
+
+function saveNow() {
+  if (phoneWidthNow()) return;
+  lastSave = Date.now();
+  saved = currentLayouts();
+  saver?.(saved);
+}
+
 /** Hands the layouts to the saver - at most once per `SAVE_EVERY`, and never before they were read. */
 function scheduleSave() {
-  if (!state.ready || saver === null) return;
+  if (!state.ready || saver === null || phoneWidthNow()) return;
   if (saveTimer !== null) return;
 
   const wait = Math.max(0, lastSave + SAVE_EVERY - Date.now());
   saveTimer = setTimeout(() => {
     saveTimer = null;
-    lastSave = Date.now();
-    saved = currentLayouts();
-    saver?.(saved);
+    saveNow();
   }, wait);
 }
 
@@ -562,9 +577,7 @@ export function flushLayoutSave(): void {
   if (saveTimer === null) return;
   clearTimeout(saveTimer);
   saveTimer = null;
-  lastSave = Date.now();
-  saved = currentLayouts();
-  saver?.(saved);
+  saveNow();
 }
 
 export function setLayoutSaver(next: ((layouts: SavedLayouts) => void) | null): void {
@@ -601,10 +614,14 @@ export function registerWindow(id: string, spec: WindowSpec): void {
   specs[id] = spec;
 }
 
+/** The windows actually drawn right now, as opposed to the ones the store merely believes open. */
+const mounted = new Set<string>();
+
 /** A window opened: put it where it was saved, or in its corner, and bring it to the front. */
 export function windowOpened(id: string): void {
   const spec = specs[id];
   if (spec === undefined) return;
+  mounted.add(id);
 
   const next = plain();
   const known = next[id];
@@ -622,6 +639,7 @@ export function windowOpened(id: string): void {
 
 /** A window closed. The rest of its group stays put; it keeps its group id so it can rejoin. */
 export function windowClosed(id: string): void {
+  mounted.delete(id);
   const known = state.windows[id];
   if (known === undefined || !known.open) return;
 
@@ -666,18 +684,23 @@ type Drag = {
   pointerX: number;
   pointerY: number;
   shake: ReturnType<typeof createShakeTracker>;
+  /** Whether anything actually moved. A click on a title bar is a press with no move, and joins nothing. */
+  moved: boolean;
 };
 let drag: Drag | null = null;
 
 function startDragOf(ids: string[], x: number, y: number): Drag {
   const starts: Record<string, WindowRect> = {};
   for (const id of ids) starts[id] = state.windows[id].rect;
-  return { ids, starts, pointerX: x, pointerY: y, shake: createShakeTracker() };
+  return { ids, starts, pointerX: x, pointerY: y, shake: createShakeTracker(), moved: false };
 }
 
 export function beginMove(id: string, x: number, y: number): void {
-  if (state.windows[id] === undefined) return;
+  // Nothing moves until the saved layout has arrived, or the arrival would throw the move away.
+  if (state.windows[id] === undefined || !state.ready) return;
   bringToFront(id);
+  // A maximised window stays put: it fills the screen, and its way back is the second double-click.
+  if (state.windows[id].restore !== null) return;
   drag = startDragOf(members(id), x, y);
   drag.shake.feed(x, performance.now());
 }
@@ -689,7 +712,7 @@ export function moveTo(x: number, y: number, time = performance.now()): void {
   // Shaken loose: the grabbed window carries on alone, from where it is now.
   if (drag.ids.length > 1 && drag.shake.feed(x, time)) {
     detachWindow(lead);
-    drag = startDragOf([lead], x, y);
+    drag = { ...startDragOf([lead], x, y), moved: true };
     return;
   }
 
@@ -699,6 +722,10 @@ export function moveTo(x: number, y: number, time = performance.now()): void {
     .map((id) => state.windows[id].rect);
   const snapped = snapOffset(moving, others, x - drag.pointerX, y - drag.pointerY);
   const { dx, dy } = clampOffset(moving, snapped.dx, snapped.dy, state.viewport, state.top);
+  // A drag, as opposed to a click, is a pointer that travelled. The window itself may not have moved at
+  // all - it can snap straight back to where it was - and that still counts as a drop.
+  if (!drag.moved && Math.hypot(x - drag.pointerX, y - drag.pointerY) < 3) return;
+  drag.moved = true;
 
   const next = plain();
   for (const id of drag.ids) {
@@ -711,8 +738,10 @@ export function moveTo(x: number, y: number, time = performance.now()): void {
 /** The drop: anything now flush with the moved windows joins their group. */
 export function endMove(): void {
   if (drag === null) return;
-  const ids = drag.ids;
+  const { ids, moved } = drag;
   drag = null;
+  // Only a real drop joins anything: a click must not undo a detach by regrouping what still touches.
+  if (!moved) return;
 
   const next = plain();
   const touching = new Set<string>();
@@ -747,7 +776,7 @@ type Resize = {
 let resize: Resize | null = null;
 
 export function beginResize(id: string, edges: ResizeEdges, x: number, y: number): void {
-  if (state.windows[id] === undefined) return;
+  if (state.windows[id] === undefined || !state.ready) return;
   bringToFront(id);
   const starts: Record<string, WindowRect> = {};
   for (const other of Object.keys(state.windows)) starts[other] = state.windows[other].rect;
@@ -865,13 +894,13 @@ export function setViewport(viewport: WindowSize, top: number): void {
  * The saved layouts arrived (or there were none). Returns the windows the layout had open, so the host
  * can open the ones that are not open already.
  */
-export function adoptLayouts(layouts: SavedLayouts | null): string[] {
+export function adoptLayouts(layouts: SavedLayouts | null, canOpen: (id: string) => boolean = () => true): string[] {
   saved = layouts ?? {};
   const open: Record<string, boolean> = {};
   for (const [id, w] of Object.entries(state.windows)) if (w.open) open[id] = true;
 
   const wanted = saved[state.bucket]?.windows ?? {};
-  const reopen = Object.keys(wanted).filter((id) => wanted[id].open && !open[id]);
+  const reopen = Object.keys(wanted).filter((id) => wanted[id].open && !open[id] && canOpen(id));
 
   // The windows about to be reopened count as open already. They mount one at a time, and the first to
   // arrive would otherwise find its partner shut and drop out of the group it was saved in.
@@ -879,6 +908,23 @@ export function adoptLayouts(layouts: SavedLayouts | null): string[] {
   write(next, { ready: true });
 
   return reopen;
+}
+
+/**
+ * Closes every window the store thinks is open but that never actually drew - an opener that did nothing,
+ * or a window that refused. Otherwise it would count towards its group, be dragged along invisibly, and
+ * be saved as open for good. The host calls it a moment after reopening a saved layout.
+ */
+export function closeUndrawnWindows(): void {
+  const next = plain();
+  let changed = false;
+  for (const id of Object.keys(next)) {
+    if (next[id].open && !mounted.has(id)) {
+      next[id] = { ...next[id], open: false };
+      changed = true;
+    }
+  }
+  if (changed) write(next);
 }
 
 /** Back to the corners, for this screen shape only - and this shape's saved layout goes with it. */
@@ -903,6 +949,7 @@ export function resetLayoutStore(): void {
   resize = null;
   saved = {};
   order = [];
+  mounted.clear();
   state = { ...state, ready: false, windows: {} };
   for (const listener of listeners) listener();
 }

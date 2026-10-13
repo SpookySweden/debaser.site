@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { PANEL, PLATE, STATUS_BAR, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { useWindowDrag } from '../lib/ui/use-window-drag';
 import {
   beginMove,
   beginResize,
@@ -119,7 +120,10 @@ export default function DockWindow({
   const managed = desktop && live !== undefined && live.open;
   const grouped = managed && live.grouped;
 
-  const titleHandlers = {
+  // A phone keeps the sheet's own drag, exactly as it was before windows had layouts.
+  const { offset, dragHandlers: sheetDrag } = useWindowDrag();
+
+  const layoutHandlers = {
     onPointerDown: (event: ReactPointerEvent<HTMLDivElement>) => {
       if (!managed || event.button !== 0) return;
       capture(event);
@@ -142,9 +146,11 @@ export default function DockWindow({
     },
   };
 
+  const titleHandlers = managed ? layoutHandlers : sheetDrag;
+
   const style = managed
     ? { left: live.rect.x, top: live.rect.y, width: live.rect.w, height: live.rect.h, zIndex: 90 + Math.min(live.z, 8) }
-    : undefined;
+    : { transform: `translate(${offset.x}px, ${offset.y}px)` };
   const corner = dock === 'bottom' ? 'sm:top-auto sm:bottom-28' : 'sm:top-16 sm:bottom-auto';
   const placement = managed
     ? 'fixed'

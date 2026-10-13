@@ -8,6 +8,7 @@ import { openPreferences } from '../lib/ui/preferences-window';
 import {
   adoptLayouts,
   awaitLayouts,
+  closeUndrawnWindows,
   flushLayoutSave,
   setLayoutSaver,
   setViewport,
@@ -52,7 +53,11 @@ export default function WindowLayoutHost() {
   // The screen, before anything opens: measured in a layout effect so a window opened by the address is
   // placed against the real viewport and not the store's placeholder.
   useLayoutEffect(() => {
-    const measure = () => setViewport({ w: window.innerWidth, h: window.innerHeight }, measureTop());
+    // Below `sm` the windows are bottom sheets: the store keeps the last desktop size, so narrowing a
+    // browser does not squeeze (and re-bucket) the layout it will want back.
+    const measure = () => {
+      if (window.matchMedia(DESKTOP).matches) setViewport({ w: window.innerWidth, h: window.innerHeight }, measureTop());
+    };
     measure();
 
     window.addEventListener('resize', measure);
@@ -77,7 +82,9 @@ export default function WindowLayoutHost() {
     const finish = (layouts: SavedLayouts | null, saver: (layouts: SavedLayouts) => void) => {
       if (cancelled) return;
       setLayoutSaver(saver);
-      for (const id of adoptLayouts(layouts)) OPENERS[id]?.();
+      for (const id of adoptLayouts(layouts, (id) => id in OPENERS)) OPENERS[id]();
+      // Anything the layout had open that did not draw is closed, so it cannot haunt its group.
+      window.setTimeout(closeUndrawnWindows, 2000);
     };
 
     if (userId === null) {
