@@ -613,7 +613,14 @@ function TripleFieldBoxes({
   };
 
   return (
-    <fieldset className="flex flex-col gap-1">
+    <fieldset
+      className="flex flex-col gap-1"
+      // Committed when focus leaves the three boxes, not each box: committing re-keys the boxes, so committing on a
+      // Tab from ACROSS to UP would rebuild UP under the cursor and drop the reader's place.
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) commit();
+      }}
+    >
       <legend className="pb-1 text-[10px] font-bold text-ink">{label}</legend>
       <div className="grid grid-cols-3 gap-1">
         {axes.map((axis, index) => (
@@ -625,7 +632,6 @@ function TripleFieldBoxes({
               step={step}
               value={drafts[index]}
               onChange={(event) => setDrafts(drafts.map((d, i) => (i === index ? event.target.value : d)))}
-              onBlur={commit}
               onKeyDown={(event) => {
                 if (event.key === 'Enter') commit();
               }}

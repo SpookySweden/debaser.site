@@ -283,20 +283,21 @@ export function duplicateShape(figure: Figure, id: string): { figure: Figure; id
 }
 
 /**
- * The joint nearest a point, as seen in one view - only the two axes the view shows count.
+ * The joint nearest a point, in all three directions.
  *
- * Used to pick what a new shape pins to. Depth is ignored because a click on empty space in a flat view has no depth
- * worth trusting: the reader clicked beside an arm in FRONT, so the arm is what they meant, however far forward it is.
- * Joints that sit on top of their parent (an upper arm on its shoulder) are skipped in favour of the one below,
- * which is the one whose bone a shape there would follow.
+ * Used to pick what a new shape pins to. A click on empty space is placed on the figure's centre plane (depth zero
+ * in that view), so in FRONT this is the same as measuring across the screen, and in SIDE it means a shape put
+ * beside the spine pins to the spine rather than to an arm that only *looks* close because the side view stacks the
+ * arms on top of the body. Where two joints share a point (an upper arm on its shoulder), the one declared later -
+ * the one whose bone a shape there would follow - wins.
  */
-export function nearestJoint(figure: Figure, point: Vec3, axes: [keyof Vec3, keyof Vec3]): string | null {
+export function nearestJoint(figure: Figure, point: Vec3): string | null {
   const frames = jointFrames(figure.skeleton);
   let best: string | null = null;
   let bestDistance = Infinity;
 
   for (const [id, frame] of Object.entries(frames)) {
-    const distance = Math.hypot(frame.position[axes[0]] - point[axes[0]], frame.position[axes[1]] - point[axes[1]]);
+    const distance = Math.hypot(frame.position.x - point.x, frame.position.y - point.y, frame.position.z - point.z);
     // `<=` so a later joint at the same spot (the upper arm, declared after its shoulder) wins the tie.
     if (distance <= bestDistance + 1e-9) {
       best = id;

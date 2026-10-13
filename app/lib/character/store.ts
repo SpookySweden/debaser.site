@@ -32,7 +32,6 @@ import {
   type Figure,
 } from './figure';
 import {
-  VIEW_BASIS,
   moveGesture,
   poseGesture,
   sizeGesture,
@@ -227,7 +226,7 @@ export const useCharacterStore = create<CharacterState>((set) => ({
 
   addShapeAt: (view, at, pinTo) =>
     set((state) => {
-      const pin = pinTo !== undefined ? pinTo : nearestJoint(state.figure, at, VIEW_BASIS[view].axes);
+      const pin = pinTo !== undefined ? pinTo : nearestJoint(state.figure, at);
       const result = addShape(state.figure, { kind: state.addKind, at, pin });
       if (result.id === null) return state;
       return { ...commit(state, result.figure), selectedShapeId: result.id };

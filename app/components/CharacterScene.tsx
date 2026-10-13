@@ -43,8 +43,8 @@ const VIEW_WIDTH = 1.9;
  */
 const FIGURE_CENTRE_Y = -0.3;
 /** Screen-sized things, in pixels. Larger on a touch screen, where a fingertip is the pointer. */
-const HANDLE_PX = { fine: 10, coarse: 18 };
-const JOINT_PX = { fine: 6, coarse: 11 };
+const HANDLE_PX = { fine: 10, coarse: 28 };
+const JOINT_PX = { fine: 6, coarse: 15 };
 const KNOB_GAP_PX = 26;
 
 type ViewContext = { view: ViewportKind; upp: number; coarse: boolean };
@@ -157,6 +157,9 @@ function Grid({ view }: { view: ViewportKind }) {
  */
 function startDrag(event: ThreeEvent<PointerEvent>, start: GestureStart) {
   const store = useCharacterStore.getState();
+  // One drag at a time: a second finger landing mid-drag would restart the gesture from a half-dragged figure,
+  // and UNDO would then stop halfway instead of where the drag began.
+  if (store.gesture !== null) return;
   const originX = event.nativeEvent.clientX;
   const originY = event.nativeEvent.clientY;
 
