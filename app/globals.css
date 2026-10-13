@@ -459,6 +459,8 @@ img {
   /* The alarm: Emerald and Rose, alternating in whole frames. `steps` with no easing again - an alarm
      that fades between its two colours reads as a decoration, and this one has to read as a fault. */
   --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
+  /* A docked window shaken out of its group: its frame blinks Brilliant Pink three times, then is gone. */
+  --animate-detach: detach 360ms steps(1, end) 1 forwards;
 }
 
 
@@ -515,6 +517,22 @@ img {
 
   75% {
     transform: translate(2px, 0);
+  }
+}
+
+/* The detach cue: whole frames on and off, ending off - no fade, per the design guide. */
+@keyframes detach {
+  0%,
+  33%,
+  66% {
+    opacity: 1;
+  }
+
+  16%,
+  50%,
+  83%,
+  100% {
+    opacity: 0;
   }
 }
 

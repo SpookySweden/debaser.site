@@ -85,7 +85,9 @@ export default function MusicWindow() {
       title={state.screen === 'mine' ? 'MUSIC :: MY MUSIC' : 'MUSIC :: THE ARCHIVE'}
       badge="[ MP3 ]"
       onClose={close}
-      widthClass="sm:w-[min(36rem,calc(100vw-1.5rem))]"
+      id="music"
+      defaultSize={{ w: 576, h: 700 }}
+      minSize={{ w: 380, h: 260 }}
       status={
         state.screen === 'mine'
           ? '♥ LIKED PLAYS THE WHOLE LIST :: THE COMMENT PLATE FILES A POST ABOUT A TRACK'

@@ -43,6 +43,8 @@ export default function GuestPrompt() {
   return (
     <div
       role="status"
+      // The docked windows read this strip's height so no title bar can be dragged under it.
+      data-top-bar
       className="fixed inset-x-0 top-0 z-[95] flex flex-wrap items-center gap-2 border-b-2 border-black bg-acid px-1 py-1 animate-alarm"
     >
       {/* The words sit on Black, and the Emerald/Rose flash is the frame around them.

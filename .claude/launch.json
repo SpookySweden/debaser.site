@@ -4,8 +4,26 @@
     {
       "name": "dev",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--", "-p", "3000"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--",
+        "-p",
+        "3000"
+      ],
       "port": 3000
+    },
+    {
+      "name": "prod",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "start",
+        "--",
+        "-p",
+        "3210"
+      ],
+      "port": 3210
     }
   ]
 }

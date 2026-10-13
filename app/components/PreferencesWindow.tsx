@@ -16,6 +16,7 @@ import {
   type Theme,
   type ThemeId,
 } from '../lib/ui/theme-slot';
+import { resetLayout } from '../lib/ui/window-layout';
 import DockWindow from './DockWindow';
 
 /** The lamp on a theme's row: filled with the field it would give you, inked with that theme's prose. */
@@ -108,7 +109,9 @@ export default function PreferencesWindow() {
       onClose={closePreferences}
       status="CHANGES APPLY AT ONCE :: DRAG THE TITLE BAR TO MOVE IT"
       dock="bottom"
-      widthClass="sm:w-[min(24rem,calc(100vw-1.5rem))]"
+      id="preferences"
+      defaultSize={{ w: 384, h: 460 }}
+      minSize={{ w: 280, h: 200 }}
     >
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
         <div className={TITLE_BAR_INACTIVE}>
@@ -126,6 +129,25 @@ export default function PreferencesWindow() {
             <ThemeRow key={theme.id} theme={theme} active={theme.id === (id as ThemeId)} />
           ))}
         </div>
+      </section>
+
+      {/* Window layout: a desktop thing only, so a phone - which has bottom sheets, not windows - does
+          not see it at all. */}
+      <section className="mt-2 hidden rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale sm:block">
+        <div className={TITLE_BAR_INACTIVE}>
+          <span>WINDOWS</span>
+          <span>[ THIS SCREEN SHAPE ]</span>
+        </div>
+
+        <p className="px-2 pt-1 text-[10px] text-ink-plate">
+          WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN
+          ITS CORNER AND FORGETS THIS SHAPE&apos;S SAVED LAYOUT.
+        </p>
+        <p className="p-2">
+          <button type="button" onClick={resetLayout} className={PLATE}>
+            [ RESET LAYOUT ]
+          </button>
+        </p>
       </section>
 
       <section className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">

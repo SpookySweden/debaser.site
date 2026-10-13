@@ -18,6 +18,7 @@ import NotificationsProvider from './components/NotificationsProvider';
 import PreferencesWindow from './components/PreferencesWindow';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
+import WindowLayoutHost from './components/WindowLayoutHost';
 import { themeBootScript } from './lib/ui/theme-slot';
 import './globals.css';
 
@@ -101,6 +102,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           so they are drawn behind a boundary: the layout stays static, the windows
                           catch up. Nothing here is inside the page, which is exactly why opening one
                           cannot re-render the board. */}
+                      {/* Where the docked windows sit on a desktop - read from the account (or this browser,
+                          for a guest), saved back, and kept on screen. Draws nothing; it comes before
+                          the windows so the screen is measured before an address opens one. */}
+                      <WindowLayoutHost />
                       <Suspense fallback={null}>
                         <ArcadeWindow />
                         <MusicWindow />
