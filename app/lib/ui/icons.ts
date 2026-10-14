@@ -95,6 +95,7 @@ export const TOOL_GLYPHS: Record<string, string> = {
   delete: '✕',
   undo: '↶',
   redo: '↷',
+  new: '★',
 };
 export const ICON_LEGEND: { key: string; mark: string; meaning: string }[] = [
   { key: 'music', mark: ICON_MUSIC, meaning: 'THE SOUNDTRACK ARCHIVE' },

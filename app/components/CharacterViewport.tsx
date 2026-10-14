@@ -18,12 +18,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { findShape, MAX_NAME_LENGTH, type Shape } from '../lib/character/figure';
 import { MASS_DYES, MODEL_INK } from '../lib/character/palette';
-import { jointLabel, RIG_PRESET_IDS, RIG_PRESETS } from '../lib/character/rig';
+import { jointLabel, RIG_PRESETS } from '../lib/character/rig';
 import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
 import type { Vec3 } from '../lib/character/skeleton';
 import { TOOL_IDS, useCharacterStore, type ToolId } from '../lib/character/store';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { MASS_SHAPE_GLYPHS, TOOL_GLYPHS } from '../lib/ui/icons';
+import CharacterPresetPicker from './CharacterPresetPicker';
 import CharacterScene from './CharacterScene';
 
 const TOOLS: Record<ToolId, { label: string; hint: string }> = {
@@ -52,7 +53,8 @@ export default function CharacterViewport() {
   useUndoKeys();
 
   return (
-    <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-start">
+    <div className="relative flex min-w-0 flex-col gap-2 lg:flex-row lg:items-start">
+      <CharacterPresetPicker />
       <ToolStrip />
 
       <div className="flex min-w-0 flex-1 flex-col gap-2">
@@ -99,6 +101,7 @@ function ToolStrip() {
   const canRedo = useCharacterStore((state) => state.future.length > 0);
   const undo = useCharacterStore((state) => state.undo);
   const redo = useCharacterStore((state) => state.redo);
+  const setPresetPicker = useCharacterStore((state) => state.setPresetPicker);
 
   const button = 'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[10px]';
 
@@ -136,6 +139,17 @@ function ToolStrip() {
           {TOOL_GLYPHS.redo}
         </span>
         REDO
+      </button>
+      <button
+        type="button"
+        onClick={() => setPresetPicker(true)}
+        title="START A NEW FIGURE FROM ONE OF THE PRESETS"
+        className={`${button} ${pressable(false)}`}
+      >
+        <span aria-hidden className="text-[16px] leading-none">
+          {TOOL_GLYPHS.new}
+        </span>
+        NEW
       </button>
     </nav>
   );
@@ -450,7 +464,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
 /** With nothing picked: settings for the whole figure. */
 function FigureSettings() {
   const presetId = useCharacterStore((state) => state.presetId);
-  const applyPreset = useCharacterStore((state) => state.applyPreset);
+  const setPresetPicker = useCharacterStore((state) => state.setPresetPicker);
   const light = useCharacterStore((state) => state.light);
   const setLight = useCharacterStore((state) => state.setLight);
   const showSkeleton = useCharacterStore((state) => state.showSkeleton);
@@ -472,21 +486,10 @@ function FigureSettings() {
           <p className="text-[10px] text-ink">PICK A SHAPE IN A VIEW OR THE LIST TO EDIT IT.</p>
         )}
 
-        <Field label="START FROM - REPLACES THE FIGURE (UNDO WORKS)">
-          <div className="flex gap-[2px]">
-            {RIG_PRESET_IDS.map((id) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => applyPreset(id)}
-                aria-pressed={presetId === id}
-                title={RIG_PRESETS[id].note}
-                className={`flex-1 px-1 py-1 text-[10px] ${pressable(presetId === id)}`}
-              >
-                {RIG_PRESETS[id].label}
-              </button>
-            ))}
-          </div>
+        <Field label={`STARTED FROM ${RIG_PRESETS[presetId].label}`}>
+          <button type="button" onClick={() => setPresetPicker(true)} className={`px-2 py-2 text-[11px] ${pressable(false)}`}>
+            [ NEW FIGURE... ]
+          </button>
         </Field>
 
         <Field label={`LIGHT FROM ${Math.round((light.azimuth * 180) / Math.PI)}°`} htmlFor="light-azimuth">

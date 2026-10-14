@@ -97,6 +97,8 @@ type CharacterState = {
   showSkeleton: boolean;
   /** POSE moves joints freely (changing bone length) instead of bending them. */
   stretch: boolean;
+  /** The NEW FIGURE picker, drawn over the workbench. */
+  presetPickerOpen: boolean;
   light: LightAngles;
   gesture: Gesture | null;
   /** The figure as last saved or loaded, serialised; compared against the bench for the unsaved prompt. */
@@ -109,6 +111,7 @@ type CharacterState = {
   setLook: (look: LookId) => void;
   toggleSkeleton: () => void;
   toggleStretch: () => void;
+  setPresetPicker: (open: boolean) => void;
   setLight: (angles: LightAngles) => void;
 
   undo: () => void;
@@ -180,6 +183,7 @@ function freshState() {
     look: 'shapes' as LookId,
     showSkeleton: true,
     stretch: false,
+    presetPickerOpen: false,
     light: { ...DEFAULT_LIGHT },
     gesture: null,
     keptFigure: fingerprint(figure),
@@ -198,6 +202,7 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   setLook: (look) => set({ look }),
   toggleSkeleton: () => set((state) => ({ showSkeleton: !state.showSkeleton })),
   toggleStretch: () => set((state) => ({ stretch: !state.stretch })),
+  setPresetPicker: (open) => set({ presetPickerOpen: open, gesture: null }),
   setLight: (angles) => set({ light: { ...angles } }),
 
   undo: () =>

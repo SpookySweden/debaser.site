@@ -34,14 +34,14 @@ import { childrenOf, jointFrames, lengthOf, type JointFrame, type Vec3 } from '.
 import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
 import { PixelPass } from './CharacterPixelPass';
 
-/** How much of the world a view shows, in model units: every starting figure (2.84 tall at most) with a margin. */
-const VIEW_HEIGHT = 3.1;
+/** How much of the world a view shows, in model units: every preset (2.41 tall at most, NOODLE) with a margin. */
+const VIEW_HEIGHT = 2.8;
 const VIEW_WIDTH = 1.9;
 /**
- * Where the views are centred vertically: halfway between the highest crown (STOCKY, 1.12) and the lowest soles
- * (LANKY, -1.73) of the starting figures, so all three fit without the view moving when a preset is picked.
+ * Where the views are centred vertically: halfway between the floor every preset stands on (-1.36, `FLOOR_Y`) and the
+ * tallest crown (NOODLE, 1.05), so all of them fit without the view moving when a preset is picked.
  */
-const FIGURE_CENTRE_Y = -0.3;
+const FIGURE_CENTRE_Y = -0.16;
 /** Screen-sized things, in pixels. Larger on a touch screen, where a fingertip is the pointer. */
 const HANDLE_PX = { fine: 10, coarse: 28 };
 const JOINT_PX = { fine: 6, coarse: 15 };
