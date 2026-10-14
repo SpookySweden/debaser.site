@@ -1,6 +1,7 @@
 /**
- * Measure each look of the character workbench (SHAPES, FINAL - there were three render stages, MASS / BASE / PIXEL,
- * until the workbench was rebuilt) from the SCREENSHOT, which is the only reading that reflects what a person sees.
+ * Measure each LAYERS state of the character workbench's live pixel render (LIT, PIXELATE OFF, NORMAL LIGHT OFF,
+ * NORMAL MAP - before that there were two looks, SHAPES / FINAL, and before those three render stages, MASS / BASE /
+ * PIXEL) from the SCREENSHOT, which is the only reading that reflects what a person sees.
  *
  * **Why not `readPixels` on the canvas per stage.** `canvas.getContext('webgl2')` called from outside r3f does
  * not return r3f's context - the canvas already has one, and asking again yields an object whose drawing
@@ -21,8 +22,9 @@
  * `npm run shot -- --click MASS` reported, in its own transcript, pressing *BUILD A FIGURE FROM A SKELETON
  * AND THE MASS HUNG* - the palette's help text - and captured a picture of an unchanged stage. Two stages
  * then came back byte-identical and read as "the material never switches". Every stage press here is scoped
- * to the look switch (`--within FINAL`: the innermost box holding that word is the SHAPES / FINAL group; it was
- * the `WHAT IS DRAWN` fieldset when there were three stages), **and it is a real press at the button's own coordinates** rather than
+ * to the layer switches (`--within NORMAL MAP`: the innermost box holding that phrase is the LAYERS group; it was
+ * the SHAPES / FINAL group when there were two looks, and the `WHAT IS DRAWN` fieldset when there were three
+ * stages), **and it is a real press at the button's own coordinates** rather than
  * `element.click()` - so hit-testing is exercised, and the pressed state is read back afterwards to check
  * the press actually took. A press that lands on an overlay is reported as `NOT this stage` rather than
  * silently measured.
@@ -60,7 +62,16 @@ const {
 const { at, has, number } = flags();
 
 const BROWSE = path.join('Temp', 'browse');
-const STAGES = ['SHAPES', 'FINAL'];
+/**
+ * The layer states, each reached from the defaults by pressing its switches (and pressed back afterwards), with the
+ * switches the layer group should then say are on. NORMAL LIGHT stays pressed under NORMAL MAP: it is resting, not off.
+ */
+const STATES = [
+  { name: 'LIT', press: [], lit: 'PIXELATE + NORMAL LIGHT' },
+  { name: 'PIXELATE OFF', press: ['PIXELATE'], lit: 'NORMAL LIGHT' },
+  { name: 'NORMAL LIGHT OFF', press: ['NORMAL LIGHT'], lit: 'PIXELATE' },
+  { name: 'NORMAL MAP', press: ['NORMAL MAP'], lit: 'PIXELATE + NORMAL LIGHT + NORMAL MAP' },
+];
 
 /*
  * The plates a reader presses to stand in front of the workbench, in order. `CHAR` is a tab *inside* the
@@ -82,7 +93,7 @@ const signIn = has('--signin');
 const reuse = has('--reuse');
 const attach = has('--attach');
 const profile = path.join(BROWSE, 'stage-profile');
-const within = at('--within', 'FINAL');
+const within = at('--within', 'NORMAL MAP');
 
 /** Count distinct colours inside a box, how much of it is not the dominant one, and any grey. */
 function measure(image, box) {
@@ -129,7 +140,7 @@ async function panesOf(page) {
  * is how a run "at the workbench" once produced a picture of `/account`. A wrong press has to be a failure.
  *
  * `scope` is the container whose own text has to contain the phrase, and **it is not the same for both kinds
- * of press**: the stage buttons live inside `WHAT IS DRAWN`, which does not exist until the customiser is
+ * of press**: the layer switches live inside the LAYERS group, which does not exist until the customiser is
  * open, so scoping the plates that *open* it would refuse before there was anything to scope to.
  */
 async function pressPlate(page, target, { scope = null, allowAmbiguous = true } = {}) {
@@ -143,19 +154,21 @@ async function pressPlate(page, target, { scope = null, allowAmbiguous = true } 
 }
 
 /**
- * What the stage group says is lit.
+ * What the layer group says is on.
  *
- * Only the three stage labels count. The overlay's own eye carries `aria-pressed` as well, so reading every
- * pressed button in the fieldset made a correct run report "NOT this stage".
+ * Only the three layer labels count - when there was a stage fieldset, the overlay's own eye carried `aria-pressed`
+ * as well, and reading every pressed button in it made a correct run report "NOT this stage". On a phone a label
+ * wraps onto two lines, so the line breaks are folded back into spaces.
  */
 const LIT_QUERY = `(() => {
-  const group = document.querySelector('[role=group][aria-label=Look]');
+  const group = document.querySelector('[role=group][aria-label=Layers]');
+  const label = (b) => b.innerText.trim().split(String.fromCharCode(10)).map((part) => part.trim()).join(' ');
   const lit = group
     ? [...group.querySelectorAll('button')].filter(
-        (b) => b.getAttribute('aria-pressed') === 'true' && /^(SHAPES|FINAL)/.test(b.innerText.trim()),
+        (b) => b.getAttribute('aria-pressed') === 'true' && /^(PIXELATE|NORMAL LIGHT|NORMAL MAP)$/.test(label(b)),
       )
     : [];
-  return lit.map((b) => b.innerText.trim().split(String.fromCharCode(10))[0].trim()).join(' + ');
+  return lit.map(label).join(' + ');
 })()`;
 
 async function main() {
@@ -230,54 +243,57 @@ async function main() {
 
     console.log('');
 
-    for (const stage of STAGES) {
-      const pressed = await pressPlate(browser.page, stage, { scope: within });
+    for (const state of STATES) {
+      const pressed = [];
+      for (const plate of state.press) pressed.push(await pressPlate(browser.page, plate, { scope: within }));
 
       /*
-       * Wait for the press to be *reflected*, not just issued, and say what the page thinks is active.
+       * Wait for the press to be *reflected*, not just issued, and say what the page thinks is on.
        *
        * **The first version of this produced byte-identical readings for MASS and BASE** - the same 3 colours
        * and the same counts, to the pixel - which looked like "the material does not switch" and was really
        * "the screenshot was taken before the frame was redrawn". Identical numbers for two different requests
-       * is the tell: a real render differs at least slightly. So this waits, then asserts the pressed button
-       * is the one just clicked, and prints it - a stage reading is meaningless if the stage never changed.
+       * is the tell: a real render differs at least slightly. So this waits, then asserts the layer group says
+       * what this state should, and prints it - a reading is meaningless if the switches never changed.
        */
       await sleep(3500);
 
-      const active = (await browser.page.evaluate(LIT_QUERY)) || 'nothing lit in the stage group';
-      console.log(`  ${stage}  pressed ${pressed}`);
-      console.log(`  ${' '.repeat(stage.length)}  (stage group says: ${active}${active.startsWith(stage) ? '' : '  <- NOT this stage'})`);
+      const active = (await browser.page.evaluate(LIT_QUERY)) || 'nothing on in the layer group';
+      console.log(`  ${state.name}  pressed ${pressed.length === 0 ? 'nothing (the defaults)' : pressed.join('; ')}`);
+      console.log(`  ${' '.repeat(state.name.length)}  (layer group says: ${active}${active === state.lit ? '' : '  <- NOT this state'})`);
 
       // Fresh rectangles: the press scrolled the button into view, so a rectangle read earlier would
       // measure the wrong region of this frame.
       const fresh = await panesOf(browser.page);
-      const file = path.join(BROWSE, `stage-${stage.toLowerCase()}.png`);
+      const file = path.join(BROWSE, `stage-${state.name.toLowerCase().replace(/ /g, '-')}.png`);
       await capture(browser.page, { out: file });
 
       const image = readPng(file);
       if (image.error) {
         console.log(`    PNG ${image.error}`);
-        continue;
+      } else {
+        fresh.forEach((pane, index) => {
+          const reading = measure(image, pane);
+          /*
+           * `EMPTY` is a statement about content, not about the colour count. The old MASS stage was a
+           * *wireframe*: two colours - the void and the green edges - and 22% of the pane was not background,
+           * which is drawn. The count-only test this replaced called that pane empty, which is the kind of
+           * reading that sends somebody looking for a render fault that is not there.
+           */
+          console.log(
+            `    pane ${index}: ${reading.percent === 0 ? 'EMPTY' : 'drawn'} - ` +
+              `${reading.colours} colours, ${reading.percent}% not background`,
+          );
+          console.log(`      ${reading.top.join('   ')}`);
+          console.log(
+            `      greys in the pane: ` +
+              (reading.greys === 0 ? 'none' : `${reading.greys} - a colour the palette does not own`),
+          );
+        });
       }
 
-      fresh.forEach((pane, index) => {
-        const reading = measure(image, pane);
-        /*
-         * `EMPTY` is a statement about content, not about the colour count. MASS is a *wireframe*: two
-         * colours - the void and the green edges - and 22% of the pane is not background, which is drawn.
-         * The count-only test this replaces called that pane empty, which is the kind of reading that sends
-         * somebody looking for a render fault that is not there.
-         */
-        console.log(
-          `    pane ${index}: ${reading.percent === 0 ? 'EMPTY' : 'drawn'} - ` +
-            `${reading.colours} colours, ${reading.percent}% not background`,
-        );
-        console.log(`      ${reading.top.join('   ')}`);
-        console.log(
-          `      greys in the pane: ` +
-            (reading.greys === 0 ? 'none' : `${reading.greys} - a colour the palette does not own`),
-        );
-      });
+      // Back to the defaults, so the next state starts from the same place.
+      for (const plate of state.press) await pressPlate(browser.page, plate, { scope: within });
     }
 
     report(browser.log);
@@ -286,7 +302,7 @@ async function main() {
     console.log('NOT PROVEN: that any of it is a figure, or a good one.');
     console.log('  Colours in a pane mean geometry is drawn. What shape is for whoever reads the image -');
     console.log('  the per-stage PNGs are in Temp/browse/ for exactly that, and one file can also be');
-    console.log('  measured again without a browser: npm run panes -- --png Temp/browse/stage-shapes.png');
+    console.log('  measured again without a browser: npm run panes -- --png Temp/browse/stage-lit.png');
   } finally {
     await close(browser, { keep: attach });
   }

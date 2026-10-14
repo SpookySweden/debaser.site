@@ -59,11 +59,6 @@ export default function CharacterEditorPanel() {
         </span>
       </div>
 
-      <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">
-        BUILD A FIGURE FROM SHAPES PINNED TO A SKELETON. FRONT AND SIDE ARE THE SAME FIGURE FROM TWO ANGLES -
-        WHAT YOU DRAG IN ONE, THE OTHER SHOWS. CTRL+Z UNDOES.
-      </p>
-
       <div className="p-2">
         <CharacterViewport />
       </div>

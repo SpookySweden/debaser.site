@@ -13,10 +13,14 @@
  *
  * Handles and joints are drawn on top of everything (`depthTest` off), at a constant size in pixels, so they can
  * always be seen and grabbed however the figure is posed.
+ *
+ * **The figure itself is drawn by the live pixel render** (`CharacterPixelRender.tsx`): the scene is three groups -
+ * the grid behind, the figure, the overlays in front - and the render draws each in its own pass. The shapes are
+ * still real meshes in the scene, so a press picks the real shape under the pointer, never a pixel.
  */
 import { OrthographicCamera } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { VIEW_BASIS, screenBox, type ViewportKind } from '../lib/character/drag';
 import { placementOf, type Figure, type Shape } from '../lib/character/figure';
@@ -26,13 +30,12 @@ import {
   MODEL_HANDLE_ACTIVE,
   MODEL_HIGHLIGHT,
   MODEL_INK,
-  MODEL_VOID,
   MODEL_WIRE,
 } from '../lib/character/palette';
 import { unitGeometry } from '../lib/character/geometry';
 import { childrenOf, jointFrames, lengthOf, type JointFrame, type Vec3 } from '../lib/character/skeleton';
 import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
-import { PixelPass } from './CharacterPixelPass';
+import { flatMaterial, PixelRender } from './CharacterPixelRender';
 
 /** How much of the world a view shows, in model units: every preset (2.41 tall at most, NOODLE) with a margin. */
 const VIEW_HEIGHT = 2.8;
@@ -53,7 +56,6 @@ const ViewInfo = createContext<ViewContext>({ view: 'front', upp: 1 / 150, coars
 
 export default function CharacterScene({ view }: { view: ViewportKind }) {
   const tool = useCharacterStore((state) => state.tool);
-  const look = useCharacterStore((state) => state.look);
 
   return (
     <Canvas
@@ -61,18 +63,37 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
       gl={{ antialias: false }}
       className={CURSOR_FOR_TOOL[tool]}
     >
-      <color attach="background" args={[MODEL_VOID]} />
       <Fitted view={view}>
-        <ambientLight intensity={0.55} />
-        <KeyLight />
-        {look === 'shapes' ? <Grid view={view} /> : null}
-        <Backdrop />
-        <Shapes />
-        {look === 'shapes' ? <SelectionBox /> : null}
-        {look === 'shapes' ? <Bones /> : null}
+        <Layered />
       </Fitted>
-      <PixelPass enabled={look === 'final'} />
     </Canvas>
+  );
+}
+
+/** The scene in its three groups, and the render that draws them. See `CharacterPixelRender.tsx` for the order. */
+function Layered() {
+  const { view } = useContext(ViewInfo);
+  const under = useRef<THREE.Group>(null);
+  const figure = useRef<THREE.Group>(null);
+  const over = useRef<THREE.Group>(null);
+  const groups = useMemo(() => ({ under, figure, over }), []);
+
+  return (
+    <>
+      <group ref={under}>
+        <Grid view={view} />
+        <Backdrop />
+      </group>
+      <group ref={figure}>
+        <Shapes />
+      </group>
+      <group ref={over}>
+        <PickedWire />
+        <SelectionBox />
+        <Bones />
+      </group>
+      <PixelRender groups={groups} />
+    </>
   );
 }
 
@@ -117,23 +138,6 @@ function useCoarsePointer(): boolean {
   return useMemo(
     () => typeof window !== 'undefined' && window.matchMedia?.('(pointer: coarse)').matches === true,
     [],
-  );
-}
-
-function KeyLight() {
-  const azimuth = useCharacterStore((state) => state.light.azimuth);
-  const elevation = useCharacterStore((state) => state.light.elevation);
-  const distance = 12;
-
-  return (
-    <directionalLight
-      position={[
-        distance * Math.sin(azimuth) * Math.cos(elevation),
-        distance * Math.sin(elevation),
-        distance * Math.cos(azimuth) * Math.cos(elevation),
-      ]}
-      intensity={1.6}
-    />
   );
 }
 
@@ -238,8 +242,6 @@ function Shapes() {
 
 function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; frames: Record<string, JointFrame> }) {
   const { view, upp } = useContext(ViewInfo);
-  const selected = useCharacterStore((state) => state.selectedShapeId === shape.id);
-  const look = useCharacterStore((state) => state.look);
   const placement = placementOf(figure, shape, frames);
   const geometry = unitGeometry(shape.kind);
 
@@ -277,16 +279,42 @@ function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; fr
   const q = placement.rotation;
 
   return (
-    <group position={[position.x, position.y, position.z]} quaternion={[q.x, q.y, q.z, q.w]}>
-      <mesh geometry={geometry} scale={[shape.size.x, shape.size.y, shape.size.z]} onPointerDown={onPointerDown}>
-        <meshLambertMaterial color={shape.colour ?? MODEL_INK} />
-      </mesh>
-      {selected && look === 'shapes' ? (
-        <mesh geometry={geometry} scale={[shape.size.x * 1.01, shape.size.y * 1.01, shape.size.z * 1.01]} raycast={IGNORE_POINTER}>
-          <meshBasicMaterial color={MODEL_HIGHLIGHT} wireframe />
-        </mesh>
-      ) : null}
-    </group>
+    <mesh
+      geometry={geometry}
+      material={flatMaterial(shape.colour ?? MODEL_INK)}
+      position={[position.x, position.y, position.z]}
+      quaternion={[q.x, q.y, q.z, q.w]}
+      scale={[shape.size.x, shape.size.y, shape.size.z]}
+      onPointerDown={onPointerDown}
+    />
+  );
+}
+
+/**
+ * The picked shape's wireframe, in the overlay: crisp over the pixel figure, and hidden where another shape is in
+ * front of it (the render puts the figure's depth down first).
+ */
+function PickedWire() {
+  const figure = useCharacterStore((state) => state.figure);
+  const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
+  const frames = useMemo(() => jointFrames(figure.skeleton), [figure.skeleton]);
+  const shape = figure.shapes.find((candidate) => candidate.id === selectedShapeId);
+  if (shape === undefined || shape.hidden) return null;
+
+  const placement = placementOf(figure, shape, frames);
+  const position = placement.position;
+  const q = placement.rotation;
+
+  return (
+    <mesh
+      geometry={unitGeometry(shape.kind)}
+      position={[position.x, position.y, position.z]}
+      quaternion={[q.x, q.y, q.z, q.w]}
+      scale={[shape.size.x * 1.01, shape.size.y * 1.01, shape.size.z * 1.01]}
+      raycast={IGNORE_POINTER}
+    >
+      <meshBasicMaterial color={MODEL_HIGHLIGHT} wireframe />
+    </mesh>
   );
 }
 

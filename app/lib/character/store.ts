@@ -38,6 +38,14 @@ import {
   turnGesture,
   type ViewportKind,
 } from './drag';
+import {
+  DEFAULT_LAYERS,
+  DEFAULT_LIGHT,
+  stepLight,
+  type LayerId,
+  type LightAngles,
+  type LightStep,
+} from './pixel-render';
 import { buildDefaultFigure, type RigPresetId } from './rig';
 import type { MassShapeId } from './shapes';
 import type { Vec3 } from './skeleton';
@@ -58,13 +66,12 @@ export type ToolId = 'select' | 'add' | 'move' | 'turn' | 'size' | 'pose' | 'del
 
 export const TOOL_IDS: readonly ToolId[] = ['select', 'add', 'move', 'turn', 'size', 'pose', 'delete'];
 
-/** SHAPES is the figure as plain lit shapes to build against; FINAL is the pixelated, outlined look. */
-export type LookId = 'shapes' | 'final';
+export { DEFAULT_LIGHT, type LightAngles } from './pixel-render';
 
-/** Where the key light sits, in radians. Its distance is fixed - only the angle is authorable. */
-export type LightAngles = { azimuth: number; elevation: number };
+/** The folding sections of a picked shape's properties. NUMBERS starts folded: most edits are made by dragging. */
+export type SectionId = 'shape' | 'colour' | 'pin' | 'numbers';
 
-export const DEFAULT_LIGHT: LightAngles = { azimuth: -0.6, elevation: 0.9 };
+const DEFAULT_SECTIONS: Readonly<Record<SectionId, boolean>> = { shape: true, colour: true, pin: true, numbers: false };
 
 /** How many edits UNDO can walk back. */
 export const HISTORY_LIMIT = 100;
@@ -93,7 +100,14 @@ type CharacterState = {
   addKind: MassShapeId;
   selectedShapeId: string | null;
   selectedJointId: string | null;
-  look: LookId;
+  /** The LAYERS switches: what the live pixel render draws. See `pixel-render.ts`. */
+  layers: Record<LayerId, boolean>;
+  /** The light source itself. Off, the figure is evenly lit by the ambient level alone. */
+  lightOn: boolean;
+  /** The light d-pad beside the ☀ button. */
+  lightPadOpen: boolean;
+  /** Which property sections are unfolded. Kept here so picking another shape does not fold them again. */
+  sections: Record<SectionId, boolean>;
   showSkeleton: boolean;
   /** POSE moves joints freely (changing bone length) instead of bending them. */
   stretch: boolean;
@@ -108,11 +122,16 @@ type CharacterState = {
   setAddKind: (kind: MassShapeId) => void;
   selectShape: (id: string | null) => void;
   selectJoint: (id: string | null) => void;
-  setLook: (look: LookId) => void;
+  toggleLayer: (id: LayerId) => void;
+  toggleLightOn: () => void;
+  setLightPad: (open: boolean) => void;
+  /** One d-pad press: 45 degrees round, or 30 up or down (clamped). */
+  stepLight: (step: LightStep) => void;
+  resetLight: () => void;
+  toggleSection: (id: SectionId) => void;
   toggleSkeleton: () => void;
   toggleStretch: () => void;
   setPresetPicker: (open: boolean) => void;
-  setLight: (angles: LightAngles) => void;
 
   undo: () => void;
   redo: () => void;
@@ -180,7 +199,10 @@ function freshState() {
     addKind: 'sphere' as MassShapeId,
     selectedShapeId: null,
     selectedJointId: null,
-    look: 'shapes' as LookId,
+    layers: { ...DEFAULT_LAYERS },
+    lightOn: true,
+    lightPadOpen: false,
+    sections: { ...DEFAULT_SECTIONS },
     showSkeleton: true,
     stretch: false,
     presetPickerOpen: false,
@@ -199,11 +221,15 @@ export const useCharacterStore = create<CharacterState>((set) => ({
   setAddKind: (kind) => set({ addKind: kind, tool: 'add' }),
   selectShape: (id) => set({ selectedShapeId: id }),
   selectJoint: (id) => set({ selectedJointId: id }),
-  setLook: (look) => set({ look }),
+  toggleLayer: (id) => set((state) => ({ layers: { ...state.layers, [id]: !state.layers[id] } })),
+  toggleLightOn: () => set((state) => ({ lightOn: !state.lightOn })),
+  setLightPad: (open) => set({ lightPadOpen: open }),
+  stepLight: (step) => set((state) => ({ light: stepLight(state.light, step) })),
+  resetLight: () => set({ light: { ...DEFAULT_LIGHT } }),
+  toggleSection: (id) => set((state) => ({ sections: { ...state.sections, [id]: !state.sections[id] } })),
   toggleSkeleton: () => set((state) => ({ showSkeleton: !state.showSkeleton })),
   toggleStretch: () => set((state) => ({ stretch: !state.stretch })),
-  setPresetPicker: (open) => set({ presetPickerOpen: open, gesture: null }),
-  setLight: (angles) => set({ light: { ...angles } }),
+  setPresetPicker: (open) => set({ presetPickerOpen: open, lightPadOpen: false, gesture: null }),
 
   undo: () =>
     set((state) => {
