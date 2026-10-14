@@ -9,7 +9,8 @@
  *   3. LIGHT PASS    a full-screen cel shader reads both: colour x one of three hard bands of `dot(normal, light)`,
  *                    and scales the result up to the view with every low-res pixel a hard-edged square
  *
- * There is no outline and no post-processing filter: the pixel look is the tiny size and nothing else.
+ * There is no outline and no post-processing filter: the pixel look is the tiny size and nothing else. With PIXELATE
+ * off the same passes run at full size into multisampled targets, so the edges come out smooth rather than stepped.
  *
  * **The building aids are drawn after, at full resolution.** A frame is put on screen in this order:
  *
@@ -79,7 +80,7 @@ export function flatMaterial(hex: string): THREE.ShaderMaterial {
 }
 
 /** Pass 2: the surface direction in view space, packed into 0..1 so it fits a colour. */
-const NORMAL_PASS = new THREE.ShaderMaterial({
+export const NORMAL_PASS = new THREE.ShaderMaterial({
   vertexShader: /* glsl */ `
 varying vec3 vNormal;
 void main() {
@@ -96,7 +97,7 @@ void main() {
 });
 
 /** The figure's depth at full resolution, with no colour, so the picked-shape wire hides behind it. */
-const DEPTH_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false });
+export const DEPTH_ONLY = new THREE.MeshBasicMaterial({ colorWrite: false });
 
 /** What the light pass draws: 0 the normal map, 1 flat colours, 2 cel-lit colours. */
 const MODE_NUMBER = { normals: 0, flat: 1, lit: 2 } as const;
@@ -106,6 +107,10 @@ const MODE_NUMBER = { normals: 0, flat: 1, lit: 2 } as const;
  * block is exactly `block` device pixels wide however the target overhangs the view - nearest-neighbour by
  * construction, with no texture filtering involved. Empty pixels are discarded, and the grid drawn before shows
  * through them.
+ *
+ * Pixelated, a pixel is wholly figure or wholly empty (alpha 1 or 0). Smooth, an edge pixel is partly covered, and
+ * both passes hold "value x coverage" there - so dividing by the coverage gets the surface back, and the coverage
+ * blends the pixel onto the grid behind it.
  */
 function lightPassMaterial(): THREE.ShaderMaterial {
   return new THREE.ShaderMaterial({
@@ -134,41 +139,54 @@ uniform float mode;
 void main() {
   vec2 uv = (floor(gl_FragCoord.xy / block) + 0.5) / grid;
   vec4 base = texture2D(colourPass, uv);
-  if (base.a < 0.5) discard;
-  vec3 encoded = texture2D(normalPass, uv).rgb;
+  if (base.a < 0.004) discard;
+  vec3 colour = base.rgb / base.a;
+  vec4 facing = texture2D(normalPass, uv);
+  vec3 encoded = facing.rgb / max(facing.a, 0.004);
   if (mode < 0.5) {
-    gl_FragColor = vec4(encoded, 1.0);
+    gl_FragColor = vec4(encoded, base.a);
     return;
   }
   if (mode < 1.5) {
-    gl_FragColor = vec4(base.rgb, 1.0);
+    gl_FragColor = vec4(colour, base.a);
     return;
   }
   float amount = lightOn * max(dot(normalize(encoded * 2.0 - 1.0), lightDir), 0.0);
   float band = amount >= ${LIT_FROM.toFixed(3)} ? ${CEL_BANDS.lit.toFixed(3)}
     : amount >= ${MID_FROM.toFixed(3)} ? ${CEL_BANDS.mid.toFixed(3)}
     : ${CEL_BANDS.shadow.toFixed(3)};
-  gl_FragColor = vec4(base.rgb * band, 1.0);
+  gl_FragColor = vec4(colour * band, base.a);
 }
 `,
+    // Blended, for the part-covered edge pixels of the smooth render; a pixelated pixel is opaque or discarded.
+    transparent: true,
     depthTest: false,
     depthWrite: false,
   });
 }
 
-/** A low-res target: nearest filtering, no mipmaps, a depth buffer so nearer shapes hide farther ones. */
-function passTarget(): THREE.WebGLRenderTarget {
+/**
+ * A pass target: nearest filtering, no mipmaps, a depth buffer so nearer shapes hide farther ones. `samples` is the
+ * multisampling - none for the pixel render, where hard edges are the point, four for PIXELATE off.
+ */
+function passTarget(samples: number): THREE.WebGLRenderTarget {
   return new THREE.WebGLRenderTarget(1, 1, {
     minFilter: THREE.NearestFilter,
     magFilter: THREE.NearestFilter,
     generateMipmaps: false,
     depthBuffer: true,
+    samples,
   });
 }
 
-type Passes = {
-  colour: THREE.WebGLRenderTarget;
-  normal: THREE.WebGLRenderTarget;
+/** One colour target and one normal target, the same size. */
+type PassPair = { colour: THREE.WebGLRenderTarget; normal: THREE.WebGLRenderTarget };
+
+export type Passes = {
+  /** The tiny, hard-edged pair (PIXELATE on). */
+  pixel: PassPair;
+  /** The full-size, multisampled pair (PIXELATE off). */
+  smooth: PassPair;
   material: THREE.ShaderMaterial;
   screen: THREE.Scene;
   screenCamera: THREE.OrthographicCamera;
@@ -178,7 +196,7 @@ type Passes = {
   turn: THREE.Quaternion;
 };
 
-function createPasses(): Passes {
+export function createPasses(): Passes {
   const material = lightPassMaterial();
   const screen = new THREE.Scene();
   const quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), material);
@@ -186,8 +204,8 @@ function createPasses(): Passes {
   quad.frustumCulled = false;
   screen.add(quad);
   return {
-    colour: passTarget(),
-    normal: passTarget(),
+    pixel: { colour: passTarget(0), normal: passTarget(0) },
+    smooth: { colour: passTarget(4), normal: passTarget(4) },
     material,
     screen,
     screenCamera: new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1),
@@ -203,8 +221,10 @@ export function PixelRender({ groups }: { groups: RenderGroups }) {
 
   useEffect(
     () => () => {
-      passes.colour.dispose();
-      passes.normal.dispose();
+      for (const pair of [passes.pixel, passes.smooth]) {
+        pair.colour.dispose();
+        pair.normal.dispose();
+      }
       passes.material.dispose();
     },
     [passes],
@@ -215,8 +235,11 @@ export function PixelRender({ groups }: { groups: RenderGroups }) {
   return null;
 }
 
-/** One frame of one view: the three passes, then the overlays. Plain three.js, outside React on purpose. */
-function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, passes: Passes, groups: RenderGroups) {
+/**
+ * One frame of one view: the three passes, then the overlays. Plain three.js, outside React on purpose - and exported
+ * so `Temp/check-character-frame.cjs` can run it against a recording renderer and see what each pass draws.
+ */
+export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Camera, passes: Passes, groups: RenderGroups) {
   const under = groups.under.current;
   const figure = groups.figure.current;
   const over = groups.over.current;
@@ -228,9 +251,10 @@ function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Ca
   const ratio = gl.getPixelRatio();
   const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, layers.pixelate);
 
-  if (passes.colour.width !== grid.width || passes.colour.height !== grid.height) {
-    passes.colour.setSize(grid.width, grid.height);
-    passes.normal.setSize(grid.width, grid.height);
+  const pair = layers.pixelate ? passes.pixel : passes.smooth;
+  if (pair.colour.width !== grid.width || pair.colour.height !== grid.height) {
+    pair.colour.setSize(grid.width, grid.height);
+    pair.normal.setSize(grid.width, grid.height);
   }
 
   // The low-res camera is the view's own, widened to whole blocks (see `lowResFrustum`).
@@ -251,8 +275,8 @@ function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Ca
   passes.light.set(world.x, world.y, world.z).applyQuaternion(passes.turn).normalize();
 
   const uniforms = passes.material.uniforms;
-  uniforms.colourPass.value = passes.colour.texture;
-  uniforms.normalPass.value = passes.normal.texture;
+  uniforms.colourPass.value = pair.colour.texture;
+  uniforms.normalPass.value = pair.normal.texture;
   uniforms.grid.value.set(grid.width, grid.height);
   uniforms.block.value = grid.block;
   uniforms.lightDir.value.copy(passes.light);
@@ -262,16 +286,16 @@ function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: THREE.Ca
   const autoClear = gl.autoClear;
   gl.autoClear = false;
 
-  // 1. Colour pass and 2. normal pass: the figure alone, tiny.
+  // 1. Colour pass and 2. normal pass: the figure alone, tiny (or full size and multisampled, with PIXELATE off).
   under.visible = false;
   over.visible = false;
   figure.visible = true;
   gl.setClearColor(0x000000, 0);
-  gl.setRenderTarget(passes.colour);
+  gl.setRenderTarget(pair.colour);
   gl.clear();
   gl.render(scene, low);
   scene.overrideMaterial = NORMAL_PASS;
-  gl.setRenderTarget(passes.normal);
+  gl.setRenderTarget(pair.normal);
   gl.clear();
   gl.render(scene, low);
   scene.overrideMaterial = null;

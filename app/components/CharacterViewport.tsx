@@ -310,9 +310,10 @@ function LayerSwitches() {
 }
 
 /**
- * The one ☀ for both views, and the d-pad it opens. The pad closes on a press anywhere else, on ☀ again, or on ESC -
- * which is caught on the way down, before the customiser hears it, so ESC closes the pad and not the whole window
- * (the NEW FIGURE picker does the same).
+ * The one ☀ for both views, and the d-pad it opens. The pad closes on a press anywhere else, on ☀ again, on ESC, or
+ * when the keyboard tabs out of it. ESC is caught on the way down, before the customiser hears it, so it closes the
+ * pad and not the whole window (the NEW FIGURE picker does the same) - except in a text box, where ESC is the box's
+ * own "put it back".
  */
 function LightControl() {
   const open = useCharacterStore((state) => state.lightPadOpen);
@@ -320,10 +321,15 @@ function LightControl() {
   const setLightPad = useCharacterStore((state) => state.setLightPad);
   const box = useRef<HTMLDivElement>(null);
 
+  // Shut when the workbench goes, so it is not found open on the way back to the CHAR tab.
+  useEffect(() => () => useCharacterStore.getState().setLightPad(false), []);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement | null;
+      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
       event.stopPropagation();
       useCharacterStore.getState().setLightPad(false);
     };
@@ -341,7 +347,15 @@ function LightControl() {
   }, [open]);
 
   return (
-    <div ref={box} className="relative shrink-0">
+    <div
+      ref={box}
+      className="relative shrink-0"
+      // Tabbing out closes it. A focus that just went nowhere (a pad key that disabled itself at the top step) does not.
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && !event.currentTarget.contains(next)) setLightPad(false);
+      }}
+    >
       <button
         type="button"
         onClick={() => setLightPad(!open)}
