@@ -99,12 +99,14 @@ export const TITLE_BAR = 28;
 const TOUCH = 1;
 /**
  * A shake: this many changes of direction, each after a swing of at least `SHAKE_SWING` px, all inside
- * `SHAKE_WINDOW` ms. Four turns in half a second is two full wiggles - deliberate enough that a fast,
- * straight drag never trips it, and short enough to find.
+ * `SHAKE_WINDOW` ms. Four turns in 0.7s is two full wiggles - a straight drag, however fast, never turns
+ * at all, so it never trips it. It was 0.5s, which a quick deliberate shake could miss (measured: a
+ * six-swing shake takes 350-400ms of pointer events, and a busy machine stretched it past the limit), and
+ * which the spec already warned would be awkward on a trackpad.
  */
 export const SHAKE_TURNS = 4;
 export const SHAKE_SWING = 14;
-export const SHAKE_WINDOW = 500;
+export const SHAKE_WINDOW = 700;
 /** The `sm` breakpoint: narrower than this is a phone, and has no layout. */
 export const PHONE_BELOW = 640;
 /** The least time between two saves. */
