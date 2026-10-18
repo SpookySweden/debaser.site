@@ -133,7 +133,7 @@ function ToolStrip() {
   const redo = useCharacterStore((state) => state.redo);
   const setPresetPicker = useCharacterStore((state) => state.setPresetPicker);
 
-  const toolButton = (id: ToolId) => (
+  const toolButton = (id: ToolId) => id === 'add' ? <AddToolButton key={id} /> : (
     <button
       key={id}
       type="button"
@@ -188,6 +188,98 @@ function ToolStrip() {
 }
 
 /**
+ * ADD, and the menu of shapes it pops out: beside the button on a wide screen, under it on a phone, over whatever is
+ * there (absolutely positioned), so opening it moves nothing. Picking a shape closes it. Like the light pad, it also
+ * closes on ADD again, a press elsewhere, ESC (caught before the customiser hears it), or tabbing out.
+ */
+function AddToolButton() {
+  const tool = useCharacterStore((state) => state.tool);
+  const setTool = useCharacterStore((state) => state.setTool);
+  const addKind = useCharacterStore((state) => state.addKind);
+  const setAddKind = useCharacterStore((state) => state.setAddKind);
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement | null;
+      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      event.stopPropagation();
+      setOpen(false);
+      if (box.current?.contains(document.activeElement)) opener.current?.focus();
+    };
+    const onPointer = (event: PointerEvent) => {
+      if (box.current !== null && !box.current.contains(event.target as Node)) setOpen(false);
+    };
+    window.addEventListener('keydown', onKey, true);
+    window.addEventListener('pointerdown', onPointer, true);
+    return () => {
+      window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('pointerdown', onPointer, true);
+    };
+  }, [open]);
+
+  return (
+    <div
+      ref={box}
+      className="relative shrink-0"
+      onBlur={(event) => {
+        const next = event.relatedTarget;
+        if (next instanceof Node && !event.currentTarget.contains(next)) setOpen(false);
+      }}
+    >
+      <button
+        ref={opener}
+        type="button"
+        onClick={() => {
+          setTool('add');
+          setOpen(!open);
+        }}
+        aria-pressed={tool === 'add'}
+        aria-expanded={open}
+        title={TOOLS.add.hint}
+        className={`${STRIP_BUTTON} ${pressable(tool === 'add')}`}
+      >
+        <span aria-hidden className="text-[16px] leading-none">
+          {TOOL_GLYPHS.add}
+        </span>
+        {TOOLS.add.label}
+      </button>
+      {open ? (
+        <div
+          role="group"
+          aria-label="Shape to add"
+          className={`${PANEL} absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-[2px] p-1 max-sm:grid max-sm:grid-cols-2 lg:left-full lg:top-0 lg:ml-2 lg:mt-0`}
+        >
+          {MASS_SHAPE_IDS.map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => {
+                setAddKind(kind);
+                setOpen(false);
+                opener.current?.focus();
+              }}
+              aria-pressed={addKind === kind}
+              title={MASS_SHAPES[kind].note}
+              className={`flex h-8 items-center gap-2 px-2 text-left text-[10px] ${pressable(addKind === kind)}`}
+            >
+              <span aria-hidden className="w-4 shrink-0 text-center text-[14px] leading-none">
+                {MASS_SHAPE_GLYPHS[kind]}
+              </span>
+              {MASS_SHAPES[kind].label}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
  * One block of the strip. On a wide screen the blocks are a column split by ink rules; on a phone, spaced rows - and
  * EDIT, the six-button block, is two even rows of three rather than a row that leaves one tool hanging below it.
  */
@@ -231,29 +323,20 @@ function OptionsBar() {
   );
 }
 
+/** The shape in hand (chosen from ADD's menu in the strip) and how to place it. */
 function AddOptions() {
   const addKind = useCharacterStore((state) => state.addKind);
-  const setAddKind = useCharacterStore((state) => state.setAddKind);
 
   return (
-    <>
-      {MASS_SHAPE_IDS.map((kind) => (
-        <button
-          key={kind}
-          type="button"
-          onClick={() => setAddKind(kind)}
-          aria-pressed={addKind === kind}
-          aria-label={MASS_SHAPES[kind].label}
-          title={`${MASS_SHAPES[kind].label} - ${MASS_SHAPES[kind].note}`}
-          className={`h-8 w-8 shrink-0 text-[14px] leading-none max-sm:w-11 ${pressable(addKind === kind)}`}
-        >
-          <span aria-hidden>{MASS_SHAPE_GLYPHS[kind]}</span>
-        </button>
-      ))}
-      <span className="shrink-0 px-1 text-[10px] font-bold text-ink" title={TOOLS.add.hint}>
-        {TOOLS.add.status}
+    <p className="flex shrink-0 items-center gap-2 px-1 text-[10px] font-bold text-ink" title={TOOLS.add.hint}>
+      <span className="flex items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-ink-bar">
+        <span aria-hidden className="text-[14px] leading-none">
+          {MASS_SHAPE_GLYPHS[addKind]}
+        </span>
+        {MASS_SHAPES[addKind].label}
       </span>
-    </>
+      {TOOLS.add.status}
+    </p>
   );
 }
 
