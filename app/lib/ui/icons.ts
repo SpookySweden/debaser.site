@@ -79,7 +79,8 @@ export const MASS_SHAPE_GLYPHS: Record<string, string> = {
 
 /**
  * The workbench's tool strip, as glyphs: an arrow to pick, a plus to add, a four-way move, a turning arrow, a resize
- * corner, a little person to pose, a cross to delete, and the two curved arrows for undo and redo.
+ * corner, a little person to pose, a circled plus to add a node, a cross to delete, and the two curved arrows for undo
+ * and redo.
  *
  * **This is the CSP arrangement**: a column of small marks for *what you are doing*, each with its name under it, and
  * the options for the one you picked in a bar beside the views. Each is a character off the font like every other
@@ -92,6 +93,7 @@ export const TOOL_GLYPHS: Record<string, string> = {
   turn: '↻',
   size: '⤡',
   pose: '웃',
+  node: '⊕',
   delete: '✕',
   undo: '↶',
   redo: '↷',

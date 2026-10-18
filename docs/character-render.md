@@ -42,7 +42,7 @@ All the numbers live in `pixel-render.ts`, and the shader is built from them rat
   colours through three's colour management.
 - **The scene owns the frame.** `useFrame(..., 1)` stops R3F's own render, and nothing else may call
   `gl.render` on that canvas.
-- **`TALLEST_PRESET` is measured, not guessed** (2.38 units, NOODLE). `check-character-pixel` fails if a preset
+- **`TALLEST_PRESET` is measured, not guessed** (2.08 units, GUY). `check-character-pixel` fails if a preset
   outgrows it, or if it is stale-high (which would make the pixels needlessly big).
 
 ## How it is checked

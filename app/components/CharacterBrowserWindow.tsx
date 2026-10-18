@@ -14,11 +14,24 @@ import {
   saveCharacter,
   type SavedCharacter,
 } from '../lib/character/library';
-import { isRigPresetId, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
+import type { Figure } from '../lib/character/figure';
+import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
 import { MASS_SHAPES } from '../lib/character/shapes';
-import { useCharacterStore } from '../lib/character/store';
+import { useCharacterStore, type Placing } from '../lib/character/store';
+import { saveRefusal } from '../lib/character/structure';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import PopoutWindow from './PopoutWindow';
+
+/** A placement half done is not a figure yet: ✓ or ✗ it first. */
+function placingRefusal(figure: Figure, placing: Placing | null): string | null {
+  if (placing === null) return null;
+  if (placing.stage === 'node') return `CAN'T SAVE: PICK A NODE FOR THE NEW ${placing.what === 'shape' ? 'SHAPE' : 'NODE'} FIRST, OR ESC`;
+  const what =
+    placing.what === 'shape'
+      ? (figure.shapes.find((shape) => shape.id === placing.id)?.name ?? 'THE NEW SHAPE')
+      : nodeName(placing.id);
+  return `CAN'T SAVE: FINISH PLACING ${what} FIRST (✓ OR ✗)`;
+}
 
 /** Spelled out for the note, so the limit is stated rather than paraphrased. */
 const MAX_SAVED_LABEL = 40;
@@ -41,6 +54,7 @@ export default function CharacterBrowserWindow() {
   const presetId = useCharacterStore((store) => store.presetId);
   const loadFigure = useCharacterStore((store) => store.loadFigure);
   const markKept = useCharacterStore((store) => store.markKept);
+  const placing = useCharacterStore((store) => store.placing);
 
   /**
    * The shelf, read **once, lazily, during the first render**.
@@ -56,6 +70,16 @@ export default function CharacterBrowserWindow() {
    */
   const [shelf, setShelf] = useState<SavedCharacter[]>(readLibrary);
   const [name, setName] = useState('');
+  /**
+   * The bench as it was when SAVE was pressed and refused. The reason shows only while the bench is still exactly that
+   * - the next edit takes it away (it may no longer be true), and so does shutting the shelf - so it never comes back
+   * later about a figure nobody has tried to save.
+   */
+  const [refusedAt, setRefusedAt] = useState<{ figure: Figure; placing: Placing | null } | null>(null);
+  const refusal = placingRefusal(figure, placing) ?? saveRefusal(figure);
+  const refused = refusedAt !== null && refusedAt.figure === figure && refusedAt.placing === placing;
+  // Reset during render rather than in an effect, the way React recommends for state that follows a prop.
+  if (!state.open && refusedAt !== null) setRefusedAt(null);
 
   /** A per-preset tally, which is what makes a full shelf scannable. Derived, never stored beside it. */
   const counts = useMemo(() => {
@@ -70,6 +94,12 @@ export default function CharacterBrowserWindow() {
   }, []);
 
   function keep() {
+    // Nothing broken is ever kept: a node with no shape round it, a shape touching nothing, a placement half done.
+    if (refusal !== null) {
+      setRefusedAt({ figure, placing });
+      return;
+    }
+    setRefusedAt(null);
     update(saveCharacter(shelf, { name, presetId, figure }));
     setName('');
     // The figure on the bench is now the one just kept, so it stops being unsaved work.
@@ -116,6 +146,12 @@ export default function CharacterBrowserWindow() {
             </button>
           </div>
 
+          {refused && refusal !== null ? (
+            <p role="alert" className="mt-1 bg-bubble-pale px-1 py-[2px] font-bold text-ink-bar">
+              {refusal}
+            </p>
+          ) : null}
+
           <p className="mt-1 text-ink-plate">
             LEAVE THE NAME EMPTY AND IT IS NUMBERED. THIS SHELF HOLDS UP TO {MAX_SAVED_LABEL} FIGURES; SAVING BEYOND
             THAT DROPS THE OLDEST.
@@ -146,7 +182,7 @@ export default function CharacterBrowserWindow() {
                     type="button"
                     className={PLATE}
                     onClick={() => {
-                      loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'blob');
+                      loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'base');
                       closeCharacterBrowser();
                     }}
                   >

@@ -3,10 +3,11 @@
 /**
  * The character workbench, laid out like a paint program's canvas window.
  *
- *   left    the tool strip in three blocks - EDIT tools, POSE, and HISTORY (undo, redo, new)
+ *   left    the tool strip in three blocks - EDIT tools, POSE (and +NODE), and HISTORY (undo, redo, new)
  *   middle  the tool's options in a bar with the LAYERS switches and the ☀ light at its right, then the FRONT and
- *           SIDE views of the same figure, both showing the live pixel render
- *   right   the shapes list (like a layers panel) and the properties of whatever is picked, in folding sections
+ *           SIDE views of the same figure, both showing the live pixel render, and under them PIXELS and SAG
+ *   right   the shapes list (like a layers panel, folded to its header until opened) and the properties of whatever
+ *           is picked, in folding sections
  *
  * On a phone the strip becomes rows across the top (wrapped, so no tool hides off the edge), the views stack, and
  * the two panels fold under them.
@@ -15,24 +16,37 @@
  * full sentence is its `title`.
  *
  * **The options bar is always there, the same height, whatever the tool.** Its contents change when the tool does,
- * but the views below it never jump - the same rule every reveal on this site follows. The light d-pad pops out
- * over the views (absolutely positioned), so opening it moves nothing either.
+ * but the views below it never jump - the same rule every reveal on this site follows. The light d-pad, the ADD menu
+ * and the ✓ / ✗ of a placement all pop out over what is there (absolutely positioned), so opening them moves nothing.
+ *
+ * **Placing (ADD or +NODE) is modal**: pick a node, drag, ✓ or ✗. While it runs the side panels are inert, ESC is ✗,
+ * and any other tool abandons it. Leaving the workbench abandons it too, so it is never found half done.
  *
  * Loaded with `ssr: false` (see `CharacterEditorPanel`): Three.js needs a browser.
  */
-import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { VIEW_BASIS, type ViewportKind } from '../lib/character/drag';
-import { findShape, MAX_NAME_LENGTH, type Shape } from '../lib/character/figure';
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from 'react';
+import { VIEW_BASIS, screenBox, type ViewportKind } from '../lib/character/drag';
+import {
+  findShape,
+  MAX_NAME_LENGTH,
+  MAX_NODES,
+  MAX_SHAPES,
+  nodesRemovedWith,
+  shapesLosingNode,
+  type Shape,
+} from '../lib/character/figure';
 import { MASS_DYES, MODEL_INK } from '../lib/character/palette';
 import { LAYER_IDS, LIGHT_HIGHEST, lightDirection, type LayerId } from '../lib/character/pixel-render';
-import { jointLabel, RIG_PRESETS } from '../lib/character/rig';
+import { jointLabel, nodeName, RIG_PRESETS } from '../lib/character/rig';
+import { sagOf } from '../lib/character/sag';
 import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
-import type { Vec3 } from '../lib/character/skeleton';
-import { TOOL_IDS, useCharacterStore, type SectionId, type ToolId } from '../lib/character/store';
+import { jointFrames, type Vec3 } from '../lib/character/skeleton';
+import { placingBlock, TOOL_IDS, useCharacterStore, type SectionId, type ToolId } from '../lib/character/store';
+import { brokenShapes } from '../lib/character/structure';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { MASS_SHAPE_GLYPHS, TOOL_GLYPHS } from '../lib/ui/icons';
 import CharacterPresetPicker from './CharacterPresetPicker';
-import CharacterScene from './CharacterScene';
+import CharacterScene, { toPane } from './CharacterScene';
 
 /** Each tool's name, the few words the options bar shows, and the full sentence for its tooltip. */
 const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
@@ -41,7 +55,11 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
     status: 'CLICK A SHAPE',
     hint: 'CLICK A SHAPE TO PICK IT. DRAG IT TO MOVE, DRAG A YELLOW SQUARE TO SIZE IT, DRAG THE GREEN KNOB TO TURN IT.',
   },
-  add: { label: 'ADD', status: 'CLICK A VIEW', hint: 'PICK A SHAPE, THEN CLICK IN EITHER VIEW TO PUT IT THERE.' },
+  add: {
+    label: 'ADD',
+    status: 'PICK A SHAPE',
+    hint: 'PICK A SHAPE, CLICK THE NODE IT HANGS FROM, DRAG IT INTO PLACE, THEN ✓.',
+  },
   move: {
     label: 'MOVE',
     status: 'DRAG A SHAPE',
@@ -53,23 +71,26 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
     status: 'DRAG TO RESIZE',
     hint: 'DRAG ANY SHAPE: RIGHT TO WIDEN, UP TO MAKE IT TALLER. IT GROWS FROM ITS MIDDLE.',
   },
-  pose: { label: 'POSE', status: 'DRAG A JOINT', hint: 'DRAG A GREEN JOINT. PINNED SHAPES FOLLOW AND TURN WITH THEIR BONE.' },
+  pose: { label: 'POSE', status: 'DRAG A NODE', hint: 'DRAG A GREEN NODE. PINNED SHAPES FOLLOW AND TURN WITH THEIR BONE.' },
   delete: { label: 'DELETE', status: 'CLICK TO REMOVE', hint: 'CLICK A SHAPE TO REMOVE IT. UNDO BRINGS IT BACK.' },
 };
 
-/** The LAYERS switches: what the live pixel render draws. See `pixel-render.ts`. */
+/** The LAYERS switches: what the live pixel render draws (see `pixel-render.ts`), and the skeleton drawn over it. */
 const LAYERS: Record<LayerId, { label: string; hint: string }> = {
   pixelate: { label: 'PIXELATE', hint: 'BIG PIXELS, AS THE FIGURE WILL LOOK. OFF: FULL RESOLUTION.' },
   normalLight: { label: 'NORMAL LIGHT', hint: 'SHADE THE FIGURE IN THREE HARD BANDS. OFF: FLAT COLOURS.' },
   normalMap: { label: 'NORMAL MAP', hint: 'SHOW WHAT THE LIGHT READS: EACH PIXEL COLOURED BY THE WAY IT FACES.' },
 };
 
+const FULL_SHAPES = `${MAX_SHAPES} SHAPES IS THE MOST A FIGURE CAN HAVE. DELETE ONE TO ADD ANOTHER.`;
+const FULL_NODES = `${MAX_NODES} NODES IS THE MOST A FIGURE CAN HAVE. DELETE ONE TO ADD ANOTHER.`;
+
 /** POSE works on the skeleton rather than the shapes, so it gets a block of its own; every other tool is EDIT. */
 const EDIT_TOOLS = TOOL_IDS.filter((id) => id !== 'pose');
 
 /** A pressable square on this workbench: flat, inked, and inverted when on. No bevels - see `docs/design.md`. */
 function pressable(on: boolean): string {
-  return `cursor-pointer rounded-none border-2 border-ink font-bold max-sm:min-h-11 disabled:cursor-not-allowed disabled:opacity-40 ${
+  return `cursor-pointer rounded-none border-2 border-ink font-bold max-sm:min-h-11 disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
     on ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
   }`;
 }
@@ -78,9 +99,12 @@ const PANEL = 'rounded-none border-2 border-ink bg-sun-pale';
 
 export default function CharacterViewport() {
   useUndoKeys();
+  const bench = useRef<HTMLDivElement>(null);
+  usePlacingKeys(bench);
+  const placing = useCharacterStore((state) => state.placing !== null);
 
   return (
-    <div className="relative flex min-w-0 flex-col gap-2 lg:flex-row lg:items-start">
+    <div ref={bench} className="relative flex min-w-0 flex-col gap-2 lg:flex-row lg:items-start">
       <CharacterPresetPicker />
       <ToolStrip />
 
@@ -90,9 +114,11 @@ export default function CharacterViewport() {
           <View kind="front" label="FRONT" hint="ACROSS / UP" />
           <View kind="side" label="SIDE" hint="FORWARD / UP" />
         </div>
+        <Stats />
       </div>
 
-      <div className="flex min-w-0 flex-col gap-2 lg:w-64 lg:shrink-0">
+      {/* Inert while placing: the views are the only place to act until ✓ or ✗. */}
+      <div inert={placing} className={`flex min-w-0 flex-col gap-2 lg:w-64 lg:shrink-0 ${placing ? 'opacity-60' : ''}`}>
         <ShapesList />
         <Properties />
       </div>
@@ -121,14 +147,45 @@ function useUndoKeys() {
   }, []);
 }
 
+/**
+ * ESC is ✗ while placing - caught on the way down, before the customiser hears it, so it cancels the placement and
+ * not the whole window. Leaving the workbench (another tab, the window closing) abandons a placement too.
+ *
+ * One ESC does one thing: when the ADD menu or the light pad is open, ESC is theirs (they close first); in a text box
+ * it is the box's own; and a key pressed in another window (the shelf) is that window's.
+ */
+function usePlacingKeys(bench: RefObject<HTMLDivElement | null>) {
+  const placing = useCharacterStore((state) => state.placing !== null);
+
+  useEffect(() => () => useCharacterStore.getState().cancelPlacing(), []);
+
+  useEffect(() => {
+    if (!placing) return;
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      const target = event.target as HTMLElement | null;
+      const root = bench.current;
+      if (target !== null && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
+      // Another window: neither inside the workbench nor around it. (A press in a view leaves focus on the customiser
+      // window itself, which is around it - that ESC is the placement's.)
+      if (target !== null && root !== null && !root.contains(target) && !target.contains(root)) return;
+      if (useCharacterStore.getState().lightPadOpen || root?.querySelector('[aria-label="Shape to add"]')) return;
+      event.stopPropagation();
+      useCharacterStore.getState().cancelPlacing();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [placing, bench]);
+}
+
 const STRIP_BUTTON =
   'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[10px] max-sm:w-[3.25rem]';
 
 function ToolStrip() {
   const tool = useCharacterStore((state) => state.tool);
   const setTool = useCharacterStore((state) => state.setTool);
-  const canUndo = useCharacterStore((state) => state.past.length > 0);
-  const canRedo = useCharacterStore((state) => state.future.length > 0);
+  const canUndo = useCharacterStore((state) => state.past.length > 0 && state.placing === null);
+  const canRedo = useCharacterStore((state) => state.future.length > 0 && state.placing === null);
   const undo = useCharacterStore((state) => state.undo);
   const redo = useCharacterStore((state) => state.redo);
   const setPresetPicker = useCharacterStore((state) => state.setPresetPicker);
@@ -157,7 +214,10 @@ function ToolStrip() {
       <StripBlock label="Edit" grid>
         {EDIT_TOOLS.map(toolButton)}
       </StripBlock>
-      <StripBlock label="Pose">{toolButton('pose')}</StripBlock>
+      <StripBlock label="Pose">
+        {toolButton('pose')}
+        <AddNodeButton />
+      </StripBlock>
       <StripBlock label="History">
         <button type="button" onClick={undo} disabled={!canUndo} title="UNDO (CTRL+Z)" className={`${STRIP_BUTTON} ${pressable(false)}`}>
           <span aria-hidden className="text-[16px] leading-none">
@@ -189,14 +249,16 @@ function ToolStrip() {
 
 /**
  * ADD, and the menu of shapes it pops out: beside the button on a wide screen, under it on a phone, over whatever is
- * there (absolutely positioned), so opening it moves nothing. Picking a shape closes it. Like the light pad, it also
- * closes on ADD again, a press elsewhere, ESC (caught before the customiser hears it), or tabbing out.
+ * there (absolutely positioned), so opening it moves nothing. Picking a shape closes it and starts placing that shape.
+ * Like the light pad, it also closes on ADD again, a press elsewhere, ESC (caught before the customiser hears it), or
+ * tabbing out. At `MAX_SHAPES` it rests, and its tooltip says why - `aria-disabled` rather than `disabled`, so the
+ * tooltip still shows.
  */
 function AddToolButton() {
   const tool = useCharacterStore((state) => state.tool);
-  const setTool = useCharacterStore((state) => state.setTool);
   const addKind = useCharacterStore((state) => state.addKind);
-  const setAddKind = useCharacterStore((state) => state.setAddKind);
+  const full = useCharacterStore((state) => state.figure.shapes.length >= MAX_SHAPES);
+  const startPlacing = useCharacterStore((state) => state.startPlacing);
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
@@ -235,12 +297,12 @@ function AddToolButton() {
         ref={opener}
         type="button"
         onClick={() => {
-          setTool('add');
-          setOpen(!open);
+          if (!full) setOpen(!open);
         }}
         aria-pressed={tool === 'add'}
         aria-expanded={open}
-        title={TOOLS.add.hint}
+        aria-disabled={full}
+        title={full ? FULL_SHAPES : TOOLS.add.hint}
         className={`${STRIP_BUTTON} ${pressable(tool === 'add')}`}
       >
         <span aria-hidden className="text-[16px] leading-none">
@@ -259,8 +321,8 @@ function AddToolButton() {
               key={kind}
               type="button"
               onClick={() => {
-                setAddKind(kind);
                 setOpen(false);
+                startPlacing({ what: 'shape', kind });
                 opener.current?.focus();
               }}
               aria-pressed={addKind === kind}
@@ -276,6 +338,34 @@ function AddToolButton() {
         </div>
       ) : null}
     </div>
+  );
+}
+
+/** +NODE: the same flow as ADD - pick the parent node, drag the new one, ✓. Pressed again, it cancels. */
+function AddNodeButton() {
+  const placingNode = useCharacterStore((state) => state.placing?.what === 'node');
+  const joints = useCharacterStore((state) => state.figure.skeleton.joints);
+  const full = Object.keys(joints).length >= MAX_NODES;
+  const startPlacing = useCharacterStore((state) => state.startPlacing);
+  const cancelPlacing = useCharacterStore((state) => state.cancelPlacing);
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (placingNode) cancelPlacing();
+        else if (!full) startPlacing({ what: 'node' });
+      }}
+      aria-pressed={placingNode}
+      aria-disabled={full && !placingNode}
+      title={full && !placingNode ? FULL_NODES : 'ADD A NODE: CLICK ITS PARENT NODE, DRAG IT INTO PLACE, THEN ✓.'}
+      className={`${STRIP_BUTTON} ${pressable(placingNode)}`}
+    >
+      <span aria-hidden className="text-[16px] leading-none">
+        {TOOL_GLYPHS.node}
+      </span>
+      +NODE
+    </button>
   );
 }
 
@@ -298,17 +388,18 @@ function StripBlock({ label, grid = false, children }: { label: string; grid?: b
 }
 
 /**
- * The bar above the views: the tool's own choices or a few words on how to use it, then the LAYERS switches and the
- * light. Always the same height; on a phone it is always two rows (the tool row keeps a finger's height even when it
- * holds only words), so changing tool never moves the views.
+ * The bar above the views: the tool's own choices or a few words on how to use it (or, while placing, what to do
+ * next and a way out), then the LAYERS switches and the light. Always the same height; on a phone it is always two
+ * rows (the tool row keeps a finger's height even when it holds only words), so changing tool never moves the views.
  */
 function OptionsBar() {
   const tool = useCharacterStore((state) => state.tool);
+  const placing = useCharacterStore((state) => state.placing !== null);
 
   return (
     <div className={`${PANEL} flex min-h-[3.25rem] min-w-0 flex-wrap items-center gap-2 p-1 sm:flex-nowrap`}>
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto max-sm:min-h-11 max-sm:basis-full">
-        {tool === 'add' ? <AddOptions /> : tool === 'pose' ? <PoseOptions /> : (
+        {placing ? <PlacingOptions /> : tool === 'pose' ? <PoseOptions /> : (
           <p className="px-1 text-[10px] font-bold leading-snug text-ink" title={TOOLS[tool].hint}>
             {TOOLS[tool].status}
           </p>
@@ -323,20 +414,44 @@ function OptionsBar() {
   );
 }
 
-/** The shape in hand (chosen from ADD's menu in the strip) and how to place it. */
-function AddOptions() {
-  const addKind = useCharacterStore((state) => state.addKind);
+/** A ✗ first (it works before the new thing is out, when there is no ✗ beside it yet), what is being placed, and the one thing to do next. */
+function PlacingOptions() {
+  const placing = useCharacterStore((state) => state.placing);
+  const cancelPlacing = useCharacterStore((state) => state.cancelPlacing);
+  if (placing === null) return null;
+
+  const what = placing.what === 'shape' ? MASS_SHAPES[placing.kind].label : 'NODE';
+  // A few words on the bar, the sentence in the tooltip - the bar shares its row with the LAYERS switches.
+  const [next, hint] =
+    placing.stage === 'node'
+      ? placing.what === 'shape'
+        ? ['CLICK A NODE', 'CLICK THE NODE THE NEW SHAPE HANGS FROM. IT APPEARS THERE, PINNED TO IT.']
+        : ['CLICK A NODE', 'CLICK THE NODE THE NEW NODE HANGS FROM: ITS PARENT.']
+      : ['DRAG, THEN ✓', 'DRAG ANYWHERE IN EITHER VIEW TO MOVE IT, THEN ✓ TO KEEP IT OR ✗ TO CANCEL.'];
 
   return (
-    <p className="flex shrink-0 items-center gap-2 px-1 text-[10px] font-bold text-ink" title={TOOLS.add.hint}>
-      <span className="flex items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-ink-bar">
-        <span aria-hidden className="text-[14px] leading-none">
-          {MASS_SHAPE_GLYPHS[addKind]}
-        </span>
-        {MASS_SHAPES[addKind].label}
+    <>
+      <button
+        type="button"
+        onClick={cancelPlacing}
+        aria-label={`Cancel the new ${placing.what}`}
+        title="CANCEL: THE FIGURE GOES BACK EXACTLY AS IT WAS (ESC)"
+        className={`h-8 w-8 shrink-0 text-[14px] leading-none max-sm:w-11 ${pressable(false)}`}
+      >
+        ✗
+      </button>
+      <span className="flex shrink-0 items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-[10px] font-bold text-ink-bar">
+        {placing.what === 'shape' ? (
+          <span aria-hidden className="text-[14px] leading-none">
+            {MASS_SHAPE_GLYPHS[placing.kind]}
+          </span>
+        ) : null}
+        {what}
       </span>
-      {TOOLS.add.status}
-    </p>
+      <p className="shrink-0 px-1 text-[10px] font-bold text-ink" title={hint}>
+        {next}
+      </p>
+    </>
   );
 }
 
@@ -367,13 +482,21 @@ function PoseOptions() {
   );
 }
 
-/** PIXELATE, NORMAL LIGHT, NORMAL MAP. NORMAL LIGHT rests while the normal map is shown: there is nothing to shade. */
+/**
+ * PIXELATE, NORMAL LIGHT, NORMAL MAP, then SKELETON. NORMAL LIGHT rests while the normal map is shown: there is
+ * nothing to shade. The skeleton always shows while posing or placing, whatever this switch says.
+ */
 function LayerSwitches() {
   const layers = useCharacterStore((state) => state.layers);
   const toggleLayer = useCharacterStore((state) => state.toggleLayer);
+  const showSkeleton = useCharacterStore((state) => state.showSkeleton);
+  const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
+  // `w-min` wraps the two-word labels (NORMAL / LIGHT) onto two lines on a wide screen, so the four switches leave the
+  // tool's own words room in the bar; on a phone they are a 2 x 2 grid, where no label is cut.
+  const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-[10px] leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
 
   return (
-    <div role="group" aria-label="Layers" className="flex items-center gap-1 max-sm:grid max-sm:flex-1 max-sm:grid-cols-3">
+    <div role="group" aria-label="Layers" className="flex items-center gap-1 max-sm:grid max-sm:flex-1 max-sm:grid-cols-2">
       <span className="text-[10px] font-bold text-ink max-sm:hidden">LAYERS</span>
       {LAYER_IDS.map((id) => (
         <button
@@ -383,11 +506,20 @@ function LayerSwitches() {
           aria-pressed={layers[id]}
           disabled={id === 'normalLight' && layers.normalMap}
           title={LAYERS[id].hint}
-          className={`shrink-0 px-2 py-1 text-[10px] leading-tight max-sm:px-1 ${pressable(layers[id])}`}
+          className={switchClass(layers[id])}
         >
           {LAYERS[id].label}
         </button>
       ))}
+      <button
+        type="button"
+        onClick={toggleSkeleton}
+        aria-pressed={showSkeleton}
+        title="DRAW THE SKELETON OVER THE FIGURE. IT ALWAYS SHOWS WHILE POSING OR PLACING."
+        className={switchClass(showSkeleton)}
+      >
+        SKELETON
+      </button>
     </div>
   );
 }
@@ -522,8 +654,92 @@ function View({ kind, label, hint }: { kind: ViewportKind; label: string; hint: 
       <div className="h-[20rem] touch-none relative sm:h-[28rem]">
         <CharacterScene view={kind} />
         <SunMarker view={kind} />
+        <PlacingButtons view={kind} />
       </div>
     </section>
+  );
+}
+
+/**
+ * The ✓ and ✗ of a placement, beside the new shape (at its top-right corner) or the new node, in each view - so they
+ * are in reach whichever view the drag happens in. Absolutely positioned over the view and kept inside it, so they
+ * move nothing and never fall off its edge. ✓ rests, with the reason in its tooltip, while the new shape touches
+ * nothing valid. Thumb-sized on a phone.
+ */
+function PlacingButtons({ view }: { view: ViewportKind }) {
+  const placing = useCharacterStore((state) => state.placing);
+  const figure = useCharacterStore((state) => state.figure);
+  const confirmPlacing = useCharacterStore((state) => state.confirmPlacing);
+  const cancelPlacing = useCharacterStore((state) => state.cancelPlacing);
+  const layer = useRef<HTMLDivElement>(null);
+  const [pane, setPane] = useState<{ width: number; height: number } | null>(null);
+
+  useEffect(() => {
+    const element = layer.current;
+    if (element === null) return;
+    const measure = () => setPane({ width: element.clientWidth, height: element.clientHeight });
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
+
+  let anchor: Vec3 | null = null;
+  if (placing !== null && placing.stage === 'place') {
+    if (placing.what === 'shape') {
+      const box = screenBox(figure, placing.id, view, sagOf(figure).placements[placing.id]);
+      if (box !== null) {
+        const { right, up } = VIEW_BASIS[view];
+        anchor = {
+          x: box.centre.x + right.x * box.halfRight + up.x * box.halfUp,
+          y: box.centre.y + right.y * box.halfRight + up.y * box.halfUp,
+          z: box.centre.z + right.z * box.halfRight + up.z * box.halfUp,
+        };
+      }
+    } else {
+      anchor = jointFrames(figure.skeleton)[placing.id]?.position ?? null;
+    }
+  }
+
+  const block = placingBlock(figure, placing);
+  const at = anchor === null || pane === null ? null : toPane(view, pane.width, pane.height, anchor);
+  const thing = placing?.what === 'node' ? 'node' : 'shape';
+  const key = 'flex h-8 w-8 items-center justify-center rounded-none border-2 border-ink text-[16px] font-bold leading-none max-sm:h-11 max-sm:w-11';
+
+  return (
+    <div ref={layer} className="pointer-events-none absolute inset-0 overflow-hidden">
+      {at === null ? null : (
+        <div
+          className="pointer-events-auto absolute flex gap-1 [--ph:2rem] [--pw:4.25rem] max-sm:[--ph:2.75rem] max-sm:[--pw:5.75rem]"
+          style={{
+            left: `clamp(4px, ${Math.round(at.x + 8)}px, calc(100% - var(--pw) - 4px))`,
+            top: `clamp(4px, ${Math.round(at.y - 8)}px - var(--ph), calc(100% - var(--ph) - 4px))`,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => {
+              if (block === null) confirmPlacing();
+            }}
+            aria-label={`Keep the new ${thing}`}
+            aria-disabled={block !== null}
+            title={block === null ? 'KEEP IT. ONE PRESS OF UNDO TAKES IT AWAY AGAIN.' : `NOT YET: ${block}`}
+            className={`${key} cursor-pointer bg-acid text-ink-plate aria-disabled:cursor-not-allowed aria-disabled:opacity-40`}
+          >
+            ✓
+          </button>
+          <button
+            type="button"
+            onClick={cancelPlacing}
+            aria-label={`Cancel the new ${thing}`}
+            title="CANCEL: THE FIGURE GOES BACK EXACTLY AS IT WAS (ESC)"
+            className={`${key} cursor-pointer bg-bubble-pale text-ink-bar`}
+          >
+            ✗
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -556,33 +772,74 @@ function SunMarker({ view }: { view: ViewportKind }) {
   );
 }
 
+/**
+ * Under the views, live: how many blocks the FRONT view's pixel render fills (counted from the render itself), and
+ * how far the most-tipped shape has sagged towards hanging straight down.
+ */
+function Stats() {
+  const pixels = useCharacterStore((state) => state.pixels);
+  const share = useCharacterStore((state) => sagOf(state.figure).share);
+
+  return (
+    <p className={`${PANEL} flex items-center gap-2 px-2 py-1 text-[11px] font-bold text-ink`}>
+      <span title="FILLED BLOCKS IN THE FRONT VIEW'S PIXEL RENDER. HIDDEN SHAPES DON'T COUNT.">
+        PIXELS <span data-stat="pixels">{pixels ?? '-'}</span>
+      </span>
+      <span aria-hidden>·</span>
+      <span title="HOW FAR THE MOST-TIPPED SHAPE HAS SAGGED. 100%: A SHAPE THAT STUCK STRAIGHT OUT NOW HANGS STRAIGHT DOWN.">
+        SAG <span data-stat="sag">{Math.round(share * 100)}</span>%
+      </span>
+    </p>
+  );
+}
+
 function PanelTitle({ children }: { children: ReactNode }) {
   return <div className={`${TITLE_BAR_INACTIVE} w-full`}>{children}</div>;
 }
 
-/** Every shape, top of the list first. A row picks its shape; the eye hides it; the arrows reorder. */
+/**
+ * Every shape, top of the list first, folded to its header (`SHAPES 5/7`) until opened. The header stays where it is
+ * and the rows open below it, so opening never moves what the pointer is on. A row picks its shape - the same as
+ * clicking it in a view; the eye hides it; the arrows reorder. A broken shape's row is marked, with what is wrong in
+ * its tooltip.
+ */
 function ShapesList() {
-  const shapes = useCharacterStore((state) => state.figure.shapes);
+  const figure = useCharacterStore((state) => state.figure);
   const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
+  const listOpen = useCharacterStore((state) => state.listOpen);
+  const toggleList = useCharacterStore((state) => state.toggleList);
   const selectShape = useCharacterStore((state) => state.selectShape);
   const setHidden = useCharacterStore((state) => state.setHidden);
   const reorder = useCharacterStore((state) => state.reorder);
+  const shapes = figure.shapes;
+  const broken = useMemo(() => brokenShapes(figure), [figure]);
+  const brokenCount = Object.keys(broken).length;
 
   const small = 'h-7 w-7 shrink-0 text-[11px] leading-none max-sm:h-11 max-sm:w-11';
 
   return (
     <section aria-label="Shapes" className={PANEL}>
-      <PanelTitle>
-        <span>SHAPES</span>
-        <span>[ {shapes.length} ]</span>
-      </PanelTitle>
+      <button
+        type="button"
+        onClick={toggleList}
+        aria-expanded={listOpen}
+        title={brokenCount > 0 ? `${brokenCount} MARKED: NOT CONNECTED TO A NODE. THE FIGURE CAN'T BE SAVED UNTIL THEY ARE.` : undefined}
+        className={`${TITLE_BAR_INACTIVE} w-full cursor-pointer hover:bg-ice max-sm:min-h-11`}
+      >
+        <span>
+          SHAPES {shapes.length}/{MAX_SHAPES}
+          {brokenCount > 0 ? <span className="ml-2 bg-bubble-pale px-1 text-ink-bar">{brokenCount} !</span> : null}
+        </span>
+        <span aria-hidden>{listOpen ? '▾' : '▸'}</span>
+      </button>
 
-      {shapes.length === 0 ? (
+      {!listOpen ? null : shapes.length === 0 ? (
         <p className="p-2 text-[10px] text-ink">NO SHAPES. USE ADD.</p>
       ) : (
         <ul className="max-h-64 overflow-y-auto p-1 lg:max-h-56">
           {shapes.map((shape, index) => {
             const picked = shape.id === selectedShapeId;
+            const problem = broken[shape.id];
             return (
               <li key={shape.id} className="flex items-center gap-[2px] pb-[2px]">
                 <button
@@ -597,14 +854,26 @@ function ShapesList() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => selectShape(picked ? null : shape.id)}
+                  onClick={() => selectShape(shape.id)}
                   aria-pressed={picked}
+                  title={
+                    shape.hidden
+                      ? "HIDDEN: IT DOESN'T COUNT FOR TOUCHING, PIXELS OR SAG."
+                      : problem !== undefined
+                        ? `${problem}. THE FIGURE CAN'T BE SAVED LIKE THIS.`
+                        : undefined
+                  }
                   className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-[10px] ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
                 >
                   <span aria-hidden className="w-4 shrink-0 text-center text-[12px] leading-none">
                     {MASS_SHAPE_GLYPHS[shape.kind]}
                   </span>
                   <span className="truncate">{shape.name}</span>
+                  {problem !== undefined ? (
+                    <span aria-hidden className="ml-auto shrink-0 bg-bubble-pale px-1 text-ink-bar">
+                      !
+                    </span>
+                  ) : null}
                 </button>
                 <button
                   type="button"
@@ -645,6 +914,7 @@ function Properties() {
  */
 function ShapeProperties({ shape }: { shape: Shape }) {
   const joints = useCharacterStore((state) => state.figure.skeleton.joints);
+  const full = useCharacterStore((state) => state.figure.shapes.length >= MAX_SHAPES);
   const rename = useCharacterStore((state) => state.rename);
   const setKind = useCharacterStore((state) => state.setKind);
   const setColour = useCharacterStore((state) => state.setColour);
@@ -713,10 +983,10 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           aria-label="Pinned to"
           value={shape.pin ?? ''}
           onChange={(event) => setPin(shape.id, event.target.value === '' ? null : event.target.value)}
-          title={shape.pin === null ? 'POSING THE SKELETON LEAVES THIS SHAPE WHERE IT IS.' : 'FOLLOWS AND TURNS WITH THIS JOINT WHEN YOU POSE.'}
+          title={shape.pin === null ? "PINNED TO NOTHING: THE FIGURE CAN'T BE SAVED UNTIL IT IS PINNED TO A NODE." : 'FOLLOWS AND TURNS WITH THIS NODE WHEN YOU POSE.'}
           className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[11px] text-ink max-sm:min-h-11"
         >
-          <option value="">NOTHING - STAYS PUT</option>
+          <option value="">NOTHING - CAN&apos;T SAVE</option>
           {Object.keys(joints).map((id) => (
             <option key={id} value={id}>
               {jointLabel(id)}
@@ -726,7 +996,15 @@ function ShapeProperties({ shape }: { shape: Shape }) {
       </Section>
 
       <div className="flex gap-1 border-t-2 border-ink p-2">
-        <button type="button" onClick={() => duplicate(shape.id)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}>
+        <button
+          type="button"
+          onClick={() => {
+            if (!full) duplicate(shape.id);
+          }}
+          aria-disabled={full}
+          title={full ? FULL_SHAPES : 'A COPY, BESIDE IT, PINNED TO THE SAME NODE.'}
+          className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}
+        >
           [ DUPLICATE ]
         </button>
         <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}>
@@ -736,7 +1014,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
 
       <Section id="numbers" label="NUMBERS">
         <TripleField
-          label={shape.pin === null ? 'POSITION' : 'POSITION FROM JOINT'}
+          label={shape.pin === null ? 'POSITION' : 'POSITION FROM NODE'}
           names={['ACROSS', 'UP', 'FORWARD']}
           value={shape.position}
           step={0.01}
@@ -790,22 +1068,22 @@ function Section({ id, label, children }: { id: SectionId; label: string; childr
 }
 
 /**
- * With nothing picked: the whole figure. NEW FIGURE and the skeleton switch; the title says which preset the bench
- * started from, or - while posing - which joint is picked, in the same place so nothing below it moves.
+ * With nothing picked: the whole figure. NEW FIGURE, and - while posing, with a node picked - that node, with DELETE
+ * NODE. The title says which preset the bench started from, or which node is picked, in the same place so nothing
+ * below it moves.
  */
 function FigureSettings() {
   const presetId = useCharacterStore((state) => state.presetId);
   const setPresetPicker = useCharacterStore((state) => state.setPresetPicker);
-  const showSkeleton = useCharacterStore((state) => state.showSkeleton);
-  const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
   const tool = useCharacterStore((state) => state.tool);
+  const nodeId = tool === 'pose' ? selectedJointId : null;
 
   return (
     <section aria-label="Figure settings" className={PANEL}>
       <PanelTitle>
         <span>FIGURE</span>
-        <span>{tool === 'pose' && selectedJointId !== null ? `JOINT: ${jointLabel(selectedJointId)}` : `FROM ${RIG_PRESETS[presetId].label}`}</span>
+        <span>{nodeId !== null ? nodeName(nodeId) : `FROM ${RIG_PRESETS[presetId].label}`}</span>
       </PanelTitle>
 
       <div className="flex flex-col gap-2 p-2">
@@ -817,11 +1095,62 @@ function FigureSettings() {
         >
           [ NEW FIGURE... ]
         </button>
-        <button type="button" onClick={toggleSkeleton} aria-pressed={showSkeleton} className={`px-2 py-1 text-[10px] ${pressable(showSkeleton)}`}>
-          {showSkeleton ? '[ SKELETON SHOWN ]' : '[ SKELETON HIDDEN ]'}
-        </button>
+        {nodeId !== null ? <NodeDelete key={nodeId} nodeId={nodeId} /> : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * DELETE NODE: the node and every node below it. One press when no shape is pinned to any of them; when some are, it
+ * asks first, naming them - they stay where they are, unpinned, and marked until they are re-pinned. The root holds
+ * the figure up and cannot go. Keyed by the node, so picking another node drops a half-asked question.
+ */
+function NodeDelete({ nodeId }: { nodeId: string }) {
+  const figure = useCharacterStore((state) => state.figure);
+  const deleteNode = useCharacterStore((state) => state.deleteNode);
+  const [asking, setAsking] = useState(false);
+  const removed = nodesRemovedWith(figure, nodeId);
+  const losing = shapesLosingNode(figure, nodeId);
+  const root = removed.length === 0;
+
+  if (asking && losing.length > 0) {
+    return (
+      <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-2 border-ink p-1 text-[10px] text-ink">
+        <p className="font-bold">
+          DELETES {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}. UNPINS {losing.map((shape) => shape.name).join(', ')}
+          {' '}- MARKED UNTIL RE-PINNED.
+        </p>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}>
+            [ YES, DELETE ]
+          </button>
+          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}>
+            [ NO ]
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        if (root) return;
+        if (losing.length > 0) setAsking(true);
+        else deleteNode(nodeId);
+      }}
+      aria-disabled={root}
+      title={
+        root
+          ? "THE ROOT NODE HOLDS THE FIGURE UP: IT CAN'T GO."
+          : `DELETES ${jointLabel(nodeId)}${removed.length > 1 ? ' AND THE NODES BELOW IT' : ''}. UNDO BRINGS IT BACK.`
+      }
+      className={`px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}
+    >
+      [ DELETE NODE ]
+    </button>
   );
 }
 

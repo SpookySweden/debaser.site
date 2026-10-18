@@ -29,7 +29,7 @@
  * This takes over drawing the view (`useFrame` with a priority above zero, which stops R3F's own render).
  */
 import { useFrame } from '@react-three/fiber';
-import { useEffect, useMemo, type RefObject } from 'react';
+import { useEffect, useMemo, useRef, type RefObject } from 'react';
 import * as THREE from 'three';
 import { MODEL_VOID } from '../lib/character/palette';
 import {
@@ -40,6 +40,7 @@ import {
   lowResFrustum,
   pixelGrid,
   shadeMode,
+  type PixelGrid,
 } from '../lib/character/pixel-render';
 import { useCharacterStore } from '../lib/character/store';
 
@@ -216,8 +217,13 @@ export function createPasses(): Passes {
   };
 }
 
-export function PixelRender({ groups }: { groups: RenderGroups }) {
+/** How often the FRONT view counts its pixels for the PIXELS stat: often enough to follow a drag, rarely enough that
+ * reading the tiny target back never shows. */
+const COUNT_EVERY_MS = 200;
+
+export function PixelRender({ groups, countPixels = false }: { groups: RenderGroups; countPixels?: boolean }) {
   const passes = useMemo(() => createPasses(), []);
+  const counted = useRef({ at: -Infinity, buffer: new Uint8Array(0) });
 
   useEffect(
     () => () => {
@@ -230,9 +236,30 @@ export function PixelRender({ groups }: { groups: RenderGroups }) {
     [passes],
   );
 
-  useFrame(({ gl, scene, camera }) => drawFrame(gl, scene, camera, passes, groups), 1);
+  useFrame(({ gl, scene, camera, clock }) => {
+    drawFrame(gl, scene, camera, passes, groups);
+    const now = clock.elapsedTime * 1000;
+    if (!countPixels || now - counted.current.at < COUNT_EVERY_MS) return;
+    counted.current.at = now;
+    const count = countFigurePixels(gl, scene, camera, passes, groups, counted.current);
+    if (count !== null) useCharacterStore.getState().setPixels(count);
+  }, 1);
 
   return null;
+}
+
+/** The low-res camera is the view's own, widened to whole blocks (see `lowResFrustum`). */
+function aimLowCamera(low: THREE.OrthographicCamera, camera: THREE.OrthographicCamera, grid: PixelGrid, ratio: number) {
+  const frustum = lowResFrustum(camera, grid, ratio);
+  low.copy(camera);
+  low.zoom = 1;
+  low.left = frustum.left;
+  low.right = frustum.right;
+  low.bottom = frustum.bottom;
+  low.top = frustum.top;
+  low.updateProjectionMatrix();
+  low.updateMatrixWorld();
+  return low;
 }
 
 /**
@@ -257,17 +284,7 @@ export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: T
     pair.normal.setSize(grid.width, grid.height);
   }
 
-  // The low-res camera is the view's own, widened to whole blocks (see `lowResFrustum`).
-  const low = passes.lowCamera;
-  const frustum = lowResFrustum(camera, grid, ratio);
-  low.copy(camera);
-  low.zoom = 1;
-  low.left = frustum.left;
-  low.right = frustum.right;
-  low.bottom = frustum.bottom;
-  low.top = frustum.top;
-  low.updateProjectionMatrix();
-  low.updateMatrixWorld();
+  const low = aimLowCamera(passes.lowCamera, camera, grid, ratio);
 
   // The light is fixed in the world; each view sees it from its own side, so it is turned into the view's space.
   const world = lightDirection(light);
@@ -322,4 +339,63 @@ export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: T
   under.visible = true;
   figure.visible = true;
   gl.autoClear = autoClear;
+}
+
+/**
+ * The PIXELS stat: how many blocks of the FRONT view's pixel render the figure fills, read back from the render target.
+ * With PIXELATE on that is the colour pass this frame already drew; with it off (the view drew at full size) the
+ * figure's colour pass is drawn at block size once more, just to be counted. Hidden shapes are never drawn, so they
+ * are never counted.
+ */
+export function countFigurePixels(
+  gl: THREE.WebGLRenderer,
+  scene: THREE.Scene,
+  camera: THREE.Camera,
+  passes: Passes,
+  groups: RenderGroups,
+  memo: { buffer: Uint8Array },
+): number | null {
+  const under = groups.under.current;
+  const figure = groups.figure.current;
+  const over = groups.over.current;
+  if (under === null || figure === null || over === null || !(camera instanceof THREE.OrthographicCamera)) return null;
+
+  const buffer = gl.getDrawingBufferSize(passes.buffer);
+  if (buffer.x === 0 || buffer.y === 0) return null;
+  const ratio = gl.getPixelRatio();
+  const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, true);
+  const target = passes.pixel.colour;
+
+  if (!useCharacterStore.getState().layers.pixelate) {
+    if (target.width !== grid.width || target.height !== grid.height) {
+      target.setSize(grid.width, grid.height);
+      passes.pixel.normal.setSize(grid.width, grid.height);
+    }
+    const low = aimLowCamera(passes.lowCamera, camera, grid, ratio);
+    const autoClear = gl.autoClear;
+    gl.autoClear = false;
+    under.visible = false;
+    over.visible = false;
+    figure.visible = true;
+    gl.setClearColor(0x000000, 0);
+    gl.setRenderTarget(target);
+    gl.clear();
+    gl.render(scene, low);
+    gl.setRenderTarget(null);
+    under.visible = true;
+    over.visible = true;
+    gl.autoClear = autoClear;
+  }
+
+  const size = target.width * target.height * 4;
+  if (memo.buffer.length !== size) memo.buffer = new Uint8Array(size);
+  gl.readRenderTargetPixels(target, 0, 0, target.width, target.height, memo.buffer);
+  return countFilled(memo.buffer);
+}
+
+/** Filled pixels in an RGBA read-back: the colour pass is cleared to transparent, and every shape writes opaque. */
+export function countFilled(rgba: Uint8Array): number {
+  let filled = 0;
+  for (let index = 3; index < rgba.length; index += 4) if (rgba[index] > 0) filled += 1;
+  return filled;
 }

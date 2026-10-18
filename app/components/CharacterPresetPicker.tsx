@@ -4,7 +4,7 @@
  * NEW FIGURE: a card per preset, each with a small still picture of it, its name and a one-line joke.
  *
  * **Two presses, like everything that starts something here.** Tapping a card only picks it (it inverts); the button
- * at the foot - which names the pick, "START WITH NOODLE" - is what replaces the bench. A stray tap on a card can
+ * at the foot - which names the pick, "START WITH GUY" - is what replaces the bench. A stray tap on a card can
  * therefore never throw a figure away, and the foot says out loud that UNDO brings the old one back.
  *
  * Drawn over the workbench (absolutely positioned, so nothing behind it moves). ESC, CANCEL or a press on the dim
@@ -24,7 +24,7 @@ import { jointFrames } from '../lib/character/skeleton';
 import { DEFAULT_LIGHT, useCharacterStore } from '../lib/character/store';
 import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
-/** The picture's frame: from the floor to just above NOODLE's crown, a little wider than the widest preset. */
+/** The picture's frame: from the floor to just above the tallest crown (GUY), a little wider than the widest preset. */
 const PREVIEW_HEIGHT = 2.6;
 const PREVIEW_WIDTH = 2.1;
 const PREVIEW_CENTRE_Y = FLOOR_Y + PREVIEW_HEIGHT / 2 - 0.08;

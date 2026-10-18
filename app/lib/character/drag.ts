@@ -14,7 +14,7 @@
  * never by adding up small per-frame steps. Adding steps drifts (a bent elbow creeps off the pointer), and a gesture
  * computed from its start is also exactly one undo step: the start is what UNDO puts back.
  */
-import { clampSize, findShape, placeShape, placementOf, type Figure } from './figure';
+import { clampSize, findShape, placeShape, placementOf, type Figure, type Placement } from './figure';
 import { bendJoint, stretchJoint, worldPosition, addVec3, type Vec3 } from './skeleton';
 import { quatFromAxisAngle, quatInvert, quatMultiply, rotateVec } from './turns';
 
@@ -165,15 +165,19 @@ export function poseGesture(
   return skeleton === base.skeleton ? base : { ...base, skeleton };
 }
 
-/** Where a shape's handles go in a view: its centre, and its half-width and half-height as the view sees them. */
+/**
+ * Where a shape's handles go in a view: its centre, and its half-width and half-height as the view sees them. Pass
+ * `drawn` to measure the shape where it is drawn (tipped by sag) rather than where it is built.
+ */
 export function screenBox(
   base: Figure,
   shapeId: string,
   view: ViewportKind,
+  drawn?: Placement,
 ): { centre: Vec3; halfRight: number; halfUp: number } | null {
   const shape = findShape(base, shapeId);
   if (shape === undefined) return null;
-  const placement = placementOf(base, shape);
+  const placement = drawn ?? placementOf(base, shape);
   const basis = VIEW_BASIS[view];
   const axes: Vec3[] = [
     rotateVec(placement.rotation, { x: shape.size.x / 2, y: 0, z: 0 }),

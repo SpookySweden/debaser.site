@@ -44,6 +44,12 @@ export const MODEL_VOID = '#000000';
 export const MODEL_WIRE = '#28C745';
 
 /**
+ * What marks something broken in the views - a shape that touches nothing, a node with no shape round it. Rose, the
+ * palette's warning red, and the same red as the ✗ that cancels a placement.
+ */
+export const MODEL_BROKEN = '#E6004C';
+
+/**
  * The views' background grid and floor line. Royal blue on the black void: present enough to judge a shape's size
  * against, quiet enough that it never reads as part of the figure. Unlit, like the handles.
  */

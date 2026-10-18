@@ -32,8 +32,12 @@ import { readFigure, type Figure } from './figure';
  * primitive per joint. The owner chose to start the shelf fresh with the new workbench rather than convert, so the
  * key changed: old entries stay in the browser untouched, but nothing reads them, and none can be misread as a v2
  * figure.
+ *
+ * **v3: simple figures (SPEC-simple-figures.md).** At most seven shapes on at most seven nodes, every shape placed in
+ * relation to a node. v2 figures had up to eighty shapes on a nineteen-joint rig; the owner chose to start fresh again
+ * rather than convert, for the same reason.
  */
-const STORAGE_KEY = 'debaser.character.library.v2';
+const STORAGE_KEY = 'debaser.character.library.v3';
 const MAX_NAME_LENGTH = 24;
 /** Enough for a shelf of figures without letting a runaway loop fill the browser's quota. */
 const MAX_SAVED = 40;
@@ -85,7 +89,7 @@ export function readLibrary(): SavedCharacter[] {
       clean.push({
         id: record.id,
         name: record.name.trim().slice(0, MAX_NAME_LENGTH),
-        presetId: typeof record.presetId === 'string' ? record.presetId : 'blob',
+        presetId: typeof record.presetId === 'string' ? record.presetId : 'base',
         figure,
         savedAt: typeof record.savedAt === 'string' ? record.savedAt : new Date(0).toISOString(),
       });

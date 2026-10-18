@@ -14,10 +14,10 @@
 export const FIGURE_ROWS = 30;
 
 /**
- * The tallest preset, crown to sole, in model units (NOODLE). Measured from the real geometry by
+ * The tallest preset, crown to sole, in model units (GUY). Measured from the real geometry by
  * `Temp/check-character-pixel.cjs`, which fails if a preset ever grows past it.
  */
-export const TALLEST_PRESET = 2.38;
+export const TALLEST_PRESET = 2.08;
 
 /**
  * How a view's drawing buffer is cut into low-res pixels.

@@ -2,7 +2,7 @@
  * A figure: a skeleton, and a free list of shapes that may be pinned to its joints.
  *
  * **Free shapes rather than one per joint.** The workbench used to hang exactly one primitive off each joint, so a
- * figure could not have two ears, a nose, or anything a joint did not already own. Now a figure is any number of
+ * figure could not have two ears, a nose, or anything a joint did not already own. Now a figure is up to `MAX_SHAPES`
  * shapes, each of which may be **pinned** to a joint. A pinned shape is placed in its joint's frame, so posing the
  * skeleton carries it along *and turns it with the bone* - like a sticker on a bone. An unpinned shape stays where
  * it was put.
@@ -20,6 +20,7 @@ import { MASS_SHAPES, isMassShapeId, type MassShapeId } from './shapes';
 import {
   addVec3,
   cloneVec3,
+  descendantsOf,
   jointFrames,
   subtractVec3,
   type JointFrame,
@@ -59,8 +60,10 @@ export const MAX_EXTENT = 2.4;
 /** How far from the origin a shape may be put, so a stray drag cannot fling one out of every view. */
 export const MAX_REACH = 3;
 
-/** More than this and the panel stops being a list a reader can scan. */
-export const MAX_SHAPES = 80;
+/** A simple figure: five shapes to start, seven at most (SPEC-simple-figures.md). */
+export const MAX_SHAPES = 7;
+/** Nodes, likewise: the base skeleton is three, and seven is the most a figure may have. */
+export const MAX_NODES = 7;
 export const MAX_NAME_LENGTH = 20;
 
 function clampExtent(value: number): number {
@@ -283,29 +286,76 @@ export function duplicateShape(figure: Figure, id: string): { figure: Figure; id
 }
 
 /**
- * The joint nearest a point, in all three directions.
+ * The figure with a new skeleton, and every shape re-expressed in the new skeleton's frames so that it stays exactly
+ * where it was. A shape whose node is gone is unpinned where it stands.
  *
- * Used to pick what a new shape pins to. A click on empty space is placed on the figure's centre plane (depth zero
- * in that view), so in FRONT this is the same as measuring across the screen, and in SIDE it means a shape put
- * beside the spine pins to the spine rather than to an arm that only *looks* close because the side view stacks the
- * arms on top of the body. Where two joints share a point (an upper arm on its shoulder), the one declared later -
- * the one whose bone a shape there would follow - wins.
+ * Adding or removing a node can change a node's frame (a node's bone points at its *first* child), and on a posed
+ * figure that would swing the shapes pinned to it. Re-expressing them keeps every edit to the skeleton from moving a
+ * shape - the same promise pinning makes.
  */
-export function nearestJoint(figure: Figure, point: Vec3): string | null {
+function keepShapesInPlace(before: Figure, skeleton: Skeleton): Figure {
+  const framesBefore = jointFrames(before.skeleton);
+  const after: Figure = { ...before, skeleton };
+  const shapes = before.shapes.map((shape) => {
+    const world = placementOf(before, shape, framesBefore);
+    const pin = shape.pin !== null && skeleton.joints[shape.pin] !== undefined ? shape.pin : null;
+    return { ...shape, pin, ...localFor(after, pin, world) };
+  });
+  return { skeleton, shapes };
+}
+
+/** "node-4": the first free id from the node count up, so it reads as a number on screen ("NODE 4"). */
+export function nextNodeId(figure: Figure): string {
+  let index = Object.keys(figure.skeleton.joints).length + 1;
+  while (figure.skeleton.joints[`node-${index}`] !== undefined) index += 1;
+  return `node-${index}`;
+}
+
+/**
+ * Add a node under `parentId` at a world point (or move the node `id`, if this figure was built without it, to there).
+ *
+ * Its rest is set so its bone starts unturned: posing measures from here. Refused past `MAX_NODES` or for an unknown
+ * parent.
+ */
+export function addNode(figure: Figure, parentId: string, at: Vec3, id?: string): { figure: Figure; id: string | null } {
+  const count = Object.keys(figure.skeleton.joints).length;
   const frames = jointFrames(figure.skeleton);
-  let best: string | null = null;
-  let bestDistance = Infinity;
+  const parent = frames[parentId];
+  if (parent === undefined || count >= MAX_NODES) return { figure, id: null };
 
-  for (const [id, frame] of Object.entries(frames)) {
-    const distance = Math.hypot(frame.position.x - point.x, frame.position.y - point.y, frame.position.z - point.z);
-    // `<=` so a later joint at the same spot (the upper arm, declared after its shoulder) wins the tie.
-    if (distance <= bestDistance + 1e-9) {
-      best = id;
-      bestDistance = distance;
-    }
-  }
+  const nodeId = id ?? nextNodeId(figure);
+  if (figure.skeleton.joints[nodeId] !== undefined) return { figure, id: null };
+  const position = clampPosition(subtractVec3(at, parent.position));
+  const skeleton: Skeleton = {
+    ...figure.skeleton,
+    joints: {
+      ...figure.skeleton.joints,
+      // The rest is the position seen from the parent's own turn, so the parent's frame does not move.
+      [nodeId]: { id: nodeId, parentId, position, rest: rotateVec(quatInvert(parent.rotation), position) },
+    },
+  };
 
-  return best;
+  return { figure: keepShapesInPlace(figure, skeleton), id: nodeId };
+}
+
+/** The nodes removing `id` takes with it: itself and everything below it. The root cannot go. */
+export function nodesRemovedWith(figure: Figure, id: string): string[] {
+  if (figure.skeleton.joints[id] === undefined || id === figure.skeleton.rootId) return [];
+  return [id, ...descendantsOf(figure.skeleton, id)];
+}
+
+/** The shapes pinned to a node that removing `id` would take away: they are unpinned, where they stand. */
+export function shapesLosingNode(figure: Figure, id: string): Shape[] {
+  const doomed = new Set(nodesRemovedWith(figure, id));
+  return figure.shapes.filter((shape) => shape.pin !== null && doomed.has(shape.pin));
+}
+
+/** Remove a node and every node below it. Shapes pinned to them stay where they are, unpinned. */
+export function removeNode(figure: Figure, id: string): Figure {
+  const doomed = new Set(nodesRemovedWith(figure, id));
+  if (doomed.size === 0) return figure;
+  const joints = Object.fromEntries(Object.entries(figure.skeleton.joints).filter(([jointId]) => !doomed.has(jointId)));
+  return keepShapesInPlace(figure, { ...figure.skeleton, joints });
 }
 
 /** The figure as one string, for "is this the one that was kept?" - the same form the shelf stores. */
@@ -347,6 +397,8 @@ export function readFigure(value: unknown): Figure | null {
     joints[id] = { id, parentId: joint.parentId as string | null, position, rest };
   }
   if (joints[rawSkeleton.rootId] === undefined) return null;
+  // More nodes than a figure may have: not one this workbench made, so it is dropped rather than trimmed.
+  if (Object.keys(joints).length > MAX_NODES) return null;
 
   const shapes: Shape[] = [];
   const seenIds = new Set<string>();

@@ -9,22 +9,27 @@
  *
  * **The camera zoom is fitted to the pane**, and the same number is what turns pixels into model units for every
  * drag (`upp`, units per pixel). They are one fact: a shape follows the pointer exactly only when the drag and the
- * camera agree on how big a pixel is.
+ * camera agree on how big a pixel is. `fitZoom` is that fact, shared with the ✓ / ✗ placed over the view.
  *
  * Handles and joints are drawn on top of everything (`depthTest` off), at a constant size in pixels, so they can
  * always be seen and grabbed however the figure is posed.
  *
  * **The figure itself is drawn by the live pixel render** (`CharacterPixelRender.tsx`): the scene is three groups -
  * the grid behind, the figure, the overlays in front - and the render draws each in its own pass. The shapes are
- * still real meshes in the scene, so a press picks the real shape under the pointer, never a pixel.
+ * still real meshes in the scene, so a press picks the real shape under the pointer, never a pixel. Each shape is
+ * drawn where sag tips it (`sag.ts`); what it is built as is never changed by that.
+ *
+ * **While placing** (ADD or +NODE) a sheet in front of everything takes every press: first to pick the node nearest
+ * the pointer, then to drag the new shape or node from anywhere in the view. Nothing else can be grabbed meanwhile.
  */
 import { OrthographicCamera } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
 import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from 'react';
 import * as THREE from 'three';
 import { VIEW_BASIS, screenBox, type ViewportKind } from '../lib/character/drag';
-import { placementOf, type Figure, type Shape } from '../lib/character/figure';
+import type { Placement, Shape } from '../lib/character/figure';
 import {
+  MODEL_BROKEN,
   MODEL_GRID,
   MODEL_HANDLE,
   MODEL_HANDLE_ACTIVE,
@@ -33,22 +38,41 @@ import {
   MODEL_WIRE,
 } from '../lib/character/palette';
 import { unitGeometry } from '../lib/character/geometry';
-import { childrenOf, jointFrames, lengthOf, type JointFrame, type Vec3 } from '../lib/character/skeleton';
+import { sagOf } from '../lib/character/sag';
+import { childrenOf, jointFrames, lengthOf, type Vec3 } from '../lib/character/skeleton';
 import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
+import { bareNodes, brokenShapes } from '../lib/character/structure';
 import { flatMaterial, PixelRender } from './CharacterPixelRender';
 
-/** How much of the world a view shows, in model units: every preset (2.41 tall at most, NOODLE) with a margin. */
-const VIEW_HEIGHT = 2.8;
-const VIEW_WIDTH = 1.9;
+/** How much of the world a view shows, in model units: every preset (2.08 tall at most, GUY) with room above and
+ * around it for shapes a reader adds. */
+export const VIEW_HEIGHT = 2.8;
+export const VIEW_WIDTH = 1.9;
 /**
  * Where the views are centred vertically: halfway between the floor every preset stands on (-1.36, `FLOOR_Y`) and the
- * tallest crown (NOODLE, 1.05), so all of them fit without the view moving when a preset is picked.
+ * tallest crown (GUY, 0.72), so all of them fit without the view moving when a preset is picked.
  */
-const FIGURE_CENTRE_Y = -0.16;
+export const FIGURE_CENTRE_Y = -0.32;
 /** Screen-sized things, in pixels. Larger on a touch screen, where a fingertip is the pointer. */
 const HANDLE_PX = { fine: 10, coarse: 28 };
 const JOINT_PX = { fine: 6, coarse: 15 };
 const KNOB_GAP_PX = 26;
+/** How far from a node a press may land and still pick it, while placing: a thumb's width across on a phone. */
+const PICK_PX = { fine: 14, coarse: 24 };
+
+/** The camera's zoom (pixels per model unit) for a pane, so the whole frame fits. */
+export function fitZoom(width: number, height: number): number {
+  return Math.max(20, Math.min(height / VIEW_HEIGHT, width / VIEW_WIDTH));
+}
+
+/** A world point's position in a pane of this size, in CSS pixels from the pane's top-left corner. */
+export function toPane(view: ViewportKind, width: number, height: number, point: Vec3): { x: number; y: number } {
+  const zoom = fitZoom(width, height);
+  const { right, up } = VIEW_BASIS[view];
+  const across = point.x * right.x + point.y * right.y + point.z * right.z;
+  const upward = point.x * up.x + point.y * up.y + point.z * up.z - FIGURE_CENTRE_Y;
+  return { x: width / 2 + across * zoom, y: height / 2 - upward * zoom };
+}
 
 type ViewContext = { view: ViewportKind; upp: number; coarse: boolean };
 
@@ -56,12 +80,13 @@ const ViewInfo = createContext<ViewContext>({ view: 'front', upp: 1 / 150, coars
 
 export default function CharacterScene({ view }: { view: ViewportKind }) {
   const tool = useCharacterStore((state) => state.tool);
+  const stage = useCharacterStore((state) => state.placing?.stage ?? null);
 
   return (
     <Canvas
       frameloop="always"
       gl={{ antialias: false }}
-      className={CURSOR_FOR_TOOL[tool]}
+      className={stage === 'node' ? 'cursor-pointer' : stage === 'place' ? 'cursor-move' : CURSOR_FOR_TOOL[tool]}
     >
       <Fitted view={view}>
         <Layered />
@@ -83,6 +108,7 @@ function Layered() {
       <group ref={under}>
         <Grid view={view} />
         <Backdrop />
+        <PlacingSheet />
       </group>
       <group ref={figure}>
         <Shapes />
@@ -91,15 +117,17 @@ function Layered() {
         <PickedWire />
         <SelectionBox />
         <Bones />
+        <BrokenMarks />
       </group>
-      <PixelRender groups={groups} />
+      {/* Only the FRONT view counts its pixels: the PIXELS stat is the front render's. */}
+      <PixelRender groups={groups} countPixels={view === 'front'} />
     </>
   );
 }
 
 const CURSOR_FOR_TOOL: Record<ToolId, string> = {
   select: 'cursor-default',
-  add: 'cursor-crosshair',
+  add: 'cursor-default',
   move: 'cursor-move',
   turn: 'cursor-grab',
   size: 'cursor-nwse-resize',
@@ -115,7 +143,7 @@ const CURSOR_FOR_TOOL: Record<ToolId, string> = {
  */
 function Fitted({ view, children }: { view: ViewportKind; children: ReactNode }) {
   const size = useThree((state) => state.size);
-  const zoom = Math.max(20, Math.min(size.height / VIEW_HEIGHT, size.width / VIEW_WIDTH));
+  const zoom = fitZoom(size.width, size.height);
   const coarse = useCoarsePointer();
   const value = useMemo(() => ({ view, upp: 1 / zoom, coarse }), [view, zoom, coarse]);
 
@@ -168,6 +196,8 @@ function startDrag(event: ThreeEvent<PointerEvent>, start: GestureStart) {
   const originY = event.nativeEvent.clientY;
 
   store.beginGesture(start);
+  // Refused (something is being placed): nothing to follow.
+  if (useCharacterStore.getState().gesture === null) return;
 
   const move = (pointer: PointerEvent) => {
     useCharacterStore.getState().updateGesture(pointer.clientX - originX, pointer.clientY - originY);
@@ -194,15 +224,7 @@ function screenOffset(view: ViewportKind, point: Vec3, centre: Vec3): { right: n
   };
 }
 
-/** A world point with its depth (the axis pointing out of the view) set to zero. */
-function flatten(view: ViewportKind, point: Vec3): Vec3 {
-  return view === 'front' ? { ...point, z: 0 } : { ...point, x: 0 };
-}
-
-/**
- * A large invisible plane behind the figure, so a press on empty space has a position: ADD puts a shape there, and
- * every other tool lets go of the selection.
- */
+/** A large invisible plane behind the figure, so a press on empty space lets go of the selection. */
 function Backdrop() {
   const { view } = useContext(ViewInfo);
 
@@ -213,10 +235,6 @@ function Backdrop() {
       onPointerDown={(event) => {
         event.stopPropagation();
         const store = useCharacterStore.getState();
-        if (store.tool === 'add') {
-          store.addShapeAt(view, flatten(view, event.point));
-          return;
-        }
         if (store.tool === 'pose') store.selectJoint(null);
         else store.selectShape(null);
       }}
@@ -227,35 +245,84 @@ function Backdrop() {
   );
 }
 
+/**
+ * While placing: an invisible sheet in front of everything, so nothing behind it can be grabbed. Picking a node, it
+ * lights the node nearest the pointer (within a thumb's reach) and a press picks it; once the new thing is out, a
+ * drag from anywhere in the view moves it - a new shape is small, and a thumb could not find it otherwise.
+ */
+function PlacingSheet() {
+  const { view, upp, coarse } = useContext(ViewInfo);
+  const placing = useCharacterStore((state) => state.placing !== null);
+  if (!placing) return null;
+
+  const nearestNode = (point: Vec3): string | null => {
+    const frames = jointFrames(useCharacterStore.getState().figure.skeleton);
+    const reach = (coarse ? PICK_PX.coarse : PICK_PX.fine) * upp;
+    let best: string | null = null;
+    let bestDistance = Infinity;
+    for (const [id, frame] of Object.entries(frames)) {
+      const offset = screenOffset(view, frame.position, point);
+      const distance = Math.hypot(offset.right, offset.up);
+      if (distance <= reach && distance < bestDistance) {
+        best = id;
+        bestDistance = distance;
+      }
+    }
+    return best;
+  };
+
+  return (
+    <mesh
+      position={view === 'front' ? [0, 0, 6] : [-6, 0, 0]}
+      rotation={view === 'front' ? [0, 0, 0] : [0, -Math.PI / 2, 0]}
+      onPointerMove={(event) => {
+        const store = useCharacterStore.getState();
+        if (store.placing?.stage === 'node') store.hoverPlacingNode(nearestNode(event.point));
+      }}
+      onPointerOut={() => useCharacterStore.getState().hoverPlacingNode(null)}
+      onPointerDown={(event) => {
+        event.stopPropagation();
+        const store = useCharacterStore.getState();
+        if (store.placing?.stage === 'node') {
+          const id = nearestNode(event.point);
+          if (id !== null) store.pickPlacingNode(id);
+          return;
+        }
+        startDrag(event, { kind: 'place', view, upp });
+      }}
+    >
+      <planeGeometry args={[40, 40]} />
+      <meshBasicMaterial visible={false} />
+    </mesh>
+  );
+}
+
 function Shapes() {
   const figure = useCharacterStore((state) => state.figure);
-  const frames = useMemo(() => jointFrames(figure.skeleton), [figure.skeleton]);
+  const placements = sagOf(figure).placements;
 
   return (
     <>
       {figure.shapes.map((shape) =>
-        shape.hidden ? null : <ShapeMesh key={shape.id} figure={figure} shape={shape} frames={frames} />,
+        shape.hidden || placements[shape.id] === undefined ? null : (
+          <ShapeMesh key={shape.id} shape={shape} placement={placements[shape.id]} />
+        ),
       )}
     </>
   );
 }
 
-function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; frames: Record<string, JointFrame> }) {
+function ShapeMesh({ shape, placement }: { shape: Shape; placement: Placement }) {
   const { view, upp } = useContext(ViewInfo);
-  const placement = placementOf(figure, shape, frames);
   const geometry = unitGeometry(shape.kind);
 
   const onPointerDown = (event: ThreeEvent<PointerEvent>) => {
     const store = useCharacterStore.getState();
-    // POSE reaches through shapes to the joints inside them.
-    if (store.tool === 'pose') return;
+    // POSE reaches through shapes to the joints inside them; ADD does nothing in the views until it is placing.
+    if (store.tool === 'pose' || store.tool === 'add') return;
     event.stopPropagation();
 
     switch (store.tool) {
-      case 'add':
-        // Added on the surface that was clicked, following whatever this shape follows: an ear on a head.
-        store.addShapeAt(view, event.point, shape.pin);
-        return;
       case 'delete':
         store.deleteShape(shape.id);
         return;
@@ -290,18 +357,8 @@ function ShapeMesh({ figure, shape, frames }: { figure: Figure; shape: Shape; fr
   );
 }
 
-/**
- * The picked shape's wireframe, in the overlay: crisp over the pixel figure, and hidden where another shape is in
- * front of it (the render puts the figure's depth down first).
- */
-function PickedWire() {
-  const figure = useCharacterStore((state) => state.figure);
-  const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
-  const frames = useMemo(() => jointFrames(figure.skeleton), [figure.skeleton]);
-  const shape = figure.shapes.find((candidate) => candidate.id === selectedShapeId);
-  if (shape === undefined || shape.hidden) return null;
-
-  const placement = placementOf(figure, shape, frames);
+/** A shape's wireframe in the overlay, where the shape is drawn, a hair larger so it sits just outside the surface. */
+function Wire({ shape, placement, colour }: { shape: Shape; placement: Placement; colour: string }) {
   const position = placement.position;
   const q = placement.rotation;
 
@@ -313,8 +370,50 @@ function PickedWire() {
       scale={[shape.size.x * 1.01, shape.size.y * 1.01, shape.size.z * 1.01]}
       raycast={IGNORE_POINTER}
     >
-      <meshBasicMaterial color={MODEL_HIGHLIGHT} wireframe />
+      <meshBasicMaterial color={colour} wireframe />
     </mesh>
+  );
+}
+
+/**
+ * The picked shape's wireframe, in the overlay: crisp over the pixel figure, and hidden where another shape is in
+ * front of it (the render puts the figure's depth down first).
+ */
+function PickedWire() {
+  const figure = useCharacterStore((state) => state.figure);
+  const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
+  const shape = figure.shapes.find((candidate) => candidate.id === selectedShapeId);
+  const placement = shape === undefined ? undefined : sagOf(figure).placements[shape.id];
+  if (shape === undefined || shape.hidden || placement === undefined) return null;
+
+  return <Wire shape={shape} placement={placement} colour={MODEL_HIGHLIGHT} />;
+}
+
+/**
+ * What blocks saving, marked in rose: a wire round each broken shape, a square on each node with no shape round it.
+ * The squares show whether or not the skeleton is shown, so a bare node is never invisible.
+ */
+function BrokenMarks() {
+  const { coarse } = useContext(ViewInfo);
+  const figure = useCharacterStore((state) => state.figure);
+  const broken = useMemo(() => brokenShapes(figure), [figure]);
+  const bare = useMemo(() => bareNodes(figure), [figure]);
+  const frames = useMemo(() => jointFrames(figure.skeleton), [figure.skeleton]);
+  const placements = sagOf(figure).placements;
+
+  return (
+    <>
+      {figure.shapes.map((shape) =>
+        broken[shape.id] === undefined || placements[shape.id] === undefined ? null : (
+          <Wire key={shape.id} shape={shape} placement={placements[shape.id]} colour={MODEL_BROKEN} />
+        ),
+      )}
+      {bare.map((id) =>
+        frames[id] === undefined ? null : (
+          <Square key={id} at={frames[id].position} px={(coarse ? JOINT_PX.coarse : JOINT_PX.fine) * 2 + 2} colour={MODEL_BROKEN} />
+        ),
+      )}
+    </>
   );
 }
 
@@ -363,8 +462,8 @@ function Segments({ points, colour }: { points: Vec3[]; colour: string }) {
 }
 
 /**
- * SELECT's transform box round the picked shape: drag an edge or corner square to size it, the knob above to turn
- * it. Dragging the shape's body (inside the box) moves it - that is the shape's own handler.
+ * SELECT's transform box round the picked shape (where it is drawn): drag an edge or corner square to size it, the
+ * knob above to turn it. Dragging the shape's body (inside the box) moves it - that is the shape's own handler.
  */
 function SelectionBox() {
   const { view, upp, coarse } = useContext(ViewInfo);
@@ -372,7 +471,8 @@ function SelectionBox() {
   const tool = useCharacterStore((state) => state.tool);
   const selectedShapeId = useCharacterStore((state) => state.selectedShapeId);
   const hidden = figure.shapes.find((shape) => shape.id === selectedShapeId)?.hidden ?? true;
-  const box = selectedShapeId === null || hidden ? null : screenBox(figure, selectedShapeId, view);
+  const drawn = selectedShapeId === null ? undefined : sagOf(figure).placements[selectedShapeId];
+  const box = selectedShapeId === null || hidden ? null : screenBox(figure, selectedShapeId, view, drawn);
 
   if (box === null || selectedShapeId === null || tool !== 'select') return null;
 
@@ -428,9 +528,10 @@ function SelectionBox() {
 }
 
 /**
- * The skeleton: bones as lines, joints as squares. Grabbable only with POSE; otherwise drawn small, as a guide, and
- * clicks pass straight through to the shapes. A joint sitting exactly on its parent (an upper arm on its shoulder)
- * gets no square of its own - there would be two on one spot, and the one underneath could never be reached.
+ * The skeleton: bones as lines, nodes as squares. Grabbable only with POSE; otherwise drawn small, as a guide, and
+ * clicks pass straight through to the shapes. While placing it always shows, finger-sized, with the node under the
+ * pointer (or the new node) lit. A node sitting exactly on its parent gets no square of its own - there would be two
+ * on one spot, and the one underneath could never be reached.
  */
 function Bones() {
   const { view, upp, coarse } = useContext(ViewInfo);
@@ -438,8 +539,10 @@ function Bones() {
   const tool = useCharacterStore((state) => state.tool);
   const showSkeleton = useCharacterStore((state) => state.showSkeleton);
   const selectedJointId = useCharacterStore((state) => state.selectedJointId);
+  const placing = useCharacterStore((state) => state.placing);
+  const hover = useCharacterStore((state) => state.placingHover);
   const frames = useMemo(() => jointFrames(skeleton), [skeleton]);
-  const posing = tool === 'pose';
+  const posing = tool === 'pose' && placing === null;
 
   const lines = useMemo(() => {
     const points: Vec3[] = [];
@@ -453,10 +556,12 @@ function Bones() {
     return points;
   }, [skeleton, frames]);
 
-  if (!posing && !showSkeleton) return null;
+  if (!posing && !showSkeleton && placing === null) return null;
 
-  // Finger-sized only when they can be grabbed; as a guide they stay small so they do not hide the figure.
-  const px = posing ? (coarse ? JOINT_PX.coarse : JOINT_PX.fine) * 2 : JOINT_PX.fine;
+  // Finger-sized when they can be grabbed or picked; as a guide (and while dragging a new shape or node, which is
+  // dragged from anywhere in the view) they stay small so they do not hide the figure.
+  const px = posing || placing?.stage === 'node' ? (coarse ? JOINT_PX.coarse : JOINT_PX.fine) * 2 : JOINT_PX.fine;
+  const lit = placing === null ? selectedJointId : placing.stage === 'node' ? hover : placing.what === 'node' ? placing.id : null;
 
   return (
     <>
@@ -469,8 +574,8 @@ function Bones() {
           <Square
             key={id}
             at={frame.position}
-            px={px}
-            colour={selectedJointId === id ? MODEL_HANDLE_ACTIVE : MODEL_HANDLE}
+            px={lit === id && placing !== null ? px + 6 : px}
+            colour={lit === id ? MODEL_HANDLE_ACTIVE : MODEL_HANDLE}
             onPointerDown={
               posing
                 ? (event) => {
