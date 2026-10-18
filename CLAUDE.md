@@ -48,6 +48,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 
 ## Where the details live
 - Visual design, palette and feel: read `docs/design.md` before any UI work.
+- The character workbench's live pixel render (passes, switches, three.js traps): `docs/character-render.md`.
 - Database setup and migration history: `supabase/README.md`. The tools in `scripts/`: `scripts/README.txt`. Artwork slots: `assets/README.txt`.
 - If you learn something non-obvious about one part of the site, suggest putting it in a docs/ file instead of growing this one. Keep this file short.
 
