@@ -86,6 +86,9 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
     <Canvas
       frameloop="always"
       gl={{ antialias: false }}
+      // No tone mapping, so the overlays drawn with three's own materials (skeleton, wires, transform box, marks)
+      // land on their palette values exactly. The pixel figure's passes are shaders that were never tone-mapped.
+      flat
       className={stage === 'node' ? 'cursor-pointer' : stage === 'place' ? 'cursor-move' : CURSOR_FOR_TOOL[tool]}
     >
       <Fitted view={view}>

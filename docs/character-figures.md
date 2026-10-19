@@ -37,10 +37,13 @@ Read this before touching how shapes connect, sag or get placed (`app/lib/charac
 - **Adding or removing a node can turn its parent's frame** (a node's bone points at its *first* child). On a posed
   figure that would swing every shape pinned there. `addNode` / `removeNode` re-express every shape in the new frames
   (`keepShapesInPlace`) so nothing moves. `check-character-simple` proves it with a deliberate break.
-- **The overlays are tone-mapped.** The skeleton, outlines and marks are drawn with three's own materials, which R3F
-  tone-maps, so on screen they are a little off their palette values (rose #E6004C draws as 236,0,75). The pixel figure
-  itself is exact. `Temp/char-drive.cjs` matches the on-screen values, and matches rose tightly because the ✗ button over
-  the view is the exact palette rose.
+- **The views' canvas is `flat` (no tone mapping).** The skeleton, wires, transform box and marks are drawn with three's
+  own materials, which R3F tone-maps by default: they drew a little off their palette values (rose #E6004C as 236,0,75,
+  pink #FF00A0 as 248,25,174, green #28C745 as 96,204,89). With `flat` they are exact, and the pixel figure is unchanged
+  (its passes are shaders that never had tone mapping; before/after pictures under every LAYERS switch were identical).
+  The grid was always exact: three's grid helper turns tone mapping off for itself. `Temp/char-drive.cjs` counts the
+  exact values, so it fails if tone mapping comes back. The ✗ button over the view is the same rose, so its box is left
+  out of the rose count.
 - **The PIXELS stat** is read back from the FRONT view's tiny colour target every 200 ms (`countFigurePixels`). With
   PIXELATE off it draws one extra tiny colour pass for the count. A shape's sag *weight* is estimated from its outline
   instead (`outlinePixels`), because counting each shape separately would need a pass per shape.
