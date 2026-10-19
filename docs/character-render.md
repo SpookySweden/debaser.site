@@ -23,6 +23,9 @@ so it always hits the real shapes, never the pixels.
 
 ## Switches
 - **PIXELATE** off: the same passes at full size into multisampled targets, so the edges are smooth.
+- **50 PX** on: the block size comes from the pane, not the figure. Each view's longer side is about 50 blocks
+  (`PANEL_PIXELS`, rounded to the nearest whole block), so the figure gets finer pixels. It rests (disabled) while
+  PIXELATE is off. The PIXELS stat counts at whichever size is showing.
 - **NORMAL LIGHT** off: flat colours.
 - **NORMAL MAP**: shows the normal pass itself. It wins over NORMAL LIGHT, which rests (disabled) meanwhile.
 - **LIGHT** off (on the ☀ pad): every pixel is in the shadow band.

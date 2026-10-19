@@ -276,7 +276,7 @@ export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: T
   const buffer = gl.getDrawingBufferSize(passes.buffer);
   if (buffer.x === 0 || buffer.y === 0) return;
   const ratio = gl.getPixelRatio();
-  const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, layers.pixelate);
+  const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, layers.pixelate, layers.fine);
 
   const pair = layers.pixelate ? passes.pixel : passes.smooth;
   if (pair.colour.width !== grid.width || pair.colour.height !== grid.height) {
@@ -345,7 +345,7 @@ export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: T
  * The PIXELS stat: how many blocks of the FRONT view's pixel render the figure fills, read back from the render target.
  * With PIXELATE on that is the colour pass this frame already drew; with it off (the view drew at full size) the
  * figure's colour pass is drawn at block size once more, just to be counted. Hidden shapes are never drawn, so they
- * are never counted.
+ * are never counted. The block size is the one PIXELATE shows, so with 50 PX on the count is of the finer pixels.
  */
 export function countFigurePixels(
   gl: THREE.WebGLRenderer,
@@ -363,10 +363,11 @@ export function countFigurePixels(
   const buffer = gl.getDrawingBufferSize(passes.buffer);
   if (buffer.x === 0 || buffer.y === 0) return null;
   const ratio = gl.getPixelRatio();
-  const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, true);
+  const { layers } = useCharacterStore.getState();
+  const grid = pixelGrid(buffer.x, buffer.y, camera.zoom, ratio, true, layers.fine);
   const target = passes.pixel.colour;
 
-  if (!useCharacterStore.getState().layers.pixelate) {
+  if (!layers.pixelate) {
     if (target.width !== grid.width || target.height !== grid.height) {
       target.setSize(grid.width, grid.height);
       passes.pixel.normal.setSize(grid.width, grid.height);

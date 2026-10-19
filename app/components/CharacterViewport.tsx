@@ -36,7 +36,7 @@ import {
   type Shape,
 } from '../lib/character/figure';
 import { MASS_DYES, MODEL_INK } from '../lib/character/palette';
-import { LAYER_IDS, LIGHT_HIGHEST, lightDirection, type LayerId } from '../lib/character/pixel-render';
+import { LAYER_IDS, LIGHT_HIGHEST, layerRests, lightDirection, type LayerId } from '../lib/character/pixel-render';
 import { jointLabel, nodeName, RIG_PRESETS } from '../lib/character/rig';
 import { sagOf } from '../lib/character/sag';
 import { MASS_SHAPE_IDS, MASS_SHAPES, type MassShapeId } from '../lib/character/shapes';
@@ -78,6 +78,8 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
 /** The LAYERS switches: what the live pixel render draws (see `pixel-render.ts`), and the skeleton drawn over it. */
 const LAYERS: Record<LayerId, { label: string; hint: string }> = {
   pixelate: { label: 'PIXELATE', hint: 'BIG PIXELS, AS THE FIGURE WILL LOOK. OFF: FULL RESOLUTION.' },
+  // A no-break space: `w-min` would otherwise stack "50" over "PX".
+  fine: { label: '50 PX', hint: 'FINER PIXELS: EACH VIEW IS ABOUT 50 PIXELS ON ITS LONGER SIDE. WORKS WITH PIXELATE ON.' },
   normalLight: { label: 'NORMAL LIGHT', hint: 'SHADE THE FIGURE IN THREE HARD BANDS. OFF: FLAT COLOURS.' },
   normalMap: { label: 'NORMAL MAP', hint: 'SHOW WHAT THE LIGHT READS: EACH PIXEL COLOURED BY THE WAY IT FACES.' },
 };
@@ -483,16 +485,17 @@ function PoseOptions() {
 }
 
 /**
- * PIXELATE, NORMAL LIGHT, NORMAL MAP, then SKELETON. NORMAL LIGHT rests while the normal map is shown: there is
- * nothing to shade. The skeleton always shows while posing or placing, whatever this switch says.
+ * PIXELATE, 50 PX, NORMAL LIGHT, NORMAL MAP, then SKELETON. NORMAL LIGHT rests while the normal map is shown (there is
+ * nothing to shade) and 50 PX while PIXELATE is off (there are no pixels to size); see `layerRests`. The skeleton
+ * always shows while posing or placing, whatever this switch says.
  */
 function LayerSwitches() {
   const layers = useCharacterStore((state) => state.layers);
   const toggleLayer = useCharacterStore((state) => state.toggleLayer);
   const showSkeleton = useCharacterStore((state) => state.showSkeleton);
   const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
-  // `w-min` wraps the two-word labels (NORMAL / LIGHT) onto two lines on a wide screen, so the four switches leave the
-  // tool's own words room in the bar; on a phone they are a 2 x 2 grid, where no label is cut.
+  // `w-min` wraps the two-word labels (NORMAL / LIGHT) onto two lines on a wide screen, so the five switches leave the
+  // tool's own words room in the bar; on a phone they are a two-column grid, where no label is cut.
   const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-[10px] leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
 
   return (
@@ -504,7 +507,7 @@ function LayerSwitches() {
           type="button"
           onClick={() => toggleLayer(id)}
           aria-pressed={layers[id]}
-          disabled={id === 'normalLight' && layers.normalMap}
+          disabled={layerRests(id, layers)}
           title={LAYERS[id].hint}
           className={switchClass(layers[id])}
         >
