@@ -362,7 +362,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
                 Pure White is 21:1 either way, and it still reads as the screen's second line beside the
                 Emerald title. */}
             <MarqueeText
-              className="mt-1 block text-[9px] text-ink-bar"
+              className="mt-1 block text-[10px] leading-[13.5px] text-ink-bar"
               durationSeconds={22}
               text={`${followNote(follow)}${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
             />
@@ -677,7 +677,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
         <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
           <NowPlaying />
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
-          <p className="truncate text-[9px] text-ink-bar">
+          <p className="truncate text-[10px] text-ink-bar">
             {followNote(follow)}
             {error ?? trackCaption(track)}
             {loop ? ' :: LOOPING' : ''}

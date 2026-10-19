@@ -55,7 +55,7 @@ export const PLATE_HARDWARE =
   `cursor-pointer rounded-none ${BEVEL_OUT} bg-hardware px-3 py-2 text-[11px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
 /** A plate already pressed in: the tab you are standing on, the switch that is on. */
-export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[10px] font-bold text-sun`;
+export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[10px] font-bold text-sun max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =

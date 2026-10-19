@@ -294,7 +294,7 @@ export default function ForumBoard() {
               aria-haspopup="dialog"
               aria-expanded={composerOpen}
               title="Open the composer window to file a new thread"
-              className={TITLE_BAR_BUTTON}
+              className={`${TITLE_BAR_BUTTON} max-sm:min-h-11`}
             >
               + NEW POST...
             </button>

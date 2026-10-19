@@ -14,7 +14,7 @@
 
 /** Text that does something when it is pressed. */
 export const HYPER_TEXT =
-  'cursor-pointer text-[11px] font-bold leading-none text-accent-ink underline underline-offset-2 hover:bg-sun hover:text-ink-plate';
+  'cursor-pointer text-[11px] font-bold leading-none text-accent-ink underline underline-offset-2 hover:bg-sun hover:text-ink-plate max-sm:inline-flex max-sm:min-h-11 max-sm:items-center';
 
 /** The same colours for text that is a link in prose rather than a control to the right of one. */
 export const HYPER_LINK = 'font-bold text-accent-ink underline underline-offset-2 hover:bg-sun hover:text-ink-plate';
@@ -25,7 +25,8 @@ export const HYPER_LINK = 'font-bold text-accent-ink underline underline-offset-
  * It carries the count with it (`▸ 3`), which is what makes the folded thread worth
  * folding - the number says whether there is anything behind it before it is opened.
  */
-export const HYPER_ARROW = 'cursor-pointer px-1 text-[11px] font-bold leading-none text-accent-ink hover:bg-sun hover:text-ink-plate';
+export const HYPER_ARROW =
+  'cursor-pointer px-1 text-[11px] font-bold leading-none text-accent-ink hover:bg-sun hover:text-ink-plate max-sm:inline-flex max-sm:min-h-11 max-sm:min-w-11 max-sm:items-center max-sm:justify-center';
 
 /** The run of choices: one thin border, so a group of links reads as one question. */
 export const HYPER_STRIP =

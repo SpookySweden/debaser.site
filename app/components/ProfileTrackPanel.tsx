@@ -41,7 +41,8 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
         <p className="truncate text-[11px] font-bold text-acid">
           {element === undefined ? 'NOTHING FILED YET' : element.title}
         </p>
-        <p className="mt-1 truncate text-[9px] text-ink-quiet">
+        {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
+        <p className="mt-1 truncate text-[10px] text-ink-bar">
           {element === undefined
             ? owner
               ? 'FILE A TRACK IN THE CUSTOMISER AND IT PLAYS FROM THE BAR BELOW.'

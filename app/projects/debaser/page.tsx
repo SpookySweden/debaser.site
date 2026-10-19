@@ -67,7 +67,7 @@ export default function DebaserProjectPage() {
       <ul className="space-y-1">
         {ARCHIVE_LINKS.filter((link) => SITE_ROOMS.includes(link.id)).map((link) => (
           <li key={link.id} className="text-[10px] font-bold">
-            <Link href={link.href} className="underline hover:bg-sun">
+            <Link href={link.href} className="underline hover:bg-sun max-sm:flex max-sm:min-h-11 max-sm:w-fit max-sm:items-center">
               {link.label}
             </Link>{' '}
             :: {link.summary}

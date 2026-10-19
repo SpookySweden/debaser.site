@@ -156,16 +156,16 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
             </p>
             <p className="text-ink">
-              <Link href="/forum" className="underline hover:bg-ice">
+              <Link href="/forum" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
                 [ BOARD ]
               </Link>{' '}
-              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice">
+              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
                 [ ARCADE ]
               </Link>{' '}
-              <Link href="/comms" className="underline hover:bg-ice">
+              <Link href="/comms" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
                 [ COMMS ]
               </Link>{' '}
-              <Link href="/account" className="underline hover:bg-ice">
+              <Link href="/account" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
                 [ ACCOUNT ]
               </Link>
             </p>
