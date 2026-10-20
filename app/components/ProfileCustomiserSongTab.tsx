@@ -64,8 +64,9 @@ export default function ProfileCustomiserSongTab({
               <p className="truncate text-[11px] font-bold text-acid">
                 {current === undefined ? 'NOTHING FILED YET' : current.title}
               </p>
-              {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
-              <p className="mt-1 truncate text-[10px] text-ink-bar">
+              {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black.
+                  Wraps rather than truncates: at 10px the empty-slot sentence is wider than the box. */}
+              <p className="mt-1 text-[10px] text-ink-bar">
                 {current === undefined ? 'THE PROFILE SHOWS AN EMPTY TRACK SLOT' : `V${current.version}`}
               </p>
             </div>
