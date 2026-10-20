@@ -221,7 +221,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                     why this row is at the top of the list. */}
                 {pin === undefined ? null : (
                   <span
-                    className="shrink-0 border border-black bg-bubble-pale px-1 text-[9px] font-bold text-ink-bar"
+                    className="shrink-0 border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar"
                     title={pinSummary(pin)}
                   >
                     {pinLabel(pin)}
@@ -233,7 +233,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                     there is one to see. `x2` counts a picture in a reply as well. */}
                 {hasImage ? (
                   <span
-                    className="shrink-0 border border-black bg-acid px-1 text-[9px] font-bold text-ink-plate"
+                    className="shrink-0 border border-black bg-acid px-1 text-[10px] font-bold text-ink-plate"
                     title="A picture is filed with this post: open it to see the drawing"
                   >
                     [ IMG{images.count > 1 ? ` x${images.count}` : ''} ]
@@ -241,7 +241,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 ) : null}
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
-                  <span className="shrink-0 border border-black bg-ena px-1 text-[9px] font-bold text-ink-bar" title="An MP3 is filed with this post">
+                  <span className="shrink-0 border border-black bg-ena px-1 text-[10px] font-bold text-ink-bar" title="An MP3 is filed with this post">
                     ♪ MP3
                   </span>
                 )}
@@ -379,12 +379,12 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
 
             {images.count > 1 ? (
-              <p className="mt-1 text-[9px] font-bold text-ink">
+              <p className="mt-1 text-[10px] font-bold text-ink">
                 +{images.count - 1} MORE IMAGE(S) IN THE REPLIES
               </p>
             ) : null}
 
-            <div className="mt-1 text-[9px] font-bold text-ink">
+            <div className="mt-1 text-[10px] font-bold text-ink">
               <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" preview={anchorPreview} />
               <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
             </div>

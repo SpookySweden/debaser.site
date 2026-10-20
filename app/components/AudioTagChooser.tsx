@@ -92,7 +92,7 @@ export default function AudioTagChooser({ id, value, onChange, suggestions = STA
           [ + ADD ]
         </button>
 
-        {full ? <span className="text-[9px] font-bold text-bubble-pale">MAX {MAX_AUDIO_TAGS}.</span> : null}
+        {full ? <span className="bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">MAX {MAX_AUDIO_TAGS}.</span> : null}
       </div>
     </div>
   );

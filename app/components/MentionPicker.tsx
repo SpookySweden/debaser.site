@@ -86,7 +86,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
                 title="Remove this tag"
-                className="cursor-pointer border border-ink bg-sun-pale px-1 text-[9px] font-bold text-ink hover:bg-ice"
+                className="cursor-pointer border border-ink bg-sun-pale px-1 text-[10px] font-bold text-ink hover:bg-ice"
               >
                 x
               </button>

@@ -74,7 +74,7 @@ export default function ProfileCommentPin({
         <span aria-hidden="true">📌</span>
       </button>
 
-      {error === null ? null : <span className="text-[9px] font-bold text-bubble-pale">{error}</span>}
+      {error === null ? null : <span className="bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">{error}</span>}
     </span>
   );
 }

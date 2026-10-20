@@ -33,7 +33,7 @@ const KIND_CLASSES: Record<ForumTag['kind'], string> = {
 };
 
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */
-const CHIP_COMPACT = 'gap-[3px] px-1 py-0 text-[9px] tracking-0';
+const CHIP_COMPACT = 'gap-[3px] px-1 py-0 text-[10px] tracking-0';
 
 /** Shared chip styling, so the chooser and the badges look identical. */
 export function tagChipClasses(tag: ForumTag, compact = false): string {
@@ -115,7 +115,7 @@ export function TagRow({ tags, className, emptyLabel, compact = false, limit }: 
       {shown.map((tag) => (
         <TagBadge key={tag.id} tag={tag} compact={compact} />
       ))}
-      {hidden > 0 ? <span className="text-[9px] font-bold text-ink">+{hidden}</span> : null}
+      {hidden > 0 ? <span className="text-[10px] font-bold text-ink">+{hidden}</span> : null}
     </div>
   );
 }

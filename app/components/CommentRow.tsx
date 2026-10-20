@@ -85,7 +85,7 @@ type CommentRowProps = {
 export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
-    <span className="border border-black bg-bubble-pale px-1 text-[9px] font-bold text-ink-bar">
+    <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">
       [ {pinnedLabel} ]
     </span>
   );
@@ -109,7 +109,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         )}
         {pinned}
         {action}
-        <TimeStamp at={data.createdAt} className="text-[9px]" />
+        <TimeStamp at={data.createdAt} className="text-[10px]" />
 
         {href === undefined ? (
           <span className="text-ink">&quot;{data.body}&quot;</span>

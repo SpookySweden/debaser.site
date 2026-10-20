@@ -204,11 +204,12 @@ export default function SiteNav({ active }: { active?: NavKey }) {
           >
             <span aria-hidden="true">{item.mark}</span>
             {/* The count rides the key, and only ever on the one it belongs to. It is drawn on top of
-                the glyph rather than beside it, so the row's boxes stay square. */}
+                the glyph rather than beside it, so the row's boxes stay square. It wears the key's own
+                ink: Emerald was 2.09:1 on the Daffodil key and 4.15:1 on the pressed Royal Blue one. */}
             {unread === 0 ? null : (
               <span
                 aria-hidden="true"
-                className="ml-[2px] text-[9px] leading-none text-acid"
+                className="ml-[2px] text-[10px] leading-none"
               >
                 {unread}
               </span>

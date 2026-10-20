@@ -116,7 +116,7 @@ export default function PopoutWindow({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label="Close window"
-              className={TITLE_BAR_BUTTON}
+              className={`${TITLE_BAR_BUTTON} max-sm:min-h-11 max-sm:min-w-11`}
             >
               ×
             </button>

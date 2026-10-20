@@ -126,7 +126,7 @@ export default function CommentNodeCard({
             </ProfileLink>
             {matched ? (
               <span
-                className="border border-black bg-sun-pale px-1 text-[9px] font-bold text-ink"
+                className="border border-black bg-sun-pale px-1 text-[10px] font-bold text-ink"
                 title="The tag filter on the board matched this reply"
               >
                 FILTER MATCH

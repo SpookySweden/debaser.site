@@ -356,7 +356,8 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2"
             >
               <p className="flex items-center gap-2 text-xs font-bold text-ink">
-                <span className={`px-1 text-[9px] text-paper ${game.badge}`}>
+                {/* Navy or Rose in both themes, so the bar ink; `text-paper` went Nigrosine in the dark one. */}
+                <span className={`px-1 text-[10px] text-ink-bar ${game.badge}`}>
                   {game.id === 'tic-tac-toe' ? 'X/O' : 'DUEL'}
                 </span>
                 {game.title}

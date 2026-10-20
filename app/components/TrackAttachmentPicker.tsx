@@ -99,7 +99,7 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
       )}
 
       {found.length > shown.length ? (
-        <p className="mt-1 text-[9px] font-bold text-ink">
+        <p className="mt-1 text-[10px] font-bold text-ink">
           {shown.length} OF {found.length} - TYPE IN THE BOX ABOVE TO NARROW THE LIST
         </p>
       ) : null}

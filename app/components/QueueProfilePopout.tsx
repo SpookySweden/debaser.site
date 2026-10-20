@@ -212,7 +212,7 @@ function QueueCardBody({
 
       <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
         <p className="truncate text-[12px] font-bold text-acid">{title}</p>
-        <p className="truncate text-[9px] text-ink-bar">
+        <p className="truncate text-[10px] text-ink-bar">
           {formatClock(where)} IN ::{' '}
           <span className={state === 'live' ? 'text-acid' : 'text-sun'}>{hostStateLabel(state)}</span>
         </p>
@@ -267,7 +267,7 @@ function QueueCardBody({
       </p>
 
       {following || mine ? null : (
-        <p className="text-[9px] text-ink-quiet">
+        <p className="text-[10px] text-ink-quiet">
           FOLLOWING TAKES THE PLAYER OVER. WHAT YOU HAVE NOW IS KEPT IN RADI-OH.
         </p>
       )}

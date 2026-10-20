@@ -72,7 +72,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
           {/* The byline sits on the `bg-hardware` screen above, which is Black in *both* themes - so it
               takes the bar ink rather than a field ink: `text-ena-deep` was Nigrosine on Black (1.18:1)
               and became Black on Black in the dark theme. Pure White is 21:1 either way. */}
-          <span className={`block truncate text-ink-bar ${compact ? 'text-[8px]' : 'text-[9px]'}`}>
+          <span className="block truncate text-[10px] text-ink-bar">
             {poster}
             {track.credit.length === 0 || track.credit === poster ? '' : ` :: ${track.credit}`}
             {origin === undefined ? '' : ` :: ${origin}`}

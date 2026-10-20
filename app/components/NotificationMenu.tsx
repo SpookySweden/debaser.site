@@ -20,6 +20,9 @@ import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
  * maroon for a reply, the same two colours the board's own plates wear (`♪ MP3` is navy, `PINNED`
  * is maroon). An invitation takes the third colour Win95 gave a "go" - the dark green - because a
  * row you can act on in one press should not look like the two you can only read.
+ *
+ * None of the three moves with the theme, so the letters are the bar ink: `text-paper` turned
+ * Nigrosine in the dark theme, 1.91:1 on navy and 1.18:1 on the Black invite badge.
  */
 const KIND_BADGE: Record<AppNotification['kind'], string> = {
   tag: 'bg-ena',
@@ -35,7 +38,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[9px] font-bold text-ink-bar';
+const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[10px] font-bold text-ink-bar';
 
 /**
  * One line of the feed.
@@ -89,7 +92,7 @@ function NotificationRow({
           }`}
         />
         <span
-          className={`shrink-0 px-1 text-[9px] leading-[14px] text-paper ${KIND_BADGE[item.kind]}`}
+          className={`shrink-0 px-1 text-[10px] leading-[14px] text-ink-bar ${KIND_BADGE[item.kind]}`}
           title={notificationLabel(item.kind)}
         >
           {KIND_TAG[item.kind]}
@@ -111,7 +114,7 @@ function NotificationRow({
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[9px] font-bold text-ink">
+          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[10px] font-bold text-ink">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}

@@ -172,7 +172,8 @@ body {
   top: -1.1rem;
   left: -2px;
   padding: 0 3px;
-  font-size: 9px;
+  /* 10px is the floor where the pixel font still reads; absolute, so the size moves nothing. */
+  font-size: 10px;
   font-weight: 700;
   white-space: nowrap;
   color: #ffffff;

@@ -27,7 +27,7 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
   if (missing) {
     if (compact) {
       return (
-        <span className="text-[9px] font-bold text-ink" title={`${src} is not in the assets folder yet`}>
+        <span className="text-[10px] font-bold text-ink" title={`${src} is not in the assets folder yet`}>
           [ ? ]
         </span>
       );

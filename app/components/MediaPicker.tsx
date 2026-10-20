@@ -42,20 +42,22 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
         <div
           className={`w-full overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 sm:w-3/5 ${heightClass}`}
         >
+          {/* 84px tiles: the labels are 10px, the floor where the pixel font still reads, and `TEXT ONLY`
+              is 74px at that size. At 64px it was cut, and `[ NONE ]` broke onto two lines. */}
           <div role="radiogroup" aria-label="Containing media" className="flex flex-wrap gap-1">
             <button
               type="button"
               role="radio"
               aria-checked={value === ''}
               onClick={() => onChange('')}
-              className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
+              className={`w-21 cursor-pointer rounded-none border p-[2px] text-center ${
                 value === '' ? 'border-black bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
               }`}
             >
-              <span className="flex h-12 items-center justify-center border border-ink bg-paper text-[9px] font-bold text-ink">
+              <span className="flex h-12 items-center justify-center border border-ink bg-paper text-[10px] font-bold text-ink">
                 [ NONE ]
               </span>
-              <span className="mt-[2px] block truncate text-[9px] font-bold">TEXT ONLY</span>
+              <span className="mt-[2px] block truncate text-[10px] font-bold">TEXT ONLY</span>
             </button>
 
             {items.map((item) => {
@@ -69,7 +71,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                   aria-checked={picked}
                   title={item.label}
                   onClick={() => onChange(item.id)}
-                  className={`w-16 cursor-pointer rounded-none border p-[2px] text-center ${
+                  className={`w-21 cursor-pointer rounded-none border p-[2px] text-center ${
                     picked ? 'border-black bg-ena text-ink-bar' : 'border-ink bg-sun-pale text-ink hover:bg-ice-pale'
                   }`}
                 >
@@ -79,10 +81,10 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                       alt={item.preview.alt}
                       width={item.preview.width}
                       height={item.preview.height}
-                      sizes="64px"
+                      sizes="84px"
                     />
                   </span>
-                  <span className="mt-[2px] block truncate text-[9px] font-bold">{item.label}</span>
+                  <span className="mt-[2px] block truncate text-[10px] font-bold">{item.label}</span>
                 </button>
               );
             })}
@@ -111,7 +113,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-ink hover:bg-ice"
+                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice"
                 >
                   [ CLEAR ]
                 </button>
@@ -121,7 +123,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
         </div>
       </div>
 
-      <p className="mt-1 px-1 text-[9px] text-ink">
+      <p className="mt-1 px-1 text-[10px] text-ink">
         {items.length === 0
           ? 'THE ARCHIVE IS EMPTY.'
           : `${items.length} SHEET${items.length === 1 ? '' : 'S'} IN THE ARCHIVE.`}

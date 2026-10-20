@@ -53,7 +53,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[9px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -151,7 +151,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           <span className="block truncate text-[11px] font-bold text-ink" title={row.track.title}>
             {row.track.title}
           </span>
-          <span className="block truncate text-[9px] text-ink">
+          <span className="block truncate text-[10px] text-ink">
             {fileLabel(row.track.src)} :: {SOURCE_LABEL[row.source]}
             {row.source === 'BOARD' ? ` :: POSTED BY ${row.poster}` : ''}
             <span className="sm:hidden"> :: {length}</span>
@@ -160,7 +160,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             <Link
               href={row.href}
               title={row.threadTitle}
-              className={`${LINK_PIXEL} block truncate text-[9px] font-bold text-accent-ink`}
+              className={`${LINK_PIXEL} block truncate text-[10px] font-bold text-accent-ink`}
             >
               OPEN THE POST
             </Link>
@@ -217,9 +217,11 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           looking at this row, and a message somewhere else is a message they will not find. It is also the
           only thing that makes the guest case work here - pressing a heart as a guest says why, in place.
           Rose (`bubble-pale`) rather than grey, because a refusal is a fault and this site's faults are
-          the two bright dyes - the same colour the guest banner flashes. */}
+          the two bright dyes - the same colour the guest banner flashes. A Rose *chip* rather than Rose
+          ink: Rose on the row's Flavine is 4.15:1 and on the dark field 3.79:1, while White on Rose is
+          4.70:1 in both themes. */}
       {notice === null ? null : (
-        <p className="mt-1 pl-8 text-[9px] font-bold text-bubble-pale" role="status">
+        <p className="mt-1 ml-8 w-fit bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar" role="status">
           {notice}
         </p>
       )}
@@ -502,7 +504,7 @@ export default function MusicDirectory() {
         </div>
 
         {signedIn ? null : (
-          <p className="mt-1 text-[9px] font-bold text-ink">
+          <p className="mt-1 text-[10px] font-bold text-ink">
             SIGNED OUT - SIGN IN ON THE ACCOUNT PAGE TO ADD FILES AND FOLDERS. PLAYING TAKES NOTHING.
           </p>
         )}
@@ -573,7 +575,7 @@ export default function MusicDirectory() {
         <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
           {/* The directory's own column labels, and nothing else. */}
           <div
-            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[9px] font-bold text-ink-bar sm:grid`}
+            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar sm:grid`}
           >
             <span>#</span>
             <span>NAME</span>

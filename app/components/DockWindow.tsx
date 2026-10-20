@@ -193,7 +193,7 @@ export default function DockWindow({
               onDoubleClick={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label={`Close ${title}`}
-              className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ice"
+              className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[1px] text-[10px] font-bold leading-none text-ink hover:bg-ice max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm"
             >
               ×
             </button>

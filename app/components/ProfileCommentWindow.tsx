@@ -143,7 +143,8 @@ function AspectPreview({
         <>
           <div className="w-64 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
             <p className="truncate text-[11px] font-bold text-acid">{shown.title}</p>
-            <p className="mt-1 truncate text-[9px] text-ink-quiet">
+            {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
+            <p className="mt-1 truncate text-[10px] text-ink-bar">
               {shown.tag}
               {shown.current ? ' (current)' : ''} :: {shown.credit}
             </p>

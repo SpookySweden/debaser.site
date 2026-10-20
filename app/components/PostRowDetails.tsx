@@ -61,7 +61,7 @@ export default function PostRowDetails({ body, comments }: PostRowDetailsProps) 
           <p className="whitespace-pre-line text-xs leading-snug text-ink [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)]">
             {shown}
           </p>
-          <p className="absolute right-0 bottom-0 border border-black bg-paper px-1 text-[9px] font-bold text-ink">
+          <p className="absolute right-0 bottom-0 border border-black bg-paper px-1 text-[10px] font-bold text-ink">
             [ EXPAND ]
           </p>
         </div>

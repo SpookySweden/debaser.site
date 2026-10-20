@@ -65,7 +65,7 @@ export default function LibraryRow({
           <span className="block truncate text-[11px] font-bold text-ink" title={track.title}>
             {track.title}
           </span>
-          <span className="block truncate text-[9px] text-ink">
+          <span className="block truncate text-[10px] text-ink">
             {track.credit.length === 0 ? 'NO CREDIT' : track.credit}
             {/* On a phone the length column is not drawn, so it rides the second line instead. */}
             <span className="sm:hidden"> :: {duration.length === 0 ? '--:--' : duration}</span>
@@ -126,7 +126,7 @@ export default function LibraryRow({
           two lists shows its mark only on the one it is being viewed from. */}
       {lists.length === 0 ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-1 pl-8">
-          <span className="text-[9px] font-bold text-ink">ADD TO:</span>
+          <span className="text-[10px] font-bold text-ink">ADD TO:</span>
 
           {lists.map((list) => (
             <button
@@ -139,7 +139,7 @@ export default function LibraryRow({
                   ? `Take ${track.title} out of ${list.name}`
                   : `Add ${track.title} to ${list.name}`
               }
-              className={`cursor-pointer rounded-none border border-ink px-1 text-[9px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
+              className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
                 inOpenList && current ? 'bg-ena text-sun' : 'bg-sun-pale text-ink hover:bg-ice'
               }`}
             >

@@ -625,26 +625,30 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
 
   return (
     <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
-      <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[10px] font-bold text-ink-bar">
-        <span className="truncate">♪ DEBASER PLAYER</span>
+      {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
+          edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
+          which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The
+          right edge has no padding because the fold key's box already holds its glyph off the edge. */}
+      <div className="flex items-center justify-between gap-1 bg-ena pl-2 text-[10px] font-bold text-ink-bar">
+        <span className="truncate">♪ PLAYER</span>
 
-        <span className="flex shrink-0 items-center gap-2">
+        <span className="flex shrink-0 items-center">
           <button
             type="button"
             onClick={onSettings}
-            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-11 min-w-11 cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Player options"
           >
             ⚙
           </button>
 
           {/* The same key the bar and the side panel carry: the mark, the word, and the thumb's own
-              affordances - the card's controls are text rather than plates, so this is underlined and
-              sized by the surrounding row rather than drawn as a button. */}
+              affordances - the card's controls are text rather than plates, so this is underlined rather
+              than drawn as a button, in a box a thumb can find. */}
           <button
             type="button"
             onClick={onMusic}
-            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-11 cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open your music"
             aria-haspopup="dialog"
           >
@@ -654,7 +658,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onQueues}
-            className="cursor-pointer underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-11 cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open queues"
             aria-haspopup="dialog"
           >
@@ -664,7 +668,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onHide}
-            className="cursor-pointer px-1 leading-none hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-11 min-w-11 cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Fold the player away"
           >
             ▾
