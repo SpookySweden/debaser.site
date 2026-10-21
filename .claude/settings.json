@@ -24,6 +24,16 @@
             "timeout": 15
           }
         ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/agent-limit.cjs\"",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Stop": [
