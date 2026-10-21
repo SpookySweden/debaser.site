@@ -54,7 +54,10 @@ export async function POST(request: Request) {
 
   try {
     await mkdir(directory, { recursive: true });
-    await writeFile(path.join(directory, fileName), new Uint8Array(await file.arrayBuffer()));
+    // The hint keeps the build's file tracer off this path. Unhinted, it reads `<folder>/<name>-<stamp>`
+    // as "every file in the project with a dash in its path", Temp/ included, and one file a headless
+    // Chrome holds locked under Temp/browse/ then crashes `next build`.
+    await writeFile(path.join(/* turbopackIgnore: true */ directory, fileName), new Uint8Array(await file.arrayBuffer()));
   } catch {
     return json(
       {
