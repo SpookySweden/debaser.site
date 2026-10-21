@@ -78,8 +78,8 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
 /** The LAYERS switches: what the live pixel render draws (see `pixel-render.ts`), and the skeleton drawn over it. */
 const LAYERS: Record<LayerId, { label: string; hint: string }> = {
   pixelate: { label: 'PIXELATE', hint: 'BIG PIXELS, AS THE FIGURE WILL LOOK. OFF: FULL RESOLUTION.' },
-  // A no-break space: `w-min` would otherwise stack "50" over "PX".
-  fine: { label: '50 PX', hint: 'FINER PIXELS: EACH VIEW IS ABOUT 50 PIXELS ON ITS LONGER SIDE. WORKS WITH PIXELATE ON.' },
+  // A no-break space: `w-min` would otherwise stack "12" over "PX".
+  fine: { label: '12 PX', hint: 'BIGGER PIXELS: EACH VIEW IS ABOUT 12 PIXELS ON ITS LONGER SIDE. WORKS WITH PIXELATE ON.' },
   normalLight: { label: 'NORMAL LIGHT', hint: 'SHADE THE FIGURE IN THREE HARD BANDS. OFF: FLAT COLOURS.' },
   normalMap: { label: 'NORMAL MAP', hint: 'SHOW WHAT THE LIGHT READS: EACH PIXEL COLOURED BY THE WAY IT FACES.' },
 };
@@ -485,8 +485,8 @@ function PoseOptions() {
 }
 
 /**
- * PIXELATE, 50 PX, NORMAL LIGHT, NORMAL MAP, then SKELETON. NORMAL LIGHT rests while the normal map is shown (there is
- * nothing to shade) and 50 PX while PIXELATE is off (there are no pixels to size); see `layerRests`. The skeleton
+ * PIXELATE, 12 PX, NORMAL LIGHT, NORMAL MAP, then SKELETON. NORMAL LIGHT rests while the normal map is shown (there is
+ * nothing to shade) and 12 PX while PIXELATE is off (there are no pixels to size); see `layerRests`. The skeleton
  * always shows while posing or placing, whatever this switch says.
  */
 function LayerSwitches() {

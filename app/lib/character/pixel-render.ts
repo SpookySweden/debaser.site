@@ -30,13 +30,13 @@ export const TALLEST_PRESET = 2.08;
  * tall whatever the pane's size: `TALLEST_PRESET` units span at most `FIGURE_ROWS` blocks. Rounded *up*, so the
  * figure is never taller than that. With PIXELATE off a block is one device pixel: the same passes at full size.
  *
- * With 50 PX on (`fine`) the block follows the pane instead: its longer side is about `PANEL_PIXELS` blocks, so the
- * figure gets finer pixels and more of them. Rounded to the nearest whole block, so "about" is a few either way.
+ * With 12 PX on (`fine`) the block follows the pane instead: its longer side is about `PANEL_PIXELS` blocks, so the
+ * figure gets bigger pixels and fewer of them. Rounded to the nearest whole block, so "about" is a few either way.
  */
 export type PixelGrid = { block: number; width: number; height: number };
 
-/** With 50 PX on, how many low-res pixels a view's longer side holds - about; see `pixelGrid`. */
-export const PANEL_PIXELS = 50;
+/** With 12 PX on, how many low-res pixels a view's longer side holds - about; see `pixelGrid`. */
+export const PANEL_PIXELS = 12;
 
 export function pixelGrid(
   bufferWidth: number,
@@ -155,7 +155,7 @@ export function celBand(amount: number): number {
  * The LAYERS switches above the views.
  *
  *   pixelate     off: the same passes at full resolution (smooth edges, same banded light)
- *   fine         50 PX, on: finer pixels, about `PANEL_PIXELS` on each view's longer side (only while PIXELATE is on)
+ *   fine         12 PX, on: bigger pixels, about `PANEL_PIXELS` on each view's longer side (only while PIXELATE is on)
  *   normalLight  off: flat colours, no shading at all
  *   normalMap    on: show the normal pass itself, the image the light reads, instead of the lit colours
  */
@@ -172,7 +172,7 @@ export const DEFAULT_LAYERS: Readonly<Record<LayerId, boolean>> = {
 
 /**
  * A switch with nothing to change rests (greyed out, keeping its value): NORMAL LIGHT while the normal map is shown,
- * 50 PX while PIXELATE is off.
+ * 12 PX while PIXELATE is off.
  */
 export function layerRests(id: LayerId, layers: Readonly<Record<LayerId, boolean>>): boolean {
   return (id === 'normalLight' && layers.normalMap) || (id === 'fine' && !layers.pixelate);

@@ -345,7 +345,7 @@ export function drawFrame(gl: THREE.WebGLRenderer, scene: THREE.Scene, camera: T
  * The PIXELS stat: how many blocks of the FRONT view's pixel render the figure fills, read back from the render target.
  * With PIXELATE on that is the colour pass this frame already drew; with it off (the view drew at full size) the
  * figure's colour pass is drawn at block size once more, just to be counted. Hidden shapes are never drawn, so they
- * are never counted. The block size is the one PIXELATE shows, so with 50 PX on the count is of the finer pixels.
+ * are never counted. The block size is the one PIXELATE shows, so with 12 PX on the count is of the bigger pixels.
  */
 export function countFigurePixels(
   gl: THREE.WebGLRenderer,
