@@ -76,7 +76,8 @@ export default function ProfileCustomiserPictureTab({
             )}
           </div>
 
-          <div className="min-w-0 flex-1 space-y-2">
+          {/* basis-64: room to read or onto its own line (34px wide beside the two pictures on a 430px phone). */}
+          <div className="min-w-0 flex-1 basis-64 space-y-2">
             <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
             <p className="text-[10px] text-ink">
               CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P{nextVersion}. THE OLD ONE STAYS IN THE HISTORY

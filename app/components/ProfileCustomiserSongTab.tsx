@@ -72,7 +72,9 @@ export default function ProfileCustomiserSongTab({
             </div>
           </div>
 
-          <div className="min-w-0 flex-1 space-y-2">
+          {/* basis-64: at least as wide as the readout or onto its own line. With no basis the column
+              never wrapped, and on a phone it sat beside the readout 30px wide. */}
+          <div className="min-w-0 flex-1 basis-64 space-y-2">
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
             <p className="text-[10px] text-ink">
               {pendingSrc === null ? 'NO AUDIO CHOSEN YET.' : `READY: ${pendingSrc}`}
