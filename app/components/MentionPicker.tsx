@@ -43,7 +43,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
           id={`${id}-mention`}
           value={picked}
           onChange={(event) => setPicked(event.target.value)}
-          className="max-w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none"
+          className="max-w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none max-sm:min-h-11"
         >
           <option value="">PICK AN ACCOUNT...</option>
           {accounts
@@ -63,7 +63,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
             onChange(insertMention(body, account.displayName));
             setPicked('');
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] font-bold hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] font-bold hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-3"
         >
           [ TAG ]
         </button>
@@ -86,7 +86,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
                 title="Remove this tag"
-                className="cursor-pointer border border-ink bg-sun-pale px-1 text-[10px] font-bold text-ink hover:bg-ice"
+                className="cursor-pointer border border-ink bg-sun-pale px-1 text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm"
               >
                 x
               </button>

@@ -54,7 +54,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
       id={id}
       role="tree"
       aria-label="Filing destination"
-      className="max-h-44 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1"
+      className="max-h-44 overflow-y-auto max-sm:max-h-80 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1"
     >
       {groups.map((group) => {
         const isOpen = open.includes(group.label);
@@ -65,7 +65,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
               type="button"
               onClick={() => toggle(group.label)}
               aria-label={`${isOpen ? 'Close' : 'Open'} ${group.label}`}
-              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale"
+              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale max-sm:min-h-11"
             >
               <span className="inline-block w-4 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
               <span className="truncate">{group.label}</span>
@@ -85,7 +85,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         role="treeitem"
                         aria-selected={selected}
                         onClick={() => onChange(item.key)}
-                        className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold ${
+                        className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[10px] font-bold max-sm:min-h-11 ${
                           selected ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice-pale'
                         }`}
                       >

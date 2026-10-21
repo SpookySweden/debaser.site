@@ -453,7 +453,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             key={entry.key}
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
-            className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold ${
+            className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold max-sm:min-h-11 ${
               tab === entry.key ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
@@ -621,7 +621,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         actions={
           <a
             href={`/profile/${encodeURIComponent(userId)}`}
-            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice"
+            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
           >
             [ VIEW PUBLIC PAGE ]
           </a>

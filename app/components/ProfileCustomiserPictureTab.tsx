@@ -94,7 +94,7 @@ export default function ProfileCustomiserPictureTab({
                 const file = event.target.files?.[0];
                 if (file !== undefined) onUpload(file);
               }}
-              className="block w-full font-mono text-[10px] text-ink"
+              className="block w-full font-mono text-[10px] text-ink max-sm:min-h-11"
             />
             {uploadMessage === null ? null : <p className="text-[10px] font-bold text-ink">{uploadMessage}</p>}
           </div>

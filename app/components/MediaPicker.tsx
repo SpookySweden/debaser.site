@@ -113,7 +113,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice"
+                  className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11 max-sm:px-3"
                 >
                   [ CLEAR ]
                 </button>

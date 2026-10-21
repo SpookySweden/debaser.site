@@ -132,7 +132,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Subject line for the thread"
-          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
+          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:min-h-11"
         />
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">

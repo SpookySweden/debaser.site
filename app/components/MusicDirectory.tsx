@@ -53,7 +53,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:px-2 max-sm:py-[3px]';
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -183,7 +183,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             disabled={busy}
             aria-pressed={liked}
             title={liked ? `Take ${row.track.title} out of liked` : `Like ${row.track.title}`}
-            className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
+            className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
               liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
             }`}
           >
@@ -286,7 +286,7 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-ink">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun-pale">
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun-pale max-sm:min-h-11 max-sm:py-0">
           <span className="w-4 shrink-0 text-ink">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
           <span className="shrink-0 text-ink">
@@ -468,7 +468,7 @@ export default function MusicDirectory() {
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => setTagsOpen(true)}
             placeholder="TRACK, FOLDER, ARTIST OR TAG"
-            className="min-w-40 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-xs text-ink outline-none max-sm:p-2"
+            className="min-w-40 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-xs text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           />
 
           <button type="button" onClick={() => setTagsOpen(!tagsOpen)} aria-expanded={tagsOpen} className={PLATE}>
@@ -485,7 +485,7 @@ export default function MusicDirectory() {
             id="music-sort"
             value={sort}
             onChange={(event) => setSort(event.target.value as TrackSort)}
-            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none max-sm:p-2"
+            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           >
             {TRACK_SORTS.map((entry) => (
               <option key={entry.value} value={entry.value} title={entry.hint}>

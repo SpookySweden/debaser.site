@@ -139,7 +139,7 @@ export default function LibraryRow({
                   ? `Take ${track.title} out of ${list.name}`
                   : `Add ${track.title} to ${list.name}`
               }
-              className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink ${
+              className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-2 ${
                 inOpenList && current ? 'bg-ena text-sun' : 'bg-sun-pale text-ink hover:bg-ice'
               }`}
             >
