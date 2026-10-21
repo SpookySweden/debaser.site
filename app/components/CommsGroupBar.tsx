@@ -218,7 +218,7 @@ export default function CommsGroupBar({
                     setConfirmingRemoval(null);
                   });
                 }}
-                className="ml-1 cursor-pointer text-bubble-pale underline hover:bg-sun-pale"
+                className="ml-1 cursor-pointer bg-bubble-pale px-1 text-ink-bar underline hover:bg-ena"
               >
                 {confirmingRemoval === id ? 'SURE?' : 'remove'}
               </button>

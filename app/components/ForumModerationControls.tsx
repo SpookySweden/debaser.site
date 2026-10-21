@@ -114,13 +114,13 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
             {busy ? '[ BANNING... ]' : '[ CONFIRM BAN ]'}
           </button>
 
-          <span className="text-bubble-pale">
+          <span className="bg-bubble-pale px-1 text-ink-bar">
             BANNING STOPS THIS ACCOUNT WRITING ANYWHERE AND HIDES WHAT IT ALREADY WROTE FROM EVERYBODY BUT YOU.
           </span>
         </span>
       ) : null}
 
-      {error === null ? null : <span className="text-bubble-pale">{error}</span>}
+      {error === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{error}</span>}
     </span>
   );
 }
@@ -185,7 +185,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
 
         <AuthorModeration author={thread.author} />
 
-        {confirming ? <span className="text-bubble-pale">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
+        {confirming ? <span className="bg-bubble-pale px-1 text-ink-bar">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
       </div>
 
       {editing ? (
@@ -217,7 +217,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">{error}</p>}
     </div>
   );
 }
@@ -283,7 +283,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
 
         {/* Removing a reply takes the replies to it with it, which is worth saying. */}
         {confirming ? (
-          <span className="text-bubble-pale">CLICK AGAIN TO REMOVE THIS REPLY AND THE REPLIES TO IT.</span>
+          <span className="bg-bubble-pale px-1 text-ink-bar">CLICK AGAIN TO REMOVE THIS REPLY AND THE REPLIES TO IT.</span>
         ) : null}
       </div>
 
@@ -306,7 +306,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">{error}</p>}
     </div>
   );
 }

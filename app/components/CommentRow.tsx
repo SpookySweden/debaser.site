@@ -114,7 +114,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         {href === undefined ? (
           <span className="text-ink">&quot;{data.body}&quot;</span>
         ) : (
-          <Link href={href} title={hrefTitle} className="text-ink hover:bg-ena">
+          <Link href={href} title={hrefTitle} className="text-ink hover:bg-ena hover:text-ink-bar">
             &quot;{data.body}&quot;
           </Link>
         )}

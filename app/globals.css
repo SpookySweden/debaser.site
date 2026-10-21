@@ -414,6 +414,12 @@ img {
   --color-sun: #fff000;
   --color-sun-pale: #e1ff00;
 
+  /* The row under the pointer. Daffodil here - the `hover:bg-sun` it always was - and Royal Blue in the
+     dark theme, because the inks on a row are the field's and move with it (see `pointed` in themes.ts). */
+  --color-pointed: #fff000;
+  /* The same for a read post, which rests on `chrome-dark` - Royal Blue in the dark theme, where this is Black. */
+  --color-pointed-quiet: #fff000;
+
   /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
   --color-ice: #e1ff00;
   --color-ice-pale: #e1ff00;

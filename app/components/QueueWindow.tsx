@@ -126,7 +126,7 @@ function QueueTabPlate({
       className={`min-w-0 flex-1 cursor-pointer truncate rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[11px] font-bold tracking-wide max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         selected
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice'
+          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
       }`}
     >
       {label}

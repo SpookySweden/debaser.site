@@ -124,7 +124,7 @@ export const PANEL =
  * how anybody moves between shelves.
  */
 export const SHELF_CHIP =
-  'cursor-pointer rounded-none border border-ink bg-sun-pale px-2 py-[2px] text-ink hover:animate-bump hover:bg-ice hover:text-ink-plate max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'cursor-pointer rounded-none border border-ink bg-sun-pale px-2 py-[2px] text-ink hover:animate-bump hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 /** An inset surface pressed into a plate: dark top-left, light bottom-right. */
 export const PANEL_INSET =

@@ -51,7 +51,7 @@ export default function ProjectsPage() {
               <Link
                 href={project.href}
                 title={project.summary}
-                className="block p-3 text-[10px] font-bold hover:bg-sun"
+                className="block p-3 text-[10px] font-bold hover:bg-pointed"
               >
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-sm">{project.title}</span>

@@ -259,8 +259,8 @@ export default function CommsConsole() {
                     }}
                     className={`w-full cursor-pointer rounded-none border p-2 text-left text-[10px] font-bold max-sm:p-3 max-sm:text-xs ${
                       thread.id === active?.id
-                        ? 'border-black bg-sun'
-                        : 'border-ink bg-ice-pale hover:bg-sun'
+                        ? 'border-black bg-pointed'
+                        : 'border-ink bg-ice-pale hover:bg-pointed'
                     }`}
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
@@ -272,7 +272,12 @@ export default function CommsConsole() {
                       <TimeStamp at={row.updatedAt} />
                     </span>
                     <span className="mt-1 block truncate font-normal text-ink">{row.preview}</span>
-                    {row.unread === 0 ? null : <span className="mt-1 block text-bubble-pale">[ {row.unread} NEW ]</span>}
+                    {/* A Rose chip, not Rose ink: Rose ink is under 4.5:1 on every surface this row wears
+                        (4.15 on Flavine, 4.46 on Black, 1.98 on the dark theme's pointed Royal Blue);
+                        White on Rose is 4.70:1 in both themes. */}
+                    {row.unread === 0 ? null : (
+                      <span className="mt-1 block w-fit bg-bubble-pale px-1 text-ink-bar">[ {row.unread} NEW ]</span>
+                    )}
                   </button>
                 </li>
               ))}

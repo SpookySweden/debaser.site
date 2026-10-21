@@ -91,7 +91,7 @@ export default function LoopPopout({
             onClick={onClose}
             aria-label="Close"
             title="Close - or press anywhere off this card"
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
           </button>

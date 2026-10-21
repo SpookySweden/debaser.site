@@ -47,7 +47,7 @@ export default function DebaserProjectPage() {
         <Link
           key={section.id}
           href={section.href}
-          className="block rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-sun"
+          className="block rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-pointed"
         >
           <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
             <span>{section.label}</span>
@@ -67,7 +67,7 @@ export default function DebaserProjectPage() {
       <ul className="space-y-1">
         {ARCHIVE_LINKS.filter((link) => SITE_ROOMS.includes(link.id)).map((link) => (
           <li key={link.id} className="text-[10px] font-bold">
-            <Link href={link.href} className="underline hover:bg-sun max-sm:flex max-sm:min-h-11 max-sm:w-fit max-sm:items-center">
+            <Link href={link.href} className="underline hover:bg-pointed max-sm:flex max-sm:min-h-11 max-sm:w-fit max-sm:items-center">
               {link.label}
             </Link>{' '}
             :: {link.summary}

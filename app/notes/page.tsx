@@ -56,7 +56,7 @@ export default function NotesPage() {
 
             {note.href === undefined || note.hrefLabel === undefined ? null : (
               <p className="text-[10px] font-bold">
-                <Link href={note.href} className="underline hover:bg-sun">
+                <Link href={note.href} className="underline hover:bg-pointed">
                   {note.hrefLabel}
                 </Link>
               </p>

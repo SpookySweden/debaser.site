@@ -81,7 +81,7 @@ export default function TagBadge({ tag, count, compact = false }: TagBadgeProps)
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`${tagChipClasses(tag, compact)} hover:bg-sun`}
+      className={`${tagChipClasses(tag, compact)} hover:bg-sun hover:text-ink-plate`}
     >
       <TagMark colour={tagMarkColour(tag)} compact={compact} />
       {tag.label}

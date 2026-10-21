@@ -57,7 +57,7 @@ export default function LibraryRow({
   const tags = normaliseAudioTags(track.tags);
 
   return (
-    <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-sun ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
+    <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="shrink-0 text-[10px] text-ink">{String(index + 1).padStart(2, '0')}.</span>
 

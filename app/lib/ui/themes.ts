@@ -107,6 +107,30 @@ export type ThemeTokens = {
   'ena-deep': string;
   /** Daffodil: every plate's face. */
   sun: string;
+  /**
+   * The row under the pointer: a board post, an archive file, a link on a page - anything that lights up
+   * while it is pointed at and carries the *field's* inks while it does.
+   *
+   * A token rather than `hover:bg-sun`, and the arithmetic is why. Daffodil does not move with the theme,
+   * but everything printed on such a row does - `ink`, `accent-ink`, `ink-quiet` and a name's colour are all
+   * field inks - so in the dark theme a pointed-at post was White on Daffodil (1.19:1) and its dates
+   * Daffodil on Daffodil (1:1). The highlight has to move with the field for its inks to keep reading.
+   * Daffodil in the default theme, so nothing there changes; Royal Blue in the dark one, chosen by Luke
+   * over Black for a highlight that shows: White 9.34:1, Daffodil 7.87:1, Flavine 8.20:1.
+   *
+   * Not for a chip whose own label is a bar ink (White on Rose): that label is stable, so a chip lights
+   * up `hover:bg-sun hover:text-ink-plate` instead - the plate pair, 17.72:1 in every theme.
+   */
+  pointed: string;
+  /**
+   * The same, for a board post this reader has already read (`ROW_READ` in controls.ts).
+   *
+   * A read row rests on `chrome-dark`, which is Royal Blue in the dark theme - so `pointed` would light
+   * it up in the colour it already is, and pointing at a read post would show nothing. Daffodil in the
+   * default theme (what a read row always lit up in), Black in the dark one: every field ink reads better
+   * on Black than on the field (White 21:1, Daffodil 19.56:1), so nothing on the row can fail.
+   */
+  'pointed-quiet': string;
   /** Flavine: the pale field panels are read on. */
   'sun-pale': string;
   ice: string;
@@ -195,6 +219,9 @@ export const DEFAULT_THEME: Theme = {
     ena: '#1d3ca6',
     'ena-deep': '#1a1525',
     sun: '#fff000',
+    // The pointed-at row is the plate's Daffodil here, exactly the `hover:bg-sun` it used to be.
+    pointed: '#fff000',
+    'pointed-quiet': '#fff000',
     'sun-pale': '#e1ff00',
     ice: '#e1ff00',
     'ice-pale': '#e1ff00',
@@ -281,6 +308,12 @@ export const DARK_THEME: Theme = {
     'ena-deep': '#000000',
     // Daffodil and Flavine keep their jobs, but the *fields* they were used for go dark.
     sun: '#fff000',
+    // Royal Blue: the field's own inks read on it (White 9.34:1, Daffodil 7.87:1), where on Daffodil they
+    // were 1.19:1 and 1:1. The cost, accepted: an Emerald or Brilliant Pink name - the GLOW row - is
+    // 4.15:1 / 2.56:1 while its row is pointed at.
+    pointed: '#1d3ca6',
+    // A read post already rests on Royal Blue here (`chrome-dark`), so it lights up Black instead.
+    'pointed-quiet': '#000000',
     'sun-pale': '#1a1525',
     ice: '#1a1525',
     'ice-pale': '#000000',

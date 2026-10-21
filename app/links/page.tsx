@@ -45,7 +45,7 @@ export default function LinksPage() {
             key={link.id}
             className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-[10px] font-bold"
           >
-            <Link href={link.href} className="text-xs underline hover:bg-sun max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+            <Link href={link.href} className="text-xs underline hover:bg-pointed max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
               {link.label}
             </Link>
             <span className="text-ink">{link.href}</span>

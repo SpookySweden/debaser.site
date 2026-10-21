@@ -123,7 +123,7 @@ function NotificationRow({
   );
 
   const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
-    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar'
+    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar hover:text-ink'
   } hover:bg-ice-pale max-sm:min-h-11`;
 
   if (target === null) {

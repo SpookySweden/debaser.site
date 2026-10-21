@@ -53,7 +53,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       className={`flex w-full cursor-pointer items-start gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-left text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         active
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice'
+          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
       }`}
     >
       <ThemeSwatch theme={theme} />
@@ -63,7 +63,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
           {theme.label}
           {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
         </span>
-        <span className={`mt-[2px] block text-[10px] font-normal ${active ? 'text-sun' : 'text-ink'}`}>
+        <span className={`mt-[2px] block text-[10px] font-normal ${active ? 'text-sun' : ''}`}>
           {theme.note}
         </span>
       </span>

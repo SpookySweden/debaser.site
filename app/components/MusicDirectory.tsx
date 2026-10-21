@@ -143,7 +143,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
   }
 
   return (
-    <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-sun ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
+    <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
       <div className={ROW_GRID}>
         <span className="text-[10px] text-ink">{String(index + 1).padStart(2, '0')}.</span>
 
@@ -286,10 +286,10 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-ink">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun-pale max-sm:min-h-11 max-sm:py-0">
-          <span className="w-4 shrink-0 text-ink">{open ? '[-]' : '[+]'}</span>
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:py-0">
+          <span className="w-4 shrink-0">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
-          <span className="shrink-0 text-ink">
+          <span className="shrink-0">
             {folder.fileCount} {pluralise(folder.fileCount, 'FILE')}
           </span>
 

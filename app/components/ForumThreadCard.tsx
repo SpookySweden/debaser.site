@@ -204,13 +204,18 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
           drawn. The poster's picture and the drawing are `group-hover` only, so
           the list stays tight until somebody points at the title or the name.
         */}
-        <summary className="cursor-pointer select-none list-none hover:bg-sun">
+        <summary
+          className={`cursor-pointer select-none list-none ${isRead ? 'hover:bg-pointed-quiet' : 'hover:bg-pointed'}`}
+        >
           {/*
             Two columns: the row itself on the left, and the band down the right carrying the post's
             words and the wire of its replies - filled whether or not a pointer is on the row, because
             it is the row's own detail rather than a reward for hovering. Hover is now only the
-            highlight `hover:bg-sun` puts on the whole summary, so nothing about a row arrives, and
-            the column is held open in both states so nothing moves either.
+            highlight `hover:bg-pointed` puts on the whole summary, so nothing about a row arrives, and
+            the column is held open in both states so nothing moves either. `pointed` rather than
+            `sun` because every ink on the row is a field ink: White on Daffodil was 1.19:1 in the
+            dark theme (see `pointed` in app/lib/ui/themes.ts). A read row asks for `pointed-quiet`,
+            because it already rests on the dark theme's Royal Blue.
           */}
           <div className="flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
