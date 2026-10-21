@@ -24,6 +24,13 @@ export type AccountUser = {
    * the admin - so this flag is how the directory says why a name went quiet.
    */
   banned?: boolean;
+  /**
+   * True for the site's own test accounts (TEST ACCOUNT A-D). They are left out of every list of people -
+   * the directory, who's online, every name picker - through `listedAccounts` (./hidden.ts), for every
+   * viewer. Their posts and messages are not hidden, and their names still resolve. Only a migration can
+   * set it (`profiles.is_hidden`, supabase/migrations/20261021000032_hidden_test_accounts.sql).
+   */
+  hidden?: boolean;
 };
 
 export type SignUpInput = {

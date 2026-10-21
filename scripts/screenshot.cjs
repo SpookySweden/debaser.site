@@ -32,7 +32,7 @@
  *     npm run shot -- --width 390 --height 844 --mobile     a phone
  *     npm run shot -- --scale 0.5                           a cheap reading, half the pixels
  *     npm run shot -- --wait-for "WHAT IS DRAWN"            wait for a chunk, not for a stopwatch
- *     npm run shot -- --signin                              a throwaway session, for a page behind one
+ *     npm run shot -- --signin                              signed in as kept test account A, for a page behind a session
  *     npm run shot -- --attach                              use the session `npm run browser -- --start` left
  *     npm run shot -- --profile Temp/browse/owner-profile   a profile signed in by hand, kept
  *
@@ -48,10 +48,9 @@
  * `--allow-ambiguous` says the ambiguity is intended: pressing the first of several matches is how a press
  * lands somewhere nobody named while the transcript says otherwise.
  *
- * `--signin` makes one of the throwaway accounts the checks make and hands the page its session, so a page
- * behind a session can be reached without a password. It leaves the account behind - removing it takes the
- * service role - so `npm run db:sweep` is what clears it up, after the last check run. `--reuse` makes no
- * account at all: it asks whether the profile already holds a session, and says which it found.
+ * `--signin` signs the page in as kept test account A (hidden from every list on the site) and hands it the
+ * session, so a page behind a session can be reached without typing a password. It makes no account. `--reuse`
+ * asks for no session at all: it asks whether the profile already holds a session, and says which it found.
  */
 const { readFileSync } = require('node:fs');
 const path = require('node:path');
@@ -197,8 +196,7 @@ function note(label, value) {
 /**
  * The session, handed over before the page's own scripts run.
  *
- * `--signin` is the old behaviour: make one throwaway account and give the page its session. `--reuse`
- * makes **no account at all** - it asks the profile whether it already holds one, and the answer is printed
+ * `--signin` gives the page kept test account A's session. `--reuse` asks for **no session at all** - it asks the profile whether it already holds one, and the answer is printed
  * either way, because "this capture is signed in" and "this capture is of a signed-out page" look identical
  * afterwards.
  */

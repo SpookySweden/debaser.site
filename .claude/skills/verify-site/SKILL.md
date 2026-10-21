@@ -64,6 +64,6 @@ for step 6.
 - The two screenshots.
 - What was **not** checked: whether it looks right is Luke's call; one still frame cannot show motion or
   hover/tap reveals; pages other than ADDRESS were not screenshotted; anything skipped and why.
-- Housekeeping: step 2 (the checks) left throwaway accounts on `/users`. Clearing them is a delete - offer
-  `npm run db:sweep:review` to list them, and run `npm run db:sweep` only after Luke says yes and only
-  after the last check run.
+- Housekeeping: none from the checks. They sign in as the kept, hidden test accounts (TEST ACCOUNT A-D) and
+  make no account. If `npm run db:sweep:review` ever lists leftovers, removing them is a delete - run
+  `npm run db:sweep` only after Luke says yes.

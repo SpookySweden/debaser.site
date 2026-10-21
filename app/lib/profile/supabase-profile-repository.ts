@@ -757,12 +757,17 @@ class SupabaseProfileRepository implements ProfileRepository {
     return data === null ? null : toPresence(data as PresenceRow);
   }
 
-  /** No ids means everybody the table knows, which is what the directory wants. */
+  /**
+   * No ids means everybody the table knows but the hidden test accounts (`is_hidden`, see
+   * app/lib/auth/hidden.ts): that is who's online, and they are never in it. Asking by id still answers.
+   */
   async listPresence(userIds?: string[]): Promise<PresenceRecord[]> {
     const columns = 'id, last_seen_at, is_online';
     const query = this.client().from(PROFILES_TABLE).select(columns);
     const { data, error } =
-      userIds === undefined || userIds.length === 0 ? await query : await query.in('id', userIds);
+      userIds === undefined || userIds.length === 0
+        ? await query.eq('is_hidden', false)
+        : await query.in('id', userIds);
 
     if (error !== null) this.fail(error.message);
 

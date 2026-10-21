@@ -44,7 +44,7 @@ type GamesHubProps = {
  */
 export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   const { user } = useAuth();
-  const { accounts, recordGameEvent } = useComms();
+  const { accounts, allAccounts, recordGameEvent } = useComms();
   const presence = usePresenceDirectory();
   const { notifyInvited } = useNotifications();
   const repository = useMemo(() => getGamesRepository(), []);
@@ -255,18 +255,19 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   /**
    * The account the window was opened to ask, or null when it was not opened for one.
    *
-   * The name is read from the directory rather than from the address, so a hand-written
-   * `?challenge=<id>` link cannot label somebody as somebody else. An id the directory has never
-   * heard of is still askable - the store knows both accounts - and falls back to the id itself.
+   * The name is read from the account list rather than from the address, so a hand-written
+   * `?challenge=<id>` link cannot label somebody as somebody else - the whole list, so a hidden test
+   * account reached by its link still has its name. An id the list has never heard of is still
+   * askable - the store knows both accounts - and falls back to the id itself.
    */
   const challengeOpponent = useMemo(() => {
     if (focus.kind !== 'challenge') return null;
 
     return {
       id: focus.opponentId,
-      displayName: accounts.find((account) => account.id === focus.opponentId)?.displayName ?? focus.opponentId,
+      displayName: allAccounts.find((account) => account.id === focus.opponentId)?.displayName ?? focus.opponentId,
     };
-  }, [accounts, focus]);
+  }, [allAccounts, focus]);
 
   /** Why the invitation cannot be sent yet, or null when it can: `lib/games/challenges.ts` decides. */
   const challengeRefusalText =

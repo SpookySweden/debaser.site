@@ -239,13 +239,19 @@ class SupabaseAuthRepository implements AuthRepository {
   async listAccounts(): Promise<AccountUser[]> {
     const { data, error } = await this.client()
       .from('profiles')
-      .select('id, display_name, created_at, banned_at')
+      .select('id, display_name, created_at, banned_at, is_hidden')
       .order('created_at', { ascending: true });
 
     if (error !== null) throw new Error(error.message.toUpperCase());
 
     return (
-      (data ?? []) as { id: string; display_name: string; created_at: string; banned_at: string | null }[]
+      (data ?? []) as {
+        id: string;
+        display_name: string;
+        created_at: string;
+        banned_at: string | null;
+        is_hidden: boolean;
+      }[]
     ).map((row) => ({
       id: row.id,
       email: '',
@@ -253,6 +259,8 @@ class SupabaseAuthRepository implements AuthRepository {
       createdAt: row.created_at,
       backend: 'supabase',
       ...(row.banned_at === null ? {} : { banned: true }),
+      // The test accounts: still answered, so their names resolve, and left out of lists by `listedAccounts`.
+      ...(row.is_hidden ? { hidden: true } : {}),
     }));
   }
 

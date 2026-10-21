@@ -30,11 +30,10 @@ dropped it from the suite, because the file changed address and the loop did not
 tidied is the same fault as a check that has never failed, and harder to notice, so a check the
 documentation names is now tracked in `scripts/` *and* still run here.
 
-**The checks that run are not the quiet ones.** A live check is skipped here, but several of the rest
-sign accounts up too - a policy cannot be asked anything without a session - and the client cannot
-delete what it made, so the directory on `/users` fills up with `probe actor` and `diag <stamp>`.
-`npm run db:sweep` is the command that clears it, and it goes **after** the last check run, never
-before.
+**The checks that run sign in, and sign nobody up.** A policy cannot be asked anything without a session,
+so a live check signs in as the kept test accounts TEST ACCOUNT A-D (`testAccountClient` in browser.cjs),
+which no list of people on the site shows (`profiles.is_hidden`). They used to sign a new account up per
+run, which filled `/users`; `npm run db:sweep` is still there for any old leftovers.
 
 There used to be a second copy of this runner in `Temp/`, and this file used to invite people to run
 it. It had drifted a thousand bytes behind the tracked one, which made it a runner that silently

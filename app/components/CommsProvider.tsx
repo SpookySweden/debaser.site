@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { getAuthRepository } from '../lib/auth/auth-repository';
+import { listedAccounts } from '../lib/auth/hidden';
 import type { AccountUser } from '../lib/auth/types';
 import { COMMS_DATA_SOURCE, getCommsRepository } from '../lib/comms/repository';
 import { COMMS_POLL_MS, sortThreadsNewestFirst, unreadCount } from '../lib/comms/threads';
@@ -19,8 +20,17 @@ export type CommsContextValue = {
   threads: CommsThread[];
   /** Messages waiting across every conversation, for the nav badge. */
   unreadTotal: number;
-  /** Every account this browser can see, for the "new message" picker. */
+  /**
+   * The people a list may show: every account but the hidden test accounts (`listedAccounts`). The
+   * directory, its online counts, the "new message" and tagging pickers and the arcade's challenge list
+   * all read this, so none of them can offer a test account.
+   */
   accounts: AccountUser[];
+  /**
+   * Every account, the hidden test accounts included - for looking one person up by id (a join date, a
+   * challenger's name), never for a list.
+   */
+  allAccounts: AccountUser[];
   /**
    * False until the account list has been read.
    *
@@ -100,7 +110,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
   const [mine, setMine] = useState<CommsThread[]>([]);
   const [ready, setReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [accounts, setAccounts] = useState<AccountUser[]>([]);
+  const [allAccounts, setAllAccounts] = useState<AccountUser[]>([]);
   const [accountsReady, setAccountsReady] = useState(false);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   /** Bumped by `retry`: every read below runs again when it changes. */
@@ -159,7 +169,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       .listAccounts()
       .then((next) => {
         if (cancelled) return;
-        setAccounts(next);
+        setAllAccounts(next);
         setAccountsReady(true);
       })
       .catch(() => {
@@ -180,7 +190,12 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
     [mine, userId],
   );
   const threads = useMemo(() => sortThreadsNewestFirst(mineForUser), [mineForUser]);
-  const nameById = useMemo(() => new Map(accounts.map((account) => [account.id, account.displayName])), [accounts]);
+  const accounts = useMemo(() => listedAccounts(allAccounts), [allAccounts]);
+  // Names come from everybody, so a test account's messages are still signed with its name.
+  const nameById = useMemo(
+    () => new Map(allAccounts.map((account) => [account.id, account.displayName])),
+    [allAccounts],
+  );
   const unreadTotal = useMemo(
     () => (userId === null ? 0 : threads.reduce((total, thread) => total + unreadCount(thread, userId), 0)),
     [threads, userId],
@@ -369,6 +384,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       threads,
       unreadTotal,
       accounts,
+      allAccounts,
       accountsReady,
       nameById,
       error,
@@ -395,6 +411,7 @@ export default function CommsProvider({ children }: { children: React.ReactNode 
       threads,
       unreadTotal,
       accounts,
+      allAccounts,
       accountsReady,
       nameById,
       error,

@@ -37,8 +37,7 @@
  * page renders and answers `0` canvases, so a stage image of a refusal would read as "the pane is empty".
  *
  * A reader reaches the workbench through the plates a reader presses: the customiser, then `CHAR`. Reaching it
- * needs a session, so `--signin` makes one of the throwaway accounts the checks make and hands the page its
- * session - which leaves the account behind for `npm run db:sweep`. `--attach` uses the browser
+ * needs a session, so `--signin` signs the page in as kept test account A (no account is made). `--attach` uses the browser
  * `npm run browser -- --start --signin` left running, which costs no account at all.
  *
  * Run: node scripts/measure-stages.cjs [--url <address>] [--signin|--reuse] [--attach] [--at <ms>]

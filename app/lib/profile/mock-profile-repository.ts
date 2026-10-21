@@ -4,6 +4,7 @@ import {
   SITE_ACCOUNT_ID,
   SITE_ACCOUNT_NAME_COLOUR,
 } from '../auth/builtin-account';
+import { locallyHiddenAccountIds } from '../auth/mock-auth';
 import { isNameColour } from './name-colours';
 import { NO_COUNTRY, normalizeCountryCode } from './countries';
 import type { PresenceRecord } from './presence';
@@ -297,6 +298,15 @@ function presenceSnapshot(): PresenceRecord[] {
   return Object.values(ensurePresence()).sort((a, b) => a.userId.localeCompare(b.userId));
 }
 
+/**
+ * Who's online, as a list: everybody but the hidden test accounts (`locallyHiddenAccountIds`), the same rule
+ * the Supabase store applies with `is_hidden`. Asking for one account by id still answers.
+ */
+function listedPresenceSnapshot(): PresenceRecord[] {
+  const hidden = new Set(locallyHiddenAccountIds());
+  return presenceSnapshot().filter((record) => !hidden.has(record.userId));
+}
+
 function persistPresence(): void {
   if (!hasStorage()) return;
 
@@ -313,7 +323,7 @@ function commitPresence(record: PresenceRecord): PresenceRecord {
   ensurePresence()[record.userId] = record;
   persistPresence();
 
-  const snapshot = presenceSnapshot();
+  const snapshot = listedPresenceSnapshot();
   for (const listener of presenceListeners) listener(snapshot);
 
   return record;
@@ -664,9 +674,9 @@ class MockProfileRepository implements ProfileRepository {
     return ensurePresence()[userId] ?? null;
   }
 
-  /** No ids means everything this store knows, which is what the board wants. */
+  /** No ids means everybody this store knows but the hidden test accounts, which is what the board wants. */
   async listPresence(userIds?: string[]): Promise<PresenceRecord[]> {
-    if (userIds === undefined || userIds.length === 0) return presenceSnapshot();
+    if (userIds === undefined || userIds.length === 0) return listedPresenceSnapshot();
 
     const wanted = new Set(userIds);
     return presenceSnapshot().filter((record) => wanted.has(record.userId));

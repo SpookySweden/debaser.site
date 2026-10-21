@@ -35,7 +35,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 ## Safety
 - IMPORTANT: no database changes (inserts, updates, deletes, schema, migrations) without my explicit OK and a plain-English description of what will happen. Read-only diagnostic queries are fine. Reason: a wrong query on live data can't be undone.
 - When a database change is OK'd: schema goes through migrations (`npm run db:new -- name`, `npm run db:push:dry`, then `npm run db:push`), written so it can be re-run (`if not exists`, policies dropped and recreated by name). Every table gets Row Level Security so people can only edit or delete their own things. Deletes are reviewed first: list exactly what would go, check the survivors, then remove (`supabase/cleanup/` is the pattern).
-- `npm run checks` signs up throwaway accounts that show up in the `/users` directory. `npm run db:sweep:review` lists them and `npm run db:sweep` removes them. The sweep is a delete, so ask me first, and only run it after the last check run, never before.
+- Checks and tools never sign up new accounts: they sign in as the kept test accounts TEST ACCOUNT A-D, which are hidden from every list of people on the site (`profiles.is_hidden`, set only by a migration). If old throwaways ever turn up, `npm run db:sweep:review` lists them and `npm run db:sweep` removes them; the sweep is a delete, so ask me first.
 - IMPORTANT: secrets (API keys, passwords, the Supabase access token) live in `.env.local` only. Never write them into code, logs, commits or this file. `.env.production` is committed, so it only holds `NEXT_PUBLIC_*` values.
 - Test with the kept test accounts or throwaways only, never real user accounts.
 - Tell me before deleting files or large blocks of code.

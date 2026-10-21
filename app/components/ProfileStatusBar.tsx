@@ -30,14 +30,14 @@ type ProfileStatusBarProps = {
  * about - is all this line and the panel above it carry.
  */
 export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
-  const { accounts } = useComms();
+  const { allAccounts } = useComms();
   const presence = usePresence(userId);
   const now = useNow();
 
   // The account list is the only public source of a join date: a profile row carries no `created_at`,
   // and the auth row belongs to its owner. An account the directory has not read yet prints `--:--`
-  // through `TimeStamp` rather than an invented date.
-  const joinedAt = accounts.find((account) => account.id === userId)?.createdAt ?? null;
+  // through `TimeStamp` rather than an invented date. Every account, so a test account's page has one too.
+  const joinedAt = allAccounts.find((account) => account.id === userId)?.createdAt ?? null;
 
   const line = presence.status === undefined ? 'CHECKING...' : presenceLine(presence.status, presence.record, now);
 

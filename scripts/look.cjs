@@ -43,7 +43,7 @@
  *
  * Run:
  *   node scripts/look.cjs [--url <address>] [--out <file.png>] [--allow-error-page]
- *   node scripts/look.cjs --signin           a throwaway session, so `/account` opens the customiser
+ *   node scripts/look.cjs --signin           signed in as kept test account A, so `/account` opens the customiser
  *   node scripts/look.cjs --attach           use the session `npm run browser -- --start` left running
  *   node scripts/look.cjs --stages           press each render stage and read the buffer after each
  *   node scripts/look.cjs --dump             print the buttons and headings the page actually has

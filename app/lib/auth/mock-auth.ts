@@ -49,6 +49,11 @@ type StoredUser = {
   secretHash: string;
   /** True for the house account, which the archive owner signs into. */
   builtIn?: boolean;
+  /**
+   * True for a test account: left out of every list of people (`listedAccounts`, ../auth/hidden.ts). The
+   * mock has no migration to set it, so only the seeded test person below carries it.
+   */
+  hidden?: boolean;
 };
 
 type PersistedAuth = {
@@ -144,6 +149,7 @@ function toAccount(user: StoredUser, banned = false): AccountUser {
     createdAt: user.createdAt,
     backend: 'mock',
     ...(banned ? { banned: true } : {}),
+    ...(user.hidden === true ? { hidden: true } : {}),
   };
 }
 
@@ -156,6 +162,13 @@ function toAccount(user: StoredUser, banned = false): AccountUser {
  */
 export function locallyBannedAccountIds(): string[] {
   return [...readState().bannedIds];
+}
+
+/** The hidden (test) account ids, read the same way, so the mock's who's-online list can leave them out. */
+export function locallyHiddenAccountIds(): string[] {
+  return readState()
+    .users.filter((user) => user.hidden === true)
+    .map((user) => user.id);
 }
 
 function currentAccount(): AccountUser | null {
@@ -206,7 +219,33 @@ async function hashSecret(secret: string, salt: string): Promise<string> {
  */
 let builtInAccount: Promise<void> | null = null;
 
+/**
+ * The mock's stand-in for the site's hidden test accounts (TEST ACCOUNT A-D on Supabase): somebody who
+ * exists, so the lists have someone to leave out, and whom no list ever shows. Nobody signs in as it - the
+ * stored hash is no hash of any password - and a browser that already holds it keeps it.
+ */
+export const MOCK_HIDDEN_ACCOUNT_ID = 'mock-test-account';
+
+function seedHiddenAccount(): void {
+  const current = readState();
+  if (current.users.some((user) => user.id === MOCK_HIDDEN_ACCOUNT_ID)) return;
+
+  const user: StoredUser = {
+    id: MOCK_HIDDEN_ACCOUNT_ID,
+    email: 'test-mock@debaser.site',
+    displayName: 'TEST ACCOUNT (MOCK)',
+    createdAt: new Date().toISOString(),
+    salt: '',
+    secretHash: '',
+    hidden: true,
+  };
+
+  writeState({ ...current, users: [...current.users, user] });
+}
+
 async function seedBuiltInAccount(): Promise<void> {
+  seedHiddenAccount();
+
   const current = readState();
   if (current.users.some((user) => user.id === SITE_ACCOUNT_ID)) return;
 
