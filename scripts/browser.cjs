@@ -823,9 +823,8 @@ async function stopSession({ keepProfile = false } = {}) {
  * without anybody typing a password into a browser window: **the tool does not need a password, and it
  * must never print a token.**
  *
- * The account is one of the throwaway ones the checks already make. It cannot be deleted from here - that
- * takes the service role - so `npm run db:sweep` is what clears it up afterwards, and the count of
- * accounts a session leaves behind is one, not one per capture.
+ * Only `signInTestAccount` calls it, and only for a kept test account that does not exist yet: no tool makes
+ * a throwaway account any more, so nothing is left behind for a sweep.
  */
 async function signUp(email, password, displayName) {
   loadEnv();
@@ -856,22 +855,26 @@ async function signUp(email, password, displayName) {
 }
 
 /**
- * The kept test accounts. The tools sign in as A instead of making a throwaway per run, so the directory on
- * /users stops filling up; B is there for anything that needs a second person. The password is
- * `DEBASER_TEST_PASSWORD` in `.env.test` (gitignored, kept apart from the real secrets), never in code, and
- * the first sign-in makes the account. Neither
- * address matches the sweep's patterns, so `npm run db:sweep` leaves them alone.
+ * The kept test accounts, the only accounts a tool or a check ever signs in as: nothing makes a new account
+ * per run any more. A is the default; B, C and D are there for anything that needs more people. All four are
+ * hidden from every list of people on the site (the directory, who's online, every name picker) by
+ * `profiles.is_hidden`, which only a migration or the service role can set
+ * (supabase/migrations/20261021000032_hidden_test_accounts.sql). The password is `DEBASER_TEST_PASSWORD` in
+ * `.env.test` (gitignored, kept apart from the real secrets), never in code. No address matches the sweep's
+ * patterns, so `npm run db:sweep` leaves them alone.
  */
 const TEST_ACCOUNTS = {
   A: { email: 'test-a@debaser.site', displayName: 'TEST ACCOUNT A' },
   B: { email: 'test-b@debaser.site', displayName: 'TEST ACCOUNT B' },
+  C: { email: 'test-c@debaser.site', displayName: 'TEST ACCOUNT C' },
+  D: { email: 'test-d@debaser.site', displayName: 'TEST ACCOUNT D' },
 };
 
 function testPassword() {
   try {
     process.loadEnvFile('.env.test');
   } catch {
-    // no file: the tools fall back to throwaways
+    // no file: there is no account to sign in as, and the caller says so
   }
   return process.env.DEBASER_TEST_PASSWORD || null;
 }
@@ -897,9 +900,41 @@ async function signInTestAccount(letter = 'A') {
   }
   if (!/invalid login credentials/i.test(error.message)) return { error: error.message };
 
-  // First use: the account does not exist yet, so make it once.
+  // First use: the account does not exist yet, so make it once. A new account is listed like anybody else's
+  // until it is marked hidden, and marking it is a database write (the migration's last statement, re-run).
   const made = await signUp(email, password, displayName);
-  return made.error ? made : { ...made, who: `kept test account ${letter} (made just now)` };
+  return made.error
+    ? made
+    : { ...made, who: `kept test account ${letter} (made just now - listed on /users until it is marked hidden)` };
+}
+
+/**
+ * A kept test account as a signed-in Supabase client, for a script that talks to the database itself rather
+ * than through a page: `{ client, id, email, displayName }`, or a throw that says why not. It never makes an
+ * account - `signInTestAccount` above is the one place that can.
+ *
+ * Sign it out with `client.auth.signOut({ scope: 'local' })`. The default scope signs the account out
+ * *everywhere*, which would end the browser session another tool is holding as the same account.
+ */
+async function testAccountClient(letter = 'A') {
+  loadEnv();
+
+  const password = testPassword();
+  if (!password) throw new Error('no DEBASER_TEST_PASSWORD in .env.test');
+
+  const { createClient } = require('@supabase/supabase-js');
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !key) throw new Error('no Supabase project in the environment and no readable .env.local');
+
+  const { email, displayName } = TEST_ACCOUNTS[letter];
+  const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { data, error } = await client.auth.signInWithPassword({ email, password });
+
+  if (error !== null) throw new Error(`kept test account ${letter} could not sign in: ${error.message}`);
+
+  return { client, id: data.user.id, email, displayName };
 }
 
 /** The localStorage key a Supabase session lives under, for a project. */
@@ -938,32 +973,18 @@ async function mustFind(page, target, { within = null, allowAmbiguous = false, w
 }
 
 /**
- * Make one throwaway account and hand the page its session - the one place this happens.
- *
- * `label` becomes the account's prefix, and every label here starts `cline-`, because that is the pattern
- * `supabase/cleanup/throwaway-accounts-review.sql` already reviews: an account a tool makes is one
- * `npm run db:sweep` knows how to find.
+ * Sign the page in as kept test account A and hand it the session. There is no throwaway fallback: without
+ * `DEBASER_TEST_PASSWORD` in `.env.test` this says so and signs nothing in, rather than making an account
+ * that would sit on /users until a sweep. (Callers may still pass `{ label }`; it is no longer used.)
  */
-async function signInPage(page, { label = 'cline-shoot', stamp = null } = {}) {
+async function signInPage(page) {
   loadEnv();
 
-  // The kept test account when its password is set; a throwaway only when it is not.
-  if (testPassword()) {
-    const kept = await signInTestAccount('A');
-    if (kept.error) return { error: kept.error };
+  const kept = await signInTestAccount('A');
+  if (kept.error) return { error: kept.error };
 
-    await installSession(page, kept);
-    return kept;
-  }
-
-  const at = stamp ?? new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
-  const account = await signUp(`${label}-${at}@debaser.site`, `${label}-${at}-pw`, `${label} ${at}`);
-
-  if (account.error) return { error: account.error };
-
-  await installSession(page, account);
-
-  return { ...account, who: 'a throwaway - left behind for `npm run db:sweep`' };
+  await installSession(page, kept);
+  return kept;
 }
 
 /** Whether this page's origin already holds a Supabase session for the project in `.env.local`. */
@@ -1010,7 +1031,7 @@ module.exports = {
   sessionAlive,
   signInPage,
   signInTestAccount,
-  signUp,
+  testAccountClient,
   sleep,
   startSession,
   stopSession,
@@ -1025,7 +1046,7 @@ module.exports = {
  *
  *     npm run browser                       what session is up, if any
  *     npm run browser -- --start            open the reusable browser
- *     npm run browser -- --start --signin   ... and sign one throwaway account into it, once
+ *     npm run browser -- --start --signin   ... and sign kept test account A into it, once
  *     npm run browser -- --open <address>   attach, arrive, and print what the page says
  *     npm run browser -- --stop             close it, and remove its profile
  *
@@ -1079,8 +1100,8 @@ async function main() {
 
     if (!has('--signin')) {
       console.log('');
-      console.log('NOT SIGNED IN: a page behind a session will render signed out. `--start --signin` makes one');
-      console.log('throwaway account for the whole session instead of one per capture.');
+      console.log('NOT SIGNED IN: a page behind a session will render signed out. `--start --signin` signs');
+      console.log('kept test account A in for the whole session.');
       return;
     }
 
@@ -1109,7 +1130,7 @@ async function main() {
   }
 }
 
-/** One throwaway account, handed to the session's page once - the reason a session exists. */
+/** Kept test account A, handed to the session's page once - the reason a session exists. */
 async function signInSession(session, url) {
   let page = null;
 

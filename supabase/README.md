@@ -85,6 +85,7 @@ order `db push` applies them:
     20260930000029_profile_country_flag.sql
     20260930000030_music_queue_playing.sql     is_playing on a broadcast queue (add-only, default true)
     20261013000031_window_layouts.sql          one row per account: docked-window layouts per screen shape (own row only)
+    20261021000032_hidden_test_accounts.sql    profiles.is_hidden: TEST ACCOUNT A-D left out of every list of people; only a migration can set it
 
 The date part is the date the section was written; the time part is **the
 schema section it holds**. That is deliberate: the old names were
