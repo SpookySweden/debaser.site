@@ -164,13 +164,6 @@ export function locallyBannedAccountIds(): string[] {
   return [...readState().bannedIds];
 }
 
-/** The hidden (test) account ids, read the same way, so the mock's who's-online list can leave them out. */
-export function locallyHiddenAccountIds(): string[] {
-  return readState()
-    .users.filter((user) => user.hidden === true)
-    .map((user) => user.id);
-}
-
 function currentAccount(): AccountUser | null {
   const current = readState();
   const user = current.users.find((item) => item.id === current.sessionUserId);

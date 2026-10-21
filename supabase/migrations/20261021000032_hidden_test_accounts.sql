@@ -13,8 +13,9 @@
 -- a profile still opens by its direct link: only the lists skip them.
 --
 -- The marker lives here; the lists are the app's. Every list of people is drawn from the account list, and
--- `listedAccounts()` (app/lib/auth/hidden.ts) is the one place that drops a hidden account from it; who's
--- online is `listPresence()` in the profile repositories, which leaves hidden accounts out the same way.
+-- `listedAccounts()` (app/lib/auth/hidden.ts) is the one place that drops a hidden account from it - the
+-- lists of who is online included, which are drawn from it too. (Comment corrected after this file was
+-- pushed; the statements are unchanged.)
 -- The column is readable by everybody, like the rest of the profile row, because the app filters on it.
 --
 -- Who may set it: nobody who is visiting the site. Not the account itself (or anybody could vanish from the
