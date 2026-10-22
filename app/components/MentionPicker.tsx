@@ -43,7 +43,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
           id={`${id}-mention`}
           value={picked}
           onChange={(event) => setPicked(event.target.value)}
-          className="max-w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11"
+          className="max-w-40 frame bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11"
         >
           <option value="">PICK AN ACCOUNT...</option>
           {accounts

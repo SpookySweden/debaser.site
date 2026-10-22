@@ -40,7 +40,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
     <div id={id} className="rounded-none border border-ink bg-ice-pale p-1">
       <div className="flex flex-col gap-1 sm:flex-row">
         <div
-          className={`w-full overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 sm:w-3/5 ${heightClass}`}
+          className={`w-full overflow-y-auto frame bg-paper p-1 sm:w-3/5 ${heightClass}`}
         >
           {/* 84px tiles: the labels are 10px, the floor where the pixel font still reads, and `TEXT ONLY`
               is 74px at that size. At 64px it was cut, and `[ NONE ]` broke onto two lines. */}

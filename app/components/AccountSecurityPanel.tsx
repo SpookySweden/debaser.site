@@ -148,9 +148,9 @@ export default function AccountSecurityPanel() {
   return (
     <section
       id="edit-account"
-      className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
+      className="frame bg-sun-pale"
     >
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <div className="title-line text-accent-ink">
         <span>EDIT ACCOUNT</span>
         <span>[ EDIT ]</span>
       </div>

@@ -468,7 +468,7 @@ export default function MusicDirectory() {
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => setTagsOpen(true)}
             placeholder="TRACK, FOLDER, ARTIST OR TAG"
-            className="min-w-40 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[14px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
+            className="min-w-40 flex-1 frame bg-paper p-1 font-mono text-[14px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           />
 
           <button type="button" onClick={() => setTagsOpen(!tagsOpen)} aria-expanded={tagsOpen} className={PLATE}>
@@ -485,7 +485,7 @@ export default function MusicDirectory() {
             id="music-sort"
             value={sort}
             onChange={(event) => setSort(event.target.value as TrackSort)}
-            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
+            className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           >
             {TRACK_SORTS.map((entry) => (
               <option key={entry.value} value={entry.value} title={entry.hint}>
@@ -572,7 +572,7 @@ export default function MusicDirectory() {
           </p>
         ) : null}
 
-        <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
+        <div className="mt-1 frame bg-paper">
           {/* The directory's own column labels, and nothing else. */}
           <div
             className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar sm:grid`}

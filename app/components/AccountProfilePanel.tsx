@@ -69,8 +69,8 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
   }, [compact, ownTrack, player, profile, ready]);
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+    <section className="frame bg-sun-pale">
+      <div className="title-line text-accent-ink">
         <span>PUBLIC PROFILE</span>
         <span>[ {ready ? 'READY' : 'READING...'} ]</span>
       </div>

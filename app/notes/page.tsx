@@ -29,9 +29,9 @@ export default function NotesPage() {
         <section
           key={note.id}
           id={note.id}
-          className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
+          className="frame bg-sun-pale"
         >
-          <div className="flex flex-wrap items-center justify-between gap-2 bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+          <div className="title-line flex-wrap text-accent-ink">
             <span>{note.title}</span>
             {/* The stamp is the board's blue on light panels; on the navy bar it
                 stays plain white so it can be read. */}

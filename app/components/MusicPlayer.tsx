@@ -333,7 +333,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               music key, which made it the last of six controls rather than part of the bar's identity -
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
-          <span className="flex items-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-[2px]">
+          <span className="flex items-center gap-1 frame bg-sun-pale p-[2px]">
             <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[13px] font-bold text-ink-bar">
               ♪ DEBASER PLAYER
             </span>
@@ -349,7 +349,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           </span>
 
           {/* The LED: a black inset panel, the way a shelf stereo reads out. */}
-          <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+          <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1">
             {/* The song, in the same details format RADI-OH uses (`TrackDetails`): the uploader's picture,
                 what it is being heard as part of, the name, and where it is out of its length. */}
             <NowPlaying
@@ -490,7 +490,7 @@ function TransportPad({
   const ANIMATION = { playing: 'animate-blip', paused: undefined, looping: 'animate-wobble' } as const;
 
   return (
-    <span className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-1">
+    <span className="frame bg-sun-pale p-1">
       <span className="flex items-stretch gap-1">
         <button
           type="button"
@@ -507,13 +507,13 @@ function TransportPad({
 
         {/* The one cell: a single symbol, the state it is showing, and the next state as the tooltip -
             so a reader who is unsure gets the answer from the title rather than from guessing. */}
-        <span className="flex items-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-1 py-[2px]">
+        <span className="flex items-center frame bg-hardware px-1 py-[2px]">
           <button
             type="button"
             onClick={onCycle}
             disabled={disabled}
             title={`${WORD[state]} - press for ${WORD[state === 'playing' ? 'paused' : state === 'paused' ? 'looping' : 'playing']}`}
-            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-chrome-dark"
+            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
               {MARK[state]}
@@ -624,7 +624,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const seekable = lengthSeconds > 0;
 
   return (
-    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
       {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
           edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
           which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The
@@ -678,7 +678,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
 
       <div className="p-2">
         {/* The readout, the same green on black the bar has. */}
-        <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+        <div className="frame bg-hardware px-2 py-1">
           <NowPlaying />
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
           <p className="truncate text-[13px] text-ink-bar">

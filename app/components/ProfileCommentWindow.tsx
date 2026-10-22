@@ -93,7 +93,7 @@ function VersionStrip({
           </Choice>
 
           {version.kind !== 'picture' ? null : (
-            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 group-hover:block">
+            <span className="pointer-events-none absolute bottom-full left-0 z-10 mb-1 hidden w-40 frame bg-sun-pale p-1 group-hover:block">
               <SheetImage
                 src={version.src}
                 alt={version.credit}
@@ -141,7 +141,7 @@ function AspectPreview({
         />
       ) : aspect === 'song' && shown !== undefined ? (
         <>
-          <div className="w-64 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+          <div className="w-64 frame bg-hardware px-2 py-1">
             <p className="truncate text-[14px] font-bold text-acid">{shown.title}</p>
             {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
             <p className="mt-1 truncate text-[13px] text-ink-bar">

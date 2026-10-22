@@ -65,7 +65,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
           {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
         </button>
 
-        <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-[2px]">
+        <span className="min-w-0 flex-1 frame bg-hardware px-2 py-[2px]">
           <span className={`block truncate font-bold text-acid ${compact ? 'text-[13px]' : 'text-[14px]'}`}>
             {track.title}
           </span>

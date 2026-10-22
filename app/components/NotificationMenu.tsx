@@ -228,7 +228,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   };
 
   return (
-    <div className={chrome ? 'w-full rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale' : 'w-full'}>
+    <div className={chrome ? 'w-full frame bg-sun-pale' : 'w-full'}>
       {!chrome ? null : (
         <div className={TITLE_BAR}>
           <span>NOTIFICATIONS :: {summary}</span>

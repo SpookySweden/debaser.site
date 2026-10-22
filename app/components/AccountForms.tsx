@@ -111,8 +111,8 @@ export default function AccountForms() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className="frame bg-sun-pale">
+        <div className="title-line text-accent-ink">
           <span>CREATE ACCOUNT</span>
           <span>[ SIGN UP ]</span>
         </div>
@@ -184,8 +184,8 @@ export default function AccountForms() {
         </form>
       </section>
 
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className="frame bg-sun-pale">
+        <div className="title-line text-accent-ink">
           <span>LOG IN</span>
           <span>[ SESSION ]</span>
         </div>

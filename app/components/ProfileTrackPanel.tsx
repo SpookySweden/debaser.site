@@ -30,14 +30,14 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
   const playing = element !== undefined && player.track?.src === element.src && player.playing;
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+    <div className="frame bg-sun-pale p-2">
       <div className="flex items-baseline justify-between gap-2 text-[13px] font-bold text-ink">
         <span className="text-ink">{owner ? 'your track' : 'their track'}</span>
         <span className="text-ink">{element === undefined ? 'nothing filed' : element.tag}</span>
       </div>
 
       {/* The readout, in the player's own colours: it is the same shelf, one track over. */}
-      <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+      <div className="mt-1 frame bg-hardware px-2 py-1">
         <p className="truncate text-[14px] font-bold text-acid">
           {element === undefined ? 'NOTHING FILED YET' : element.title}
         </p>

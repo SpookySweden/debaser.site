@@ -47,7 +47,7 @@ const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
  */
 export default function CharacterEditorPanel() {
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <div className="frame bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>
         <span>CHARACTER // WORKBENCH</span>
         <span className="flex items-center gap-2">

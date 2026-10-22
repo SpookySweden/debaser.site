@@ -55,7 +55,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
           YOU HAVE {summarise(changes)} THAT HAVE NOT BEEN SAVED. {what} PAGES THEM AWAY, AND THERE IS NO UNDO.
         </p>
 
-        <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+        <div className="frame bg-sun-pale">
           <button
             type="button"
             onClick={() => setOpen((current) => !current)}
@@ -73,14 +73,14 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
                 <li key={`${change.tab}-${change.label}-${index}`} className="px-2 py-1">
                   <p className="font-bold">
                     {change.label}
-                    <span className="ml-2 font-normal text-ink-plate">ON THE {change.tab.toUpperCase()} TAB</span>
+                    <span className="ml-2 font-normal text-ink-quiet">ON THE {change.tab.toUpperCase()} TAB</span>
                   </p>
-                  <p className="text-ink-plate">{change.detail}</p>
+                  <p className="text-ink-quiet">{change.detail}</p>
                 </li>
               ))}
             </ol>
           ) : (
-            <p id="unsaved-list" className="px-2 py-1 text-ink-plate">
+            <p id="unsaved-list" className="px-2 py-1 text-ink-quiet">
               FOLDED AWAY. PRESS THE BAR ABOVE TO SEE ALL {changes.length}.
             </p>
           )}
@@ -91,7 +91,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
          * this the prompt would list a thing the reader cannot act on, which is worse than not mentioning it.
          */}
         {changes.some((change) => change.tab === 'character') ? (
-          <p className="text-ink-plate">
+          <p className="text-ink-quiet">
             THE FIGURE IS NOT STORED ANYWHERE YET, SO NO SAVE WILL KEEP IT - GO BACK AND LEAVE THE TAB OPEN IF IT
             MATTERS, OR CARRY ON AND BUILD IT AGAIN LATER.
           </p>

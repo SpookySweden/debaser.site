@@ -354,7 +354,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           {GAME_CATALOGUE.map((game) => (
             <div
               key={game.id}
-              className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2"
+              className="frame bg-sun-pale p-2"
             >
               <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
                 {/* Navy or Rose in both themes, so the bar ink; `text-paper` went Nigrosine in the dark one. */}

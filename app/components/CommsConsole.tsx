@@ -107,8 +107,8 @@ export default function CommsConsole() {
 
   if (userId === null) {
     return (
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className="frame bg-sun-pale">
+        <div className="title-line text-accent-ink">
           <span>COMMS</span>
           <span>[ NOBODY SIGNED IN ]</span>
         </div>
@@ -131,7 +131,7 @@ export default function CommsConsole() {
       {/* A store that cannot be read is said out loud rather than left looking like an
           account with nothing in it. On a wide screen it takes the first row to itself. */}
       {error === null ? null : (
-        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[13px] font-bold text-ink lg:basis-full">
+        <div className="flex flex-wrap items-center gap-2 frame bg-sun-pale p-2 text-[13px] font-bold text-ink lg:basis-full">
           <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words text-bubble-pale">{error}</span>
           <button type="button" onClick={retry} className={PLATE}>
@@ -141,8 +141,8 @@ export default function CommsConsole() {
       )}
 
       {/* Conversations rail */}
-      <section className={`rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className={`frame bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
+        <div className="title-line text-accent-ink">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
         </div>
@@ -203,7 +203,7 @@ export default function CommsConsole() {
                 onChange={(event) => setGroupName(event.target.value)}
                 placeholder="e.g. THE WARD"
                 maxLength={MAX_GROUP_NAME_LENGTH}
-                className="w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+                className="w-full frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
               />
 
               <p className="pt-1">
@@ -286,8 +286,8 @@ export default function CommsConsole() {
         </div>
       </section>
       {/* The open conversation */}
-      <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className={`flex min-h-0 flex-1 flex-col frame bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
+        <div className="title-line text-accent-ink">
           <span className="flex min-w-0 items-center gap-2">
             <button
               type="button"

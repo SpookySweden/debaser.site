@@ -82,7 +82,7 @@ export function ProfileIdentityTab({
   const countries = useMemo(() => countryOptions(), []);
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+    <div className="frame bg-sun-pale p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
         PUBLIC NAME: SIGNS YOUR PROFILE PAGE AND YOUR ACCOUNT
       </label>
@@ -266,7 +266,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
   ];
 
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+    <div className="frame bg-sun-pale p-3">
       <ul className="space-y-2">
         {rows.map((row) => (
           <li key={row.key} className="rounded-none border border-ink bg-ice-pale p-2">

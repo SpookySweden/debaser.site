@@ -101,7 +101,7 @@ export default function CommentComposer({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3${
+      className={`w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3${
         condensed ? ' sm:flex-1' : ''
       }`}
     />

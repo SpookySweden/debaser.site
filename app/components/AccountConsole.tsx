@@ -28,8 +28,8 @@ export default function AccountConsole() {
 
   return (
     <div className="space-y-3">
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className="frame bg-sun-pale">
+        <div className="title-line text-accent-ink">
           <span>ACCOUNT TERMINAL</span>
           <span>
             {status === 'loading' ? '[ READING... ]' : signedIn ? '[ SIGNED IN ]' : '[ GUEST ]'}
@@ -50,8 +50,8 @@ export default function AccountConsole() {
         </div>
       </section>
 
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+      <section className="frame bg-sun-pale">
+        <div className="title-line text-accent-ink">
           <span>WHAT LIVES UNDER THIS TAB</span>
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
         </div>
@@ -80,7 +80,7 @@ export default function AccountConsole() {
       </section>
 
       {status === 'loading' ? (
-        <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[14px] font-bold text-ink">
+        <p className="frame bg-paper p-3 text-[14px] font-bold text-ink">
           READING THE LOCAL SESSION...
         </p>
       ) : user === null ? (

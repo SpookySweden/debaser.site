@@ -19,7 +19,7 @@ export type ProfileTagsTabProps = {
 /** The tags other users gave you, and which of them visitors may see. */
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
-    <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+    <div className="frame bg-sun-pale p-3">
       <p className={CUSTOMISER_NOTE}>
         GLOBAL TAG SWITCH: {profile.visibility.showTags ? 'VISIBLE' : 'HIDDEN'} (SEE THE PRIVACY TAB). EVERY TAG BELOW
         STARTS HIDDEN.

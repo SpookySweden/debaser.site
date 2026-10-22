@@ -320,7 +320,7 @@ export default function ForumBoard() {
           {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
               music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
               a board's tags are *for* is telling you what is on it, and that is a count. */}
-          <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2">
+          <div className="frame bg-ice-pale p-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-[13px] font-bold text-ink">
                 TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
@@ -457,7 +457,7 @@ export default function ForumBoard() {
 
           {/* Sort / filter / search / paging are collapsed by default: the posts
               themselves are the practical information on this page. */}
-          <details className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2">
+          <details className="frame bg-ice-pale p-2">
             <summary className="cursor-pointer select-none text-[13px] font-bold text-ink">
               [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
             </summary>
@@ -517,7 +517,7 @@ export default function ForumBoard() {
                     setSourceFilter(event.target.value as SourceFilter);
                     setPage(1);
                   }}
-                  className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none"
+                  className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none"
                 >
                   {SOURCE_FILTERS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -540,7 +540,7 @@ export default function ForumBoard() {
                     setPage(1);
                   }}
                   placeholder="e.g. LORE, spoiler, account name"
-                  className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none"
+                  className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none"
                 />
               </div>
             </div>
@@ -588,7 +588,7 @@ export default function ForumBoard() {
       {visibleThreads.length === 0 ? (
         <div
           id="forum-thread-list"
-          className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
+          className="frame bg-paper text-ink"
         >
           <p className="p-3 text-[14px] font-bold text-ink">
             {forum.threads.length === 0
@@ -610,7 +610,7 @@ export default function ForumBoard() {
       ) : (
         <div
           id="forum-thread-list"
-          className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper text-ink"
+          className="frame bg-paper text-ink"
         >
           {pageThreads.map((thread) => (
             <ForumThreadCard
@@ -626,7 +626,7 @@ export default function ForumBoard() {
 
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (
-        <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+        <section className="frame bg-sun-pale p-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] font-bold text-ink">
             <span>
               SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
@@ -648,7 +648,7 @@ export default function ForumBoard() {
                 id="forum-page"
                 value={currentPage}
                 onChange={(event) => goToPage(Number(event.target.value))}
-                className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+                className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
               >
                 {pageNumbers.map((number) => (
                   <option key={number} value={number}>
@@ -671,7 +671,7 @@ export default function ForumBoard() {
                 id="forum-per-page"
                 value={perPage}
                 onChange={(event) => handlePerPageChange(Number(event.target.value))}
-                className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+                className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
               >
                 {PAGE_SIZES.map((size) => (
                   <option key={size} value={size}>

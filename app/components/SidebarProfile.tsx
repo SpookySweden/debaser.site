@@ -70,7 +70,7 @@ export default function SidebarProfile() {
   );
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <section className="frame bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
         <span className="flex items-center gap-1">

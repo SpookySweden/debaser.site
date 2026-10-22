@@ -141,7 +141,7 @@ export default function CommsThreadPanel({
 
       <ul
         ref={listRef}
-        className="min-h-32 flex-1 space-y-2 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2"
+        className="min-h-32 flex-1 space-y-2 overflow-y-auto frame bg-paper p-2"
       >
         {shown.length === 0 ? (
           <li className="text-[13px] font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
@@ -197,7 +197,7 @@ export default function CommsThreadPanel({
         )}
       </ul>
 
-      <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+      <div className="mt-2 frame bg-sun-pale p-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
           <label htmlFor={`${idPrefix}-body`}>
             {isGroup ? (
@@ -229,7 +229,7 @@ export default function CommsThreadPanel({
             }
           }}
           placeholder="Type the message..."
-          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3"
+          className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3"
         />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">

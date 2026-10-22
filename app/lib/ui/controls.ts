@@ -87,36 +87,32 @@ export const LINK_PIXEL = 'link-pixel cursor-pointer';
  */
 export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-black';
 
-/* The chrome: title bars, panels and status bars, in one place. ------------------
-   Every window and panel on the site wears the same navy title bar and the same
-   raised grey plate, so a title bar is a title bar whatever it sits on top of. */
+/* The chrome: title lines, panels and status lines, in one place. ------------------
+   Every window and panel on the site wears the same notched outline (`.frame` in globals.css) and the
+   same title line, `——— TITLE ———`, so a title is a title whatever it sits on top of. There are no bars
+   any more (SPEC-readability.md): the Win95 navy strip became a rule with the name set into it. */
 
-/** A panel's navy title bar: one slim line, the same height everywhere. */
-export const TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-ena px-2 py-[3px] text-[16px] font-bold leading-none text-sun';
+/** A panel's title line: the name between two rules, in the accent ink of the thing being worked in. */
+export const TITLE_BAR = 'title-line text-accent-ink';
 
 /**
- * The same bar, in the grey of a window that is not the one being worked in.
+ * The same line, in the field ink of a panel that is not the one being worked in.
  *
- * Two title bars, one meaning each: navy is the window you are in, grey is the furniture
- * around it - the legend, the roster, the tray, anything that is there to be read rather
- * than typed into. It is the same distinction a desktop of this era made, and it is the
- * only thing that says which box the keyboard belongs to without a line of explanation.
+ * Two title lines, one meaning each: the accent ink (Daffodil on the dark theme, Royal Blue on the
+ * bright one) is the window you are in, the field ink is the furniture around it - the legend, the
+ * roster, the tray, anything that is there to be read rather than typed into. Only the colour of the
+ * words and their rules differs, which is how Gnorp tells its windows apart too.
  */
-export const TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-chrome-dark px-2 py-[3px] text-[16px] font-bold leading-none text-ink';
+export const TITLE_BAR_INACTIVE = 'title-line text-ink';
 
-/** A window's navy title bar: the same line, a step up for the OS frame. */
-export const WINDOW_TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-ena px-3 py-[4px] text-[16px] font-bold leading-none text-sun';
+/** A window's title line: the same line, with a little more room for the OS frame. */
+export const WINDOW_TITLE_BAR = 'title-line title-window px-3 py-[6px] text-accent-ink';
 
-/** The frame's own bar when its window has been put aside: same line, grey. */
-export const WINDOW_TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-chrome-dark px-3 py-[4px] text-[16px] font-bold leading-none text-ink';
+/** The frame's own title line when its window has been put aside. */
+export const WINDOW_TITLE_BAR_INACTIVE = 'title-line title-window px-3 py-[6px] text-ink';
 
-/** A raised grey plate: light top-left edge, dark bottom-right edge, no radius. */
-export const PANEL =
-  'rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale';
+/** A panel: the window's fill inside the notched outline. */
+export const PANEL = 'frame bg-sun-pale';
 
 /**
  * The small white chip a shelf is linked with: the project strip across a page, and the same list on
@@ -126,9 +122,8 @@ export const PANEL =
 export const SHELF_CHIP =
   'cursor-pointer rounded-none border border-ink bg-sun-pale px-2 py-[2px] text-ink hover:animate-bump hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
-/** An inset surface pressed into a plate: dark top-left, light bottom-right. */
-export const PANEL_INSET =
-  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white';
+/** A well inside a panel - a page, a board: the same notched outline, filled by the caller. */
+export const PANEL_INSET = 'frame';
 
 /** A bevelled button small enough to sit in a navy title bar. */
 export const TITLE_BAR_BUTTON =
@@ -223,8 +218,8 @@ export const PLATE_ACCENT =
 export const ACCENT_COLOUR = '#1d3ca6';
 
 /**
- * The status bar along the foot of a window: one slim line.
+ * The status line along the foot of a window: a rule in the field ink, and the quiet caption ink under it.
  */
 export const STATUS_BAR =
-  'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-acid px-2 py-[3px] text-[13px] font-bold leading-none text-ink-plate';
+  'flex flex-wrap items-center justify-between gap-2 border-t-2 border-ink px-2 py-[4px] text-[13px] leading-none text-ink-quiet';
 

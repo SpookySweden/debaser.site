@@ -47,7 +47,7 @@ export default function ProfileCustomiserPictureTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+      <div className="frame bg-sun-pale p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div>
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
@@ -57,7 +57,7 @@ export default function ProfileCustomiserPictureTab({
           <div>
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
             {pendingSrc === null ? (
-              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-2 text-center">
+              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center frame bg-ice-pale p-2 text-center">
                 <span className="text-[13px] font-bold text-ink">NOTHING CHOSEN</span>
               </div>
             ) : (
@@ -102,7 +102,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+      <div className="frame bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
 
         {SITE_PICTURES.length === 0 ? (
@@ -164,7 +164,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+      <div className="frame bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (

@@ -62,7 +62,7 @@ export default function SiteWindow({ title, active, status = 'Ready', closeHref,
     // for a browser without `dvh`, which was Baseline in 2022 and is older than anything this site
     // supports - but a fallback that costs one class is cheaper than guessing.
     <main className="desktop-tile flex min-h-screen items-center justify-center p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
-      <div className="flex h-[84vh] max-h-[84dvh] w-[95vw] max-w-[1280px] flex-col rounded-none border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black bg-sun-pale shadow-2xl">
+      <div className="flex h-[84vh] max-h-[84dvh] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale">
 
         {/* Title Bar: the window title, the close plate when this is a window over the desktop, and
             the profile control on a phone. */}

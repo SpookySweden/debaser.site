@@ -54,7 +54,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
       id={id}
       role="tree"
       aria-label="Filing destination"
-      className="max-h-44 overflow-y-auto max-sm:max-h-80 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1"
+      className="max-h-44 overflow-y-auto max-sm:max-h-80 frame bg-paper p-1"
     >
       {groups.map((group) => {
         const isOpen = open.includes(group.label);
@@ -92,7 +92,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         <span className="inline-block w-4 shrink-0 text-center font-mono">-</span>
                         <span className="truncate">{item.label}</span>
                         {item.note === undefined ? null : (
-                          <span className={`shrink-0 ${selected ? 'text-paper' : 'text-ink'}`}>
+                          <span className={`shrink-0 ${selected ? 'text-ink-bar' : 'text-ink'}`}>
                             [{item.note}]
                           </span>
                         )}

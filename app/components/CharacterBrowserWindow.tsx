@@ -125,7 +125,7 @@ export default function CharacterBrowserWindow() {
       status="LOAD PUTS A FIGURE ON THE BENCH :: SAVING AGAIN REPLACES THE FIGURE ON IT, NOT THIS LIST"
     >
       <div className="space-y-2 text-[13px] text-ink">
-        <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+        <div className="frame bg-sun-pale p-2">
           <p className="font-bold">KEEP THE FIGURE THAT IS ON THE BENCH</p>
 
           <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -137,7 +137,7 @@ export default function CharacterBrowserWindow() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="FIGURE"
                 maxLength={24}
-                className="w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper px-1 py-[2px] text-[13px] text-ink"
+                className="w-40 frame bg-paper px-1 py-[2px] text-[13px] text-ink"
               />
             </label>
 
@@ -152,18 +152,18 @@ export default function CharacterBrowserWindow() {
             </p>
           ) : null}
 
-          <p className="mt-1 text-ink-plate">
+          <p className="mt-1 text-ink-quiet">
             LEAVE THE NAME EMPTY AND IT IS NUMBERED. THIS SHELF HOLDS UP TO {MAX_SAVED_LABEL} FIGURES; SAVING BEYOND
             THAT DROPS THE OLDEST.
           </p>
         </div>
 
         {shelf.length === 0 ? (
-          <p className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3 font-bold">
+          <p className="frame bg-sun-pale p-3 font-bold">
             NOTHING SAVED YET. BUILD A FIGURE ON THE CHAR TAB, THEN PRESS [ SAVE TO THE SHELF ] ABOVE.
           </p>
         ) : (
-          <ul className="divide-y divide-ink rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+          <ul className="divide-y divide-ink frame bg-sun-pale">
             {shelf.map((character) => {
               const presetLabel = RIG_PRESETS[character.presetId as RigPresetId]?.label ?? 'UNKNOWN';
               const shapes = character.figure.shapes.length;
@@ -173,7 +173,7 @@ export default function CharacterBrowserWindow() {
                 <li key={character.id} className="flex flex-wrap items-center gap-2 p-2">
                   <span className="min-w-40 grow">
                     <span className="font-bold">{character.name}</span>
-                    <span className="ml-2 text-ink-plate">
+                    <span className="ml-2 text-ink-quiet">
                       {presetLabel} :: {shapes} SHAPES :: {new Date(character.savedAt).toLocaleString()}
                     </span>
                   </span>
@@ -237,7 +237,7 @@ export default function CharacterBrowserWindow() {
           <span>[ {shelf.length} ]</span>
         </div>
 
-        <p className="text-ink-plate">
+        <p className="text-ink-quiet">
           FIGURES LIVE IN THIS BROWSER, PER ACCOUNT. THE SHAPE VOCABULARY IS {Object.values(MASS_SHAPES).length}{' '}
           PRIMITIVES, SO A FIGURE TAKEN OFF THIS SHELF KEEPS WHICHEVER OF THEM IT USES.
         </p>

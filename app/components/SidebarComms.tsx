@@ -67,7 +67,7 @@ export default function SidebarComms() {
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <section className="frame bg-sun-pale">
       {/* The title bar is the control. `[ COMMS ]` is the button a reader presses to see the
           conversations, and the count beside it is what says whether that is worth a press - which is
           why the count is on the *button* rather than in a heading that would vanish with the list. */}

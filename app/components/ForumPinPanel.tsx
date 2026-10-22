@@ -172,8 +172,8 @@ export default function ForumPinPanel() {
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[13px] font-bold text-ink-bar">
+    <section className="frame bg-sun-pale">
+      <div className="title-line text-accent-ink">
         <span>PINNED POSTS :: MODERATORS</span>
         <span>[ {pins.length === 0 ? 'NOTHING PINNED' : `${pins.length} PINNED`} ]</span>
       </div>

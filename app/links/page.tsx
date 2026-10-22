@@ -33,8 +33,8 @@ export default function LinksPage() {
 
     <ProjectSectionNav current="links" />
 
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+    <section className="frame bg-sun-pale">
+      <div className="title-line text-accent-ink">
         <span>THE ARCHIVE</span>
         <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
       </div>
@@ -55,8 +55,8 @@ export default function LinksPage() {
       </ul>
     </section>
 
-    <section className="mt-4 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
+    <section className="mt-4 frame bg-sun-pale">
+      <div className="title-line text-accent-ink">
         <span>OUTBOUND</span>
         <span>[ {OUTBOUND_LINKS.length} LINKS ]</span>
       </div>

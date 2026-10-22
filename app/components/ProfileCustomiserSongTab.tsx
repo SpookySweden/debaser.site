@@ -56,11 +56,11 @@ export default function ProfileCustomiserSongTab({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+      <div className="frame bg-sun-pale p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-64">
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
-            <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+            <div className="mt-1 frame bg-hardware px-2 py-1">
               <p className="truncate text-[14px] font-bold text-acid">
                 {current === undefined ? 'NOTHING FILED YET' : current.title}
               </p>
@@ -145,7 +145,7 @@ export default function ProfileCustomiserSongTab({
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
+      <div className="frame bg-sun-pale p-3">
         <p className={CUSTOMISER_NOTE}>TRACK HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (

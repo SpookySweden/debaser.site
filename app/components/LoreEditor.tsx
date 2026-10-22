@@ -133,7 +133,7 @@ export default function LoreEditor({
   }
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <section className="frame bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>THE PAGE :: {peers.length === 1 ? '1 EDITOR' : `${peers.length} EDITORS`}</span>
         <span>{LORE_STATUS_LINES[status]}</span>

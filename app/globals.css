@@ -622,14 +622,164 @@ img {
       the brief while the CSS keeps drawing what it draws today; dropping a file in later is one
       declaration with no class touched. `none` is a real fallback and not a placeholder: it is what
       the browser draws for a face nobody has filed artwork for.
-   3. **One bevel, one place.** The raised edge is `--art-frame`'s business and the sunken one is
-      `--art-frame-inset`'s, so the same two rules serve a window's frame, a plate's edge, a field's
-      well and a panel's inset - which is what "no control invents a third bevel" meant when it was
-      written in `controls.ts`.
+   3. **One frame, one place.** The Win95 bevel is gone (SPEC-readability.md): every window, panel,
+      field and key wears the same notched outline below, `--art-frame` stays its hook, and
+      `--art-frame-inset` still names the drawing for a well.
    --------------------------------------------------------------------------------------------- */
 @layer components {
-  /* The raised edge: light top-left, dark bottom-right. Every control that stands out of the page. */
+  /* The frame: a 2px outline whose four corners step in one pixel, the way the windows in
+     *(the) Gnorp Apologue* are drawn (SPEC-readability.md). It is a frame *shape*, not artwork, and it is
+     drawn with four background stripes rather than with `clip-path`: a clipped box would also clip its
+     own focus ring, a menu that opens out of it and a window's resize grips. The 2px border is
+     transparent and holds the stripes; the corner squares are left unpainted, which is the notch; the
+     fill (`background-color`) is kept inside the border by the last layer's `padding-box` clip.
+     `--frame-line` is the outline's colour (the field ink, so White on the dark theme and Black on the
+     bright one) and `--frame-art` is the face a drawing can be filed for. A component's own `border-*`
+     colour utility would repaint the border solid and square the corners again, so a framed element
+     takes its colours from these two properties and `bg-*`, never from a border utility. */
+  .frame,
+  .key,
   .bevel-out,
+  .bevel-in,
+  .panel,
+  .panel-inset,
+  .field,
+  .field-tight {
+    --frame-line: var(--color-ink);
+    --frame-art: none;
+    border-radius: 0;
+    border-style: solid;
+    border-width: 2px;
+    border-color: transparent;
+    border-image-source: var(--art-frame, none);
+    border-image-repeat: stretch;
+    background-image:
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      var(--frame-art);
+    background-origin: border-box;
+    background-clip: border-box, border-box, border-box, border-box, padding-box;
+    background-position: 2px 0, 2px 100%, 0 2px, 100% 2px, 0 0;
+    background-size:
+      calc(100% - 4px) 2px,
+      calc(100% - 4px) 2px,
+      2px calc(100% - 4px),
+      2px calc(100% - 4px),
+      100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* A well (a field, an inset) is the same outline; only its drawing hook differs. */
+  .bevel-in,
+  .panel-inset,
+  .field,
+  .field-tight {
+    border-image-source: var(--art-frame-inset, none);
+  }
+
+  /* A key - a button, a chip, a tab - is outlined in its own ink, so the hover that swaps the ink swaps
+     the outline with it in the same frame. */
+  .key {
+    --frame-line: currentColor;
+  }
+
+  /* A filled key: the main action, a pressed tab, the one magenta plate. The outline is the fill, so the
+     notched shape reads as one solid pill; a state changes `--key-fill` and both move together. */
+  .key-fill {
+    --frame-line: var(--key-fill);
+    background-color: var(--key-fill);
+  }
+
+  /* A key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. */
+  .key:disabled {
+    background-image:
+      repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to bottom, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to bottom, var(--frame-line) 0 2px, transparent 2px 4px),
+      var(--frame-art);
+  }
+
+  /* A title line: the window's or panel's name set into a rule, `——— SLAM CLUB ———`, the way Gnorp
+     titles its windows. No bar behind it - the colour of the words says which window is the one being
+     worked in (`text-accent-ink`) and which is furniture (`text-ink`), and the two rules are drawn in
+     that same colour. The rules are the line's own `::before` and `::after`; the first child is the
+     title and sits between them, and anything after it (a count, a close key) sits at the right end. */
+  .title-line,
+  .title-bar,
+  .title-bar-inactive,
+  .window-title-bar,
+  .window-title-bar-inactive {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 4px 8px;
+    font-size: 16px;
+    line-height: 1;
+    background-image: var(--art-title-bar, none);
+  }
+
+  .title-line::before,
+  .title-line::after,
+  :is(.title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::before,
+  :is(.title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::after {
+    content: '';
+    flex: 1 1 0;
+    min-width: 0.75rem;
+    height: 2px;
+    background-color: currentColor;
+  }
+
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::after {
+    order: 1;
+  }
+
+  /* What follows the title - a count, a link, a close key - keeps its words on one line and never
+     shrinks, so in a narrow panel it is the title that wraps, never `[ 0 :: ALL ]` broken in half. */
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive) > * + * {
+    order: 2;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive) > :first-child {
+    min-width: 0;
+    text-align: center;
+  }
+
+  /* On a phone a title with extras gets two rows: `——— TITLE ———` across the top, the count or the
+     keys on their own row under it, at the right. One row squeezed the title to `FOR…` beside its
+     keys. A grid rather than wrapping, because a wrapped flex row drops the *title* to the second row
+     and leaves the first rule on its own. A window's own title line (`.title-window`) keeps one row:
+     its close key belongs in the top corner, and the title truncates beside it instead. */
+  @media (width < 640px) {
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) {
+      display: grid;
+      grid-template-columns: minmax(0.75rem, 1fr) minmax(0, auto) minmax(0.75rem, 1fr);
+      row-gap: 4px;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *)::before {
+      grid-area: 1 / 1;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) > :first-child {
+      grid-area: 1 / 2;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *)::after {
+      grid-area: 1 / 3;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) > * + * {
+      grid-column: 1 / -1;
+      justify-self: end;
+    }
+  }
+
+  /* The old raised edge, still worn by the plate classes below until they move onto `.key`. */
   .plate,
   .plate-large,
   .plate-medium,
@@ -638,26 +788,12 @@ img {
   .plate-hardware,
   .plate-accent,
   .title-bar-button,
-  .glyph-button,
-  .panel {
+  .glyph-button {
     border-radius: 0;
     border-style: solid;
     border-width: 2px;
     border-color: var(--color-white) var(--color-black) var(--color-black) var(--color-white);
     border-image-source: var(--art-frame, none);
-    border-image-repeat: stretch;
-  }
-
-  /* The sunken edge: the same two colours, the other way round. A well inside the page. */
-  .bevel-in,
-  .panel-inset,
-  .field,
-  .field-tight {
-    border-radius: 0;
-    border-style: solid;
-    border-width: 2px;
-    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
-    border-image-source: var(--art-frame-inset, none);
     border-image-repeat: stretch;
   }
 
@@ -908,8 +1044,8 @@ img {
      never a guess. */
   .field,
   .field-tight {
+    --frame-art: var(--art-field, none);
     background-color: var(--color-paper);
-    background-image: var(--art-field, none);
     font-size: 15px;
     line-height: 1.4;
     color: var(--color-ink);
@@ -945,10 +1081,10 @@ img {
     }
   }
 
-  /* A panel: a raised plinth for a group of controls, so it is Flavine inside a raised edge. */
+  /* A panel: a group of controls on the window's own fill, inside the frame. */
   .panel {
+    --frame-art: var(--art-panel, none);
     background-color: var(--color-sun-pale);
-    background-image: var(--art-panel, none);
   }
 
   /* A chip: small, flat, one hairline border - a shelf, a track, a label. */
@@ -979,69 +1115,48 @@ img {
     }
   }
 
-  /* The bars. One slim line each, and the only difference between the two title bars is which window
-     the keyboard belongs to: Royal Blue is the one you are working in, Flavine is the furniture around
-     it. `leading-none` is load-bearing - a bar is four pixels of padding, not a line of prose. */
-  .title-bar,
-  .title-bar-inactive,
-  .window-title-bar,
-  .window-title-bar-inactive,
-  .status-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.5rem;
-    font-weight: var(--font-weight-bold, 700);
-    line-height: 1;
-  }
-
+  /* The bars. A title bar is a title line now (`.title-line` above): the active window's name in the
+     accent ink, a furniture panel's in the field ink, and no bar colour behind either. The status bar
+     and the taskbar are a rule across the foot of the window with quiet words under it. */
   .title-bar,
   .window-title-bar {
-    background-color: var(--color-ena);
-    background-image: var(--art-title-bar, none);
-    color: var(--color-sun);
+    color: var(--color-accent-ink);
   }
 
   .title-bar-inactive,
   .window-title-bar-inactive {
-    background-color: var(--color-chrome-dark);
     background-image: var(--art-title-bar-inactive, none);
     color: var(--color-ink);
   }
 
-  .title-bar,
-  .title-bar-inactive {
-    padding: 3px 8px;
-    font-size: 16px;
-  }
-
   .window-title-bar,
   .window-title-bar-inactive {
-    padding: 4px 12px;
-    font-size: 16px;
+    padding: 6px 12px;
   }
 
   .status-bar {
+    display: flex;
     flex-wrap: wrap;
-    border-top: 1px solid var(--color-white);
-    background-color: var(--color-acid);
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    border-top: 2px solid var(--color-ink);
     background-image: var(--art-status-bar, none);
-    padding: 3px 8px;
+    padding: 4px 8px;
     font-size: 13px;
-    color: var(--color-ink-plate);
+    line-height: 1;
+    color: var(--color-ink-quiet);
   }
 
-  /* The strip along the foot of the screen: Daffodil, squared off at the top by a white hairline, and
-     the one place the woven art goes. `relative order-last` stays on the element - that is where the
-     tray sits in the window, not what the tray looks like. */
+  /* The strip along the foot of the screen: a rule in the field ink, and the one place the woven art
+     goes. `relative order-last` stays on the element - that is where the tray sits in the window, not
+     what the tray looks like. */
   .taskbar {
-    border-top: 2px solid var(--color-white);
-    background-color: var(--color-sun);
+    border-top: 2px solid var(--color-ink);
     background-image: var(--art-taskbar, none);
     padding: 3px 4px;
     font-size: 13px;
-    font-weight: var(--font-weight-bold, 700);
-    color: var(--color-ink-plate);
+    color: var(--color-ink);
   }
 }
 

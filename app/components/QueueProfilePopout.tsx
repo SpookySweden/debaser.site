@@ -129,7 +129,7 @@ export default function QueueProfilePopout({
         role="dialog"
         aria-label="A queue somebody is broadcasting"
         onPointerDown={(event) => event.stopPropagation()}
-        className="w-full max-w-sm rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
+        className="w-full max-w-sm frame bg-sun-pale"
       >
         <div className={TITLE_BAR}>
           <span className="truncate">THEIR QUEUE</span>
@@ -210,7 +210,7 @@ function QueueCardBody({
         <span className="ml-2 font-normal text-ink-quiet">TRACK {queueTrackBadge(queue)}</span>
       </p>
 
-      <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
+      <div className="frame bg-hardware px-2 py-1">
         <p className="truncate text-[14px] font-bold text-acid">{title}</p>
         <p className="truncate text-[13px] text-ink-bar">
           {formatClock(where)} IN ::{' '}

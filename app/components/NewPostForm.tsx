@@ -132,7 +132,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
           value={title}
           onChange={(event) => setTitle(event.target.value)}
           placeholder="Subject line for the thread"
-          className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:min-h-11"
+          className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:min-h-11"
         />
 
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -158,7 +158,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
                 <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
               </div>
             ) : (
-              <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-[13px] font-bold text-ink">
+              <div className="mt-1 frame bg-paper p-2 text-[13px] font-bold text-ink">
                 FILED AGAINST: {anchor.label}
                 <br />
                 <span className="font-normal text-ink">

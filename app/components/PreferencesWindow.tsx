@@ -114,13 +114,13 @@ export default function PreferencesWindow() {
       defaultSize={{ w: 384, h: 460 }}
       minSize={{ w: 280, h: 200 }}
     >
-      <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+      <section className="frame bg-sun-pale">
         <div className={TITLE_BAR_INACTIVE}>
           <span>THEME</span>
           <span>[ {THEMES.length} ]</span>
         </div>
 
-        <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-plate">
+        <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-quiet">
           THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO
           NOTHING HERE CAN MAKE A PAGE UNREADABLE.
         </p>
@@ -134,13 +134,13 @@ export default function PreferencesWindow() {
 
       {/* Window layout: a desktop thing only, so a phone - which has bottom sheets, not windows - does
           not see it at all. */}
-      <section className="mt-2 hidden rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale sm:block">
+      <section className="mt-2 hidden frame bg-sun-pale sm:block">
         <div className={TITLE_BAR_INACTIVE}>
           <span>WINDOWS</span>
           <span>[ THIS SCREEN SHAPE ]</span>
         </div>
 
-        <p className="px-2 pt-1 text-[13px] text-ink-plate">
+        <p className="px-2 pt-1 text-[13px] text-ink-quiet">
           WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN
           ITS CORNER AND FORGETS THIS SHAPE&apos;S SAVED LAYOUT.
         </p>
@@ -151,22 +151,22 @@ export default function PreferencesWindow() {
         </p>
       </section>
 
-      <section className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+      <section className="mt-2 frame bg-sun-pale">
         <div className={TITLE_BAR_INACTIVE}>
           <span>SESSION</span>
           <span>[ SOON ]</span>
         </div>
 
-        <p className="p-2 text-[13px] text-ink-plate">
+        <p className="p-2 text-[13px] text-ink-quiet">
           WHAT THIS WILL HOLD - SIGN-OUT, THE NOTIFICATION SOUND, WHETHER THE PLAYER BAR STARTS OPEN -
           IS STILL BEING DECIDED, SO NOTHING IS DRAWN HERE YET. THE ROW IS LEFT IN PLACE SO THE WINDOW
           DOES NOT GROW ONE LATER.
         </p>
       </section>
 
-      <p className="mt-2 text-center text-[13px] text-ink-plate">
+      <p className="mt-2 text-center text-[13px] text-ink-quiet">
         ON THE THEME NOW:{' '}
-        <span className="font-bold text-ink-plate">{currentTheme().label}</span>
+        <span className="text-accent-ink">{currentTheme().label}</span>
       </p>
 
       {/* The one place `PLATE` is spent in this window: a reader who wants the tick they came for and

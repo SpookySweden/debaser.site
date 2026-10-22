@@ -99,7 +99,7 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`mt-6 w-full ${maxWidth} rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale shadow-2xl`}
+        className={`mt-6 w-full ${maxWidth} frame bg-sun-pale`}
       >
         {/* Draggable title bar */}
         <div
@@ -125,7 +125,7 @@ export default function PopoutWindow({
 
         {/* Window body */}
         <div
-          className={`max-h-[70vh] overflow-y-auto border-2 border-t-black border-l-black border-r-white border-b-white p-3 ${bodyClassName}`}
+          className={`max-h-[70vh] overflow-y-auto p-3 ${bodyClassName}`}
         >
           {children}
         </div>

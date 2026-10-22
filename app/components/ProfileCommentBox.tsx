@@ -68,7 +68,7 @@ export default function ProfileCommentBox({
   }
 
   return (
-    <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
+    <div className="mt-2 frame bg-sun-pale p-2">
       <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
         <span>{title}</span>
       </div>

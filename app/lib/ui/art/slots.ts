@@ -181,8 +181,8 @@ export const ART_SLOTS = [
     margins: [10, 8, 10, 8],
     fit: 'slice',
     css: ['--art-frame'],
-    fallback: 'the two-colour bevel `BEVEL_OUT` writes as Tailwind borders',
-    brief: 'The raised plate every window is made of: light top-left, dark bottom-right.',
+    fallback: 'the notched 2px outline `.frame` draws in the field ink',
+    brief: 'The outline every window and panel is made of: a thin line whose corners step in one pixel.',
   },
   {
     id: 'window-frame-inset',
@@ -194,8 +194,8 @@ export const ART_SLOTS = [
     margins: [10, 8, 10, 8],
     fit: 'slice',
     css: ['--art-frame-inset'],
-    fallback: 'the sunken bevel `BEVEL_IN` writes as Tailwind borders',
-    brief: 'The sunken version: dark top-left, light bottom-right. A well inside a well.',
+    fallback: 'the same notched outline `.frame` draws, on a well or a field',
+    brief: 'The outline of a well inside a window: a field, a page, a board.',
   },
   {
     id: 'title-bar',
@@ -208,7 +208,7 @@ export const ART_SLOTS = [
     fit: 'slice',
     css: ['--art-title-bar'],
     ink: 'ink-bar',
-    fallback: 'the Nigrosine-to-Royal-Blue gradient `.title-bar` paints',
+    fallback: 'nothing: the title line is the name set between two rules (`.title-line`)',
     brief: 'The bar a window is dragged by and the bar text sits on. Only the middle stretches.',
   },
   {
@@ -222,7 +222,7 @@ export const ART_SLOTS = [
     fit: 'slice',
     css: ['--art-title-bar-inactive'],
     ink: 'ink-quiet',
-    fallback: 'the flat Flavine `TITLE_BAR_INACTIVE` uses',
+    fallback: 'nothing: the inactive title line is the same rule in the field ink',
     brief: 'The same bar on a window nobody is working in. It has to read quieter than the active one.',
   },
   {
@@ -236,7 +236,7 @@ export const ART_SLOTS = [
     fit: 'slice',
     css: ['--art-status-bar'],
     ink: 'ink-bar',
-    fallback: 'the ruled strip `STATUS_BAR` draw',
+    fallback: 'the rule across the foot of the window `STATUS_BAR` draws',
     brief: 'The last row of a window, where the counts and the hints live.',
   },
 

@@ -32,7 +32,7 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
       </button>
 
       {open ? (
-        <div className="absolute bottom-full left-0 z-20 mb-1 w-[22rem] rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 shadow-none">
+        <div className="absolute bottom-full left-0 z-20 mb-1 w-[22rem] frame bg-sun-pale p-2 shadow-none">
           <p className="text-[13px] font-bold text-ink">
             TEXT FACES :: CLICK ONE TO DROP IT IN WHERE THE CARET IS
           </p>

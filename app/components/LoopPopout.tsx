@@ -82,7 +82,7 @@ export default function LoopPopout({
         role="dialog"
         aria-label={`Loop at ${label}`}
         onPointerDown={(event) => event.stopPropagation()}
-        className="relative w-full max-w-sm rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
+        className="relative w-full max-w-sm frame bg-sun-pale"
       >
         <div className={TITLE_BAR}>
           <span className="truncate">LOOP</span>

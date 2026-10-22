@@ -66,7 +66,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
 
   return (
     <li
-      className={`flex min-w-0 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black ${
+      className={`flex min-w-0 flex-col frame ${
         read ? ROW_READ : ROW_UNREAD
       }`}
     >

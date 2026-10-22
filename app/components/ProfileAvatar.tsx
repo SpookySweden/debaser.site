@@ -64,7 +64,7 @@ function AnonymousSlot({ size, label }: { size: number; label: string }) {
       {/* Only wide enough for the notice when the frame can hold it; a 26px title-bar square gets
           the bare field, which is what a 26px square of any 1998 desktop actually showed. */}
       {size < NOTICE_MIN_SIZE ? null : (
-        <span aria-hidden="true" className="text-[13px] font-bold text-paper">
+        <span aria-hidden="true" className="text-[13px] font-bold text-ink-bar">
           NO PICTURE
         </span>
       )}
@@ -113,7 +113,7 @@ export default function ProfileAvatar({
 
   return (
     <div
-      className={`shrink-0 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 ${className ?? ''}`}
+      className={`shrink-0 frame bg-sun-pale p-1 ${className ?? ''}`}
       style={{ width: size }}
     >
       {anonymous || picture === undefined ? (

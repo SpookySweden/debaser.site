@@ -71,7 +71,7 @@ function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack)
           {player.loading ? 'READING THE SHELF...' : 'NO MATCHES.'}
         </p>
       ) : (
-        <ul className="mt-1 max-h-64 overflow-y-auto rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
+        <ul className="mt-1 max-h-64 overflow-y-auto frame bg-paper">
           {shown.map((track) => (
             <li
               key={track.src}

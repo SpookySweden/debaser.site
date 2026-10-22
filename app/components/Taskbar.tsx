@@ -35,7 +35,7 @@ export default function Taskbar({ status }: TaskbarProps) {
   const { unreadTotal } = useComms();
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-white bg-sun px-1 py-[3px] text-[13px] font-bold text-ink-plate">
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-ink px-1 py-[3px] text-[13px] text-ink">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
@@ -70,12 +70,10 @@ export default function Taskbar({ status }: TaskbarProps) {
           status line is left to fill the strip, so the foot of the window is one quiet line rather
           than a row of controls.
 
-          `text-ink-plate`, not `text-ink`, and the difference is a real one: this strip sits on the
-          Daffodil bar above (line 38), and Daffodil does not move with the theme while the field ink
-          does - so Black on it here, White on it in the dark theme, at 1.19:1. The plate ink is Black
-          in both themes, 17.72:1. It is the same fault the per-literal rewrite cannot see, because
-          this element's own class list names no surface at all. */}
-      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[13px] text-ink-plate">
+          The strip has no bar of its own any more - it is a rule across the foot of the window, on the
+          window's fill - so the caption is in the field's quiet ink, which moves with the theme. (It was
+          `text-ink-plate` while the strip was a Daffodil bar that did not move with the theme.) */}
+      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[13px] text-ink-quiet">
         <span className="truncate">Status: {status}</span>
         <span aria-hidden="true" className="max-sm:hidden">
           ::

@@ -339,7 +339,7 @@ export default function TagWindow({
             value={fileQuery}
             onChange={(event) => setFileQuery(event.target.value)}
             placeholder="title, artist, sound or poster"
-            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+            className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
           />
 
           <span className="ml-2">ORDER:</span>

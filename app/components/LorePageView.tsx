@@ -36,7 +36,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
   if (!lore.ready || authStatus === 'loading') {
     return (
-      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-ink">
+      <p className="frame bg-paper p-3 text-[13px] font-bold text-ink">
         READING THE PAGE...
       </p>
     );
@@ -44,7 +44,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
   if (lore.error !== null) {
     return (
-      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-bubble-pale">
+      <p className="frame bg-paper p-3 text-[13px] font-bold text-bubble-pale">
         {lore.error}
       </p>
     );
@@ -53,7 +53,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
   if (lore.page === null) {
     return (
       <div className="space-y-2">
-        <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-ink">
+        <p className="frame bg-paper p-3 text-[13px] font-bold text-ink">
           NO PAGE LIVES AT /lore/{slug}. IT MAY HAVE BEEN RENAMED, OR NEVER OPENED AT ALL.
         </p>
         <Link href="/lore" className="text-[13px] font-bold underline hover:bg-ice-pale">

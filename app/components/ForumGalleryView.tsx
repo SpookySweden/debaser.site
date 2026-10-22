@@ -42,7 +42,7 @@ export default function ForumGalleryView({
     <ul
       id="forum-thread-list"
       data-view="gallery"
-      className="grid list-none grid-cols-1 gap-2 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-ink sm:grid-cols-2 xl:grid-cols-3"
+      className="grid list-none grid-cols-1 gap-2 frame bg-paper p-2 text-ink sm:grid-cols-2 xl:grid-cols-3"
     >
       {threads.map((thread) => (
         <ForumGalleryTile

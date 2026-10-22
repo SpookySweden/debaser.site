@@ -567,7 +567,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[13px] font-bold">
+      <div className="frame bg-sun-pale p-2 text-[13px] font-bold">
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
         {error === null ? null : <p className="text-bubble-pale">PROBLEM: {error}</p>}
         <p className="mt-1 text-ink">

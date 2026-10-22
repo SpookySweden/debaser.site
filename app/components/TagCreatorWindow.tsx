@@ -84,7 +84,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
               handleCreate();
             }}
             placeholder="e.g. world building"
-            className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[14px] text-ink outline-none"
+            className="mt-1 w-full frame bg-paper p-2 font-mono text-[14px] text-ink outline-none"
           />
 
           <p className="mt-3 text-[13px] font-bold">

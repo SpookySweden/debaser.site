@@ -165,7 +165,7 @@ export default function DockWindow({
       data-dock-window={id}
       data-grouped={grouped ? 'true' : undefined}
     >
-      <div className={`${PANEL} flex ${managed ? 'h-full' : 'max-h-full'} flex-col shadow-2xl`}>
+      <div className={`${PANEL} flex ${managed ? 'h-full' : 'max-h-full'} flex-col`}>
         <div
           {...titleHandlers}
           className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}

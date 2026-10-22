@@ -52,7 +52,7 @@ export default function RadioLoops() {
     loops[0];
 
   return (
-    <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
+    <section className="frame bg-sun-pale">
       <div className={TITLE_BAR_INACTIVE}>
         <span>RADI-OH // WHERE YOU WERE</span>
         <span>[ {loops.length} ]</span>
