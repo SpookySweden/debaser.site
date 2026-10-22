@@ -24,14 +24,14 @@ export default function ProfileBoardActivity({
 }: ProfileBoardActivityProps) {
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
         <span>BOARD ACTIVITY</span>
         <span>[ {threads.length} THREADS ]</span>
       </div>
 
       <div className="p-3 text-ink">
         {threads.length === 0 ? (
-          <p className="text-[10px] font-bold text-ink">
+          <p className="text-[13px] font-bold text-ink">
             <ProfileName author={{ id: userId, displayName }} colour={nameColour} lamp={false}>
               {displayName.toUpperCase()}
             </ProfileName>{' '}
@@ -40,7 +40,7 @@ export default function ProfileBoardActivity({
         ) : (
           <ul className="space-y-1">
             {threads.slice(0, 8).map((thread) => (
-              <li key={thread.id} className="text-[10px] font-bold">
+              <li key={thread.id} className="text-[13px] font-bold">
                 <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                   [<TimeStamp at={thread.createdAt} />] {thread.title}
                 </Link>

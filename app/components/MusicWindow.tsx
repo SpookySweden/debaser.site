@@ -141,7 +141,7 @@ function ScreenTab({
       role="tab"
       aria-selected={selected}
       onClick={onSelect}
-      className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[13px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         selected
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
           : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'

@@ -50,7 +50,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
       dismissOnBackdrop={false}
       status="NOTHING HAS BEEN THROWN AWAY YET :: GO BACK AND IT IS ALL STILL THERE"
     >
-      <div className="space-y-2 text-[10px] text-ink">
+      <div className="space-y-2 text-[13px] text-ink">
         <p className="font-bold">
           YOU HAVE {summarise(changes)} THAT HAVE NOT BEEN SAVED. {what} PAGES THEM AWAY, AND THERE IS NO UNDO.
         </p>

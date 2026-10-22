@@ -91,27 +91,27 @@ export default function LoopPopout({
             onClick={onClose}
             aria-label="Close"
             title="Close - or press anywhere off this card"
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[14px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
           </button>
         </div>
 
         <div className="space-y-2 p-3">
-          <p className="flex items-center gap-2 text-[12px] font-bold text-ink">
+          <p className="flex items-center gap-2 text-[14px] font-bold text-ink">
             <span aria-hidden="true" className="text-[18px] leading-none">
               ↻
             </span>
             <span className="min-w-0 break-words">{label}</span>
           </p>
 
-          <p className="text-[10px] text-ink-quiet">
+          <p className="text-[13px] text-ink-quiet">
             {loop.kind === 'taken-over'
               ? `THIS WAS PLAYING WHEN ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}'S QUEUE TOOK THE PLAYER OVER.`
               : `${originLabel(loop)}${loop.plays > 1 ? ` :: PLAYED ${loop.plays} TIMES` : ''}`}
           </p>
 
-          <p className="text-[10px] font-bold text-ink">
+          <p className="text-[13px] font-bold text-ink">
             GOES TO {formatClock(loop.positionSeconds)} IN THAT TRACK
           </p>
 

@@ -45,7 +45,7 @@ export default function NewsTicker() {
       />
 
       {items.length === 0 ? null : (
-        <p className="px-2 py-1 text-[10px] font-bold text-ink">
+        <p className="px-2 py-1 text-[13px] font-bold text-ink">
           POINT AT IT TO STOP THE CRAWL :: CLICK A ROW TO OPEN THE POST
         </p>
       )}

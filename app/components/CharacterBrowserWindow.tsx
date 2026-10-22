@@ -124,7 +124,7 @@ export default function CharacterBrowserWindow() {
       maxWidth="max-w-3xl"
       status="LOAD PUTS A FIGURE ON THE BENCH :: SAVING AGAIN REPLACES THE FIGURE ON IT, NOT THIS LIST"
     >
-      <div className="space-y-2 text-[10px] text-ink">
+      <div className="space-y-2 text-[13px] text-ink">
         <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
           <p className="font-bold">KEEP THE FIGURE THAT IS ON THE BENCH</p>
 
@@ -137,7 +137,7 @@ export default function CharacterBrowserWindow() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="FIGURE"
                 maxLength={24}
-                className="w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper px-1 py-[2px] text-[10px] text-ink"
+                className="w-40 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper px-1 py-[2px] text-[13px] text-ink"
               />
             </label>
 

@@ -88,7 +88,7 @@ export default function ElementComments({
           rather than a title bar - no box, because a box is what made this read as a button
           stack. Commenting is not asked for here any more: the profile has one comment
           control, above both columns, so there is one way in rather than three. */}
-      <p className="flex flex-wrap items-baseline gap-x-2 text-[10px] font-bold text-ink">
+      <p className="flex flex-wrap items-baseline gap-x-2 text-[13px] font-bold text-ink">
         <span className={HYPER_LABEL}>{element.tag}</span>
 
         <button
@@ -118,7 +118,7 @@ export default function ElementComments({
 
       {open ? (
         thread.length === 0 ? (
-          <p className="mt-1 text-[10px] text-ink">
+          <p className="mt-1 text-[13px] text-ink">
             {writable ? `nothing has been said about ${element.tag} yet.` : `comments on the ${noun} are off.`}
           </p>
         ) : (
@@ -161,7 +161,7 @@ export default function ElementComments({
             return (
               <li
                 key={version.id}
-                className="flex flex-wrap items-baseline justify-between gap-x-2 bg-ice-pale px-1 text-[10px] font-bold text-ink"
+                className="flex flex-wrap items-baseline justify-between gap-x-2 bg-ice-pale px-1 text-[13px] font-bold text-ink"
               >
                 <span className="min-w-0 truncate">
                   <span className={HYPER_LABEL}>{version.tag}</span>

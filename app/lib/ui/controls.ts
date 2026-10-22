@@ -29,15 +29,15 @@ export const PRESSED =
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The largest: a control that has its line to itself, or carries the form's weight. */
 export const PLATE_LARGE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-xs font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[14px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
@@ -52,22 +52,22 @@ export const PLATE_TAP =
  * bolted to, so these are black with a lime label, and a press turns them magenta.
  */
 export const PLATE_HARDWARE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-hardware px-3 py-2 text-[11px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-hardware px-3 py-2 text-[14px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
 /** A plate already pressed in: the tab you are standing on, the switch that is on. */
-export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[10px] font-bold text-sun max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[13px] font-bold text-sun max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** An inset field: white, monospace, with the room it needs under its label. */
 export const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-[6px] font-mono text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
+  'mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-[6px] font-mono text-[15px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 text-xs text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
+  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 text-[14px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
 
 /**
  * A link in a page of writing: the dashed 3px bar, and the inversion on hover.
@@ -93,7 +93,7 @@ export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border bord
 
 /** A panel's navy title bar: one slim line, the same height everywhere. */
 export const TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-ena px-2 py-[3px] text-[11px] font-bold leading-none text-sun';
+  'flex items-center justify-between gap-2 bg-ena px-2 py-[3px] text-[16px] font-bold leading-none text-sun';
 
 /**
  * The same bar, in the grey of a window that is not the one being worked in.
@@ -104,15 +104,15 @@ export const TITLE_BAR =
  * only thing that says which box the keyboard belongs to without a line of explanation.
  */
 export const TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-chrome-dark px-2 py-[3px] text-[11px] font-bold leading-none text-ink';
+  'flex items-center justify-between gap-2 bg-chrome-dark px-2 py-[3px] text-[16px] font-bold leading-none text-ink';
 
 /** A window's navy title bar: the same line, a step up for the OS frame. */
 export const WINDOW_TITLE_BAR =
-  'flex items-center justify-between gap-2 bg-ena px-3 py-[4px] text-[13px] font-bold leading-none text-sun';
+  'flex items-center justify-between gap-2 bg-ena px-3 py-[4px] text-[16px] font-bold leading-none text-sun';
 
 /** The frame's own bar when its window has been put aside: same line, grey. */
 export const WINDOW_TITLE_BAR_INACTIVE =
-  'flex items-center justify-between gap-2 bg-chrome-dark px-3 py-[4px] text-[13px] font-bold leading-none text-ink';
+  'flex items-center justify-between gap-2 bg-chrome-dark px-3 py-[4px] text-[16px] font-bold leading-none text-ink';
 
 /** A raised grey plate: light top-left edge, dark bottom-right edge, no radius. */
 export const PANEL =
@@ -132,7 +132,7 @@ export const PANEL_INSET =
 
 /** A bevelled button small enough to sit in a navy title bar. */
 export const TITLE_BAR_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
+  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
 /**
  * A control whose face is a glyph rather than a word.
@@ -209,7 +209,7 @@ export const ROW_UNREAD = 'bg-paper text-ink';
  * the same thing the `♪ MP3` badge on a post is: this file belongs to a thread.
  */
 export const PLATE_ACCENT =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[10px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * Royal Blue, as a value rather than a class.
@@ -226,5 +226,5 @@ export const ACCENT_COLOUR = '#1d3ca6';
  * The status bar along the foot of a window: one slim line.
  */
 export const STATUS_BAR =
-  'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-acid px-2 py-[3px] text-[10px] font-bold leading-none text-ink-plate';
+  'flex flex-wrap items-center justify-between gap-2 border-t border-white bg-acid px-2 py-[3px] text-[13px] font-bold leading-none text-ink-plate';
 

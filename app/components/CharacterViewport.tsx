@@ -181,7 +181,7 @@ function usePlacingKeys(bench: RefObject<HTMLDivElement | null>) {
 }
 
 const STRIP_BUTTON =
-  'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[10px] max-sm:w-[3.25rem]';
+  'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[13px] max-sm:w-[3.25rem]';
 
 function ToolStrip() {
   const tool = useCharacterStore((state) => state.tool);
@@ -329,7 +329,7 @@ function AddToolButton() {
               }}
               aria-pressed={addKind === kind}
               title={MASS_SHAPES[kind].note}
-              className={`flex h-8 items-center gap-2 px-2 text-left text-[10px] ${pressable(addKind === kind)}`}
+              className={`flex h-8 items-center gap-2 px-2 text-left text-[13px] ${pressable(addKind === kind)}`}
             >
               <span aria-hidden className="w-4 shrink-0 text-center text-[14px] leading-none">
                 {MASS_SHAPE_GLYPHS[kind]}
@@ -402,7 +402,7 @@ function OptionsBar() {
     <div className={`${PANEL} flex min-h-[3.25rem] min-w-0 flex-wrap items-center gap-2 p-1 sm:flex-nowrap`}>
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto max-sm:min-h-11 max-sm:basis-full">
         {placing ? <PlacingOptions /> : tool === 'pose' ? <PoseOptions /> : (
-          <p className="px-1 text-[10px] font-bold leading-snug text-ink" title={TOOLS[tool].hint}>
+          <p className="px-1 text-[13px] font-bold leading-snug text-ink" title={TOOLS[tool].hint}>
             {TOOLS[tool].status}
           </p>
         )}
@@ -442,7 +442,7 @@ function PlacingOptions() {
       >
         ✗
       </button>
-      <span className="flex shrink-0 items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-[10px] font-bold text-ink-bar">
+      <span className="flex shrink-0 items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-[13px] font-bold text-ink-bar">
         {placing.what === 'shape' ? (
           <span aria-hidden className="text-[14px] leading-none">
             {MASS_SHAPE_GLYPHS[placing.kind]}
@@ -450,7 +450,7 @@ function PlacingOptions() {
         ) : null}
         {what}
       </span>
-      <p className="shrink-0 px-1 text-[10px] font-bold text-ink" title={hint}>
+      <p className="shrink-0 px-1 text-[13px] font-bold text-ink" title={hint}>
         {next}
       </p>
     </>
@@ -472,12 +472,12 @@ function PoseOptions() {
           }}
           aria-pressed={stretch === on}
           title={on ? 'A DRAG STRETCHES: BONES GET LONGER OR SHORTER.' : 'A DRAG BENDS: LIMBS SWING, BONES KEEP THEIR LENGTH.'}
-          className={`shrink-0 px-2 py-1 text-[10px] ${pressable(stretch === on)}`}
+          className={`shrink-0 px-2 py-1 text-[13px] ${pressable(stretch === on)}`}
         >
           {on ? 'STRETCHES' : 'BENDS'}
         </button>
       ))}
-      <span className="shrink-0 px-1 text-[10px] font-bold text-ink" title={TOOLS.pose.hint}>
+      <span className="shrink-0 px-1 text-[13px] font-bold text-ink" title={TOOLS.pose.hint}>
         {TOOLS.pose.status}
       </span>
     </>
@@ -496,11 +496,11 @@ function LayerSwitches() {
   const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
   // `w-min` wraps the two-word labels (NORMAL / LIGHT) onto two lines on a wide screen, so the five switches leave the
   // tool's own words room in the bar; on a phone they are a two-column grid, where no label is cut.
-  const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-[10px] leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
+  const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-[13px] leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
 
   return (
     <div role="group" aria-label="Layers" className="flex items-center gap-1 max-sm:grid max-sm:flex-1 max-sm:grid-cols-2">
-      <span className="text-[10px] font-bold text-ink max-sm:hidden">LAYERS</span>
+      <span className="text-[13px] font-bold text-ink max-sm:hidden">LAYERS</span>
       {LAYER_IDS.map((id) => (
         <button
           key={id}
@@ -639,7 +639,7 @@ function LightPad() {
         onClick={toggleLightOn}
         aria-pressed={lightOn}
         title={lightOn ? 'SWITCH THE LIGHT OFF: THE FIGURE IS EVENLY LIT' : 'SWITCH THE LIGHT BACK ON'}
-        className={`px-2 py-1 text-[10px] ${pressable(lightOn)}`}
+        className={`px-2 py-1 text-[13px] ${pressable(lightOn)}`}
       >
         {lightOn ? 'LIGHT ON' : 'LIGHT OFF'}
       </button>
@@ -650,7 +650,7 @@ function LightPad() {
 function View({ kind, label, hint }: { kind: ViewportKind; label: string; hint: string }) {
   return (
     <section aria-label={`${label} view`} className="min-w-0 rounded-none border-2 border-ink bg-hardware">
-      <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[10px] font-bold text-ink-bar">
+      <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[13px] font-bold text-ink-bar">
         <span>{label}</span>
         <span className="text-sun">{hint}</span>
       </p>
@@ -784,7 +784,7 @@ function Stats() {
   const share = useCharacterStore((state) => sagOf(state.figure).share);
 
   return (
-    <p className={`${PANEL} flex items-center gap-2 px-2 py-1 text-[11px] font-bold text-ink`}>
+    <p className={`${PANEL} flex items-center gap-2 px-2 py-1 text-[14px] font-bold text-ink`}>
       <span title="FILLED BLOCKS IN THE FRONT VIEW'S PIXEL RENDER. HIDDEN SHAPES DON'T COUNT.">
         PIXELS <span data-stat="pixels">{pixels ?? '-'}</span>
       </span>
@@ -818,7 +818,7 @@ function ShapesList() {
   const broken = useMemo(() => brokenShapes(figure), [figure]);
   const brokenCount = Object.keys(broken).length;
 
-  const small = 'h-7 w-7 shrink-0 text-[11px] leading-none max-sm:h-11 max-sm:w-11';
+  const small = 'h-7 w-7 shrink-0 text-[14px] leading-none max-sm:h-11 max-sm:w-11';
 
   return (
     <section aria-label="Shapes" className={PANEL}>
@@ -837,7 +837,7 @@ function ShapesList() {
       </button>
 
       {!listOpen ? null : shapes.length === 0 ? (
-        <p className="p-2 text-[10px] text-ink">NO SHAPES. USE ADD.</p>
+        <p className="p-2 text-[13px] text-ink">NO SHAPES. USE ADD.</p>
       ) : (
         <ul className="max-h-64 overflow-y-auto p-1 lg:max-h-56">
           {shapes.map((shape, index) => {
@@ -866,9 +866,9 @@ function ShapesList() {
                         ? `${problem}. THE FIGURE CAN'T BE SAVED LIKE THIS.`
                         : undefined
                   }
-                  className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-[10px] ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
+                  className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-[13px] ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
                 >
-                  <span aria-hidden className="w-4 shrink-0 text-center text-[12px] leading-none">
+                  <span aria-hidden className="w-4 shrink-0 text-center text-[14px] leading-none">
                     {MASS_SHAPE_GLYPHS[shape.kind]}
                   </span>
                   <span className="truncate">{shape.name}</span>
@@ -933,7 +933,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
     <section aria-label="Shape properties" className={PANEL}>
       <PanelTitle>
         <span>PROPERTIES</span>
-        <button type="button" onClick={() => selectShape(null)} className="px-1 text-[10px] font-bold underline max-sm:min-h-11">
+        <button type="button" onClick={() => selectShape(null)} className="px-1 text-[13px] font-bold underline max-sm:min-h-11">
           [ DONE ]
         </button>
       </PanelTitle>
@@ -987,7 +987,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           value={shape.pin ?? ''}
           onChange={(event) => setPin(shape.id, event.target.value === '' ? null : event.target.value)}
           title={shape.pin === null ? "PINNED TO NOTHING: THE FIGURE CAN'T BE SAVED UNTIL IT IS PINNED TO A NODE." : 'FOLLOWS AND TURNS WITH THIS NODE WHEN YOU POSE.'}
-          className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[11px] text-ink max-sm:min-h-11"
+          className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[14px] text-ink max-sm:min-h-11"
         >
           <option value="">NOTHING - CAN&apos;T SAVE</option>
           {Object.keys(joints).map((id) => (
@@ -1006,11 +1006,11 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           }}
           aria-disabled={full}
           title={full ? FULL_SHAPES : 'A COPY, BESIDE IT, PINNED TO THE SAME NODE.'}
-          className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}
+          className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)}`}
         >
           [ DUPLICATE ]
         </button>
-        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}>
+        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}>
           [ DELETE ]
         </button>
       </div>
@@ -1060,7 +1060,7 @@ function Section({ id, label, children }: { id: SectionId; label: string; childr
         type="button"
         onClick={() => toggleSection(id)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between px-2 py-1 text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
+        className="flex w-full cursor-pointer items-center justify-between px-2 py-1 text-[13px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
       >
         <span>{label}</span>
         <span aria-hidden>{open ? '▾' : '▸'}</span>
@@ -1094,7 +1094,7 @@ function FigureSettings() {
           type="button"
           onClick={() => setPresetPicker(true)}
           title="START AGAIN FROM ONE OF THE PRESETS. UNDO BRINGS THIS ONE BACK."
-          className={`px-2 py-2 text-[11px] ${pressable(false)}`}
+          className={`px-2 py-2 text-[14px] ${pressable(false)}`}
         >
           [ NEW FIGURE... ]
         </button>
@@ -1119,16 +1119,16 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
 
   if (asking && losing.length > 0) {
     return (
-      <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-2 border-ink p-1 text-[10px] text-ink">
+      <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-2 border-ink p-1 text-[13px] text-ink">
         <p className="font-bold">
           DELETES {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}. UNPINS {losing.map((shape) => shape.name).join(', ')}
           {' '}- MARKED UNTIL RE-PINNED.
         </p>
         <div className="flex gap-1">
-          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}>
+          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}>
             [ YES, DELETE ]
           </button>
-          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-[10px] ${pressable(false)}`}>
+          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)}`}>
             [ NO ]
           </button>
         </div>
@@ -1150,7 +1150,7 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
           ? "THE ROOT NODE HOLDS THE FIGURE UP: IT CAN'T GO."
           : `DELETES ${jointLabel(nodeId)}${removed.length > 1 ? ' AND THE NODES BELOW IT' : ''}. UNDO BRINGS IT BACK.`
       }
-      className={`px-2 py-1 text-[10px] ${pressable(false)} hover:bg-bubble-pale`}
+      className={`px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}
     >
       [ DELETE NODE ]
     </button>
@@ -1161,9 +1161,9 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; 
   return (
     <div className="flex flex-col gap-1">
       {htmlFor === undefined ? (
-        <span className="text-[10px] font-bold text-ink">{label}</span>
+        <span className="text-[13px] font-bold text-ink">{label}</span>
       ) : (
-        <label htmlFor={htmlFor} className="text-[10px] font-bold text-ink">
+        <label htmlFor={htmlFor} className="text-[13px] font-bold text-ink">
           {label}
         </label>
       )}
@@ -1200,7 +1200,7 @@ function TextFieldBox({ label, value, onCommit }: { label: string; value: string
           if (event.key === 'Enter') commit();
           if (event.key === 'Escape') setDraft(value);
         }}
-        className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[11px] uppercase text-ink max-sm:min-h-11"
+        className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[14px] uppercase text-ink max-sm:min-h-11"
       />
     </Field>
   );
@@ -1256,10 +1256,10 @@ function TripleFieldBoxes({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) commit();
       }}
     >
-      <legend className="pb-1 text-[10px] font-bold text-ink">{label}</legend>
+      <legend className="pb-1 text-[13px] font-bold text-ink">{label}</legend>
       <div className="grid grid-cols-3 gap-1">
         {axes.map((axis, index) => (
-          <label key={axis} className="flex flex-col text-[10px] text-ink">
+          <label key={axis} className="flex flex-col text-[13px] text-ink">
             {names[index]}
             <input
               type="number"
@@ -1270,7 +1270,7 @@ function TripleFieldBoxes({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') commit();
               }}
-              className="w-full min-w-0 rounded-none border-2 border-ink bg-paper px-1 py-[2px] text-[11px] text-ink max-sm:min-h-11"
+              className="w-full min-w-0 rounded-none border-2 border-ink bg-paper px-1 py-[2px] text-[14px] text-ink max-sm:min-h-11"
             />
           </label>
         ))}

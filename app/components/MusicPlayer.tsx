@@ -334,7 +334,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
           <span className="flex items-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-sun-pale p-[2px]">
-            <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[10px] font-bold text-ink-bar">
+            <span className="rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-ena px-2 py-[3px] text-[13px] font-bold text-ink-bar">
               ♪ DEBASER PLAYER
             </span>
 
@@ -362,7 +362,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
                 Pure White is 21:1 either way, and it still reads as the screen's second line beside the
                 Emerald title. */}
             <MarqueeText
-              className="mt-1 block text-[10px] leading-[13.5px] text-ink-bar"
+              className="mt-1 block text-[13px] leading-[13.5px] text-ink-bar"
               durationSeconds={22}
               text={`${followNote(follow)}${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
             />
@@ -383,7 +383,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             onNext={player.next}
           />
 
-          <label className="flex items-center gap-1 text-[10px] font-bold text-ink">
+          <label className="flex items-center gap-1 text-[13px] font-bold text-ink">
             VOL
             <input
               type="range"
@@ -563,7 +563,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
       }
     >
       {player.queue.length === 0 ? (
-        <p className="text-[10px] font-bold text-ink">
+        <p className="text-[13px] font-bold text-ink">
           NOTHING ON THE SHELF YET - FILE A TRACK ON THE MUSIC PAGE.
         </p>
       ) : (
@@ -574,7 +574,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
             return (
               <li
                 key={`${entry.id}-${position}`}
-                className={`flex flex-wrap items-center gap-2 rounded-none border border-ink p-2 text-[10px] font-bold text-ink ${
+                className={`flex flex-wrap items-center gap-2 rounded-none border border-ink p-2 text-[13px] font-bold text-ink ${
                   playingThis ? 'bg-sun-pale' : 'bg-paper'
                 }`}
               >
@@ -629,7 +629,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
           which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The
           right edge has no padding because the fold key's box already holds its glyph off the edge. */}
-      <div className="flex items-center justify-between gap-1 bg-ena pl-2 text-[10px] font-bold text-ink-bar">
+      <div className="flex items-center justify-between gap-1 bg-ena pl-2 text-[13px] font-bold text-ink-bar">
         <span className="truncate">♪ PLAYER</span>
 
         <span className="flex shrink-0 items-center">
@@ -681,7 +681,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
         <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
           <NowPlaying />
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
-          <p className="truncate text-[10px] text-ink-bar">
+          <p className="truncate text-[13px] text-ink-bar">
             {followNote(follow)}
             {error ?? trackCaption(track)}
             {loop ? ' :: LOOPING' : ''}
@@ -702,7 +702,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           aria-label="Seek"
         />
 
-        <div className="flex items-center justify-between text-[10px] font-bold text-ink">
+        <div className="flex items-center justify-between text-[13px] font-bold text-ink">
           <span>{formatClock(elapsed)}</span>
           <span>{formatClockOrNothing(seekable ? duration : undefined)}</span>
         </div>
@@ -737,7 +737,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
           </button>
 
-          <label className="ml-auto flex items-center gap-1 text-[10px] font-bold text-ink">
+          <label className="ml-auto flex items-center gap-1 text-[13px] font-bold text-ink">
             VOL
             <input
               type="range"

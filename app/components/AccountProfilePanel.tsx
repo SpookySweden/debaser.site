@@ -70,7 +70,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
         <span>PUBLIC PROFILE</span>
         <span>[ {ready ? 'READY' : 'READING...'} ]</span>
       </div>
@@ -78,7 +78,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
-        <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-ink">
+        <div className="min-w-0 flex-1 space-y-1 text-[13px] font-bold text-ink">
           <p>
             NAME ON THE PROFILE:{' '}
             <ProfileName

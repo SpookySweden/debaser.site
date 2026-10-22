@@ -118,7 +118,7 @@ export default function CommentNodeCard({
       />
 
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
           <span className="inline-flex flex-wrap items-center gap-1">
             #{index + 1}
             <ProfileLink author={comment.author}>
@@ -126,7 +126,7 @@ export default function CommentNodeCard({
             </ProfileLink>
             {matched ? (
               <span
-                className="border border-black bg-sun-pale px-1 text-[10px] font-bold text-ink"
+                className="border border-black bg-sun-pale px-1 text-[13px] font-bold text-ink"
                 title="The tag filter on the board matched this reply"
               >
                 FILTER MATCH
@@ -136,7 +136,7 @@ export default function CommentNodeCard({
           <TimeStamp at={comment.createdAt} />
         </div>
 
-        <p className="mt-1 whitespace-pre-line text-xs text-ink">{comment.body}</p>
+        <p className="mt-1 whitespace-pre-line text-[15px] leading-normal text-ink">{comment.body}</p>
 
         {/* Whoever the reply names: the tags are in the words, said plainly here. */}
         <MentionRow body={comment.body} accounts={accounts} />

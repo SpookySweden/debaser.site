@@ -27,7 +27,7 @@ function UnreadDot() {
  * dropping the label from the face.
  */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice';
 
 /**
  * The notices key in the side panel, and the pop-up that answers it.
@@ -90,7 +90,7 @@ export default function NotificationBell() {
 }
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale';
+  'block w-full rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[13px] font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The same menu, as a phone does it: one row among the other buttons in the profile pop-up.

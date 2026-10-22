@@ -63,14 +63,14 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         <button
           type="button"
           onClick={handleCreate}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-xs font-bold hover:bg-ice"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-[14px] font-bold hover:bg-ice"
         >
           [ CREATE TAG ]
         </button>
       }
     >
         <div className="text-ink">
-          <label htmlFor={inputId} className="block text-[10px] font-bold">
+          <label htmlFor={inputId} className="block text-[13px] font-bold">
             TAG NAME:
           </label>
           <input
@@ -84,10 +84,10 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
               handleCreate();
             }}
             placeholder="e.g. world building"
-            className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none"
+            className="mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[14px] text-ink outline-none"
           />
 
-          <p className="mt-3 text-[10px] font-bold">
+          <p className="mt-3 text-[13px] font-bold">
             SWATCHES ({TAG_MARK_PALETTE.length}) :: EACH IS DRAWN AS A TAG&apos;S COLOUR KEY
           </p>
           <div className="mt-1 grid grid-cols-8 gap-1">
@@ -109,25 +109,25 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           </div>
 
           <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
-            <p className="text-[10px] font-bold">PREVIEW:</p>
+            <p className="text-[13px] font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={tagChipClasses(makeUserTag(previewLabel))}>
                 <TagMark colour={tagMarkColourFromColour(colour)} />
                 {previewLabel}
               </span>
-              <span className="text-[10px] font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
+              <span className="text-[13px] font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
             </div>
             {foldsOnto === null ? (
-              <p className="mt-1 text-[10px]">A NEW TAG WILL BE CREATED.</p>
+              <p className="mt-1 text-[13px]">A NEW TAG WILL BE CREATED.</p>
             ) : (
-              <p className="mt-1 text-[10px] font-bold">
+              <p className="mt-1 text-[13px] font-bold">
                 DECIDEDLY SIMILAR TO AN EXISTING TAG - IT WILL REUSE: {foldsOnto}
               </p>
             )}
           </div>
 
           {error === null ? null : (
-            <p className="mt-2 text-[10px] font-bold text-bubble-pale">ERROR: {error}</p>
+            <p className="mt-2 text-[13px] font-bold text-bubble-pale">ERROR: {error}</p>
           )}
         </div>
     </PopoutWindow>

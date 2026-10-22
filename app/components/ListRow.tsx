@@ -33,7 +33,7 @@ export default function ListRow({
         type="button"
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
-        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-none px-1 py-[2px] text-left text-[10px] font-bold max-sm:min-h-11 max-sm:text-sm ${
+        className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-none px-1 py-[2px] text-left text-[13px] font-bold max-sm:min-h-11 max-sm:text-sm ${
           selected ? 'text-sun' : 'text-ink hover:bg-ice'
         }`}
       >
@@ -50,7 +50,7 @@ export default function ListRow({
           onClick={onDrop}
           title={`Delete the playlist ${label}`}
           aria-label={`Delete the playlist ${label}`}
-          className={`shrink-0 cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
+          className={`shrink-0 cursor-pointer rounded-none border border-ink px-1 text-[13px] font-bold max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
             selected ? 'bg-hardware text-ink-bar hover:bg-chrome' : 'bg-paper text-ink hover:bg-ice'
           }`}
         >

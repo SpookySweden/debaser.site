@@ -61,7 +61,7 @@ export default function TicTacToeBoard({
         })}
       </div>
 
-      <p className="mt-1 truncate text-[10px] font-bold text-ink">
+      <p className="mt-1 truncate text-[13px] font-bold text-ink">
         {winner === null
           ? draw
             ? 'ALL NINE PLATES TAKEN. NOBODY WINS THIS ONE.'

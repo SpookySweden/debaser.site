@@ -38,7 +38,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[10px] font-bold text-ink-bar';
+const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[13px] font-bold text-ink-bar';
 
 /**
  * One line of the feed.
@@ -92,7 +92,7 @@ function NotificationRow({
           }`}
         />
         <span
-          className={`shrink-0 px-1 text-[10px] leading-[14px] text-ink-bar ${KIND_BADGE[item.kind]}`}
+          className={`shrink-0 px-1 text-[13px] leading-[14px] text-ink-bar ${KIND_BADGE[item.kind]}`}
           title={notificationLabel(item.kind)}
         >
           {KIND_TAG[item.kind]}
@@ -114,7 +114,7 @@ function NotificationRow({
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[10px] font-bold text-ink">
+          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[13px] font-bold text-ink">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -122,7 +122,7 @@ function NotificationRow({
     </>
   );
 
-  const className = `block w-full rounded-none border p-1 text-left text-[10px] font-bold ${
+  const className = `block w-full rounded-none border p-1 text-left text-[13px] font-bold ${
     unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar hover:text-ink'
   } hover:bg-ice-pale max-sm:min-h-11`;
 
@@ -245,24 +245,24 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
       )}
 
       {userId === null ? (
-        <p className="p-2 text-[10px] font-bold text-ink">
+        <p className="p-2 text-[13px] font-bold text-ink">
           TAGS AND REPLIES GO ACCOUNT TO ACCOUNT - SIGN IN TO BE TOLD ABOUT THEM.
         </p>
       ) : !ready ? (
-        <p className="p-2 text-[10px] font-bold text-ink">READING THE NOTIFICATIONS...</p>
+        <p className="p-2 text-[13px] font-bold text-ink">READING THE NOTIFICATIONS...</p>
       ) : error !== null ? (
-        <div className="p-2 text-[10px] font-bold text-bubble-pale">
+        <div className="p-2 text-[13px] font-bold text-bubble-pale">
           <p>FEED OFFLINE :: {error}</p>
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
+            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
           >
             [ RETRY ]
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="p-2 text-[10px] font-bold text-ink">
+        <p className="p-2 text-[13px] font-bold text-ink">
           NOTHING HERE YET. TAGGING SOMEBODY IN A POST, OR REPLYING TO THEIR POST, IS WHAT LANDS IN THIS LIST.
         </p>
       ) : (
@@ -280,18 +280,18 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
         >
           [ OPEN THE BOARD ]
         </Link>
-        <span className="text-[10px] text-ink">
+        <span className="text-[13px] text-ink">
           {summary}
           {breakdown === '' ? '' : ` :: ${breakdown}`}
         </span>

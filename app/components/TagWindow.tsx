@@ -75,7 +75,7 @@ function TagTick({
       onClick={onToggle}
       aria-pressed={active}
       title={active ? `Stop including ${tag.label}` : `Include posts tagged ${tag.label}`}
-      className={`inline-flex cursor-pointer items-center gap-[3px] px-1 text-[10px] font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+      className={`inline-flex cursor-pointer items-center gap-[3px] px-1 text-[13px] font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
         active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
       }`}
     >
@@ -265,7 +265,7 @@ export default function TagWindow({
   /** What the window is for: the whole tag list, ranked, as the board's filter. */
   const mainPanel = (
     <div>
-      <p className="text-[10px] font-bold text-ink">
+      <p className="text-[13px] font-bold text-ink">
         {options.length} TAGS, MOST USED FIRST :: {tagKeys.length} INCLUDED :: CLICK ONE TO INCLUDE IT IN THE BOARD
       </p>
 
@@ -281,7 +281,7 @@ export default function TagWindow({
         ))}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink pt-2 text-[10px] font-bold text-ink">
+      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-ink pt-2 text-[13px] font-bold text-ink">
         <span>MATCH:</span>
         <label className="flex items-center gap-1">
           <input type="radio" name="window-tag-match" checked={matchMode === 'any'} onChange={() => onMatchMode('any')} />
@@ -306,15 +306,15 @@ export default function TagWindow({
   /** The board's music: the switch, the sounds, and the files themselves. */
   const musicPanel = (
     <div>
-      <label className="flex items-center gap-2 text-[10px] font-bold text-ink">
+      <label className="flex items-center gap-2 text-[13px] font-bold text-ink">
         <input type="checkbox" checked={musicOnly} onChange={(event) => onMusicOnly(event.target.checked)} />
         FILTER THE FORUM TO MUSIC ONLY
       </label>
-      <p className="mt-1 text-[10px] text-ink">
+      <p className="mt-1 text-[13px] text-ink">
         {musicPosts} OF {total} POSTS CARRY A TRACK :: {files.length} FILE(S) FILED ON THE BOARD
       </p>
 
-      <p className="mt-3 text-[10px] font-bold text-ink">
+      <p className="mt-3 text-[13px] font-bold text-ink">
         SET MUSIC TAGS ({musicTagKeys.length} IN FORCE) :: A POST SHOWS WHEN ITS MUSIC WEARS ONE
       </p>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-[3px]">
@@ -331,7 +331,7 @@ export default function TagWindow({
       </div>
 
       <div className="mt-3 border-t border-ink pt-2">
-        <div className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
+        <div className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
           <label htmlFor="tag-window-file-search">FIND A FILE:</label>
           <input
             id="tag-window-file-search"
@@ -339,7 +339,7 @@ export default function TagWindow({
             value={fileQuery}
             onChange={(event) => setFileQuery(event.target.value)}
             placeholder="title, artist, sound or poster"
-            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none"
+            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
           />
 
           <span className="ml-2">ORDER:</span>
@@ -364,13 +364,13 @@ export default function TagWindow({
         </div>
 
         {listed.length === 0 ? (
-          <p className="mt-2 text-[10px] font-bold text-ink">
+          <p className="mt-2 text-[13px] font-bold text-ink">
             NO FILE MATCHES. A FILE GETS HERE BY BEING ATTACHED TO A POST OR A REPLY.
           </p>
         ) : (
           <ul className="mt-2 space-y-1">
             {listed.map((file) => (
-              <li key={file.track.src} className="rounded-none border border-ink bg-paper p-1 text-[10px] text-ink">
+              <li key={file.track.src} className="rounded-none border border-ink bg-paper p-1 text-[13px] text-ink">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
                   <span>{file.track.title}</span>
                   <span className="text-ink">{file.track.credit}</span>
@@ -408,7 +408,7 @@ export default function TagWindow({
   /** The rules, asked of the board as it stands: a FAIL line is a bug report. */
   const testPanel = (
     <div>
-      <p className="text-[10px] font-bold text-ink">
+      <p className="text-[13px] font-bold text-ink">
         {results.filter((result) => result.ok).length} OF {results.length} PROPERTIES HOLD. EACH LINE IS A RULE THIS
         BOARD IS BUILT ON, ASKED OF IT AS IT IS NOW.
       </p>
@@ -417,7 +417,7 @@ export default function TagWindow({
         {results.map((result) => (
           <li
             key={result.label}
-            className={`flex flex-wrap items-center gap-2 border p-1 text-[10px] font-bold ${
+            className={`flex flex-wrap items-center gap-2 border p-1 text-[13px] font-bold ${
               result.ok ? 'border-ink bg-paper text-ink' : 'border-black bg-sun-pale text-bubble-pale'
             }`}
           >
@@ -428,7 +428,7 @@ export default function TagWindow({
         ))}
       </ul>
 
-      <p className="mt-2 text-[10px] text-ink">
+      <p className="mt-2 text-[13px] text-ink">
         THE SAME RULES RUN WITHOUT A BROWSER IN Temp/check-board-comments.cjs AND Temp/check-live-tag-filter.cjs. A FAIL
         HERE MEANS THE BOARD AND ITS OWN RULES DISAGREE RIGHT NOW.
       </p>
@@ -456,14 +456,14 @@ export default function TagWindow({
             type="button"
             onClick={() => setTab(entry.key)}
             aria-pressed={tab === entry.key}
-            className={`inline-flex cursor-pointer items-center px-2 py-[3px] text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+            className={`inline-flex cursor-pointer items-center px-2 py-[3px] text-[13px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
               tab === entry.key ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice'
             }`}
           >
             {entry.label}
           </button>
         ))}
-        <span className="ml-auto text-[10px] text-ink">
+        <span className="ml-auto text-[13px] text-ink">
           {tab === 'main' ? 'EVERY TAG ON THE BOARD' : null}
           {tab === 'music' ? 'THE BOARD`S OWN MUSIC' : null}
           {tab === 'test' ? 'THE RULES, RUN AGAINST THE BOARD' : null}

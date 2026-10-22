@@ -20,7 +20,7 @@ type ProjectSectionNavProps = {
  */
 export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-1 border border-ink bg-ice-pale p-2 text-[10px] font-bold text-ink">
+    <div className="mb-4 flex flex-wrap items-center gap-1 border border-ink bg-ice-pale p-2 text-[13px] font-bold text-ink">
       <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP}>
         [ &lt; {DEBASER_PROJECT.title} ]
       </Link>

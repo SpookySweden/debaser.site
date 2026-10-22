@@ -18,15 +18,15 @@ import ProfileName from './ProfileName';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice';
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-1 text-[10px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun';
+  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-1 text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =
-  'block w-full cursor-pointer rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[10px] font-bold text-ink hover:bg-ice-pale';
+  'block w-full cursor-pointer rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[13px] font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The side panel's top block: who is signed in.
@@ -95,7 +95,7 @@ export default function SidebarProfile() {
       </div>
 
       {status === 'loading' ? (
-        <p className="p-2 text-[10px] font-bold text-ink">READING THE LOCAL SESSION...</p>
+        <p className="p-2 text-[13px] font-bold text-ink">READING THE LOCAL SESSION...</p>
       ) : status === 'signed-in' && user !== null ? (
         <div className="space-y-2 p-2">
           {/*
@@ -115,7 +115,7 @@ export default function SidebarProfile() {
               />
             </ProfileLink>
 
-            <div className="min-w-0 flex-1 space-y-1 text-[10px] font-bold text-ink">
+            <div className="min-w-0 flex-1 space-y-1 text-[13px] font-bold text-ink">
               <p className="flex items-center gap-1">
                 <ProfileLink author={{ id: user.id, displayName: user.displayName }} className="min-w-0 truncate">
                   <ProfileName author={{ id: user.id, displayName: user.displayName }} />
@@ -191,12 +191,12 @@ export default function SidebarProfile() {
           ) : null}
 
           {usingMockAuth ? (
-            <p className="text-[10px] text-ink">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
+            <p className="text-[13px] text-ink">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
           ) : null}
         </div>
       ) : (
         <div className="space-y-2 p-2">
-          <p className="text-[10px] font-bold text-ink">
+          <p className="text-[13px] font-bold text-ink">
             NOBODY IS SIGNED IN. READING THE BOARD TAKES NO ACCOUNT - AN ACCOUNT IS WHAT SIGNS YOUR
             POSTS AND OPENS YOUR MESSAGES.
           </p>

@@ -89,11 +89,11 @@ function Picker() {
                   <span className="block h-32 w-full border-b-2 border-ink sm:h-36" aria-hidden>
                     <PresetPreview id={id} />
                   </span>
-                  <span className="px-2 pt-1 text-[12px] font-bold">
+                  <span className="px-2 pt-1 text-[14px] font-bold">
                     {RIG_PRESETS[id].label}
-                    {id === current ? <span className="ml-1 text-[10px] font-normal">(ON THE BENCH)</span> : null}
+                    {id === current ? <span className="ml-1 text-[13px] font-normal">(ON THE BENCH)</span> : null}
                   </span>
-                  <span className="min-h-[2.5rem] px-2 pb-2 text-[10px] leading-snug">{RIG_PRESETS[id].note}</span>
+                  <span className="min-h-[2.5rem] px-2 pb-2 text-[13px] leading-snug">{RIG_PRESETS[id].note}</span>
                 </button>
               </li>
             );
@@ -110,18 +110,18 @@ function Picker() {
               applyPreset(picked);
               close();
             }}
-            className="cursor-pointer rounded-none border-2 border-ink bg-ena px-3 py-2 text-[11px] font-bold text-ink-bar disabled:cursor-not-allowed disabled:bg-sun-pale disabled:text-ink max-sm:min-h-11"
+            className="cursor-pointer rounded-none border-2 border-ink bg-ena px-3 py-2 text-[14px] font-bold text-ink-bar disabled:cursor-not-allowed disabled:bg-sun-pale disabled:text-ink max-sm:min-h-11"
           >
             {picked === null ? '[ PICK A FIGURE ABOVE ]' : `[ START WITH ${RIG_PRESETS[picked].label} ]`}
           </button>
           <button
             type="button"
             onClick={close}
-            className="cursor-pointer rounded-none border-2 border-ink bg-sun-pale px-3 py-2 text-[11px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
+            className="cursor-pointer rounded-none border-2 border-ink bg-sun-pale px-3 py-2 text-[14px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
           >
             [ CANCEL ]
           </button>
-          <span className="text-[10px] text-ink">REPLACES THE FIGURE ON THE BENCH. UNDO BRINGS IT BACK.</span>
+          <span className="text-[13px] text-ink">REPLACES THE FIGURE ON THE BENCH. UNDO BRINGS IT BACK.</span>
         </div>
       </section>
     </div>

@@ -116,13 +116,13 @@ export default function QueueBrowser() {
       />
 
       {notice === null ? null : (
-        <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar">{notice}</p>
+        <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar">{notice}</p>
       )}
 
       {shown === null ? (
-        <p className="p-3 text-[10px] font-bold text-ink">READING THE QUEUE LIST...</p>
+        <p className="p-3 text-[13px] font-bold text-ink">READING THE QUEUE LIST...</p>
       ) : shown.length === 0 ? (
-        <p className="p-3 text-[11px] font-bold text-ink">
+        <p className="p-3 text-[14px] font-bold text-ink">
           NOBODY IS BROADCASTING RIGHT NOW.{' '}
           {signedIn
             ? 'GO PUBLIC ABOVE AND YOUR QUEUE APPEARS HERE FOR EVERYBODY.'
@@ -212,7 +212,7 @@ function BroadcastSwitch({
 
   if (!signedIn) {
     return (
-      <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-quiet">
+      <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-quiet">
         SIGN IN TO BROADCAST WHAT YOU ARE LISTENING TO. SIGNED OUT, YOU CAN STILL FOLLOW SOMEBODY.
       </p>
     );
@@ -260,14 +260,14 @@ function BroadcastSwitch({
 
   return (
     <div className="border-b border-ink px-2 py-1">
-      <p className="flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
+      <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
         <button
           type="button"
           onClick={press}
           disabled={busy}
           aria-pressed={isPublic}
           title={isPublic ? 'Take your queue off the list' : 'Put your queue on the list'}
-          className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-[10px] font-bold disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-3 ${
+          className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-[13px] font-bold disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-3 ${
             isPublic
               ? 'border-t-black border-l-black border-r-white border-b-white bg-acid text-ink-plate'
               : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
@@ -281,7 +281,7 @@ function BroadcastSwitch({
         </span>
       </p>
 
-      {message === null ? null : <p className="mt-1 text-[10px] font-bold text-ink">{message}</p>}
+      {message === null ? null : <p className="mt-1 text-[13px] font-bold text-ink">{message}</p>}
     </div>
   );
 }
@@ -319,7 +319,7 @@ function QueueRow({
         type="button"
         onClick={onOpen}
         title={mine ? 'Your own queue, as others see it' : `Open ${name}'s queue`}
-        className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11 ${
+        className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-[13px] font-bold text-ink hover:bg-ice max-sm:min-h-11 ${
           following ? 'bg-ice' : ''
         }`}
       >

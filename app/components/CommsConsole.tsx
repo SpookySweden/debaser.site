@@ -108,12 +108,12 @@ export default function CommsConsole() {
   if (userId === null) {
     return (
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>COMMS</span>
           <span>[ NOBODY SIGNED IN ]</span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
+        <div className="space-y-2 p-3 text-[13px] font-bold text-ink">
           <p>MESSAGES TRAVEL BETWEEN ACCOUNTS, SO THERE IS NO ANONYMOUS INBOX.</p>
           <p>
             <Link href="/account" className="underline hover:bg-ice">
@@ -131,7 +131,7 @@ export default function CommsConsole() {
       {/* A store that cannot be read is said out loud rather than left looking like an
           account with nothing in it. On a wide screen it takes the first row to itself. */}
       {error === null ? null : (
-        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] font-bold text-ink lg:basis-full">
+        <div className="flex flex-wrap items-center gap-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[13px] font-bold text-ink lg:basis-full">
           <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words text-bubble-pale">{error}</span>
           <button type="button" onClick={retry} className={PLATE}>
@@ -142,7 +142,7 @@ export default function CommsConsole() {
 
       {/* Conversations rail */}
       <section className={`rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
         </div>
@@ -154,11 +154,11 @@ export default function CommsConsole() {
 
           {picking ? (
             <div className="mt-2 rounded-none border border-ink bg-ice-pale p-2">
-              <p className="text-[10px] font-bold text-ink">MESSAGE AN ACCOUNT:</p>
+              <p className="text-[13px] font-bold text-ink">MESSAGE AN ACCOUNT:</p>
               {!accountsReady ? (
-                <p className="mt-1 text-[10px] text-ink">READING THE ACCOUNT LIST...</p>
+                <p className="mt-1 text-[13px] text-ink">READING THE ACCOUNT LIST...</p>
               ) : others.length === 0 ? (
-                <p className="mt-1 text-[10px] text-ink">
+                <p className="mt-1 text-[13px] text-ink">
                   NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE AND IT APPEARS HERE.
                 </p>
               ) : (
@@ -193,7 +193,7 @@ export default function CommsConsole() {
           </button>
 
           {grouping ? (
-            <div className="mt-2 space-y-1 rounded-none border border-ink bg-ice-pale p-2 text-[10px] font-bold text-ink">
+            <div className="mt-2 space-y-1 rounded-none border border-ink bg-ice-pale p-2 text-[13px] font-bold text-ink">
               <label htmlFor="group-name" className="block">
                 GROUP NAME:
               </label>
@@ -203,7 +203,7 @@ export default function CommsConsole() {
                 onChange={(event) => setGroupName(event.target.value)}
                 placeholder="e.g. THE WARD"
                 maxLength={MAX_GROUP_NAME_LENGTH}
-                className="w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none"
+                className="w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none"
               />
 
               <p className="pt-1">
@@ -246,7 +246,7 @@ export default function CommsConsole() {
           ) : null}
 
           {rows.length === 0 ? (
-            <p className="mt-2 text-[10px] font-bold text-ink">NO CONVERSATIONS YET. START ONE ABOVE.</p>
+            <p className="mt-2 text-[13px] font-bold text-ink">NO CONVERSATIONS YET. START ONE ABOVE.</p>
           ) : (
             <ul className="mt-2 space-y-1">
               {rows.map(({ thread, row }) => (
@@ -257,7 +257,7 @@ export default function CommsConsole() {
                       comms.setActiveThreadId(thread.id);
                       setMobileView('thread');
                     }}
-                    className={`w-full cursor-pointer rounded-none border p-2 text-left text-[10px] font-bold max-sm:p-3 max-sm:text-xs ${
+                    className={`w-full cursor-pointer rounded-none border p-2 text-left text-[13px] font-bold max-sm:p-3 max-sm:text-[14px] ${
                       thread.id === active?.id
                         ? 'border-black bg-pointed'
                         : 'border-ink bg-ice-pale hover:bg-pointed'
@@ -287,12 +287,12 @@ export default function CommsConsole() {
       </section>
       {/* The open conversation */}
       <section className={`flex min-h-0 flex-1 flex-col rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
-        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between gap-2 bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span className="flex min-w-0 items-center gap-2">
             <button
               type="button"
               onClick={() => setMobileView('list')}
-              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold leading-none text-ink hover:bg-ice lg:hidden"
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold leading-none text-ink hover:bg-ice lg:hidden"
             >
               ← LIST
             </button>
@@ -324,7 +324,7 @@ export default function CommsConsole() {
           )}
 
           {active === undefined || activeOtherId === null ? (
-            <p className="text-[10px] font-bold text-ink">
+            <p className="text-[13px] font-bold text-ink">
               PICK A CONVERSATION ON THE LEFT, OR START A NEW ONE. ONE THREAD IS OPEN AT A TIME, WHICH IS THE SAME
               SHAPE THE NOTIFICATION WINDOW OPENS IN ON A DESKTOP.
             </p>
@@ -343,7 +343,7 @@ export default function CommsConsole() {
         </div>
 
         {source === 'mock' ? (
-          <div className="flex flex-wrap items-center gap-2 border-t border-ink p-2 text-[10px] font-bold text-ink">
+          <div className="flex flex-wrap items-center gap-2 border-t border-ink p-2 text-[13px] font-bold text-ink">
             <span className="text-ink">
               LOCAL MODE: MESSAGES STAY IN THIS BROWSER.
             </span>

@@ -31,18 +31,18 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
 
   return (
     <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
-      <div className="flex items-baseline justify-between gap-2 text-[10px] font-bold text-ink">
+      <div className="flex items-baseline justify-between gap-2 text-[13px] font-bold text-ink">
         <span className="text-ink">{owner ? 'your track' : 'their track'}</span>
         <span className="text-ink">{element === undefined ? 'nothing filed' : element.tag}</span>
       </div>
 
       {/* The readout, in the player's own colours: it is the same shelf, one track over. */}
       <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
-        <p className="truncate text-[11px] font-bold text-acid">
+        <p className="truncate text-[14px] font-bold text-acid">
           {element === undefined ? 'NOTHING FILED YET' : element.title}
         </p>
         {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
-        <p className="mt-1 truncate text-[10px] text-ink-bar">
+        <p className="mt-1 truncate text-[13px] text-ink-bar">
           {element === undefined
             ? owner
               ? 'FILE A TRACK IN THE CUSTOMISER AND IT PLAYS FROM THE BAR BELOW.'
@@ -70,7 +70,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>
 
-          <span className="text-[10px] text-ink">PLAYS THROUGH THE BAR AT THE FOOT OF THE PAGE</span>
+          <span className="text-[13px] text-ink">PLAYS THROUGH THE BAR AT THE FOOT OF THE PAGE</span>
         </div>
       )}
     </div>

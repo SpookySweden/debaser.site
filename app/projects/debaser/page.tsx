@@ -36,7 +36,7 @@ export default function DebaserProjectPage() {
     <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER]" status="Debaser Project Active">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // {DEBASER_PROJECT.title}</h1>
     <p className="text-sm mb-2 leading-relaxed">{DEBASER_PROJECT.summary}</p>
-    <p className="text-[10px] font-bold mb-4 text-ink">
+    <p className="text-[13px] font-bold mb-4 text-ink">
       {DEBASER_PROJECT.subtitle}
     </p>
 
@@ -49,12 +49,12 @@ export default function DebaserProjectPage() {
           href={section.href}
           className="block rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-pointed"
         >
-          <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+          <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
             <span>{section.label}</span>
             <span>[ {SECTION_COUNTS[section.id] ?? 'OPEN'} ]</span>
           </div>
-          <div className="space-y-1 p-3 text-[10px] font-bold">
-            <p className="text-xs">{section.summary}</p>
+          <div className="space-y-1 p-3 text-[13px] font-bold">
+            <p className="text-[14px]">{section.summary}</p>
             <p className="text-ink">{section.note}</p>
             <p className="text-ink">OPEN {section.href}</p>
           </div>
@@ -63,10 +63,10 @@ export default function DebaserProjectPage() {
     </div>
 
     <div className="border border-black p-4 bg-ice-pale mt-6">
-      <p className="text-xs font-bold mb-2">AROUND THE ARCHIVE:</p>
+      <p className="text-[14px] font-bold mb-2">AROUND THE ARCHIVE:</p>
       <ul className="space-y-1">
         {ARCHIVE_LINKS.filter((link) => SITE_ROOMS.includes(link.id)).map((link) => (
-          <li key={link.id} className="text-[10px] font-bold">
+          <li key={link.id} className="text-[13px] font-bold">
             <Link href={link.href} className="underline hover:bg-pointed max-sm:flex max-sm:min-h-11 max-sm:w-fit max-sm:items-center">
               {link.label}
             </Link>{' '}

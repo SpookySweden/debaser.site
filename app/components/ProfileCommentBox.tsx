@@ -69,7 +69,7 @@ export default function ProfileCommentBox({
 
   return (
     <div className="mt-2 rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
         <span>{title}</span>
       </div>
 
@@ -85,16 +85,16 @@ export default function ProfileCommentBox({
       />
 
       {footer === undefined || footer === null ? null : (
-        <p className="mt-1 text-[10px] font-bold text-ink">{footer}</p>
+        <p className="mt-1 text-[13px] font-bold text-ink">{footer}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
-        <span className="text-[10px] text-ink">{body.trim().length} CHARS</span>
-        {error === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{error}</p>}
-        {status === null ? null : <p className="text-[10px] font-bold text-ink">{status}</p>}
+        <span className="text-[13px] text-ink">{body.trim().length} CHARS</span>
+        {error === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{error}</p>}
+        {status === null ? null : <p className="text-[13px] font-bold text-ink">{status}</p>}
       </div>
     </div>
   );

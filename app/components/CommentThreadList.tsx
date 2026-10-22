@@ -163,7 +163,7 @@ export default function CommentThreadList({
   }
 
   if (thread.comments.length === 0) {
-    return <p className="mt-2 text-[10px] font-bold text-ink">{emptyLabel}</p>;
+    return <p className="mt-2 text-[13px] font-bold text-ink">{emptyLabel}</p>;
   }
 
   return <ul className="mt-2 space-y-2">{nodes.map((node, index) => renderNode(node, index))}</ul>;

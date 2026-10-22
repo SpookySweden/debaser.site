@@ -16,7 +16,7 @@ import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 const CharacterViewport = dynamic(() => import('./CharacterViewport'), {
   ssr: false,
   loading: () => (
-    <p className="p-4 text-[10px] font-bold text-ink">LOADING THE WORKBENCH...</p>
+    <p className="p-4 text-[13px] font-bold text-ink">LOADING THE WORKBENCH...</p>
   ),
 });
 

@@ -138,7 +138,7 @@ export default function QueueProfilePopout({
             onClick={onClose}
             aria-label="Close"
             title="Close - or press anywhere off this card"
-            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[11px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[14px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
           </button>
@@ -205,20 +205,20 @@ function QueueCardBody({
 
   return (
     <div className="space-y-2 p-3">
-      <p className="text-[11px] font-bold text-ink">
+      <p className="text-[14px] font-bold text-ink">
         {mine ? 'YOU' : name}
         <span className="ml-2 font-normal text-ink-quiet">TRACK {queueTrackBadge(queue)}</span>
       </p>
 
       <div className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-1">
-        <p className="truncate text-[12px] font-bold text-acid">{title}</p>
-        <p className="truncate text-[10px] text-ink-bar">
+        <p className="truncate text-[14px] font-bold text-acid">{title}</p>
+        <p className="truncate text-[13px] text-ink-bar">
           {formatClock(where)} IN ::{' '}
           <span className={state === 'live' ? 'text-acid' : 'text-sun'}>{hostStateLabel(state)}</span>
         </p>
       </div>
 
-      <p className="text-[10px] text-ink-quiet">
+      <p className="text-[13px] text-ink-quiet">
         {mine
           ? 'THIS IS YOUR OWN QUEUE - THIS IS WHAT EVERYBODY ELSE SEES.'
           : following
@@ -267,7 +267,7 @@ function QueueCardBody({
       </p>
 
       {following || mine ? null : (
-        <p className="text-[10px] text-ink-quiet">
+        <p className="text-[13px] text-ink-quiet">
           FOLLOWING TAKES THE PLAYER OVER. WHAT YOU HAVE NOW IS KEPT IN RADI-OH.
         </p>
       )}

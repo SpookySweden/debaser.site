@@ -101,7 +101,7 @@ export default function CommentComposer({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={placeholder}
-      className={`w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-xs text-ink outline-none max-sm:p-3${
+      className={`w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3${
         condensed ? ' sm:flex-1' : ''
       }`}
     />
@@ -117,7 +117,7 @@ export default function CommentComposer({
   const attachmentControls = (
     <>
       {previewTags !== undefined && previewTags.length > 0 ? (
-        <div className="mt-2 flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
+        <div className="mt-2 flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink">
           <span>AUTO TAGS:</span>
           <TagStrip tags={previewTags} className="mt-1" />
         </div>
@@ -133,7 +133,7 @@ export default function CommentComposer({
 
       {showMediaPicker ? (
         <div className="mt-2">
-          <p className="text-[10px] font-bold text-ink">CONTAINING MEDIA:</p>
+          <p className="text-[13px] font-bold text-ink">CONTAINING MEDIA:</p>
           <div className="mt-1">
             <MediaPicker
               id={`${id}-media`}
@@ -179,7 +179,7 @@ export default function CommentComposer({
           the account it is posting as, and the count is not a thing anybody writes to. They stay in
           the window's own form, where a post is being composed rather than answered. */}
       {condensed ? null : (
-        <div className="mb-1 flex items-center justify-between text-[10px] font-bold text-ink">
+        <div className="mb-1 flex items-center justify-between text-[13px] font-bold text-ink">
           <span>
             AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
           </span>
@@ -212,11 +212,11 @@ export default function CommentComposer({
 
       <div className={`flex flex-wrap items-center gap-3${condensed ? ' mt-1' : ' mt-2'}`}>
         {error !== null ? (
-          <span className="text-[10px] font-bold text-bubble-pale">ERROR: {error}</span>
+          <span className="text-[13px] font-bold text-bubble-pale">ERROR: {error}</span>
         ) : null}
 
         {error === null && status !== null ? (
-          <span className="text-[10px] font-bold text-ink-quiet">OK: {status}</span>
+          <span className="text-[13px] font-bold text-ink-quiet">OK: {status}</span>
         ) : null}
       </div>
     </form>

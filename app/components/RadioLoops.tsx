@@ -58,13 +58,13 @@ export default function RadioLoops() {
         <span>[ {loops.length} ]</span>
       </div>
 
-      <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-quiet">
+      <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-quiet">
         EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO
         BACK TO WHERE YOU WERE IN IT.
       </p>
 
       {loops.length === 0 ? (
-        <p className="p-3 text-[11px] font-bold text-ink">
+        <p className="p-3 text-[14px] font-bold text-ink">
           NOTHING HERE YET. PUT SOMETHING ON - FROM THE MUSIC WINDOW, OR SOMEBODY&apos;S PROFILE - AND IT
           WILL APPEAR, KEEPING YOUR PLACE.
         </p>
@@ -92,7 +92,7 @@ export default function RadioLoops() {
             <button
               type="button"
               onClick={clearAllLoops}
-              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
+              className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
             >
               [ CLEAR ALL ]
             </button>
@@ -206,7 +206,7 @@ function LoopIcon({
           height reserves it, so notes arriving never push the face or a neighbour. */}
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[10px] font-bold leading-none ${ink} ${
+        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[13px] font-bold leading-none ${ink} ${
           mood === 'playing' ? 'animate-blip' : mood === 'hover' ? 'animate-hop' : ''
         }`}
       >
@@ -259,7 +259,7 @@ function LoopIcon({
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
         aria-label={`Clear ${label} from your recent listening`}
-        className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[10px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
+        className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[13px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}

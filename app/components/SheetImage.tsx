@@ -27,7 +27,7 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
   if (missing) {
     if (compact) {
       return (
-        <span className="text-[10px] font-bold text-ink" title={`${src} is not in the assets folder yet`}>
+        <span className="text-[13px] font-bold text-ink" title={`${src} is not in the assets folder yet`}>
           [ ? ]
         </span>
       );
@@ -35,8 +35,8 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
 
     return (
       <div className="flex min-h-40 w-full flex-col items-center justify-center gap-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-ice-pale p-4 text-center">
-        <span className="text-[10px] font-bold text-ink">[ ARTWORK FILE NOT FOUND ]</span>
-        <span className="text-[10px] text-ink">CHECK THE PROJECT assets/ FOLDER FOR THIS SHEET</span>
+        <span className="text-[13px] font-bold text-ink">[ ARTWORK FILE NOT FOUND ]</span>
+        <span className="text-[13px] text-ink">CHECK THE PROJECT assets/ FOLDER FOR THIS SHEET</span>
       </div>
     );
   }

@@ -66,13 +66,13 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
         </button>
 
         <span className="min-w-0 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-hardware px-2 py-[2px]">
-          <span className={`block truncate font-bold text-acid ${compact ? 'text-[10px]' : 'text-[11px]'}`}>
+          <span className={`block truncate font-bold text-acid ${compact ? 'text-[13px]' : 'text-[14px]'}`}>
             {track.title}
           </span>
           {/* The byline sits on the `bg-hardware` screen above, which is Black in *both* themes - so it
               takes the bar ink rather than a field ink: `text-ena-deep` was Nigrosine on Black (1.18:1)
               and became Black on Black in the dark theme. Pure White is 21:1 either way. */}
-          <span className="block truncate text-[10px] text-ink-bar">
+          <span className="block truncate text-[13px] text-ink-bar">
             {poster}
             {track.credit.length === 0 || track.credit === poster ? '' : ` :: ${track.credit}`}
             {origin === undefined ? '' : ` :: ${origin}`}

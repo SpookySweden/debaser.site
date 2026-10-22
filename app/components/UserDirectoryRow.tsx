@@ -82,7 +82,7 @@ export default function UserDirectoryRow({
    */
   if (compact) {
     return (
-      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-[10px] font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
+      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-[13px] font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
         <StatusDot status={row.status} record={row.record} />
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
@@ -108,7 +108,7 @@ export default function UserDirectoryRow({
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-[10px] font-bold last:border-b-0 ${
+      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-[13px] font-bold last:border-b-0 ${
         row.admin ? 'bg-sun-pale' : ''
       }`}
     >

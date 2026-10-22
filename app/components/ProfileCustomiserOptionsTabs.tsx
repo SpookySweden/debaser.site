@@ -16,7 +16,7 @@ import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
 import { TagMark } from './TagBadge';
 
-export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-ink';
+export const CUSTOMISER_NOTE = 'text-[13px] font-bold text-ink';
 
 /**
  * A swatch is offered as the site's own chip: a small key of the colour with the swatch's *name* in
@@ -26,7 +26,7 @@ export const CUSTOMISER_NOTE = 'text-[10px] font-bold text-ink';
  * the name drawn in the colour that was picked - which is the only part that has to be loud.
  */
 const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[10px] font-bold text-ink-bar uppercase hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[13px] font-bold text-ink-bar uppercase hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [
@@ -98,7 +98,7 @@ export function ProfileIdentityTab({
 
       {NAME_COLOUR_ROWS.map((row) => (
         <div key={row.label} className="mt-1">
-          <p className="text-[10px] font-bold text-ink">{row.label}</p>
+          <p className="text-[13px] font-bold text-ink">{row.label}</p>
           <div className="mt-1 flex flex-wrap items-center gap-1">
             {row.colours.map((colour) => {
               const chosen = nameColour === colour.hex;
@@ -135,10 +135,10 @@ export function ProfileIdentityTab({
         >
           {preview}
         </span>
-        <span className="text-[10px] text-ink">PREVIEW :: {nameColourLabel(nameColour)}</span>
+        <span className="text-[13px] text-ink">PREVIEW :: {nameColourLabel(nameColour)}</span>
       </div>
 
-      <p className="mt-1 text-[10px] text-ink">
+      <p className="mt-1 text-[13px] text-ink">
         AN INK SWATCH IS A NAME THAT READS ON THE PAGE, IN EITHER THEME - WHERE THE FIELD IS DARK THE
         COLOUR IS RESTATED RATHER THAN KEPT (BLACK BECOMES PURE WHITE, ROYAL BLUE BECOMES DAFFODIL). A
         GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
@@ -167,14 +167,14 @@ export function ProfileIdentityTab({
             sees here is what a reader sees. Reserved at a fixed size so choosing a country cannot
             reflow the row (`SpriteSlot` holds its box whether or not the drawing exists). */}
         <CountryFlag code={country} width={24} height={16} />
-        <span className="text-[10px] text-ink">{country.length === 0 ? 'NO FLAG PICKED' : countryName(country)}</span>
+        <span className="text-[13px] text-ink">{country.length === 0 ? 'NO FLAG PICKED' : countryName(country)}</span>
       </div>
-      <p className="mt-1 text-[10px] text-ink">
+      <p className="mt-1 text-[13px] text-ink">
         A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE
         STAND IN FOR IT.
       </p>
       {countryProblem === undefined ? null : (
-        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{countryProblem}</p>
+        <p className="mt-1 text-[13px] font-bold text-bubble-pale">{countryProblem}</p>
       )}
 
       {/* The status, beside the country flag because the two are the same kind of thing: one short
@@ -197,7 +197,7 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
       {statusProblem === undefined ? null : (
-        <p className="mt-1 text-[10px] font-bold text-bubble-pale">{statusProblem}</p>
+        <p className="mt-1 text-[13px] font-bold text-bubble-pale">{statusProblem}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -216,13 +216,13 @@ export function ProfileIdentityTab({
         placeholder="Who is behind this account?"
         className={FIELD}
       />
-      {bioProblem === undefined ? null : <p className="mt-1 text-[10px] font-bold text-bubble-pale">{bioProblem}</p>}
+      {bioProblem === undefined ? null : <p className="mt-1 text-[13px] font-bold text-bubble-pale">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
         </button>
-        <p className="text-[10px] text-ink">
+        <p className="text-[13px] text-ink">
           THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.
         </p>
       </div>
@@ -270,7 +270,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
       <ul className="space-y-2">
         {rows.map((row) => (
           <li key={row.key} className="rounded-none border border-ink bg-ice-pale p-2">
-            <label className="flex items-start gap-2 text-[10px] font-bold text-ink">
+            <label className="flex items-start gap-2 text-[13px] font-bold text-ink">
               <input
                 type="checkbox"
                 checked={visibility[row.key]}
@@ -282,7 +282,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
                 <span className="mt-1 block font-normal text-ink">{row.note}</span>
               </span>
             </label>
-            <p className="mt-1 text-[10px] text-ink">
+            <p className="mt-1 text-[13px] text-ink">
               CURRENTLY: {visibility[row.key] ? 'VISIBLE TO VISITORS' : 'HIDDEN FROM VISITORS'}
               {visibility[row.key] === profile.visibility[row.key] ? '' : ' :: UNSAVED CHANGE'}
             </p>
@@ -294,7 +294,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
         <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
           {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
         </button>
-        <p className="text-[10px] text-ink">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>
+        <p className="text-[13px] text-ink">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>
       </div>
     </div>
   );

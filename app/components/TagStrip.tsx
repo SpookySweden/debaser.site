@@ -32,7 +32,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
   if (tags.length === 0) {
     if (emptyLabel === undefined) return null;
 
-    return <p className={`text-[10px] font-bold text-ink ${className ?? ''}`}>{emptyLabel}</p>;
+    return <p className={`text-[13px] font-bold text-ink ${className ?? ''}`}>{emptyLabel}</p>;
   }
 
   const folds = limit !== undefined && limit < tags.length;
@@ -41,7 +41,7 @@ export default function TagStrip({ tags, limit, className, emptyLabel }: TagStri
 
   return (
     <p
-      className={`flex flex-wrap items-center gap-x-[10px] gap-y-[3px] text-[10px] leading-none text-ink ${className ?? ''}`}
+      className={`flex flex-wrap items-center gap-x-[10px] gap-y-[3px] text-[13px] leading-none text-ink ${className ?? ''}`}
     >
       {shown.map((tag) => (
         <TagLink key={tag.id} tag={tag} />

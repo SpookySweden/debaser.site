@@ -105,7 +105,7 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
   }
 
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
+    <div className="mt-1 flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink">
       <span className="border border-black bg-ena px-1 text-ink-bar">[ MOD ]</span>
 
       {pin === undefined ? null : (
@@ -173,19 +173,19 @@ export default function ForumPinPanel() {
 
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[10px] font-bold text-ink-bar">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[13px] font-bold text-ink-bar">
         <span>PINNED POSTS :: MODERATORS</span>
         <span>[ {pins.length === 0 ? 'NOTHING PINNED' : `${pins.length} PINNED`} ]</span>
       </div>
 
       <div className="p-2 text-ink">
-        <p className="text-[10px] font-bold">
+        <p className="text-[13px] font-bold">
           A PIN HOLDS A POST AT THE TOP OF THE BOARD AND LEADS THE WIRE UNTIL IT RUNS OUT - OR
           FOREVER, IF THAT IS WHAT WAS PICKED. `[ PIN POST ]` ON ANY POST BELOW TAKES ONE.
         </p>
 
         {pins.length === 0 ? (
-          <p className="mt-1 text-[10px] text-ink">NO POST IS PINNED AT THE MOMENT.</p>
+          <p className="mt-1 text-[13px] text-ink">NO POST IS PINNED AT THE MOMENT.</p>
         ) : (
           <ul className="mt-1 space-y-1">
             {pins.map((pin) => {
@@ -194,7 +194,7 @@ export default function ForumPinPanel() {
               return (
                 <li
                   key={pin.threadId}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink bg-paper p-1 text-[10px] font-bold"
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink bg-paper p-1 text-[13px] font-bold"
                 >
                   <span className="border border-black bg-bubble-pale px-1 text-ink-bar">{pinLabel(pin)}</span>
 
@@ -222,7 +222,7 @@ export default function ForumPinPanel() {
           </ul>
         )}
 
-        {error === null ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">{error}</p>}
+        {error === null ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
       </div>
     </section>
   );

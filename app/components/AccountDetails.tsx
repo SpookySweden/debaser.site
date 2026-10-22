@@ -69,12 +69,12 @@ export default function AccountDetails() {
         id="account-summary"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>ACCOUNT DETAILS</span>
           <span>[ READ ONLY ]</span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
+        <div className="space-y-2 p-3 text-[13px] font-bold text-ink">
           <p>
             NAME:{' '}
             <ProfileName
@@ -102,7 +102,7 @@ export default function AccountDetails() {
             </p>
           </div>
 
-          {message === null ? null : <p className="text-[10px] font-bold text-ink">{message}</p>}
+          {message === null ? null : <p className="text-[13px] font-bold text-ink">{message}</p>}
         </div>
       </section>
 
@@ -110,12 +110,12 @@ export default function AccountDetails() {
         id="activity"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>BOARD ACTIVITY</span>
           <span>[ {myThreads.length + myReplies} POSTS ]</span>
         </div>
 
-        <div className="space-y-2 p-3 text-[10px] font-bold text-ink">
+        <div className="space-y-2 p-3 text-[13px] font-bold text-ink">
           <p>
             THREADS FILED: {myThreads.length} :: REPLIES FILED: {myReplies}
           </p>
@@ -140,12 +140,12 @@ export default function AccountDetails() {
         id="danger-zone"
         className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
       >
-        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>DANGER ZONE</span>
           <span>[ CAREFUL ]</span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-3 text-[10px] font-bold text-ink">
+        <div className="flex flex-wrap items-center gap-2 p-3 text-[13px] font-bold text-ink">
           {usingMockAuth ? (
             <>
               <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>

@@ -40,7 +40,7 @@ export const LORE_STATUS_LINES: Record<LoreStatus, string> = {
 /** A toolbar plate that reads as pressed while the mark it toggles is on the cursor. */
 function toolClass(isOn: boolean): string {
   return isOn
-    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-[2px] text-[10px] font-bold text-ink-plate'
+    ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-[2px] text-[13px] font-bold text-ink-plate'
     : PLATE;
 }
 
@@ -140,7 +140,7 @@ export default function LoreEditor({
       </div>
 
       {/* Whose carets are in it, in the colours those names wear everywhere else. */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-ink bg-ice-pale px-2 py-1 text-[10px] font-bold text-ink">
+      <div className="flex flex-wrap items-center gap-2 border-b border-ink bg-ice-pale px-2 py-1 text-[13px] font-bold text-ink">
         <span>IN THE ROOM:</span>
         {peers.map((peer) => (
           <span key={peer.clientId} className="border border-black bg-paper px-1" style={{ color: peer.colour }}>
@@ -200,7 +200,7 @@ export default function LoreEditor({
       </div>
 
       {/* The filing line: what the shelf has, and the button that files what it does not. */}
-      <div className="flex flex-wrap items-center gap-2 border-t border-ink px-2 py-1 text-[10px] font-bold text-ink">
+      <div className="flex flex-wrap items-center gap-2 border-t border-ink px-2 py-1 text-[13px] font-bold text-ink">
         {savedAt === null ? (
           <span className="text-bubble-pale">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
         ) : (

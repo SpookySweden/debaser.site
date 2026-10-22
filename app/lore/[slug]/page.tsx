@@ -37,7 +37,7 @@ export default async function LorePage({ params }: LorePageProps) {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LORE]" status="Lore Page Active">
       <h1 className="text-xl font-bold mb-2">DEBASER.SITE // LORE</h1>
-      <p className="text-[10px] font-bold mb-4">A PAGE IS ITS OWN ADDRESS: /lore/{address}</p>
+      <p className="text-[13px] font-bold mb-4">A PAGE IS ITS OWN ADDRESS: /lore/{address}</p>
 
       <ProjectSectionNav current="lore" />
 

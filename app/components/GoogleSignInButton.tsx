@@ -55,7 +55,7 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
         onClick={() => void handleClick()}
         disabled={busy}
         title="Sign in with a Google account"
-        className={`${BUTTON} ${size === 'large' ? 'px-4 py-2 text-xs' : 'px-3 py-1 text-[10px]'}`}
+        className={`${BUTTON} ${size === 'large' ? 'px-4 py-2 text-[14px]' : 'px-3 py-1 text-[13px]'}`}
       >
         <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-none border border-black bg-paper">
           <SheetImage src={GOOGLE_ICON_SRC} alt="Google" width={20} height={20} sizes="20px" compact />
@@ -63,7 +63,7 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
         {busy ? 'OPENING GOOGLE...' : 'LOG IN WITH GOOGLE'}
       </button>
 
-      {note === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{note}</p>}
+      {note === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{note}</p>}
     </div>
   );
 }

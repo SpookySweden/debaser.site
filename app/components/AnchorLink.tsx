@@ -31,7 +31,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
   const label = `↳ ${prefix}: ${anchor.label}`;
 
   if (target.href.length === 0) {
-    return <span className="text-[10px] font-bold text-ink">{label} [ LINK PENDING ]</span>;
+    return <span className="text-[13px] font-bold text-ink">{label} [ LINK PENDING ]</span>;
   }
 
   return (
@@ -39,7 +39,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
       <Link
         href={target.href}
         title={`Open ${anchor.label} at ${target.href}`}
-        className="rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink underline hover:bg-ice"
+        className="rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink underline hover:bg-ice"
       >
         {label}
       </Link>
@@ -53,7 +53,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
       {preview === 'none' || anchor.kind === 'profile' ? null : (
         <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-48 border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 group-hover/link:block">
           {target.preview === undefined ? (
-            <span className="block border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-[10px] font-bold text-ink">
+            <span className="block border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-[13px] font-bold text-ink">
               {anchor.kind.toUpperCase()} ITEM
               <br />
               OPENS: {target.href}
@@ -67,7 +67,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
                 height={target.preview.height}
                 className="h-auto w-full rounded-none border border-ink bg-paper"
               />
-              <span className="mt-1 block bg-paper px-1 py-[2px] text-[10px] font-bold text-ink">
+              <span className="mt-1 block bg-paper px-1 py-[2px] text-[13px] font-bold text-ink">
                 PREVIEW // {anchor.label}
               </span>
             </span>

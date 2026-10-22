@@ -123,7 +123,7 @@ function QueueTabPlate({
       role="tab"
       aria-selected={selected}
       onClick={onSelect}
-      className={`min-w-0 flex-1 cursor-pointer truncate rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[11px] font-bold tracking-wide max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`min-w-0 flex-1 cursor-pointer truncate rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[14px] font-bold tracking-wide max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         selected
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
           : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
@@ -143,8 +143,8 @@ function QueueTabPlate({
 function EmptyTab({ name }: { name: string }) {
   return (
     <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-3">
-      <p className="text-[11px] font-bold text-ink">{name} IS NOT BUILT YET.</p>
-      <p className="mt-1 text-[10px] text-ink-quiet">
+      <p className="text-[14px] font-bold text-ink">{name} IS NOT BUILT YET.</p>
+      <p className="mt-1 text-[13px] text-ink-quiet">
         THE TAB IS HERE SO THE STRIP KEEPS ITS SHAPE. WHAT IT WILL HOLD IS STILL BEING DECIDED, SO
         NOTHING IS DRAWN BENEATH THIS LINE RATHER THAN SOMETHING THAT PRETENDS.
       </p>

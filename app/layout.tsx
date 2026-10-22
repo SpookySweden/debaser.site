@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Silkscreen } from 'next/font/google';
+import { DotGothic16 } from 'next/font/google';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
 import BroadcastHeartbeat from './components/BroadcastHeartbeat';
@@ -23,19 +23,19 @@ import { themeBootScript } from './lib/ui/theme-slot';
 import './globals.css';
 
 /**
- * The site's face: a pixel one, drawn on a grid, in the two weights the chrome needs.
+ * The site's face: DotGothic16, a thin dotted pixel face with a real lowercase (SPEC-readability.md).
  *
- * CLAUDE.md asks for heavily pixelated monospace type, and this is the trade that gets it done
- * with one download: Silkscreen is a bitmap face with a *real* bold, which matters because every
- * label on this site is `font-bold` - a pixel face without one leaves the browser to fake the
- * weight, and a faked bold on a bitmap face is exactly the blur the face exists to avoid. The
- * fallbacks in `globals.css` (MS Sans Serif, Courier New) are the faces a desktop of this era
- * actually had, so a visitor the font never reaches still sees the right kind of window.
+ * It replaced Silkscreen, which drew small caps for lowercase and was set bold everywhere - a wall
+ * of capitals that smeared below 16px. DotGothic16 has one weight, so `globals.css` switches font
+ * synthesis off: a `font-bold` left in a component renders at 400 rather than as a faked, blurred
+ * bold, and emphasis comes from colour or size instead. It is drawn on a 16px grid, so 16 and 32
+ * are pixel-sharp and 13-15 are slightly soft but read well. The fallbacks in `globals.css` are
+ * the dotted gothic faces a machine is likely to have, then a plain monospace.
  */
-const pixel = Silkscreen({
+const pixel = DotGothic16({
   variable: '--font-pixel',
   subsets: ['latin'],
-  weight: ['400', '700'],
+  weight: '400',
   display: 'swap',
 });
 

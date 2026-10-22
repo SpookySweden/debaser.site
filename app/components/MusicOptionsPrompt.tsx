@@ -23,7 +23,7 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
       maxWidth="max-w-sm"
       status="HOW A PROFILE'S TRACK SHOULD BEHAVE"
     >
-      <div className="space-y-3 text-[10px] font-bold text-ink">
+      <div className="space-y-3 text-[13px] font-bold text-ink">
         <label className="flex items-center gap-2">
           <span className="w-28 shrink-0">DEFAULT VOLUME</span>
           <input

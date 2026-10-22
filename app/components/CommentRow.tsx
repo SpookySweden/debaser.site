@@ -85,7 +85,7 @@ type CommentRowProps = {
 export default function CommentRow({ data, variant = 'full', href, hrefTitle, pinnedLabel, action }: CommentRowProps) {
   const author = data.author;
   const pinned = pinnedLabel === undefined ? null : (
-    <span className="border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar">
+    <span className="border border-black bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">
       [ {pinnedLabel} ]
     </span>
   );
@@ -98,7 +98,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
            ./NewsCrawl.tsx's `motion-reduce:flex-wrap`), and a row that could not wrap would
            run off the edge of the strip and be lost - the words would be there and unreadable,
            which is worse than moving. */
-        className={`flex items-center gap-1 whitespace-nowrap text-[10px] motion-reduce:flex-wrap motion-reduce:whitespace-normal ${
+        className={`flex items-center gap-1 whitespace-nowrap text-[13px] motion-reduce:flex-wrap motion-reduce:whitespace-normal ${
           pinned === null ? 'pr-5' : 'mr-2 border border-black bg-sun-pale px-1'
         }`}
       >
@@ -109,7 +109,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         )}
         {pinned}
         {action}
-        <TimeStamp at={data.createdAt} className="text-[10px]" />
+        <TimeStamp at={data.createdAt} className="text-[13px]" />
 
         {href === undefined ? (
           <span className="text-ink">&quot;{data.body}&quot;</span>
@@ -124,7 +124,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
 
   return (
     <li className={`rounded-none border border-ink p-1 ${pinned === null ? 'bg-paper' : 'bg-sun-pale'}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold">
         <span className="flex flex-wrap items-center gap-1">
           <ProfileLink author={author}>
             <ProfileName author={author}>{authorTag(author)}</ProfileName>
@@ -137,7 +137,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         </span>
         <TimeStamp at={data.createdAt} />
       </div>
-      <p className="mt-1 whitespace-pre-line text-xs">{data.body}</p>
+      <p className="mt-1 whitespace-pre-line text-[15px] leading-normal">{data.body}</p>
     </li>
   );
 }

@@ -120,7 +120,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   return (
     <div className="space-y-3">
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>
             {/* The name in its own colour, or the title bar's white when the account has
                 not chosen one: no plate behind it, so a name is never drawn the same
@@ -162,7 +162,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               hideVersionLabel
             />
 
-            <p className="text-center text-[10px] font-bold text-ink">
+            <p className="text-center text-[13px] font-bold text-ink">
               {picture === undefined
                 ? 'NO PICTURE FILED'
                 : `[ ${picture.tag} ]${picture.current ? ' (CURRENT)' : ''}`}
@@ -222,7 +222,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             console rather than a profile. Presence left too - it is the window's status bar now. The
             owner's way to the page that changes any of it is one link on the line that names the thing
             it changes. */}
-        <div className="min-w-0 border-t border-ink p-3 text-[10px] font-bold text-ink">
+        <div className="min-w-0 border-t border-ink p-3 text-[13px] font-bold text-ink">
           <p className="flex flex-wrap items-center gap-1">
             COUNTRY:
             {profile.country.length === 0 ? (
@@ -252,16 +252,16 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         {/* The biography, as a small part of the same window rather than a section of its
             own. */}
         <div className="border-t border-ink p-3">
-          <p className="text-[10px] font-bold text-ink">
+          <p className="text-[13px] font-bold text-ink">
             BIOGRAPHY <span className="text-ink">[ {profile.bio.length} CHARS ]</span>
           </p>
 
           {profile.bio.length === 0 ? (
-            <p className="mt-1 text-[10px] font-bold text-ink">
+            <p className="mt-1 text-[13px] font-bold text-ink">
               NO BIO YET{owner ? ' - WRITE ONE IN THE CUSTOMISER.' : '.'}
             </p>
           ) : (
-            <p className="mt-1 whitespace-pre-line text-xs text-ink">{profile.bio}</p>
+            <p className="mt-1 whitespace-pre-line text-[15px] leading-normal text-ink">{profile.bio}</p>
           )}
         </div>
 
@@ -355,12 +355,12 @@ function CommentsSection({
       id={PROFILE_COMMENTS_ANCHOR}
       className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale"
     >
-      <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+      <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
         <span>COMMENTS ON THIS PROFILE</span>
         <span>[ {visible}{pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]</span>
       </div>
 
-      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[10px] font-bold text-ink">
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-[13px] font-bold text-ink">
         <span className={HYPER_LABEL}>general</span>
 
         <button
@@ -378,17 +378,17 @@ function CommentsSection({
       {!open ? null : (
         <div className="border-t border-ink p-2 text-ink">
           {owner && !visibility.showProfileComments ? (
-            <p className="text-[10px] font-bold text-ink">
+            <p className="text-[13px] font-bold text-ink">
               VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
             </p>
           ) : null}
 
           {owner && hiddenCount > 0 ? (
-            <p className="text-[10px] font-bold text-ink">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
+            <p className="text-[13px] font-bold text-ink">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
           ) : null}
 
           {comments.length === 0 ? (
-            <p className="text-[10px] font-bold text-ink">
+            <p className="text-[13px] font-bold text-ink">
               {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
             </p>
           ) : (

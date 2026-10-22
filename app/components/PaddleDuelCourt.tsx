@@ -108,17 +108,17 @@ export default function PaddleDuelCourt({
         />
 
         {scoresHidden ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-xs font-bold text-ink">
+          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-[14px] font-bold text-ink">
             WAITING FOR THE OTHER PLAYER. THE BALL HOLDS STILL UNTIL THEY ARE HERE.
           </span>
         ) : null}
 
-        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[10px] font-bold text-ink">
+        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[13px] font-bold text-ink">
           {state.leftScore} - {state.rightScore}
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[10px] font-bold text-paper">
+      <p className="mt-1 truncate text-[13px] font-bold text-paper">
         {mySide === 'left' ? 'YOU ARE THE LEFT PADDLE.' : 'YOU ARE THE RIGHT PADDLE.'} DRAG ANYWHERE TO MOVE IT.
       </p>
     </div>

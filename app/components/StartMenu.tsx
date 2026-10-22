@@ -14,7 +14,7 @@ import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC } from './SiteNav';
  * than instead of it, so the menu doubles as the legend (see app/lib/ui/icons.ts).
  */
 const MENU_ROW =
-  'flex w-full cursor-pointer items-center gap-2 px-2 py-[5px] text-left text-[11px] font-bold text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'flex w-full cursor-pointer items-center gap-2 px-2 py-[5px] text-left text-[14px] font-bold text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */
@@ -82,7 +82,7 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
     >
       {/* The spine: the name, read the way a Win95 menu's was - bottom to top. */}
       <div className="flex w-6 shrink-0 items-end justify-center bg-ena py-2">
-        <span className="rotate-180 text-[10px] font-bold text-paper [writing-mode:vertical-rl]">
+        <span className="rotate-180 text-[13px] font-bold text-paper [writing-mode:vertical-rl]">
           {DEBASER_PROJECT.title}
         </span>
       </div>
@@ -110,7 +110,7 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
             a press that *shuts* the archive the reader just asked for. Opening when shut is the only
             sane answer for a row, which is what `openMusic` / the address effect already do. */}
         <div className="mt-1 border-t border-ink pt-1">
-          <p className="px-2 pb-1 text-[10px] font-bold text-ink">WINDOWS</p>
+          <p className="px-2 pb-1 text-[13px] font-bold text-ink">WINDOWS</p>
 
           {[SIDE_ARCADE, SIDE_MUSIC].map((item) => (
             <Link key={item.key} href={item.href} onClick={onDismiss} className={MENU_ROW}>
@@ -123,7 +123,7 @@ export default function StartMenu({ onDismiss, commsUnread = 0 }: StartMenuProps
         </div>
 
         <div className="mt-1 border-t border-ink pt-1">
-          <p className="px-2 pb-1 text-[10px] font-bold text-ink">PROJECT SHELVES</p>
+          <p className="px-2 pb-1 text-[13px] font-bold text-ink">PROJECT SHELVES</p>
 
           {PROJECT_SECTIONS.map((section) => (
             <Link

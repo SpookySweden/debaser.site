@@ -82,11 +82,11 @@ export default function TagChooser({
 
   return (
     <fieldset id={id} className="mt-2 rounded-none border border-ink p-2">
-      <legend className="px-1 text-[10px] font-bold text-ink">
+      <legend className="px-1 text-[13px] font-bold text-ink">
         TAGS ({value.length}/{max})
       </legend>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-[3px] text-[10px] font-bold text-ink">
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-[3px] text-[13px] font-bold text-ink">
         <span className="text-ink">SELECTED:</span>
         {value.length === 0 ? (
           <span className="text-ink">NONE - PICK OR TYPE BELOW</span>
@@ -113,7 +113,7 @@ export default function TagChooser({
 
       {/* Filed by namespace, the way the tags are written on a post: a chooser that lists forty tags
           is a wall, and one that says `theme:` and `user:` is a list you can read down. */}
-      <div className="mt-2 space-y-[2px] text-[10px] text-ink">
+      <div className="mt-2 space-y-[2px] text-[13px] text-ink">
         {groupByNamespace(suggestions).map((group) => (
           <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-[3px]">
             <span className="w-12 shrink-0 font-bold text-ink">{group.namespace}:</span>
@@ -149,12 +149,12 @@ export default function TagChooser({
           type="button"
           onClick={() => setCreatorOpen(true)}
           title="Open the tag editor to create and colour a new tag"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[3px] text-[10px] font-bold text-ink underline hover:bg-ice max-sm:min-h-11 max-sm:px-3"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[3px] text-[13px] font-bold text-ink underline hover:bg-ice max-sm:min-h-11 max-sm:px-3"
         >
           + NEW TAG...
         </button>
 
-        <p className={`text-[10px] font-bold ${error === null ? 'text-ink' : 'text-bubble-pale'}`}>
+        <p className={`text-[13px] font-bold ${error === null ? 'text-ink' : 'text-bubble-pale'}`}>
           {error ?? 'TAGS ARE COLOUR CODED, FILED BY NAMESPACE (THEME: WARN: USER:), AND LINK EVERY POST THAT USES THEM.'}
         </p>
       </div>

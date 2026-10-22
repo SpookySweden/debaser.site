@@ -171,7 +171,7 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[10px] font-bold text-ink">
+    <div className="mt-1 space-y-1 text-[13px] font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 
@@ -267,7 +267,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[10px] font-bold text-ink">
+    <div className="mt-1 space-y-1 text-[13px] font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
         <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 

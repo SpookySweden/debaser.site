@@ -34,13 +34,13 @@ export default function ProjectsPage() {
         landing page, and that page gathers its parts - the sheets, the score, the notes and the links -
         so this is the map and the page behind each row is the territory.
       </p>
-      <p className="text-[10px] font-bold mb-4 text-ink">
+      <p className="text-[13px] font-bold mb-4 text-ink">
         {ARCHIVE_PROJECTS.length} {pluralise(ARCHIVE_PROJECTS.length, 'PROJECT')} FILED ::{' '}
         {shelfCount} {pluralise(shelfCount, 'SHELF')} ON THE LINK PAGE.
       </p>
 
       <section className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale">
-        <div className="flex items-center justify-between bg-ena px-2 py-1 text-xs font-bold text-ink-bar">
+        <div className="flex items-center justify-between bg-ena px-2 py-1 text-[14px] font-bold text-ink-bar">
           <span>THE PROJECTS</span>
           <span>[ {ARCHIVE_PROJECTS.length} ]</span>
         </div>
@@ -51,7 +51,7 @@ export default function ProjectsPage() {
               <Link
                 href={project.href}
                 title={project.summary}
-                className="block p-3 text-[10px] font-bold hover:bg-pointed"
+                className="block p-3 text-[13px] font-bold hover:bg-pointed"
               >
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-sm">{project.title}</span>
@@ -66,8 +66,8 @@ export default function ProjectsPage() {
       </section>
 
       <div className="mt-6 border border-black bg-ice-pale p-4">
-        <p className="mb-2 text-xs font-bold">NOT A PROJECT:</p>
-        <p className="text-[10px] font-bold text-ink">
+        <p className="mb-2 text-[14px] font-bold">NOT A PROJECT:</p>
+        <p className="text-[13px] font-bold text-ink">
           THE BOARD AND THE SITE&apos;S OWN ROOMS - USERS, COMMS, THE ACCOUNT - ARE THE ARCHIVE&apos;S
           RATHER THAN ANY PROJECT&apos;S. THEY LIVE ON THE HEADER ALONG THE TOP OF EVERY PAGE, WHICH
           IS WHERE A READER GOES FOR THEM.

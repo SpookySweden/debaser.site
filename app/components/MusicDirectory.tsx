@@ -53,7 +53,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[10px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-2 max-sm:py-[3px]';
+  'shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-1 py-[1px] text-[13px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-2 max-sm:py-[3px]';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -145,13 +145,13 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
   return (
     <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
       <div className={ROW_GRID}>
-        <span className="text-[10px] text-ink">{String(index + 1).padStart(2, '0')}.</span>
+        <span className="text-[13px] text-ink">{String(index + 1).padStart(2, '0')}.</span>
 
         <span className="min-w-0">
-          <span className="block truncate text-[11px] font-bold text-ink" title={row.track.title}>
+          <span className="block truncate text-[14px] font-bold text-ink" title={row.track.title}>
             {row.track.title}
           </span>
-          <span className="block truncate text-[10px] text-ink">
+          <span className="block truncate text-[13px] text-ink">
             {fileLabel(row.track.src)} :: {SOURCE_LABEL[row.source]}
             {row.source === 'BOARD' ? ` :: POSTED BY ${row.poster}` : ''}
             <span className="sm:hidden"> :: {length}</span>
@@ -160,14 +160,14 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             <Link
               href={row.href}
               title={row.threadTitle}
-              className={`${LINK_PIXEL} block truncate text-[10px] font-bold text-accent-ink`}
+              className={`${LINK_PIXEL} block truncate text-[13px] font-bold text-accent-ink`}
             >
               OPEN THE POST
             </Link>
           )}
         </span>
 
-        <span className="hidden text-right text-[10px] font-bold text-ink sm:block">{length}</span>
+        <span className="hidden text-right text-[13px] font-bold text-ink sm:block">{length}</span>
 
         <span className="hidden flex-wrap items-center gap-1 sm:flex">
           {tags.length === 0 ? null : tags.map((tag) => <AudioTagPill key={tag} tag={tag} compact />)}
@@ -183,7 +183,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             disabled={busy}
             aria-pressed={liked}
             title={liked ? `Take ${row.track.title} out of liked` : `Like ${row.track.title}`}
-            className={`cursor-pointer rounded-none border border-ink px-1 text-[10px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
+            className={`cursor-pointer rounded-none border border-ink px-1 text-[13px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
               liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
             }`}
           >
@@ -221,7 +221,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           ink: Rose on the row's Flavine is 4.15:1 and on the dark field 3.79:1, while White on Rose is
           4.70:1 in both themes. */}
       {notice === null ? null : (
-        <p className="mt-1 ml-8 w-fit bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar" role="status">
+        <p className="mt-1 ml-8 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar" role="status">
           {notice}
         </p>
       )}
@@ -286,7 +286,7 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-ink">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:py-0">
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:py-0">
           <span className="w-4 shrink-0">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
           <span className="shrink-0">
@@ -339,7 +339,7 @@ const FolderBranch = memo(function FolderBranch({
             <FileRow key={row.track.src} row={row} index={index} onPost={onPost} />
           ))}
 
-          {empty ? <li className="px-2 py-1 pl-6 text-[10px] font-bold text-ink">EMPTY.</li> : null}
+          {empty ? <li className="px-2 py-1 pl-6 text-[13px] font-bold text-ink">EMPTY.</li> : null}
         </ul>
       </details>
     </li>
@@ -458,7 +458,7 @@ export default function MusicDirectory() {
             [ NEW FOLDER ]
           </button>
 
-          <label htmlFor="music-search" className="text-[10px] font-bold text-ink">
+          <label htmlFor="music-search" className="text-[13px] font-bold text-ink">
             FIND:
           </label>
           <input
@@ -468,7 +468,7 @@ export default function MusicDirectory() {
             onChange={(event) => setQuery(event.target.value)}
             onFocus={() => setTagsOpen(true)}
             placeholder="TRACK, FOLDER, ARTIST OR TAG"
-            className="min-w-40 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-xs text-ink outline-none max-sm:min-h-11 max-sm:p-2"
+            className="min-w-40 flex-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[14px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           />
 
           <button type="button" onClick={() => setTagsOpen(!tagsOpen)} aria-expanded={tagsOpen} className={PLATE}>
@@ -478,14 +478,14 @@ export default function MusicDirectory() {
           {/* The order the search comes back in: the same three questions the tag window's music tab
               asks (./TagWindow.tsx), answered off the same two facts the board holds - when a file was
               last posted, and how many posts carry it. */}
-          <label htmlFor="music-sort" className="text-[10px] font-bold text-ink">
+          <label htmlFor="music-sort" className="text-[13px] font-bold text-ink">
             ORDER:
           </label>
           <select
             id="music-sort"
             value={sort}
             onChange={(event) => setSort(event.target.value as TrackSort)}
-            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[10px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
+            className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11 max-sm:p-2"
           >
             {TRACK_SORTS.map((entry) => (
               <option key={entry.value} value={entry.value} title={entry.hint}>
@@ -504,7 +504,7 @@ export default function MusicDirectory() {
         </div>
 
         {signedIn ? null : (
-          <p className="mt-1 text-[10px] font-bold text-ink">
+          <p className="mt-1 text-[13px] font-bold text-ink">
             SIGNED OUT - SIGN IN ON THE ACCOUNT PAGE TO ADD FILES AND FOLDERS. PLAYING TAKES NOTHING.
           </p>
         )}
@@ -517,9 +517,9 @@ export default function MusicDirectory() {
         >
           <div className="min-h-0">
             <fieldset className="mt-2 rounded-none border border-ink p-2">
-              <legend className="px-1 text-[10px] font-bold text-ink">TAGS</legend>
+              <legend className="px-1 text-[13px] font-bold text-ink">TAGS</legend>
 
-              <div className="flex flex-wrap items-center gap-1 text-[10px] font-bold text-ink">
+              <div className="flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink">
                 <button
                   type="button"
                   onClick={() => router.replace(MUSIC_HREF, { scroll: false })}
@@ -541,7 +541,7 @@ export default function MusicDirectory() {
                 ))}
               </div>
 
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-bold text-ink">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
                 <span>MATCH:</span>
 
                 <button
@@ -567,7 +567,7 @@ export default function MusicDirectory() {
         </div>
 
         {filtering ? (
-          <p className="mt-2 text-[10px] font-bold text-ink">
+          <p className="mt-2 text-[13px] font-bold text-ink">
             {flat.length} OF {rows.length} FILES
           </p>
         ) : null}
@@ -575,7 +575,7 @@ export default function MusicDirectory() {
         <div className="mt-1 rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper">
           {/* The directory's own column labels, and nothing else. */}
           <div
-            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[10px] font-bold text-ink-bar sm:grid`}
+            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar sm:grid`}
           >
             <span>#</span>
             <span>NAME</span>
@@ -586,7 +586,7 @@ export default function MusicDirectory() {
 
           {filtering ? (
             flat.length === 0 ? (
-              <p className="p-2 text-[10px] font-bold text-ink">NO MATCHES.</p>
+              <p className="p-2 text-[13px] font-bold text-ink">NO MATCHES.</p>
             ) : (
               <ul>
                 {flat.map((row, index) => (
@@ -595,7 +595,7 @@ export default function MusicDirectory() {
               </ul>
             )
           ) : rows.length === 0 && tree.paths.length === 0 ? (
-            <p className="p-2 text-[10px] font-bold text-ink">
+            <p className="p-2 text-[13px] font-bold text-ink">
               NOTHING HERE YET. {signedIn ? '[ NEW FILE ] AND [ NEW FOLDER ] MAKE SOMETHING.' : ''}
             </p>
           ) : (

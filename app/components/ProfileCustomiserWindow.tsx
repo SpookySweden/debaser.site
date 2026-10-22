@@ -42,7 +42,7 @@ const TABS: { key: TabKey; label: string }[] = [
  * that is what found it.
  */
 function PanelHeading({ children }: { children: React.ReactNode }) {
-  return <p className="bg-ena-deep px-2 py-1 text-[10px] font-bold text-ink-bar">{children}</p>;
+  return <p className="bg-ena-deep px-2 py-1 text-[13px] font-bold text-ink-bar">{children}</p>;
 }
 
 type ProfileCustomiserWindowProps = {
@@ -442,7 +442,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
   const panel = (
     <div className="space-y-3 text-ink">
-      <p className="text-[10px] font-bold">
+      <p className="text-[13px] font-bold">
         THIS CONSOLE STYLES WHAT OTHER PEOPLE SEE AT /profile/{userId} - THE PAGE A USERNAME OR A PICTURE OPENS FROM
         THE BOARD. IT DOES NOT CHANGE HOW YOUR POSTS LOOK ON THE BOARD ITSELF.
       </p>
@@ -453,7 +453,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             key={entry.key}
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
-            className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-xs font-bold max-sm:min-h-11 ${
+            className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-[14px] font-bold max-sm:min-h-11 ${
               tab === entry.key ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
             }`}
           >
@@ -567,7 +567,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[10px] font-bold">
+      <div className="rounded-none border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-2 text-[13px] font-bold">
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
         {error === null ? null : <p className="text-bubble-pale">PROBLEM: {error}</p>}
         <p className="mt-1 text-ink">

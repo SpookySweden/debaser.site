@@ -209,7 +209,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
             {unread === 0 ? null : (
               <span
                 aria-hidden="true"
-                className="ml-[2px] text-[10px] leading-none"
+                className="ml-[2px] text-[13px] leading-none"
               >
                 {unread}
               </span>

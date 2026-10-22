@@ -220,25 +220,25 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
           <div className="flex items-stretch gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2 font-bold text-ink">
-                <span className="shrink-0 text-[10px] leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
+                <span className="shrink-0 text-[13px] leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
                 <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">{layout.title}</span>
                 {/* Pinned posts say so before anything else about them, because being pinned is
                     why this row is at the top of the list. */}
                 {pin === undefined ? null : (
                   <span
-                    className="shrink-0 border border-black bg-bubble-pale px-1 text-[10px] font-bold text-ink-bar"
+                    className="shrink-0 border border-black bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar"
                     title={pinSummary(pin)}
                   >
                     {pinLabel(pin)}
                   </span>
                 )}
-                <span className="shrink-0 text-[10px] text-ink">{layout.repliesLabel}</span>
+                <span className="shrink-0 text-[13px] text-ink">{layout.repliesLabel}</span>
                 {/* A post filed with a picture says so before it is opened: the drawing itself now
                     waits for the click (see the strip below), so this badge is what tells a reader
                     there is one to see. `x2` counts a picture in a reply as well. */}
                 {hasImage ? (
                   <span
-                    className="shrink-0 border border-black bg-acid px-1 text-[10px] font-bold text-ink-plate"
+                    className="shrink-0 border border-black bg-acid px-1 text-[13px] font-bold text-ink-plate"
                     title="A picture is filed with this post: open it to see the drawing"
                   >
                     [ IMG{images.count > 1 ? ` x${images.count}` : ''} ]
@@ -246,7 +246,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 ) : null}
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
-                  <span className="shrink-0 border border-black bg-ena px-1 text-[10px] font-bold text-ink-bar" title="An MP3 is filed with this post">
+                  <span className="shrink-0 border border-black bg-ena px-1 text-[13px] font-bold text-ink-bar" title="An MP3 is filed with this post">
                     ♪ MP3
                   </span>
                 )}
@@ -262,7 +262,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   a 72px thumbnail while the row was pointed at, which meant the picture a post was
                   filed for was invisible until somebody hovered. It waits for the click that opens the
                   post, and the title row wears `[ IMG ]` until then. */}
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-ink">
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink">
                 <PostAuthorRow
                   author={layout.author.credit}
                   avatar={layout.avatar}
@@ -310,7 +310,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   hand-written `#tag-board` - draws no line at all, because those badges are hidden on
                   every other row on the board and a bar with no chips would say less than nothing. */}
               {matchedTags.length === 0 ? null : (
-                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-sun-pale px-1 py-[2px] text-[10px] font-bold text-ink">
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-sun-pale px-1 py-[2px] text-[13px] font-bold text-ink">
                   <span>FILTER MATCH:</span>
                   <TagStrip tags={matchedTags} />
                   <span className="text-ink">
@@ -384,12 +384,12 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
 
             {images.count > 1 ? (
-              <p className="mt-1 text-[10px] font-bold text-ink">
+              <p className="mt-1 text-[13px] font-bold text-ink">
                 +{images.count - 1} MORE IMAGE(S) IN THE REPLIES
               </p>
             ) : null}
 
-            <div className="mt-1 text-[10px] font-bold text-ink">
+            <div className="mt-1 text-[13px] font-bold text-ink">
               <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" preview={anchorPreview} />
               <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
             </div>
@@ -399,7 +399,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {layout.right.isAnchorPost ? (
               <AnchorLink anchor={thread.anchor} preview={anchorPreview} />
             ) : (
-              <p className="whitespace-pre-line text-xs leading-snug text-ink">{layout.right.body}</p>
+              <p className="whitespace-pre-line text-[15px] leading-normal text-ink">{layout.right.body}</p>
             )}
 
             {/* The track the post came with: one display, one button, played by the site's player. */}
@@ -415,7 +415,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <MentionRow body={thread.body} accounts={accounts} />
 
             <div className="mt-2 border-t border-ink pt-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-ink">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
                 <span>{layout.repliesLabel} ON THIS POST</span>
                 <span>BOARD ID: {thread.id}</span>
               </div>

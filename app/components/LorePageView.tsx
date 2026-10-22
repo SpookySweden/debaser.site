@@ -36,7 +36,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
   if (!lore.ready || authStatus === 'loading') {
     return (
-      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[10px] font-bold text-ink">
+      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-ink">
         READING THE PAGE...
       </p>
     );
@@ -44,7 +44,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
   if (lore.error !== null) {
     return (
-      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[10px] font-bold text-bubble-pale">
+      <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-bubble-pale">
         {lore.error}
       </p>
     );
@@ -53,10 +53,10 @@ export default function LorePageView({ slug }: LorePageViewProps) {
   if (lore.page === null) {
     return (
       <div className="space-y-2">
-        <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[10px] font-bold text-ink">
+        <p className="rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-3 text-[13px] font-bold text-ink">
           NO PAGE LIVES AT /lore/{slug}. IT MAY HAVE BEEN RENAMED, OR NEVER OPENED AT ALL.
         </p>
-        <Link href="/lore" className="text-[10px] font-bold underline hover:bg-ice-pale">
+        <Link href="/lore" className="text-[13px] font-bold underline hover:bg-ice-pale">
           [ &lt; BACK TO THE LORE SHELF ]
         </Link>
       </div>
@@ -80,7 +80,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
           </span>
         </div>
 
-        <div className="p-3 text-[10px] font-bold text-ink">
+        <div className="p-3 text-[13px] font-bold text-ink">
           <p>{page.summary.length === 0 ? 'NO SUMMARY FILED.' : page.summary}</p>
           <p className="mt-1 text-ink">
             OPENED BY {page.createdByLabel} :: LAST FILED BY {page.updatedByLabel}{' '}
@@ -96,9 +96,9 @@ export default function LorePageView({ slug }: LorePageViewProps) {
             <span>[ READING ONLY ]</span>
           </div>
 
-          <div className="space-y-2 p-3 text-xs leading-relaxed text-ink">
+          <div className="space-y-2 p-3 text-[15px] leading-normal text-ink">
             {paragraphs.length === 0 ? (
-              <p className="text-[10px] font-bold text-ink">NOTHING HAS BEEN WRITTEN ON THIS PAGE YET.</p>
+              <p className="text-[13px] font-bold text-ink">NOTHING HAS BEEN WRITTEN ON THIS PAGE YET.</p>
             ) : (
               paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)
             )}
@@ -120,7 +120,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
         />
       ) : null}
 
-      <p className="text-[10px] font-bold text-ink">
+      <p className="text-[13px] font-bold text-ink">
         {editor === null
           ? 'SIGN IN TO WRITE ON THIS PAGE :: ANY ACCOUNT MAY, AND WHAT YOU TYPE APPEARS ON EVERYBODY ELSE\'S COPY AS YOU TYPE IT.'
           : 'THE PAGE IS WRITTEN TOGETHER. TWO PEOPLE IN THE SAME PARAGRAPH BOTH KEEP TYPING - NOTHING EITHER OF THEM WRITES IS LOST.'}

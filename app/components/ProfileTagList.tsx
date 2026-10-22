@@ -97,7 +97,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center justify-between gap-1">
-        <span className="text-[10px] font-bold">
+        <span className="text-[13px] font-bold">
           TAGS :: {approved.length} SHOWING
           {owner && waiting.length > 0 ? ` :: ${waiting.length} WAITING` : ''}
           {!owner && !profile.visibility.showTags ? ' :: SWITCHED OFF' : ''}
@@ -111,7 +111,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       </div>
 
       {shown.length === 0 ? (
-        <p className="text-[10px] text-ink">
+        <p className="text-[13px] text-ink">
           {owner
             ? 'NOBODY HAS GIVEN YOU A TAG YET. YOU CAN GIVE YOURSELF ONE, BUT ONLY ONE OF YOUR OWN SHOWS AT A TIME.'
             : 'NO TAGS TO SHOW.'}
@@ -119,7 +119,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       ) : (
         <ul className="space-y-1">
           {shown.map((tag: GivenTag) => (
-            <li key={tag.id} className="flex flex-wrap items-center gap-1 text-[10px] font-bold">
+            <li key={tag.id} className="flex flex-wrap items-center gap-1 text-[13px] font-bold">
               <span
                 className={`${tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })} ${
                   tag.hidden ? 'opacity-60' : ''
@@ -183,7 +183,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
 
       {adding ? (
         <div className="space-y-1 border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2">
-          <label htmlFor={`give-tag-${profile.userId}`} className="block text-[10px] font-bold text-ink">
+          <label htmlFor={`give-tag-${profile.userId}`} className="block text-[13px] font-bold text-ink">
             {owner ? 'GIVE YOUR OWN PROFILE A TAG:' : 'GIVE THIS PROFILE A TAG:'}
           </label>
 
@@ -200,7 +200,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
             </button>
           </div>
 
-          <p className="text-[10px] text-ink">
+          <p className="text-[13px] text-ink">
             {owner
               ? 'YOUR OWN TAGS WAIT FOR YOUR APPROVAL TOO, AND ONLY ONE OF THEM SHOWS AT A TIME.'
               : 'TAGS WAIT UNTIL THE OWNER APPROVES THEM. THE HOUSE ACCOUNT DOES NOT HAVE TO WAIT.'}
@@ -208,8 +208,8 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
         </div>
       ) : null}
 
-      {error === null ? null : <p className="text-[10px] font-bold text-bubble-pale">{error}</p>}
-      {status === null ? null : <p className="text-[10px] font-bold text-ink">{status}</p>}
+      {error === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{error}</p>}
+      {status === null ? null : <p className="text-[13px] font-bold text-ink">{status}</p>}
     </div>
   );
 }

@@ -46,7 +46,7 @@ const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 const SHELF_KEYS: NavItem[] = [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES];
 
 const RAIL_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice max-md:min-h-11 max-md:min-w-11 max-md:text-base';
+  'cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice max-md:min-h-11 max-md:min-w-11 max-md:text-base';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -122,7 +122,7 @@ function ShelfKey({
       aria-haspopup="dialog"
       aria-pressed={isOpen}
       title={isOpen ? `Close the ${item.label.toLowerCase()}` : `Open the ${item.label.toLowerCase()}`}
-      className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[10px] font-bold ${
+      className={`flex w-full cursor-pointer items-center gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[13px] font-bold ${
         isOpen
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
           : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:animate-bump hover:bg-ena hover:text-sun'
@@ -234,7 +234,7 @@ export default function DesktopSidebar() {
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
-        <span className="text-[10px] font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
+        <span className="text-[13px] font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
       </div>
     );
   }
@@ -251,7 +251,7 @@ export default function DesktopSidebar() {
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[10px] font-bold text-ink hover:bg-ice"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 text-[13px] font-bold text-ink hover:bg-ice"
         >
           {'>'}
         </button>

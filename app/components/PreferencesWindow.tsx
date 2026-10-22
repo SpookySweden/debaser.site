@@ -50,7 +50,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       onClick={() => setTheme(theme.id)}
       aria-pressed={active}
       title={theme.experimental ? `${theme.label} - experimental` : theme.label}
-      className={`flex w-full cursor-pointer items-start gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-left text-[10px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`flex w-full cursor-pointer items-start gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-left text-[13px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         active
           ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
           : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
@@ -63,7 +63,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
           {theme.label}
           {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
         </span>
-        <span className={`mt-[2px] block text-[10px] font-normal ${active ? 'text-sun' : ''}`}>
+        <span className={`mt-[2px] block text-[13px] font-normal ${active ? 'text-sun' : ''}`}>
           {theme.note}
         </span>
       </span>
@@ -119,7 +119,7 @@ export default function PreferencesWindow() {
           <span>[ {THEMES.length} ]</span>
         </div>
 
-        <p className="border-b border-ink px-2 py-1 text-[10px] text-ink-plate">
+        <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-plate">
           THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO
           NOTHING HERE CAN MAKE A PAGE UNREADABLE.
         </p>
@@ -139,7 +139,7 @@ export default function PreferencesWindow() {
           <span>[ THIS SCREEN SHAPE ]</span>
         </div>
 
-        <p className="px-2 pt-1 text-[10px] text-ink-plate">
+        <p className="px-2 pt-1 text-[13px] text-ink-plate">
           WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN
           ITS CORNER AND FORGETS THIS SHAPE&apos;S SAVED LAYOUT.
         </p>
@@ -156,14 +156,14 @@ export default function PreferencesWindow() {
           <span>[ SOON ]</span>
         </div>
 
-        <p className="p-2 text-[10px] text-ink-plate">
+        <p className="p-2 text-[13px] text-ink-plate">
           WHAT THIS WILL HOLD - SIGN-OUT, THE NOTIFICATION SOUND, WHETHER THE PLAYER BAR STARTS OPEN -
           IS STILL BEING DECIDED, SO NOTHING IS DRAWN HERE YET. THE ROW IS LEFT IN PLACE SO THE WINDOW
           DOES NOT GROW ONE LATER.
         </p>
       </section>
 
-      <p className="mt-2 text-center text-[10px] text-ink-plate">
+      <p className="mt-2 text-center text-[13px] text-ink-plate">
         ON THE THEME NOW:{' '}
         <span className="font-bold text-ink-plate">{currentTheme().label}</span>
       </p>

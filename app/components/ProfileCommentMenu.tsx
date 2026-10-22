@@ -60,7 +60,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               role="menuitem"
               disabled={!option.available}
               onClick={() => onChoose(option.kind)}
-              className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[10px] font-bold ${
+              className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[13px] font-bold ${
                 option.available
                   ? 'cursor-pointer text-ink hover:bg-ena hover:text-ink-bar'
                   : 'cursor-default text-ink'
@@ -129,7 +129,7 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
         </button>
       </span>
 
-      <span className="text-[10px] font-bold text-ink">
+      <span className="text-[13px] font-bold text-ink">
         {openable === 0 ? 'nothing open to comments' : `${openable} of ${options.length} open to comments`}
       </span>
 

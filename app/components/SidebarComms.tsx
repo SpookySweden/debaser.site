@@ -78,7 +78,7 @@ export default function SidebarComms() {
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
           title={expanded ? 'Hide the conversations' : 'Show the conversations'}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-[1px] text-[10px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun"
+          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-[1px] text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun"
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
         </button>
@@ -96,16 +96,16 @@ export default function SidebarComms() {
       {!expanded ? null : (
         <div id="sidebar-comms-list">
           {userId === null ? (
-            <p className="p-2 text-[10px] font-bold text-ink">
+            <p className="p-2 text-[13px] font-bold text-ink">
               MESSAGES GO ACCOUNT TO ACCOUNT - SIGN IN TO READ OR SEND ONE.
             </p>
           ) : !ready ? (
-            <p className="p-2 text-[10px] font-bold text-ink">READING THE CONVERSATIONS...</p>
+            <p className="p-2 text-[13px] font-bold text-ink">READING THE CONVERSATIONS...</p>
           ) : error !== null ? (
             // A store that cannot be read is not the same as an account with nothing in it.
-            <p className="p-2 text-[10px] font-bold text-bubble-pale">COMMS OFFLINE :: {error}</p>
+            <p className="p-2 text-[13px] font-bold text-bubble-pale">COMMS OFFLINE :: {error}</p>
           ) : rows.length === 0 ? (
-            <p className="p-2 text-[10px] font-bold text-ink">
+            <p className="p-2 text-[13px] font-bold text-ink">
               NO CONVERSATIONS YET. OPEN ONE FROM THE DIRECTORY BELOW OR FROM THE COMMS PAGE.
             </p>
           ) : (
@@ -116,7 +116,7 @@ export default function SidebarComms() {
                     type="button"
                     onClick={() => openConversation(thread.id)}
                     disabled={busyId !== null}
-                    className="w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-left text-[10px] font-bold text-ink hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
+                    className="w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-left text-[13px] font-bold text-ink hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
                       {thread.kind === 'group' ? (
@@ -137,7 +137,7 @@ export default function SidebarComms() {
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
             <Link
               href="/comms"
-              className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[10px] font-bold text-ink hover:bg-ice"
+              className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
             >
               [ OPEN THE CONSOLE ]
             </Link>
