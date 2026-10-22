@@ -49,7 +49,7 @@ import NewPostForm from './NewPostForm';
 
 /** The row grid shared by the column header and every file row, so the columns line up. */
 const ROW_GRID =
-  'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 sm:grid-cols-[2rem_minmax(0,1fr)_4rem_minmax(0,14rem)_11rem]';
+  'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 @2xl:grid-cols-[2rem_minmax(0,2fr)_4rem_minmax(0,1fr)_16rem]';
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
@@ -154,7 +154,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           <span className="block truncate text-[13px] text-ink">
             {fileLabel(row.track.src)} :: {SOURCE_LABEL[row.source]}
             {row.source === 'BOARD' ? ` :: POSTED BY ${row.poster}` : ''}
-            <span className="sm:hidden"> :: {length}</span>
+            <span className="@2xl:hidden"> :: {length}</span>
           </span>
           {row.href === undefined ? null : (
             <Link
@@ -167,9 +167,9 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           )}
         </span>
 
-        <span className="hidden text-right text-[13px] font-bold text-ink sm:block">{length}</span>
+        <span className="hidden text-right text-[13px] font-bold text-ink @2xl:block">{length}</span>
 
-        <span className="hidden flex-wrap items-center gap-1 sm:flex">
+        <span className="hidden flex-wrap items-center gap-1 @2xl:flex">
           {tags.length === 0 ? null : tags.map((tag) => <AudioTagPill key={tag} tag={tag} compact />)}
         </span>
 
@@ -193,7 +193,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           <button
             type="button"
             onClick={() => press(row.track)}
-            className={PLATE}
+            className={`${PLATE} whitespace-nowrap`}
             title={playing ? `Pause ${row.track.title}` : `Play ${row.track.title}`}
           >
             {playing ? '[ ❚❚ ]' : '[ ▶ PLAY ]'}
@@ -205,7 +205,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           <button
             type="button"
             onClick={() => onPost(row.track)}
-            className={`${PLATE_ACCENT} hidden sm:inline-flex`}
+            className={`${PLATE_ACCENT} hidden whitespace-nowrap @2xl:inline-flex`}
             title={`Inject ${row.track.title} into a post: the composer opens with this file already filed`}
           >
             [ INJECT TO POST ]
@@ -228,7 +228,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
 
 
       {tags.length === 0 ? null : (
-        <div className="mt-1 flex flex-wrap items-center gap-1 pl-8 sm:hidden">
+        <div className="mt-1 flex flex-wrap items-center gap-1 pl-8 @2xl:hidden">
           {tags.map((tag) => (
             <AudioTagPill key={tag} tag={tag} compact />
           ))}
@@ -237,7 +237,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
 
       {/* ...and no room for two plates in the last column either, so the second drops to its own line
           rather than going missing on a phone: the same trade the tags above make. */}
-      <div className="mt-1 pl-8 sm:hidden">
+      <div className="mt-1 pl-8 @2xl:hidden">
         <button
           type="button"
           onClick={() => onPost(row.track)}
@@ -572,10 +572,10 @@ export default function MusicDirectory() {
           </p>
         ) : null}
 
-        <div className="mt-1 frame bg-paper">
+        <div className="@container mt-1 frame bg-paper">
           {/* The directory's own column labels, and nothing else. */}
           <div
-            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar sm:grid`}
+            className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar @2xl:grid`}
           >
             <span>#</span>
             <span>NAME</span>

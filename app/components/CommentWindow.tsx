@@ -112,7 +112,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         thread === undefined ? null : (
           <Link
             href={`/forum#${threadDomId(thread.id)}`}
-            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice"
+            className="key bg-sun-pale px-2 py-[2px] underline hover:text-accent-ink"
           >
             [ OPEN FULL THREAD ON THE BOARD ]
           </Link>

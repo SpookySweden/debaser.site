@@ -326,7 +326,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   }, [loop, playing, player]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-white bg-sun-pale px-2 py-1 font-mono text-ink shadow-[0_-2px_0_theme(colors.ena-deep)]">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           {/* The player's own name, and its fold, together: they are the same thing said twice - what
               this strip is, and how to put it away. The fold used to sit at the far right, past the
@@ -624,7 +624,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   const seekable = lengthSeconds > 0;
 
   return (
-    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink shadow-[3px_3px_0_rgba(0,0,0,0.4)]">
+    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink">
       {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
           edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
           which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The

@@ -621,7 +621,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         actions={
           <a
             href={`/profile/${encodeURIComponent(userId)}`}
-            className="rounded-none border border-black bg-sun-pale px-2 py-[2px] underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
+            className="key bg-sun-pale px-2 py-[2px] underline hover:text-accent-ink max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
           >
             [ VIEW PUBLIC PAGE ]
           </a>

@@ -409,7 +409,7 @@ export default function ForumBoard() {
                       type="button"
                       onClick={() => toggleTagFilter(key)}
                       title={`Stop including ${label}`}
-                      className="cursor-pointer rounded-none border border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:bg-ice"
+                      className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:text-accent-ink"
                     >
                       {label} Ã—
                     </button>
