@@ -29,8 +29,16 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - IMPORTANT: nothing is finished until `npm run verify` passes and the change is live and verified on the deployed site. The loop: verify -> checks -> capture + audit (for visual changes) -> commit and push to `main` -> `npm run read` to confirm it's live -> tell me what you checked and what you couldn't.
 - Smallest change that does the job. No refactors, renames or "tidying" I didn't ask for.
 - One task per session. If I jump to something unrelated, remind me to start fresh. If I've corrected you twice on the same thing, stop and suggest a clean restart with a better prompt instead of a third attempt.
-- After larger work, have a subagent review the diff against the plan in a fresh context. Report only gaps that affect correctness or what I asked for. No style opinions.
+- After larger work, have the `code-reviewer` agent review the diff against the plan in a fresh context. Report only gaps that affect correctness or what I asked for. No style opinions.
 - Commit small and often, after each verified step, so I can roll back.
+
+## Delegating to agents
+The main session plans, decides and talks to me. The agents in `.claude/agents/` do contained jobs and report back. A report is evidence to check, not proof.
+- `code-reviewer` after larger work: the diff against the plan, in a fresh context.
+- `test-runner` when verify, checks or a build fails and the log is long.
+- `mechanic` (Haiku) for bulk edits whose pattern is spelled out; look over what it changed.
+- `ui-ux-auditor`, `seo-metadata-analyzer`, `api-performance-monitor`, `systems-researcher`: read-only reports.
+- At most 10 agents a session (`.claude/hooks/agent-limit.cjs` refuses the 11th). If it's hit, do the rest here or tell me to start fresh.
 
 ## Safety
 - IMPORTANT: no database changes (inserts, updates, deletes, schema, migrations) without my explicit OK and a plain-English description of what will happen. Read-only diagnostic queries are fine. Reason: a wrong query on live data can't be undone.
@@ -50,6 +58,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - Visual design, palette and feel: read `docs/design.md` before any UI work.
 - The character workbench's live pixel render (passes, switches, three.js traps): `docs/character-render.md`. Its simple figures (touching, validity, sag, placing): `docs/character-figures.md`.
 - Database setup and migration history: `supabase/README.md`. The tools in `scripts/`: `scripts/README.txt`. Artwork slots: `assets/README.txt`.
+- Rules for pages, windows and components: `.claude/rules/frontend.md`. Server and database: `.claude/rules/backend.md`. Each loads by itself when Claude opens a file in its area.
 - If you learn something non-obvious about one part of the site, suggest putting it in a docs/ file instead of growing this one. Keep this file short.
 
 ## Asset Rules
@@ -57,16 +66,6 @@ These are firm, unlike most of the design notes.
 - No AI-generated artwork of any kind. All artwork is hand-drawn by me on a Kamvas tablet and added by hand.
 - Code never draws a character, icon or illustration (no CSS or SVG art). Repeating tile patterns, dithers and dotted lines are fine.
 - When something needs artwork, point at a placeholder file through a slot (`SpriteSlot`, the registry in `app/lib/ui/art/`) and stop. Don't make a stand-in.
-
-## How the site behaves
-Guidelines that came from real bugs. Bend them if there's a good reason, but tell me.
-- **The board (`/forum`) is the desktop.** The arcade and the music archive are windows drawn in `app/layout.tsx`, not pages; don't add `/games` or `/music` routes back. A window opens from an address (`/forum?arcade=1`, `?music=1`, `?invite=<id>`, `?challenge=<userId>&game=<gameId>`), built and read in one place per window (`app/lib/games/arcade-window.ts`, `app/lib/audio/music-window.ts`).
-- **Windows don't re-render the page.** Each window's state lives in a small store (`app/lib/ui/window-slot.ts`) that only that window reads.
-- **A window with unsaved work asks before it closes** (the customiser; see `app/lib/profile/unsaved-changes.ts`).
-- **Starting something from the board takes two presses**: one to open, one to commit.
-- **Reveals take their space in both states.** Anything that appears on hover, focus or tap must not move what you're pointing at or push other content around. Either position it absolutely, or reserve its box and swap only what's inside. Never turn a `hidden` element visible on hover inside a row. A keyboard reveal uses `:focus-visible`, never `:focus-within`, because a mouse click leaves focus behind and the panel stays stuck open.
-- **Colours come from the theme.** The palette tokens live in `app/globals.css` and are applied through `app/lib/ui/controls.ts` and `app/lib/ui/themes.ts`; components don't write their own hex values. Text must stay readable (4.5:1 contrast) in every theme. Motion stops under `prefers-reduced-motion`.
-- **A profile shows a person, not a console**: no ids, counts or settings read back at visitors.
 
 ## Hard-won lessons
 <!-- One line each, with the reason. Keep only things Claude would otherwise get wrong. The long history is in git (AGENTS.md, removed 2026-10-11). -->
@@ -76,5 +75,3 @@ Guidelines that came from real bugs. Bend them if there's a good reason, but tel
 - A screenshot or captured snapshot only proves something if it's newer than the code it's about.
 - Server-rendered checks can't see `ssr: false` components (the character workbench). Use a real browser capture for those, with `--use-angle=swiftshader` or there's no WebGL.
 - A check that tests a string next to the behaviour can pass while the behaviour is broken. Test what the code does.
-- On this Windows machine, Node can't spawn `npx.cmd`; the db scripts call `node node_modules/supabase/dist/supabase.js` directly.
-- Migration timestamps are section numbers, so `db push` needs `--include-all` (already in the npm scripts).

@@ -5,7 +5,7 @@ description: Run the full proof that a change is done - verify, checks, capture 
 
 # /verify-site
 
-The ship loop from `CLAUDE.md`, as one run. Report pass/fail for every step in plain English, with the
+The ship loop from `.claude/rules/core.md`, as one run. Report pass/fail for every step in plain English, with the
 two screenshots. Stop at the first failure, show the failing output, and say which step it was - do not
 carry on to later steps and do not "fix and retry" without telling Luke.
 

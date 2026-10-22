@@ -73,12 +73,12 @@
   disclaimer. No pixels, no clicking, no judging the aesthetic.
 - **A prerendered `0` is not proof of an empty list.** `READING...` and
   `[ SYNCING... ]` are pre-hydration states; a count beside them is "not read yet".
-- **`CLAUDE.md` -> `## Safety` and `## How to work` hold the rest**: database
+- **`.claude/rules/core.md` -> `## Safety` and `## How to work` hold the rest**: database
   writes need the owner's explicit OK first (reads are free), and the ship-and-verify
   loop. Read them before database or deployment work.
 
 ## Self-Resolution & Assumptions
-- **Exhaust the codebase and the docs before asking anything.** `CLAUDE.md`, the
+- **Exhaust the codebase and the docs before asking anything.** `.claude/rules/`, the
   module's own header comment, `README.md`, `Temp/check-*.cjs` - these answer most
   questions already. A question that a search would have answered wastes a turn
   and gets a worse answer.
@@ -90,7 +90,7 @@
   cannot be re-run, or two failed self-corrections on the same problem.
 - **A reviewed, scoped delete is still a database change**: `supabase/cleanup/*-review.sql`
   first, read the list, confirm the survivors, then show the owner the list and wait for
-  their OK (`CLAUDE.md` -> `## Safety`). That is how 30 throwaway accounts went without
+  their OK (`.claude/rules/core.md` -> `## Safety`). That is how 30 throwaway accounts went without
   touching the 7 real ones.
 - **Do not ask what the repository already answers.** If the answer is inferable
   from `package.json`, a migration, a check, or a comment, infer it.
@@ -135,7 +135,7 @@
   to check before pushing. It is tracked in `scripts/`, so it exists on every
   clone - and the same is true of `npm run capture` for the audit's snapshots.
 - **Never say "done" on a UI change without having read the served HTML.** This
-  does not rely on remembering: `CLAUDE.md` -> `## How to work` ends its loop
+  does not rely on remembering: `.claude/rules/core.md` -> `## How to work` ends its loop
   with the read, and the push is not the finish line - the read is.
 - **Say what the read proves, and what it does not.** It proves the served bytes
   contain the text named. It does not prove the page looks right, and it cannot

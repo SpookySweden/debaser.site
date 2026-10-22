@@ -4,7 +4,7 @@
  *
  *   node guard.cjs pre    PreToolUse: keeps .env.local out of reach and refuses secret-looking
  *                         text in files and commands. Database and connector changes are not
- *                         gated here: Luke approves those by typing in chat (CLAUDE.md, Safety).
+ *                         gated here: Luke approves those by typing in chat (.claude/rules/core.md, Safety).
  *   node guard.cjs stop   Stop: runs the typecheck once per turn and sends Claude back to
  *                         fix any errors (only once in a row, so it cannot loop).
  *

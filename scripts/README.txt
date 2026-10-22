@@ -90,7 +90,7 @@ qa-audit.cjs
 ------------
     npm run audit                       reads Temp/qa/*.html and reports
 
-**Tracked in `scripts/`, not `Temp/`.** `CLAUDE.md` names this as step 3 of the ship loop, and
+**Tracked in `scripts/`, not `Temp/`.** `.claude/rules/core.md` names this as step 3 of the ship loop, and
 `capture-qa.cjs` reads `ROUTES` out of this file so the two cannot disagree about what is being
 audited - so neither works from the gitignored folder. Its *input* is the snapshot in `Temp/qa/`;
 what it holds is the route list and the rules.
@@ -106,7 +106,7 @@ db.cjs
 SQL against the deployed project, through `supabase db query` - the same instrument the dashboard's
 SQL editor is, with a personal access token read from `.env.local`. This is the only tool here that
 can ask the *database* a question rather than asking what a visitor would see, and it is what the
-database rules in `CLAUDE.md` (Safety) run on. The write guard is deliberate: leave it alone.
+database rules in `.claude/rules/core.md` (Safety) run on. The write guard is deliberate: leave it alone.
 
 db-cli.cjs, db-repair.cjs
 -------------------------
@@ -190,6 +190,6 @@ wireframe, the flat figure and the lit composer, which is a probe that cannot te
 
 What they prove is narrow and worth saying: pixels on the canvas means the renderer ran - never that
 it drew a person, or that the person looks right. A screenshot lands in `Temp/browse/`, which is
-where it belongs: the code is tracked, the machine-local output is not. `CLAUDE.md` has the two faults
+where it belongs: the code is tracked, the machine-local output is not. `.claude/rules/core.md` has the two faults
 that were hiding behind these (a `frameloop="demand"` nothing invalidated, and an `EffectComposer`
 that cleared its own frame), and both were found only because a headless Chrome could be driven.

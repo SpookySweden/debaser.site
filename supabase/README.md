@@ -25,7 +25,7 @@ access token, not with the site's key.
 It is tracked in `scripts/` rather than `Temp/` for the reason every other tool
 here is: `package.json` names it, so a copy in the gitignored folder would mean
 `npm run db` does not exist on a fresh clone - and this is the instrument the
-database rules in `CLAUDE.md` (Safety) depend on.
+database rules in `.claude/rules/core.md` (Safety) depend on.
 
 **The credential is the whole story, so read this part.** A token (`sbp_...`)
 from https://supabase.com/dashboard/account/tokens belongs to *your account*, not
