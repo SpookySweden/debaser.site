@@ -6,8 +6,9 @@
  * `text-ena`), so a theme is the set of values behind those names and switching one is a matter of
  * writing different values onto `<html>`. No component learns that themes exist, and none writes a hex.
  *
- * `DEFAULT_THEME` is the site as it has always been, recorded here so that "the default" is a name
- * rather than an absence - which is what makes it selectable after somebody has tried another one.
+ * `DEFAULT_THEME` is the bright theme, the site as it was until 2026-10-22, and its id is still
+ * `default` because browsers have it stored. What a visitor who never chose gets is `FALLBACK_THEME`
+ * (the dark one) - see below.
  *
  * The contrast floors are the same for every theme and are held by `Temp/check-themes.cjs`: an ink and
  * the surface it sits on must clear 4.5:1, whichever theme is on. A theme that cannot do that is not a
@@ -186,14 +187,14 @@ export type Theme = {
 };
 
 /**
- * The site as it stands. Every value here is the one already in `globals.css`, so selecting this theme
- * is indistinguishable from the site having no theme system at all - which is the point: the default
- * has to be the thing that was already there, not a look that happens to resemble it.
+ * The bright theme: Flavine windows on the pink desktop. It was the site's only look until the
+ * readability pass made the dark theme the fallback; its id stays `default` so a reader who picked it
+ * keeps it.
  */
 export const DEFAULT_THEME: Theme = {
   id: 'default',
   label: 'DEBASER',
-  note: 'THE ARCHIVE AS IT STANDS: FLAVINE FIELDS, DAFFODIL PLATES, ROYAL BLUE TITLE BARS.',
+  note: 'THE BRIGHT DESK: FLAVINE WINDOWS WITH BLACK OUTLINES ON THE PINK DESKTOP.',
   scheme: 'light',
   tokens: {
     ink: '#000000',
@@ -239,7 +240,7 @@ export const DEFAULT_THEME: Theme = {
 };
 
 /**
- * The dark theme, and it is genuinely experimental - the picker says so rather than pretending.
+ * The dark theme, and since 2026-10-22 the one a visitor who never chose gets (`FALLBACK_THEME`).
  *
  * Nine colours and no grey is what makes this hard. A dark site usually leans on a grey to be *quiet*
  * in, and there is no grey here; what it has instead is Nigrosine, which is already the desktop's own
@@ -262,8 +263,7 @@ export const DEFAULT_THEME: Theme = {
 export const DARK_THEME: Theme = {
   id: 'dark',
   label: 'NIGROSINE',
-  note: 'EXPERIMENTAL. THE FIELD GOES DARK; THE PLATES KEEP THEIR COLOUR AND THEIR BLACK LABELS.',
-  experimental: true,
+  note: 'DARK WINDOWS WITH WHITE OUTLINES. WHAT THE SITE OPENS IN UNTIL YOU PICK ANOTHER.',
   scheme: 'dark',
   tokens: {
     // White prose on the Nigrosine field: 17.83:1.
@@ -294,10 +294,12 @@ export const DARK_THEME: Theme = {
     // single dark surface works for both. `chrome-dark` is pale in both (Flavine, then Royal Blue) and
     // this theme's `ink` is White, so the pair holds at 9.34:1. The plate is *faded* rather than
     // *pressed in*, which is the trade the palette forces and the check is what found.
-    chrome: '#1d3ca6',
-    // The inactive title bar. Royal Blue, because it is the one dye light enough to carry White
-    // (9.34:1) and still read as the site's own blue.
-    'chrome-dark': '#1d3ca6',
+    // (2026-10-22, SPEC-readability.md) Both are Black now, under White at 21:1: they were Royal Blue
+    // while this theme was a night copy of the bright one, which painted every read post on the board
+    // blue. In the Gnorp look colour is kept for accents, so "dealt with" is the one dark deeper than
+    // the window instead.
+    chrome: '#000000',
+    'chrome-dark': '#000000',
     // Black here too, and this is the token the dark theme actually needed: a readout printed on Black
     // keeps its inks - Emerald 11.90:1, Daffodil 19.56:1, Pure White 21:1 - so the player screens, the
     // scrims and the reverse-video chips look the same in this theme as in the other one. On this field
@@ -312,8 +314,8 @@ export const DARK_THEME: Theme = {
     // were 1.19:1 and 1:1. The cost, accepted: an Emerald or Brilliant Pink name - the GLOW row - is
     // 4.15:1 / 2.56:1 while its row is pointed at.
     pointed: '#1d3ca6',
-    // A read post already rests on Royal Blue here (`chrome-dark`), so it lights up Black instead.
-    'pointed-quiet': '#000000',
+    // A read post rests on Black here (`chrome-dark`), so it lights up the same Royal Blue as any row.
+    'pointed-quiet': '#1d3ca6',
     'sun-pale': '#1a1525',
     ice: '#1a1525',
     'ice-pale': '#000000',
@@ -333,10 +335,20 @@ export const DARK_THEME: Theme = {
   },
 };
 
-export const THEMES: readonly Theme[] = [DEFAULT_THEME, DARK_THEME];
+/**
+ * The theme a visitor who never chose one gets: the dark one (SPEC-readability.md, 2026-10-22).
+ *
+ * The ids stay `default` and `dark` because they are what browsers have stored - a reader who picked
+ * the bright theme has `default` saved and keeps it. Only the *absence* of a choice changed meaning.
+ * `globals.css`'s `@theme` block holds this theme's values, so the first paint is already right.
+ */
+export const FALLBACK_THEME: Theme = DARK_THEME;
+
+/** The picker's order: the fallback first, so the list opens on what the site opens in. */
+export const THEMES: readonly Theme[] = [DARK_THEME, DEFAULT_THEME];
 
 export function themeById(id: string): Theme {
-  return THEMES.find((theme) => theme.id === id) ?? DEFAULT_THEME;
+  return THEMES.find((theme) => theme.id === id) ?? FALLBACK_THEME;
 }
 
 /** The token names, so the applier and the check walk the same list. */

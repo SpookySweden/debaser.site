@@ -1,7 +1,8 @@
 @import "tailwindcss";
 
 /* The field, before any theme is applied.
-   These are the *default theme's* own values, and they are here rather than only in
+   These are the *fallback theme's* own values - the dark one, `FALLBACK_THEME` in themes.ts, which is
+   what a visitor who never chose a theme gets (SPEC-readability.md) - and they are here rather than only in
    `app/lib/ui/themes.ts` so that a page whose JavaScript has not run yet - or never runs - is the
    site rather than an unstyled document. `applyTheme` overwrites every one of them with the active
    theme's values, which is why the library and this block have to agree; `Temp/check-themes.cjs`
@@ -12,6 +13,9 @@
   /* What the pixel face falls back to where it cannot be had: the dotted gothic faces that ship with
      Windows and macOS (DotGothic16 is drawn after them), then anything monospace. */
   --font-pixel-fallback: 'MS Gothic', Osaka, 'Courier New', monospace;
+  /* The fallback theme is dark, so the browser's own parts (a select's popup, the caret) are drawn
+     dark before the boot script runs; the script writes the chosen theme's scheme over this. */
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -116,7 +120,7 @@ body {
   outline: none;
   font-size: 15px;
   line-height: 1.5;
-  color: #000000;
+  color: var(--color-ink);
   word-break: break-word;
 }
 
@@ -124,14 +128,16 @@ body {
   margin-top: 0.7rem;
 }
 
+/* The face has one weight, so a heading is set apart by size, and the first one by the accent ink. */
 .lore-document h1 {
-  font-size: 1.125rem;
-  font-weight: 700;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  color: var(--color-accent-ink);
 }
 
 .lore-document h2 {
-  font-size: 1rem;
-  font-weight: 700;
+  font-size: 1.25rem;
+  line-height: 1.3;
 }
 
 .lore-document ul {
@@ -145,20 +151,20 @@ body {
 }
 
 .lore-document blockquote {
-  border-left: 4px solid #1a1525;
-  background: #e1ff00;
+  border-left: 4px solid var(--color-ink);
+  background: var(--color-ice-pale);
   padding: 0.4rem 0.6rem;
 }
 
 .lore-document code {
-  border: 1px solid #1a1525;
-  background: #e1ff00;
+  border: 1px solid var(--color-ink);
+  background: var(--color-ice-pale);
   padding: 0 0.2rem;
 }
 
 .lore-document hr {
   border: 0;
-  border-top: 2px solid #1a1525;
+  border-top: 2px solid var(--color-ink);
 }
 
 /* The other editors' carets, as the collaboration extension draws them: a bar in the colour that
@@ -178,11 +184,11 @@ body {
   /* 13px, the site's smallest label; absolute, so the size moves nothing. */
   font-size: 13px;
   white-space: nowrap;
-  color: #ffffff;
+  color: var(--color-ink-bar);
 }
 
 .lore-document .collaboration-carets__selection {
-  background: #e1ff00;
+  background: var(--color-pointed);
 }
 
 /* Retro OS primitives -------------------------------------------------------
@@ -356,8 +362,8 @@ img {
    whole site moves to the new swatch without a component being rewritten to say so - which is the
    point of having had one. What each name now means is the list above. */
 @theme {
-  --color-ink: #000000;
-  --color-paper: #ffffff;
+  --color-ink: #ffffff;
+  --color-paper: #1a1525;
 
   /* The ink that reads on a *plate* rather than on the field.
      It is Black here, exactly like `ink`, and that is not redundant: a theme can need them to differ.
@@ -383,8 +389,8 @@ img {
        `ink-quiet` is Nigrosine here and Flavine there (16.08:1 on the field).
      Both of these are the colours the site already drew, so the field ink, the plate ink, the bar ink
      and these two are five names for the same two values until a theme needs them apart. */
-  --color-accent-ink: #1d3ca6;
-  --color-ink-quiet: #1a1525;
+  --color-accent-ink: #fff000;
+  --color-ink-quiet: #e1ff00;
 
   /* The quiet furniture, in dye rather than grey.
      Both tokens below are *surfaces with ink on them*, and the distinction that decides them is
@@ -399,8 +405,8 @@ img {
      The names are kept because the components already ask for them, and `Temp/check-surreal.cjs` still
      holds both pairs to the arithmetic - so neither can be swept onto a dark surface again without a
      check saying so. */
-  --color-chrome: #1a1525;
-  --color-chrome-dark: #e1ff00;
+  --color-chrome: #000000;
+  --color-chrome-dark: #000000;
   /* The hardware panel: the Black inset a readout is printed on - a player's screen, the scrim behind
      a window, the reverse-video chip. It was `bg-ink` until a dark theme existed, which is where the
      fault showed: `ink` flips (Black here, White there), so the panel became a *pale* screen with
@@ -410,21 +416,21 @@ img {
 
   /* The desktop, the title bar of the window you are in, anything pressed. */
   --color-ena: #1d3ca6;
-  --color-ena-deep: #1a1525;
+  --color-ena-deep: #000000;
 
   /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
   --color-sun: #fff000;
-  --color-sun-pale: #e1ff00;
+  --color-sun-pale: #1a1525;
 
   /* The row under the pointer. Daffodil here - the `hover:bg-sun` it always was - and Royal Blue in the
      dark theme, because the inks on a row are the field's and move with it (see `pointed` in themes.ts). */
-  --color-pointed: #fff000;
+  --color-pointed: #1d3ca6;
   /* The same for a read post, which rests on `chrome-dark` - Royal Blue in the dark theme, where this is Black. */
-  --color-pointed-quiet: #fff000;
+  --color-pointed-quiet: #1d3ca6;
 
   /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
-  --color-ice: #e1ff00;
-  --color-ice-pale: #e1ff00;
+  --color-ice: #1a1525;
+  --color-ice-pale: #000000;
 
   /* Brilliant Pink and Rose: the accent, and the warning. */
   --color-bubble: #ff00a0;
@@ -432,22 +438,22 @@ img {
 
   /* Emerald: status bars, the online lamp, anything that is a "go". */
   --color-acid: #28c745;
-  --color-acid-pale: #e1ff00;
+  --color-acid-pale: #1a1525;
 
   /* The desktop: the tile behind every window, and the scrollbar's trough, which is the same tile.
      Two tokens because the tile is a fill *and* a texture, and a theme has to move both: the default is
      Brilliant Pink with Nigrosine dithered through it, the dark theme is Nigrosine with Black through
      it. Set them equal and the tile is flat - which is not a contrast failure, so only this comment and
      the check that reads this block will notice. */
-  --color-desktop: #ff00a0;
-  --color-desktop-dither: #1a1525;
+  --color-desktop: #1a1525;
+  --color-desktop-dither: #000000;
 
   /* The dye a native control's own accent names - the checkbox tick, the filled half of a slider, the
      caret. It is a token because the browser draws those and no component can style them, so an accent
      is only readable against the surface it sits on: Royal Blue is 1.91:1 on the dark theme's field and
      Daffodil is 15.04:1. `app/lib/ui/controls.ts` exports it as an inline-style value for the three
      controls that ask for one. */
-  --color-accent: #1d3ca6;
+  --color-accent: #fff000;
 
   /* What were the red and the orange used to be declared here, as `blood` and `flame`. They are gone:
      neither was a colour any *theme* knew, `blood` was asked for by nothing at all, and `flame` was a
@@ -1121,12 +1127,14 @@ img {
    the one ink a reader chooses and everybody else reads, so a swatch is stored as a *choice* and drawn as
    the value that reads on the field it lands on - Black on White becomes White on Nigrosine (21:1), and
    Royal Blue becomes Daffodil (15.04:1), where the dye alone was 1.91:1 and unreadable.
-   `--name-ink-dark` is absent for a colour that is not on the swatch, and then the light value stands. */
+   `--name-ink-dark` is absent for a colour that is not on the swatch, and then the light value stands.
+   The dark reading is the one used unless the bright theme (id `default`) is on, because the dark theme
+   is what a page is drawn in before - or without - the boot script that writes `data-theme`. */
 .name-ink {
   color: var(--name-ink);
 }
 
-[data-theme='dark'] .name-ink {
+:root:not([data-theme='default']) .name-ink {
   color: var(--name-ink-dark, var(--name-ink));
 }
 

@@ -9,6 +9,7 @@ import {
 } from '../lib/ui/preferences-window';
 import {
   currentTheme,
+  FALLBACK_THEME,
   setTheme,
   subscribeToTheme,
   themeState,
@@ -170,9 +171,9 @@ export default function PreferencesWindow() {
 
       {/* The one place `PLATE` is spent in this window: a reader who wants the tick they came for and
           nothing else can get back to the default in one press. */}
-      {id === 'default' ? null : (
+      {id === FALLBACK_THEME.id ? null : (
         <p className="mt-1 text-center">
-          <button type="button" onClick={() => setTheme('default')} className={PLATE}>
+          <button type="button" onClick={() => setTheme(FALLBACK_THEME.id)} className={PLATE}>
             [ BACK TO THE DEFAULT ]
           </button>
         </p>

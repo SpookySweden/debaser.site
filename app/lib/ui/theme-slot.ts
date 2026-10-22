@@ -10,7 +10,7 @@
  * theme is currently ticked. Nothing else in the site reads this.
  */
 import { createWindowSlot } from './window-slot';
-import { DEFAULT_THEME, THEMES, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
+import { FALLBACK_THEME, THEMES, THEME_TOKEN_NAMES, themeById, type Theme, type ThemeId } from './themes';
 
 const STORAGE_KEY = 'debaser.site.theme.v1';
 
@@ -20,7 +20,7 @@ export const THEME_STORAGE_KEY = STORAGE_KEY;
 /** What the store holds: the id, and nothing else - the theme itself is looked up from the library. */
 export type ThemeState = { id: ThemeId };
 
-const slot = createWindowSlot<ThemeState>({ id: DEFAULT_THEME.id });
+const slot = createWindowSlot<ThemeState>({ id: FALLBACK_THEME.id });
 
 /** The theme as it is now, for `useSyncExternalStore`. */
 export const themeState = slot.state;
@@ -70,11 +70,11 @@ export function applyTheme(theme: Theme, root: HTMLElement): void {
 function readStored(): ThemeId {
   try {
     const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored === null) return DEFAULT_THEME.id;
+    if (stored === null) return FALLBACK_THEME.id;
     return themeById(stored).id;
   } catch {
     // No storage (private mode, blocked cookies): the default stands.
-    return DEFAULT_THEME.id;
+    return FALLBACK_THEME.id;
   }
 }
 
@@ -153,7 +153,7 @@ export function themeBootScript(): string {
 
   return [
     '(function(){try{',
-    `var k=${JSON.stringify(STORAGE_KEY)},d=${JSON.stringify(DEFAULT_THEME.id)},`,
+    `var k=${JSON.stringify(STORAGE_KEY)},d=${JSON.stringify(FALLBACK_THEME.id)},`,
     `a=${JSON.stringify(themes)};`,
     'var t=a[localStorage.getItem(k)||d]||a[d],r=document.documentElement;',
     writes,
@@ -163,5 +163,5 @@ export function themeBootScript(): string {
 }
 
 /** The picker's own list, so a component never imports the library's shape directly. */
-export { THEMES } from './themes';
+export { FALLBACK_THEME, THEMES } from './themes';
 export type { Theme, ThemeId } from './themes';
