@@ -199,7 +199,7 @@ export default function CharacterBrowserWindow() {
                     <>
                       <button
                         type="button"
-                        className={`${PLATE} bg-bubble-pale text-ink-bar`}
+                        className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-[2px] text-[13px] text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm"
                         onClick={() => {
                           update(removeCharacter(shelf, character.id));
                           confirmCharacterRemoval(null);

@@ -715,8 +715,10 @@ img {
     background-color: var(--key-fill);
   }
 
-  /* A key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. */
-  .key:disabled,
+  /* A key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. A key that
+     is *on* (`.key-on`, `PLATE_PRESSED`) and disabled because it is already chosen - `[ PICKED ]` - stays a
+     solid pill: it is a state, not a refusal. */
+  .key:disabled:not(.key-on),
   .plate:disabled,
   .plate-large:disabled,
   .plate-medium:disabled,
@@ -803,9 +805,14 @@ img {
       grid-area: 1 / 3;
     }
 
+    /* On their own row the extras have the full width, so a long one (the lore editor's status) may
+       wrap there rather than run off the side of the phone. */
     :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) > * + * {
       grid-column: 1 / -1;
       justify-self: end;
+      max-width: 100%;
+      white-space: normal;
+      text-align: right;
     }
   }
 

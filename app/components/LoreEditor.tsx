@@ -136,7 +136,7 @@ export default function LoreEditor({
     <section className="frame bg-sun-pale">
       <div className={TITLE_BAR}>
         <span>THE PAGE :: {peers.length === 1 ? '1 EDITOR' : `${peers.length} EDITORS`}</span>
-        <span>{LORE_STATUS_LINES[status]}</span>
+        <span className="min-w-0 shrink whitespace-normal text-right">{LORE_STATUS_LINES[status]}</span>
       </div>
 
       {/* Whose carets are in it, in the colours those names wear everywhere else. */}

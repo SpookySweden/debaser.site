@@ -58,11 +58,11 @@ export default function TrackDetails({
   return (
     // A fixed height, so the block is the same size whatever it holds - a picture still loading, a blank
     // context line, a link or none - and nothing beside it moves when it changes.
-    <div className={`flex min-w-0 items-center gap-2 overflow-hidden ${tone === 'led' ? 'h-[36px]' : 'h-[44px]'}`}>
+    <div className={`flex min-w-0 items-center gap-2 overflow-hidden ${tone === 'led' ? 'h-[46px]' : 'h-[48px]'}`}>
       <UploaderPicture src={src} size={tone === 'led' ? 30 : 36} />
 
       <div className="min-w-0 flex-1 leading-tight">
-        <p className={`truncate text-[13px] leading-[11px] font-bold ${ink.context}`}>{context.length === 0 ? <>&nbsp;</> : context}</p>
+        <p className={`truncate text-[13px] leading-[14px] font-bold ${ink.context}`}>{context.length === 0 ? <>&nbsp;</> : context}</p>
 
         {marquee ? (
           <MarqueeText className={`block text-[14px] font-bold ${ink.title}`} text={title} />
@@ -72,7 +72,7 @@ export default function TrackDetails({
           </p>
         )}
 
-        <p className={`flex min-w-0 items-center gap-2 text-[13px] leading-[11px] ${ink.clock}`}>
+        <p className={`flex min-w-0 items-center gap-2 text-[13px] leading-[14px] ${ink.clock}`}>
           {extra}
           <span className="shrink-0 font-bold">
             {formatClock(Math.max(0, position))} / {Number.isFinite(length) ? formatClock(length) : '-:--'}

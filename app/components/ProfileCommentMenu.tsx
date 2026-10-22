@@ -48,7 +48,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
   return (
     <ul
       role="menu"
-      className="w-full max-w-md frame bg-sun-pale py-[2px] shadow-[2px_2px_0_rgba(0,0,0,0.35)]"
+      className="w-full max-w-md frame bg-sun-pale py-[2px]"
     >
       {options.map((option) => {
         const label = ASPECTS.find((aspect) => aspect.kind === option.kind)?.label ?? option.kind;

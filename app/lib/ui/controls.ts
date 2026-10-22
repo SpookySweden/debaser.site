@@ -45,11 +45,13 @@ export const PLATE_LARGE =
  * The one action a screen exists for: `[ POST ]`, `[ SEND ]`, `[ SAVE ]`, `[ LOG IN ]`.
  *
  * Filled Daffodil with Black words, and only one per screen, so the eye lands on it first. Its fill
- * is `--key-fill` (`.key-fill`), so the outline and the face are one shape and move together: Emerald
- * under the pointer - a "go" - and the Brilliant Pink flash when it is pressed.
+ * is `--key-fill` (`.key-fill`): Emerald under the pointer - a "go" - and the Brilliant Pink flash when it
+ * is pressed. Its outline is the plate ink rather than the fill, because Daffodil on the bright theme's
+ * Flavine window is 1.05:1 - without a Black edge the pill would vanish there. On the dark field the
+ * Black edge melts into Nigrosine and the pill reads as filled.
  */
 export const PLATE_MAIN =
-  `key key-fill cursor-pointer [--key-fill:var(--color-sun)] px-3 py-1 text-[14px] text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `key key-fill cursor-pointer [--key-fill:var(--color-sun)] [--frame-line:var(--color-ink-plate)] px-3 py-1 text-[14px] text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
@@ -72,7 +74,7 @@ export const PLATE_HARDWARE =
   `key cursor-pointer bg-hardware px-3 py-2 text-[14px] text-acid hover:text-sun ${KEY_FOCUS} ${KEY_PRESS} disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
 /** A key already down: the tab you are standing on, the switch that is on. A filled pill in the field ink. */
-export const PLATE_PRESSED = `key key-fill [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] text-paper max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] text-paper max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
@@ -222,7 +224,7 @@ export const ROW_UNREAD = 'bg-paper text-ink';
  * under the pointer and Emerald when pressed, so it never flashes the pink it already is.
  */
 export const PLATE_ACCENT =
-  `key key-fill cursor-pointer [--key-fill:var(--color-bubble)] px-2 py-[2px] text-[13px] text-ink-plate hover:[--key-fill:var(--color-sun)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-acid)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key key-fill cursor-pointer [--key-fill:var(--color-bubble)] [--frame-line:var(--color-ink-plate)] px-2 py-[2px] text-[13px] text-ink-plate hover:[--key-fill:var(--color-sun)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-acid)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * Royal Blue, as a value rather than a class.
