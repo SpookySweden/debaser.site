@@ -13,7 +13,7 @@ import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
 import { getMusicRepository, type MusicFolder } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import type { ForumAuthor } from '../lib/forum/types';
-import { FIELD, FIELD_TIGHT, PLATE_LARGE } from '../lib/ui/controls';
+import { FIELD, FIELD_TIGHT, PLATE_MAIN } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import PopoutWindow from './PopoutWindow';
 
@@ -123,7 +123,7 @@ export default function NewArchiveFileWindow({
       onClose={onClose}
       maxWidth="max-w-2xl"
       actions={
-        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_LARGE}>
+        <button type="button" onClick={() => void fileIt()} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ FILING... ]' : '[ FILE IT ]'}
         </button>
       }

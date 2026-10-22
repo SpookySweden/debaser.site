@@ -22,14 +22,14 @@ const CHIP_BASE =
   'inline-flex items-center gap-1 rounded-none border px-1.5 py-[1px] text-[13px] font-bold uppercase tracking-[0.02em]';
 
 /**
- * The chip itself. The coloured kinds wear the site's raised grey; `source` is the retired
- * housekeeping tag and stays inset, which is how a reader can still tell the two apart at a glance.
+ * The chip itself. The coloured kinds are flat Rose chips; `source` is the retired
+ * housekeeping tag and is only outlined, which is how a reader can still tell the two apart at a glance.
  */
 const KIND_CLASSES: Record<ForumTag['kind'], string> = {
-  user: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
-  category: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
-  content: 'bg-bubble-pale text-ink-bar border-t-white border-l-white border-r-ink border-b-ink',
-  source: 'bg-sun-pale text-ink border-t-ink border-l-ink border-r-white border-b-white',
+  user: 'bg-bubble-pale text-ink-bar border-bubble-pale',
+  category: 'bg-bubble-pale text-ink-bar border-bubble-pale',
+  content: 'bg-bubble-pale text-ink-bar border-bubble-pale',
+  source: 'bg-sun-pale text-ink border-ink',
 };
 
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */

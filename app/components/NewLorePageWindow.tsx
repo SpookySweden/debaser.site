@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { isLoreSlug, lorePagePath, loreSlug } from '../lib/lore/pages';
 import { getLoreRepository } from '../lib/lore/repository';
-import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 
@@ -109,7 +109,7 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
       {error === null ? null : <p className="mt-2 text-[13px] font-bold text-bubble-pale">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void open()} disabled={busy || !usable} className={PLATE_LARGE}>
+        <button type="button" onClick={() => void open()} disabled={busy || !usable} className={PLATE_MAIN}>
           {busy ? '[ OPENING... ]' : '[ OPEN THE PAGE ]'}
         </button>
         <button type="button" onClick={onClose} className={PLATE_LARGE}>

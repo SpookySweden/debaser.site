@@ -1,47 +1,63 @@
 /**
- * The Win95 plate, and the fields that sit in it, in one place.
+ * The keys, and the fields that sit beside them, in one place.
  *
- * Every control on this site is the same raised grey rectangle: a light top-left edge, a
- * dark bottom-right one, no radius, and the pointer changing over it. It was declared by
- * hand in sixteen components before this file existed, at four sizes - which is how one
- * raised edge ends up with three different border widths.
+ * Every control on this site is the same outlined key (`.key` in app/globals.css): a 2px line in the
+ * key's own ink whose corners step in one pixel, the way the buttons in *(the) Gnorp Apologue* are
+ * drawn. It replaced the Win95 plate (SPEC-readability.md, 2026-10-22) - a Daffodil face with a
+ * white-and-black bevel - which read as a wall of yellow and put every label on a moving surface.
  *
  * The sizes are named for the job rather than the numbers, so the choice is read off the
  * page: `PLATE` for a control in a row of text, `PLATE_LARGE` for one that is the only
  * thing on its line, `PLATE_MEDIUM` for a label-sized control on a panel, `PLATE_TAP` for
  * a phone, `PLATE_LINK` for the same plate drawn as a link, `PLATE_PRESSED` for a control
- * that is already down (the tab you are standing on).
+ * that is already down (the tab you are standing on), and `PLATE_MAIN` for the one action a
+ * screen exists for (post, send, save, log in).
  *
- * **Two states, and nothing in between.** Every plate here is `outset` at rest - 2px of
- * `#ffffff` up and left, 2px of `#000000` down and right - and **inverts to `inset`** the
- * moment it is held down, so a press is felt rather than inferred: the same edges swap
- * sides and the label appears to sink into the panel. There is no fade, no lift and no
- * transition of any kind; a state change is binary and immediate, which is what a physical
- * button does and what a modern hover effect does not.
+ * **Three looks, and nothing in between.** At rest a key is outlined on the window's own fill. The
+ * one main action is filled Daffodil with Black words. A key that is already down - a tab, a switch -
+ * is a filled pill in the field ink. Hover is an instant colour swap (the words and the outline turn
+ * the accent ink); nothing wobbles, because a label that moves is a label that cannot be read. The
+ * press is the one movement left: a 1px drop and the Brilliant Pink flash, with no easing.
  */
 
-/** The bevel, in the two states a control has. Kept here so no component can invent a third. */
-export const BEVEL_OUT = 'border-t-2 border-l-2 border-white border-r-2 border-b-2 border-black';
-export const BEVEL_IN = 'border-t-2 border-l-2 border-black border-r-2 border-b-2 border-white';
-/** The same inversion as a press: an `active:` variant for any control that is not a plate. */
-export const PRESSED =
-  'rounded-none active:border-t-2 active:border-l-2 active:border-black active:border-r-2 active:border-b-2 active:border-white';
+/** The focus ring every key draws for the keyboard: dotted Brilliant Pink, one pixel off the outline. */
+const KEY_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble';
+/** The press: the key drops a pixel and flashes Brilliant Pink, with the plate ink on it. */
+const KEY_PRESS = 'active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate';
+/** A key that cannot be pressed: the outline turns dotted (`.key:disabled`) and the words go quiet. */
+const KEY_DISABLED = 'disabled:cursor-not-allowed disabled:text-ink-quiet disabled:hover:text-ink-quiet';
+
+/** The outline every frame and key wears; the bevel is gone, the names stay for the components that ask. */
+export const BEVEL_OUT = 'frame';
+export const BEVEL_IN = 'frame';
+/** The press, for a control that is not a key: the same 1px drop. */
+export const PRESSED = 'active:translate-y-[1px]';
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-2 py-[2px] text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer bg-sun-pale px-2 py-[2px] text-[13px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
-/** The largest: a control that has its line to itself, or carries the form's weight. */
+/** The largest: a control that has its line to itself. */
 export const PLATE_LARGE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[14px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `key cursor-pointer bg-sun-pale px-3 py-1 text-[14px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+
+/**
+ * The one action a screen exists for: `[ POST ]`, `[ SEND ]`, `[ SAVE ]`, `[ LOG IN ]`.
+ *
+ * Filled Daffodil with Black words, and only one per screen, so the eye lands on it first. Its fill
+ * is `--key-fill` (`.key-fill`), so the outline and the face are one shape and move together: Emerald
+ * under the pointer - a "go" - and the Brilliant Pink flash when it is pressed.
+ */
+export const PLATE_MAIN =
+  `key key-fill cursor-pointer [--key-fill:var(--color-sun)] px-3 py-1 text-[14px] text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer bg-sun-pale px-3 py-1 text-[13px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-sun px-3 py-2 text-sm font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink`;
+  `key cursor-pointer bg-sun-pale px-3 py-2 text-sm text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED}`;
 
 /**
  * The deck's own controls: the transport keys on the docked player.
@@ -49,25 +65,26 @@ export const PLATE_TAP =
  * Bigger than any plate in a row of text, with the label always written out - `[ ▶ PLAY ]` rather than
  * a triangle - because a row of icon-only keys is a puzzle. They are also the one place the site
  * allows a black face: a transport key on a physical deck is not the same surface as the panel it is
- * bolted to, so these are black with a lime label, and a press turns them magenta.
+ * bolted to, so these are black with an Emerald label and outline, Daffodil under the pointer, and a
+ * press turns them magenta.
  */
 export const PLATE_HARDWARE =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-hardware px-3 py-2 text-[14px] font-bold text-acid hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
+  `key cursor-pointer bg-hardware px-3 py-2 text-[14px] text-acid hover:text-sun ${KEY_FOCUS} ${KEY_PRESS} disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
 
-/** A plate already pressed in: the tab you are standing on, the switch that is on. */
-export const PLATE_PRESSED = `rounded-none ${BEVEL_IN} bg-ena px-2 py-[2px] text-[13px] font-bold text-sun max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+/** A key already down: the tab you are standing on, the switch that is on. A filled pill in the field ink. */
+export const PLATE_PRESSED = `key key-fill [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] text-paper max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `rounded-none ${BEVEL_OUT} bg-sun px-3 py-1 text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key bg-sun-pale px-3 py-1 text-[13px] text-ink hover:text-accent-ink active:translate-y-[1px] active:bg-bubble active:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
-/** An inset field: white, monospace, with the room it needs under its label. */
+/** A field: the paper you write on, inside the same notched outline, with the room it needs under its label. */
 export const FIELD =
-  'mt-1 w-full rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-[6px] font-mono text-[15px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
+  'frame mt-1 w-full bg-paper p-[6px] font-mono text-[15px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'rounded-none border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-1 text-[14px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
+  'frame bg-paper p-1 text-[14px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
 
 /**
  * A link in a page of writing: the dashed 3px bar, and the inversion on hover.
@@ -120,14 +137,14 @@ export const PANEL = 'frame bg-sun-pale';
  * how anybody moves between shelves.
  */
 export const SHELF_CHIP =
-  'cursor-pointer rounded-none border border-ink bg-sun-pale px-2 py-[2px] text-ink hover:animate-bump hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'key cursor-pointer bg-sun-pale px-2 py-[2px] text-ink hover:text-accent-ink max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 /** A well inside a panel - a page, a board: the same notched outline, filled by the caller. */
 export const PANEL_INSET = 'frame';
 
-/** A bevelled button small enough to sit in a navy title bar. */
+/** A key small enough to sit at the end of a title line: `[ × ]`, `[ ⇲ ]`. */
 export const TITLE_BAR_BUTTON =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-2 py-[1px] text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
+  'key cursor-pointer bg-sun-pale px-2 py-[1px] text-[13px] leading-none text-ink hover:text-accent-ink active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
 
 /**
  * A control whose face is a glyph rather than a word.
@@ -147,7 +164,7 @@ export const TITLE_BAR_BUTTON =
  * rather than out of the tap area.
  */
 export const GLYPH_BUTTON =
-  'inline-flex cursor-pointer items-center justify-center rounded-none border-t border-l border-white border-r border-b border-black bg-sun text-ink-plate hover:bg-ena hover:text-sun active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-11 max-sm:min-w-11 max-sm:px-2 max-sm:text-base';
+  'key inline-flex cursor-pointer items-center justify-center bg-sun-pale text-ink hover:text-accent-ink active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-11 max-sm:min-w-11 max-sm:px-2 max-sm:text-base';
 
 /**
  * A space that a reveal is allowed to fill, because it is already there either way.
@@ -201,10 +218,11 @@ export const ROW_UNREAD = 'bg-paper text-ink';
  * the yellow of the furniture. That is deliberate: every other control in that row acts on the archive
  * (play this, filter by that), and the one that acts on *the board* has to be findable at a glance
  * from across a list. Magenta rather than the blood red of a warning, because nothing is wrong - it is
- * the same thing the `♪ MP3` badge on a post is: this file belongs to a thread.
+ * the same thing the `♪ MP3` badge on a post is: this file belongs to a thread. A filled pill, Daffodil
+ * under the pointer and Emerald when pressed, so it never flashes the pink it already is.
  */
 export const PLATE_ACCENT =
-  `cursor-pointer rounded-none ${BEVEL_OUT} bg-bubble px-2 py-[2px] text-[13px] font-bold text-ink-plate hover:animate-wobble hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:animate-flash active:translate-y-[1px] active:bg-acid active:text-ink-plate active:border-t-black active:border-l-black active:border-r-white active:border-b-white disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key key-fill cursor-pointer [--key-fill:var(--color-bubble)] px-2 py-[2px] text-[13px] text-ink-plate hover:[--key-fill:var(--color-sun)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-acid)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * Royal Blue, as a value rather than a class.

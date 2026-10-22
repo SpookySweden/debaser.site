@@ -453,8 +453,8 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             key={entry.key}
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
-            className={`cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black px-3 py-1 text-[14px] font-bold max-sm:min-h-11 ${
-              tab === entry.key ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
+            className={`cursor-pointer px-3 py-1 text-[14px] max-sm:min-h-11 ${
+              tab === entry.key ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key bg-sun-pale text-ink hover:text-accent-ink'
             }`}
           >
             {entry.label}

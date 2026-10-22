@@ -123,10 +123,10 @@ function QueueTabPlate({
       role="tab"
       aria-selected={selected}
       onClick={onSelect}
-      className={`min-w-0 flex-1 cursor-pointer truncate rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-[14px] font-bold tracking-wide max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`min-w-0 flex-1 cursor-pointer truncate px-2 py-1 text-[14px] tracking-wide max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         selected
-          ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
+          ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
+          : 'key bg-sun-pale text-ink hover:text-accent-ink'
       }`}
     >
       {label}

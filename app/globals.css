@@ -268,8 +268,8 @@ summary::-webkit-details-marker {
 }
 
 /* The artless surface --------------------------------------------------------
-   Three rules that hold the whole GUI to one era, and none of them draws anything: a scrollbar is
-   a bevel with a grip on it, a selection is two flat colours, and artwork is scaled in whole pixels
+   Three rules that hold the whole GUI to one look, and none of them draws anything: a scrollbar is
+   a tiled trough with a flat grip, a selection is two flat colours, and artwork is scaled in whole pixels
    rather than resampled into a blur. Nothing here is an illustration - see CLAUDE.md, Asset Rules. */
 
 /* A 16px trough with a bevelled grip, and it inverts while it is dragged. The standard property is
@@ -280,10 +280,11 @@ summary::-webkit-details-marker {
    scrollbar is a window onto, and because it is the only surface on the site wide enough to show that
    the tile is a tile. Every value here is a token, and none of them was: a scrollbar painted from
    literals kept its Brilliant Pink dither in a dark theme, which is a pink stripe down the side of a
-   night desktop. The grip is the plate dye, and its bevel is the site's one bevel, white then black -
-   the two dyes that are the same in every theme, which is exactly why a bevel can be written down. */
+   night desktop. The grip is a flat bar in the field ink - the colour every outline on the site is
+   drawn in - set 3px into the trough, and it flashes Brilliant Pink while it is dragged, like a key
+   being pressed. (It was a Daffodil plate with the Win95 bevel until SPEC-readability.md.) */
 html {
-  scrollbar-color: var(--color-sun) var(--color-desktop);
+  scrollbar-color: var(--color-ink) var(--color-desktop);
 }
 
 ::-webkit-scrollbar {
@@ -301,14 +302,14 @@ html {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--color-sun);
-  border: 2px solid;
-  border-color: #ffffff #000000 #000000 #ffffff;
+  background: var(--color-ink);
+  background-clip: padding-box;
+  border: 3px solid transparent;
 }
 
-/* Held down, the grip is pressed in like every other control on this site. */
+/* Held down, the grip flashes the press colour like every other control on this site. */
 ::-webkit-scrollbar-thumb:active {
-  border-color: #000000 #ffffff #ffffff #000000;
+  background-color: var(--color-bubble);
 }
 
 ::-webkit-scrollbar-corner {
@@ -462,7 +463,7 @@ img {
      default theme to the same names and the same values, in both directions, so a `--color-*` that
      exists only here is a colour no theme can move with the field. */
 
-  /* The reactivity, as Tailwind utilities: `animate-wobble` on a plate's hover, `animate-marquee`
+  /* The reactivity, as Tailwind utilities: `animate-wobble` on the looping glyph, `animate-marquee`
      on a ticker, `animate-flash` on the press. */
   --animate-wobble: wobble 150ms steps(2, jump-none) infinite;
   --animate-bump: bump 220ms steps(2, jump-none) infinite;
@@ -639,6 +640,17 @@ img {
      takes its colours from these two properties and `bg-*`, never from a border utility. */
   .frame,
   .key,
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .plate-pressed,
+  .title-bar-button,
+  .glyph-button,
+  .shelf-chip,
   .bevel-out,
   .bevel-in,
   .panel,
@@ -681,7 +693,18 @@ img {
 
   /* A key - a button, a chip, a tab - is outlined in its own ink, so the hover that swaps the ink swaps
      the outline with it in the same frame. */
-  .key {
+  .key,
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .plate-pressed,
+  .title-bar-button,
+  .glyph-button,
+  .shelf-chip {
     --frame-line: currentColor;
   }
 
@@ -693,7 +716,14 @@ img {
   }
 
   /* A key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. */
-  .key:disabled {
+  .key:disabled,
+  .plate:disabled,
+  .plate-large:disabled,
+  .plate-medium:disabled,
+  .plate-tap:disabled,
+  .plate-link:disabled,
+  .plate-hardware:disabled,
+  .plate-accent:disabled {
     background-image:
       repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
       repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
@@ -779,25 +809,8 @@ img {
     }
   }
 
-  /* The old raised edge, still worn by the plate classes below until they move onto `.key`. */
-  .plate,
-  .plate-large,
-  .plate-medium,
-  .plate-tap,
-  .plate-link,
-  .plate-hardware,
-  .plate-accent,
-  .title-bar-button,
-  .glyph-button {
-    border-radius: 0;
-    border-style: solid;
-    border-width: 2px;
-    border-color: var(--color-white) var(--color-black) var(--color-black) var(--color-white);
-    border-image-source: var(--art-frame, none);
-    border-image-repeat: stretch;
-  }
-
-  /* The plate's face: Daffodil, with the drawing over it when there is one. */
+  /* The plate's face: the window's own fill inside the key's outline, with the drawing over it when
+     there is one. The drawing is `--frame-art`, the layer under the four outline stripes. */
   .plate,
   .plate-large,
   .plate-medium,
@@ -805,15 +818,14 @@ img {
   .plate-link,
   .plate-hardware,
   .plate-accent {
+    --frame-art: var(--art-plate-rest, var(--art-plate, none));
     cursor: pointer;
-    background-color: var(--color-sun);
-    background-image: var(--art-plate-rest, var(--art-plate, none));
-    font-weight: var(--font-weight-bold, 700);
-    color: var(--color-ink-plate);
+    background-color: var(--color-sun-pale);
+    color: var(--color-ink);
   }
 
-  /* A plate with a pointer over it: the navy face, and the label turns Daffodil. The wobble is whole
-     frames rather than a fade, because a pixel plate does not ease. */
+  /* A plate with a pointer over it: an instant colour swap - the words and the outline turn the accent
+     ink. Nothing moves: the wobble that used to answer here put the label on a moving surface. */
   .plate:hover,
   .plate-large:hover,
   .plate-medium:hover,
@@ -821,14 +833,12 @@ img {
   .plate-link:hover,
   .plate-hardware:hover,
   .plate-accent:hover {
-    animation: var(--animate-wobble);
-    background-color: var(--color-ena);
-    background-image: var(--art-plate-hover, var(--art-plate, none));
-    color: var(--color-sun);
+    --frame-art: var(--art-plate-hover, var(--art-plate, none));
+    color: var(--color-accent-ink);
   }
 
-  /* The press. Every one of the six rules is the same binary move: the bevel inverts, the plate turns
-     Brilliant Pink for one flash, and the label drops a pixel into the page. Nothing fades. */
+  /* The press. Every one of the six rules is the same binary move: the plate turns Brilliant Pink for
+     one flash and the label drops a pixel into the page. Nothing fades. */
   .plate:active,
   .plate-large:active,
   .plate-medium:active,
@@ -836,12 +846,11 @@ img {
   .plate-link:active,
   .plate-hardware:active,
   .plate-accent:active {
+    --frame-art: var(--art-plate-pressed, var(--art-plate, none));
     animation: var(--animate-flash);
     translate: 0 1px;
     background-color: var(--color-bubble);
-    background-image: var(--art-plate-pressed, var(--art-plate, none));
     color: var(--color-ink-plate);
-    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
   }
 
   /* The keyboard's ring. The browser's own outline is cancelled on a field, so this is the site's, and
@@ -862,8 +871,8 @@ img {
     outline-color: var(--color-acid);
   }
 
-  /* A control that cannot be pressed: it goes quiet in the ink that reads on the field, and the pointer
-     says so. Written after the hover rule on purpose - both are two-class states, so the later one
+  /* A control that cannot be pressed: its outline breaks into dots (`.key:disabled`), its words go
+     quiet, and the pointer says so. Written after the hover rule on purpose - both are two-class states, so the later one
      decides, and a disabled plate under a pointer has to stay disabled. */
   .plate:disabled,
   .plate-large:disabled,
@@ -871,10 +880,9 @@ img {
   .plate-tap:disabled,
   .plate-hardware:disabled,
   .plate-accent:disabled {
+    --frame-art: var(--art-plate-disabled, none);
     cursor: not-allowed;
-    background-color: var(--color-chrome-dark);
-    background-image: var(--art-plate-disabled, none);
-    color: var(--color-ink);
+    color: var(--color-ink-quiet);
   }
 
   /* The sizes. Named for the job rather than the numbers (`controls.ts`), because the choice has to be
@@ -960,41 +968,46 @@ img {
   /* The accent plate's press is Emerald rather than pink, so the one magenta plate does not flash the
      same colour it already is. Written after the shared press rule, because that is what decides. */
   .plate-accent:active {
+    --frame-line: var(--color-acid);
     background-color: var(--color-acid);
+  }
+
+  /* The accent plate is filled, so its outline is its fill and its words are the plate ink. */
+  .plate-accent {
+    --frame-line: var(--color-bubble);
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .plate-accent:hover {
+    --frame-line: var(--color-sun);
+    background-color: var(--color-sun);
+    color: var(--color-ink-plate);
   }
 
   /* A plate that is already down: the tab you are standing on, the switch that is on. It has no
      pointer and no press of its own - it is the state a press arrives at, not a control. */
   .plate-pressed {
-    border-radius: 0;
-    border-style: solid;
-    border-width: 2px;
-    border-color: var(--color-black) var(--color-white) var(--color-white) var(--color-black);
-    border-image-source: var(--art-frame-inset, none);
-    background-color: var(--color-ena);
-    background-image: var(--art-plate-pressed, none);
+    --frame-line: var(--color-ink);
+    --frame-art: var(--art-plate-pressed, none);
+    background-color: var(--color-ink);
     padding: 2px 8px;
     font-size: 13px;
-    font-weight: var(--font-weight-bold, 700);
-    color: var(--color-sun);
+    color: var(--color-paper);
   }
 
-  /* The 18px key a title bar wears, and the glyph-shaped control beside it. One border, not two: these
-     sit inside a bar that is already framed. */
+  /* The small key at the end of a title line, and the glyph-shaped control beside it. */
   .title-bar-button,
   .glyph-button {
+    --frame-art: var(--art-title-bar-button, none);
     cursor: pointer;
-    border-width: 1px;
-    background-color: var(--color-sun);
-    background-image: var(--art-title-bar-button, none);
-    font-weight: var(--font-weight-bold, 700);
-    color: var(--color-ink-plate);
+    background-color: var(--color-sun-pale);
+    color: var(--color-ink);
   }
 
   .title-bar-button:hover,
   .glyph-button:hover {
-    background-color: var(--color-ena);
-    color: var(--color-sun);
+    color: var(--color-accent-ink);
   }
 
   .title-bar-button:active {
@@ -1087,21 +1100,17 @@ img {
     background-color: var(--color-sun-pale);
   }
 
-  /* A chip: small, flat, one hairline border - a shelf, a track, a label. */
+  /* A chip: a small outlined key - a shelf, a track, a label. */
   .shelf-chip {
+    --frame-art: var(--art-chip, none);
     cursor: pointer;
-    border-radius: 0;
-    border: 1px solid var(--color-ink);
     background-color: var(--color-sun-pale);
-    background-image: var(--art-chip, none);
     padding: 2px 8px;
     color: var(--color-ink);
   }
 
   .shelf-chip:hover {
-    animation: var(--animate-bump);
-    background-color: var(--color-ice);
-    color: var(--color-ink-plate);
+    color: var(--color-accent-ink);
   }
 
   @media (width < 640px) {

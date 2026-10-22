@@ -78,7 +78,7 @@ export default function SidebarComms() {
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
           title={expanded ? 'Hide the conversations' : 'Show the conversations'}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun px-2 py-[1px] text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun"
+          className="cursor-pointer key bg-sun-pale px-2 py-[1px] text-[13px] font-bold leading-none text-ink hover:text-accent-ink"
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
         </button>
@@ -137,7 +137,7 @@ export default function SidebarComms() {
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
             <Link
               href="/comms"
-              className="inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
+              className="inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink"
             >
               [ OPEN THE CONSOLE ]
             </Link>

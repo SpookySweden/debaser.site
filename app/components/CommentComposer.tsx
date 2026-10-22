@@ -11,7 +11,7 @@ import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
 import TrackControl from './TrackControl';
-import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 
 type CommentComposerProps = {
   id: string;
@@ -108,7 +108,7 @@ export default function CommentComposer({
   );
 
   const submit = (
-    <button type="submit" disabled={busy} className={`${PLATE_LARGE}${condensed ? ' sm:shrink-0' : ''}`}>
+    <button type="submit" disabled={busy} className={`${PLATE_MAIN}${condensed ? ' sm:shrink-0' : ''}`}>
       {busy ? '[ WORKING... ]' : submitLabel}
     </button>
   );

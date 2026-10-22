@@ -51,9 +51,9 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
         label and still opens it; there is simply nothing to pop over it.
       */}
       {preview === 'none' || anchor.kind === 'profile' ? null : (
-        <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-48 border-2 border-t-white border-l-white border-r-black border-b-black bg-sun-pale p-1 group-hover/link:block">
+        <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-48 frame bg-sun-pale p-1 group-hover/link:block">
           {target.preview === undefined ? (
-            <span className="block border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2 text-[13px] font-bold text-ink">
+            <span className="block frame bg-paper p-2 text-[13px] font-bold text-ink">
               {anchor.kind.toUpperCase()} ITEM
               <br />
               OPENS: {target.href}

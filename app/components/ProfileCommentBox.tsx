@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 import { validateProfileComment } from '../lib/profile/visibility';
-import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 
 type ProfileCommentBoxProps = {
   /** Unique id for the textarea, so the window can focus it on open. */
@@ -89,7 +89,7 @@ export default function ProfileCommentBox({
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_LARGE}>
+        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
         <span className="text-[13px] text-ink">{body.trim().length} CHARS</span>

@@ -63,7 +63,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         <button
           type="button"
           onClick={handleCreate}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-3 py-1 text-[14px] font-bold hover:bg-ice"
+          className="cursor-pointer key bg-sun-pale px-3 py-1 text-[14px] font-bold hover:text-accent-ink"
         >
           [ CREATE TAG ]
         </button>
@@ -99,7 +99,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 title={`${swatch.toUpperCase()} :: ${contrastRatio(swatch, '#ffffcc').toFixed(1)}:1 against the chip it sits on`}
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
-                className={`flex cursor-pointer items-center justify-center rounded-none border border-t-white border-l-white border-r-[#808080] border-b-[#808080] bg-bubble-pale py-1 ${
+                className={`flex cursor-pointer items-center justify-center rounded-none border border-bubble-pale bg-bubble-pale py-1 ${
                   colour === swatch ? 'outline-2 outline-ink' : 'hover:bg-sun'
                 }`}
               >

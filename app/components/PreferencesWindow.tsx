@@ -51,10 +51,10 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       onClick={() => setTheme(theme.id)}
       aria-pressed={active}
       title={theme.experimental ? `${theme.label} - experimental` : theme.label}
-      className={`flex w-full cursor-pointer items-start gap-2 rounded-none border-t border-l border-r-2 border-b-2 px-2 py-1 text-left text-[13px] font-bold max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`flex w-full cursor-pointer items-start gap-2 px-2 py-1 text-left text-[13px] max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
         active
-          ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-sun'
-          : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
+          ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
+          : 'key bg-sun-pale text-ink hover:text-accent-ink'
       }`}
     >
       <ThemeSwatch theme={theme} />
@@ -64,7 +64,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
           {theme.label}
           {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
         </span>
-        <span className={`mt-[2px] block text-[13px] font-normal ${active ? 'text-sun' : ''}`}>
+        <span className={`mt-[2px] block text-[13px] ${active ? '' : 'text-ink-quiet'}`}>
           {theme.note}
         </span>
       </span>

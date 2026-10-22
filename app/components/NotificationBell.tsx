@@ -27,7 +27,7 @@ function UnreadDot() {
  * dropping the label from the face.
  */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink';
 
 /**
  * The notices key in the side panel, and the pop-up that answers it.

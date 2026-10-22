@@ -182,7 +182,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       ) : null}
 
       {adding ? (
-        <div className="space-y-1 border-2 border-t-black border-l-black border-r-white border-b-white bg-paper p-2">
+        <div className="space-y-1 frame bg-paper p-2">
           <label htmlFor={`give-tag-${profile.userId}`} className="block text-[13px] font-bold text-ink">
             {owner ? 'GIVE YOUR OWN PROFILE A TAG:' : 'GIVE THIS PROFILE A TAG:'}
           </label>

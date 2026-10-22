@@ -267,10 +267,10 @@ function BroadcastSwitch({
           disabled={busy}
           aria-pressed={isPublic}
           title={isPublic ? 'Take your queue off the list' : 'Put your queue on the list'}
-          className={`cursor-pointer rounded-none border-t border-l border-r-2 border-b-2 px-2 py-[2px] text-[13px] font-bold disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-3 ${
+          className={`cursor-pointer px-2 py-[2px] text-[13px] disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-3 ${
             isPublic
-              ? 'border-t-black border-l-black border-r-white border-b-white bg-acid text-ink-plate'
-              : 'border-t-white border-l-white border-black bg-sun text-ink-plate hover:bg-ice hover:text-ink'
+              ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate'
+              : 'key bg-sun-pale text-ink hover:text-accent-ink'
           }`}
         >
           {isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}

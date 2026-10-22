@@ -68,7 +68,7 @@ export default function GuestPrompt() {
 
         <Link
           href="/account"
-          className="shrink-0 cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-hardware px-2 py-[3px] text-[13px] font-bold text-ink-bar hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white"
+          className="shrink-0 cursor-pointer key bg-hardware px-2 py-[3px] text-[13px] font-bold text-ink-bar hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink-plate"
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>

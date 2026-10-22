@@ -154,11 +154,11 @@ function tabClass(isActive: boolean): string {
   // rule has to be `max-md` rather than `max-sm` here. A tablet in portrait is held in two hands, the
   // same as a phone, and gets the same floor.
   const base =
-    'inline-flex h-7 min-w-7 items-center justify-center text-[13px] font-bold leading-none max-md:min-h-11 max-md:min-w-11 max-md:text-base';
+    'inline-flex h-7 min-w-7 items-center justify-center text-[13px] leading-none max-md:min-h-11 max-md:min-w-11 max-md:text-base';
 
   return isActive
-    ? `${base} border-t-2 border-l-2 border-black border-r border-b border-white bg-ena text-sun`
-    : `${base} border-t border-l border-white border-r-2 border-b-2 border-black bg-sun text-ink-plate hover:animate-bump hover:bg-ena hover:text-sun active:border-t-2 active:border-l-2 active:border-black active:border-r active:border-b active:border-white active:bg-bubble active:text-ink-plate`;
+    ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
+    : `${base} key bg-sun-pale text-ink hover:text-accent-ink active:translate-y-[1px] active:bg-bubble active:text-ink-plate`;
 }
 
 /**

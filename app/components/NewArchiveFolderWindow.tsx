@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { childFolderPath, folderLabel, normaliseArchiveName, type FolderPath } from '../lib/audio/archive-tree';
 import type { MusicFolder } from '../lib/audio/repository';
 import type { ForumAuthor } from '../lib/forum/types';
-import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 import PopoutWindow from './PopoutWindow';
 
 type NewArchiveFolderWindowProps = {
@@ -66,7 +66,7 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
       onClose={onClose}
       maxWidth="max-w-md"
       actions={
-        <button type="button" onClick={() => void make()} disabled={busy} className={PLATE_LARGE}>
+        <button type="button" onClick={() => void make()} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ MAKING... ]' : '[ MAKE FOLDER ]'}
         </button>
       }

@@ -63,7 +63,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
             onChange(insertMention(body, account.displayName));
             setPicked('');
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] font-bold hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-3"
+          className="cursor-pointer key bg-sun-pale px-2 py-[2px] font-bold hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-3"
         >
           [ TAG ]
         </button>

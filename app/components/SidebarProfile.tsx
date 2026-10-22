@@ -18,11 +18,11 @@ import ProfileName from './ProfileName';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice';
+  'inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink';
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
-  'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun px-1 text-[13px] font-bold leading-none text-ink-plate hover:bg-ena hover:text-sun';
+  'cursor-pointer key bg-sun-pale px-1 text-[13px] font-bold leading-none text-ink hover:text-accent-ink';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =

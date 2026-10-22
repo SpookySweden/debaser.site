@@ -116,10 +116,10 @@ export default function ProfileCustomiserPictureTab({
                 <button
                   type="button"
                   onClick={() => onSelectSrc(picture.src)}
-                  className={`flex cursor-pointer items-center gap-2 rounded-none border-2 p-1 text-[13px] font-bold ${
+                  className={`flex cursor-pointer items-center gap-2 p-1 text-[13px] ${
                     pendingSrc === picture.src
-                      ? 'border-t-black border-l-black border-r-white border-b-white bg-ena text-ink-bar'
-                      : 'border-t-white border-l-white border-r-black border-b-black bg-sun-pale text-ink hover:bg-ice'
+                      ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
+                      : 'key bg-sun-pale text-ink hover:text-accent-ink'
                   }`}
                   title={picture.src}
                 >

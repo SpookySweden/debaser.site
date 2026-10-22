@@ -48,7 +48,7 @@ export default function Taskbar({ status }: TaskbarProps) {
         // screen entirely, where the profile picture is the only door.
         className={`hidden sm:inline-flex ${
           menuOpen
-            ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-ena px-2 py-[2px] text-[13px] font-bold text-sun'
+            ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] font-bold text-paper'
             : PLATE
         }`}
       >

@@ -18,7 +18,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { PANEL, PLATE, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 
 /**
  * How the board is read.
@@ -294,7 +294,7 @@ export default function ForumBoard() {
               aria-haspopup="dialog"
               aria-expanded={composerOpen}
               title="Open the composer window to file a new thread"
-              className={`${TITLE_BAR_BUTTON} max-sm:min-h-11`}
+              className={PLATE_MAIN}
             >
               + NEW POST...
             </button>
@@ -447,7 +447,7 @@ export default function ForumBoard() {
                 <button
                   type="button"
                   onClick={clearTagFilters}
-                  className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:bg-ice"
+                  className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:text-accent-ink"
                 >
                   [ CLEAR TAGS ]
                 </button>
@@ -638,7 +638,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[13px] font-bold hover:bg-ice disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
               >
                 [ &lt;&lt; PREV ]
               </button>
@@ -661,7 +661,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="cursor-pointer rounded-none border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-2 py-1 text-[13px] font-bold hover:bg-ice disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
               >
                 [ NEXT &gt;&gt; ]
               </button>
@@ -692,8 +692,8 @@ export default function ForumBoard() {
                   aria-current={number === currentPage ? 'page' : undefined}
                   className={
                     number === currentPage
-                      ? 'cursor-pointer rounded-none border-t-2 border-l-2 border-black border-r border-b border-white bg-sun px-2 py-1 text-[13px] font-bold text-ink-plate'
-                      : 'cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-1 text-[13px] font-bold text-ink hover:bg-ice'
+                      ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-1 text-[13px] font-bold text-paper'
+                      : 'cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold text-ink hover:text-accent-ink'
                   }
                 >
                   {number}

@@ -114,7 +114,7 @@ function NotificationRow({
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 border-t border-l border-white border-r-2 border-b-2 border-black bg-sun-pale px-1 text-[13px] font-bold text-ink">
+          <span className="ml-auto shrink-0 key bg-sun-pale px-1 text-[13px] font-bold text-ink">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -256,7 +256,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
+            className="mt-1 cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink"
           >
             [ RETRY ]
           </button>
@@ -280,14 +280,14 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer rounded-none border-t border-l border-white border-r border-b border-black bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:bg-ice"
+          className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink"
         >
           [ OPEN THE BOARD ]
         </Link>

@@ -12,7 +12,7 @@ import {
 } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
-import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
+import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
 import { TagMark } from './TagBadge';
 
@@ -26,7 +26,7 @@ export const CUSTOMISER_NOTE = 'text-[13px] font-bold text-ink';
  * the name drawn in the colour that was picked - which is the only part that has to be loud.
  */
 const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-t-white border-l-white border-r-ink border-b-ink bg-bubble-pale px-1.5 py-[1px] text-[13px] font-bold text-ink-bar uppercase hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-bubble-pale bg-bubble-pale px-1.5 py-[1px] text-[13px] font-bold text-ink-bar uppercase hover:bg-sun hover:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [
@@ -219,7 +219,7 @@ export function ProfileIdentityTab({
       {bioProblem === undefined ? null : <p className="mt-1 text-[13px] font-bold text-bubble-pale">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
+        <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
         </button>
         <p className="text-[13px] text-ink">
@@ -291,7 +291,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
       </ul>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={PLATE_LARGE}>
+        <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
         </button>
         <p className="text-[13px] text-ink">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>

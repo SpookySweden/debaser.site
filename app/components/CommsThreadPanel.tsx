@@ -10,7 +10,7 @@ import { EVENT_LABELS, gameTitle } from '../lib/games/events';
 import AsciiEmoticonPicker from './AsciiEmoticonPicker';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 
 type CommsThreadPanelProps = {
   thread: CommsThread;
@@ -237,7 +237,7 @@ export default function CommsThreadPanel({
             type="button"
             onClick={() => void handleSend()}
             disabled={busy}
-            className={PLATE_LARGE}
+            className={PLATE_MAIN}
           >
             {busy ? '[ SENDING... ]' : '[ SEND ]'}
           </button>
