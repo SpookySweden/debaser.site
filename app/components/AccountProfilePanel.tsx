@@ -7,7 +7,7 @@ import { elementAsTrack } from '../lib/audio/profile-track';
 import { currentProfileElement } from '../lib/profile/elements';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { avatarComments, currentAvatarVersion, profileComments, visibleGivenTags } from '../lib/profile/visibility';
+import { currentAvatarVersion } from '../lib/profile/visibility';
 import { PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -32,7 +32,6 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
   const player = useMusicPlayer();
   const compact = useCompactViewport();
 
-  const visibleTags = visibleGivenTags(profile).length;
   const ownTrack = currentProfileElement(profile, 'track');
   /** The src already handed over, so the song is not re-assigned on every render. */
   const assigned = useRef<string | null>(null);
@@ -72,9 +71,11 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
     <section>
       <div className="title-line text-accent-ink">
         <span>PUBLIC PROFILE</span>
-        <span>[ {ready ? 'READY' : 'READING...'} ]</span>
       </div>
 
+      {/* The picture, the name and the two ways in. The readback of what the profile holds (bio length,
+          picture versions, tag and comment counts, the visibility switches) is gone: the customiser and
+          the profile itself show those (SPEC-efficiency.md, 2026-10-23). */}
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
@@ -87,33 +88,19 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
               lamp={false}
             />
           </p>
-          <p>BIO: {profile.bio.length === 0 ? 'NOT WRITTEN YET' : `${profile.bio.length} CHARACTERS`}</p>
-          <p>
-            PICTURE VERSIONS: {profile.avatar.versions.length} :: TAGS GIVEN:{' '}
-            {profile.tags.length === 0 ? 'NONE YET' : `${profile.tags.length} (${visibleTags} SHOWING)`}
-          </p>
-          <p>
-            COMMENTS: {profileComments(profile).length} ON THE PROFILE :: {avatarComments(profile).length} ON THE
-            PICTURE
-          </p>
-          <p>
-            SHOW TO VISITORS: TAGS {profile.visibility.showTags ? 'YES' : 'NO'} :: PROFILE COMMENTS{' '}
-            {profile.visibility.showProfileComments ? 'YES' : 'NO'} :: PICTURE COMMENTS{' '}
-            {profile.visibility.showAvatarComments ? 'YES' : 'NO'}
-          </p>
 
           <div className="flex flex-wrap items-center gap-1 pt-1">
             <button type="button" onClick={() => setCustomising(true)} className={PLATE_LINK}>
-              [ CUSTOMISE PUBLIC PROFILE ]
+              [ EDIT PROFILE ]
             </button>
-            <Link href={`/profile/${encodeURIComponent(userId)}`} className={PLATE_LINK}>
-              [ VIEW PUBLIC PROFILE ]
+            <Link
+              href={`/profile/${encodeURIComponent(userId)}`}
+              title="VISITORS REACH THIS PAGE FROM ANY USERNAME OR PICTURE YOU POST UNDER."
+              className={PLATE_LINK}
+            >
+              [ VIEW PROFILE ]
             </Link>
           </div>
-
-          <p className="pt-1 text-ink">
-            VISITORS REACH THIS PAGE FROM ANY USERNAME OR PICTURE YOU POST UNDER.
-          </p>
         </div>
       </div>
 

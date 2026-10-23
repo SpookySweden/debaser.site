@@ -77,13 +77,8 @@ export default function ProfileCustomiserPictureTab({
           </div>
 
           {/* basis-64: room to read or onto its own line (34px wide beside the two pictures on a 430px phone). */}
+          {/* HOW IT WORKS is the PICTURE heading's hover tip (ProfileCustomiserWindow). */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
-            <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
-            <p className="text-label text-ink">
-              CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
-              BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.
-            </p>
-
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-upload">
               UPLOAD A PICTURE (PNG / JPG / WEBP / GIF, UP TO {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
             </label>
@@ -151,21 +146,26 @@ export default function ProfileCustomiserPictureTab({
           className={FIELD}
         />
 
+        {/* The tip sits on a wrapper: the key is disabled until a picture is chosen, and a disabled
+            button shows no tip in some browsers. */}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onFileVersion}
-            disabled={busy || pendingSrc === null}
-            className={PLATE_LARGE}
-          >
-            {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
-          </button>
-          <p className="text-label text-ink">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
+          <span title="THE PAGE CHANGES THE MOMENT IT IS FILED.">
+            <button
+              type="button"
+              onClick={onFileVersion}
+              disabled={busy || pendingSrc === null}
+              className={PLATE_LARGE}
+            >
+              {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
+            </button>
+          </span>
         </div>
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
+        <p className={CUSTOMISER_NOTE} title="APPEND ONLY: FILING A NEW VERSION NEVER OVERWRITES AN OLD ONE.">
+          HISTORY
+        </p>
 
         {versions.length === 0 ? (
           <p className="mt-2 text-label font-bold text-ink">NO PICTURE HAS EVER BEEN FILED.</p>
@@ -181,7 +181,7 @@ export default function ProfileCustomiserPictureTab({
                 <div className="min-w-0 flex-1 text-label text-ink">
                   <p className="font-bold">
                     P{version.version}
-                    {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}
+                    {version.id === profile.avatar.currentVersionId ? ' (CURRENT)' : ''} ::{' '}
                     <TimeStamp at={version.createdAt} /> :: {commentCountForVersion(profile, version)} COMMENTS
                   </p>
                   {version.note.length === 0 ? null : <p className="mt-1">{version.note}</p>}

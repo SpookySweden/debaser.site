@@ -16,13 +16,20 @@ export type ProfileTagsTabProps = {
   onSetAllHidden: (hidden: boolean) => void;
 };
 
-/** The tags other users gave you, and which of them visitors may see. */
+/**
+ * The tags other users gave you, and which of them visitors may see.
+ *
+ * The global switch is said once, at the top (it was said at the top and again at the foot, both
+ * pointing at a PRIVACY tab that is labelled SHOW / HIDE); how it works is the line's hover tip.
+ */
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
     <div className="p-3">
-      <p className={CUSTOMISER_NOTE}>
-        GLOBAL TAG SWITCH: {profile.visibility.showTags ? 'VISIBLE' : 'HIDDEN'} (SEE THE PRIVACY TAB). EVERY TAG BELOW
-        STARTS HIDDEN.
+      <p
+        className={CUSTOMISER_NOTE}
+        title="EVERY TAG STARTS HIDDEN. THE SWITCH ON THE SHOW / HIDE TAB HAS TO BE ON BEFORE ANY OF THESE REACH A VISITOR."
+      >
+        GLOBAL TAG SWITCH (SHOW / HIDE TAB): {profile.visibility.showTags ? 'ON' : 'OFF - NO TAG REACHES A VISITOR'}
       </p>
 
       {profile.tags.length === 0 ? (
@@ -49,7 +56,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
                     {tag.label}
                   </span>
                   <span className={CUSTOMISER_NOTE}>
-                    {tag.hidden ? '[ HIDDEN FROM VISITORS ]' : '[ VISIBLE TO VISITORS ]'}
+                    {tag.hidden ? 'HIDDEN FROM VISITORS' : 'VISIBLE TO VISITORS'}
                   </span>
                 </div>
 
@@ -77,11 +84,6 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
           </ul>
         </>
       )}
-
-      <p className="mt-2 text-label text-ink">
-        THE GLOBAL SWITCH IN THE PRIVACY TAB HAS TO BE ON BEFORE ANY OF THESE REACH A VISITOR
-        {profile.visibility.showTags ? '' : ' - IT IS OFF RIGHT NOW'}.
-      </p>
     </div>
   );
 }

@@ -114,7 +114,6 @@ export default function AccountForms() {
       <section>
         <div className="title-line text-accent-ink">
           <span>CREATE ACCOUNT</span>
-          <span>[ SIGN UP ]</span>
         </div>
 
         <form
@@ -187,7 +186,6 @@ export default function AccountForms() {
       <section>
         <div className="title-line text-accent-ink">
           <span>LOG IN</span>
-          <span>[ SESSION ]</span>
         </div>
 
         <form
@@ -201,9 +199,7 @@ export default function AccountForms() {
               the mock backend the button says what it needs instead of failing quietly. */}
           <GoogleSignInButton className="mb-3" />
 
-          <p className="mb-3 border-t border-ink pt-2 text-label font-bold text-ink">
-            OR SIGN IN WITH THE ACCOUNT&apos;S OWN DETAILS:
-          </p>
+          <p className="mb-3 border-t border-ink pt-2 text-label font-bold text-ink">OR</p>
 
           <Field
             id="account-signin-email"
@@ -235,6 +231,7 @@ export default function AccountForms() {
             )}
           </div>
 
+          {/* The one place /account says it on screen: the page's own intro is the window title's tip. */}
           <p className="mt-2 text-label text-ink">
             READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
           </p>
