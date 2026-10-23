@@ -222,7 +222,7 @@ export const ROW_UNREAD = 'bg-paper text-ink';
 /**
  * The plate that carries a verb onto the board: the one magenta face on the site.
  *
- * `[ INJECT TO POST ]` in the music archive is what this is for, and it is the one plate that is not
+ * `[ INJECT ]` in the music archive (it files a track with the post being written) is what this is for, and it is the one plate that is not
  * the yellow of the furniture. That is deliberate: every other control in that row acts on the archive
  * (play this, filter by that), and the one that acts on *the board* has to be findable at a glance
  * from across a list. Magenta rather than the blood red of a warning, because nothing is wrong - it is

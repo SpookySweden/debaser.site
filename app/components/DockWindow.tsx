@@ -27,7 +27,7 @@ type DockWindowProps = {
   /** Which window this is, for the layout store and the saved layout. Stable, and unique per window. */
   id: string;
   title: string;
-  /** Right-hand title bar text, e.g. `[ MP3 ]`. */
+  /** Right-hand title bar text: a count or a state the title does not already say. */
   badge?: string;
   onClose: () => void;
   /**
