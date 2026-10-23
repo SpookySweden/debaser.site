@@ -51,9 +51,8 @@ type SiteWindowProps = {
  */
 export default function SiteWindow({ title, active, tip, closeHref, children }: SiteWindowProps) {
   return (
-    // The bottom padding is the player's: its bar is fixed to the bottom of the viewport, and the
-    // window is short enough that the bar and the taskbar do not fight over the same strip of
-    // screen (see ./MusicPlayer.tsx). The surface behind the window is the desktop's own tile.
+    // The surface behind the window is the desktop's own tile. (The room kept for the player's bar and
+    // the guest strip is the two spacers, below.)
     //
     // `select-none` is the chrome's, not the archive's: a page of writing is meant to be quoted
     // from, so the panel below turns selection back on for what it holds (and the taskbar, which is
@@ -65,8 +64,16 @@ export default function SiteWindow({ title, active, tip, closeHref, children }: 
     // whether the bar is showing or not. The plain `h-[84vh]` is kept in front of it as the fallback
     // for a browser without `dvh`, which was Baseline in 2022 and is older than anything this site
     // supports - but a fallback that costs one class is cheaper than guessing.
-    <main className="desktop-tile flex min-h-screen items-center justify-center p-2 pb-16 font-mono select-none sm:p-4 sm:pb-16">
-      <div className="flex h-[84vh] max-h-[84dvh] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale">
+    //
+    // Two strips are fixed over the page and publish how much of the screen they cover
+    // (../lib/ui/use-edge-reserve.ts): the guest fault across the top (`--top-bar`) and the docked
+    // player across the foot (`--bottom-bar`). A spacer at each end of this column keeps that much room,
+    // and the window, `my-auto` between them, shrinks when the screen is short - so its title and its
+    // taskbar are never behind either strip. With no strip drawn the spacers fall back to what the
+    // padding used to keep: nothing at the top, 4rem at the foot (the folded player's key).
+    <main className="desktop-tile flex h-dvh flex-col items-center p-2 font-mono select-none sm:p-4">
+      <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
+      <div className="my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale">
 
         {/* Title Bar: the window title, the close plate when this is a window over the desktop, and
             the profile control on a phone. */}
@@ -113,6 +120,7 @@ export default function SiteWindow({ title, active, tip, closeHref, children }: 
         </div>
 
       </div>
+      <div aria-hidden="true" className="h-[var(--bottom-bar,3.5rem)] shrink-0 sm:h-[var(--bottom-bar,3rem)]" />
     </main>
   );
 }

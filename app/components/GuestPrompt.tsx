@@ -1,9 +1,11 @@
 'use client';
 
+import { useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from './AuthProvider';
 import MarqueeText from './MarqueeText';
 import { PLATE_ON_BLACK } from '../lib/ui/controls';
+import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 
 /**
  * The guest fault: a fixed strip pinned across the top of the viewport while nobody is signed in.
@@ -18,8 +20,11 @@ import { PLATE_ON_BLACK } from '../lib/ui/controls';
  * It sits at the **top** rather than the foot of the viewport, and that is a layout decision rather
  * than a stylistic one: the music player's bar and the taskbar are both `fixed` at the bottom
  * (`z-50`), and `pb-16` on the window in `./SiteWindow.tsx` reserves that strip. A banner at the foot
- * would have covered the player for every guest. At the top it covers the title bar, which is chrome
- * rather than content, and the fault is the first thing read.
+ * would have covered the player for every guest. At the top the fault is the first thing read.
+ *
+ * It used to cover the window's title bar on any screen shorter than about 850px. Now it publishes its
+ * own height as `--top-bar` on `<html>` (`useEdgeReserve`), and `./SiteWindow.tsx` keeps a spacer that
+ * tall above the window, so the title sits under the strip.
  *
  * One thing keeps it from being hostile: it is `fixed` and opaque but *not* a scrim, so the board is
  * still readable and still scrollable behind it. A guest can read every thread without an account,
@@ -38,11 +43,14 @@ import { PLATE_ON_BLACK } from '../lib/ui/controls';
  */
 export default function GuestPrompt() {
   const { status } = useAuth();
+  const strip = useRef<HTMLDivElement>(null);
+  useEdgeReserve(strip, '--top-bar', status === 'anonymous');
 
   if (status !== 'anonymous') return null;
 
   return (
     <div
+      ref={strip}
       role="status"
       // The docked windows read this strip's height so no title bar can be dragged under it.
       data-top-bar

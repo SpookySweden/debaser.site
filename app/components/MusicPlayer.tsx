@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
@@ -18,6 +18,7 @@ import {
 import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
+import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MarqueeText from './MarqueeText';
 import TrackDetails from './TrackDetails';
@@ -293,6 +294,9 @@ function followNote(follow: FollowState): string {
 }
 
 function DockedBar({ onHide, onSettings }: BarControls) {
+  // The page window keeps clear of this strip (`--bottom-bar`, read by ./SiteWindow.tsx).
+  const strip = useRef<HTMLDivElement>(null);
+  useEdgeReserve(strip, '--bottom-bar', true);
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
@@ -335,7 +339,7 @@ function DockedBar({ onHide, onSettings }: BarControls) {
   }, [loop, playing, player]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
+    <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           {/* The player's own name, and its fold, together: they are the same thing said twice - what
               this strip is, and how to put it away. The fold used to sit at the far right, past the
