@@ -144,10 +144,8 @@ function AspectPreview({
           <div className="w-64 frame bg-hardware px-2 py-1">
             <p className="truncate text-key font-bold text-acid">{shown.title}</p>
             {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
-            <p className="mt-1 truncate text-label text-ink-bar">
-              {shown.tag}
-              {shown.current ? ' (current)' : ''} :: {shown.credit}
-            </p>
+            {/* The credit alone, as the page's readout has it: the version is the strip's business. */}
+            <p className="mt-1 truncate text-label text-ink-bar">{shown.credit}</p>
           </div>
 
           <button

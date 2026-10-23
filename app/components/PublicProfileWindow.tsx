@@ -17,7 +17,7 @@ import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
 import { canCommentOnProfile, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
-import { HYPER_ARROW, HYPER_LABEL } from '../lib/ui/hypertext';
+import { HYPER_ARROW } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
 import CountryFlag from './CountryFlag';
@@ -78,6 +78,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   const displayName =
     profile.displayName !== 'Anonymous' ? profile.displayName : (accountName ?? forumName ?? 'Anonymous');
   const nameColour = profileNameColour(profile);
+  const hasCountry = profile.country.length > 0;
 
   // Which version of each element is being read. Each one carries its own selection, so
   // reading the second drawing does not move the track, and the thread follows the version
@@ -121,16 +122,12 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
     <div className="space-y-3">
       <section>
         <div className="title-line text-accent-ink">
-          <span>
-            {/* The name in its own colour, or the title bar's white when the account has
-                not chosen one: no plate behind it, so a name is never drawn the same
-                colour as the thing it sits on. */}
-            PUBLIC PROFILE ::{' '}
-            <span style={nameColour === undefined ? undefined : { color: nameColour }}>
-              {displayName.toUpperCase()}
-            </span>
+          {/* The name and nothing else: the window already says it is a profile. In its own
+              colour, or the title line's ink when the account has not chosen one: no plate
+              behind it, so a name is never drawn the same colour as the thing it sits on. */}
+          <span style={nameColour === undefined ? undefined : { color: nameColour }}>
+            {displayName.toUpperCase()}
           </span>
-          <span>{owner ? '[ YOUR PROFILE ]' : '[ VISITOR VIEW ]'}</span>
         </div>
 
         {/* One comment control for the whole profile, above both columns, drawn whether or
@@ -162,12 +159,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               hideVersionLabel
             />
 
-            <p className="text-center text-label font-bold text-ink">
-              {picture === undefined
-                ? 'NO PICTURE FILED'
-                : `[ ${picture.tag} ]${picture.current ? ' (CURRENT)' : ''}`}
-            </p>
-
+            {/* No caption under the drawing: its version tag was a console readout, and an empty
+                frame already shows there is no picture. */}
             {picture === undefined ? null : (
               <ElementComments
                 profile={profile}
@@ -221,49 +214,38 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             threads is open are the customiser's business, and reading them back at somebody is a
             console rather than a profile. Presence left too - it is the window's status bar now. The
             owner's way to the page that changes any of it is one link on the line that names the thing
-            it changes. */}
+            it changes. A country nobody gave is not drawn at all (SPEC-efficiency.md): an empty row is
+            furniture too. */}
         <div className="min-w-0 border-t border-ink p-3 text-label font-bold text-ink">
-          <p className="flex flex-wrap items-center gap-1">
-            COUNTRY:
-            {profile.country.length === 0 ? (
-              'NOT GIVEN'
-            ) : (
-              <>
-                <CountryFlag code={profile.country} />
-                {countryName(profile.country)}
-              </>
-            )}
-            {owner && !compact ? (
-              <>
-                {' [ '}
-                <Link href="/account" className="underline hover:bg-ice">
-                  CHANGE IT
-                </Link>
-                {' ]'}
-              </>
-            ) : null}
-          </p>
+          {hasCountry ? (
+            <p className="flex flex-wrap items-center gap-1">
+              COUNTRY:
+              <CountryFlag code={profile.country} />
+              {countryName(profile.country)}
+              {owner && !compact ? (
+                <>
+                  {' [ '}
+                  <Link href="/account" className="underline hover:bg-ice">
+                    CHANGE IT
+                  </Link>
+                  {' ]'}
+                </>
+              ) : null}
+            </p>
+          ) : null}
 
-          <div className="mt-1 border-t border-ink pt-1">
+          <div className={hasCountry ? 'mt-1 border-t border-ink pt-1' : ''}>
             <ProfileTagList profile={profile} repository={repository} viewer={viewer} owner={owner} />
           </div>
         </div>
 
-        {/* The biography, as a small part of the same window rather than a section of its
-            own. */}
-        <div className="border-t border-ink p-3">
-          <p className="text-label font-bold text-ink">
-            BIOGRAPHY <span className="text-ink">[ {profile.bio.length} CHARS ]</span>
-          </p>
-
-          {profile.bio.length === 0 ? (
-            <p className="mt-1 text-label font-bold text-ink">
-              NO BIO YET{owner ? ' - WRITE ONE IN THE CUSTOMISER.' : '.'}
-            </p>
-          ) : (
-            <p className="mt-1 whitespace-pre-line text-prose leading-normal text-ink">{profile.bio}</p>
-          )}
-        </div>
+        {/* The biography, as a small part of the same window rather than a section of its own: the
+            person's own words, with no heading or count over them, and nothing at all when there are none. */}
+        {profile.bio.length === 0 ? null : (
+          <div className="border-t border-ink p-3">
+            <p className="whitespace-pre-line text-prose leading-normal text-ink">{profile.bio}</p>
+          </div>
+        )}
 
         {/* The window's own status bar: the one line of state that belongs to the whole page, under
             everything the profile carries, which is where a desktop of this era put it. It is the only
@@ -347,21 +329,19 @@ function CommentsSection({
   repository,
 }: CommentsSectionProps) {
   const [open, setOpen] = useState(false);
-  const pinned = comments.filter((comment) => comment.pinned === true).length;
-  const visible = visibility.showProfileComments ? `${comments.length} VISIBLE` : 'HIDDEN BY OWNER';
 
+  // No readout on the title line: how many are visible and pinned is counted back at a visitor,
+  // and the fold's own arrow already carries the count. No `general` label either - the comment
+  // menu above the columns is where the three threads are named.
   return (
     <section
       id={PROFILE_COMMENTS_ANCHOR}
     >
       <div className="title-line text-accent-ink">
-        <span>COMMENTS ON THIS PROFILE</span>
-        <span>[ {visible}{pinned === 0 ? '' : ` :: ${pinned} PINNED`} ]</span>
+        <span>COMMENTS</span>
       </div>
 
       <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-label font-bold text-ink">
-        <span className={HYPER_LABEL}>general</span>
-
         <button
           type="button"
           onClick={() => setOpen(!open)}

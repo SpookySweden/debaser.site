@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { insertAtCaret } from '../lib/comms/ascii-emoticons';
-import { otherParticipant, resolveAuthor, threadLabel, validateMessage } from '../lib/comms/threads';
+import { otherParticipant, resolveAuthor, validateMessage } from '../lib/comms/threads';
 import { MAX_MESSAGE_LENGTH } from '../lib/comms/types';
 import type { CommsThread } from '../lib/comms/types';
 import { openArcade } from '../lib/games/arcade-window';
@@ -18,7 +18,7 @@ type CommsThreadPanelProps = {
   userId: string;
   /**
    * The account on the other side of a direct conversation. A group has no single
-   * other side, so a group panel is given none and names its members instead.
+   * other side, so a group panel is given none and its box answers the whole group.
    */
   otherId?: string;
   nameById: Map<string, string>;
@@ -32,7 +32,7 @@ type CommsThreadPanelProps = {
 };
 
 /**
- * One conversation: who it is with, the messages, and the box to answer in.
+ * One conversation: the messages, and the box to answer in.
  *
  * Shared by the comms page and the notification pop-up, which is what makes the
  * pop-up a mini version of the page rather than a second implementation of it:
@@ -56,11 +56,14 @@ export default function CommsThreadPanel({
 
   const shown = limit === undefined ? thread.messages : thread.messages.slice(-limit);
   const isGroup = thread.kind === 'group';
-  // A direct conversation has one other side; a group has a name and a member list.
+  // A direct conversation has one other side; a group is answered as a whole. Who it is with is
+  // the title line's business (the page's `COMMS :: name`, the pop-up's `NEW MESSAGE FROM`), so the
+  // panel only says it inside the box, as the field's placeholder and its name for a screen reader.
   const peerId = otherId ?? (isGroup ? '' : otherParticipant(thread, userId));
-  const peer = { id: peerId, displayName: nameById.get(peerId) ?? peerId };
-  const heading = threadLabel(thread, userId, (id) => nameById.get(id) ?? id);
-  const others = thread.participants.filter((id) => id !== userId).map((id) => nameById.get(id) ?? id);
+  const peerName = nameById.get(peerId) ?? peerId;
+  const length = body.trim().length;
+  // The count is only worth reading near the limit: the last tenth before it.
+  const nearLimit = length >= MAX_MESSAGE_LENGTH * 0.9;
 
   // Keep the newest message in view as the conversation grows.
   useEffect(() => {
@@ -121,24 +124,6 @@ export default function CommsThreadPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
-        <span className="inline-flex flex-wrap items-center gap-1">
-          {isGroup ? (
-            <>
-              IN: {heading}
-              {others.length === 0 ? null : <span className="text-ink"> :: {others.join(', ')}</span>}
-            </>
-          ) : (
-            <>
-              TO: <ProfileName author={peer} />
-            </>
-          )}
-        </span>
-        <span className="text-ink">
-          {thread.messages.length} MESSAGE{thread.messages.length === 1 ? '' : 'S'}
-        </span>
-      </div>
-
       <ul
         ref={listRef}
         className="min-h-32 flex-1 space-y-2 overflow-y-auto p-2"
@@ -198,23 +183,6 @@ export default function CommsThreadPanel({
       </ul>
 
       <div className="mt-2 p-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
-          <label htmlFor={`${idPrefix}-body`}>
-            {isGroup ? (
-              <>
-                MESSAGE TO THE GROUP ({others.length} OTHER{others.length === 1 ? '' : 'S'}):
-              </>
-            ) : (
-              <>
-                MESSAGE TO <ProfileName author={peer} lamp={false} />:
-              </>
-            )}
-          </label>
-          <span>
-            {body.trim().length} / {MAX_MESSAGE_LENGTH}
-          </span>
-        </div>
-
         <textarea
           id={`${idPrefix}-body`}
           ref={boxRef}
@@ -228,7 +196,9 @@ export default function CommsThreadPanel({
               void handleSend();
             }
           }}
-          placeholder="Type the message..."
+          placeholder={isGroup ? 'Message the group...' : `Message ${peerName}...`}
+          aria-label={isGroup ? 'Message to the group' : `Message to ${peerName}`}
+          title="ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE"
           className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none max-sm:p-3"
         />
 
@@ -244,7 +214,11 @@ export default function CommsThreadPanel({
 
           <AsciiEmoticonPicker onPick={insertEmoticon} disabled={busy} />
 
-          <p className="text-label text-ink">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
+          {nearLimit ? (
+            <span className="text-label text-ink">
+              {length} / {MAX_MESSAGE_LENGTH}
+            </span>
+          ) : null}
           {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
         </div>
       </div>

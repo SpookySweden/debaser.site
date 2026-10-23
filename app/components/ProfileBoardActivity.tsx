@@ -26,7 +26,6 @@ export default function ProfileBoardActivity({
     <section>
       <div className="title-line text-accent-ink">
         <span>BOARD ACTIVITY</span>
-        <span>[ {threads.length} THREADS ]</span>
       </div>
 
       <div className="p-3 text-ink">
