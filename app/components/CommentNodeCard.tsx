@@ -136,7 +136,7 @@ export default function CommentNodeCard({
           <TimeStamp at={comment.createdAt} />
         </div>
 
-        <p className="mt-1 whitespace-pre-line text-prose leading-normal text-ink">{comment.body}</p>
+        <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{comment.body}</p>
 
         {/* Whoever the reply names: the tags are in the words, said plainly here. */}
         <MentionRow body={comment.body} accounts={accounts} />

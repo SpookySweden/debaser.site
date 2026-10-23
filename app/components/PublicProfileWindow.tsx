@@ -243,7 +243,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             person's own words, with no heading or count over them, and nothing at all when there are none. */}
         {profile.bio.length === 0 ? null : (
           <div className="border-t border-ink p-3">
-            <p className="whitespace-pre-line text-prose leading-normal text-ink">{profile.bio}</p>
+            <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{profile.bio}</p>
           </div>
         )}
 

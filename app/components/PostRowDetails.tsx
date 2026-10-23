@@ -59,7 +59,7 @@ export default function PostRowDetails({ body, comments }: PostRowDetailsProps) 
               difference between this and an overlay: what fades is the text's own opacity, so it reads
               the same on a quiet row and on the row a pointer has just brightened. An overlay would
               have to be the colour of whatever is under it, and that changes with both. */}
-          <p className="whitespace-pre-line text-prose leading-normal text-ink [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)]">
+          <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)]">
             {shown}
           </p>
         </div>

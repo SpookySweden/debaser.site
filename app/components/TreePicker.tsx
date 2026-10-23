@@ -67,7 +67,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
               aria-label={`${isOpen ? 'Close' : 'Open'} ${group.label}`}
               className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-0.5 text-left text-label font-bold text-ink hover:bg-ice-pale max-sm:min-h-tap"
             >
-              <span className="inline-block w-4 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
+              <span className="inline-block w-6 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
               <span className="truncate">{group.label}</span>
             </button>
 

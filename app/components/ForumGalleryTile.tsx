@@ -115,7 +115,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
         </div>
 
         {layout.right.isAnchorPost ? null : (
-          <p className="whitespace-pre-line text-prose leading-normal text-ink">{layout.right.body}</p>
+          <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
         )}
 
         <TagStrip tags={layout.left.tags} limit={5} emptyLabel="NO TAGS" className="mt-1" />

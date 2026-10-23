@@ -398,7 +398,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {layout.right.isAnchorPost ? (
               <AnchorLink anchor={thread.anchor} preview={anchorPreview} />
             ) : (
-              <p className="whitespace-pre-line text-prose leading-normal text-ink">{layout.right.body}</p>
+              <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
             )}
 
             {/* The track the post came with: one display, one button, played by the site's player. */}

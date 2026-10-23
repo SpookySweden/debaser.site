@@ -137,7 +137,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
         </span>
         <TimeStamp at={data.createdAt} />
       </div>
-      <p className="mt-1 whitespace-pre-line text-prose leading-normal">{data.body}</p>
+      <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere">{data.body}</p>
     </li>
   );
 }
