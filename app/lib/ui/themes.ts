@@ -16,6 +16,26 @@
  * than trusting that a dark palette was chosen carefully.
  */
 
+/**
+ * The nine dyes of the "Dyacid Dyes" swatch (docs/design.md), each named once.
+ *
+ * A theme below says which dye plays which part; it never writes a hex of its own. So changing a dye here
+ * changes it in every part it plays, in both themes, and in the stylesheet's copy (`app/theme/tokens.css`,
+ * rewritten by `npm run tokens -- --write`). A tenth colour starts here too, and `Temp/check-themes.cjs`
+ * holds every theme to this list.
+ */
+export const DYES = {
+  black: '#000000',
+  nigrosine: '#1a1525',
+  royalBlue: '#1d3ca6',
+  daffodil: '#fff000',
+  flavine: '#e1ff00',
+  brilliantPink: '#ff00a0',
+  rose: '#e6004c',
+  emerald: '#28c745',
+  white: '#ffffff',
+} as const;
+
 export type ThemeId = 'default' | 'dark';
 
 /**
@@ -197,45 +217,45 @@ export const DEFAULT_THEME: Theme = {
   note: 'THE BRIGHT DESK: FLAVINE WINDOWS WITH BLACK OUTLINES ON THE PINK DESKTOP.',
   scheme: 'light',
   tokens: {
-    ink: '#000000',
+    ink: DYES.black,
     // On the default theme the two inks are the same colour. They are still separate tokens, because
     // a theme that needs them to differ must not have to invent one - see `DARK_THEME`.
-    'ink-plate': '#000000',
+    'ink-plate': DYES.black,
     // White, and White again: on the default theme the bar ink and the field ink coincide, exactly as
     // `ink` and `ink-plate` do. The tokens are not merged for the same reason - the dark theme needs
     // them apart, and a bar is a bar in either theme.
-    'ink-bar': '#ffffff',
+    'ink-bar': DYES.white,
     // Royal Blue, the same hex `ena` carries: the two inks below are the *brand* ink and the *quiet*
     // ink, and neither is allowed to be a surface's value. Both are the default theme's existing
     // colours, so a reader who never picks a theme sees exactly what they saw before.
-    'accent-ink': '#1d3ca6',
-    'ink-quiet': '#1a1525',
-    paper: '#ffffff',
-    chrome: '#1a1525',
-    'chrome-dark': '#e1ff00',
+    'accent-ink': DYES.royalBlue,
+    'ink-quiet': DYES.nigrosine,
+    paper: DYES.white,
+    chrome: DYES.nigrosine,
+    'chrome-dark': DYES.flavine,
     // Black, and the same Black the default theme has always drawn its panels in - so this token moves
     // nothing here. It exists for the dark theme, where `ink` becomes White and a panel that borrowed it
     // would be a pale screen with Daffodil readouts on it.
-    hardware: '#000000',
-    ena: '#1d3ca6',
-    'ena-deep': '#1a1525',
-    sun: '#fff000',
+    hardware: DYES.black,
+    ena: DYES.royalBlue,
+    'ena-deep': DYES.nigrosine,
+    sun: DYES.daffodil,
     // The pointed-at row is the plate's Daffodil here, exactly the `hover:bg-sun` it used to be.
-    pointed: '#fff000',
-    'pointed-quiet': '#fff000',
-    'sun-pale': '#e1ff00',
-    ice: '#e1ff00',
-    'ice-pale': '#e1ff00',
-    bubble: '#ff00a0',
-    'bubble-pale': '#e6004c',
-    acid: '#28c745',
-    'acid-pale': '#e1ff00',
+    pointed: DYES.daffodil,
+    'pointed-quiet': DYES.daffodil,
+    'sun-pale': DYES.flavine,
+    ice: DYES.flavine,
+    'ice-pale': DYES.flavine,
+    bubble: DYES.brilliantPink,
+    'bubble-pale': DYES.rose,
+    acid: DYES.emerald,
+    'acid-pale': DYES.flavine,
     // The desktop as it has always been: Brilliant Pink with Nigrosine dithered through it. These two
     // are what `globals.css` used to hold as literals, so the default theme is pixel-identical.
-    desktop: '#ff00a0',
-    'desktop-dither': '#1a1525',
+    desktop: DYES.brilliantPink,
+    'desktop-dither': DYES.nigrosine,
     // Royal Blue, which is what the three native controls on this site asked for before it was a token.
-    accent: '#1d3ca6',
+    accent: DYES.royalBlue,
   },
 };
 
@@ -267,26 +287,26 @@ export const DARK_THEME: Theme = {
   scheme: 'dark',
   tokens: {
     // White prose on the Nigrosine field: 17.83:1.
-    ink: '#ffffff',
+    ink: DYES.white,
     // Black on Daffodil (17.72:1), Emerald (9.35:1) and Rose (4.47:1) - the plates do not change, so
     // neither does the ink that reads on them.
-    'ink-plate': '#000000',
+    'ink-plate': DYES.black,
     // White as well, and it is not `paper` wearing another name: a bar is Royal Blue, Rose or Nigrosine
     // and none of those moves with the theme, so the ink on them must not either. This is the token that
     // makes a title bar, a chip and a forum row readable in both themes at once.
-    'ink-bar': '#ffffff',
+    'ink-bar': DYES.white,
     // Daffodil, and it is the dye this theme has to reach for: Royal Blue ink on this field is 1.91:1
     // (that is the fault this token was added for) and no blue in the palette is light enough to read
     // on Nigrosine. Daffodil is 15.04:1 here and 17.71:1 on a hardware panel, so a timestamp or a
     // "debaser.site" byline is legible wherever the field puts it.
-    'accent-ink': '#fff000',
+    'accent-ink': DYES.daffodil,
     // Flavine, 16.08:1. Not White, because White is the field ink and a caption that is exactly the
     // prose colour is not a caption - and not a dark tone either, because a dark caption on a dark
     // field is the pair this token exists to stop.
-    'ink-quiet': '#e1ff00',
+    'ink-quiet': DYES.flavine,
     // The field prose is read on. Nigrosine, not Black: Black is the bevel, and a site with no grey
     // needs the two darks to stay distinct or every edge disappears.
-    paper: '#1a1525',
+    paper: DYES.nigrosine,
     // The disabled plate. Pale, read in the field ink - and that is the only pair that holds in both
     // themes. A *dark* plate was tried first, because "disabled" reads as pressed in, but the ink that
     // goes on a dark field (`paper`) flips lightness between themes and so cannot be fixed:
@@ -298,40 +318,40 @@ export const DARK_THEME: Theme = {
     // while this theme was a night copy of the bright one, which painted every read post on the board
     // blue. In the Gnorp look colour is kept for accents, so "dealt with" is the one dark deeper than
     // the window instead.
-    chrome: '#000000',
-    'chrome-dark': '#000000',
+    chrome: DYES.black,
+    'chrome-dark': DYES.black,
     // Black here too, and this is the token the dark theme actually needed: a readout printed on Black
     // keeps its inks - Emerald 11.90:1, Daffodil 19.56:1, Pure White 21:1 - so the player screens, the
     // scrims and the reverse-video chips look the same in this theme as in the other one. On this field
     // Nigrosine is a whisper away (1.28:1), so a panel drawn in `ena-deep` would read as a hole rather
     // than as an inset screen; Black is the surface that still reads as *drawn on*.
-    hardware: '#000000',
-    ena: '#1d3ca6',
-    'ena-deep': '#000000',
+    hardware: DYES.black,
+    ena: DYES.royalBlue,
+    'ena-deep': DYES.black,
     // Daffodil and Flavine keep their jobs, but the *fields* they were used for go dark.
-    sun: '#fff000',
+    sun: DYES.daffodil,
     // Royal Blue: the field's own inks read on it (White 9.34:1, Daffodil 7.87:1), where on Daffodil they
     // were 1.19:1 and 1:1. The cost, accepted: an Emerald or Brilliant Pink name - the GLOW row - is
     // 4.15:1 / 2.56:1 while its row is pointed at.
-    pointed: '#1d3ca6',
+    pointed: DYES.royalBlue,
     // A read post rests on Black here (`chrome-dark`), so it lights up the same Royal Blue as any row.
-    'pointed-quiet': '#1d3ca6',
-    'sun-pale': '#1a1525',
-    ice: '#1a1525',
-    'ice-pale': '#000000',
-    bubble: '#ff00a0',
-    'bubble-pale': '#e6004c',
-    acid: '#28c745',
-    'acid-pale': '#1a1525',
+    'pointed-quiet': DYES.royalBlue,
+    'sun-pale': DYES.nigrosine,
+    ice: DYES.nigrosine,
+    'ice-pale': DYES.black,
+    bubble: DYES.brilliantPink,
+    'bubble-pale': DYES.rose,
+    acid: DYES.emerald,
+    'acid-pale': DYES.nigrosine,
     // The night desktop: the tile's fill is the field's own Nigrosine and its dither is Black, so the
     // largest surface on the site is the darkest thing on it and the texture is a black-on-nigrosine
     // whisper rather than a colour. It cannot be Black with a Nigrosine dither: the dither is what the
     // eye reads as texture, and Black under Nigrosine squares is 1.28:1 - a tile that reads as flat.
-    desktop: '#1a1525',
-    'desktop-dither': '#000000',
+    desktop: DYES.nigrosine,
+    'desktop-dither': DYES.black,
     // Daffodil, because Royal Blue is 1.91:1 against the field this theme sets and a checkbox nobody can
     // see is a checkbox that is not there. 15.04:1, and it is the dye every plate already wears.
-    accent: '#fff000',
+    accent: DYES.daffodil,
   },
 };
 

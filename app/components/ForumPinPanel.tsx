@@ -105,11 +105,11 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
   }
 
   return (
-    <div className="mt-1 flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink">
-      <span className="border border-black bg-ena px-1 text-ink-bar">[ MOD ]</span>
+    <div className="mt-1 flex flex-wrap items-center gap-1 text-label font-bold text-ink">
+      <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ MOD ]</span>
 
       {pin === undefined ? null : (
-        <span className="border border-black bg-bubble-pale px-1 text-ink-bar" title={pinSummary(pin)}>
+        <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar" title={pinSummary(pin)}>
           {pinLabel(pin)}
         </span>
       )}
@@ -179,13 +179,13 @@ export default function ForumPinPanel() {
       </div>
 
       <div className="p-2 text-ink">
-        <p className="text-[13px] font-bold">
+        <p className="text-label font-bold">
           A PIN HOLDS A POST AT THE TOP OF THE BOARD AND LEADS THE WIRE UNTIL IT RUNS OUT - OR
           FOREVER, IF THAT IS WHAT WAS PICKED. `[ PIN POST ]` ON ANY POST BELOW TAKES ONE.
         </p>
 
         {pins.length === 0 ? (
-          <p className="mt-1 text-[13px] text-ink">NO POST IS PINNED AT THE MOMENT.</p>
+          <p className="mt-1 text-label text-ink">NO POST IS PINNED AT THE MOMENT.</p>
         ) : (
           <ul className="mt-1 space-y-1">
             {pins.map((pin) => {
@@ -194,9 +194,9 @@ export default function ForumPinPanel() {
               return (
                 <li
                   key={pin.threadId}
-                  className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink bg-paper p-1 text-[13px] font-bold"
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink bg-paper p-1 text-label font-bold"
                 >
-                  <span className="border border-black bg-bubble-pale px-1 text-ink-bar">{pinLabel(pin)}</span>
+                  <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar">{pinLabel(pin)}</span>
 
                   {thread === undefined ? (
                     <span className="text-ink">A POST THAT IS NO LONGER ON THE BOARD</span>
@@ -222,7 +222,7 @@ export default function ForumPinPanel() {
           </ul>
         )}
 
-        {error === null ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
+        {error === null ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
       </div>
     </section>
   );

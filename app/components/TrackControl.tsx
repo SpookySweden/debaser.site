@@ -64,7 +64,7 @@ export default function TrackControl({ id, value, onChange, author }: TrackContr
   const filed = normaliseAudioTags(value.tags);
 
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
+    <span className="flex min-w-0 flex-wrap items-center gap-2 text-label font-bold text-ink">
       <span className="min-w-0">
         <span className="block truncate">
           ♪ {value.title}

@@ -154,7 +154,7 @@ export default function DockWindow({
   const corner = dock === 'bottom' ? 'sm:top-auto sm:bottom-28' : 'sm:top-16 sm:bottom-auto';
   const placement = managed
     ? 'fixed'
-    : `fixed inset-x-1 bottom-20 z-[90] max-h-[62vh] sm:inset-x-auto sm:right-2 sm:max-h-[78vh] ${corner} sm:w-[min(28rem,calc(100vw-1.5rem))]`;
+    : `fixed inset-x-1 bottom-20 z-dock max-h-[62vh] sm:inset-x-auto sm:right-2 sm:max-h-[78vh] ${corner} sm:w-[min(28rem,calc(100vw-1.5rem))]`;
 
   return (
     <aside
@@ -183,7 +183,7 @@ export default function DockWindow({
               disabled={!grouped}
               aria-label={`Detach ${title} from its group`}
               title="Detach from group"
-              className="hidden cursor-pointer key bg-sun-pale px-2 py-[1px] text-[13px] font-bold leading-none text-ink hover:text-accent-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-sun-pale sm:inline-block"
+              className="hidden cursor-pointer key bg-sun-pale px-2 py-0.25 text-label font-bold leading-none text-ink hover:text-accent-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-sun-pale sm:inline-block"
             >
               ⇲
             </button>
@@ -193,7 +193,7 @@ export default function DockWindow({
               onDoubleClick={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label={`Close ${title}`}
-              className="cursor-pointer key bg-sun-pale px-2 py-[1px] text-[13px] font-bold leading-none text-ink hover:text-accent-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm"
+              className="cursor-pointer key bg-sun-pale px-2 py-0.25 text-label font-bold leading-none text-ink hover:text-accent-ink max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
             >
               ×
             </button>
@@ -220,7 +220,7 @@ export default function DockWindow({
         <div
           key={`detach-${live.flash}`}
           aria-hidden="true"
-          className="pointer-events-none absolute -inset-1 hidden border-4 border-bubble motion-safe:block motion-safe:animate-detach"
+          className="pointer-events-none absolute -inset-1 hidden border-thick border-bubble motion-safe:block motion-safe:animate-detach"
         />
       ) : null}
 

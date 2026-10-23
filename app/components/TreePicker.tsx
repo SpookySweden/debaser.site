@@ -65,14 +65,14 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
               type="button"
               onClick={() => toggle(group.label)}
               aria-label={`${isOpen ? 'Close' : 'Open'} ${group.label}`}
-              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[13px] font-bold text-ink hover:bg-ice-pale max-sm:min-h-11"
+              className="flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-0.5 text-left text-label font-bold text-ink hover:bg-ice-pale max-sm:min-h-tap"
             >
               <span className="inline-block w-4 shrink-0 text-center font-mono">{isOpen ? '[-]' : '[+]'}</span>
               <span className="truncate">{group.label}</span>
             </button>
 
             {!isOpen ? null : group.items.length === 0 ? (
-              <p className="ml-6 px-1 py-[2px] text-[13px] text-ink">{emptyNote ?? 'NOTHING HERE.'}</p>
+              <p className="ml-6 px-1 py-0.5 text-label text-ink">{emptyNote ?? 'NOTHING HERE.'}</p>
             ) : (
               <ul role="group" className="ml-4">
                 {group.items.map((item) => {
@@ -85,7 +85,7 @@ export default function TreePicker({ id, groups, value, onChange, openInitially 
                         role="treeitem"
                         aria-selected={selected}
                         onClick={() => onChange(item.key)}
-                        className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-[2px] text-left text-[13px] font-bold max-sm:min-h-11 ${
+                        className={`flex w-full cursor-pointer items-center gap-1 rounded-none px-1 py-0.5 text-left text-label font-bold max-sm:min-h-tap ${
                           selected ? 'bg-ena text-ink-bar' : 'text-ink hover:bg-ice-pale'
                         }`}
                       >

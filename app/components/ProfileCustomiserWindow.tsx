@@ -42,7 +42,7 @@ const TABS: { key: TabKey; label: string }[] = [
  * that is what found it.
  */
 function PanelHeading({ children }: { children: React.ReactNode }) {
-  return <p className="bg-ena-deep px-2 py-1 text-[13px] font-bold text-ink-bar">{children}</p>;
+  return <p className="bg-ena-deep px-2 py-1 text-label font-bold text-ink-bar">{children}</p>;
 }
 
 type ProfileCustomiserWindowProps = {
@@ -442,7 +442,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
   const panel = (
     <div className="space-y-3 text-ink">
-      <p className="text-[13px] font-bold">
+      <p className="text-label font-bold">
         THIS CONSOLE STYLES WHAT OTHER PEOPLE SEE AT /profile/{userId} - THE PAGE A USERNAME OR A PICTURE OPENS FROM
         THE BOARD. IT DOES NOT CHANGE HOW YOUR POSTS LOOK ON THE BOARD ITSELF.
       </p>
@@ -453,7 +453,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             key={entry.key}
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
-            className={`cursor-pointer px-3 py-1 text-[14px] max-sm:min-h-11 ${
+            className={`cursor-pointer px-3 py-1 text-key max-sm:min-h-tap ${
               tab === entry.key ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key bg-sun-pale text-ink hover:text-accent-ink'
             }`}
           >
@@ -567,7 +567,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="frame bg-sun-pale p-2 text-[13px] font-bold">
+      <div className="frame bg-sun-pale p-2 text-label font-bold">
         <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
         {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">PROBLEM: {error}</p>}
         <p className="mt-1 text-ink">
@@ -621,7 +621,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         actions={
           <a
             href={`/profile/${encodeURIComponent(userId)}`}
-            className="key bg-sun-pale px-2 py-[2px] underline hover:text-accent-ink max-sm:inline-flex max-sm:min-h-11 max-sm:items-center"
+            className="key bg-sun-pale px-2 py-0.5 underline hover:text-accent-ink max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
           >
             [ VIEW PUBLIC PAGE ]
           </a>

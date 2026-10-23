@@ -25,7 +25,7 @@ export default function MentionRow({ body, accounts, className }: MentionRowProp
   if (mentioned.length === 0) return null;
 
   return (
-    <p className={`flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink ${className ?? 'mt-1'}`}>
+    <p className={`flex flex-wrap items-center gap-1 text-label font-bold text-ink ${className ?? 'mt-1'}`}>
       <span>TAGGED:</span>
       {mentioned.map((account) => {
         const label = `@${account.displayName.trim().replace(/\s+/g, '_')}`;

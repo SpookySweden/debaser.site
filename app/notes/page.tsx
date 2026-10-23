@@ -18,7 +18,7 @@ export default function NotesPage() {
     <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / NOTES]" status="Notes Shelf Active">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // NOTES</h1>
     <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
-    <p className="text-[13px] font-bold mb-4 text-ink">
+    <p className="text-label font-bold mb-4 text-ink">
       NOTES ARE WRITTEN RATHER THAN DRAWN, SO THEY ARE FILED AS TEXT.
     </p>
 
@@ -39,9 +39,9 @@ export default function NotesPage() {
           </div>
 
           <div className="space-y-2 p-3">
-            <p className="flex flex-wrap items-center gap-1 text-[13px] font-bold">
+            <p className="flex flex-wrap items-center gap-1 text-label font-bold">
               {note.kinds.map((kind) => (
-                <span key={kind} className="border border-black bg-paper px-1">
+                <span key={kind} className="border border-ink-plate bg-paper px-1">
                   [ {kind} ]
                 </span>
               ))}
@@ -49,13 +49,13 @@ export default function NotesPage() {
             </p>
 
             {note.body.map((paragraph) => (
-              <p key={paragraph.slice(0, 24)} className="text-[15px] leading-normal text-ink">
+              <p key={paragraph.slice(0, 24)} className="text-prose leading-normal text-ink">
                 {paragraph}
               </p>
             ))}
 
             {note.href === undefined || note.hrefLabel === undefined ? null : (
-              <p className="text-[13px] font-bold">
+              <p className="text-label font-bold">
                 <Link href={note.href} className="underline hover:bg-pointed">
                   {note.hrefLabel}
                 </Link>

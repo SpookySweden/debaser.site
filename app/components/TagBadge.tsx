@@ -19,7 +19,13 @@ import { markColour } from '../lib/ui/colour';
  */
 
 const CHIP_BASE =
-  'inline-flex items-center gap-1 rounded-none border px-1.5 py-[1px] text-[13px] font-bold uppercase tracking-[0.02em]';
+  'inline-flex items-center rounded-none border px-1.5 py-0.25 text-label font-bold uppercase tracking-tag';
+
+/**
+ * The gap between a chip's mark and its words: one per size, never both on one chip. With both, the sort
+ * order of the stylesheet picks the winner rather than the size asked for (docs/theming.md, Traps).
+ */
+const CHIP_GAP = 'gap-1';
 
 /**
  * The chip itself. The coloured kinds are flat Rose chips; `source` is the retired
@@ -33,11 +39,11 @@ const KIND_CLASSES: Record<ForumTag['kind'], string> = {
 };
 
 /** Smaller chip for dense rows (post meta lines, left-hand columns). */
-const CHIP_COMPACT = 'gap-[3px] px-1 py-0 text-[13px] tracking-0';
+const CHIP_COMPACT = 'gap-0.75 px-1 py-0 text-label tracking-0';
 
 /** Shared chip styling, so the chooser and the badges look identical. */
 export function tagChipClasses(tag: ForumTag, compact = false): string {
-  return `${CHIP_BASE} ${KIND_CLASSES[tag.kind]}${compact ? ` ${CHIP_COMPACT}` : ''}`;
+  return `${CHIP_BASE} ${KIND_CLASSES[tag.kind]} ${compact ? CHIP_COMPACT : CHIP_GAP}`;
 }
 
 /** The key: a small square of the tag's colour, at the weight a mark wears. */
@@ -103,7 +109,7 @@ type TagRowProps = {
 export function TagRow({ tags, className, emptyLabel, compact = false, limit }: TagRowProps) {
   if (tags.length === 0) {
     return emptyLabel === undefined ? null : (
-      <span className="text-[13px] text-ink">{emptyLabel}</span>
+      <span className="text-label text-ink">{emptyLabel}</span>
     );
   }
 
@@ -115,7 +121,7 @@ export function TagRow({ tags, className, emptyLabel, compact = false, limit }: 
       {shown.map((tag) => (
         <TagBadge key={tag.id} tag={tag} compact={compact} />
       ))}
-      {hidden > 0 ? <span className="text-[13px] font-bold text-ink">+{hidden}</span> : null}
+      {hidden > 0 ? <span className="text-label font-bold text-ink">+{hidden}</span> : null}
     </div>
   );
 }
@@ -134,7 +140,7 @@ export function TagLink({ tag, className }: { tag: ForumTag; className?: string 
     <Link
       href={`/forum#tag-${tagKey(tag.label)}`}
       title={`Show every post tagged ${tag.label}`}
-      className={`inline-flex items-center gap-[3px] hover:underline ${className ?? ''}`}
+      className={`inline-flex items-center gap-0.75 hover:underline ${className ?? ''}`}
     >
       <TagMark colour={tagMarkColour(tag)} compact />
       <span className="text-ink">{tagNamespace(tag)}:</span>

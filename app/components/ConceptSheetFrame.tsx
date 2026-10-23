@@ -24,13 +24,13 @@ export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFramePro
         <SheetImage src={sheet.src} alt={sheet.caption} width={sheet.width} height={sheet.height} />
       </div>
 
-      <div className="mt-2 bg-ice-pale p-2 text-[13px] font-bold text-ink">
+      <div className="mt-2 bg-ice-pale p-2 text-label font-bold text-ink">
         CAPTION: {sheet.caption}
       </div>
 
       {/* Comment control sits directly under the artwork */}
       <div className="flex flex-wrap items-center justify-between gap-2 bg-sun-pale p-2">
-        <span className="text-[13px] font-bold text-ink">
+        <span className="text-label font-bold text-ink">
           ARCHIVE FILE: {sheet.src}
         </span>
         <CommentPopout anchor={sheet.anchor} />

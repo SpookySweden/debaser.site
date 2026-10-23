@@ -31,7 +31,7 @@ export default function ProfileBoardActivity({
 
       <div className="p-3 text-ink">
         {threads.length === 0 ? (
-          <p className="text-[13px] font-bold text-ink">
+          <p className="text-label font-bold text-ink">
             <ProfileName author={{ id: userId, displayName }} colour={nameColour} lamp={false}>
               {displayName.toUpperCase()}
             </ProfileName>{' '}
@@ -40,7 +40,7 @@ export default function ProfileBoardActivity({
         ) : (
           <ul className="space-y-1">
             {threads.slice(0, 8).map((thread) => (
-              <li key={thread.id} className="text-[13px] font-bold">
+              <li key={thread.id} className="text-label font-bold">
                 <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                   [<TimeStamp at={thread.createdAt} />] {thread.title}
                 </Link>

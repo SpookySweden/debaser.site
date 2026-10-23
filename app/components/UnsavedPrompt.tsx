@@ -50,7 +50,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
       dismissOnBackdrop={false}
       status="NOTHING HAS BEEN THROWN AWAY YET :: GO BACK AND IT IS ALL STILL THERE"
     >
-      <div className="space-y-2 text-[13px] text-ink">
+      <div className="space-y-2 text-label text-ink">
         <p className="font-bold">
           YOU HAVE {summarise(changes)} THAT HAVE NOT BEEN SAVED. {what} PAGES THEM AWAY, AND THERE IS NO UNDO.
         </p>
@@ -61,7 +61,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
             onClick={() => setOpen((current) => !current)}
             aria-expanded={open}
             aria-controls="unsaved-list"
-            className="flex w-full cursor-pointer items-center justify-between border-b-2 border-b-black px-2 py-1 text-left font-bold hover:bg-ice"
+            className="flex w-full cursor-pointer items-center justify-between border-b-line border-b-ink-plate px-2 py-1 text-left font-bold hover:bg-ice"
           >
             <span>{open ? '▼' : '▶'} WHAT IS UNSAVED</span>
             <span>[ {changes.length} ]</span>
@@ -123,7 +123,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
           <button
             type="button"
             onClick={onDiscard}
-            className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-[2px] text-[13px] text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm"
+            className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
           >
             [ THROW THEM AWAY ]
           </button>

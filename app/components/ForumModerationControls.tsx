@@ -86,7 +86,7 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
   return (
     <span className="inline-flex flex-wrap items-center gap-1">
       {author.banned === true ? (
-        <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ BANNED ]</span>
+        <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar">[ BANNED ]</span>
       ) : null}
 
       {author.banned === true ? (
@@ -171,9 +171,9 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[13px] font-bold text-ink">
+    <div className="mt-1 space-y-1 text-label font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
-        <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
+        <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 
         <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT POST ]'}
@@ -267,9 +267,9 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
   }
 
   return (
-    <div className="mt-1 space-y-1 text-[13px] font-bold text-ink">
+    <div className="mt-1 space-y-1 text-label font-bold text-ink">
       <div className="flex flex-wrap items-center gap-1">
-        <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
+        <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
 
         <button type="button" onClick={() => setEditing(!editing)} disabled={busy} className={PLATE}>
           {editing ? '[ CANCEL EDIT ]' : '[ EDIT REPLY ]'}

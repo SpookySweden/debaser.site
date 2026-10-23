@@ -1,3 +1,4 @@
+import { DYES } from '../ui/themes';
 import { nameColourHex } from './name-colours';
 import { relativeTime } from '../ui/relative-time';
 
@@ -56,11 +57,11 @@ export function presenceStatus(record: PresenceRecord | undefined, now: number):
 export function presenceDotColour(status: PresenceStatus): string {
   switch (status) {
     case 'online':
-      return nameColourHex('emerald') ?? '#28c745';
+      return nameColourHex('emerald') ?? DYES.emerald;
     case 'recent':
-      return nameColourHex('daffodil') ?? '#fff000';
+      return nameColourHex('daffodil') ?? DYES.daffodil;
     default:
-      return nameColourHex('rose') ?? '#e6004c';
+      return nameColourHex('rose') ?? DYES.rose;
   }
 }
 

@@ -154,11 +154,11 @@ function tabClass(isActive: boolean): string {
   // rule has to be `max-md` rather than `max-sm` here. A tablet in portrait is held in two hands, the
   // same as a phone, and gets the same floor.
   const base =
-    'inline-flex h-7 min-w-7 items-center justify-center text-[13px] leading-none max-md:min-h-11 max-md:min-w-11 max-md:text-base';
+    'inline-flex h-7 min-w-7 items-center justify-center text-label leading-none max-md:min-h-tap max-md:min-w-tap max-md:text-base';
 
   return isActive
     ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
-    : `${base} key bg-sun-pale text-ink hover:text-accent-ink active:translate-y-[1px] active:bg-bubble active:text-ink-plate`;
+    : `${base} key bg-sun-pale text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
 /**
@@ -186,7 +186,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
       // keys were visible *and* the profile menu was too, so the same destinations had two doors and
       // the narrow band was doing nothing but crowding the title. The profile picture in the title bar
       // is the only door below `md`, and `Temp/check-mobile.cjs` holds that.
-      className="hidden min-w-0 flex-wrap items-center gap-1 border-b-2 border-ink bg-sun-pale px-2 py-[3px] md:flex"
+      className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
       {NAV_ITEMS.map((item) => {
         const unread = item.key === 'comms' ? unreadTotal : 0;
@@ -209,7 +209,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
             {unread === 0 ? null : (
               <span
                 aria-hidden="true"
-                className="ml-[2px] text-[13px] leading-none"
+                className="ml-0.5 text-label leading-none"
               >
                 {unread}
               </span>

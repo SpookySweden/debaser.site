@@ -69,7 +69,7 @@ export default function ProfileCommentBox({
 
   return (
     <div className="mt-2 frame bg-sun-pale p-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
         <span>{title}</span>
       </div>
 
@@ -85,16 +85,16 @@ export default function ProfileCommentBox({
       />
 
       {footer === undefined || footer === null ? null : (
-        <p className="mt-1 text-[13px] font-bold text-ink">{footer}</p>
+        <p className="mt-1 text-label font-bold text-ink">{footer}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
-        <span className="text-[13px] text-ink">{body.trim().length} CHARS</span>
-        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
-        {status === null ? null : <p className="text-[13px] font-bold text-ink">{status}</p>}
+        <span className="text-label text-ink">{body.trim().length} CHARS</span>
+        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+        {status === null ? null : <p className="text-label font-bold text-ink">{status}</p>}
       </div>
     </div>
   );

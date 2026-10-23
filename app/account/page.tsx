@@ -11,7 +11,7 @@ export default function Account() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [ACCOUNT MANAGER]" active="account" status="Session Manager Active">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // ACCOUNT MANAGER</h1>
-    <p className="text-[15px] mb-4 leading-normal">
+    <p className="text-prose mb-4 leading-normal">
       Create an account, log in, and manage how your posts are signed on the board. Reading and posting stay open
       to guests - an account just attaches your name to whatever you file.
     </p>

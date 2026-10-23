@@ -92,12 +92,12 @@ const EDIT_TOOLS = TOOL_IDS.filter((id) => id !== 'pose');
 
 /** A pressable square on this workbench: flat, inked, and inverted when on. No bevels - see `docs/design.md`. */
 function pressable(on: boolean): string {
-  return `cursor-pointer rounded-none border-2 border-ink font-bold max-sm:min-h-11 disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
+  return `cursor-pointer rounded-none border-line border-ink font-bold max-sm:min-h-tap disabled:cursor-not-allowed disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:opacity-40 ${
     on ? 'bg-ena text-ink-bar' : 'bg-sun-pale text-ink hover:bg-ice'
   }`;
 }
 
-const PANEL = 'rounded-none border-2 border-ink bg-sun-pale';
+const PANEL = 'rounded-none border-line border-ink bg-sun-pale';
 
 export default function CharacterViewport() {
   useUndoKeys();
@@ -181,7 +181,7 @@ function usePlacingKeys(bench: RefObject<HTMLDivElement | null>) {
 }
 
 const STRIP_BUTTON =
-  'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-[2px] text-[13px] max-sm:w-[3.25rem]';
+  'flex h-12 w-14 shrink-0 flex-col items-center justify-center gap-0.5 text-label max-sm:w-[3.25rem]';
 
 function ToolStrip() {
   const tool = useCharacterStore((state) => state.tool);
@@ -201,7 +201,7 @@ function ToolStrip() {
       title={TOOLS[id].hint}
       className={`${STRIP_BUTTON} ${pressable(tool === id)}`}
     >
-      <span aria-hidden className="text-[16px] leading-none">
+      <span aria-hidden className="text-title leading-none">
         {TOOL_GLYPHS[id]}
       </span>
       {TOOLS[id].label}
@@ -222,13 +222,13 @@ function ToolStrip() {
       </StripBlock>
       <StripBlock label="History">
         <button type="button" onClick={undo} disabled={!canUndo} title="UNDO (CTRL+Z)" className={`${STRIP_BUTTON} ${pressable(false)}`}>
-          <span aria-hidden className="text-[16px] leading-none">
+          <span aria-hidden className="text-title leading-none">
             {TOOL_GLYPHS.undo}
           </span>
           UNDO
         </button>
         <button type="button" onClick={redo} disabled={!canRedo} title="REDO (CTRL+Y)" className={`${STRIP_BUTTON} ${pressable(false)}`}>
-          <span aria-hidden className="text-[16px] leading-none">
+          <span aria-hidden className="text-title leading-none">
             {TOOL_GLYPHS.redo}
           </span>
           REDO
@@ -239,7 +239,7 @@ function ToolStrip() {
           title="START A NEW FIGURE FROM ONE OF THE PRESETS"
           className={`${STRIP_BUTTON} ${pressable(false)}`}
         >
-          <span aria-hidden className="text-[16px] leading-none">
+          <span aria-hidden className="text-title leading-none">
             {TOOL_GLYPHS.new}
           </span>
           NEW
@@ -307,7 +307,7 @@ function AddToolButton() {
         title={full ? FULL_SHAPES : TOOLS.add.hint}
         className={`${STRIP_BUTTON} ${pressable(tool === 'add')}`}
       >
-        <span aria-hidden className="text-[16px] leading-none">
+        <span aria-hidden className="text-title leading-none">
           {TOOL_GLYPHS.add}
         </span>
         {TOOLS.add.label}
@@ -316,7 +316,7 @@ function AddToolButton() {
         <div
           role="group"
           aria-label="Shape to add"
-          className={`${PANEL} absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-[2px] p-1 max-sm:grid max-sm:grid-cols-2 lg:left-full lg:top-0 lg:ml-2 lg:mt-0`}
+          className={`${PANEL} absolute left-0 top-full z-30 mt-1 flex w-max flex-col gap-0.5 p-1 max-sm:grid max-sm:grid-cols-2 lg:left-full lg:top-0 lg:ml-2 lg:mt-0`}
         >
           {MASS_SHAPE_IDS.map((kind) => (
             <button
@@ -329,9 +329,9 @@ function AddToolButton() {
               }}
               aria-pressed={addKind === kind}
               title={MASS_SHAPES[kind].note}
-              className={`flex h-8 items-center gap-2 px-2 text-left text-[13px] ${pressable(addKind === kind)}`}
+              className={`flex h-8 items-center gap-2 px-2 text-left text-label ${pressable(addKind === kind)}`}
             >
-              <span aria-hidden className="w-4 shrink-0 text-center text-[14px] leading-none">
+              <span aria-hidden className="w-4 shrink-0 text-center text-key leading-none">
                 {MASS_SHAPE_GLYPHS[kind]}
               </span>
               {MASS_SHAPES[kind].label}
@@ -363,7 +363,7 @@ function AddNodeButton() {
       title={full && !placingNode ? FULL_NODES : 'ADD A NODE: CLICK ITS PARENT NODE, DRAG IT INTO PLACE, THEN ✓.'}
       className={`${STRIP_BUTTON} ${pressable(placingNode)}`}
     >
-      <span aria-hidden className="text-[16px] leading-none">
+      <span aria-hidden className="text-title leading-none">
         {TOOL_GLYPHS.node}
       </span>
       +NODE
@@ -380,7 +380,7 @@ function StripBlock({ label, grid = false, children }: { label: string; grid?: b
     <div
       role="group"
       aria-label={label}
-      className={`flex flex-wrap gap-1 lg:flex-col lg:border-ink lg:py-2 lg:first:pt-0 lg:last:pb-0 lg:[&+&]:border-t-2 ${
+      className={`flex flex-wrap gap-1 lg:flex-col lg:border-ink lg:py-2 lg:first:pt-0 lg:last:pb-0 lg:[&+&]:border-t-line ${
         grid ? 'max-sm:grid max-sm:grid-cols-3' : ''
       }`}
     >
@@ -400,9 +400,9 @@ function OptionsBar() {
 
   return (
     <div className={`${PANEL} flex min-h-[3.25rem] min-w-0 flex-wrap items-center gap-2 p-1 sm:flex-nowrap`}>
-      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto max-sm:min-h-11 max-sm:basis-full">
+      <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto max-sm:min-h-tap max-sm:basis-full">
         {placing ? <PlacingOptions /> : tool === 'pose' ? <PoseOptions /> : (
-          <p className="px-1 text-[13px] font-bold leading-snug text-ink" title={TOOLS[tool].hint}>
+          <p className="px-1 text-label font-bold leading-snug text-ink" title={TOOLS[tool].hint}>
             {TOOLS[tool].status}
           </p>
         )}
@@ -438,19 +438,19 @@ function PlacingOptions() {
         onClick={cancelPlacing}
         aria-label={`Cancel the new ${placing.what}`}
         title="CANCEL: THE FIGURE GOES BACK EXACTLY AS IT WAS (ESC)"
-        className={`h-8 w-8 shrink-0 text-[14px] leading-none max-sm:w-11 ${pressable(false)}`}
+        className={`h-8 w-8 shrink-0 text-key leading-none max-sm:w-tap ${pressable(false)}`}
       >
         ✗
       </button>
-      <span className="flex shrink-0 items-center gap-1 border-2 border-ink bg-ena px-1 py-[2px] text-[13px] font-bold text-ink-bar">
+      <span className="flex shrink-0 items-center gap-1 border-line border-ink bg-ena px-1 py-0.5 text-label font-bold text-ink-bar">
         {placing.what === 'shape' ? (
-          <span aria-hidden className="text-[14px] leading-none">
+          <span aria-hidden className="text-key leading-none">
             {MASS_SHAPE_GLYPHS[placing.kind]}
           </span>
         ) : null}
         {what}
       </span>
-      <p className="shrink-0 px-1 text-[13px] font-bold text-ink" title={hint}>
+      <p className="shrink-0 px-1 text-label font-bold text-ink" title={hint}>
         {next}
       </p>
     </>
@@ -472,12 +472,12 @@ function PoseOptions() {
           }}
           aria-pressed={stretch === on}
           title={on ? 'A DRAG STRETCHES: BONES GET LONGER OR SHORTER.' : 'A DRAG BENDS: LIMBS SWING, BONES KEEP THEIR LENGTH.'}
-          className={`shrink-0 px-2 py-1 text-[13px] ${pressable(stretch === on)}`}
+          className={`shrink-0 px-2 py-1 text-label ${pressable(stretch === on)}`}
         >
           {on ? 'STRETCHES' : 'BENDS'}
         </button>
       ))}
-      <span className="shrink-0 px-1 text-[13px] font-bold text-ink" title={TOOLS.pose.hint}>
+      <span className="shrink-0 px-1 text-label font-bold text-ink" title={TOOLS.pose.hint}>
         {TOOLS.pose.status}
       </span>
     </>
@@ -496,11 +496,11 @@ function LayerSwitches() {
   const toggleSkeleton = useCharacterStore((state) => state.toggleSkeleton);
   // `w-min` wraps the two-word labels (NORMAL / LIGHT) onto two lines on a wide screen, so the five switches leave the
   // tool's own words room in the bar; on a phone they are a two-column grid, where no label is cut.
-  const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-[13px] leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
+  const switchClass = (on: boolean) => `shrink-0 px-2 py-1 text-label leading-tight max-sm:px-1 sm:w-min ${pressable(on)}`;
 
   return (
     <div role="group" aria-label="Layers" className="flex items-center gap-1 max-sm:grid max-sm:flex-1 max-sm:grid-cols-2">
-      <span className="text-[13px] font-bold text-ink max-sm:hidden">LAYERS</span>
+      <span className="text-label font-bold text-ink max-sm:hidden">LAYERS</span>
       {LAYER_IDS.map((id) => (
         <button
           key={id}
@@ -580,7 +580,7 @@ function LightControl() {
         aria-expanded={open}
         aria-label="Light"
         title={lightOn ? 'THE LIGHT: TURN IT, RAISE IT, SWITCH IT OFF' : 'THE LIGHT IS OFF'}
-        className={`h-8 w-8 text-[16px] leading-none max-sm:w-11 ${pressable(open)}`}
+        className={`h-8 w-8 text-title leading-none max-sm:w-tap ${pressable(open)}`}
       >
         <span aria-hidden>{lightOn ? '☀' : '☼'}</span>
       </button>
@@ -595,7 +595,7 @@ function LightPad() {
   const stepLight = useCharacterStore((state) => state.stepLight);
   const resetLight = useCharacterStore((state) => state.resetLight);
   const toggleLightOn = useCharacterStore((state) => state.toggleLightOn);
-  const key = `h-9 w-9 text-[13px] leading-none max-sm:h-11 max-sm:w-11 ${pressable(false)}`;
+  const key = `h-9 w-9 text-label leading-none max-sm:h-tap max-sm:w-tap ${pressable(false)}`;
 
   return (
     <div role="group" aria-label="Light controls" className={`${PANEL} absolute right-0 top-full z-30 mt-1 flex w-max flex-col gap-1 p-1`}>
@@ -639,7 +639,7 @@ function LightPad() {
         onClick={toggleLightOn}
         aria-pressed={lightOn}
         title={lightOn ? 'SWITCH THE LIGHT OFF: THE FIGURE IS EVENLY LIT' : 'SWITCH THE LIGHT BACK ON'}
-        className={`px-2 py-1 text-[13px] ${pressable(lightOn)}`}
+        className={`px-2 py-1 text-label ${pressable(lightOn)}`}
       >
         {lightOn ? 'LIGHT ON' : 'LIGHT OFF'}
       </button>
@@ -649,8 +649,8 @@ function LightPad() {
 
 function View({ kind, label, hint }: { kind: ViewportKind; label: string; hint: string }) {
   return (
-    <section aria-label={`${label} view`} className="min-w-0 rounded-none border-2 border-ink bg-hardware">
-      <p className="flex items-center justify-between bg-ena-deep px-2 py-[2px] text-[13px] font-bold text-ink-bar">
+    <section aria-label={`${label} view`} className="min-w-0 rounded-none border-line border-ink bg-hardware">
+      <p className="flex items-center justify-between bg-ena-deep px-2 py-0.5 text-label font-bold text-ink-bar">
         <span>{label}</span>
         <span className="text-sun">{hint}</span>
       </p>
@@ -707,7 +707,7 @@ function PlacingButtons({ view }: { view: ViewportKind }) {
   const block = placingBlock(figure, placing);
   const at = anchor === null || pane === null ? null : toPane(view, pane.width, pane.height, anchor);
   const thing = placing?.what === 'node' ? 'node' : 'shape';
-  const key = 'flex h-8 w-8 items-center justify-center rounded-none border-2 border-ink text-[16px] font-bold leading-none max-sm:h-11 max-sm:w-11';
+  const key = 'flex h-8 w-8 items-center justify-center rounded-none border-line border-ink text-title font-bold leading-none max-sm:h-tap max-sm:w-tap';
 
   return (
     <div ref={layer} className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -767,7 +767,7 @@ function SunMarker({ view }: { view: ViewportKind }) {
   return (
     <span
       aria-hidden
-      className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-[14px] leading-none text-sun"
+      className="pointer-events-none absolute -translate-x-1/2 -translate-y-1/2 text-key leading-none text-sun"
       style={{ left: `${50 + (across / reach) * 45}%`, top: `${50 - (upward / reach) * 45}%` }}
     >
       {along(toward) >= 0 ? '☀' : '☼'}
@@ -784,7 +784,7 @@ function Stats() {
   const share = useCharacterStore((state) => sagOf(state.figure).share);
 
   return (
-    <p className={`${PANEL} flex items-center gap-2 px-2 py-1 text-[14px] font-bold text-ink`}>
+    <p className={`${PANEL} flex items-center gap-2 px-2 py-1 text-key font-bold text-ink`}>
       <span title="FILLED BLOCKS IN THE FRONT VIEW'S PIXEL RENDER. HIDDEN SHAPES DON'T COUNT.">
         PIXELS <span data-stat="pixels">{pixels ?? '-'}</span>
       </span>
@@ -818,7 +818,7 @@ function ShapesList() {
   const broken = useMemo(() => brokenShapes(figure), [figure]);
   const brokenCount = Object.keys(broken).length;
 
-  const small = 'h-7 w-7 shrink-0 text-[14px] leading-none max-sm:h-11 max-sm:w-11';
+  const small = 'h-7 w-7 shrink-0 text-key leading-none max-sm:h-tap max-sm:w-tap';
 
   return (
     <section aria-label="Shapes" className={PANEL}>
@@ -827,7 +827,7 @@ function ShapesList() {
         onClick={toggleList}
         aria-expanded={listOpen}
         title={brokenCount > 0 ? `${brokenCount} MARKED: NOT CONNECTED TO A NODE. THE FIGURE CAN'T BE SAVED UNTIL THEY ARE.` : undefined}
-        className={`${TITLE_BAR_INACTIVE} w-full cursor-pointer hover:bg-ice max-sm:min-h-11`}
+        className={`${TITLE_BAR_INACTIVE} w-full cursor-pointer hover:bg-ice max-sm:min-h-tap`}
       >
         <span>
           SHAPES {shapes.length}/{MAX_SHAPES}
@@ -837,14 +837,14 @@ function ShapesList() {
       </button>
 
       {!listOpen ? null : shapes.length === 0 ? (
-        <p className="p-2 text-[13px] text-ink">NO SHAPES. USE ADD.</p>
+        <p className="p-2 text-label text-ink">NO SHAPES. USE ADD.</p>
       ) : (
         <ul className="max-h-64 overflow-y-auto p-1 lg:max-h-56">
           {shapes.map((shape, index) => {
             const picked = shape.id === selectedShapeId;
             const problem = broken[shape.id];
             return (
-              <li key={shape.id} className="flex items-center gap-[2px] pb-[2px]">
+              <li key={shape.id} className="flex items-center gap-0.5 pb-0.5">
                 <button
                   type="button"
                   onClick={() => setHidden(shape.id, !shape.hidden)}
@@ -866,9 +866,9 @@ function ShapesList() {
                         ? `${problem}. THE FIGURE CAN'T BE SAVED LIKE THIS.`
                         : undefined
                   }
-                  className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-[13px] ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
+                  className={`flex h-7 min-w-0 flex-1 items-center gap-1 px-1 text-left text-label ${pressable(picked)} ${shape.hidden ? 'line-through' : ''}`}
                 >
-                  <span aria-hidden className="w-4 shrink-0 text-center text-[14px] leading-none">
+                  <span aria-hidden className="w-4 shrink-0 text-center text-key leading-none">
                     {MASS_SHAPE_GLYPHS[shape.kind]}
                   </span>
                   <span className="truncate">{shape.name}</span>
@@ -933,7 +933,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
     <section aria-label="Shape properties" className={PANEL}>
       <PanelTitle>
         <span>PROPERTIES</span>
-        <button type="button" onClick={() => selectShape(null)} className="px-1 text-[13px] font-bold underline max-sm:min-h-11">
+        <button type="button" onClick={() => selectShape(null)} className="px-1 text-label font-bold underline max-sm:min-h-tap">
           [ DONE ]
         </button>
       </PanelTitle>
@@ -943,7 +943,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
       </div>
 
       <Section id="shape" label="SHAPE">
-        <div className="flex flex-wrap gap-[2px]">
+        <div className="flex flex-wrap gap-0.5">
           {MASS_SHAPE_IDS.map((kind: MassShapeId) => (
             <button
               key={kind}
@@ -952,7 +952,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
               aria-pressed={shape.kind === kind}
               aria-label={MASS_SHAPES[kind].label}
               title={`${MASS_SHAPES[kind].label} - ${MASS_SHAPES[kind].note}`}
-              className={`h-8 w-8 text-[14px] leading-none max-sm:h-11 max-sm:w-11 ${pressable(shape.kind === kind)}`}
+              className={`h-8 w-8 text-key leading-none max-sm:h-tap max-sm:w-tap ${pressable(shape.kind === kind)}`}
             >
               {MASS_SHAPE_GLYPHS[kind]}
             </button>
@@ -961,7 +961,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
       </Section>
 
       <Section id="colour" label="COLOUR">
-        <div className="flex flex-wrap gap-[2px]">
+        <div className="flex flex-wrap gap-0.5">
           {MASS_DYES.map((dye) => {
             const on = shape.colour === dye.value;
             return (
@@ -972,7 +972,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
                 aria-pressed={on}
                 aria-label={dye.label}
                 title={dye.label}
-                className={`h-7 w-7 cursor-pointer rounded-none border-2 max-sm:h-11 max-sm:w-11 ${on ? 'border-ink outline outline-2 outline-bubble' : 'border-ink'}`}
+                className={`h-7 w-7 cursor-pointer rounded-none border-line max-sm:h-tap max-sm:w-tap ${on ? 'border-ink outline outline-2 outline-bubble' : 'border-ink'}`}
                 style={{ background: dye.value ?? MODEL_INK }}
               />
             );
@@ -987,7 +987,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           value={shape.pin ?? ''}
           onChange={(event) => setPin(shape.id, event.target.value === '' ? null : event.target.value)}
           title={shape.pin === null ? "PINNED TO NOTHING: THE FIGURE CAN'T BE SAVED UNTIL IT IS PINNED TO A NODE." : 'FOLLOWS AND TURNS WITH THIS NODE WHEN YOU POSE.'}
-          className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[14px] text-ink max-sm:min-h-11"
+          className="w-full rounded-none border-line border-ink bg-paper px-1 py-1 text-key text-ink max-sm:min-h-tap"
         >
           <option value="">NOTHING - CAN&apos;T SAVE</option>
           {Object.keys(joints).map((id) => (
@@ -998,7 +998,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
         </select>
       </Section>
 
-      <div className="flex gap-1 border-t-2 border-ink p-2">
+      <div className="flex gap-1 border-t-line border-ink p-2">
         <button
           type="button"
           onClick={() => {
@@ -1006,11 +1006,11 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           }}
           aria-disabled={full}
           title={full ? FULL_SHAPES : 'A COPY, BESIDE IT, PINNED TO THE SAME NODE.'}
-          className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)}`}
+          className={`flex-1 px-2 py-1 text-label ${pressable(false)}`}
         >
           [ DUPLICATE ]
         </button>
-        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}>
+        <button type="button" onClick={() => deleteShape(shape.id)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}>
           [ DELETE ]
         </button>
       </div>
@@ -1055,12 +1055,12 @@ function Section({ id, label, children }: { id: SectionId; label: string; childr
   const toggleSection = useCharacterStore((state) => state.toggleSection);
 
   return (
-    <div className="border-t-2 border-ink">
+    <div className="border-t-line border-ink">
       <button
         type="button"
         onClick={() => toggleSection(id)}
         aria-expanded={open}
-        className="flex w-full cursor-pointer items-center justify-between px-2 py-1 text-[13px] font-bold text-ink hover:bg-ice max-sm:min-h-11"
+        className="flex w-full cursor-pointer items-center justify-between px-2 py-1 text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap"
       >
         <span>{label}</span>
         <span aria-hidden>{open ? '▾' : '▸'}</span>
@@ -1094,7 +1094,7 @@ function FigureSettings() {
           type="button"
           onClick={() => setPresetPicker(true)}
           title="START AGAIN FROM ONE OF THE PRESETS. UNDO BRINGS THIS ONE BACK."
-          className={`px-2 py-2 text-[14px] ${pressable(false)}`}
+          className={`px-2 py-2 text-key ${pressable(false)}`}
         >
           [ NEW FIGURE... ]
         </button>
@@ -1119,16 +1119,16 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
 
   if (asking && losing.length > 0) {
     return (
-      <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-2 border-ink p-1 text-[13px] text-ink">
+      <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-line border-ink p-1 text-label text-ink">
         <p className="font-bold">
           DELETES {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}. UNPINS {losing.map((shape) => shape.name).join(', ')}
           {' '}- MARKED UNTIL RE-PINNED.
         </p>
         <div className="flex gap-1">
-          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}>
+          <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}>
             [ YES, DELETE ]
           </button>
-          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-[13px] ${pressable(false)}`}>
+          <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-label ${pressable(false)}`}>
             [ NO ]
           </button>
         </div>
@@ -1150,7 +1150,7 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
           ? "THE ROOT NODE HOLDS THE FIGURE UP: IT CAN'T GO."
           : `DELETES ${jointLabel(nodeId)}${removed.length > 1 ? ' AND THE NODES BELOW IT' : ''}. UNDO BRINGS IT BACK.`
       }
-      className={`px-2 py-1 text-[13px] ${pressable(false)} hover:bg-bubble-pale`}
+      className={`px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}
     >
       [ DELETE NODE ]
     </button>
@@ -1161,9 +1161,9 @@ function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; 
   return (
     <div className="flex flex-col gap-1">
       {htmlFor === undefined ? (
-        <span className="text-[13px] font-bold text-ink">{label}</span>
+        <span className="text-label font-bold text-ink">{label}</span>
       ) : (
-        <label htmlFor={htmlFor} className="text-[13px] font-bold text-ink">
+        <label htmlFor={htmlFor} className="text-label font-bold text-ink">
           {label}
         </label>
       )}
@@ -1200,7 +1200,7 @@ function TextFieldBox({ label, value, onCommit }: { label: string; value: string
           if (event.key === 'Enter') commit();
           if (event.key === 'Escape') setDraft(value);
         }}
-        className="w-full rounded-none border-2 border-ink bg-paper px-1 py-1 text-[14px] uppercase text-ink max-sm:min-h-11"
+        className="w-full rounded-none border-line border-ink bg-paper px-1 py-1 text-key uppercase text-ink max-sm:min-h-tap"
       />
     </Field>
   );
@@ -1256,10 +1256,10 @@ function TripleFieldBoxes({
         if (!event.currentTarget.contains(event.relatedTarget as Node | null)) commit();
       }}
     >
-      <legend className="pb-1 text-[13px] font-bold text-ink">{label}</legend>
+      <legend className="pb-1 text-label font-bold text-ink">{label}</legend>
       <div className="grid grid-cols-3 gap-1">
         {axes.map((axis, index) => (
-          <label key={axis} className="flex flex-col text-[13px] text-ink">
+          <label key={axis} className="flex flex-col text-label text-ink">
             {names[index]}
             <input
               type="number"
@@ -1270,7 +1270,7 @@ function TripleFieldBoxes({
               onKeyDown={(event) => {
                 if (event.key === 'Enter') commit();
               }}
-              className="w-full min-w-0 rounded-none border-2 border-ink bg-paper px-1 py-[2px] text-[14px] text-ink max-sm:min-h-11"
+              className="w-full min-w-0 rounded-none border-line border-ink bg-paper px-1 py-0.5 text-key text-ink max-sm:min-h-tap"
             />
           </label>
         ))}

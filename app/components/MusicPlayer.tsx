@@ -326,15 +326,15 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   }, [loop, playing, player]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-2 border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
+    <div className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           {/* The player's own name, and its fold, together: they are the same thing said twice - what
               this strip is, and how to put it away. The fold used to sit at the far right, past the
               music key, which made it the last of six controls rather than part of the bar's identity -
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
-          <span className="flex items-center gap-1 frame bg-sun-pale p-[2px]">
-            <span className="key bg-ena px-2 py-[3px] text-[13px] font-bold text-ink-bar">
+          <span className="flex items-center gap-1 frame bg-sun-pale p-0.5">
+            <span className="key bg-ena px-2 py-0.75 text-label font-bold text-ink-bar">
               ♪ DEBASER PLAYER
             </span>
 
@@ -362,7 +362,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
                 Pure White is 21:1 either way, and it still reads as the screen's second line beside the
                 Emerald title. */}
             <MarqueeText
-              className="mt-1 block text-[13px] leading-[13.5px] text-ink-bar"
+              className="mt-1 block text-label leading-readout-tight text-ink-bar"
               durationSeconds={22}
               text={`${followNote(follow)}${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
             />
@@ -383,7 +383,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             onNext={player.next}
           />
 
-          <label className="flex items-center gap-1 text-[13px] font-bold text-ink">
+          <label className="flex items-center gap-1 text-label font-bold text-ink">
             VOL
             <input
               type="range"
@@ -500,20 +500,20 @@ function TransportPad({
           title="Previous track"
           aria-label="Previous track"
         >
-          <span aria-hidden="true" className="text-[13px] leading-none">
+          <span aria-hidden="true" className="text-label leading-none">
             ◀
           </span>
         </button>
 
         {/* The one cell: a single symbol, the state it is showing, and the next state as the tooltip -
             so a reader who is unsure gets the answer from the title rather than from guessing. */}
-        <span className="flex items-center frame bg-hardware px-1 py-[2px]">
+        <span className="flex items-center frame bg-hardware px-1 py-0.5">
           <button
             type="button"
             onClick={onCycle}
             disabled={disabled}
             title={`${WORD[state]} - press for ${WORD[state === 'playing' ? 'paused' : state === 'paused' ? 'looping' : 'playing']}`}
-            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-[20px] font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
+            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-display font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
               {MARK[state]}
@@ -530,7 +530,7 @@ function TransportPad({
           title="Next track"
           aria-label="Next track"
         >
-          <span aria-hidden="true" className="text-[13px] leading-none">
+          <span aria-hidden="true" className="text-label leading-none">
             ▶
           </span>
         </button>
@@ -563,7 +563,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
       }
     >
       {player.queue.length === 0 ? (
-        <p className="text-[13px] font-bold text-ink">
+        <p className="text-label font-bold text-ink">
           NOTHING ON THE SHELF YET - FILE A TRACK ON THE MUSIC PAGE.
         </p>
       ) : (
@@ -574,7 +574,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
             return (
               <li
                 key={`${entry.id}-${position}`}
-                className={`flex flex-wrap items-center gap-2 rounded-none border border-ink p-2 text-[13px] font-bold text-ink ${
+                className={`flex flex-wrap items-center gap-2 rounded-none border border-ink p-2 text-label font-bold text-ink ${
                   playingThis ? 'bg-sun-pale' : 'bg-paper'
                 }`}
               >
@@ -631,14 +631,14 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           right edge has no padding because the fold key's box already holds its glyph off the edge. */}
       {/* No bar behind the row: the card's own fill, the name in the accent ink the way a window is
           titled, and a rule under it - the last Royal Blue strip left from the Win95 chrome. */}
-      <div className="flex items-center justify-between gap-1 border-b-2 border-ink pl-2 text-[13px] font-bold">
+      <div className="flex items-center justify-between gap-1 border-b-line border-ink pl-2 text-label font-bold">
         <span className="truncate text-accent-ink">♪ PLAYER</span>
 
         <span className="flex shrink-0 items-center">
           <button
             type="button"
             onClick={onSettings}
-            className="min-h-11 min-w-11 cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-tap min-w-tap cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Player options"
           >
             ⚙
@@ -650,7 +650,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onMusic}
-            className="min-h-11 cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-tap cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open your music"
             aria-haspopup="dialog"
           >
@@ -660,7 +660,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onQueues}
-            className="min-h-11 cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-tap cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
             title="Open queues"
             aria-haspopup="dialog"
           >
@@ -670,7 +670,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           <button
             type="button"
             onClick={onHide}
-            className="min-h-11 min-w-11 cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
+            className="min-h-tap min-w-tap cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
             title="Fold the player away"
           >
             ▾
@@ -683,7 +683,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
         <div className="frame bg-hardware px-2 py-1">
           <NowPlaying />
           {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
-          <p className="truncate text-[13px] text-ink-bar">
+          <p className="truncate text-label text-ink-bar">
             {followNote(follow)}
             {error ?? trackCaption(track)}
             {loop ? ' :: LOOPING' : ''}
@@ -704,7 +704,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           aria-label="Seek"
         />
 
-        <div className="flex items-center justify-between text-[13px] font-bold text-ink">
+        <div className="flex items-center justify-between text-label font-bold text-ink">
           <span>{formatClock(elapsed)}</span>
           <span>{formatClockOrNothing(seekable ? duration : undefined)}</span>
         </div>
@@ -739,7 +739,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
           </button>
 
-          <label className="ml-auto flex items-center gap-1 text-[13px] font-bold text-ink">
+          <label className="ml-auto flex items-center gap-1 text-label font-bold text-ink">
             VOL
             <input
               type="range"

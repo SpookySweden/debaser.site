@@ -73,14 +73,14 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
       {/* The bar over the drawing says where the picture came from, because "a picture in this post"
           and "a picture somebody replied with" are different things to be shown - the second is why a
           reply can put a post in this view at all (app/lib/forum/media.ts). */}
-      <div className="flex items-center justify-between gap-2 bg-chrome-dark px-2 py-[3px] text-[13px] font-bold leading-none text-ink">
+      <div className="flex items-center justify-between gap-2 bg-chrome-dark px-2 py-0.75 text-label font-bold leading-none text-ink">
         <span className="truncate" title={layout.left.imageSource}>
           {layout.left.imageSource}
         </span>
         <span className="shrink-0">{layout.repliesLabel}</span>
       </div>
 
-      <div className="border-b border-black bg-paper p-1">
+      <div className="border-b border-ink-plate bg-paper p-1">
         {image === undefined ? null : (
           <SheetImage
             src={image.src}
@@ -97,7 +97,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
 
         {/* The same one-line credit strip the board's rows carry, so a post looks like itself in
             both views: the picture leading, then the name, the stamp and the tags given to them. */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-ink">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
           <PostAuthorRow
             author={layout.author.credit}
             avatar={layout.avatar}
@@ -115,7 +115,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
         </div>
 
         {layout.right.isAnchorPost ? null : (
-          <p className="whitespace-pre-line text-[15px] leading-normal text-ink">{layout.right.body}</p>
+          <p className="whitespace-pre-line text-prose leading-normal text-ink">{layout.right.body}</p>
         )}
 
         <TagStrip tags={layout.left.tags} limit={5} emptyLabel="NO TAGS" className="mt-1" />
@@ -124,7 +124,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
             were typed - the tags belong to the post or to somebody's reply, and a tile whose own tag
             list does not show the match has to say where it is. */}
         {matched.length === 0 ? null : (
-          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-black bg-sun-pale px-1 py-[2px] text-[13px] font-bold text-ink">
+          <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink-plate bg-sun-pale px-1 py-0.5 text-label font-bold text-ink">
             <span>FILTER MATCH:</span>
             <TagStrip tags={matched} />
             <span className="text-ink">

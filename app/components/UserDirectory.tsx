@@ -96,18 +96,18 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
         </div>
 
         {compact ? null : (
-          <p className="border-b border-ink px-2 py-1 text-[13px] font-bold text-ink">
+          <p className="border-b border-ink px-2 py-1 text-label font-bold text-ink">
             {counts.online} ONLINE :: {counts.recent} SEEN THIS HOUR :: {counts.offline} ELSEWHERE :: THE HOUSE
             ACCOUNT FIRST
           </p>
         )}
 
         {!accountsReady ? (
-          <p className={`${compact ? 'px-2 py-1 text-[13px]' : 'p-3 text-[13px]'} font-bold text-ink`}>
+          <p className={`${compact ? 'px-2 py-1 text-label' : 'p-3 text-label'} font-bold text-ink`}>
             READING...
           </p>
         ) : rows.length === 0 ? (
-          <p className={`${compact ? 'px-2 py-1 text-[13px]' : 'p-3 text-[13px]'} font-bold text-ink`}>
+          <p className={`${compact ? 'px-2 py-1 text-label' : 'p-3 text-label'} font-bold text-ink`}>
             NO ACCOUNTS YET.
           </p>
         ) : (
@@ -145,7 +145,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             <span>[ LEGEND ]</span>
           </div>
 
-          <div className="space-y-1 p-3 text-[13px] font-bold text-ink">
+          <div className="space-y-1 p-3 text-label font-bold text-ink">
             <p>
               GREEN WHILE A TAB OF THAT ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS
               PASSED.
@@ -156,16 +156,16 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
             </p>
             <p className="text-ink">
-              <Link href="/forum" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+              <Link href="/forum" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
                 [ BOARD ]
               </Link>{' '}
-              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
                 [ ARCADE ]
               </Link>{' '}
-              <Link href="/comms" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+              <Link href="/comms" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
                 [ COMMS ]
               </Link>{' '}
-              <Link href="/account" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-11 max-sm:items-center">
+              <Link href="/account" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
                 [ ACCOUNT ]
               </Link>
             </p>

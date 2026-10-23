@@ -58,13 +58,13 @@ export default function RadioLoops() {
         <span>[ {loops.length} ]</span>
       </div>
 
-      <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-quiet">
+      <p className="border-b border-ink px-2 py-1 text-label text-ink-quiet">
         EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO
         BACK TO WHERE YOU WERE IN IT.
       </p>
 
       {loops.length === 0 ? (
-        <p className="p-3 text-[14px] font-bold text-ink">
+        <p className="p-3 text-key font-bold text-ink">
           NOTHING HERE YET. PUT SOMETHING ON - FROM THE MUSIC WINDOW, OR SOMEBODY&apos;S PROFILE - AND IT
           WILL APPEAR, KEEPING YOUR PLACE.
         </p>
@@ -92,7 +92,7 @@ export default function RadioLoops() {
             <button
               type="button"
               onClick={clearAllLoops}
-              className="shrink-0 cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink max-sm:min-h-11"
+              className="shrink-0 cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink max-sm:min-h-tap"
             >
               [ CLEAR ALL ]
             </button>
@@ -206,7 +206,7 @@ function LoopIcon({
           height reserves it, so notes arriving never push the face or a neighbour. */}
       <span
         aria-hidden="true"
-        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-[13px] font-bold leading-none ${ink} ${
+        className={`pointer-events-none absolute inset-x-0 top-[3px] z-10 text-center text-label font-bold leading-none ${ink} ${
           mood === 'playing' ? 'animate-blip' : mood === 'hover' ? 'animate-hop' : ''
         }`}
       >
@@ -233,12 +233,12 @@ function LoopIcon({
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
         aria-label={`${label} - press to go back to where you were in it`}
-        className="group flex h-11 cursor-pointer items-end justify-center rounded-none px-1 pb-[5px] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+        className="group flex h-11 cursor-pointer items-end justify-center rounded-none px-1 pb-1.25 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
       >
         <span
           aria-hidden="true"
-          className={`whitespace-pre font-emote text-[15px] font-bold leading-none tracking-tighter ${ink} ${
-            mood === 'hover' ? 'animate-hop' : mood === 'scared' ? 'animate-shake' : mood === 'press' ? 'translate-y-[2px]' : ''
+          className={`whitespace-pre font-emote text-prose font-bold leading-none tracking-tighter ${ink} ${
+            mood === 'hover' ? 'animate-hop' : mood === 'scared' ? 'animate-shake' : mood === 'press' ? 'translate-y-0.5' : ''
           }`}
         >
           {loopFace(loop.origin, mood, takenOver)}
@@ -259,7 +259,7 @@ function LoopIcon({
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
         aria-label={`Clear ${label} from your recent listening`}
-        className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-black bg-bubble-pale text-[13px] font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
+        className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-label font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}
         style={{ transition: 'transform 90ms steps(2, jump-none)' }}

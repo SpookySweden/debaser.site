@@ -48,7 +48,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
   return (
     <ul
       role="menu"
-      className="w-full max-w-md frame bg-sun-pale py-[2px]"
+      className="w-full max-w-md frame bg-sun-pale py-0.5"
     >
       {options.map((option) => {
         const label = ASPECTS.find((aspect) => aspect.kind === option.kind)?.label ?? option.kind;
@@ -60,7 +60,7 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
               role="menuitem"
               disabled={!option.available}
               onClick={() => onChoose(option.kind)}
-              className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-[13px] font-bold ${
+              className={`flex w-full items-baseline justify-between gap-x-3 px-2 py-1 text-left text-label font-bold ${
                 option.available
                   ? 'cursor-pointer text-ink hover:bg-ena hover:text-ink-bar'
                   : 'cursor-default text-ink'
@@ -129,7 +129,7 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
         </button>
       </span>
 
-      <span className="text-[13px] font-bold text-ink">
+      <span className="text-label font-bold text-ink">
         {openable === 0 ? 'nothing open to comments' : `${openable} of ${options.length} open to comments`}
       </span>
 

@@ -30,9 +30,9 @@ export default function GuestOffer() {
   if (status !== 'anonymous') return null;
 
   return (
-    <p className="mb-4 text-[14px]">
+    <p className="mb-4 text-key">
       Guests post as Anonymous.{' '}
-      <Link href="/account" className={`${PLATE_LINK} inline-block text-[13px]`}>
+      <Link href="/account" className={`${PLATE_LINK} inline-block text-label`}>
         CREATE AN ACCOUNT OR LOG IN
       </Link>
       {' '}to sign your posts, unlock comms and keep your profile alive.

@@ -40,12 +40,12 @@ export default function NewsTicker() {
 
       <NewsCrawl
         items={items}
-        className="overflow-hidden px-1 py-[3px]"
+        className="overflow-hidden px-1 py-0.75"
         emptyLabel="NOTHING PINNED YET - A POST APPEARS HERE ONCE A MODERATOR PINS IT."
       />
 
       {items.length === 0 ? null : (
-        <p className="px-2 py-1 text-[13px] font-bold text-ink">
+        <p className="px-2 py-1 text-label font-bold text-ink">
           POINT AT IT TO STOP THE CRAWL :: CLICK A ROW TO OPEN THE POST
         </p>
       )}

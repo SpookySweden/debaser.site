@@ -35,7 +35,7 @@ export default function Taskbar({ status }: TaskbarProps) {
   const { unreadTotal } = useComms();
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-2 border-ink px-1 py-[3px] text-[13px] text-ink">
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-line border-ink px-1 py-0.75 text-label text-ink">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
@@ -48,7 +48,7 @@ export default function Taskbar({ status }: TaskbarProps) {
         // screen entirely, where the profile picture is the only door.
         className={`hidden sm:inline-flex ${
           menuOpen
-            ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] font-bold text-paper'
+            ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-0.5 text-label font-bold text-paper'
             : PLATE
         }`}
       >
@@ -73,7 +73,7 @@ export default function Taskbar({ status }: TaskbarProps) {
           The strip has no bar of its own any more - it is a rule across the foot of the window, on the
           window's fill - so the caption is in the field's quiet ink, which moves with the theme. (It was
           `text-ink-plate` while the strip was a Daffodil bar that did not move with the theme.) */}
-      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-[13px] text-ink-quiet">
+      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-label text-ink-quiet">
         <span className="truncate">Status: {status}</span>
         <span aria-hidden="true" className="max-sm:hidden">
           ::

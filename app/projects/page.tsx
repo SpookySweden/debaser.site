@@ -34,7 +34,7 @@ export default function ProjectsPage() {
         landing page, and that page gathers its parts - the sheets, the score, the notes and the links -
         so this is the map and the page behind each row is the territory.
       </p>
-      <p className="text-[13px] font-bold mb-4 text-ink">
+      <p className="text-label font-bold mb-4 text-ink">
         {ARCHIVE_PROJECTS.length} {pluralise(ARCHIVE_PROJECTS.length, 'PROJECT')} FILED ::{' '}
         {shelfCount} {pluralise(shelfCount, 'SHELF')} ON THE LINK PAGE.
       </p>
@@ -51,7 +51,7 @@ export default function ProjectsPage() {
               <Link
                 href={project.href}
                 title={project.summary}
-                className="block p-3 text-[13px] font-bold hover:bg-pointed"
+                className="block p-3 text-label font-bold hover:bg-pointed"
               >
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-sm">{project.title}</span>
@@ -65,9 +65,9 @@ export default function ProjectsPage() {
         </ul>
       </section>
 
-      <div className="mt-6 border border-black bg-ice-pale p-4">
-        <p className="mb-2 text-[14px] font-bold">NOT A PROJECT:</p>
-        <p className="text-[13px] font-bold text-ink">
+      <div className="mt-6 border border-ink-plate bg-ice-pale p-4">
+        <p className="mb-2 text-key font-bold">NOT A PROJECT:</p>
+        <p className="text-label font-bold text-ink">
           THE BOARD AND THE SITE&apos;S OWN ROOMS - USERS, COMMS, THE ACCOUNT - ARE THE ARCHIVE&apos;S
           RATHER THAN ANY PROJECT&apos;S. THEY LIVE ON THE HEADER ALONG THE TOP OF EVERY PAGE, WHICH
           IS WHERE A READER GOES FOR THEM.

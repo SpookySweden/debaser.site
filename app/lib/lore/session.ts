@@ -1,5 +1,6 @@
 import * as Y from 'yjs';
 import { Awareness, applyAwarenessUpdate, encodeAwarenessUpdate, removeAwarenessStates } from 'y-protocols/awareness';
+import { DYES } from '../ui/themes';
 import type { LoreChannelMessage, LoreRoom } from './types';
 
 /**
@@ -118,7 +119,7 @@ export function createLoreSession({ room, doc, awareness, user }: LoreSessionOpt
       peers.push({
         clientId,
         name: typeof identity?.name === 'string' && identity.name.length > 0 ? identity.name : 'SOMEONE',
-        colour: typeof identity?.colour === 'string' ? identity.colour : '#1d3ca6',
+        colour: typeof identity?.colour === 'string' ? identity.colour : DYES.royalBlue,
         self: clientId === doc.clientID,
       });
     });

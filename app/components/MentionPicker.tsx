@@ -37,13 +37,13 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
 
   return (
     <div className="mt-2 border border-ink bg-ice-pale p-1">
-      <div className="flex flex-wrap items-center gap-1 text-[13px] font-bold text-ink">
+      <div className="flex flex-wrap items-center gap-1 text-label font-bold text-ink">
         <label htmlFor={`${id}-mention`}>TAG A USER:</label>
         <select
           id={`${id}-mention`}
           value={picked}
           onChange={(event) => setPicked(event.target.value)}
-          className="max-w-40 frame bg-paper p-1 font-mono text-[13px] text-ink outline-none max-sm:min-h-11"
+          className="max-w-40 frame bg-paper p-1 font-mono text-label text-ink outline-none max-sm:min-h-tap"
         >
           <option value="">PICK AN ACCOUNT...</option>
           {accounts
@@ -63,7 +63,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
             onChange(insertMention(body, account.displayName));
             setPicked('');
           }}
-          className="cursor-pointer key bg-sun-pale px-2 py-[2px] font-bold hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-11 max-sm:px-3"
+          className="cursor-pointer key bg-sun-pale px-2 py-0.5 font-bold hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-tap max-sm:px-3"
         >
           [ TAG ]
         </button>
@@ -77,7 +77,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
           {mentioned.map((account) => (
             <li
               key={account.id ?? account.displayName}
-              className="flex items-center gap-1 border border-ink bg-paper px-1 py-[1px] text-[13px] font-bold text-ink"
+              className="flex items-center gap-1 border border-ink bg-paper px-1 py-0.25 text-label font-bold text-ink"
             >
               <ProfileName author={{ id: account.id, displayName: account.displayName }} lamp={false} />
               <span className="font-normal text-ink">{mentionToken(account.displayName)}</span>
@@ -86,7 +86,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
                 title="Remove this tag"
-                className="cursor-pointer border border-ink bg-sun-pale px-1 text-[13px] font-bold text-ink hover:bg-ice max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm"
+                className="cursor-pointer border border-ink bg-sun-pale px-1 text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
               >
                 x
               </button>
@@ -96,7 +96,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
       )}
 
       {autoTag === null ? null : (
-        <p className="mt-1 text-[13px] font-bold text-ink">
+        <p className="mt-1 text-label font-bold text-ink">
           ANSWERS THIS POST, SO{' '}
           <ProfileName author={{ id: autoTag.id, displayName: autoTag.displayName }} lamp={false} /> IS TAGGED
           AUTOMATICALLY.

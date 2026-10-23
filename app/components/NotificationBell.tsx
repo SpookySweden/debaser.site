@@ -12,7 +12,7 @@ function UnreadDot() {
   return (
     <span
       aria-hidden
-      className="ml-[2px] inline-block h-[6px] w-[6px] shrink-0 border border-black bg-bubble-pale align-middle"
+      className="ml-0.5 inline-block h-[6px] w-[6px] shrink-0 border border-ink-plate bg-bubble-pale align-middle"
     />
   );
 }
@@ -27,7 +27,7 @@ function UnreadDot() {
  * dropping the label from the face.
  */
 const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink';
+  'inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink';
 
 /**
  * The notices key in the side panel, and the pop-up that answers it.
@@ -67,7 +67,7 @@ export default function NotificationBell() {
         title={signedIn ? `Notifications: ${notifications.summary}` : 'Sign in to be tagged'}
         className={BELL_BUTTON}
       >
-        <span aria-hidden="true" className="text-[13px] leading-none">
+        <span aria-hidden="true" className="text-label leading-none">
           {ICON_BELL}
         </span>
         <span>[ {unread} NEW ]</span>
@@ -90,7 +90,7 @@ export default function NotificationBell() {
 }
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-[13px] font-bold text-ink hover:bg-ice-pale';
+  'block w-full rounded-none border border-ink bg-paper px-2 py-0.75 text-left text-label font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The same menu, as a phone does it: one row among the other buttons in the profile pop-up.

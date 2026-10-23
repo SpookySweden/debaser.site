@@ -1,4 +1,5 @@
 import { nameColourHex } from '../profile/name-colours';
+import { DYES } from '../ui/themes';
 
 /**
  * The house account.
@@ -43,7 +44,7 @@ export const SITE_ACCOUNT_ADDRESS = 'admin1212@debaser.site';
 export const SITE_ACCOUNT_DISPLAY_NAME = 'debaser.site';
 
 /** Royal Blue: the swatch out of the eight a username can be drawn in. */
-export const SITE_ACCOUNT_NAME_COLOUR = nameColourHex('royal-blue') ?? '#1d3ca6';
+export const SITE_ACCOUNT_NAME_COLOUR = nameColourHex('royal-blue') ?? DYES.royalBlue;
 
 /** The address a typed sign-in identifier stands for, whatever the backend needs. */
 export function resolveSignInAddress(identifier: string): string {

@@ -75,7 +75,7 @@ export default function CommsGroupBar({
   const others = thread.participants.filter((id) => id !== userId);
 
   return (
-    <div className="mb-2 space-y-1 text-[13px] font-bold text-ink">
+    <div className="mb-2 space-y-1 text-label font-bold text-ink">
       <div className="flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => setAdding(!adding)} className={PLATE}>
           {adding ? '[ CANCEL ]' : '[ + ADD MEMBER ]'}

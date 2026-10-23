@@ -45,7 +45,7 @@ export default function GuestPrompt() {
       role="status"
       // The docked windows read this strip's height so no title bar can be dragged under it.
       data-top-bar
-      className="fixed inset-x-0 top-0 z-[95] flex flex-wrap items-center gap-2 border-b-2 border-black bg-acid px-1 py-1 animate-alarm"
+      className="fixed inset-x-0 top-0 z-banner flex flex-wrap items-center gap-2 border-b-line border-ink-plate bg-acid px-1 py-1 animate-alarm"
     >
       {/* The words sit on Black, and the Emerald/Rose flash is the frame around them.
           This is not decoration: the two dyes you named have no common ink. Black is 9.35:1 on Emerald
@@ -53,10 +53,10 @@ export default function GuestPrompt() {
           *field* alternated could not be read for half of every second, whichever ink it used. The
           alarm is therefore the border, which carries no text, and the text is on the one surface that
           does not change. */}
-      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 bg-hardware px-2 py-1 text-[13px] font-bold text-ink-bar">
+      <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2 bg-hardware px-2 py-1 text-label font-bold text-ink-bar">
         {/* A glyph rather than a lamp: this is a sentence, and a blinking colon would imply it is
             waiting for something. */}
-        <span aria-hidden="true" className="shrink-0 text-[13px] leading-none">
+        <span aria-hidden="true" className="shrink-0 text-label leading-none">
           ☻
         </span>
 
@@ -68,7 +68,7 @@ export default function GuestPrompt() {
 
         <Link
           href="/account"
-          className="shrink-0 cursor-pointer key bg-hardware px-2 py-[3px] text-[13px] font-bold text-ink-bar hover:text-sun active:translate-y-[1px] active:bg-bubble active:text-ink-plate"
+          className="shrink-0 cursor-pointer key bg-hardware px-2 py-0.75 text-label font-bold text-ink-bar hover:text-sun active:translate-y-press active:bg-bubble active:text-ink-plate"
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>

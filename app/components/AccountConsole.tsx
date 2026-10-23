@@ -36,7 +36,7 @@ export default function AccountConsole() {
           </span>
         </div>
 
-        <div className="space-y-1 p-3 text-[13px] font-bold text-ink">
+        <div className="space-y-1 p-3 text-label font-bold text-ink">
           <p>
             SIGNED IN AS:{' '}
             {user === null ? (
@@ -56,7 +56,7 @@ export default function AccountConsole() {
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
         </div>
 
-        <ul className="grid gap-1 p-3 text-[13px] font-bold text-ink sm:grid-cols-2">
+        <ul className="grid gap-1 p-3 text-label font-bold text-ink sm:grid-cols-2">
           {SECTIONS.map((section) => (
             <li key={section.id}>
               {signedIn ? (
@@ -72,7 +72,7 @@ export default function AccountConsole() {
           ))}
         </ul>
 
-        <p className="px-3 pb-2 text-[13px] text-ink">
+        <p className="px-3 pb-2 text-label text-ink">
           {signedIn
             ? 'EACH ENTRY JUMPS TO THAT SECTION ON THIS PAGE. THE PICTURE CONSOLE OPENS AS A POP-UP FROM THE PUBLIC PROFILE PANEL.'
             : 'CREATE AN ACCOUNT OR LOG IN BELOW AND THESE SECTIONS APPEAR STRAIGHT AWAY.'}
@@ -80,7 +80,7 @@ export default function AccountConsole() {
       </section>
 
       {status === 'loading' ? (
-        <p className="frame bg-paper p-3 text-[14px] font-bold text-ink">
+        <p className="frame bg-paper p-3 text-key font-bold text-ink">
           READING THE LOCAL SESSION...
         </p>
       ) : user === null ? (

@@ -88,7 +88,7 @@ export default function PopoutWindow({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[100] flex items-start justify-center overflow-y-auto bg-hardware/60 p-4 sm:p-8"
+      className="fixed inset-0 z-popout flex items-start justify-center overflow-y-auto bg-hardware/60 p-4 sm:p-8"
       onMouseDown={dismissOnBackdrop ? onClose : undefined}
     >
       <div
@@ -116,7 +116,7 @@ export default function PopoutWindow({
               onPointerDown={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label="Close window"
-              className={`${TITLE_BAR_BUTTON} max-sm:min-h-11 max-sm:min-w-11`}
+              className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap max-sm:min-w-tap`}
             >
               ×
             </button>
@@ -138,7 +138,7 @@ export default function PopoutWindow({
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer key bg-sun-pale px-3 py-1 text-[14px] font-bold hover:text-accent-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-sm"
+              className="cursor-pointer key bg-sun-pale px-3 py-1 text-key font-bold hover:text-accent-ink max-sm:min-h-tap max-sm:px-4 max-sm:py-2 max-sm:text-sm"
             >
               [ CLOSE ]
             </button>

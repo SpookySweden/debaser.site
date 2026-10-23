@@ -1,0 +1,210 @@
+/* =====================================================================================================
+   THE LOOK, IN ONE PLACE.
+
+   Every size, line, colour, face, layer and speed the site is drawn with is named here, and components
+   ask for the *name* (`text-label`, `border-line`, `bg-sun-pale`, `z-popout`), never a raw value.
+   `npm run tokens` (part of `npm run verify`) refuses a raw value anywhere else - see `docs/theming.md`
+   for how to change a colour, a face or the overall scale, and `/specimen` to see every token at once.
+
+   Order: the dials, the colours (generated), the faces, the type, spacing, lines, layers, motion.
+   ===================================================================================================== */
+
+/* -----------------------------------------------------------------------------------------------------
+   THE DIALS. One number each, and everything of that kind follows.
+     --scale-type    every text size on the site (1.1 = everything 10% bigger)
+     --scale-space   every padding, gap, margin and box size on Tailwind's scale (`p-2`, `gap-3`, `w-56`)
+   The 44px phone tap size and the phone's 16px field text do not follow the dials: they are floors.
+   Outlines are not a dial but a value (`--border-width-line`): a line must stay a whole number of pixels.
+   ----------------------------------------------------------------------------------------------------- */
+:root,
+:host {
+  --scale-type: 1;
+  --scale-space: 1;
+}
+
+/* -----------------------------------------------------------------------------------------------------
+   COLOURS. Written from `app/lib/ui/themes.ts`, which is where a colour is changed: the nine dyes are
+   named once there (`DYES`), and each theme says which dye plays which part. This block is the fallback
+   theme's values (what a page shows before its script runs) and the dyes by name; `npm run tokens --
+   --write` rewrites it, and `npm run tokens` fails while it is out of date.
+   ----------------------------------------------------------------------------------------------------- */
+/* BEGIN GENERATED COLOURS */
+/* Written by `npm run tokens -- --write` from app/lib/ui/themes.ts. Do not edit by hand: change themes.ts. */
+
+/* The nine dyes by name, for the few rules that want a dye whatever the theme (the sprite slot). */
+:root,
+:host {
+  --dye-black: #000000;
+  --dye-nigrosine: #1a1525;
+  --dye-royal-blue: #1d3ca6;
+  --dye-daffodil: #fff000;
+  --dye-flavine: #e1ff00;
+  --dye-brilliant-pink: #ff00a0;
+  --dye-rose: #e6004c;
+  --dye-emerald: #28c745;
+  --dye-white: #ffffff;
+}
+
+/* The colours by job, as the fallback theme (dark) sets them. The theme switcher writes the
+   chosen theme over these on <html>. Tailwind's own palette is switched off: only these names exist. */
+@theme {
+  --color-*: initial;
+  --color-ink: #ffffff;
+  --color-ink-plate: #000000;
+  --color-ink-bar: #ffffff;
+  --color-accent-ink: #fff000;
+  --color-ink-quiet: #e1ff00;
+  --color-paper: #1a1525;
+  --color-chrome: #000000;
+  --color-chrome-dark: #000000;
+  --color-hardware: #000000;
+  --color-ena: #1d3ca6;
+  --color-ena-deep: #000000;
+  --color-sun: #fff000;
+  --color-pointed: #1d3ca6;
+  --color-pointed-quiet: #1d3ca6;
+  --color-sun-pale: #1a1525;
+  --color-ice: #1a1525;
+  --color-ice-pale: #000000;
+  --color-bubble: #ff00a0;
+  --color-bubble-pale: #e6004c;
+  --color-acid: #28c745;
+  --color-acid-pale: #1a1525;
+  --color-desktop: #1a1525;
+  --color-desktop-dither: #000000;
+  --color-accent: #fff000;
+}
+/* END GENERATED COLOURS */
+
+@theme {
+  /* (Colours are the generated block above, which also switches Tailwind's own palette off. A
+     `--color-*: initial` down here would wipe them: an @theme reset clears everything declared before it.) */
+
+  /* -----------------------------------------------------------------------------------------------------
+     FACES, BY JOB. Each job points at a face `app/theme/fonts.ts` loads (`--face-*`), with the faces a
+     machine probably has as the fallbacks. Swapping a face is one line in fonts.ts; giving titles their
+     own face is one line here. (Tailwind's `font-sans`/`font-serif` still exist but are refused by
+     `npm run tokens`: ask for a job, not a family. Not reset with `--font-*: initial`, which would also
+     take the weights that `font-bold` reads.)
+     ----------------------------------------------------------------------------------------------------- */
+  /* Everything that is not one of the jobs below: prose, labels, keys. */
+  --font-body: var(--face-pixel), 'MS Gothic', Osaka, 'Courier New', monospace;
+  /* Titles, when they get a face of their own. Nothing wears it yet: title lines inherit whatever their
+     window is set in (most of the board is in `font-mono`), and wearing this would change their fallback
+     faces. To give titles their own face: point this at it, and add `font-family: var(--font-display);`
+     to the `.title-line` rule in globals.css (or `font-display` on an element). */
+  --font-display: var(--font-body);
+  /* Fields, numbers and code: where the letters should line up. */
+  --font-mono: var(--face-pixel), 'MS Gothic', 'Courier New', monospace;
+  /* RADI-OH's text faces (`loopFace` in app/lib/audio/loops.ts): an emoticon needs a true lowercase `d`
+     and `b` and every character the same width, which the pixel face does not have. A typewriter face has
+     both and is on every machine. */
+  --font-emote: 'Courier New', 'Lucida Console', ui-monospace, monospace;
+  /* The page root's own stack (Tailwind puts it on <html>). Nothing reads it - body sets --font-body - but it
+     follows the same face, so a swap reaches it too. */
+  --default-font-family: var(--face-pixel), 'MS Gothic', Osaka, sans-serif;
+  --default-mono-font-family: var(--font-mono);
+
+  /* -----------------------------------------------------------------------------------------------------
+     TYPE, BY JOB. `text-label` and the rest; the dial above scales them all. Nothing on the site is
+     smaller than `label` (13px) - the design guide's floor.
+     ----------------------------------------------------------------------------------------------------- */
+  --text-*: initial;
+  /* The smallest label: captions, counts, small keys, list rows. */
+  --text-label: calc(13px * var(--scale-type));
+  /* Keys that have their line to themselves, and larger labels. */
+  --text-key: calc(14px * var(--scale-type));
+  /* Writing: posts, comments, comms, lore pages, bios, and the fields they are typed in. */
+  --text-prose: calc(15px * var(--scale-type));
+  /* Title lines. */
+  --text-title: calc(16px * var(--scale-type));
+  /* A heading inside a window. */
+  --text-heading: calc(18px * var(--scale-type));
+  /* The largest single glyph or heading in a window. */
+  --text-display: calc(20px * var(--scale-type));
+  /* A lore page's first heading. */
+  --text-headline: calc(24px * var(--scale-type));
+  /* The steps below carry their own line spacing (Tailwind's `text-sm` and friends): mostly the phone's
+     size for a key, and the page headings. */
+  --text-sm: calc(0.875rem * var(--scale-type));
+  --text-sm--line-height: calc(1.25 / 0.875);
+  --text-base: calc(1rem * var(--scale-type));
+  --text-base--line-height: calc(1.5 / 1);
+  --text-xl: calc(1.25rem * var(--scale-type));
+  --text-xl--line-height: calc(1.75 / 1.25);
+  --text-4xl: calc(2.25rem * var(--scale-type));
+  --text-4xl--line-height: calc(2.5 / 2.25);
+  --text-5xl: calc(3rem * var(--scale-type));
+  --text-5xl--line-height: 1;
+
+  /* Line spacing. The unitless ones scale with the text; the two in pixels are single-line readouts
+     (the player's screen, a notification badge) set to fit a fixed box. */
+  --leading-tight: 1.25;
+  --leading-snug: 1.375;
+  --leading-normal: 1.5;
+  --leading-relaxed: 1.625;
+  --leading-readout: 14px;
+  --leading-readout-tight: 13.5px;
+
+  /* Letter spacing on a tag badge. */
+  --tracking-tag: 0.02em;
+
+  /* -----------------------------------------------------------------------------------------------------
+     SPACING. Tailwind's unit: `p-1` is one unit, `gap-3` three. The dial scales the unit.
+     ----------------------------------------------------------------------------------------------------- */
+  --spacing: calc(0.25rem * var(--scale-space));
+  /* The phone tap target: 44px, the size Apple and Material both land on. A floor, so not on the dial. */
+  --spacing-tap: 2.75rem;
+
+  /* -----------------------------------------------------------------------------------------------------
+     LINES. The outline every window, panel, field and key wears (`.frame`), the rule under a title, the
+     rule over a status line, and `border-line` in a component. The notch at each corner of a frame is
+     one line wide, so it follows too. Keep it a whole number of pixels: a pixel line at 2.5px is a blur.
+     ----------------------------------------------------------------------------------------------------- */
+  --border-width-line: 2px;
+  /* The thick bar: a detached window's flash, a paddle. */
+  --border-width-thick: 4px;
+  /* `border` with no number: a hairline. */
+  --default-border-width: 1px;
+
+  /* How far a key drops when it is pressed. */
+  --translate-press: 1px;
+
+  /* -----------------------------------------------------------------------------------------------------
+     LAYERS: which floating thing sits over which. Small local stacking inside one component keeps
+     Tailwind's `z-10`..`z-50`; anything that floats over the whole site is named here, in order.
+     ----------------------------------------------------------------------------------------------------- */
+  --z-index-menu: 70;
+  --z-index-dock: 90;
+  --z-index-banner: 95;
+  --z-index-popout: 100;
+  --z-index-overlay: 120;
+
+  /* -----------------------------------------------------------------------------------------------------
+     MOTION. Every movement is in whole frames (`steps`), never eased - see the design guide's Feel.
+     The keyframes they name are in globals.css.
+     ----------------------------------------------------------------------------------------------------- */
+  --animate-wobble: wobble 150ms steps(2, jump-none) infinite;
+  --animate-bump: bump 220ms steps(2, jump-none) infinite;
+  --animate-shake: shake 120ms steps(2, jump-none) infinite;
+  /* The press: a key flashes Brilliant Pink. */
+  --animate-flash: flash 260ms steps(2, jump-none) 1;
+  --animate-marquee: marquee 16s linear infinite;
+  --animate-blip: blip 1s steps(2, jump-none) infinite;
+  /* A RADI-OH face perking up under the pointer. */
+  --animate-hop: hop 320ms steps(2, jump-none) infinite;
+  /* The alarm: Emerald and Rose, alternating in whole frames. */
+  --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
+  /* A docked window shaken out of its group: its frame blinks Brilliant Pink three times, then is gone. */
+  --animate-detach: detach 360ms steps(1, end) 1 forwards;
+  /* The news crawl (its duration is set per strip, from the number of rows) and the pin tick. */
+  --animate-crawl: crawl 40s linear infinite;
+  --animate-pin-tick: pin-tick 150ms ease-out;
+}
+
+/* The phone's field text: browsers zoom a page in when a field's text is under 16px, so this never goes
+   below 16 whatever the type dial says. */
+:root,
+:host {
+  --text-field-phone: max(16px, calc(16px * var(--scale-type)));
+}

@@ -52,7 +52,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
 
   return (
     <div
-      className={`rounded-none border border-ink bg-sun-pale ${compact ? 'p-1' : 'p-[5px]'}`}
+      className={`rounded-none border border-ink bg-sun-pale ${compact ? 'p-1' : 'p-1.25'}`}
       title={`MP3 filed by ${poster}`}
     >
       <div className="flex items-center gap-2">
@@ -65,14 +65,14 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
           {playing ? '[ ❚❚ ]' : '[ ▶ ]'}
         </button>
 
-        <span className="min-w-0 flex-1 frame bg-hardware px-2 py-[2px]">
-          <span className={`block truncate font-bold text-acid ${compact ? 'text-[13px]' : 'text-[14px]'}`}>
+        <span className="min-w-0 flex-1 frame bg-hardware px-2 py-0.5">
+          <span className={`block truncate font-bold text-acid ${compact ? 'text-label' : 'text-key'}`}>
             {track.title}
           </span>
           {/* The byline sits on the `bg-hardware` screen above, which is Black in *both* themes - so it
               takes the bar ink rather than a field ink: `text-ena-deep` was Nigrosine on Black (1.18:1)
               and became Black on Black in the dark theme. Pure White is 21:1 either way. */}
-          <span className="block truncate text-[13px] text-ink-bar">
+          <span className="block truncate text-label text-ink-bar">
             {poster}
             {track.credit.length === 0 || track.credit === poster ? '' : ` :: ${track.credit}`}
             {origin === undefined ? '' : ` :: ${origin}`}

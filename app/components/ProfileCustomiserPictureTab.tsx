@@ -58,7 +58,7 @@ export default function ProfileCustomiserPictureTab({
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
             {pendingSrc === null ? (
               <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center frame bg-ice-pale p-2 text-center">
-                <span className="text-[13px] font-bold text-ink">NOTHING CHOSEN</span>
+                <span className="text-label font-bold text-ink">NOTHING CHOSEN</span>
               </div>
             ) : (
               <ProfileAvatar
@@ -79,7 +79,7 @@ export default function ProfileCustomiserPictureTab({
           {/* basis-64: room to read or onto its own line (34px wide beside the two pictures on a 430px phone). */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
             <p className={CUSTOMISER_NOTE}>HOW IT WORKS</p>
-            <p className="text-[13px] text-ink">
+            <p className="text-label text-ink">
               CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P{nextVersion}. THE OLD ONE STAYS IN THE HISTORY
               BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.
             </p>
@@ -95,9 +95,9 @@ export default function ProfileCustomiserPictureTab({
                 const file = event.target.files?.[0];
                 if (file !== undefined) onUpload(file);
               }}
-              className="block w-full font-mono text-[13px] text-ink max-sm:min-h-11"
+              className="block w-full font-mono text-label text-ink max-sm:min-h-tap"
             />
-            {uploadMessage === null ? null : <p className="text-[13px] font-bold text-ink">{uploadMessage}</p>}
+            {uploadMessage === null ? null : <p className="text-label font-bold text-ink">{uploadMessage}</p>}
           </div>
         </div>
       </div>
@@ -106,7 +106,7 @@ export default function ProfileCustomiserPictureTab({
         <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
 
         {SITE_PICTURES.length === 0 ? (
-          <p className="mt-2 text-[13px] text-ink">
+          <p className="mt-2 text-label text-ink">
             NONE OF THE DRAWINGS ON THE SITE IS THE RIGHT SHAPE FOR A PROFILE PICTURE YET.
           </p>
         ) : (
@@ -116,14 +116,14 @@ export default function ProfileCustomiserPictureTab({
                 <button
                   type="button"
                   onClick={() => onSelectSrc(picture.src)}
-                  className={`flex cursor-pointer items-center gap-2 p-1 text-[13px] ${
+                  className={`flex cursor-pointer items-center gap-2 p-1 text-label ${
                     pendingSrc === picture.src
                       ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
                       : 'key bg-sun-pale text-ink hover:text-accent-ink'
                   }`}
                   title={picture.src}
                 >
-                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-black bg-paper">
+                  <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-ink-plate bg-paper">
                     <SheetImage
                       src={picture.src}
                       alt={picture.alt}
@@ -160,7 +160,7 @@ export default function ProfileCustomiserPictureTab({
           >
             {busy ? '[ WORKING... ]' : `[ FILE AS P${nextVersion} ]`}
           </button>
-          <p className="text-[13px] text-ink">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
+          <p className="text-label text-ink">THE PAGE CHANGES THE MOMENT IT IS FILED.</p>
         </div>
       </div>
 
@@ -168,7 +168,7 @@ export default function ProfileCustomiserPictureTab({
         <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
-          <p className="mt-2 text-[13px] font-bold text-ink">NO PICTURE HAS EVER BEEN FILED.</p>
+          <p className="mt-2 text-label font-bold text-ink">NO PICTURE HAS EVER BEEN FILED.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
@@ -178,7 +178,7 @@ export default function ProfileCustomiserPictureTab({
               >
                 <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel />
 
-                <div className="min-w-0 flex-1 text-[13px] text-ink">
+                <div className="min-w-0 flex-1 text-label text-ink">
                   <p className="font-bold">
                     P{version.version}
                     {version.id === profile.avatar.currentVersionId ? ' [ CURRENT ]' : ''} ::{' '}

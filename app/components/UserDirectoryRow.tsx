@@ -82,7 +82,7 @@ export default function UserDirectoryRow({
    */
   if (compact) {
     return (
-      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-[13px] font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
+      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
         <StatusDot status={row.status} record={row.record} />
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
@@ -91,10 +91,10 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
 
-        {row.admin ? <span className="shrink-0 border border-black bg-ena px-1 text-ink-bar">[ A ]</span> : null}
-        {row.you ? <span className="shrink-0 border border-black bg-paper px-1">[ YOU ]</span> : null}
+        {row.admin ? <span className="shrink-0 border border-ink-plate bg-ena px-1 text-ink-bar">[ A ]</span> : null}
+        {row.you ? <span className="shrink-0 border border-ink-plate bg-paper px-1">[ YOU ]</span> : null}
         {row.account.banned === true ? (
-          <span className="shrink-0 border border-black bg-bubble-pale px-1 text-ink-bar">[ X ]</span>
+          <span className="shrink-0 border border-ink-plate bg-bubble-pale px-1 text-ink-bar">[ X ]</span>
         ) : null}
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
@@ -108,7 +108,7 @@ export default function UserDirectoryRow({
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-[13px] font-bold last:border-b-0 ${
+      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-label font-bold last:border-b-0 ${
         row.admin ? 'bg-sun-pale' : ''
       }`}
     >
@@ -131,13 +131,13 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
         {row.admin ? (
-          <span className="border border-black bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
+          <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
         ) : null}
-        {row.you ? <span className="border border-black bg-paper px-1">[ YOU ]</span> : null}
+        {row.you ? <span className="border border-ink-plate bg-paper px-1">[ YOU ]</span> : null}
         {/* Banned is worth saying out loud: their posts are hidden from everybody
             but the admin, so the name would otherwise just look quiet. */}
         {row.account.banned === true ? (
-          <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ BANNED ]</span>
+          <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar">[ BANNED ]</span>
         ) : null}
       </span>
 

@@ -45,12 +45,12 @@ export default function TicTacToeBoard({
               disabled={!open}
               aria-label={`Cell ${index + 1}${cell === null ? ', empty' : `, ${cell}`}`}
               onClick={() => onPlay(index)}
-              className={`flex items-center justify-center rounded-none border-2 text-4xl font-bold leading-none sm:text-5xl ${
+              className={`flex items-center justify-center rounded-none border-line text-4xl font-bold leading-none sm:text-5xl ${
                 inWinningLine
-                  ? 'border-t-black border-l-black border-r-white border-b-white bg-sun'
+                  ? 'border-t-ink-plate border-l-ink-plate border-r-ink-bar border-b-ink-bar bg-sun'
                   : open
-                    ? 'border-t-white border-l-white border-r-black border-b-black bg-sun-pale hover:bg-ice-pale'
-                    : 'border-t-black border-l-black border-r-white border-b-white bg-paper'
+                    ? 'border-t-ink-bar border-l-ink-bar border-r-ink-plate border-b-ink-plate bg-sun-pale hover:bg-ice-pale'
+                    : 'border-t-ink-plate border-l-ink-plate border-r-ink-bar border-b-ink-bar bg-paper'
               } ${open ? 'cursor-pointer' : 'cursor-default'}`}
             >
               <span className={cell === 'X' ? 'text-accent-ink' : 'text-bubble-pale'}>
@@ -61,7 +61,7 @@ export default function TicTacToeBoard({
         })}
       </div>
 
-      <p className="mt-1 truncate text-[13px] font-bold text-ink">
+      <p className="mt-1 truncate text-label font-bold text-ink">
         {winner === null
           ? draw
             ? 'ALL NINE PLATES TAKEN. NOBODY WINS THIS ONE.'

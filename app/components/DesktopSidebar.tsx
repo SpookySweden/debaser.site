@@ -46,7 +46,7 @@ const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 const SHELF_KEYS: NavItem[] = [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES];
 
 const RAIL_BUTTON =
-  'cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink max-md:min-h-11 max-md:min-w-11 max-md:text-base';
+  'cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink max-md:min-h-tap max-md:min-w-tap max-md:text-base';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -122,13 +122,13 @@ function ShelfKey({
       aria-haspopup="dialog"
       aria-pressed={isOpen}
       title={isOpen ? `Close the ${item.label.toLowerCase()}` : `Open the ${item.label.toLowerCase()}`}
-      className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-[13px] ${
+      className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label ${
         isOpen
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
           : 'key bg-sun-pale text-ink hover:text-accent-ink'
       }`}
     >
-      <span aria-hidden="true" className="text-[13px] leading-none">
+      <span aria-hidden="true" className="text-label leading-none">
         {item.mark}
       </span>
       <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
@@ -230,11 +230,11 @@ export default function DesktopSidebar() {
 
   if (!isOpen) {
     return (
-      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-2 border-ink bg-sun-pale py-2 md:flex">
+      <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-line border-ink bg-sun-pale py-2 md:flex">
         <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
           {'<'}
         </button>
-        <span className="text-[13px] font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
+        <span className="text-label font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
       </div>
     );
   }
@@ -244,14 +244,14 @@ export default function DesktopSidebar() {
     // third of a 700px one. Both the rail and the panel open from `md`, not `lg` - below `md` the
     // phone rule holds (the picture in the title bar is the only door), and from `md` the archive and
     // the arcade would otherwise be unreachable, since `SiteNav`'s keys do not carry them.
-    <aside className="hidden w-60 shrink-0 flex-col border-l-2 border-ink bg-sun-pale md:flex lg:w-72">
+    <aside className="hidden w-60 shrink-0 flex-col border-l-line border-ink bg-sun-pale md:flex lg:w-72">
       <div className={TITLE_BAR_INACTIVE}>
         <span>SIDE PANEL</span>
         <button
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer key bg-sun-pale px-2 text-[13px] font-bold text-ink hover:text-accent-ink"
+          className="cursor-pointer key bg-sun-pale px-2 text-label font-bold text-ink hover:text-accent-ink"
         >
           {'>'}
         </button>

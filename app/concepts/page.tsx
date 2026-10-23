@@ -18,7 +18,7 @@ export default function Concepts() {
     <p className="text-sm mb-2 leading-relaxed">
       Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet.
     </p>
-    <p className="text-[13px] font-bold mb-4">
+    <p className="text-label font-bold mb-4">
       CLICK THE [ COMMENT ] CONTROL UNDER A SHEET TO POP OPEN AN ENCASED WINDOW HOLDING ITS FORUM THREAD.
     </p>
 
@@ -32,15 +32,15 @@ export default function Concepts() {
     </div>
 
     {/* Sheet Index */}
-    <div className="border border-black p-4 bg-ice-pale mt-6">
-      <p className="text-[14px] font-bold mb-2">SHEET INDEX:</p>
+    <div className="border border-ink-plate p-4 bg-ice-pale mt-6">
+      <p className="text-key font-bold mb-2">SHEET INDEX:</p>
       <ul className="space-y-1">
         {CONCEPT_SHEETS.map((sheet, index) => (
           <li
             key={sheet.id}
             className="flex flex-wrap items-center justify-between gap-2 border border-ink bg-paper p-2"
           >
-            <span className="text-[13px] font-bold">
+            <span className="text-label font-bold">
               {index + 1}. {sheet.title} :: {sheet.src}
             </span>
             <CommentPopout anchor={sheet.anchor} compact />
@@ -49,7 +49,7 @@ export default function Concepts() {
       </ul>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-ink pt-2">
-        <span className="text-[13px] font-bold">ARCHIVE HOUSEKEEPING / SHEET REQUESTS:</span>
+        <span className="text-label font-bold">ARCHIVE HOUSEKEEPING / SHEET REQUESTS:</span>
         <CommentPopout anchor={FORUM_ANCHORS.conceptsSheetIndex} compact />
       </div>
     </div>

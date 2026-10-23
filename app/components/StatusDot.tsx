@@ -38,7 +38,7 @@ export default function StatusDot({ status, record, size = STATUS_DOT_SIZE, clas
       role="img"
       aria-label={label}
       title={presenceLine(status, record)}
-      className={`inline-block shrink-0 rounded-none border border-black align-middle ${className ?? ''}`}
+      className={`inline-block shrink-0 rounded-none border border-ink-plate align-middle ${className ?? ''}`}
       style={{ width: size, height: size, backgroundColor: presenceDotColour(status) }}
     />
   );

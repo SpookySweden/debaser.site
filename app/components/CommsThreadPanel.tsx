@@ -121,7 +121,7 @@ export default function CommsThreadPanel({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
         <span className="inline-flex flex-wrap items-center gap-1">
           {isGroup ? (
             <>
@@ -144,7 +144,7 @@ export default function CommsThreadPanel({
         className="min-h-32 flex-1 space-y-2 overflow-y-auto frame bg-paper p-2"
       >
         {shown.length === 0 ? (
-          <li className="text-[13px] font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
+          <li className="text-label font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
         ) : (
           shown.map((message) => (
             <li
@@ -153,7 +153,7 @@ export default function CommsThreadPanel({
                 message.event === undefined ? 'border-ink bg-ice-pale' : 'border-ink bg-sun-pale'
               }`}
             >
-              <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold">
                 <span className="inline-flex items-center gap-1">
                   <ProfileName author={resolveAuthor(message, nameById)} />
                   {message.authorId === userId ? <span className="text-ink">[ YOU ]</span> : null}
@@ -169,9 +169,9 @@ export default function CommsThreadPanel({
                 when the reader is scrolling back to work out who asked whom.
               */}
               {message.event === undefined ? (
-                <p className="mt-1 whitespace-pre-line text-[15px] leading-normal text-ink">{message.body}</p>
+                <p className="mt-1 whitespace-pre-line text-prose leading-normal text-ink">{message.body}</p>
               ) : (
-                <p className="mt-1 flex flex-wrap items-center gap-2 text-[14px] font-bold text-ink">
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-key font-bold text-ink">
                   <span
                     className={`rounded-none border border-ink px-1 ${
                       message.event.kind === 'invite' ? 'bg-ena text-ink-bar' : 'bg-paper text-ink'
@@ -198,7 +198,7 @@ export default function CommsThreadPanel({
       </ul>
 
       <div className="mt-2 frame bg-sun-pale p-2">
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold text-ink">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
           <label htmlFor={`${idPrefix}-body`}>
             {isGroup ? (
               <>
@@ -229,7 +229,7 @@ export default function CommsThreadPanel({
             }
           }}
           placeholder="Type the message..."
-          className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none max-sm:p-3"
+          className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none max-sm:p-3"
         />
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -244,8 +244,8 @@ export default function CommsThreadPanel({
 
           <AsciiEmoticonPicker onPick={insertEmoticon} disabled={busy} />
 
-          <p className="text-[13px] text-ink">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
-          {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
+          <p className="text-label text-ink">ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE</p>
+          {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
         </div>
       </div>
     </div>

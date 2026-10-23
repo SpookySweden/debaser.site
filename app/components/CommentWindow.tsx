@@ -112,7 +112,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
         thread === undefined ? null : (
           <Link
             href={`/forum#${threadDomId(thread.id)}`}
-            className="key bg-sun-pale px-2 py-[2px] underline hover:text-accent-ink"
+            className="key bg-sun-pale px-2 py-0.5 underline hover:text-accent-ink"
           >
             [ OPEN FULL THREAD ON THE BOARD ]
           </Link>
@@ -120,7 +120,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
       }
     >
       <div className="text-ink">
-          <div className="flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold">
+          <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold">
             <span>
               SOURCE: {anchor.kind.toUpperCase()} :: ID: {anchor.id}
             </span>
@@ -134,19 +134,19 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
 
           {thread === undefined ? (
             <>
-              <p className="mt-2 text-[14px] font-bold">NO THREAD EXISTS FOR THIS ITEM YET.</p>
-              <p className="mt-1 text-[13px]">
+              <p className="mt-2 text-key font-bold">NO THREAD EXISTS FOR THIS ITEM YET.</p>
+              <p className="mt-1 text-label">
                 Filing the first comment opens one on the forum board automatically.
               </p>
             </>
           ) : (
             <>
-              <p className="mt-2 text-[14px] font-bold">{thread.title}</p>
+              <p className="mt-2 text-key font-bold">{thread.title}</p>
               {/*
                 The poster's name and picture already sit on their own reply in
                 the list below, so this line only carries what the list does not.
               */}
-              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-[13px] font-bold">
+              <div className="mt-1 flex flex-wrap items-center justify-between gap-2 text-label font-bold">
                 <span>
                   FILED <TimeStamp at={thread.createdAt} />
                 </span>
@@ -155,7 +155,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
 
               {/* A thread with audio in it says so: the players are in the replies below. */}
               {filedTracks === 0 ? null : (
-                <p className="mt-1 text-[13px] font-bold text-accent-ink">
+                <p className="mt-1 text-label font-bold text-accent-ink">
                   {filedTracks} MP3{filedTracks === 1 ? '' : 'S'} FILED HERE - PRESS PLAY ON ONE TO HEAR IT.
                 </p>
               )}

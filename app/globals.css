@@ -1,34 +1,12 @@
 @import "tailwindcss";
+/* Every value the look is drawn with: sizes, lines, colours, faces, layers, motion. docs/theming.md. */
+@import "./theme/tokens.css";
 
-/* The field, before any theme is applied.
-   These are the *fallback theme's* own values - the dark one, `FALLBACK_THEME` in themes.ts, which is
-   what a visitor who never chose a theme gets (SPEC-readability.md) - and they are here rather than only in
-   `app/lib/ui/themes.ts` so that a page whose JavaScript has not run yet - or never runs - is the
-   site rather than an unstyled document. `applyTheme` overwrites every one of them with the active
-   theme's values, which is why the library and this block have to agree; `Temp/check-themes.cjs`
-   reads this block and fails if the names or the values drift apart.
-   `--background`/`--foreground` are gone: `body` names the tokens directly. They were a second name
-   for the same two things, and a name that only `body` used was a place for a theme to be missed. */
+/* The fallback theme is dark (`FALLBACK_THEME` in app/lib/ui/themes.ts; its colours are the generated block
+   in app/theme/tokens.css), so the browser's own parts - a select's popup, the caret - are drawn dark before
+   the boot script runs; the script writes the chosen theme's scheme over this. */
 :root {
-  /* What the pixel face falls back to where it cannot be had: the dotted gothic faces that ship with
-     Windows and macOS (DotGothic16 is drawn after them), then anything monospace. */
-  --font-pixel-fallback: 'MS Gothic', Osaka, 'Courier New', monospace;
-  /* The fallback theme is dark, so the browser's own parts (a select's popup, the caret) are drawn
-     dark before the boot script runs; the script writes the chosen theme's scheme over this. */
   color-scheme: dark;
-}
-
-@theme inline {
-  /* One face for the whole site: the pixel one `app/layout.tsx` loads, with the fallbacks above.
-     The names `font-sans` and `font-mono` are kept because every component already asks for them
-     by name; what they resolve to is this site's business, not each component's. */
-  --font-sans: var(--font-pixel), 'MS Gothic', Osaka, sans-serif;
-  --font-mono: var(--font-pixel), 'MS Gothic', 'Courier New', monospace;
-  /* The one exception: RADI-OH's text faces (`loopFace` in app/lib/audio/loops.ts). An emoticon is
-     drawn *with* its letters, so it needs a true lowercase `d` and `b` for the headphones and every
-     character the same width so a change of expression never shifts the face - the pixel face has
-     neither. A plain typewriter face has both, and is on every machine. */
-  --font-emote: 'Courier New', 'Lucida Console', ui-monospace, monospace;
 }
 
 html {
@@ -44,7 +22,7 @@ html {
 body {
   background: var(--color-desktop);
   color: var(--color-ink);
-  font-family: var(--font-pixel), var(--font-pixel-fallback);
+  font-family: var(--font-body);
 }
 
 /* The desktop surface --------------------------------------------------------
@@ -118,60 +96,60 @@ body {
 .lore-document {
   min-height: 14rem;
   outline: none;
-  font-size: 15px;
+  font-size: var(--text-prose);
   line-height: 1.5;
   color: var(--color-ink);
   word-break: break-word;
 }
 
 .lore-document > * + * {
-  margin-top: 0.7rem;
+  margin-top: --spacing(2.8);
 }
 
 /* The face has one weight, so a heading is set apart by size, and the first one by the accent ink. */
 .lore-document h1 {
-  font-size: 1.5rem;
+  font-size: var(--text-headline);
   line-height: 1.25;
   color: var(--color-accent-ink);
 }
 
 .lore-document h2 {
-  font-size: 1.25rem;
+  font-size: var(--text-display);
   line-height: 1.3;
 }
 
 .lore-document ul {
   list-style: square inside;
-  padding-left: 1rem;
+  padding-left: --spacing(4);
 }
 
 .lore-document ol {
   list-style: decimal inside;
-  padding-left: 1rem;
+  padding-left: --spacing(4);
 }
 
 .lore-document blockquote {
-  border-left: 4px solid var(--color-ink);
+  border-left: var(--border-width-thick) solid var(--color-ink);
   background: var(--color-ice-pale);
-  padding: 0.4rem 0.6rem;
+  padding: --spacing(1.6) --spacing(2.4);
 }
 
 .lore-document code {
-  border: 1px solid var(--color-ink);
+  border: var(--default-border-width) solid var(--color-ink);
   background: var(--color-ice-pale);
-  padding: 0 0.2rem;
+  padding: 0 --spacing(0.8);
 }
 
 .lore-document hr {
   border: 0;
-  border-top: 2px solid var(--color-ink);
+  border-top: var(--border-width-line) solid var(--color-ink);
 }
 
 /* The other editors' carets, as the collaboration extension draws them: a bar in the colour that
    account's name wears, with the name above it and whatever they have selected behind it. */
 .lore-document .collaboration-carets__caret {
   position: relative;
-  border-left: 2px solid transparent;
+  border-left: var(--border-width-line) solid transparent;
   margin-right: -1px;
   pointer-events: none;
 }
@@ -180,9 +158,9 @@ body {
   position: absolute;
   top: -1.1rem;
   left: -2px;
-  padding: 0 3px;
-  /* 13px, the site's smallest label; absolute, so the size moves nothing. */
-  font-size: 13px;
+  padding: 0 --spacing(0.75);
+  /* The site's smallest label; absolute, so the size moves nothing. */
+  font-size: var(--text-label);
   white-space: nowrap;
   color: var(--color-ink-bar);
 }
@@ -222,7 +200,7 @@ summary::-webkit-details-marker {
 }
 
 .crawl {
-  animation: crawl 40s linear infinite;
+  animation: var(--animate-crawl);
 }
 
 .crawl:hover {
@@ -251,7 +229,7 @@ summary::-webkit-details-marker {
 }
 
 .pin-tick {
-  animation: pin-tick 150ms ease-out;
+  animation: var(--animate-pin-tick);
 }
 
 /* Mobile form controls -------------------------------------------------------
@@ -263,7 +241,7 @@ summary::-webkit-details-marker {
   input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
   textarea,
   select {
-    font-size: 16px !important;
+    font-size: var(--text-field-phone) !important;
   }
 }
 
@@ -304,7 +282,7 @@ html {
 ::-webkit-scrollbar-thumb {
   background: var(--color-ink);
   background-clip: padding-box;
-  border: 3px solid transparent;
+  border: --spacing(0.75) solid transparent;
 }
 
 /* Held down, the grip flashes the press colour like every other control on this site. */
@@ -331,153 +309,11 @@ html {
 img {
   image-rendering: pixelated;
 }
-/* The Dyacid Dyes swatch -------------------------------------------------------
-   Eight colours, and nothing else. The strict structure above stays: a light top-left edge, a dark
-   bottom-right one, no radius, and nothing that fades. What changed - twice now - is what the
-   surfaces are *filled* with. The first pass pulled the chrome off 1995's default grey and onto a
-   web-safe surreal set; this one narrows that to a dyed swatch, which is a different discipline: at
-   sixteen colours a designer is choosing, and at eight they are solving.
-
-   Every colour here is one of the eight, named as the swatch names them, and declared once so
-   `bg-sun`, `text-ena`, `border-bubble` and the rest resolve without a component ever writing a hex
-   (Temp/check-surreal.cjs reads this block and does the contrast arithmetic on it).
-
-     Black #000000          the ink, and the dark side of every bevel
-     Nigrosine #1A1525      the deep field: the desktop, and a title bar put aside
-     Royal Blue #1D3CA6     the window you are in, and every hover inversion
-     Flavine #E1FF00        the acid pale field a panel is read on
-     Daffodil Yellow #FFF000 a plate's face - every control at rest
-     Emerald #28C745        status bars, the online lamp, anything that is a "go"
-     Brilliant Pink #FF00A0 the one accent: a press flashing, a badge that crosses the board
-     Rose #E6004C           the warning, and the second weight of the pink
-
-   White survives for one job only - `paper`, the field the board's prose is set on - because a
-   readable column of text is not a place to be clever. It is not a fill anywhere else.
-
-   **Nine colours, and nothing else.** Black, Nigrosine, Royal Blue, Daffodil Yellow, Flavine,
-   Brilliant Pink, Rose, Emerald, and Pure White for the prose. Every fill and every ink resolves to
-   one of the nine: there is not a grey left in this file, and the two tokens that were greys -
-   `chrome`, `chrome-dark` - now name a dye (see the comment on them below).
-
-   The token *names* are the ones the components already ask for (`sun`, `ena`, `bubble`...), so the
-   whole site moves to the new swatch without a component being rewritten to say so - which is the
-   point of having had one. What each name now means is the list above. */
-@theme {
-  --color-ink: #ffffff;
-  --color-paper: #1a1525;
-
-  /* The ink that reads on a *plate* rather than on the field.
-     It is Black here, exactly like `ink`, and that is not redundant: a theme can need them to differ.
-     The dark theme's field is Nigrosine, so its `ink` is Pure White - and Pure White on a Daffodil
-     plate is 1.19:1, a button nobody could read. Every control that draws a label on a coloured face
-     asks for this token instead, so a theme can darken the page without darkening its controls. */
-  --color-ink-plate: #000000;
-
-  /* The ink that reads on a *bar*: a chip, a row, a strip.
-     The third ink, and it exists because a bar's colour does not move with the theme. A chip is Royal
-     Blue in every theme, so the ink on it has to be the same in every theme, and `paper` - which is
-     White in one theme and Nigrosine in the other - cannot be it. White in both, and the pair is held
-     by `Temp/check-themes.cjs`: 9.34:1 on Royal Blue, 4.70:1 on Rose, 17.83:1 on Nigrosine. */
-  --color-ink-bar: #ffffff;
-
-  /* The brand ink on the field, and the caption ink on the field.
-     Both are here because a dye that is a *surface* was being asked to be an *ink*: `text-ena` printed
-     Royal Blue on the field, which is 9.34:1 on White and 1.91:1 on the dark theme's Nigrosine, and
-     `text-ena-deep` printed Nigrosine, which becomes Black in the dark theme and vanishes into it
-     (1.18:1, and 1:1 on hardware). Neither number can be fixed by choosing a better surface, because it
-     is the ink that has to move - so each has a token whose value moves with the field:
-       `accent-ink` is Royal Blue here and Daffodil in the dark theme (15.04:1 on the field).
-       `ink-quiet` is Nigrosine here and Flavine there (16.08:1 on the field).
-     Both of these are the colours the site already drew, so the field ink, the plate ink, the bar ink
-     and these two are five names for the same two values until a theme needs them apart. */
-  --color-accent-ink: #fff000;
-  --color-ink-quiet: #e1ff00;
-
-  /* The quiet furniture, in dye rather than grey.
-     Both tokens below are *surfaces with ink on them*, and the distinction that decides them is
-     lightness, not hue: a surface whose job is to be quiet cannot do that job by being dark, because
-     ink on near-black is 1.18:1.
-       `chrome-dark` is the inactive title bar - SIDE PANEL, SHELF, PROFILE and COMMS all sit on it in
-       Black. It was a Win95 silver at 11.54:1; Flavine under Black is 18.51:1, which is quieter in the
-       palette's terms (it reads as a pale field, not as a colour) and stronger by arithmetic.
-       `chrome` is the disabled plate - `[ CHALLENGE ]` while an account is offline. It was the dark
-       grey at 9.15:1; Nigrosine under Pure White is 17.83:1, and Nigrosine is the named background, so
-       a disabled control now reads as *pressed into the field* rather than as a separately coloured box.
-     The names are kept because the components already ask for them, and `Temp/check-surreal.cjs` still
-     holds both pairs to the arithmetic - so neither can be swept onto a dark surface again without a
-     check saying so. */
-  --color-chrome: #000000;
-  --color-chrome-dark: #000000;
-  /* The hardware panel: the Black inset a readout is printed on - a player's screen, the scrim behind
-     a window, the reverse-video chip. It was `bg-ink` until a dark theme existed, which is where the
-     fault showed: `ink` flips (Black here, White there), so the panel became a *pale* screen with
-     Emerald and Daffodil readouts printed on it at 2.25:1 and 1.13:1. Black in both themes, and the
-     default theme cannot tell the difference - it was drawing Black already. */
-  --color-hardware: #000000;
-
-  /* The desktop, the title bar of the window you are in, anything pressed. */
-  --color-ena: #1d3ca6;
-  --color-ena-deep: #000000;
-
-  /* Daffodil Yellow: every plate's face. Flavine: the pale field panels are read on. */
-  --color-sun: #fff000;
-  --color-sun-pale: #1a1525;
-
-  /* The row under the pointer. Daffodil here - the `hover:bg-sun` it always was - and Royal Blue in the
-     dark theme, because the inks on a row are the field's and move with it (see `pointed` in themes.ts). */
-  --color-pointed: #1d3ca6;
-  /* The same for a read post, which rests on `chrome-dark` - Royal Blue in the dark theme, where this is Black. */
-  --color-pointed-quiet: #1d3ca6;
-
-  /* The second field tone, and its inset: Flavine is the only pale left that is not white. */
-  --color-ice: #1a1525;
-  --color-ice-pale: #000000;
-
-  /* Brilliant Pink and Rose: the accent, and the warning. */
-  --color-bubble: #ff00a0;
-  --color-bubble-pale: #e6004c;
-
-  /* Emerald: status bars, the online lamp, anything that is a "go". */
-  --color-acid: #28c745;
-  --color-acid-pale: #1a1525;
-
-  /* The desktop: the tile behind every window, and the scrollbar's trough, which is the same tile.
-     Two tokens because the tile is a fill *and* a texture, and a theme has to move both: the default is
-     Brilliant Pink with Nigrosine dithered through it, the dark theme is Nigrosine with Black through
-     it. Set them equal and the tile is flat - which is not a contrast failure, so only this comment and
-     the check that reads this block will notice. */
-  --color-desktop: #1a1525;
-  --color-desktop-dither: #000000;
-
-  /* The dye a native control's own accent names - the checkbox tick, the filled half of a slider, the
-     caret. It is a token because the browser draws those and no component can style them, so an accent
-     is only readable against the surface it sits on: Royal Blue is 1.91:1 on the dark theme's field and
-     Daffodil is 15.04:1. `app/lib/ui/controls.ts` exports it as an inline-style value for the three
-     controls that ask for one. */
-  --color-accent: #fff000;
-
-  /* What were the red and the orange used to be declared here, as `blood` and `flame`. They are gone:
-     neither was a colour any *theme* knew, `blood` was asked for by nothing at all, and `flame` was a
-     second name for `bubble` - the same #ff00a0 in both themes - reached only by `.sun-stripe`, which
-     now asks for `bubble`. `Temp/check-themes.cjs` is what found them: it holds this block and the
-     default theme to the same names and the same values, in both directions, so a `--color-*` that
-     exists only here is a colour no theme can move with the field. */
-
-  /* The reactivity, as Tailwind utilities: `animate-wobble` on the looping glyph, `animate-marquee`
-     on a ticker, `animate-flash` on the press. */
-  --animate-wobble: wobble 150ms steps(2, jump-none) infinite;
-  --animate-bump: bump 220ms steps(2, jump-none) infinite;
-  --animate-shake: shake 120ms steps(2, jump-none) infinite;
-  --animate-flash: flash 260ms steps(2, jump-none) 1;
-  --animate-marquee: marquee 16s linear infinite;
-  --animate-blip: blip 1s steps(2, jump-none) infinite;
-  --animate-hop: hop 320ms steps(2, jump-none) infinite;
-  /* The alarm: Emerald and Rose, alternating in whole frames. `steps` with no easing again - an alarm
-     that fades between its two colours reads as a decoration, and this one has to read as a fault. */
-  --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
-  /* A docked window shaken out of its group: its frame blinks Brilliant Pink three times, then is gone. */
-  --animate-detach: detach 360ms steps(1, end) 1 forwards;
-}
+/* The colours ---------------------------------------------------------------------------------------
+   Declared in app/theme/tokens.css, generated from app/lib/ui/themes.ts: the nine dyes ("Dyacid Dyes",
+   docs/design.md) are named once there, and each theme says which dye plays which part. What each colour
+   *token* is for is documented on `ThemeTokens` in themes.ts. The motion tokens (`--animate-*`) are in
+   tokens.css too; their keyframes are below. */
 
 
 
@@ -661,7 +497,7 @@ img {
     --frame-art: none;
     border-radius: 0;
     border-style: solid;
-    border-width: 2px;
+    border-width: var(--border-width-line);
     border-color: transparent;
     border-image-source: var(--art-frame, none);
     border-image-repeat: stretch;
@@ -673,12 +509,12 @@ img {
       var(--frame-art);
     background-origin: border-box;
     background-clip: border-box, border-box, border-box, border-box, padding-box;
-    background-position: 2px 0, 2px 100%, 0 2px, 100% 2px, 0 0;
+    background-position: var(--border-width-line) 0, var(--border-width-line) 100%, 0 var(--border-width-line), 100% var(--border-width-line), 0 0;
     background-size:
-      calc(100% - 4px) 2px,
-      calc(100% - 4px) 2px,
-      2px calc(100% - 4px),
-      2px calc(100% - 4px),
+      calc(100% - 2 * var(--border-width-line)) var(--border-width-line),
+      calc(100% - 2 * var(--border-width-line)) var(--border-width-line),
+      var(--border-width-line) calc(100% - 2 * var(--border-width-line)),
+      var(--border-width-line) calc(100% - 2 * var(--border-width-line)),
       100% 100%;
     background-repeat: no-repeat;
   }
@@ -746,9 +582,9 @@ img {
   .window-title-bar-inactive {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    padding: 4px 8px;
-    font-size: 16px;
+    gap: --spacing(2);
+    padding: --spacing(1) --spacing(2);
+    font-size: var(--text-title);
     line-height: 1;
     background-image: var(--art-title-bar, none);
   }
@@ -759,8 +595,8 @@ img {
   :is(.title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::after {
     content: '';
     flex: 1 1 0;
-    min-width: 0.75rem;
-    height: 2px;
+    min-width: --spacing(3);
+    height: var(--border-width-line);
     background-color: currentColor;
   }
 
@@ -789,8 +625,8 @@ img {
   @media (width < 640px) {
     :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) {
       display: grid;
-      grid-template-columns: minmax(0.75rem, 1fr) minmax(0, auto) minmax(0.75rem, 1fr);
-      row-gap: 4px;
+      grid-template-columns: minmax(--spacing(3), 1fr) minmax(0, auto) minmax(--spacing(3), 1fr);
+      row-gap: --spacing(1);
     }
 
     :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *)::before {
@@ -821,8 +657,8 @@ img {
      280px of a 250px line, and wrapped the title onto two lines between two stub rules. */
   .title-stack:has(> * + *) {
     display: grid;
-    grid-template-columns: minmax(0.75rem, 1fr) minmax(0, auto) minmax(0.75rem, 1fr);
-    row-gap: 4px;
+    grid-template-columns: minmax(--spacing(3), 1fr) minmax(0, auto) minmax(--spacing(3), 1fr);
+    row-gap: --spacing(1);
   }
 
   .title-stack:has(> * + *)::before {
@@ -881,7 +717,7 @@ img {
   .plate-accent:active {
     --frame-art: var(--art-plate-pressed, var(--art-plate, none));
     animation: var(--animate-flash);
-    translate: 0 1px;
+    translate: 0 var(--translate-press);
     background-color: var(--color-bubble);
     color: var(--color-ink-plate);
   }
@@ -925,37 +761,37 @@ img {
      inside a line-height that does not is a control that changes height in the wrong direction. */
   .plate,
   .plate-accent {
-    padding: 2px 8px;
-    font-size: 13px;
+    padding: --spacing(0.5) --spacing(2);
+    font-size: var(--text-label);
   }
 
   .plate-large {
-    padding: 4px 12px;
-    font-size: 14px;
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-key);
     line-height: 1.25rem;
   }
 
   .plate-medium {
-    padding: 4px 12px;
-    font-size: 13px;
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-label);
   }
 
   .plate-tap {
-    padding: 8px 12px;
-    font-size: 0.875rem;
+    padding: --spacing(2) --spacing(3);
+    font-size: var(--text-sm);
     line-height: 1.25rem;
   }
 
   .plate-link {
-    padding: 4px 12px;
-    font-size: 13px;
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-label);
   }
 
   /* The deck's own keys: bigger, always spelled out, and the one black face the site allows - a
      transport key on a physical deck is not the same surface as the panel it is bolted to. */
   .plate-hardware {
-    padding: 8px 12px;
-    font-size: 14px;
+    padding: --spacing(2) --spacing(3);
+    font-size: var(--text-key);
     background-color: var(--color-hardware);
     color: var(--color-acid);
   }
@@ -963,37 +799,37 @@ img {
   @media (width < 640px) {
     .plate,
     .plate-accent {
-      min-height: 2.75rem;
-      padding: 8px 12px;
-      font-size: 0.875rem;
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
 
     .plate-large {
-      min-height: 2.75rem;
-      padding: 8px 16px;
-      font-size: 1rem;
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(4);
+      font-size: var(--text-base);
       line-height: 1.5rem;
     }
 
     .plate-medium {
-      min-height: 2.75rem;
-      padding: 8px 12px;
-      font-size: 0.875rem;
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
 
     .plate-link {
-      min-height: 2.75rem;
-      padding: 8px 12px;
-      font-size: 0.875rem;
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
 
     .plate-hardware {
-      min-height: 2.75rem;
-      padding-inline: 16px;
-      font-size: 0.875rem;
+      min-height: var(--spacing-tap);
+      padding-inline: --spacing(4);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
   }
@@ -1024,8 +860,8 @@ img {
     --frame-line: var(--color-ink);
     --frame-art: var(--art-plate-pressed, none);
     background-color: var(--color-ink);
-    padding: 2px 8px;
-    font-size: 13px;
+    padding: --spacing(0.5) --spacing(2);
+    font-size: var(--text-label);
     color: var(--color-paper);
   }
 
@@ -1055,8 +891,8 @@ img {
   }
 
   .title-bar-button {
-    padding: 1px 8px;
-    font-size: 13px;
+    padding: --spacing(0.25) --spacing(2);
+    font-size: var(--text-label);
     line-height: 1;
   }
 
@@ -1068,19 +904,19 @@ img {
 
   @media (width < 640px) {
     .title-bar-button {
-      padding: 4px 12px;
-      font-size: 0.875rem;
+      padding: --spacing(1) --spacing(3);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
 
     /* `-mx-1`: the box grows to a thumb, so the gap between two of them has to shrink or a row of them
        stops fitting across a phone. The margin is what gives, never the tap area. */
     .glyph-button {
-      margin-inline: -0.25rem;
-      min-height: 2.75rem;
-      min-width: 2.75rem;
-      padding-inline: 8px;
-      font-size: 1rem;
+      margin-inline: --spacing(-1);
+      min-height: var(--spacing-tap);
+      min-width: var(--spacing-tap);
+      padding-inline: --spacing(2);
+      font-size: var(--text-base);
       line-height: 1.5rem;
     }
   }
@@ -1092,7 +928,7 @@ img {
   .field-tight {
     --frame-art: var(--art-field, none);
     background-color: var(--color-paper);
-    font-size: 15px;
+    font-size: var(--text-prose);
     line-height: 1.4;
     color: var(--color-ink);
     outline-style: none;
@@ -1106,24 +942,24 @@ img {
   }
 
   .field {
-    margin-top: 0.25rem;
+    margin-top: --spacing(1);
     width: 100%;
-    padding: 6px;
+    padding: --spacing(1.5);
     font-family: var(--font-mono);
   }
 
   /* The same field where the row already carries its own spacing - the tag input. */
   .field-tight {
-    padding: 4px;
+    padding: --spacing(1);
   }
 
   @media (width < 640px) {
     .field {
-      padding: 12px;
+      padding: --spacing(3);
     }
 
     .field-tight {
-      padding: 8px;
+      padding: --spacing(2);
     }
   }
 
@@ -1138,7 +974,7 @@ img {
     --frame-art: var(--art-chip, none);
     cursor: pointer;
     background-color: var(--color-sun-pale);
-    padding: 2px 8px;
+    padding: --spacing(0.5) --spacing(2);
     color: var(--color-ink);
   }
 
@@ -1149,10 +985,10 @@ img {
   @media (width < 640px) {
     .shelf-chip {
       display: inline-flex;
-      min-height: 2.75rem;
+      min-height: var(--spacing-tap);
       align-items: center;
-      padding-inline: 12px;
-      font-size: 0.875rem;
+      padding-inline: --spacing(3);
+      font-size: var(--text-sm);
       line-height: 1.25rem;
     }
   }
@@ -1173,7 +1009,7 @@ img {
 
   .window-title-bar,
   .window-title-bar-inactive {
-    padding: 6px 12px;
+    padding: --spacing(1.5) --spacing(3);
   }
 
   .status-bar {
@@ -1181,11 +1017,11 @@ img {
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
-    gap: 0.5rem;
-    border-top: 2px solid var(--color-ink);
+    gap: --spacing(2);
+    border-top: var(--border-width-line) solid var(--color-ink);
     background-image: var(--art-status-bar, none);
-    padding: 4px 8px;
-    font-size: 13px;
+    padding: --spacing(1) --spacing(2);
+    font-size: var(--text-label);
     line-height: 1;
     color: var(--color-ink-quiet);
   }
@@ -1194,10 +1030,10 @@ img {
      goes. `relative order-last` stays on the element - that is where the tray sits in the window, not
      what the tray looks like. */
   .taskbar {
-    border-top: 2px solid var(--color-ink);
+    border-top: var(--border-width-line) solid var(--color-ink);
     background-image: var(--art-taskbar, none);
-    padding: 3px 4px;
-    font-size: 13px;
+    padding: --spacing(0.75) --spacing(1);
+    font-size: var(--text-label);
     color: var(--color-ink);
   }
 }
@@ -1208,7 +1044,7 @@ img {
    flips the text to blue on yellow - the same inversion a plate does, because on this site a link is
    a control, and a control answers the pointer. */
 .link-pixel {
-  padding-bottom: 3px;
+  padding-bottom: --spacing(0.75);
   background-image: repeating-linear-gradient(to right, var(--color-ena) 0 2px, transparent 2px 4px);
   background-repeat: repeat-x;
   background-position: 0 100%;
@@ -1242,10 +1078,10 @@ img {
   position: absolute;
   inset-inline: 0;
   bottom: 0;
-  height: 2px;
+  height: var(--border-width-line);
   background-image: repeating-linear-gradient(to right, var(--color-ink) 0 2px, transparent 2px 4px);
   background-repeat: repeat-x;
-  background-size: 4px 2px;
+  background-size: 4px var(--border-width-line);
 }
 
 .rule-pixel:last-child::after {
@@ -1266,13 +1102,13 @@ img {
    2026-10-04 by looking in the built stylesheet rather than at the source: `sprite-slot` was not in it
    at all. */
 .sprite-slot {
-  background-color: #000000;
+  background-color: var(--dye-black);
   /* `--art-sprite-slot` is the drawing; until there is one, the slot is this dithered floor, which is
      what a visitor sees today. The hook goes over the whole face - a slot's art is a tiled plate, not
      an `<img>` - and `SpriteSlot.tsx` draws whatever file is filed *inside* it. */
   background-image: var(
     --art-sprite-slot,
-    repeating-linear-gradient(45deg, #1a1525 0 2px, #000000 2px 4px)
+    repeating-linear-gradient(45deg, var(--dye-nigrosine) 0 2px, var(--dye-black) 2px 4px)
   );
 }
 

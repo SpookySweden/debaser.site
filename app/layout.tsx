@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import { DotGothic16 } from 'next/font/google';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
 import BroadcastHeartbeat from './components/BroadcastHeartbeat';
@@ -20,24 +19,8 @@ import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { themeBootScript } from './lib/ui/theme-slot';
+import { FACE_VARIABLES } from './theme/fonts';
 import './globals.css';
-
-/**
- * The site's face: DotGothic16, a thin dotted pixel face with a real lowercase (SPEC-readability.md).
- *
- * It replaced Silkscreen, which drew small caps for lowercase and was set bold everywhere - a wall
- * of capitals that smeared below 16px. DotGothic16 has one weight, so `globals.css` switches font
- * synthesis off: a `font-bold` left in a component renders at 400 rather than as a faked, blurred
- * bold, and emphasis comes from colour or size instead. It is drawn on a 16px grid, so 16 and 32
- * are pixel-sharp and 13-15 are slightly soft but read well. The fallbacks in `globals.css` are
- * the dotted gothic faces a machine is likely to have, then a plain monospace.
- */
-const pixel = DotGothic16({
-  variable: '--font-pixel',
-  subsets: ['latin'],
-  weight: '400',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: 'DEBASER.SITE',
@@ -56,7 +39,7 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${pixel.variable} h-full`}>
+    <html lang="en" className={`${FACE_VARIABLES} h-full`}>
       {/* The theme, before the browser has anything to paint. It is generated from the theme library
           (`themeBootScript`), so the values cannot drift from the ones `ThemeHost` writes a moment
           later - and it exists because those writes land in a React effect, which is one painted frame

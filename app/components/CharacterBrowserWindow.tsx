@@ -124,7 +124,7 @@ export default function CharacterBrowserWindow() {
       maxWidth="max-w-3xl"
       status="LOAD PUTS A FIGURE ON THE BENCH :: SAVING AGAIN REPLACES THE FIGURE ON IT, NOT THIS LIST"
     >
-      <div className="space-y-2 text-[13px] text-ink">
+      <div className="space-y-2 text-label text-ink">
         <div className="frame bg-sun-pale p-2">
           <p className="font-bold">KEEP THE FIGURE THAT IS ON THE BENCH</p>
 
@@ -137,7 +137,7 @@ export default function CharacterBrowserWindow() {
                 onChange={(event) => setName(event.target.value)}
                 placeholder="FIGURE"
                 maxLength={24}
-                className="w-40 frame bg-paper px-1 py-[2px] text-[13px] text-ink"
+                className="w-40 frame bg-paper px-1 py-0.5 text-label text-ink"
               />
             </label>
 
@@ -147,7 +147,7 @@ export default function CharacterBrowserWindow() {
           </div>
 
           {refused && refusal !== null ? (
-            <p role="alert" className="mt-1 bg-bubble-pale px-1 py-[2px] font-bold text-ink-bar">
+            <p role="alert" className="mt-1 bg-bubble-pale px-1 py-0.5 font-bold text-ink-bar">
               {refusal}
             </p>
           ) : null}
@@ -199,7 +199,7 @@ export default function CharacterBrowserWindow() {
                     <>
                       <button
                         type="button"
-                        className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-[2px] text-[13px] text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm"
+                        className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
                         onClick={() => {
                           update(removeCharacter(shelf, character.id));
                           confirmCharacterRemoval(null);

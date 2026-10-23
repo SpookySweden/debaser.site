@@ -20,10 +20,12 @@
  * press is the one movement left: a 1px drop and the Brilliant Pink flash, with no easing.
  */
 
+import { DYES } from './themes';
+
 /** The focus ring every key draws for the keyboard: dotted Brilliant Pink, one pixel off the outline. */
 const KEY_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble';
 /** The press: the key drops a pixel and flashes Brilliant Pink, with the plate ink on it. */
-const KEY_PRESS = 'active:animate-flash active:translate-y-[1px] active:bg-bubble active:text-ink-plate';
+const KEY_PRESS = 'active:animate-flash active:translate-y-press active:bg-bubble active:text-ink-plate';
 /** A key that cannot be pressed: the outline turns dotted (`.key:disabled`) and the words go quiet. */
 const KEY_DISABLED = 'disabled:cursor-not-allowed disabled:text-ink-quiet disabled:hover:text-ink-quiet';
 
@@ -31,15 +33,15 @@ const KEY_DISABLED = 'disabled:cursor-not-allowed disabled:text-ink-quiet disabl
 export const BEVEL_OUT = 'frame';
 export const BEVEL_IN = 'frame';
 /** The press, for a control that is not a key: the same 1px drop. */
-export const PRESSED = 'active:translate-y-[1px]';
+export const PRESSED = 'active:translate-y-press';
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `key cursor-pointer bg-sun-pale px-2 py-[2px] text-[13px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer bg-sun-pale px-2 py-0.5 text-label text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The largest: a control that has its line to itself. */
 export const PLATE_LARGE =
-  `key cursor-pointer bg-sun-pale px-3 py-1 text-[14px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `key cursor-pointer bg-sun-pale px-3 py-1 text-key text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /**
  * The one action a screen exists for: `[ POST ]`, `[ SEND ]`, `[ SAVE ]`, `[ LOG IN ]`.
@@ -51,11 +53,11 @@ export const PLATE_LARGE =
  * Black edge melts into Nigrosine and the pill reads as filled.
  */
 export const PLATE_MAIN =
-  `key key-fill cursor-pointer [--key-fill:var(--color-sun)] [--frame-line:var(--color-ink-plate)] px-3 py-1 text-[14px] text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-[1px] active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `key key-fill cursor-pointer [--key-fill:var(--color-sun)] [--frame-line:var(--color-ink-plate)] px-3 py-1 text-key text-ink-plate hover:[--key-fill:var(--color-acid)] ${KEY_FOCUS} active:translate-y-press active:[--key-fill:var(--color-bubble)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-tap max-sm:px-4 max-sm:py-2 max-sm:text-base`;
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `key cursor-pointer bg-sun-pale px-3 py-1 text-[13px] text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer bg-sun-pale px-3 py-1 text-label text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
@@ -71,22 +73,22 @@ export const PLATE_TAP =
  * press turns them magenta.
  */
 export const PLATE_HARDWARE =
-  `key cursor-pointer bg-hardware px-3 py-2 text-[14px] text-acid hover:text-sun ${KEY_FOCUS} ${KEY_PRESS} disabled:cursor-not-allowed max-sm:min-h-11 max-sm:px-4 max-sm:text-sm`;
+  `key cursor-pointer bg-hardware px-3 py-2 text-key text-acid hover:text-sun ${KEY_FOCUS} ${KEY_PRESS} disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-4 max-sm:text-sm`;
 
 /** A key already down: the tab you are standing on, the switch that is on. A filled pill in the field ink. */
-export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-2 py-[2px] text-[13px] text-paper max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-2 py-0.5 text-label text-paper max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `key bg-sun-pale px-3 py-1 text-[13px] text-ink hover:text-accent-ink active:translate-y-[1px] active:bg-bubble active:text-ink-plate max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key bg-sun-pale px-3 py-1 text-label text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** A field: the paper you write on, inside the same notched outline, with the room it needs under its label. */
 export const FIELD =
-  'frame mt-1 w-full bg-paper p-[6px] font-mono text-[15px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
+  'frame mt-1 w-full bg-paper p-1.5 font-mono text-prose text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-3';
 
 /** The same field where the row already carries its own spacing (the tag input). */
 export const FIELD_TIGHT =
-  'frame bg-paper p-1 text-[14px] text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
+  'frame bg-paper p-1 text-key text-ink outline-none focus:bg-sun-pale focus:outline-2 focus:outline-offset-1 focus:outline-dotted focus:outline-bubble max-sm:p-2';
 
 /**
  * A link in a page of writing: the dashed 3px bar, and the inversion on hover.
@@ -104,7 +106,7 @@ export const LINK_PIXEL = 'link-pixel cursor-pointer';
  * The site draws no artwork of its own (CLAUDE.md, Asset Rules), so a slot like this is the space
  * *for* artwork: an empty room with the right size and the right floor, waiting for a file.
  */
-export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-black';
+export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-ink-plate';
 
 /* The chrome: title lines, panels and status lines, in one place. ------------------
    Every window and panel on the site wears the same notched outline (`.frame` in globals.css) and the
@@ -125,10 +127,10 @@ export const TITLE_BAR = 'title-line text-accent-ink';
 export const TITLE_BAR_INACTIVE = 'title-line text-ink';
 
 /** A window's title line: the same line, with a little more room for the OS frame. */
-export const WINDOW_TITLE_BAR = 'title-line title-window px-3 py-[6px] text-accent-ink';
+export const WINDOW_TITLE_BAR = 'title-line title-window px-3 py-1.5 text-accent-ink';
 
 /** The frame's own title line when its window has been put aside. */
-export const WINDOW_TITLE_BAR_INACTIVE = 'title-line title-window px-3 py-[6px] text-ink';
+export const WINDOW_TITLE_BAR_INACTIVE = 'title-line title-window px-3 py-1.5 text-ink';
 
 /** A panel: the window's fill inside the notched outline. */
 export const PANEL = 'frame bg-sun-pale';
@@ -139,14 +141,14 @@ export const PANEL = 'frame bg-sun-pale';
  * how anybody moves between shelves.
  */
 export const SHELF_CHIP =
-  'key cursor-pointer bg-sun-pale px-2 py-[2px] text-ink hover:text-accent-ink max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'key cursor-pointer bg-sun-pale px-2 py-0.5 text-ink hover:text-accent-ink max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 /** A well inside a panel - a page, a board: the same notched outline, filled by the caller. */
 export const PANEL_INSET = 'frame';
 
 /** A key small enough to sit at the end of a title line: `[ × ]`, `[ ⇲ ]`. */
 export const TITLE_BAR_BUTTON =
-  'key cursor-pointer bg-sun-pale px-2 py-[1px] text-[13px] leading-none text-ink hover:text-accent-ink active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-[4px] max-sm:text-sm';
+  'key cursor-pointer bg-sun-pale px-2 py-0.25 text-label leading-none text-ink hover:text-accent-ink active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-1 max-sm:text-sm';
 
 /**
  * A control whose face is a glyph rather than a word.
@@ -166,7 +168,7 @@ export const TITLE_BAR_BUTTON =
  * rather than out of the tap area.
  */
 export const GLYPH_BUTTON =
-  'key inline-flex cursor-pointer items-center justify-center bg-sun-pale text-ink hover:text-accent-ink active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-11 max-sm:min-w-11 max-sm:px-2 max-sm:text-base';
+  'key inline-flex cursor-pointer items-center justify-center bg-sun-pale text-ink hover:text-accent-ink active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-tap max-sm:min-w-tap max-sm:px-2 max-sm:text-base';
 
 /**
  * A space that a reveal is allowed to fill, because it is already there either way.
@@ -224,7 +226,7 @@ export const ROW_UNREAD = 'bg-paper text-ink';
  * under the pointer and Emerald when pressed, so it never flashes the pink it already is.
  */
 export const PLATE_ACCENT =
-  `key key-fill cursor-pointer [--key-fill:var(--color-bubble)] [--frame-line:var(--color-ink-plate)] px-2 py-[2px] text-[13px] text-ink-plate hover:[--key-fill:var(--color-sun)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-[1px] active:[--key-fill:var(--color-acid)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-11 max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key key-fill cursor-pointer [--key-fill:var(--color-bubble)] [--frame-line:var(--color-ink-plate)] px-2 py-0.5 text-label text-ink-plate hover:[--key-fill:var(--color-sun)] focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-acid)] disabled:cursor-not-allowed disabled:[--key-fill:var(--color-chrome-dark)] disabled:text-ink max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /**
  * Royal Blue, as a value rather than a class.
@@ -232,14 +234,13 @@ export const PLATE_ACCENT =
  * Some CSS takes a colour and not a utility: `accent-color` on a range input is the one on this
  * site, and it is written inline because there is no Tailwind class for it. Rather than four
  * components each spelling `#1d3ca6`, the swatch's own value is named here, where the rest of the
- * vocabulary lives - so the number has exactly one source and it is the same one the `ena` token
- * is declared with in `app/globals.css`.
+ * vocabulary lives - so the number has exactly one source: the dye itself, in `DYES` (themes.ts).
  */
-export const ACCENT_COLOUR = '#1d3ca6';
+export const ACCENT_COLOUR = DYES.royalBlue;
 
 /**
  * The status line along the foot of a window: a rule in the field ink, and the quiet caption ink under it.
  */
 export const STATUS_BAR =
-  'flex flex-wrap items-center justify-between gap-2 border-t-2 border-ink px-2 py-[4px] text-[13px] leading-none text-ink-quiet';
+  'flex flex-wrap items-center justify-between gap-2 border-t-line border-ink px-2 py-1 text-label leading-none text-ink-quiet';
 

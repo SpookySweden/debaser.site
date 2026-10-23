@@ -38,7 +38,7 @@ export default function PostReplyReel({ comments, className = '' }: PostReplyRee
     <div className={className} aria-hidden="true">
       {/* The strip is labelled, because a line of quoted fragments sliding past on its own reads as
           stray text: `LATEST REPLIES` says what is going past before the first name arrives. */}
-      <p className="text-[13px] font-bold text-ink">LATEST REPLIES</p>
+      <p className="text-label font-bold text-ink">LATEST REPLIES</p>
       <NewsCrawl items={rows} className="overflow-hidden" />
     </div>
   );

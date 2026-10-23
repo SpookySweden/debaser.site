@@ -142,9 +142,9 @@ function AspectPreview({
       ) : aspect === 'song' && shown !== undefined ? (
         <>
           <div className="w-64 frame bg-hardware px-2 py-1">
-            <p className="truncate text-[14px] font-bold text-acid">{shown.title}</p>
+            <p className="truncate text-key font-bold text-acid">{shown.title}</p>
             {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
-            <p className="mt-1 truncate text-[13px] text-ink-bar">
+            <p className="mt-1 truncate text-label text-ink-bar">
               {shown.tag}
               {shown.current ? ' (current)' : ''} :: {shown.credit}
             </p>
@@ -168,11 +168,11 @@ function AspectPreview({
           </button>
         </>
       ) : (
-        <p className="w-56 text-[13px] font-bold text-ink">{ASPECT_NOTE[aspect]}</p>
+        <p className="w-56 text-label font-bold text-ink">{ASPECT_NOTE[aspect]}</p>
       )}
 
       {aspect !== 'profile' && shown !== undefined && shown.note.length > 0 ? (
-        <p className="w-64 text-[15px] leading-normal whitespace-pre-line text-ink">{shown.note}</p>
+        <p className="w-64 text-prose leading-normal whitespace-pre-line text-ink">{shown.note}</p>
       ) : null}
     </div>
   );
@@ -258,7 +258,7 @@ export default function ProfileCommentWindow({
       }
     >
       {offered.length === 0 ? (
-        <p className="text-[13px] font-bold text-ink">
+        <p className="text-label font-bold text-ink">
           NOTHING ON THIS PROFILE CAN BE COMMENTED ON RIGHT NOW - THE OWNER HAS THE THREADS SWITCHED OFF.
         </p>
       ) : (

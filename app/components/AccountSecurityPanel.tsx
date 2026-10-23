@@ -7,7 +7,7 @@ import { getProfileRepository } from '../lib/profile/repository';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 
-const NOTE = 'text-[13px] font-bold text-ink';
+const NOTE = 'text-label font-bold text-ink';
 
 type BlockState = {
   busy: boolean;
@@ -43,7 +43,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         autoComplete={autoComplete}
         className={FIELD}
       />
-      {error === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
+      {error === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
     </div>
   );
 }
@@ -211,7 +211,7 @@ export default function AccountSecurityPanel() {
             </button>
             {emailState.message === null ? null : <p className={NOTE}>{emailState.message}</p>}
           </div>
-          <p className="mt-1 text-[13px] text-ink">
+          <p className="mt-1 text-label text-ink">
             {requiresEmailConfirmation
               ? 'A CONFIRMATION LINK IS SENT TO THE NEW ADDRESS BEFORE THE CHANGE TAKES EFFECT.'
               : usingMockAuth
@@ -259,7 +259,7 @@ export default function AccountSecurityPanel() {
             </button>
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}
           </div>
-          <p className="mt-1 text-[13px] text-ink">
+          <p className="mt-1 text-label text-ink">
             {usingMockAuth
               ? 'PASSWORDS ARE HELD ONLY IN THIS BROWSER.'
               : 'YOU MAY BE ASKED TO SIGN IN AGAIN.'}

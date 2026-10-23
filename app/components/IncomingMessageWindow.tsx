@@ -61,20 +61,20 @@ export default function IncomingMessageWindow({
       actions={
         <Link
           href="/comms"
-          className="key bg-sun-pale px-2 py-[2px] underline hover:text-accent-ink"
+          className="key bg-sun-pale px-2 py-0.5 underline hover:text-accent-ink"
         >
           [ OPEN COMMS ]
         </Link>
       }
     >
       {isGroup ? (
-        <p className="mb-2 text-[13px] font-bold text-ink">
+        <p className="mb-2 text-label font-bold text-ink">
           IN {threadLabel(thread, userId, (id) => nameById.get(id) ?? id)} :: ANSWERING HERE WRITES TO THE WHOLE GROUP
         </p>
       ) : null}
 
       {hidden === 0 ? null : (
-        <p className="mb-2 text-[13px] font-bold text-ink">
+        <p className="mb-2 text-label font-bold text-ink">
           {hidden} EARLIER MESSAGE{hidden === 1 ? '' : 'S'} STAY ON THE COMMS PAGE.
         </p>
       )}

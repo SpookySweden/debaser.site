@@ -26,7 +26,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
       </p>
 
       {profile.tags.length === 0 ? (
-        <p className="mt-2 text-[13px] font-bold text-ink">
+        <p className="mt-2 text-label font-bold text-ink">
           NO TAGS GIVEN YET. GIVE YOURSELF ONE FROM YOUR PUBLIC PROFILE PAGE, OR LET A VISITOR GIVE YOU ONE THERE.
         </p>
       ) : (
@@ -53,7 +53,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
                   </span>
                 </div>
 
-                <p className="mt-1 text-[13px] text-ink">
+                <p className="mt-1 text-label text-ink">
                   GIVEN BY{' '}
                   <ProfileName author={tag.givenBy}>{tag.givenBy.displayName.toUpperCase()}</ProfileName> ON{' '}
                   <TimeStamp at={tag.givenAt} />
@@ -78,7 +78,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
         </>
       )}
 
-      <p className="mt-2 text-[13px] text-ink">
+      <p className="mt-2 text-label text-ink">
         THE GLOBAL SWITCH IN THE PRIVACY TAB HAS TO BE ON BEFORE ANY OF THESE REACH A VISITOR
         {profile.visibility.showTags ? '' : ' - IT IS OFF RIGHT NOW'}.
       </p>

@@ -303,7 +303,7 @@ export default function ForumBoard() {
           </span>
         </div>
 
-        <div className="space-y-1.5 p-2 text-[13px] font-bold text-ink">
+        <div className="space-y-1.5 p-2 text-label font-bold text-ink">
           {/* One compact status line instead of a paragraph of housekeeping. */}
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span>
@@ -322,7 +322,7 @@ export default function ForumBoard() {
               a board's tags are *for* is telling you what is on it, and that is a count. */}
           <div className="frame bg-ice-pale p-2">
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="text-[13px] font-bold text-ink">
+              <p className="text-label font-bold text-ink">
                 TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
               </p>
 
@@ -348,10 +348,10 @@ export default function ForumBoard() {
               </button>
 
               {musicOnly ? (
-                <span className="border border-black bg-ena px-1 text-[13px] font-bold text-ink-bar">MUSIC ONLY</span>
+                <span className="border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">MUSIC ONLY</span>
               ) : null}
               {musicTagKeys.length === 0 ? null : (
-                <span className="border border-black bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">
+                <span className="border border-ink-plate bg-bubble-pale px-1 text-label font-bold text-ink-bar">
                   {musicTagKeys.length} MUSIC TAG(S)
                 </span>
               )}
@@ -361,7 +361,7 @@ export default function ForumBoard() {
                 is pressed, because a filter is a question a reader has once or twice and a hundred
                 chips is what the threads have to be read past the rest of the time. */}
             {tagWallOpen ? (
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-[3px] text-[13px]">
+              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.75 text-label">
                 {forum.tagVocabulary.map((option) => {
                   const tag = makeUserTag(option.label, option.colour);
                   const active = tagFilters.includes(option.key);
@@ -377,7 +377,7 @@ export default function ForumBoard() {
                           ? `Stop including ${option.label}`
                           : `Include posts tagged ${option.label} (${option.count} in use)`
                       }
-                      className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                      className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                         active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                       }`}
                     >
@@ -393,11 +393,11 @@ export default function ForumBoard() {
             ) : null}
 
             {tagFilters.length === 0 ? (
-              <p className="mt-1 text-[13px] text-ink">
+              <p className="mt-1 text-label text-ink">
                 PICK TAGS WITH [+ TAGS], OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
               </p>
             ) : (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
                 <span>INCLUDED:</span>
                 {tagFilters.map((key) => {
                   const label =
@@ -409,7 +409,7 @@ export default function ForumBoard() {
                       type="button"
                       onClick={() => toggleTagFilter(key)}
                       title={`Stop including ${label}`}
-                      className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:text-accent-ink"
+                      className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold hover:text-accent-ink"
                     >
                       {label} Ã—
                     </button>
@@ -447,7 +447,7 @@ export default function ForumBoard() {
                 <button
                   type="button"
                   onClick={clearTagFilters}
-                  className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold hover:text-accent-ink"
+                  className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold hover:text-accent-ink"
                 >
                   [ CLEAR TAGS ]
                 </button>
@@ -458,14 +458,14 @@ export default function ForumBoard() {
           {/* Sort / filter / search / paging are collapsed by default: the posts
               themselves are the practical information on this page. */}
           <details className="frame bg-ice-pale p-2">
-            <summary className="cursor-pointer select-none text-[13px] font-bold text-ink">
+            <summary className="cursor-pointer select-none text-label font-bold text-ink">
               [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
             </summary>
 
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
               <fieldset className="rounded-none border border-ink p-2">
-                <legend className="px-1 text-[13px] font-bold text-ink">SORT THREADS</legend>
-                <label className="flex items-center gap-2 text-[13px] font-bold text-ink">
+                <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
+                <label className="flex items-center gap-2 text-label font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -478,7 +478,7 @@ export default function ForumBoard() {
                   />
                   NEWEST FIRST
                 </label>
-                <label className="mt-1 flex items-center gap-2 text-[13px] font-bold text-ink">
+                <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -491,7 +491,7 @@ export default function ForumBoard() {
                   />
                   MOST REPLIES
                 </label>
-                <label className="mt-1 flex items-center gap-2 text-[13px] font-bold text-ink">
+                <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
                   <input
                     type="radio"
                     name="forum-sort"
@@ -507,7 +507,7 @@ export default function ForumBoard() {
               </fieldset>
 
               <div>
-                <label htmlFor="forum-source-filter" className="block text-[13px] font-bold text-ink">
+                <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">
                   FILTER SOURCE:
                 </label>
                 <select
@@ -517,7 +517,7 @@ export default function ForumBoard() {
                     setSourceFilter(event.target.value as SourceFilter);
                     setPage(1);
                   }}
-                  className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none"
+                  className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
                 >
                   {SOURCE_FILTERS.map((option) => (
                     <option key={option.value} value={option.value}>
@@ -528,7 +528,7 @@ export default function ForumBoard() {
               </div>
 
               <div>
-                <label htmlFor="forum-search" className="block text-[13px] font-bold text-ink">
+                <label htmlFor="forum-search" className="block text-label font-bold text-ink">
                   SEARCH TITLE / BODY / TAG / ACCOUNT:
                 </label>
                 <input
@@ -540,7 +540,7 @@ export default function ForumBoard() {
                     setPage(1);
                   }}
                   placeholder="e.g. LORE, spoiler, account name"
-                  className="mt-1 w-full frame bg-paper p-2 font-mono text-[15px] text-ink outline-none"
+                  className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
                 />
               </div>
             </div>
@@ -548,8 +548,8 @@ export default function ForumBoard() {
         </div>
 
         {/* List controls: always on screen, one row above the threads. */}
-        <div className="flex flex-wrap items-center gap-2 border-t-2 border-ink bg-sun-pale px-2 py-[3px]">
-          <span className="text-[13px] font-bold text-ink">
+        <div className="flex flex-wrap items-center gap-2 border-t-line border-ink bg-sun-pale px-2 py-0.75">
+          <span className="text-label font-bold text-ink">
             SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
             {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
           </span>
@@ -557,7 +557,7 @@ export default function ForumBoard() {
           {/* How the board is read: two plates, and the one you are standing on is pressed in
               (`PLATE_PRESSED`), which is the same way every other switch on the site says "on". The
               label is a word rather than an icon, because a pair of glyphs is a puzzle. */}
-          <span className="flex items-center gap-1 text-[13px] font-bold text-ink">
+          <span className="flex items-center gap-1 text-label font-bold text-ink">
             VIEW:
             {VIEWS.map((option) => (
               <button
@@ -590,7 +590,7 @@ export default function ForumBoard() {
           id="forum-thread-list"
           className="frame bg-paper text-ink"
         >
-          <p className="p-3 text-[14px] font-bold text-ink">
+          <p className="p-3 text-key font-bold text-ink">
             {forum.threads.length === 0
               ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
               : view === 'gallery'
@@ -627,7 +627,7 @@ export default function ForumBoard() {
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (
         <section className="frame bg-sun-pale p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-[13px] font-bold text-ink">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-label font-bold text-ink">
             <span>
               SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
               {currentPage} OF {totalPages}
@@ -638,7 +638,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
               >
                 [ &lt;&lt; PREV ]
               </button>
@@ -648,7 +648,7 @@ export default function ForumBoard() {
                 id="forum-page"
                 value={currentPage}
                 onChange={(event) => goToPage(Number(event.target.value))}
-                className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+                className="frame bg-paper p-1 font-mono text-label text-ink outline-none"
               >
                 {pageNumbers.map((number) => (
                   <option key={number} value={number}>
@@ -661,7 +661,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
               >
                 [ NEXT &gt;&gt; ]
               </button>
@@ -671,7 +671,7 @@ export default function ForumBoard() {
                 id="forum-per-page"
                 value={perPage}
                 onChange={(event) => handlePerPageChange(Number(event.target.value))}
-                className="frame bg-paper p-1 font-mono text-[13px] text-ink outline-none"
+                className="frame bg-paper p-1 font-mono text-label text-ink outline-none"
               >
                 {PAGE_SIZES.map((size) => (
                   <option key={size} value={size}>
@@ -692,8 +692,8 @@ export default function ForumBoard() {
                   aria-current={number === currentPage ? 'page' : undefined}
                   className={
                     number === currentPage
-                      ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-1 text-[13px] font-bold text-paper'
-                      : 'cursor-pointer key bg-sun-pale px-2 py-1 text-[13px] font-bold text-ink hover:text-accent-ink'
+                      ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-1 text-label font-bold text-paper'
+                      : 'cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold text-ink hover:text-accent-ink'
                   }
                 >
                   {number}

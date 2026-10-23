@@ -59,13 +59,13 @@ export default function LibraryRow({
   return (
     <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-        <span className="shrink-0 text-[13px] text-ink">{String(index + 1).padStart(2, '0')}.</span>
+        <span className="shrink-0 text-label text-ink">{String(index + 1).padStart(2, '0')}.</span>
 
         <span className="min-w-0 flex-1">
-          <span className="block truncate text-[14px] font-bold text-ink" title={track.title}>
+          <span className="block truncate text-key font-bold text-ink" title={track.title}>
             {track.title}
           </span>
-          <span className="block truncate text-[13px] text-ink">
+          <span className="block truncate text-label text-ink">
             {track.credit.length === 0 ? 'NO CREDIT' : track.credit}
             {/* On a phone the length column is not drawn, so it rides the second line instead. */}
             <span className="sm:hidden"> :: {duration.length === 0 ? '--:--' : duration}</span>
@@ -80,7 +80,7 @@ export default function LibraryRow({
           </span>
         )}
 
-        <span className="hidden shrink-0 text-right text-[13px] font-bold text-ink sm:block">
+        <span className="hidden shrink-0 text-right text-label font-bold text-ink sm:block">
           {duration.length === 0 ? '--:--' : duration}
         </span>
 
@@ -91,7 +91,7 @@ export default function LibraryRow({
             disabled={busy}
             aria-pressed={liked}
             title={liked ? `Take ${track.title} out of liked` : `Like ${track.title}`}
-            className={`cursor-pointer rounded-none border border-ink px-1 text-[13px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:min-w-11 max-sm:text-sm ${
+            className={`cursor-pointer rounded-none border border-ink px-1 text-label font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
               liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
             }`}
           >
@@ -126,7 +126,7 @@ export default function LibraryRow({
           two lists shows its mark only on the one it is being viewed from. */}
       {lists.length === 0 ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-1 pl-8">
-          <span className="text-[13px] font-bold text-ink">ADD TO:</span>
+          <span className="text-label font-bold text-ink">ADD TO:</span>
 
           {lists.map((list) => (
             <button
@@ -139,7 +139,7 @@ export default function LibraryRow({
                   ? `Take ${track.title} out of ${list.name}`
                   : `Add ${track.title} to ${list.name}`
               }
-              className={`cursor-pointer rounded-none border border-ink px-1 text-[13px] font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-11 max-sm:px-2 ${
+              className={`cursor-pointer rounded-none border border-ink px-1 text-label font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-tap max-sm:px-2 ${
                 inOpenList && current ? 'bg-ena text-sun' : 'bg-sun-pale text-ink hover:bg-ice'
               }`}
             >

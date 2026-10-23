@@ -21,7 +21,7 @@ type FieldProps = {
 function Field({ id, label, type, value, onChange, placeholder, autoComplete, error }: FieldProps) {
   return (
     <div className="mt-2">
-      <label htmlFor={id} className="block text-[13px] font-bold text-ink">
+      <label htmlFor={id} className="block text-label font-bold text-ink">
         {label}
       </label>
       <input
@@ -33,7 +33,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         autoComplete={autoComplete}
         className={FIELD}
       />
-      {error === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
+      {error === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
     </div>
   );
 }
@@ -170,11 +170,11 @@ export default function AccountForms() {
               {signUpBusy ? '[ WORKING... ]' : '[ CREATE ACCOUNT ]'}
             </button>
             {signUpMessage === null ? null : (
-              <p className="text-[13px] font-bold text-ink">{signUpMessage}</p>
+              <p className="text-label font-bold text-ink">{signUpMessage}</p>
             )}
           </div>
 
-          <p className="mt-2 text-[13px] text-ink">
+          <p className="mt-2 text-label text-ink">
             {requiresEmailConfirmation
               ? 'NEW ACCOUNTS CONFIRM BY EMAIL BEFORE THE FIRST SIGN IN.'
               : usingMockAuth
@@ -201,7 +201,7 @@ export default function AccountForms() {
               the mock backend the button says what it needs instead of failing quietly. */}
           <GoogleSignInButton className="mb-3" />
 
-          <p className="mb-3 border-t border-ink pt-2 text-[13px] font-bold text-ink">
+          <p className="mb-3 border-t border-ink pt-2 text-label font-bold text-ink">
             OR SIGN IN WITH THE ACCOUNT&apos;S OWN DETAILS:
           </p>
 
@@ -231,11 +231,11 @@ export default function AccountForms() {
               {signInBusy ? '[ WORKING... ]' : '[ LOG IN ]'}
             </button>
             {signInMessage === null ? null : (
-              <p className="text-[13px] font-bold text-ink">{signInMessage}</p>
+              <p className="text-label font-bold text-ink">{signInMessage}</p>
             )}
           </div>
 
-          <p className="mt-2 text-[13px] text-ink">
+          <p className="mt-2 text-label text-ink">
             READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
           </p>
         </form>

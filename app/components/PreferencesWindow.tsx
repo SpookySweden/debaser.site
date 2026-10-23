@@ -25,7 +25,7 @@ function ThemeSwatch({ theme }: { theme: Theme }) {
   return (
     <span
       aria-hidden="true"
-      className="inline-block h-4 w-4 shrink-0 rounded-none border border-black"
+      className="inline-block h-4 w-4 shrink-0 rounded-none border border-ink-plate"
       style={{ backgroundColor: theme.tokens.paper, borderColor: theme.tokens.ink }}
     >
       <span
@@ -51,7 +51,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       onClick={() => setTheme(theme.id)}
       aria-pressed={active}
       title={theme.experimental ? `${theme.label} - experimental` : theme.label}
-      className={`flex w-full cursor-pointer items-start gap-2 px-2 py-1 text-left text-[13px] max-sm:min-h-11 max-sm:px-3 max-sm:text-sm ${
+      className={`flex w-full cursor-pointer items-start gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         active
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
           : 'key bg-sun-pale text-ink hover:text-accent-ink'
@@ -64,12 +64,12 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
           {theme.label}
           {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
         </span>
-        <span className={`mt-[2px] block text-[13px] ${active ? '' : 'text-ink-quiet'}`}>
+        <span className={`mt-0.5 block text-label ${active ? '' : 'text-ink-quiet'}`}>
           {theme.note}
         </span>
       </span>
 
-      <span aria-hidden="true" className="shrink-0 pt-[2px]">
+      <span aria-hidden="true" className="shrink-0 pt-0.5">
         {active ? '[ ON ]' : '[ ]'}
       </span>
     </button>
@@ -120,7 +120,7 @@ export default function PreferencesWindow() {
           <span>[ {THEMES.length} ]</span>
         </div>
 
-        <p className="border-b border-ink px-2 py-1 text-[13px] text-ink-quiet">
+        <p className="border-b border-ink px-2 py-1 text-label text-ink-quiet">
           THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO
           NOTHING HERE CAN MAKE A PAGE UNREADABLE.
         </p>
@@ -140,7 +140,7 @@ export default function PreferencesWindow() {
           <span>[ THIS SCREEN SHAPE ]</span>
         </div>
 
-        <p className="px-2 pt-1 text-[13px] text-ink-quiet">
+        <p className="px-2 pt-1 text-label text-ink-quiet">
           WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN
           ITS CORNER AND FORGETS THIS SHAPE&apos;S SAVED LAYOUT.
         </p>
@@ -157,14 +157,14 @@ export default function PreferencesWindow() {
           <span>[ SOON ]</span>
         </div>
 
-        <p className="p-2 text-[13px] text-ink-quiet">
+        <p className="p-2 text-label text-ink-quiet">
           WHAT THIS WILL HOLD - SIGN-OUT, THE NOTIFICATION SOUND, WHETHER THE PLAYER BAR STARTS OPEN -
           IS STILL BEING DECIDED, SO NOTHING IS DRAWN HERE YET. THE ROW IS LEFT IN PLACE SO THE WINDOW
           DOES NOT GROW ONE LATER.
         </p>
       </section>
 
-      <p className="mt-2 text-center text-[13px] text-ink-quiet">
+      <p className="mt-2 text-center text-label text-ink-quiet">
         ON THE THEME NOW:{' '}
         <span className="text-accent-ink">{currentTheme().label}</span>
       </p>

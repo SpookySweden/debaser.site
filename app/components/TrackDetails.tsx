@@ -62,17 +62,17 @@ export default function TrackDetails({
       <UploaderPicture src={src} size={tone === 'led' ? 30 : 36} />
 
       <div className="min-w-0 flex-1 leading-tight">
-        <p className={`truncate text-[13px] leading-[14px] font-bold ${ink.context}`}>{context.length === 0 ? <>&nbsp;</> : context}</p>
+        <p className={`truncate text-label leading-readout font-bold ${ink.context}`}>{context.length === 0 ? <>&nbsp;</> : context}</p>
 
         {marquee ? (
-          <MarqueeText className={`block text-[14px] font-bold ${ink.title}`} text={title} />
+          <MarqueeText className={`block text-key font-bold ${ink.title}`} text={title} />
         ) : (
-          <p className={`truncate text-[14px] font-bold ${ink.title}`} title={title}>
+          <p className={`truncate text-key font-bold ${ink.title}`} title={title}>
             {title}
           </p>
         )}
 
-        <p className={`flex min-w-0 items-center gap-2 text-[13px] leading-[14px] ${ink.clock}`}>
+        <p className={`flex min-w-0 items-center gap-2 text-label leading-readout ${ink.clock}`}>
           {extra}
           <span className="shrink-0 font-bold">
             {formatClock(Math.max(0, position))} / {Number.isFinite(length) ? formatClock(length) : '-:--'}

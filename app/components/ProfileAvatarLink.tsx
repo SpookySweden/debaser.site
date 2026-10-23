@@ -41,7 +41,7 @@ export default function ProfileAvatarLink({
     return (
       <span className={`inline-flex items-center gap-1 align-middle ${className ?? ''}`}>
         <ProfileAvatar version={undefined} displayName={label} size={size} variant="plain" hideVersionLabel />
-        {showName ? <span className="text-[14px] font-bold text-ink">{label}</span> : null}
+        {showName ? <span className="text-key font-bold text-ink">{label}</span> : null}
       </span>
     );
   }
@@ -60,7 +60,7 @@ export default function ProfileAvatarLink({
         hideVersionLabel
       />
       {showName ? (
-        <span className="text-[14px] font-bold text-ink underline decoration-dotted">{label}</span>
+        <span className="text-key font-bold text-ink underline decoration-dotted">{label}</span>
       ) : null}
     </Link>
   );

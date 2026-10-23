@@ -82,11 +82,11 @@ export default function TagChooser({
 
   return (
     <fieldset id={id} className="mt-2 rounded-none border border-ink p-2">
-      <legend className="px-1 text-[13px] font-bold text-ink">
+      <legend className="px-1 text-label font-bold text-ink">
         TAGS ({value.length}/{max})
       </legend>
 
-      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-[3px] text-[13px] font-bold text-ink">
+      <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.75 text-label font-bold text-ink">
         <span className="text-ink">SELECTED:</span>
         {value.length === 0 ? (
           <span className="text-ink">NONE - PICK OR TYPE BELOW</span>
@@ -99,7 +99,7 @@ export default function TagChooser({
                 type="button"
                 onClick={() => toggle(label)}
                 title={`Remove tag ${tag.label}`}
-                className="inline-flex cursor-pointer items-center gap-[3px] font-bold hover:underline"
+                className="inline-flex cursor-pointer items-center gap-0.75 font-bold hover:underline"
               >
                 <TagMark colour={tagMarkColour(tag)} compact />
                 <span className="text-ink">{tagNamespace(tag)}:</span>
@@ -113,9 +113,9 @@ export default function TagChooser({
 
       {/* Filed by namespace, the way the tags are written on a post: a chooser that lists forty tags
           is a wall, and one that says `theme:` and `user:` is a list you can read down. */}
-      <div className="mt-2 space-y-[2px] text-[13px] text-ink">
+      <div className="mt-2 space-y-0.5 text-label text-ink">
         {groupByNamespace(suggestions).map((group) => (
-          <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-[3px]">
+          <div key={group.namespace} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.75">
             <span className="w-12 shrink-0 font-bold text-ink">{group.namespace}:</span>
 
             {group.items.map((option) => {
@@ -128,7 +128,7 @@ export default function TagChooser({
                   type="button"
                   onClick={() => toggle(option.label)}
                   title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
-                  className={`inline-flex cursor-pointer items-center gap-[3px] px-1 font-bold max-sm:min-h-11 max-sm:px-2 max-sm:text-sm ${
+                  className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                     isSelected ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                   }`}
                 >
@@ -149,12 +149,12 @@ export default function TagChooser({
           type="button"
           onClick={() => setCreatorOpen(true)}
           title="Open the tag editor to create and colour a new tag"
-          className="cursor-pointer key bg-sun-pale px-2 py-[3px] text-[13px] font-bold text-ink underline hover:text-accent-ink max-sm:min-h-11 max-sm:px-3"
+          className="cursor-pointer key bg-sun-pale px-2 py-0.75 text-label font-bold text-ink underline hover:text-accent-ink max-sm:min-h-tap max-sm:px-3"
         >
           + NEW TAG...
         </button>
 
-        <p className={`text-[13px] font-bold ${error === null ? 'text-ink' : 'w-fit bg-bubble-pale px-1 text-ink-bar'}`}>
+        <p className={`text-label font-bold ${error === null ? 'text-ink' : 'w-fit bg-bubble-pale px-1 text-ink-bar'}`}>
           {error ?? 'TAGS ARE COLOUR CODED, FILED BY NAMESPACE (THEME: WARN: USER:), AND LINK EVERY POST THAT USES THEM.'}
         </p>
       </div>

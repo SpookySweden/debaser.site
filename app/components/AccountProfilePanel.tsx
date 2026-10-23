@@ -78,7 +78,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
-        <div className="min-w-0 flex-1 space-y-1 text-[13px] font-bold text-ink">
+        <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
           <p>
             NAME ON THE PROFILE:{' '}
             <ProfileName

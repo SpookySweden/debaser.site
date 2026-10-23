@@ -38,7 +38,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
-const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-[2px] text-[13px] font-bold text-ink-bar';
+const GROUP_HEAD = 'border-y border-ink bg-bubble-pale px-1 py-0.5 text-label font-bold text-ink-bar';
 
 /**
  * One line of the feed.
@@ -88,11 +88,11 @@ function NotificationRow({
         <span
           {...(unread ? { 'aria-label': 'Unread', title: 'Unread' } : { 'aria-hidden': true })}
           className={`inline-block h-2 w-2 shrink-0 border ${
-            unread ? 'border-black bg-ena' : 'border-ink bg-sun-pale'
+            unread ? 'border-ink-plate bg-ena' : 'border-ink bg-sun-pale'
           }`}
         />
         <span
-          className={`shrink-0 px-1 text-[13px] leading-[14px] text-ink-bar ${KIND_BADGE[item.kind]}`}
+          className={`shrink-0 px-1 text-label leading-readout text-ink-bar ${KIND_BADGE[item.kind]}`}
           title={notificationLabel(item.kind)}
         >
           {KIND_TAG[item.kind]}
@@ -108,13 +108,13 @@ function NotificationRow({
         {item.body.length === 0 ? '...' : `"${item.body}"`}
       </span>
 
-      <span className="mt-[2px] flex items-center gap-2 font-normal text-ink">
+      <span className="mt-0.5 flex items-center gap-2 font-normal text-ink">
         <span className="truncate">
           {item.kind === 'invite' ? 'GAME: ' : 'ON: '}
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 key bg-sun-pale px-1 text-[13px] font-bold text-ink">
+          <span className="ml-auto shrink-0 key bg-sun-pale px-1 text-label font-bold text-ink">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -122,9 +122,9 @@ function NotificationRow({
     </>
   );
 
-  const className = `block w-full rounded-none border p-1 text-left text-[13px] font-bold ${
+  const className = `block w-full rounded-none border p-1 text-left text-label font-bold ${
     unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar hover:text-ink'
-  } hover:bg-ice-pale max-sm:min-h-11`;
+  } hover:bg-ice-pale max-sm:min-h-tap`;
 
   if (target === null) {
     return (
@@ -245,24 +245,24 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
       )}
 
       {userId === null ? (
-        <p className="p-2 text-[13px] font-bold text-ink">
+        <p className="p-2 text-label font-bold text-ink">
           TAGS AND REPLIES GO ACCOUNT TO ACCOUNT - SIGN IN TO BE TOLD ABOUT THEM.
         </p>
       ) : !ready ? (
-        <p className="p-2 text-[13px] font-bold text-ink">READING THE NOTIFICATIONS...</p>
+        <p className="p-2 text-label font-bold text-ink">READING THE NOTIFICATIONS...</p>
       ) : error !== null ? (
-        <div className="p-2 text-[13px] font-bold text-ink">
+        <div className="p-2 text-label font-bold text-ink">
           <p className="w-fit bg-bubble-pale px-1 text-ink-bar">FEED OFFLINE :: {error}</p>
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink"
+            className="mt-1 cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink"
           >
             [ RETRY ]
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="p-2 text-[13px] font-bold text-ink">
+        <p className="p-2 text-label font-bold text-ink">
           NOTHING HERE YET. TAGGING SOMEBODY IN A POST, OR REPLYING TO THEIR POST, IS WHAT LANDS IN THIS LIST.
         </p>
       ) : (
@@ -280,18 +280,18 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer key bg-sun-pale px-2 py-[2px] text-[13px] font-bold text-ink hover:text-accent-ink"
+          className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink"
         >
           [ OPEN THE BOARD ]
         </Link>
-        <span className="text-[13px] text-ink">
+        <span className="text-label text-ink">
           {summary}
           {breakdown === '' ? '' : ` :: ${breakdown}`}
         </span>

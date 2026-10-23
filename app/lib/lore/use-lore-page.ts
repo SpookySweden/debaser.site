@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { Awareness } from 'y-protocols/awareness';
 import { nameColourHex } from '../profile/name-colours';
+import { DYES } from '../ui/themes';
 import { getLoreRepository } from './repository';
 import {
   base64ToBytes,
@@ -88,7 +89,7 @@ export function useLorePage(slug: string, editor: LoreEditor | null): UseLorePag
 
   const editorId = editor?.id ?? null;
   const editorName = editor?.name ?? null;
-  const editorColour = editorId === null ? '#1d3ca6' : (nameColourHex(editorId) ?? '#1d3ca6');
+  const editorColour = editorId === null ? DYES.royalBlue : (nameColourHex(editorId) ?? DYES.royalBlue);
   const identity: LoreIdentity = { name: editorName ?? 'A VISITOR', colour: editorColour };
   const key = `${slug}:${editorId ?? 'visitor'}`;
   const current = loaded !== null && loaded.key === key ? loaded : null;

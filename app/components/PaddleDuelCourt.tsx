@@ -85,20 +85,20 @@ export default function PaddleDuelCourt({
         {/* The net: one dashed line down the middle, drawn as a border rather than a picture. */}
         <span
           aria-hidden
-          className="absolute top-0 h-full border-l-2 border-dashed border-white/60"
+          className="absolute top-0 h-full border-l-line border-dashed border-ink-bar/60"
           style={{ left: '50%' }}
         />
 
         {/* The walls the ball comes off, drawn as a line at each end. */}
-        <span aria-hidden className="absolute top-0 left-0 h-full border-l-4 border-black/40" />
-        <span aria-hidden className="absolute top-0 right-0 h-full border-r-4 border-black/40" />
+        <span aria-hidden className="absolute top-0 left-0 h-full border-l-thick border-ink-plate/40" />
+        <span aria-hidden className="absolute top-0 right-0 h-full border-r-thick border-ink-plate/40" />
 
         {paddle('left')}
         {paddle('right')}
 
         <span
           aria-hidden
-          className="absolute border border-black bg-hardware"
+          className="absolute border border-ink-plate bg-hardware"
           style={{
             width: `${(BALL_RADIUS * 2 / COURT_WIDTH) * 100}%`,
             height: `${(BALL_RADIUS * 2 / COURT_HEIGHT) * 100}%`,
@@ -108,17 +108,17 @@ export default function PaddleDuelCourt({
         />
 
         {scoresHidden ? (
-          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-[14px] font-bold text-ink">
+          <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-key font-bold text-ink">
             WAITING FOR THE OTHER PLAYER. THE BALL HOLDS STILL UNTIL THEY ARE HERE.
           </span>
         ) : null}
 
-        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-[13px] font-bold text-ink">
+        <span className="absolute bottom-1 left-1 bg-sun-pale px-1 text-label font-bold text-ink">
           {state.leftScore} - {state.rightScore}
         </span>
       </div>
 
-      <p className="mt-1 truncate text-[13px] font-bold text-ink-bar">
+      <p className="mt-1 truncate text-label font-bold text-ink-bar">
         {mySide === 'left' ? 'YOU ARE THE LEFT PADDLE.' : 'YOU ARE THE RIGHT PADDLE.'} DRAG ANYWHERE TO MOVE IT.
       </p>
     </div>

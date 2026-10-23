@@ -112,7 +112,7 @@ export default function PostAuthorRow({
         </span>
       )}
 
-      <ProfileLink author={author} className="text-[14px] font-bold">
+      <ProfileLink author={author} className="text-key font-bold">
         <ProfileName author={author} colour={nameColour}>
           {label}
         </ProfileName>
@@ -121,7 +121,7 @@ export default function PostAuthorRow({
       {/* The country, drawn and named. Both, because the flag alone asks a reader to know 249
           drawings by sight, and the name alone was what the place line already was. */}
       {country.length === 0 ? null : (
-        <span className="inline-flex items-center gap-1 text-[13px] text-ink">
+        <span className="inline-flex items-center gap-1 text-label text-ink">
           ::
           <CountryFlag code={country} />
           {countryName(country)}

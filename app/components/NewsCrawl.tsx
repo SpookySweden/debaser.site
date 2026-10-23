@@ -44,7 +44,7 @@ type NewsCrawlProps = {
 export default function NewsCrawl({ items, className = '', emptyLabel }: NewsCrawlProps) {
   if (items.length === 0) {
     return emptyLabel === undefined ? null : (
-      <p className="text-[13px] font-bold text-ink">{emptyLabel}</p>
+      <p className="text-label font-bold text-ink">{emptyLabel}</p>
     );
   }
 

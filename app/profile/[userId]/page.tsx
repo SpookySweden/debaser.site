@@ -30,7 +30,7 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [PUBLIC PROFILE]" active="forum" status="Profile Viewer Active">
     <h1 className="text-xl font-bold mb-2">DEBASER.SITE // PUBLIC PROFILE</h1>
-    <p className="text-[14px] mb-4">WHAT THIS ACCOUNT CHOSE TO SHOW.</p>
+    <p className="text-key mb-4">WHAT THIS ACCOUNT CHOSE TO SHOW.</p>
 
     <PublicProfileWindow userId={id} />
     </SiteWindow>

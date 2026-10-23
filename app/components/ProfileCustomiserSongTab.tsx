@@ -61,12 +61,12 @@ export default function ProfileCustomiserSongTab({
           <div className="w-64">
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
             <div className="mt-1 frame bg-hardware px-2 py-1">
-              <p className="truncate text-[14px] font-bold text-acid">
+              <p className="truncate text-key font-bold text-acid">
                 {current === undefined ? 'NOTHING FILED YET' : current.title}
               </p>
               {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black.
                   Wraps rather than truncates: at 10px the empty-slot sentence is wider than the box. */}
-              <p className="mt-1 text-[13px] text-ink-bar">
+              <p className="mt-1 text-label text-ink-bar">
                 {current === undefined ? 'THE PROFILE SHOWS AN EMPTY TRACK SLOT' : `V${current.version}`}
               </p>
             </div>
@@ -76,7 +76,7 @@ export default function ProfileCustomiserSongTab({
               never wrapped, and on a phone it sat beside the readout 30px wide. */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
             <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
-            <p className="text-[13px] text-ink">
+            <p className="text-label text-ink">
               {pendingSrc === null ? 'NO AUDIO CHOSEN YET.' : `READY: ${pendingSrc}`}
             </p>
 
@@ -91,10 +91,10 @@ export default function ProfileCustomiserSongTab({
                 const file = event.target.files?.[0];
                 if (file !== undefined) onUpload(file);
               }}
-              className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-[13px] font-bold text-ink max-sm:min-h-11"
+              className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-label font-bold text-ink max-sm:min-h-tap"
             />
 
-            {uploadMessage === null ? null : <p className="text-[13px] font-bold text-ink">{uploadMessage}</p>}
+            {uploadMessage === null ? null : <p className="text-label font-bold text-ink">{uploadMessage}</p>}
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-title">
               TITLE
@@ -139,7 +139,7 @@ export default function ProfileCustomiserSongTab({
               >
                 {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
               </button>
-              <p className="text-[13px] text-ink">THE PROFILE CHANGES THE MOMENT IT IS FILED.</p>
+              <p className="text-label text-ink">THE PROFILE CHANGES THE MOMENT IT IS FILED.</p>
             </div>
           </div>
         </div>
@@ -149,7 +149,7 @@ export default function ProfileCustomiserSongTab({
         <p className={CUSTOMISER_NOTE}>TRACK HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
-          <p className="mt-2 text-[13px] font-bold text-ink">NOTHING HAS EVER BEEN FILED.</p>
+          <p className="mt-2 text-label font-bold text-ink">NOTHING HAS EVER BEEN FILED.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
@@ -157,7 +157,7 @@ export default function ProfileCustomiserSongTab({
                 key={version.id}
                 className="flex flex-wrap items-start gap-3 rounded-none border border-ink bg-ice-pale p-2"
               >
-                <div className="min-w-0 flex-1 text-[13px] text-ink">
+                <div className="min-w-0 flex-1 text-label text-ink">
                   <p className="font-bold">
                     M{version.version}
                     {version.id === profile.song.currentVersionId ? ' [ CURRENT ]' : ''} :: {version.title} ::{' '}

@@ -63,14 +63,14 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         <button
           type="button"
           onClick={handleCreate}
-          className="cursor-pointer key bg-sun-pale px-3 py-1 text-[14px] font-bold hover:text-accent-ink"
+          className="cursor-pointer key bg-sun-pale px-3 py-1 text-key font-bold hover:text-accent-ink"
         >
           [ CREATE TAG ]
         </button>
       }
     >
         <div className="text-ink">
-          <label htmlFor={inputId} className="block text-[13px] font-bold">
+          <label htmlFor={inputId} className="block text-label font-bold">
             TAG NAME:
           </label>
           <input
@@ -84,10 +84,10 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
               handleCreate();
             }}
             placeholder="e.g. world building"
-            className="mt-1 w-full frame bg-paper p-2 font-mono text-[14px] text-ink outline-none"
+            className="mt-1 w-full frame bg-paper p-2 font-mono text-key text-ink outline-none"
           />
 
-          <p className="mt-3 text-[13px] font-bold">
+          <p className="mt-3 text-label font-bold">
             SWATCHES ({TAG_MARK_PALETTE.length}) :: EACH IS DRAWN AS A TAG&apos;S COLOUR KEY
           </p>
           <div className="mt-1 grid grid-cols-8 gap-1">
@@ -109,25 +109,25 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           </div>
 
           <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
-            <p className="text-[13px] font-bold">PREVIEW:</p>
+            <p className="text-label font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={tagChipClasses(makeUserTag(previewLabel))}>
                 <TagMark colour={tagMarkColourFromColour(colour)} />
                 {previewLabel}
               </span>
-              <span className="text-[13px] font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
+              <span className="text-label font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
             </div>
             {foldsOnto === null ? (
-              <p className="mt-1 text-[13px]">A NEW TAG WILL BE CREATED.</p>
+              <p className="mt-1 text-label">A NEW TAG WILL BE CREATED.</p>
             ) : (
-              <p className="mt-1 text-[13px] font-bold">
+              <p className="mt-1 text-label font-bold">
                 DECIDEDLY SIMILAR TO AN EXISTING TAG - IT WILL REUSE: {foldsOnto}
               </p>
             )}
           </div>
 
           {error === null ? null : (
-            <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">ERROR: {error}</p>
+            <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">ERROR: {error}</p>
           )}
         </div>
     </PopoutWindow>

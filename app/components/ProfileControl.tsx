@@ -15,12 +15,12 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
 
 const MENU_ITEM =
-  'flex w-full items-center gap-2 rounded-none border border-ink bg-paper px-2 py-[3px] text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-11 max-sm:px-3 max-sm:text-sm';
+  'flex w-full items-center gap-2 rounded-none border border-ink bg-paper px-2 py-0.75 text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
 
 const LOG_IN_BUTTON =
-  'shrink-0 key bg-sun-pale px-3 py-1 text-[14px] font-bold text-ink hover:text-accent-ink active:translate-y-[1px] active:bg-bubble active:text-ink-plate';
+  'shrink-0 key bg-sun-pale px-3 py-1 text-key font-bold text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate';
 
-const PICTURE_BUTTON = `${GLYPH_BUTTON} gap-1 p-[2px] border-r-2 border-b-2`;
+const PICTURE_BUTTON = `${GLYPH_BUTTON} gap-1 p-0.5 border-r-line border-b-line`;
 
 /**
  * The picture's size, which is also the button's.
@@ -41,7 +41,7 @@ const PICTURE_SIZE = { desktop: 26, compact: 40 };
  * screen. The notched outline and the window fill are the same as everywhere else.
  */
 const MENU_PANEL =
-  'absolute right-0 top-full z-30 mt-1 w-64 space-y-1 frame bg-sun-pale p-2 text-[13px] text-ink';
+  'absolute right-0 top-full z-30 mt-1 w-64 space-y-1 frame bg-sun-pale p-2 text-label text-ink';
 
 
 /**
@@ -111,7 +111,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
         {unreadNotifications === 0 ? null : (
           <span
             aria-hidden
-            className="ml-[2px] mr-1 inline-block h-[6px] w-[6px] shrink-0 border border-black bg-bubble-pale"
+            className="ml-0.5 mr-1 inline-block h-[6px] w-[6px] shrink-0 border border-ink-plate bg-bubble-pale"
           />
         )}
       </button>
@@ -121,7 +121,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
 
           <div className={MENU_PANEL} role="menu">
-            <p className="border-b-2 border-ink pb-1">
+            <p className="border-b-line border-ink pb-1">
               <ProfileName author={{ id: userId, displayName }} lamp={false} />
             </p>
 
@@ -134,13 +134,13 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
               onClick={() => setOpen(false)}
               role="menuitem"
             >
-              <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 ☻
               </span>
               <span>MY PUBLIC PROFILE</span>
             </Link>
 
-            <p className="border-b-2 border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
+            <p className="border-b-line border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
 
             {/* The one navigation drawer on a phone: every essential destination lives here, and the
                 profile picture above is the only thing on screen that opens it - the header band and
@@ -149,7 +149,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
                 *from the board*, so both would be two ways back to where the reader already is. */}
             {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}
                 </span>
                 <span>{item.label}</span>
@@ -160,11 +160,11 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
                 *over* the board rather than taking the reader somewhere, which is the same separation
                 the panel's shelf keeps. They are here at all because the panel is `md:` and up, so
                 below that the arcade and the archive would otherwise have no door at all on a phone. */}
-            <p className="border-b-2 border-ink pb-1 pt-1">WINDOWS</p>
+            <p className="border-b-line border-ink pb-1 pt-1">WINDOWS</p>
 
             {[SIDE_ARCADE, SIDE_MUSIC].map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}
                 </span>
                 <span>{item.label}</span>
@@ -261,11 +261,11 @@ function GuestProfileMenu() {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className={MENU_PANEL} role="menu">
-            <p className="border-b-2 border-ink pb-1">ANONYMOUS VISITOR</p>
-            <p className="pb-1 text-[13px]">READING TAKES NO ACCOUNT. AN ACCOUNT SIGNS YOUR POSTS.</p>
+            <p className="border-b-line border-ink pb-1">ANONYMOUS VISITOR</p>
+            <p className="pb-1 text-label">READING TAKES NO ACCOUNT. AN ACCOUNT SIGNS YOUR POSTS.</p>
 
             <Link href="/account" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-              <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 ⚿
               </span>
               <span>CREATE ACCOUNT / LOG IN</span>
@@ -274,7 +274,7 @@ function GuestProfileMenu() {
             {/* The same drawer a signed-in reader gets: one control opens the whole site. */}
             {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}
                 </span>
                 <span>{item.label}</span>
@@ -284,11 +284,11 @@ function GuestProfileMenu() {
             {/* A guest gets the two windows as well. Both open over the board without an account -
                 the arcade and the archive are reading, not interacting - so hiding them behind a
                 sign-in the banner is already asking for would be a door with no handle. */}
-            <p className="border-b-2 border-ink pb-1 pt-1">WINDOWS</p>
+            <p className="border-b-line border-ink pb-1 pt-1">WINDOWS</p>
 
             {[SIDE_ARCADE, SIDE_MUSIC].map((item) => (
               <Link key={item.key} href={item.href} className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-                <span aria-hidden="true" className="w-4 shrink-0 text-center text-[13px]">
+                <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                   {item.mark}
                 </span>
                 <span>{item.label}</span>

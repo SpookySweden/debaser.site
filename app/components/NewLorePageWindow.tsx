@@ -73,7 +73,7 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
       maxWidth="max-w-xl"
       status="THE ADDRESS IS READ OFF THE TITLE"
     >
-      <label className="block text-[13px] font-bold text-ink" htmlFor="lore-new-title">
+      <label className="block text-label font-bold text-ink" htmlFor="lore-new-title">
         TITLE
       </label>
       <input
@@ -84,7 +84,7 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
         className={FIELD}
       />
 
-      <label className="mt-2 block text-[13px] font-bold text-ink" htmlFor="lore-new-summary">
+      <label className="mt-2 block text-label font-bold text-ink" htmlFor="lore-new-summary">
         ONE LINE ABOUT IT (OPTIONAL)
       </label>
       <input
@@ -95,18 +95,18 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
         className={FIELD}
       />
 
-      <p className="mt-2 text-[13px] font-bold text-ink">
+      <p className="mt-2 text-label font-bold text-ink">
         LIVES AT:{' '}
         <span className="text-accent-ink">
           {usable ? lorePagePath(slug) : 'AN ADDRESS NEEDS A LETTER OR A DIGIT IN THE TITLE'}
         </span>
       </p>
 
-      <p className="mt-1 text-[13px] font-bold text-ink">
+      <p className="mt-1 text-label font-bold text-ink">
         {'THE PAGE IS OPENED EMPTY, AND IT IS WRITTEN TOGETHER: ANY ACCOUNT MAY TYPE ON IT, AND EVERYBODY WITH IT OPEN SEES THE OTHERS\' WORDS AS THEY LAND.'}
       </p>
 
-      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
+      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void open()} disabled={busy || !usable} className={PLATE_MAIN}>

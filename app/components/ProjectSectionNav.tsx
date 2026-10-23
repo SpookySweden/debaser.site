@@ -3,7 +3,7 @@ import { DEBASER_PROJECT, PROJECT_SECTIONS } from '../lib/projects/debaser';
 import { SHELF_CHIP } from '../lib/ui/controls';
 
 const CURRENT =
-  'key key-fill [--key-fill:var(--color-ink)] px-2 py-[2px] text-paper max-sm:inline-flex max-sm:min-h-11 max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'key key-fill [--key-fill:var(--color-ink)] px-2 py-0.5 text-paper max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-3 max-sm:text-sm';
 
 type ProjectSectionNavProps = {
   /** The section this page is, so it is marked rather than linked. */
@@ -20,7 +20,7 @@ type ProjectSectionNavProps = {
  */
 export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-1 frame p-2 text-[13px] text-ink">
+    <div className="mb-4 flex flex-wrap items-center gap-1 frame p-2 text-label text-ink">
       <Link href={DEBASER_PROJECT.href} className={SHELF_CHIP}>
         [ &lt; {DEBASER_PROJECT.title} ]
       </Link>

@@ -186,7 +186,7 @@ export default function PersonalLibrary() {
    * Showing "reading" instead costs a frame and lies about nothing.
    */
   if (status === 'loading') {
-    return <p className="p-3 text-[13px] font-bold text-ink">READING YOUR LIBRARY...</p>;
+    return <p className="p-3 text-label font-bold text-ink">READING YOUR LIBRARY...</p>;
   }
 
   /**
@@ -200,18 +200,18 @@ export default function PersonalLibrary() {
   if (userId === null) {
     return (
       <section className={`${PANEL} p-3`}>
-        <p className="text-[13px] font-bold text-ink">
+        <p className="text-label font-bold text-ink">
           YOUR MUSIC IS WHERE THE TRACKS YOU LIKED AND THE LISTS YOU MADE LIVE. IT IS KEPT AGAINST YOUR ACCOUNT.
         </p>
 
-        <p className="mt-2 text-[13px] text-ink">
+        <p className="mt-2 text-label text-ink">
           THE ARCHIVE IS OPEN TO EVERYBODY, AND EVERY ROW IN IT CAN BE PLAYED WITHOUT ONE - THIS SCREEN IS THE
           HALF THAT IS YOURS.
         </p>
 
         <Link
           href="/account"
-          className="mt-2 inline-block cursor-pointer key bg-hardware px-2 py-[3px] text-[13px] font-bold text-ink-bar hover:text-sun"
+          className="mt-2 inline-block cursor-pointer key bg-hardware px-2 py-0.75 text-label font-bold text-ink-bar hover:text-sun"
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>
@@ -231,7 +231,7 @@ export default function PersonalLibrary() {
           <span>[ FAULT ]</span>
         </div>
 
-        <p className="mt-2 text-[13px] font-bold text-ink">
+        <p className="mt-2 text-label font-bold text-ink">
           THE LIBRARY DID NOT ANSWER, SO NOTHING HERE IS YOURS TO READ YET. YOUR LIKES AND LISTS ARE NOT LOST -
           THIS SCREEN SIMPLY COULD NOT ASK FOR THEM.
         </p>
@@ -246,7 +246,7 @@ export default function PersonalLibrary() {
   return (
     <section>
       {notice === null ? null : (
-        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-[13px] font-bold text-ink" role="status">
+        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-label font-bold text-ink" role="status">
           {notice}
         </p>
       )}
@@ -256,7 +256,7 @@ export default function PersonalLibrary() {
           The two readings - a deleted file and a shelf read that fell short - are named together, because
           from here they are genuinely indistinguishable and guessing at one would be inventing. */}
       {shown.missing === 0 ? null : (
-        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-[13px] font-bold text-ink" role="status">
+        <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-label font-bold text-ink" role="status">
           {shown.missing} TRACK{shown.missing === 1 ? '' : 'S'} IN THIS LIST {shown.missing === 1 ? 'IS' : 'ARE'} NOT
           ON THE SHELF RIGHT NOW - {shown.missing === 1 ? 'IT HAS' : 'THEY HAVE'} EITHER BEEN TAKEN DOWN OR THE
           ARCHIVE DID NOT ANSWER IN FULL. YOUR LIST STILL HOLDS {shown.missing === 1 ? 'IT' : 'THEM'}.
@@ -342,9 +342,9 @@ export default function PersonalLibrary() {
         </div>
 
         {!ready ? (
-          <p className="p-3 text-[13px] font-bold text-ink">READING THE LIBRARY...</p>
+          <p className="p-3 text-label font-bold text-ink">READING THE LIBRARY...</p>
         ) : rows.length === 0 ? (
-          <p className="p-3 text-[13px] font-bold text-ink">
+          <p className="p-3 text-label font-bold text-ink">
             {current === null
               ? 'NOTHING LIKED YET. EVERY ROW IN THE ARCHIVE WEARS A HEART - PRESS ONE AND IT LANDS HERE.'
               : 'THIS LIST IS EMPTY. THE BUTTONS UNDER A ROW PUT A TRACK INTO IT.'}
