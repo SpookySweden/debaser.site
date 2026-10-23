@@ -55,7 +55,7 @@ const EXCEPTIONS = [
   },
   {
     file: 'app/lib/projects/notes.ts',
-    value: 'DotGothic16',
+    value: 'IBM Plex Mono',
     why: 'the /notes page says which face the site is set in: words, not styling',
   },
 ];
@@ -135,7 +135,7 @@ function find(file, line, value, rule) {
 }
 
 const COLOUR = /#(?:[0-9a-fA-F]{8}|[0-9a-fA-F]{6}|[0-9a-fA-F]{3,4})\b|\b(?:rgba?|hsla?|oklch|oklab)\(/g;
-const FACES = /\b(?:DotGothic16|Silkscreen|MS Gothic|Osaka|Courier New|Lucida Console|ui-monospace|monospace|sans-serif|serif|Press Start 2P|VT323)\b/g;
+const FACES = /\b(?:IBM Plex Mono|IBM_Plex_Mono|DotGothic16|Silkscreen|MS Gothic|Osaka|Courier New|Lucida Console|ui-monospace|monospace|sans-serif|serif|Press Start 2P|VT323)\b/g;
 const STOCK = /^(?:bg|text|border(?:-[xytblrse])?|outline|ring|ring-offset|fill|stroke|from|to|via|decoration|divide|accent|caret|shadow|placeholder)-(?:black|white|(?:red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose|slate|gray|zinc|neutral|stone|taupe|mauve|mist|olive)-\d{2,3})(?:\/\d+)?$/;
 /** Look utilities that may not take a hand-typed value in brackets. */
 const LOOK = /^-?(?:text|bg|border(?:-[xytblrse])?|outline(?:-offset)?|ring(?:-offset)?|fill|stroke|decoration|underline-offset|accent|caret|shadow|rounded(?:-[a-z]+)?|font|leading|tracking|p[xytblrse]?|m[xytblrse]?|gap(?:-[xy])?|space-[xy]|z|translate(?:-[xyz])?|opacity|indent)-\[/;

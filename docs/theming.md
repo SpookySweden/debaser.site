@@ -28,12 +28,17 @@ and motion, with the measured value beside each.
   data, not the look: `name-colours.ts`, `tag-vocabulary.ts`, `app/lib/character/`. The guard skips them.
 
 ## Change a font
-- **Swap the site's face**: in `app/theme/fonts.ts`, change `DotGothic16` on the import line to another
-  Google font (`import { VT323 as PixelFace } from 'next/font/google'`). Every job follows.
+- **Swap the site's face**: in `app/theme/fonts.ts`, change `IBM_Plex_Mono` on the import line to another
+  Google font (`import { VT323 as PixelFace } from 'next/font/google'`). Every job follows. (The variable
+  is still called `--face-pixel`, from when the face was a pixel face; it is the site's face, whatever it is.)
   - A face with several weights wants `weight` listed (or removed, for a variable font).
-  - **`font-bold` trap:** 457 elements carry `font-bold`. It does nothing today because DotGothic16 has
-    one weight and `font-synthesis` is off. A face *with* a bold turns all of them bold at once. Decide
-    before swapping: remove the `font-bold`s, or accept them.
+  - **`font-bold` trap:** about 450 elements carry `font-bold`. It does nothing today because only weight
+    400 of IBM Plex Mono is loaded and `font-synthesis` is off. Loading a bold (`weight: ['400', '700']`)
+    turns all of them bold at once. Decide before doing that: remove the `font-bold`s, or accept them.
+  - A wider or narrower face changes how much fits: Plex Mono is ~20% wider than DotGothic16 was. After
+    a swap, screenshot the tight strips (player bar, side panel, title lines with extras) at 1440 and 390.
+  - Add the new face's name to `FACES` in `scripts/check-tokens.cjs`, so naming it outside the registry
+    is refused like the others.
   - A face of your own: `next/font/local` (`localFont({ src: './face.woff2', variable: '--face-pixel' })`).
 - **Give one job its own face** (say titles): load a second face in `fonts.ts` with its own variable
   (`--face-display`) and add it to `FACE_VARIABLES`, then point the job at it in `tokens.css`

@@ -89,21 +89,21 @@
      take the weights that `font-bold` reads.)
      ----------------------------------------------------------------------------------------------------- */
   /* Everything that is not one of the jobs below: prose, labels, keys. */
-  --font-body: var(--face-pixel), 'MS Gothic', Osaka, 'Courier New', monospace;
+  --font-body: var(--face-pixel), 'Courier New', monospace;
   /* Titles, when they get a face of their own. Nothing wears it yet: title lines inherit whatever their
      window is set in (most of the board is in `font-mono`), and wearing this would change their fallback
      faces. To give titles their own face: point this at it, and add `font-family: var(--font-display);`
      to the `.title-line` rule in globals.css (or `font-display` on an element). */
   --font-display: var(--font-body);
   /* Fields, numbers and code: where the letters should line up. */
-  --font-mono: var(--face-pixel), 'MS Gothic', 'Courier New', monospace;
+  --font-mono: var(--face-pixel), 'Courier New', monospace;
   /* RADI-OH's text faces (`loopFace` in app/lib/audio/loops.ts): an emoticon needs a true lowercase `d`
-     and `b` and every character the same width, which the pixel face does not have. A typewriter face has
-     both and is on every machine. */
+     and `b` and every character the same width. A typewriter face has both and is on every machine; the
+     faces were drawn for it, so they keep it even now the site's own face is a monospace too. */
   --font-emote: 'Courier New', 'Lucida Console', ui-monospace, monospace;
   /* The page root's own stack (Tailwind puts it on <html>). Nothing reads it - body sets --font-body - but it
      follows the same face, so a swap reaches it too. */
-  --default-font-family: var(--face-pixel), 'MS Gothic', Osaka, sans-serif;
+  --default-font-family: var(--face-pixel), 'Courier New', monospace;
   --default-mono-font-family: var(--font-mono);
 
   /* -----------------------------------------------------------------------------------------------------
