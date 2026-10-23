@@ -8,16 +8,16 @@ import { useComms } from './CommsProvider';
 import NotificationBell from './NotificationBell';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-import { TITLE_BAR } from '../lib/ui/controls';
+import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 /**
  * The side panel's comms block: one button, and the conversations behind it.
  *
  * It is folded by default, and that is the change: a panel that opened with six conversations in it
- * spent the whole column on the one thing a reader is least often there for. `[ COMMS ]` says how many
- * are waiting, and pressing it shows them; pressing it again puts them away. Nothing is hidden that
- * cannot be reached - the button carries the count, so the panel still tells a reader whether opening
- * it is worth the press.
+ * spent the whole column on the one thing a reader is least often there for. Pressing `[ COMMS ]` shows
+ * them; pressing it again puts them away. Nothing is hidden that cannot be reached - `n NEW` rides the
+ * same line while anything is unread, so the panel still tells a reader whether opening it is worth
+ * the press.
  *
  * The notices key sits on the same line, and only when there is something unread (see
  * ./NotificationBell.tsx): a bell on a quiet day is a row of furniture that teaches nobody anything,
@@ -69,8 +69,9 @@ export default function SidebarComms() {
   return (
     <section>
       {/* The title bar is the control. `[ COMMS ]` is the button a reader presses to see the
-          conversations, and the count beside it is what says whether that is worth a press - which is
-          why the count is on the *button* rather than in a heading that would vanish with the list. */}
+          conversations, and the unread count beside it is what says whether that is worth a press -
+          which is why the count is on the title line rather than in a heading that would vanish with
+          the list. */}
       <div className={TITLE_BAR}>
         <button
           type="button"
@@ -78,17 +79,17 @@ export default function SidebarComms() {
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
           title={expanded ? 'Hide the conversations' : 'Show the conversations'}
-          className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none"
+          className={TITLE_BAR_BUTTON}
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
         </button>
 
         <span className="flex items-center gap-1">
-          {/* The count, and the notices key when there is anything to notice: a tag or a reply is the
-              same kind of thing as a message, both addressed to this account (./NotificationBell.tsx). */}
-          <span>
-            [ {comms.unreadTotal === 0 ? `${threads.length} OPEN` : `${comms.unreadTotal} NEW`} ]
-          </span>
+          {/* The unread count only, and the notices key when there is anything to notice: a tag or a
+              reply is the same kind of thing as a message, both addressed to this account
+              (./NotificationBell.tsx). How many conversations are *open* is not drawn (SPEC-efficiency.md):
+              it is the same number on a quiet day and a busy one, so it said nothing worth a look. */}
+          {comms.unreadTotal === 0 ? null : <span>{comms.unreadTotal} NEW</span>}
           <NotificationBell />
         </span>
       </div>
@@ -96,8 +97,12 @@ export default function SidebarComms() {
       {!expanded ? null : (
         <div id="sidebar-comms-list">
           {userId === null ? (
-            <p className="p-2 text-label font-bold text-ink">
-              MESSAGES GO ACCOUNT TO ACCOUNT - SIGN IN TO READ OR SEND ONE.
+            // A locked action is one line with the way in at its start (SPEC-efficiency.md).
+            <p className="p-2 text-label text-ink">
+              <Link href="/account" className={PLATE_LINK}>
+                [ LOG IN ]
+              </Link>{' '}
+              TO MESSAGE PEOPLE
             </p>
           ) : !ready ? (
             <p className="p-2 text-label font-bold text-ink">READING THE CONVERSATIONS...</p>
@@ -135,11 +140,8 @@ export default function SidebarComms() {
           )}
 
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
-            <Link
-              href="/comms"
-              className="inline-flex cursor-pointer items-center gap-1 key px-1 py-1 text-label font-bold"
-            >
-              [ OPEN THE CONSOLE ]
+            <Link href="/comms" className={PLATE_LINK} title="Open the comms console">
+              [ OPEN ]
             </Link>
           </div>
         </div>

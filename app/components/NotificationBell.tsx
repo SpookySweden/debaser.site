@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { isUnread } from '../lib/notifications/feed';
+import { TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { ICON_BELL } from '../lib/ui/icons';
 import NotificationMenu from './NotificationMenu';
 import PopoutWindow from './PopoutWindow';
@@ -18,16 +19,14 @@ function UnreadDot() {
 }
 
 /**
- * The notices key, sized and shaped like the comms block's `[ OPEN COMMS ]` plate beside it.
+ * The notices key, the same title-line key as the comms block's `[ COMMS ]` beside it.
  *
- * It sits in the side panel under COMMS, so it wears that panel's furniture rather than a title bar's:
- * a full-width plate, in ink on the pale field, that inverts on hover the way every other plate does.
- * The glyph and the count, no word - what it is says itself in the accessible name
- * (`Notifications: 4 NEW`), which is also what the pointer reads on hover, so nothing is lost by
- * dropping the label from the face.
+ * It sits on the COMMS title line, so it is the shared title-line key (`TITLE_BAR_BUTTON`) - the same
+ * height as `[ COMMS ]`, so the line does not grow when the bell appears. The glyph and the count, no
+ * word - what it is says itself in the accessible name (`Notifications: 4 NEW`), which is also what
+ * the pointer reads on hover, so nothing is lost by dropping the label from the face.
  */
-const BELL_BUTTON =
-  'inline-flex cursor-pointer items-center gap-1 key px-1 py-1 text-label font-bold';
+const BELL_BUTTON = `${TITLE_BAR_BUTTON} inline-flex items-center gap-1`;
 
 /**
  * The notices key in the side panel, and the pop-up that answers it.

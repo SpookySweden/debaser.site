@@ -4,8 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { buildUserDirectory, countDirectoryStatuses } from '../lib/profile/directory';
-import { arcadeHref } from '../lib/games/arcade-window';
-import { PANEL, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { PANEL, PLATE_LINK, TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import ChallengeControl from './ChallengeControl';
 import { useComms } from './CommsProvider';
@@ -14,14 +13,27 @@ import UserDirectoryRow from './UserDirectoryRow';
 
 type UserDirectoryProps = {
   /**
-   * True inside the side panel: the first few accounts and no footer notes, with
-   * the count turned into a link to the full directory on /users.
+   * True inside the side panel: the first few accounts, and an `[ ALL ]` key to the
+   * full directory on /users.
    */
   compact?: boolean;
 };
 
 /** How many accounts the side panel shows before it hands over to /users. */
 const COMPACT_LIMIT = 6;
+
+/**
+ * What the lamp means, as the hover tip of the list's title line.
+ *
+ * It used to be a panel of its own under the list on /users (`THE LAMP [ LEGEND ]`, with a row of links
+ * to other pages); the colours explain themselves after one look, so the sentence waits under the
+ * pointer instead (SPEC-efficiency.md).
+ */
+const LAMP_TIP =
+  'The lamp: green while a tab of that account is open, yellow for an hour after it closes, red once that has passed.';
+
+/** What the full listing adds to that tip for somebody who can ask: where else a game is asked for. */
+const GAME_TIP = ' A game is asked for from the arcade - or with [ CHALLENGE ] on a post that names them.';
 
 /**
  * The account directory: every account the site knows, with its lamp.
@@ -70,7 +82,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
       await openThreadWith(otherId);
       router.push('/comms');
     } catch {
-      // Comms asks for an account first; the panel under the list says so.
+      // Comms asks for an account first; the line under the list says so.
     } finally {
       setBusyId(null);
     }
@@ -80,27 +92,22 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
     <div className="space-y-3">
       <section className={PANEL}>
         <div className={compact ? `${TITLE_BAR_INACTIVE} title-stack` : TITLE_BAR_INACTIVE}>
-          <span>ACCOUNT DIRECTORY</span>
+          <span title={compact || user === null ? LAMP_TIP : `${LAMP_TIP}${GAME_TIP}`}>ACCOUNT DIRECTORY</span>
           <span>
+            {/* Said once and short (SPEC-efficiency.md): the panel's key to the whole list, and the page's
+                one count. `n SEEN THIS HOUR :: n ELSEWHERE` and the account total were the lamps again in
+                words; the lamps are on every row. */}
             {compact ? (
-              <Link href="/users" className="underline hover:bg-ice">
-                [ {rows.length} :: ALL ]
+              <Link href="/users" className={TITLE_BAR_BUTTON} title="Every account, on the people page">
+                [ ALL ]
               </Link>
+            ) : accountsReady ? (
+              `${counts.online} ONLINE`
             ) : (
-              <>
-                [ {accountsReady ? `${rows.length} ACCOUNT${rows.length === 1 ? '' : 'S'}` : 'READING...'} ::{' '}
-                {counts.online} ONLINE ]
-              </>
+              'READING...'
             )}
           </span>
         </div>
-
-        {compact ? null : (
-          <p className="border-b border-ink px-2 py-1 text-label font-bold text-ink">
-            {counts.online} ONLINE :: {counts.recent} SEEN THIS HOUR :: {counts.offline} ELSEWHERE :: THE HOUSE
-            ACCOUNT FIRST
-          </p>
-        )}
 
         {!accountsReady ? (
           <p className={`${compact ? 'px-2 py-1 text-label' : 'p-3 text-label'} font-bold text-ink`}>
@@ -136,42 +143,18 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             ))}
           </ul>
         )}
+
+        {/* A guest's locked action, as one line with the way in at its start (SPEC-efficiency.md). The
+            panel's compact list leaves it out: the panel's own COMMS block already says it. */}
+        {compact || user !== null ? null : (
+          <p className="p-2 text-label text-ink">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO MESSAGE PEOPLE
+          </p>
+        )}
       </section>
-
-      {compact ? null : (
-        <section className={PANEL}>
-          <div className={TITLE_BAR_INACTIVE}>
-            <span>THE LAMP</span>
-            <span>[ LEGEND ]</span>
-          </div>
-
-          <div className="space-y-1 p-3 text-label font-bold text-ink">
-            <p>
-              GREEN WHILE A TAB OF THAT ACCOUNT IS OPEN, YELLOW FOR AN HOUR AFTER IT CLOSES, RED ONCE THAT HAS
-              PASSED.
-            </p>
-            <p>
-              {user === null
-                ? 'SIGN IN TO SEND SOMEBODY A MESSAGE.'
-                : 'A MESSAGE OPENS THAT CONVERSATION ON THE COMMS PAGE. A GAME IS ASKED FOR FROM THE ARCADE - OR WITH [ CHALLENGE ] ON A POST THAT NAMES THEM.'}
-            </p>
-            <p className="text-ink">
-              <Link href="/forum" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
-                [ BOARD ]
-              </Link>{' '}
-              <Link href={arcadeHref({ kind: 'floor' })} className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
-                [ ARCADE ]
-              </Link>{' '}
-              <Link href="/comms" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
-                [ COMMS ]
-              </Link>{' '}
-              <Link href="/account" className="underline hover:bg-ice max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
-                [ ACCOUNT ]
-              </Link>
-            </p>
-          </div>
-        </section>
-      )}
     </div>
   );
 }
