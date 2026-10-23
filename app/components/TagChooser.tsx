@@ -5,6 +5,7 @@ import { canonicalTagLabel, groupByNamespace, makeUserTag, tagKey, tagNamespace,
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
 import TagCreatorWindow from './TagCreatorWindow';
+import { PLATE } from '../lib/ui/controls';
 
 type TagChooserProps = {
   id: string;
@@ -82,7 +83,11 @@ export default function TagChooser({
 
   return (
     <fieldset id={id} className="mt-2">
-      <legend className="px-1 text-label font-bold text-ink">
+      {/* How tags work is the legend's tip rather than a line under the chooser (SPEC-efficiency.md). */}
+      <legend
+        className="px-1 text-label font-bold text-ink"
+        title="Tags are colour coded, filed by namespace (theme: warn: user:), and link every post that uses them"
+      >
         TAGS ({value.length}/{max})
       </legend>
 
@@ -149,14 +154,14 @@ export default function TagChooser({
           type="button"
           onClick={() => setCreatorOpen(true)}
           title="Open the tag editor to create and colour a new tag"
-          className="cursor-pointer key px-1 py-1.25 text-label font-bold max-sm:min-h-tap max-sm:px-1"
+          className={PLATE}
         >
-          + NEW TAG...
+          [ + NEW TAG ]
         </button>
 
-        <p className={`text-label font-bold ${error === null ? 'text-ink' : 'w-fit bg-bubble-pale px-1 text-ink-bar'}`}>
-          {error ?? 'TAGS ARE COLOUR CODED, FILED BY NAMESPACE (THEME: WARN: USER:), AND LINK EVERY POST THAT USES THEM.'}
-        </p>
+        {error === null ? null : (
+          <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>
+        )}
       </div>
 
       {creatorOpen ? (

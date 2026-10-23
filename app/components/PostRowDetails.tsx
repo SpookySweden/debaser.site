@@ -33,8 +33,9 @@ const BODY_LIMIT = 900;
  * inset-0` inside the column its caller reserved, whose height is set by the title, the credit strip
  * and the tags beside it, so the words are clipped by the row rather than the row by the words - and
  * under them the thread's replies, drawn as the site's newswire rows (./PostReplyReel.tsx). The words
- * lose their opacity as they run into the bottom of the box, and a small `[ EXPAND ]` sits over where
- * they go: the rest of the post is one click away, and the plate says where to click.
+ * lose their opacity as they run into the bottom of the box: the rest of the post is one click away,
+ * on the row's `[+]`, which already says where to click - so the `[ EXPAND ]` that used to sit over
+ * the fade said it twice and was cut (SPEC-efficiency.md).
  *
  * It is a reading aid, not a control: `pointer-events-none`, so the whole band still belongs to the
  * `<summary>` beneath it, and `aria-hidden`, because every word of it - and every reply - is on the
@@ -53,16 +54,13 @@ export default function PostRowDetails({ body, comments }: PostRowDetailsProps) 
       className="pointer-events-none absolute inset-0 flex flex-col gap-1 overflow-hidden p-1"
     >
       {shown.length === 0 ? null : (
-        <div className="relative min-h-0 flex-1 overflow-hidden">
+        <div className="min-h-0 flex-1 overflow-hidden">
           {/* The fade is a mask on the words rather than a plate painted over them, and that is the
               difference between this and an overlay: what fades is the text's own opacity, so it reads
               the same on a quiet row and on the row a pointer has just brightened. An overlay would
               have to be the colour of whatever is under it, and that changes with both. */}
           <p className="whitespace-pre-line text-prose leading-normal text-ink [mask-image:linear-gradient(to_bottom,black_58%,transparent_100%)]">
             {shown}
-          </p>
-          <p className="absolute right-0 bottom-0 border border-ink-plate bg-paper px-1 text-label font-bold text-ink">
-            [ EXPAND ]
           </p>
         </div>
       )}

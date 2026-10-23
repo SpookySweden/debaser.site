@@ -71,8 +71,8 @@ type CommentNodeCardProps = {
  *
  * Presentation only: the author's picture (no grey trim, so the drawing gets the
  * space), the body, any attached artwork, its tags, and the two small controls
- * that make the threading usable - `[ COMMENT ]` to answer this comment, and
- * `[ SHOW n REPLIES ] / [ HIDE n REPLIES ]` to fold the replies underneath.
+ * that make the threading usable - `[ REPLY ]` to answer this comment, and
+ * `[ n REPLIES ▾ ] / [ n REPLIES ▴ ]` to unfold or fold the replies underneath.
  */
 export default function CommentNodeCard({
   comment,
@@ -162,13 +162,21 @@ export default function CommentNodeCard({
         <TagStrip tags={displayTags(comment.tags)} className="mt-1" limit={5} />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={onToggleReply} title="Comment on this reply" className={PLATE}>
-            {replyOpen ? '[ CANCEL ]' : '[ COMMENT ]'}
+          <button type="button" onClick={onToggleReply} title="Answer this reply" className={PLATE}>
+            {replyOpen ? '[ CANCEL ]' : '[ REPLY ]'}
           </button>
 
+          {/* The count and which way it folds, in one key: ▾ while the replies are folded away,
+              ▴ while they are on screen. */}
           {children === undefined ? null : (
-            <button type="button" onClick={onToggleReplies} className={PLATE}>
-              {repliesHidden ? `[ SHOW ${countReplies(replyCount)} ]` : `[ HIDE ${countReplies(replyCount)} ]`}
+            <button
+              type="button"
+              onClick={onToggleReplies}
+              aria-expanded={!repliesHidden}
+              title={repliesHidden ? 'Show the replies to this one' : 'Fold the replies to this one away'}
+              className={PLATE}
+            >
+              {`[ ${countReplies(replyCount)} ${repliesHidden ? '▾' : '▴'} ]`}
             </button>
           )}
         </div>
