@@ -173,7 +173,9 @@ export default function CommentComposer({
         event.preventDefault();
         onSubmit();
       }}
-      className="mt-2 border border-ink bg-sun-pale p-2"
+      // No box of its own (a box inside an open post, inside the board): the typing field's frame is
+      // what says "write here", as everywhere else since SPEC-efficiency.md flattened the sections.
+      className="mt-2"
     >
       {/* No byline and no character count, in either shape (SPEC-efficiency.md): a post is filed as
           whoever is signed in, and a count is only worth showing near a limit - which posts and

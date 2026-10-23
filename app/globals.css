@@ -580,6 +580,13 @@ img {
     background-color: transparent;
     color: var(--key-quiet-ink, var(--color-ink-quiet));
     cursor: not-allowed;
+    /* A dotted rule under the words (2026-10-24): on the dark theme the quiet ink is Flavine beside the
+       keys' Daffodil, close enough that colour alone did not say "not now". The rule is a shape, so it
+       reads in any theme and on Rose, and it costs no contrast - it is drawn in the key's own ink. */
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: var(--border-width-line);
+    text-underline-offset: --spacing(0.75);
   }
 
   /* A filled key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. A key

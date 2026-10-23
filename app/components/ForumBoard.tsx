@@ -94,6 +94,9 @@ export default function ForumBoard() {
   const [tagWindowOpen, setTagWindowOpen] = useState(false);
   /** Which of the row's two panels is open, if either: the board opens with both folded away. */
   const [menu, setMenu] = useState<BoardMenu | null>(null);
+  /** The keys that open the panels: ESC hands focus back to whichever one opened the panel it closes. */
+  const tagsKeyRef = useRef<HTMLButtonElement>(null);
+  const controlsKeyRef = useRef<HTMLButtonElement>(null);
   /** The controls row: a press outside it closes its panel. */
   const controlsRef = useRef<HTMLDivElement | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -182,12 +185,16 @@ export default function ForumBoard() {
   }, []);
 
   // A panel also closes the way the Start menu does (./StartMenu.tsx): on ESC, or on a press anywhere
-  // outside the row it hangs from. `pointerdown` rather than `mousedown`, so a tap on a phone counts.
+  // outside the row it hangs from. Each panel is written straight after its key, so the Tab key reaches
+  // it next (it is drawn absolutely, under the whole row, so where it sits in the markup moves nothing). `pointerdown` rather than `mousedown`, so a tap on a phone counts.
   useEffect(() => {
     if (menu === null) return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setMenu(null);
+      if (event.key !== 'Escape') return;
+      setMenu(null);
+      // Back to the key that opened it, so a keyboard reader is where they were rather than at the top.
+      (menu === 'tags' ? tagsKeyRef : controlsKeyRef).current?.focus();
     };
     const onPointerDown = (event: PointerEvent) => {
       if (controlsRef.current !== null && !controlsRef.current.contains(event.target as Node)) setMenu(null);
@@ -345,47 +352,21 @@ export default function ForumBoard() {
 
         <button
           type="button"
+          ref={tagsKeyRef}
           onClick={() => toggleMenu('tags')}
           aria-expanded={menu === 'tags'}
+          aria-controls="board-tags-panel"
           title="Pick tags to filter the board, or click a badge on any post to add it here"
           className={PLATE}
         >
           {menu === 'tags' ? '[ TAGS ▴ ]' : '[ TAGS ▾ ]'}
         </button>
 
-        <button
-          type="button"
-          onClick={() => toggleMenu('controls')}
-          aria-expanded={menu === 'controls'}
-          title="Sort the board, narrow it to one source, search it, or change how many posts a page holds"
-          className={PLATE}
-        >
-          {menu === 'controls' ? '[ SORT / SEARCH ▴ ]' : '[ SORT / SEARCH ▾ ]'}
-        </button>
-
-        {/* Said only while it is true: a board that has synced says nothing about it. */}
-        {forum.ready ? null : <span>SYNCING...</span>}
-        {forum.loadError ? <span className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{forum.loadError}</span> : null}
-
-        <button
-          type="button"
-          onClick={() => {
-            setMenu(null);
-            setComposerOpen(true);
-          }}
-          aria-haspopup="dialog"
-          aria-expanded={composerOpen}
-          title="Open the composer window to file a new thread"
-          className={`${PLATE_MAIN} ml-auto`}
-        >
-          + NEW POST
-        </button>
-
         {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
             music - one key away (./TagWindow.tsx). The ranking is the only order offered: what a
             board's tags are *for* is telling you what is on it, and that is a count. */}
         {menu === 'tags' ? (
-          <div className={MENU_PANEL}>
+          <div id="board-tags-panel" className={MENU_PANEL}>
             {/* The wall scrolls inside the panel, so a hundred chips never make the panel taller
                 than the screen it opened on. */}
             <div className="flex max-h-72 flex-wrap gap-x-3 gap-y-0.75 overflow-y-auto">
@@ -469,10 +450,22 @@ export default function ForumBoard() {
           </div>
         ) : null}
 
+        <button
+          type="button"
+          ref={controlsKeyRef}
+          onClick={() => toggleMenu('controls')}
+          aria-expanded={menu === 'controls'}
+          aria-controls="board-controls-panel"
+          title="Sort the board, narrow it to one source, search it, or change how many posts a page holds"
+          className={PLATE}
+        >
+          {menu === 'controls' ? '[ SORT / SEARCH ▴ ]' : '[ SORT / SEARCH ▾ ]'}
+        </button>
+
         {/* Sort / source / search, and how many posts a page holds: folded away by default, because
             the posts themselves are the practical information on this page. */}
         {menu === 'controls' ? (
-          <div className={`${MENU_PANEL} grid gap-3 sm:grid-cols-2`}>
+          <div id="board-controls-panel" className={`${MENU_PANEL} grid gap-3 sm:grid-cols-2`}>
             <fieldset>
               <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
               <label className="flex items-center gap-2 text-label font-bold text-ink">
@@ -582,6 +575,24 @@ export default function ForumBoard() {
             ) : null}
           </div>
         ) : null}
+
+        {/* Said only while it is true: a board that has synced says nothing about it. */}
+        {forum.ready ? null : <span>SYNCING...</span>}
+        {forum.loadError ? <span className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{forum.loadError}</span> : null}
+
+        <button
+          type="button"
+          onClick={() => {
+            setMenu(null);
+            setComposerOpen(true);
+          }}
+          aria-haspopup="dialog"
+          aria-expanded={composerOpen}
+          title="Open the composer window to file a new thread"
+          className={`${PLATE_MAIN} ml-auto`}
+        >
+          + NEW POST
+        </button>
       </div>
 
       {/* What the board is narrowed to, after the row: each picked tag as a key that drops it, and the
