@@ -133,7 +133,9 @@ export default function CommsConsole() {
       {error === null ? null : (
         <div className="flex flex-wrap items-center gap-2 frame bg-sun-pale p-2 text-[13px] font-bold text-ink lg:basis-full">
           <span className="border border-black bg-bubble-pale px-1 text-ink-bar">[ COMMS OFFLINE ]</span>
-          <span className="min-w-0 flex-1 break-words text-bubble-pale">{error}</span>
+          <span className="min-w-0 flex-1 break-words">
+            <span className="bg-bubble-pale px-1 text-ink-bar box-decoration-clone">{error}</span>
+          </span>
           <button type="button" onClick={retry} className={PLATE}>
             [ RETRY ]
           </button>
@@ -241,7 +243,7 @@ export default function CommsConsole() {
                 [ OPEN GROUP ]
               </button>
 
-              {groupError === null ? null : <p className="text-bubble-pale">{groupError}</p>}
+              {groupError === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">{groupError}</p>}
             </div>
           ) : null}
 
@@ -353,7 +355,7 @@ export default function CommsConsole() {
             <button type="button" onClick={() => void purgeLocal()} className={PLATE}>
               [ PURGE LOCAL COMMS ]
             </button>
-            {testNote === null ? null : <span className="text-bubble-pale">{testNote}</span>}
+            {testNote === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{testNote}</span>}
           </div>
         ) : null}
       </section>

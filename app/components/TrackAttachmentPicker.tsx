@@ -329,7 +329,7 @@ export default function TrackAttachmentPicker({ id, onChange, author }: TrackAtt
           </button>
         )}
 
-        {error === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{error}</p>}
+        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
         {error === null && status !== null ? <p className="text-[13px] font-bold text-ink-quiet">{status}</p> : null}
       </div>
     </div>

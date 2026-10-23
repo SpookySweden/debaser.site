@@ -202,7 +202,7 @@ export default function LoreEditor({
       {/* The filing line: what the shelf has, and the button that files what it does not. */}
       <div className="flex flex-wrap items-center gap-2 border-t border-ink px-2 py-1 text-[13px] font-bold text-ink">
         {savedAt === null ? (
-          <span className="text-bubble-pale">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
+          <span className="bg-bubble-pale px-1 text-ink-bar">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
         ) : (
           <span>
             FILED :: <TimeStamp at={savedAt} />
@@ -210,7 +210,7 @@ export default function LoreEditor({
         )}
 
         {saving ? <span>FILING...</span> : null}
-        {saveError === null ? null : <span className="text-bubble-pale">{saveError}</span>}
+        {saveError === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{saveError}</span>}
 
         <button type="button" className={`ml-auto ${PLATE}`} onClick={saveNow} disabled={saving}>
           [ SAVE NOW ]

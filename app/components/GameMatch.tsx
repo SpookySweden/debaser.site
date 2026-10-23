@@ -281,7 +281,7 @@ export default function GameMatch({
       </div>
 
       <div className="space-y-2 p-2">
-        {note === null ? null : <p className="border border-ink bg-paper px-2 py-1 text-[13px] font-bold text-bubble-pale">{note}</p>}
+        {note === null ? null : <p className="border border-ink bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar">{note}</p>}
 
         {/* Phones get the board first and the controls under it; a wide screen puts them side by side. */}
         <div className="grid min-w-0 gap-2 sm:grid-cols-[minmax(0,1fr)_13rem]">

@@ -106,7 +106,7 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
         {'THE PAGE IS OPENED EMPTY, AND IT IS WRITTEN TOGETHER: ANY ACCOUNT MAY TYPE ON IT, AND EVERYBODY WITH IT OPEN SEES THE OTHERS\' WORDS AS THEY LAND.'}
       </p>
 
-      {error === null ? null : <p className="mt-2 text-[13px] font-bold text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void open()} disabled={busy || !usable} className={PLATE_MAIN}>

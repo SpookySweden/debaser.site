@@ -44,7 +44,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
   if (lore.error !== null) {
     return (
-      <p className="frame bg-paper p-3 text-[13px] font-bold text-bubble-pale">
+      <p className="frame bg-bubble-pale p-3 text-[13px] font-bold text-ink-bar">
         {lore.error}
       </p>
     );

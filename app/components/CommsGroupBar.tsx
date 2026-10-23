@@ -131,7 +131,7 @@ export default function CommsGroupBar({
       </div>
 
       {!confirmingLeave ? null : (
-        <p className="text-bubble-pale">
+        <p className="w-fit bg-bubble-pale px-1 text-ink-bar">
           LEAVING TAKES YOU OUT OF THIS GROUP
           {owner
             ? ' AND HANDS IT TO WHOEVER HAS BEEN IN IT LONGEST - IF YOU ARE THE LAST ONE, THE GROUP GOES WITH YOU'
@@ -246,7 +246,7 @@ export default function CommsGroupBar({
         </ul>
       )}
 
-      {error === null ? null : <p className="text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">{error}</p>}
     </div>
   );
 }

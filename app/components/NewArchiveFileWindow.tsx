@@ -208,7 +208,7 @@ export default function NewArchiveFileWindow({
 
       <AudioTagChooser id="new-file" value={tags} onChange={setTags} />
 
-      {error === null ? null : <p className="mt-2 text-[13px] font-bold text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
     </PopoutWindow>
   );
 }

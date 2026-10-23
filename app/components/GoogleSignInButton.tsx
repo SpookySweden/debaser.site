@@ -63,7 +63,7 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
         {busy ? 'OPENING GOOGLE...' : 'LOG IN WITH GOOGLE'}
       </button>
 
-      {note === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{note}</p>}
+      {note === null ? null : <p className="w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{note}</p>}
     </div>
   );
 }

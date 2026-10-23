@@ -283,7 +283,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   return (
     <div className="space-y-3">
       {error === null ? null : (
-        <p className="rounded-none border-2 border-black bg-paper px-2 py-1 text-[13px] font-bold text-bubble-pale">{error}</p>
+        <p className="rounded-none border-2 border-black bg-bubble-pale px-2 py-1 text-[13px] font-bold text-ink-bar">{error}</p>
       )}
       {notice === null ? null : (
         <p className="rounded-none border-2 border-black bg-paper px-2 py-1 text-[13px] font-bold text-ink">{notice}</p>
@@ -322,7 +322,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               </button>
 
               {challengeRefusalText === null ? null : (
-                <span className="text-bubble-pale">{challengeRefusalText}</span>
+                <span className="bg-bubble-pale px-1 text-ink-bar box-decoration-clone">{challengeRefusalText}</span>
               )}
             </p>
           </div>

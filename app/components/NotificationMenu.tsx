@@ -251,8 +251,8 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
       ) : !ready ? (
         <p className="p-2 text-[13px] font-bold text-ink">READING THE NOTIFICATIONS...</p>
       ) : error !== null ? (
-        <div className="p-2 text-[13px] font-bold text-bubble-pale">
-          <p>FEED OFFLINE :: {error}</p>
+        <div className="p-2 text-[13px] font-bold text-ink">
+          <p className="w-fit bg-bubble-pale px-1 text-ink-bar">FEED OFFLINE :: {error}</p>
           <button
             type="button"
             onClick={retry}

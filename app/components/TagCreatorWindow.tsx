@@ -127,7 +127,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           </div>
 
           {error === null ? null : (
-            <p className="mt-2 text-[13px] font-bold text-bubble-pale">ERROR: {error}</p>
+            <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">ERROR: {error}</p>
           )}
         </div>
     </PopoutWindow>

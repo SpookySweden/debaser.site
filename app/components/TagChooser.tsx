@@ -154,7 +154,7 @@ export default function TagChooser({
           + NEW TAG...
         </button>
 
-        <p className={`text-[13px] font-bold ${error === null ? 'text-ink' : 'text-bubble-pale'}`}>
+        <p className={`text-[13px] font-bold ${error === null ? 'text-ink' : 'w-fit bg-bubble-pale px-1 text-ink-bar'}`}>
           {error ?? 'TAGS ARE COLOUR CODED, FILED BY NAMESPACE (THEME: WARN: USER:), AND LINK EVERY POST THAT USES THEM.'}
         </p>
       </div>

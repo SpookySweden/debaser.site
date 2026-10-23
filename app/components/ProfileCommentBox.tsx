@@ -93,7 +93,7 @@ export default function ProfileCommentBox({
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
         <span className="text-[13px] text-ink">{body.trim().length} CHARS</span>
-        {error === null ? null : <p className="text-[13px] font-bold text-bubble-pale">{error}</p>}
+        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
         {status === null ? null : <p className="text-[13px] font-bold text-ink">{status}</p>}
       </div>
     </div>

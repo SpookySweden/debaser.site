@@ -91,7 +91,7 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
 
       <p className="mt-2 text-[13px] font-bold text-ink">BECOMES: {named ? path : '...'}</p>
 
-      {error === null ? null : <p className="mt-2 text-[13px] font-bold text-bubble-pale">{error}</p>}
+      {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
     </PopoutWindow>
   );
 }

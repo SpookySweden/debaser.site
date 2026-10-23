@@ -212,7 +212,7 @@ export default function CommentComposer({
 
       <div className={`flex flex-wrap items-center gap-3${condensed ? ' mt-1' : ' mt-2'}`}>
         {error !== null ? (
-          <span className="text-[13px] font-bold text-bubble-pale">ERROR: {error}</span>
+          <span className="bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">ERROR: {error}</span>
         ) : null}
 
         {error === null && status !== null ? (

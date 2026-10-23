@@ -418,10 +418,10 @@ export default function TagWindow({
           <li
             key={result.label}
             className={`flex flex-wrap items-center gap-2 border p-1 text-[13px] font-bold ${
-              result.ok ? 'border-ink bg-paper text-ink' : 'border-black bg-sun-pale text-bubble-pale'
+              result.ok ? 'border-ink bg-paper text-ink' : 'border-black bg-sun-pale text-ink'
             }`}
           >
-            <span>{result.ok ? '[ PASS ]' : '[ FAIL ]'}</span>
+            <span className={result.ok ? undefined : 'bg-bubble-pale px-1 text-ink-bar'}>{result.ok ? '[ PASS ]' : '[ FAIL ]'}</span>
             <span>{result.label}</span>
             <span className="ml-auto font-normal text-ink">{result.detail}</span>
           </li>

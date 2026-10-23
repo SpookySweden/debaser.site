@@ -40,6 +40,9 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   - `PLATE_ACCENT` (inject to post) is the one Brilliant Pink pill.
   - Disabled keys draw a dotted outline.
 - Colour is for accents. Big fills are the window colour; colour marks what matters.
+- **Faults are Rose chips** (errors, refusals, warnings, the unread count): White words on a Rose strip,
+  `bg-bubble-pale px-1 text-ink-bar` (`w-fit` on a block), 4.70:1 in both themes. Never Rose *words* on
+  the window: that is 3.79:1 on Nigrosine and 4.14:1 on Flavine. `Temp/check-themes.cjs` holds it.
 
 ## Type
 - One face: **DotGothic16**, one weight. `font-synthesis: none`, so bold does nothing - emphasis comes

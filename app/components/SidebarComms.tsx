@@ -103,7 +103,7 @@ export default function SidebarComms() {
             <p className="p-2 text-[13px] font-bold text-ink">READING THE CONVERSATIONS...</p>
           ) : error !== null ? (
             // A store that cannot be read is not the same as an account with nothing in it.
-            <p className="p-2 text-[13px] font-bold text-bubble-pale">COMMS OFFLINE :: {error}</p>
+            <p className="m-2 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">COMMS OFFLINE :: {error}</p>
           ) : rows.length === 0 ? (
             <p className="p-2 text-[13px] font-bold text-ink">
               NO CONVERSATIONS YET. OPEN ONE FROM THE DIRECTORY BELOW OR FROM THE COMMS PAGE.
@@ -127,7 +127,7 @@ export default function SidebarComms() {
                       <TimeStamp at={row.updatedAt} />
                     </span>
                     <span className="mt-1 block truncate font-normal text-ink">{row.preview}</span>
-                    {row.unread === 0 ? null : <span className="mt-1 block text-bubble-pale">[ {row.unread} NEW ]</span>}
+                    {row.unread === 0 ? null : <span className="mt-1 block w-fit bg-bubble-pale px-1 text-ink-bar">[ {row.unread} NEW ]</span>}
                   </button>
                 </li>
               ))}

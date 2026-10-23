@@ -33,7 +33,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
         autoComplete={autoComplete}
         className={FIELD}
       />
-      {error === undefined ? null : <p className="mt-1 text-[13px] font-bold text-bubble-pale">{error}</p>}
+      {error === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{error}</p>}
     </div>
   );
 }

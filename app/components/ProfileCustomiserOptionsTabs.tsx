@@ -174,7 +174,7 @@ export function ProfileIdentityTab({
         STAND IN FOR IT.
       </p>
       {countryProblem === undefined ? null : (
-        <p className="mt-1 text-[13px] font-bold text-bubble-pale">{countryProblem}</p>
+        <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{countryProblem}</p>
       )}
 
       {/* The status, beside the country flag because the two are the same kind of thing: one short
@@ -197,7 +197,7 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
       {statusProblem === undefined ? null : (
-        <p className="mt-1 text-[13px] font-bold text-bubble-pale">{statusProblem}</p>
+        <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{statusProblem}</p>
       )}
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
@@ -216,7 +216,7 @@ export function ProfileIdentityTab({
         placeholder="Who is behind this account?"
         className={FIELD}
       />
-      {bioProblem === undefined ? null : <p className="mt-1 text-[13px] font-bold text-bubble-pale">{bioProblem}</p>}
+      {bioProblem === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-[13px] font-bold text-ink-bar">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
         <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
