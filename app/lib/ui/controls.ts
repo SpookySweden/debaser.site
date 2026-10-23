@@ -79,11 +79,13 @@ export const PLATE_HARDWARE =
   `key cursor-pointer px-1.5 py-2.5 text-key ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1.5 max-sm:text-sm`;
 
 /** A key already down: the tab you are standing on, the switch that is on. A filled pill in the field ink. */
-export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-2 py-0.5 text-label text-paper max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+// The same box as `PLATE` (the pill's 2px outline is the rest of `PLATE`'s padding), so a key switched on
+// does not change size under the pointer.
+export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-0.5 py-0.5 text-label text-paper max-sm:min-h-tap max-sm:px-0.5 max-sm:py-1.5 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `key px-1 py-1.5 text-label active:translate-y-press active:bg-bubble active:text-ink-plate max-sm:min-h-tap max-sm:px-1 max-sm:py-2.5 max-sm:text-sm`;
+  `key px-1 py-1.5 text-label active:translate-y-press active:bg-bubble active:text-ink-plate max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-1 max-sm:py-2.5 max-sm:text-sm`;
 
 /** A field: the paper you write on, inside the same notched outline, with the room it needs under its label. */
 export const FIELD =

@@ -54,7 +54,7 @@ export default function ListRow({
             selected ? '[--key-ink:var(--color-sun)] [--key-hover-ink:var(--color-ink-plate)]' : ''
           }`}
         >
-          ×
+          [ × ]
         </button>
       )}
     </div>

@@ -113,7 +113,6 @@ export function NotificationMenuButton({ className = MENU_ITEM }: { className?: 
       {!open ? null : (
         <PopoutWindow
           title={`NOTIFICATIONS :: ${notifications.summary}`}
-          badge="[ TAGS + REPLIES ]"
           maxWidth="max-w-md"
           onClose={() => setOpen(false)}
         >

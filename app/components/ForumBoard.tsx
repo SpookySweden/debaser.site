@@ -365,6 +365,7 @@ export default function ForumBoard() {
 
         {/* Said only while it is true: a board that has synced says nothing about it. */}
         {forum.ready ? null : <span>SYNCING...</span>}
+        {forum.loadError ? <span className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{forum.loadError}</span> : null}
 
         <button
           type="button"

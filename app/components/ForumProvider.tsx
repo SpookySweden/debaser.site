@@ -70,6 +70,8 @@ export type ForumContextValue = {
   author: ForumAuthor;
   source: ForumDataSource;
   ready: boolean;
+  /** Set when the board could not be read: shown beside the controls, so a failed read never looks like an empty board. */
+  loadError: string | null;
   /** Ranked tag options: most used first, starter tags always present. */
   tagVocabulary: TagOption[];
   /** Colours chosen in the tag picker, keyed by canonical tag key. */
@@ -156,6 +158,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
   const [profileComments, setProfileComments] = useState<ProfileCommentEntry[]>([]);
   const [pins, setPins] = useState<ThreadPin[]>([]);
   const [ready, setReady] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [source] = useState<ForumDataSource>(() => getForumRepository().source);
 
   useEffect(() => {
@@ -168,10 +171,13 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       .then((next) => {
         if (cancelled) return;
         setThreads(next);
+        setLoadError(null);
         setReady(true);
       })
       .catch(() => {
-        if (!cancelled) setReady(true);
+        if (cancelled) return;
+        setLoadError('THE BOARD COULD NOT BE READ. RELOAD TO TRY AGAIN.');
+        setReady(true);
       });
 
     // The pins come in beside the board: the same read, the same failure policy (a board that
@@ -428,6 +434,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       author,
       source,
       ready,
+      loadError,
       tagVocabulary,
       tagColours,
       rememberTagColour,
@@ -453,6 +460,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       author,
       source,
       ready,
+      loadError,
       tagVocabulary,
       tagColours,
       rememberTagColour,

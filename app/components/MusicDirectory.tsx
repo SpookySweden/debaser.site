@@ -290,7 +290,7 @@ const FolderBranch = memo(function FolderBranch({
   return (
     <li className="border-b border-dotted border-ink">
       <details open={open} onToggle={(event) => onToggle(path, event.currentTarget.open)}>
-        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar hover:bg-sun hover:text-ink-plate max-sm:min-h-tap max-sm:py-0">
+        <summary className="flex cursor-pointer select-none items-center gap-2 bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] hover:bg-sun hover:text-ink-plate hover:[--key-ink:var(--color-ink-plate)] hover:[--key-hover-ink:var(--color-sun)] max-sm:min-h-tap max-sm:py-0">
           <span className="w-6 shrink-0">{open ? '[-]' : '[+]'}</span>
           <span className="min-w-0 flex-1 truncate">{folder.name}</span>
           <span className="shrink-0">

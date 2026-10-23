@@ -507,13 +507,14 @@ function InviteLine({
 }) {
   const frame =
     tone === 'firm'
-      ? 'border-ink-plate bg-paper text-ink'
+      ? 'bg-paper text-ink'
       : tone === 'plain'
-        ? 'border-ink bg-bubble-pale text-ink-bar'
-        : 'border-ink bg-bubble-pale text-ink-bar';
+        ? 'bg-bubble-pale text-ink-bar [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)]'
+        : 'bg-bubble-pale text-ink-bar [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)]';
 
+  // No outline (a box inside a section); the Rose lines set White for the keys on them.
   return (
-    <div className={`flex flex-wrap items-center gap-2 rounded-none border px-2 py-1 text-label font-bold ${frame}`}>
+    <div className={`flex flex-wrap items-center gap-2 px-2 py-1 text-label font-bold ${frame}`}>
       <span className="min-w-0 flex-1 truncate">{text}</span>
       {actions.map((action) => (
         <button key={action.label} type="button" className={PLATE} disabled={action.busy} onClick={action.run}>

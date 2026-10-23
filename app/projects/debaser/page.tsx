@@ -28,9 +28,6 @@ const SECTION_COUNTS: Record<string, string> = {
   )}`,
 };
 
-/** The site's own rooms, rather than the project's shelves. */
-const SITE_ROOMS = ['forum', 'users', 'comms', 'account'];
-
 export default function DebaserProjectPage() {
   return (
     <SiteWindow
@@ -60,19 +57,6 @@ export default function DebaserProjectPage() {
       ))}
     </div>
 
-    <div className="mt-6">
-      <p className="text-key font-bold mb-2">AROUND THE ARCHIVE:</p>
-      <ul className="space-y-1">
-        {ARCHIVE_LINKS.filter((link) => SITE_ROOMS.includes(link.id)).map((link) => (
-          <li key={link.id} className="text-label font-bold">
-            <Link href={link.href} className="underline hover:bg-pointed max-sm:flex max-sm:min-h-tap max-sm:w-fit max-sm:items-center">
-              {link.label}
-            </Link>{' '}
-            :: {link.summary}
-          </li>
-        ))}
-      </ul>
-    </div>
     </SiteWindow>
   );
 }

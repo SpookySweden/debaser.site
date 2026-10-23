@@ -123,7 +123,9 @@ function NotificationRow({
   );
 
   const className = `block w-full rounded-none border p-1 text-left text-label font-bold ${
-    unread ? 'border-ink bg-paper text-ink' : 'border-ink bg-bubble-pale text-ink-bar hover:text-ink'
+    unread
+      ? 'border-ink bg-paper text-ink'
+      : 'border-ink bg-bubble-pale text-ink-bar [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] hover:text-ink hover:[--key-ink:var(--color-accent-ink)]'
   } hover:bg-ice-pale max-sm:min-h-tap`;
 
   if (target === null) {
@@ -239,7 +241,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
             title="Close"
             className={TITLE_BAR_BUTTON}
           >
-            x
+            [ × ]
           </button>
         </div>
       )}

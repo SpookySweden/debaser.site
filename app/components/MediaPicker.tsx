@@ -95,7 +95,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
             bar ink: Black on Rose is 4.47:1 - a hair under the floor, and it is the pair the audit
             caught here - while Pure White is 4.70:1 in either theme. The children name their own ink
             rather than inheriting, so each one has to say it. */}
-        <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 sm:flex-1 ${heightClass}`}>
+        <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] sm:flex-1 ${heightClass}`}>
           {selected === undefined ? (
             <p className="text-label font-bold text-ink-bar">
               {NONE}

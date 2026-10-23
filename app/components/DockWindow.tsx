@@ -204,7 +204,7 @@ export default function DockWindow({
               aria-label={`Close ${title}`}
               className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
             >
-              ×
+              [ × ]
             </button>
           </span>
         </div>

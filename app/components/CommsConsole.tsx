@@ -286,7 +286,7 @@ export default function CommsConsole() {
               onClick={() => setMobileView('list')}
               className="shrink-0 cursor-pointer key px-1 py-1 text-label font-bold leading-none lg:hidden"
             >
-              ← LIST
+              [ ← LIST ]
             </button>
             <span className="truncate">
               COMMS

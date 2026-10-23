@@ -10,10 +10,9 @@
 }
 
 html {
-  /* A pixel face is drawn on a grid, so the browser's antialiasing is what turns blocky
-     letterforms into blurred ones. Switched off where the property exists; where it does not,
-     nothing is lost. */
-  -webkit-font-smoothing: none;
+  /* IBM Plex Mono is a smooth vector face, so it wants the browser's antialiasing (it was switched off
+     for DotGothic16, a pixel face, where smoothing blurred the blocks). Only macOS reads this. */
+  -webkit-font-smoothing: antialiased;
   /* The face has one weight. With synthesis off, a `font-bold` still in a component draws the
      regular face instead of a smeared fake bold: emphasis on this site is colour or size. */
   font-synthesis: none;
@@ -557,7 +556,9 @@ img {
      and the words take the window's own colour (`paper`: Nigrosine on Daffodil 15.9:1, White on Royal
      Blue 9.3:1 - the plate ink, Black, would be 2.2:1 on the bright theme's Royal Blue). No border at
      all, so the box the outline used to take is given back to the line. `--key-ink` is the one dial: a
-     key on a Black strip (the guest banner) asks for Daffodil, which reads on Black in both themes.
+     key on a Black strip (the guest banner) asks for Daffodil, which reads on Black in both themes; a
+     Rose surface sets White for its keys (`--key-ink`, `--key-hover-ink`, `--key-quiet-ink` inherit, so the
+     surface sets them once and every key inside follows).
      The filled keys (`.key-fill`: the main action, a key that is on, the pink inject) keep their pill. */
   .key:not(.key-fill) {
     --frame-line: transparent;
@@ -577,7 +578,7 @@ img {
   .key:not(.key-fill):disabled {
     background-image: none;
     background-color: transparent;
-    color: var(--color-ink-quiet);
+    color: var(--key-quiet-ink, var(--color-ink-quiet));
     cursor: not-allowed;
   }
 

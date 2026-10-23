@@ -247,7 +247,7 @@ export default function ProfileCommentWindow({
   return (
     <PopoutWindow
       title={`COMMENT ON THE ${aspect === 'profile' ? 'PROFILE' : label.toUpperCase()}`}
-      badge={`[ PROFILE :: ${profile.displayName} ]`}
+      badge={`PROFILE :: ${profile.displayName}`}
       onClose={onClose}
       status={
         offered.length === 0

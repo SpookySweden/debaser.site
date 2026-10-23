@@ -28,7 +28,7 @@ type AnchorLinkProps = {
  */
 export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover' }: AnchorLinkProps) {
   const target = resolveAnchorTarget(anchor);
-  const label = `↳ ${prefix}: ${anchor.label}`;
+  const label = `[ ↳ ${prefix}: ${anchor.label} ]`;
 
   if (target.href.length === 0) {
     return <span className="text-label font-bold text-ink">{label} [ LINK PENDING ]</span>;

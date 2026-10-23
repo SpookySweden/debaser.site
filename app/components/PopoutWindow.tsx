@@ -119,7 +119,7 @@ export default function PopoutWindow({
               aria-label="Close window"
               className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap max-sm:min-w-tap`}
             >
-              ×
+              [ × ]
             </button>
           </span>
         </div>
