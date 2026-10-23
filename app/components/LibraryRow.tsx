@@ -35,7 +35,7 @@ type LibraryRowProps = {
  *                   state, so a column of them can be read at a glance.
  *   `[ ✎ COMMENT ]` the board's composer, opened with this file already filed (`./NewPostForm.tsx`).
  *                   Navy, because it is the one control here that acts on the board rather than on the
- *                   library - the same accent the archive's `[ INJECT TO POST ]` wears, so the verb
+ *                   library - the same accent the archive's `[ INJECT ]` wears, so the verb
  *                   that reaches out of a window is findable in a list of grey.
  *   `[ ▶ PLAY ]`    the row's own play, the same shape the archive's rows have.
  */

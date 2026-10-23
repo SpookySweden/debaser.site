@@ -53,15 +53,13 @@ export default function RadioLoops() {
 
   return (
     <section>
+      {/* How the faces work is the title line's tip rather than a paragraph under it, and the count is
+          gone - the faces are right there to be counted (SPEC-efficiency.md). */}
       <div className={TITLE_BAR_INACTIVE}>
-        <span>RADI-OH // WHERE YOU WERE</span>
-        <span>[ {loops.length} ]</span>
+        <span title="EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO BACK TO WHERE YOU WERE IN IT.">
+          RADI-OH // WHERE YOU WERE
+        </span>
       </div>
-
-      <p className="border-b border-ink px-2 py-1 text-label text-ink-quiet">
-        EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO
-        BACK TO WHERE YOU WERE IN IT.
-      </p>
 
       {loops.length === 0 ? (
         <p className="p-3 text-key font-bold text-ink">

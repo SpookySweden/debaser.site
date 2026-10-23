@@ -14,7 +14,7 @@ import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
 import { getMusicRepository } from '../lib/audio/repository';
 import { formatClock } from '../lib/audio/format';
 import type { AudioTrack } from '../lib/audio/tracks';
-import { FIELD, PANEL, PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { FIELD, PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import Link from 'next/link';
 import NewPostForm from './NewPostForm';
@@ -190,32 +190,21 @@ export default function PersonalLibrary() {
   }
 
   /**
-   * A settled guest. They get the archive and an offer, and no empty LIKED list - there is no library to
+   * A settled guest. They get one line with the way in, and no empty LIKED list - there is no library to
    * be empty, it does not exist yet.
    *
-   * The offer is a `Link` to `/account` rather than a sentence that stops at "this takes an account", the
-   * same shape `./GuestPrompt.tsx` uses: being told you cannot, and not being told how, is how a fault
-   * becomes a dead end.
+   * The line starts with a `Link` to `/account` rather than stopping at "this takes an account": being
+   * told you cannot, and not being told how, is how a fault becomes a dead end. One line, not the two
+   * paragraphs it used to be (SPEC-efficiency.md: a locked action is `[ LOG IN ] TO <DO THE THING>`).
    */
   if (userId === null) {
     return (
-      <section className={`${PANEL} p-3`}>
-        <p className="text-label font-bold text-ink">
-          YOUR MUSIC IS WHERE THE TRACKS YOU LIKED AND THE LISTS YOU MADE LIVE. IT IS KEPT AGAINST YOUR ACCOUNT.
-        </p>
-
-        <p className="mt-2 text-label text-ink">
-          THE ARCHIVE IS OPEN TO EVERYBODY, AND EVERY ROW IN IT CAN BE PLAYED WITHOUT ONE - THIS SCREEN IS THE
-          HALF THAT IS YOURS.
-        </p>
-
-        <Link
-          href="/account"
-          className={`mt-2 inline-block ${PLATE}`}
-        >
-          [ CREATE ACCOUNT OR LOG IN ]
-        </Link>
-      </section>
+      <p className="p-3 text-label text-ink">
+        <Link href="/account" className={PLATE_LINK}>
+          [ LOG IN ]
+        </Link>{' '}
+        TO KEEP THE TRACKS YOU LIKE AND THE LISTS YOU MAKE
+      </p>
     );
   }
 
@@ -228,7 +217,8 @@ export default function PersonalLibrary() {
       <section className={`${PANEL} p-3`} role="alert">
         <div className={TITLE_BAR}>
           <span>YOUR MUSIC</span>
-          <span>[ FAULT ]</span>
+          {/* A readout, not a key, so no brackets: brackets in the accent ink mean "press me". */}
+          <span>FAULT</span>
         </div>
 
         <p className="mt-2 text-label font-bold text-ink">
@@ -265,9 +255,9 @@ export default function PersonalLibrary() {
 
       {/* The lists, with LIKED as the first entry: the one list everybody has, and the screen's default. */}
       <div className={PANEL}>
+        {/* No `[ n ]` beside it: the lists are right below, and a bracketed number reads as a key. */}
         <div className={TITLE_BAR}>
           <span>LISTS</span>
-          <span>[ {library.playlists.length + 1} ]</span>
         </div>
 
         <ul className="divide-y divide-dotted divide-ink">
@@ -334,11 +324,11 @@ export default function PersonalLibrary() {
         </div>
       </div>
 
-      {/* The rows. Which list they are in is the title bar's job, so the header says it in words. */}
+      {/* The rows. Which list they are in is the title bar's job, so the header says it in words. How
+          many is the list's own row above (`ListRow`'s count), so it is not said a second time here. */}
       <div className={`${PANEL} mt-2`}>
         <div className={TITLE_BAR}>
           <span>{current === null ? 'LIKED' : current.name}</span>
-          <span>[ {rows.length} ]</span>
         </div>
 
         {!ready ? (
@@ -388,7 +378,7 @@ export default function PersonalLibrary() {
       </div>
 
       {/* The board's own composer, opened with the track already filed. This is the *same* seam the
-          archive's `[ INJECT TO POST ]` uses - `initialTrack` on `./NewPostForm.tsx` - so a post about a
+          archive's `[ INJECT ]` uses - `initialTrack` on `./NewPostForm.tsx` - so a post about a
           song reads the same whichever screen it was started from. */}
       {posting === null ? null : (
         <NewPostForm initialTrack={forumTrackFromArchive(posting)} onClose={() => setPosting(null)} />

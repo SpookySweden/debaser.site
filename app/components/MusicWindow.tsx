@@ -82,21 +82,22 @@ export default function MusicWindow() {
 
   return (
     <DockWindow
-      title={state.screen === 'mine' ? 'MUSIC :: MY MUSIC' : 'MUSIC :: THE ARCHIVE'}
-      badge="[ MP3 ]"
+      // One word: the tabs right under it already say which screen is on (SPEC-efficiency.md).
+      title="MUSIC"
       onClose={close}
       id="music"
       defaultSize={{ w: 576, h: 700 }}
       minSize={{ w: 380, h: 260 }}
+      // The archive's how-to line went onto its `[ INJECT ]` keys as their tip, where it is needed.
       status={
         state.screen === 'mine'
           ? '♥ LIKED PLAYS THE WHOLE LIST :: THE COMMENT PLATE FILES A POST ABOUT A TRACK'
-          : '[ INJECT TO POST ] FILES A TRACK WITH THE POST YOU ARE WRITING :: [ ▶ PLAY ] HANDS IT TO THE PLAYER'
+          : undefined
       }
     >
       <div className="mb-2 flex items-stretch gap-1" role="tablist" aria-label="Music screens">
         <ScreenTab
-          label="THE ARCHIVE"
+          label="ARCHIVE"
           selected={state.screen === 'archive'}
           onSelect={() => show('archive')}
         />
