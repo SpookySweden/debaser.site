@@ -1,7 +1,8 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { PLATE_LINK } from '../lib/ui/controls';
 import {
   calibrateClock,
   hostPositionSeconds,
@@ -97,13 +98,9 @@ export default function QueueBrowser() {
   const shown = queues === null ? null : visibleQueues(queues, now);
   const open = openId === null ? undefined : queues?.find((queue) => queue.userId === openId);
 
+  // No title line: the QUEUES tab pressed right above already names this screen (SPEC-efficiency.md).
   return (
     <section>
-      <div className={TITLE_BAR_INACTIVE}>
-        <span>QUEUES // WHO IS LISTENING</span>
-        <span>[ {shown === null ? 'READING...' : shown.length} ]</span>
-      </div>
-
       <BroadcastSwitch
         signedIn={signedIn}
         userId={user?.id ?? null}
@@ -122,11 +119,10 @@ export default function QueueBrowser() {
       {shown === null ? (
         <p className="p-3 text-label font-bold text-ink">READING THE QUEUE LIST...</p>
       ) : shown.length === 0 ? (
+        // A guest's way to broadcast is the `[ LOG IN ]` line above, so the empty state does not say it twice.
         <p className="p-3 text-key font-bold text-ink">
-          NOBODY IS BROADCASTING RIGHT NOW.{' '}
-          {signedIn
-            ? 'GO PUBLIC ABOVE AND YOUR QUEUE APPEARS HERE FOR EVERYBODY.'
-            : 'SIGN IN TO BROADCAST YOUR OWN.'}
+          NOBODY IS BROADCASTING RIGHT NOW.
+          {signedIn ? ' GO PUBLIC ABOVE AND YOUR QUEUE APPEARS HERE FOR EVERYBODY.' : null}
         </p>
       ) : (
         <ul className="divide-y divide-ink">
@@ -160,7 +156,7 @@ export default function QueueBrowser() {
  * beside a label would be the only input on the page that does not take the site's press.
  *
  * Going public writes the *current* track and position, so the row is never a queue with nothing in it -
- * and a reader signed out is told what an account would add rather than shown a switch that refuses.
+ * and a reader signed out gets one `[ LOG IN ] TO ...` line rather than a switch that refuses.
  * Whether it reads as on comes from the same store the rows do, so the switch and the row it produces
  * cannot disagree.
  */
@@ -212,8 +208,11 @@ function BroadcastSwitch({
 
   if (!signedIn) {
     return (
-      <p className="border-b border-ink px-2 py-1 text-label text-ink-quiet">
-        SIGN IN TO BROADCAST WHAT YOU ARE LISTENING TO. SIGNED OUT, YOU CAN STILL FOLLOW SOMEBODY.
+      <p className="border-b border-ink px-2 py-1 text-label text-ink">
+        <Link href="/account" className={PLATE_LINK}>
+          [ LOG IN ]
+        </Link>{' '}
+        TO BROADCAST WHAT YOU ARE LISTENING TO
       </p>
     );
   }
@@ -258,6 +257,8 @@ function BroadcastSwitch({
       .finally(() => setBusy(false));
   };
 
+  // The switch's own face says which way it is; the sentence that restated it beside it is gone
+  // (SPEC-efficiency.md), and its tip says what a press does.
   return (
     <div className="border-b border-ink px-2 py-1">
       <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
@@ -275,10 +276,6 @@ function BroadcastSwitch({
         >
           {isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}
         </button>
-
-        <span className={isPublic ? 'text-ink' : 'text-ink-quiet'}>
-          {isPublic ? 'ANYBODY CAN FOLLOW WHAT YOU ARE PLAYING.' : 'YOUR QUEUE IS YOURS ALONE.'}
-        </span>
       </p>
 
       {message === null ? null : <p className="mt-1 text-label font-bold text-ink">{message}</p>}

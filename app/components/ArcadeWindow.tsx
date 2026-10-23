@@ -8,7 +8,6 @@ import {
   closeArcade,
   openArcade,
   subscribeToArcadeWindow,
-  type ArcadeFocus,
 } from '../lib/games/arcade-window';
 import DockWindow from './DockWindow';
 import GamesHub from './GamesHub';
@@ -59,10 +58,11 @@ export default function ArcadeWindow() {
 
   if (!state.open) return null;
 
+  // One word whatever it was opened for: a challenge already says so in its own panel's title line
+  // (`CHALLENGE // NAME`), so the window title does not say it again (SPEC-efficiency.md).
   return (
     <DockWindow
-      title={arcadeTitle(state.focus)}
-      badge="[ ARCADE ]"
+      title="ARCADE"
       onClose={close}
       dock="bottom"
       id="arcade"
@@ -73,16 +73,4 @@ export default function ArcadeWindow() {
       <GamesHub focus={state.focus} />
     </DockWindow>
   );
-}
-
-/** What the title bar says the window is for. */
-function arcadeTitle(focus: ArcadeFocus): string {
-  switch (focus.kind) {
-    case 'invite':
-      return 'ARCADE :: AN INVITATION';
-    case 'challenge':
-      return 'ARCADE :: CHALLENGE';
-    default:
-      return 'ARCADE :: THE FLOOR';
-  }
 }

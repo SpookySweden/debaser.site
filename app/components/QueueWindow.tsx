@@ -17,20 +17,20 @@ import RadioLoops from './RadioLoops';
 import QueueBrowser from './QueueBrowser';
 
 /**
- * The queue window: what you can listen along to, in three tabs.
+ * The queue window: what you can listen along to, in two tabs.
  *
  * Drawn once, in `layout.tsx`, outside the page - which is what makes it a window rather than a page:
  * opening it, switching a tab or following somebody's queue re-renders *this*, and the board behind it
  * is not touched at all. The archive and the arcade keep the same arrangement, and
  * `app/lib/audio/queue-window.ts` holds the state so no page has to know the window exists.
  *
- * **Three tabs, and they are the width of the window rather than of their labels.** A tab strip whose
- * tabs are only as wide as their words reads as a row of links; these are `flex-1`, so the strip is
- * three equal cells and the window below is visibly one thing with three faces. It is also why the
- * labels are short - `RADI-OH`, `QUEUES`, and a third that is deliberately empty - because a long word
- * in an equal cell is a word that truncates on a phone.
+ * **The tabs are the width of the window rather than of their labels.** A tab strip whose tabs are only
+ * as wide as their words reads as a row of links; these are `flex-1`, so the strip is equal cells and
+ * the window below is visibly one thing with two faces. It is also why the labels are short - `RADI-OH`
+ * and `QUEUES` - because a long word in an equal cell is a word that truncates on a phone. (A third tab,
+ * MIXTAPES, comes back when it is built; it was an empty placeholder until then.)
  *
- * **All three screens stay mounted**, and the two that are not on are hidden, for the reason
+ * **Both screens stay mounted**, and the one that is not on is hidden, for the reason
  * `MusicWindow` gives: the browser keeps a search box, a filter and a scroll position, and unmounting to
  * switch would throw all of it away. Hiding costs nothing here - neither screen subscribes to the
  * other's state, and a hidden one reads nothing.
@@ -76,10 +76,13 @@ export default function QueueWindow() {
 
   if (!state.open) return null;
 
+  // The MIXTAPES tab is cut until it is built (SPEC-efficiency.md), but `?queues=third` can still be
+  // linked or stored, so that tab lands on RADI-OH rather than on a window with nothing shown in it.
+  const tab = state.tab === 'third' ? 'radio' : state.tab;
+
   return (
     <DockWindow
-      title="PLAYLISTS"
-      badge="[ QUEUE ]"
+      title="QUEUES"
       onClose={close}
       id="queue"
       defaultSize={{ w: 736, h: 600 }}
@@ -87,21 +90,16 @@ export default function QueueWindow() {
       status="LISTEN ALONG :: FOLLOWING SOMEBODY TAKES THE PLAYER OVER, AND WHAT YOU HAD IS KEPT IN RADI-OH"
     >
       <div className="mb-2 flex items-stretch gap-1" role="tablist" aria-label="Queue screens">
-        <QueueTabPlate label="RADI-OH" selected={state.tab === 'radio'} onSelect={() => show('radio')} />
-        <QueueTabPlate label="QUEUES" selected={state.tab === 'queues'} onSelect={() => show('queues')} />
-        <QueueTabPlate label="MIXTAPES" selected={state.tab === 'third'} onSelect={() => show('third')} />
+        <QueueTabPlate label="RADI-OH" selected={tab === 'radio'} onSelect={() => show('radio')} />
+        <QueueTabPlate label="QUEUES" selected={tab === 'queues'} onSelect={() => show('queues')} />
       </div>
 
-      <div className={state.tab === 'radio' ? undefined : 'hidden'}>
+      <div className={tab === 'radio' ? undefined : 'hidden'}>
         <RadioLoops />
       </div>
 
-      <div className={state.tab === 'queues' ? undefined : 'hidden'}>
+      <div className={tab === 'queues' ? undefined : 'hidden'}>
         <QueueBrowser />
-      </div>
-
-      <div className={state.tab === 'third' ? undefined : 'hidden'}>
-        <EmptyTab name="MIXTAPES" />
       </div>
     </DockWindow>
   );
@@ -131,23 +129,5 @@ function QueueTabPlate({
     >
       [ {label} ]
     </button>
-  );
-}
-
-/**
- * The third tab: a screen that says it is not built yet.
- *
- * Drawn rather than omitted, and that is the point - a three-cell strip that suddenly has two cells is a
- * strip that moved. It says what it will hold so the shape is explained rather than looking broken.
- */
-function EmptyTab({ name }: { name: string }) {
-  return (
-    <section className="p-3">
-      <p className="text-key font-bold text-ink">{name} IS NOT BUILT YET.</p>
-      <p className="mt-1 text-label text-ink-quiet">
-        THE TAB IS HERE SO THE STRIP KEEPS ITS SHAPE. WHAT IT WILL HOLD IS STILL BEING DECIDED, SO
-        NOTHING IS DRAWN BENEATH THIS LINE RATHER THAN SOMETHING THAT PRETENDS.
-      </p>
-    </section>
   );
 }

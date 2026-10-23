@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ARCADE_DEFAULT_GAME, type ArcadeFocus } from '../lib/games/arcade-window';
 import { gameById, GAME_CATALOGUE } from '../lib/games/catalogue';
@@ -8,7 +9,7 @@ import { inviteSummary, opponentIdOf, opponentOf, splitInvites } from '../lib/ga
 import { getGamesRepository } from '../lib/games/repository';
 import type { GameId, GameInvite } from '../lib/games/types';
 import { buildUserDirectory } from '../lib/profile/directory';
-import { PANEL, PLATE, PLATE_LARGE, PLATE_PRESSED, STATUS_BAR, TITLE_BAR, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_LARGE, PLATE_LINK, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useComms } from './CommsProvider';
 import GameMatch from './GameMatch';
@@ -64,7 +65,11 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   const [solo, setSolo] = useState<GameId | null>(null);
   const answered = useRef(false);
 
-  /** The game the chooser beside the roster is pointing at. */
+  /**
+   * The game an invitation would be for: the card drawn `[ PICKED ]`. Each card's own keys are the only
+   * game chooser now - the second row of game plates (`PLAYING:` / `INVITE THEM TO:`) said the same
+   * choice again - so its name is read back where an invitation is sent from.
+   */
   const picked = gameById(chosen);
 
   /**
@@ -292,25 +297,21 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
       {/* What the window was opened to do, when a post's `[ CHALLENGE ]` opened it: the account is
           already addressed and the game is already chosen, so the reader's next press is the
           invitation itself. The panel is navy because it is the thing being done, the same rule the
-          match window keeps. */}
+          match window keeps. How it works is the title line's tip; the game it will send sits at the
+          title line's end, and a card's `[ INVITE SOMEONE ]` below changes it. */}
       {challengeOpponent === null ? null : (
         <section className={PANEL}>
           <div className={TITLE_BAR}>
-            <span className="truncate">CHALLENGE // {challengeOpponent.displayName.toUpperCase()}</span>
-            <span>{challengeRefusalText === null ? '[ READY ]' : '[ NOT YET ]'}</span>
+            <span
+              className="truncate"
+              title={`ASK ${challengeOpponent.displayName.toUpperCase()} FOR A GAME. THE BOARD OPENS ON BOTH SCREENS THE MOMENT THEY ANSWER, AND THE BELL TELLS THEM IT IS WAITING.`}
+            >
+              CHALLENGE // {challengeOpponent.displayName.toUpperCase()}
+            </span>
+            <span className="truncate">{picked.title}</span>
           </div>
 
           <div className="space-y-2 p-2 text-label font-bold text-ink">
-            <p className="leading-relaxed">
-              ASK {challengeOpponent.displayName.toUpperCase()} FOR A GAME. THE BOARD OPENS ON BOTH SCREENS THE
-              MOMENT THEY ANSWER, AND THE BELL TELLS THEM IT IS WAITING.
-            </p>
-
-            <p className="flex flex-wrap items-center gap-2">
-              PLAYING:
-              <GameChoice value={chosen} onChange={setChosen} />
-            </p>
-
             <p className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
@@ -342,20 +343,17 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         />
       )}
 
+      {/* `GAMES` rather than `ARCADE n GAMES`: the window is already titled ARCADE, and the cards are
+          right below to be counted (SPEC-efficiency.md). */}
       <section className={PANEL}>
         <div className={TITLE_BAR_INACTIVE}>
-          <span>ARCADE</span>
-          <span>
-            {GAME_CATALOGUE.length} GAME{GAME_CATALOGUE.length === 1 ? '' : 'S'}
-          </span>
+          <span>GAMES</span>
         </div>
 
         <div className="grid gap-2 p-2 sm:grid-cols-2">
           {GAME_CATALOGUE.map((game) => (
-            <div
-              key={game.id}
-              className="p-2"
-            >
+            // Who plays and how is the card's tip; a running match keeps its controls line on screen.
+            <div key={game.id} className="p-2" title={`${game.players} :: ${game.controls}`}>
               <p className="flex items-center gap-2 text-key font-bold text-ink">
                 {/* Navy or Rose in both themes, so the bar ink; `text-paper` went Nigrosine in the dark one. */}
                 <span className={`px-1 text-label text-ink-bar ${game.badge}`}>
@@ -364,9 +362,6 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                 {game.title}
               </p>
               <p className="mt-1 text-label text-ink">{game.tagline}</p>
-              <p className="text-label text-ink">
-                {game.players} :: {game.controls}
-              </p>
 
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
@@ -457,15 +452,15 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         </div>
 
         <div className="space-y-2 p-2">
-          {/* Two plates rather than a drop-down: a choice this small is made by pressing it, and a
-              menu would hide what the arcade carries behind one more press. */}
-          <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-            INVITE THEM TO:
-            <GameChoice value={chosen} onChange={setChosen} />
-          </p>
-
+          {/* The game is picked on its card above (`[ INVITE SOMEONE ]`), so there is no second row of
+              game plates here; each `[ INVITE TO GAME ]` names the picked game in its tip. */}
           {userId === null ? (
-            <p className="text-label text-ink">Sign in to invite anybody: an invitation is from one account to another.</p>
+            <p className="text-label text-ink">
+              <Link href="/account" className={PLATE_LINK}>
+                [ LOG IN ]
+              </Link>{' '}
+              TO INVITE ANYBODY
+            </p>
           ) : null}
 
           {userId !== null && around.length === 0 ? (
@@ -484,6 +479,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                       type="button"
                       className={PLATE}
                       disabled={busy === row.account.id}
+                      title={`Invite ${row.account.displayName} to ${picked.title}`}
                       onClick={() => void invitePlayer({ id: row.account.id, displayName: row.account.displayName })}
                     >
                       {busy === row.account.id ? '[ ASKING... ]' : '[ INVITE TO GAME ]'}
@@ -493,11 +489,6 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
               ))}
             </ul>
           )}
-        </div>
-
-        <div className={STATUS_BAR}>
-          <span className="truncate">{picked.title} SELECTED</span>
-          <span className="truncate">{getGamesRepository().source === 'supabase' ? 'LIVE ARCADE' : 'LOCAL ARCADE'}</span>
         </div>
       </section>
     </div>
@@ -530,31 +521,5 @@ function InviteLine({
         </button>
       ))}
     </div>
-  );
-}
-
-/**
- * The games as plates: a choice made by pressing it.
- *
- * A drop-down was what this screen had, and it asked a reader to open a menu to find out what the
- * arcade carries. The plates say it out loud, and the chosen one is drawn pressed and taken out of
- * the tab order - the same shape the account page's own tab strip uses (`PLATE_PRESSED`).
- */
-function GameChoice({ value, onChange }: { value: GameId; onChange: (game: GameId) => void }) {
-  return (
-    <span className="inline-flex flex-wrap items-center gap-2">
-      {GAME_CATALOGUE.map((game) => (
-        <button
-          key={game.id}
-          type="button"
-          onClick={() => onChange(game.id)}
-          aria-pressed={value === game.id}
-          disabled={value === game.id}
-          className={value === game.id ? PLATE_PRESSED : PLATE}
-        >
-          [ {game.title} ]
-        </button>
-      ))}
-    </span>
   );
 }

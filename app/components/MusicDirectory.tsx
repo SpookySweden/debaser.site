@@ -24,7 +24,7 @@ import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib
 import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { pluralise } from '../lib/forum/format';
-import { LINK_PIXEL, PANEL, PLATE, PLATE_ACCENT, TITLE_BAR } from '../lib/ui/controls';
+import { LINK_PIXEL, PANEL, PLATE, PLATE_ACCENT, PLATE_LINK } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
@@ -51,9 +51,13 @@ import NewPostForm from './NewPostForm';
 const ROW_GRID =
   'grid grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-x-2 gap-y-1 @2xl:grid-cols-[2rem_minmax(0,2fr)_4rem_minmax(0,1fr)_16rem]';
 
-/** A control small enough to sit on a folder row, beside the folder's name. */
-const ROW_BUTTON =
-  'shrink-0 cursor-pointer key px-0.5 py-0.75 text-label font-bold disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-1 max-sm:py-0.75';
+/**
+ * The inject key's tip: what the window's foot line used to say for every row at once
+ * (SPEC-efficiency.md - an explanation lives on the thing it explains).
+ */
+function injectTip(title: string): string {
+  return `INJECT TO POST :: FILES ${title} WITH THE POST YOU ARE WRITING`;
+}
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -78,7 +82,7 @@ function tagHref(keys: string[]): string {
 type FileRowProps = {
   row: ArchiveRow;
   index: number;
-  /** Starts a post carrying this file: `[ INJECT TO POST ]`. */
+  /** Starts a post carrying this file: `[ INJECT ]`. */
   onPost: (track: AudioTrack) => void;
 };
 
@@ -206,9 +210,9 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             type="button"
             onClick={() => onPost(row.track)}
             className={`${PLATE_ACCENT} hidden whitespace-nowrap @2xl:inline-flex`}
-            title={`Inject ${row.track.title} into a post: the composer opens with this file already filed`}
+            title={injectTip(row.track.title)}
           >
-            [ INJECT TO POST ]
+            [ INJECT ]
           </button>
         </span>
       </div>
@@ -242,9 +246,9 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
           type="button"
           onClick={() => onPost(row.track)}
           className={PLATE_ACCENT}
-          title={`Inject ${row.track.title} into a post: the composer opens with this file already filed`}
+          title={injectTip(row.track.title)}
         >
-          [ INJECT TO POST ]
+          [ INJECT ]
         </button>
       </div>
     </li>
@@ -303,7 +307,7 @@ const FolderBranch = memo(function FolderBranch({
                   event.preventDefault();
                   onCreate('file', path);
                 }}
-                className={ROW_BUTTON}
+                className={`${PLATE} shrink-0`}
               >
                 [ + FILE ]
               </button>
@@ -314,7 +318,7 @@ const FolderBranch = memo(function FolderBranch({
                   event.preventDefault();
                   onCreate('folder', path);
                 }}
-                className={ROW_BUTTON}
+                className={`${PLATE} shrink-0`}
               >
                 [ + FOLDER ]
               </button>
@@ -354,7 +358,7 @@ const FolderBranch = memo(function FolderBranch({
  * player at the bottom of the window, and everything that makes a file goes through the same
  * store the shelf has always used.
  *
- * What a row does *to the board* is `[ INJECT TO POST ]`, and it is the one navy plate in the list,
+ * What a row does *to the board* is `[ INJECT ]`, and it is the one pink plate in the list,
  * because it is the only control here that reaches out of the archive: it opens the composer with
  * that file already filed, so a track being listened to can be written about without leaving the
  * thread the reader is standing in.
@@ -379,7 +383,7 @@ export default function MusicDirectory() {
   const [openNodes, setOpenNodes] = useState<FolderPath[]>([]);
   /** The window on screen: a new file or a new folder, and where it was asked for from. */
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
-  /** The file a post is being written about, or null: the composer, opened by a row's `[ ♪ TO A POST ]`. */
+  /** The file a post is being written about, or null: the composer, opened by a row's `[ INJECT ]`. */
   const [posting, setPosting] = useState<AudioTrack | null>(null);
 
   const signedIn = user !== null;
@@ -427,36 +431,33 @@ export default function MusicDirectory() {
 
   return (
     <section className={PANEL}>
-      <div className={TITLE_BAR}>
-        <span>DEBASER NETLABEL :: FILE DIRECTORY</span>
-        <span>
-          [ {tree.paths.length} {pluralise(tree.paths.length, 'FOLDER')} :: {rows.length}{' '}
-          {pluralise(rows.length, 'FILE')} ]
-        </span>
-      </div>
-
+      {/* No title line of its own: the window is titled MUSIC and the ARCHIVE tab is pressed right above,
+          so a third name here would only say it again (SPEC-efficiency.md). */}
       <div className="p-2">
-        {/* The toolbar: what can be made, and the box that finds it. */}
+        {/* The toolbar: what can be made, and the box that finds it. A guest is not shown the two
+            making keys at all, rather than two dead ones - the line under the toolbar says what unlocks them. */}
         <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCreating({ kind: 'file', parent: null })}
-            disabled={!signedIn}
-            className={PLATE}
-            title={signedIn ? 'File a new track in the archive' : 'Filing a track takes an account'}
-          >
-            [ NEW FILE ]
-          </button>
+          {signedIn ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setCreating({ kind: 'file', parent: null })}
+                className={PLATE}
+                title="File a new track in the archive"
+              >
+                [ NEW FILE ]
+              </button>
 
-          <button
-            type="button"
-            onClick={() => setCreating({ kind: 'folder', parent: null })}
-            disabled={!signedIn}
-            className={PLATE}
-            title={signedIn ? 'Make a new folder at the top of the archive' : 'Making a folder takes an account'}
-          >
-            [ NEW FOLDER ]
-          </button>
+              <button
+                type="button"
+                onClick={() => setCreating({ kind: 'folder', parent: null })}
+                className={PLATE}
+                title="Make a new folder at the top of the archive"
+              >
+                [ NEW FOLDER ]
+              </button>
+            </>
+          ) : null}
 
           <label htmlFor="music-search" className="text-label font-bold text-ink">
             FIND:
@@ -494,18 +495,23 @@ export default function MusicDirectory() {
             ))}
           </select>
 
-          <button type="button" onClick={clearAll} disabled={!filtering} className={PLATE}>
-            [ CLEAR ]
-          </button>
-
-          <button type="button" onClick={refreshAll} className={PLATE}>
-            [ REFRESH ]
+          <button
+            type="button"
+            onClick={refreshAll}
+            className={PLATE}
+            title="Read the shelf and the folders again"
+            aria-label="Refresh the archive"
+          >
+            [ ↻ ]
           </button>
         </div>
 
         {signedIn ? null : (
-          <p className="mt-1 text-label font-bold text-ink">
-            SIGNED OUT - SIGN IN ON THE ACCOUNT PAGE TO ADD FILES AND FOLDERS. PLAYING TAKES NOTHING.
+          <p className="mt-1 text-label text-ink">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO ADD FILES AND FOLDERS
           </p>
         )}
 
@@ -566,10 +572,18 @@ export default function MusicDirectory() {
           </div>
         </div>
 
+        {/* `[ CLEAR ]` is drawn only while there is something to clear, on the line that only exists while
+            filtering: in the toolbar its arrival would squeeze the search box and could re-wrap the row
+            under a reader who had just pressed a tag. */}
         {filtering ? (
-          <p className="mt-2 text-label font-bold text-ink">
-            {flat.length} OF {rows.length} FILES
-          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+            <span>
+              {flat.length} OF {rows.length} FILES
+            </span>
+            <button type="button" onClick={clearAll} className={PLATE}>
+              [ CLEAR ]
+            </button>
+          </div>
         ) : null}
 
         <div className="@container mt-1">
