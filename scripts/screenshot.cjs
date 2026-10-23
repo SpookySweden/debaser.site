@@ -112,20 +112,21 @@ const onto = at('--onto', null);
  *
  * A name beside a colour is what turns `62.3% rgb(26,21,37)` into `62.3% rgb(26,21,37) NIGROSINE`, which
  * is the difference between a reading and a reading somebody can act on. It is *read* from
- * `app/globals.css` so that renaming a token there renames it here, instead of the two drifting.
+ * `app/theme/tokens.css` so that renaming a token there renames it here, instead of the two drifting.
+ * The dyes (`--dye-nigrosine`) come first, so a colour is called by its swatch name before any job it plays.
  */
 function dyeNames() {
   let css = '';
 
   try {
-    css = readFileSync('app/globals.css', 'utf8');
+    css = readFileSync('app/theme/tokens.css', 'utf8');
   } catch {
     return new Map();
   }
 
   const names = new Map();
 
-  for (const [, name, hex] of css.matchAll(/--color-([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
+  for (const [, name, hex] of css.matchAll(/--(?:dye|color)-([\w-]+)\s*:\s*(#[0-9a-fA-F]{6})\s*;/g)) {
     const key = `${parseInt(hex.slice(1, 3), 16)},${parseInt(hex.slice(3, 5), 16)},${parseInt(hex.slice(5, 7), 16)}`;
     if (!names.has(key)) names.set(key, name.toUpperCase());
   }

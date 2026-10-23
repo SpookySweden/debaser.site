@@ -8,7 +8,7 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "verify": "npm run lint && npm run typecheck && npm run build",
+    "verify": "npm run lint && npm run tokens && npm run typecheck && npm run build",
     "read": "node scripts/read-site.cjs",
     "read:local": "node scripts/read-site.cjs --local",
     "browser": "node scripts/browser.cjs",
@@ -32,7 +32,9 @@
     "db:push:dry": "node scripts/db-cli.cjs db push --dry-run --include-all",
     "db:new": "supabase migration new",
     "db:repair:applied": "node scripts/db-repair.cjs --applied",
-    "db:repair:list": "node scripts/db-repair.cjs"
+    "db:repair:list": "node scripts/db-repair.cjs",
+    "styles": "node scripts/style-snapshot.cjs",
+    "tokens": "node scripts/check-tokens.cjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

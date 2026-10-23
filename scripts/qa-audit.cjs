@@ -33,6 +33,20 @@
 const fs = require('node:fs');
 const path = require('node:path');
 
+/**
+ * The size and tap tokens (docs/theming.md), read from the token file so the audit follows the dials.
+ * The tap target is `min-h-tap` now (it was `min-h-11`, the same 44px); a size is a name (`text-label`)
+ * whose pixels are `--text-label` times `--scale-type`.
+ */
+const TOKENS = fs.readFileSync(path.join(__dirname, '..', 'app', 'theme', 'tokens.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
+const SCALE_TYPE = Number(/--scale-type:\s*([\d.]+)/.exec(TOKENS)?.[1] ?? 1);
+const TEXT_PX = Object.fromEntries(
+  [...TOKENS.matchAll(/--text-([a-z0-9-]+):\s*calc\(([\d.]+)(px|rem)\s*\*\s*var\(--scale-type\)\)/g)].map(
+    ([, name, value, unit]) => [name, Number(value) * (unit === 'rem' ? 16 : 1) * SCALE_TYPE],
+  ),
+);
+const TAP_HEIGHT = /(?:^|\s)(?:[\w-]+:)*min-h-(?:11|tap)(?=\s|$)/;
+
 const ROUTES = [
   ['home', '/'],
   ['forum', '/forum'],
@@ -144,7 +158,7 @@ for (const [name, route] of ROUTES) {
   });
 
   // Tap targets: below `lg` this site asks for 44px of height on anything pressable (PLATE carries
-  // `max-sm:min-h-11`). This counts the pressable things that never ask, and skips two kinds: the
+  // `max-sm:min-h-tap`, 44px). This counts the pressable things that never ask, and skips two kinds: the
   // ones hidden below `lg` (a control a phone cannot see is not one a thumb has to hit) and the ones
   // inside a container that does the hiding - the side panel and the task buttons. Reading a page
   // without a DOM means this is a position-in-the-string test rather than a nesting one, which is
@@ -170,10 +184,16 @@ for (const [name, route] of ROUTES) {
   );
 
   const pressable = positioned.map((entry) => entry.attributes);
-  const withTapHeight = pressable.filter((attributes) => (attr(attributes, 'class') ?? '').includes('min-h-11'));
+  const withTapHeight = pressable.filter((attributes) => TAP_HEIGHT.test(attr(attributes, 'class') ?? ''));
 
-  // Text size: every `text-[Npx]` on the page, and how much of it is at the two smallest sizes.
-  const sizes = [...html.matchAll(/text-\[(\d+)px\]/g)].map((match) => Number(match[1]));
+  // Text size: every `text-[Npx]` on the page and every size token (`text-label`), read at the pixels
+  // tokens.css gives it, and how much of it is at the two smallest sizes.
+  const sizes = [
+    ...[...html.matchAll(/text-\[(\d+)px\]/g)].map((match) => Number(match[1])),
+    ...[...html.matchAll(/(?<![\w-])text-([a-z0-9]+(?:-[a-z0-9]+)*)(?=[\s"'])/g)]
+      .map((match) => TEXT_PX[match[1]])
+      .filter((size) => size !== undefined),
+  ];
   const tiny = sizes.filter((size) => size <= 9).length;
   const small = sizes.filter((size) => size === 10).length;
 
@@ -198,7 +218,7 @@ for (const [name, route] of ROUTES) {
   }
 
   if (withTapHeight.length < pressable.length) {
-    const offenders = pressable.filter((attributes) => !(attr(attributes, 'class') ?? '').includes('min-h-11'));
+    const offenders = pressable.filter((attributes) => !TAP_HEIGHT.test(attr(attributes, 'class') ?? ''));
 
     // `low` rather than `medium` on purpose: the comfortable target is 44px and this site gives that
     // to the primary controls (the plates, the menu rows, the shelf chips), while WCAG's *minimum* is
