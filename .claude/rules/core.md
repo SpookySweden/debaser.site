@@ -9,7 +9,9 @@ Companion website for my comic book "Debaser": a social simulation styled as an 
 
 ## Commands
 Exact script names live in package.json. If a name here is wrong, fix this section and tell me.
-- `npm run verify`: lint + typecheck + build. Must pass before any task counts as done.
+- `npm run verify`: lint + tokens + typecheck + build. Must pass before any task counts as done.
+- `npm run tokens`: the theming guard (raw colours, sizes or fonts outside the token files fail it); `-- --write` regenerates the colour block in `app/theme/tokens.css` after a change to `themes.ts`. See `docs/theming.md`.
+- `npm run styles`: records every element's computed look (`--out <dir>`) and compares two recordings (`--compare <a> <b>`): the proof that a refactor changed nothing visible.
 - `npm run dev`: local dev server.
 - `npm run checks`: runs every scratch check in `Temp/check-*.cjs` (about 75, gitignored, so they only exist on this machine). It runs them all; there is no per-area filter. A failing check is a finding: update it on purpose when the rule really changed and say why, never delete it to go green.
 - `npm run capture` then `npm run audit`: the accessibility audit (unnamed controls, tiny tap targets, small text, low contrast). Always capture first, or the audit reads old snapshots.
@@ -55,7 +57,7 @@ The main session plans, decides and talks to me. The agents in `.claude/agents/`
 - When compacting, always preserve: the list of changed files, the current plan, and the verification commands.
 
 ## Where the details live
-- Visual design, palette and feel: read `docs/design.md` before any UI work.
+- Visual design, palette and feel: read `docs/design.md` before any UI work. Changing a colour, font or size: `docs/theming.md` (and `/specimen` shows every token).
 - The character workbench's live pixel render (passes, switches, three.js traps): `docs/character-render.md`. Its simple figures (touching, validity, sag, placing): `docs/character-figures.md`.
 - Database setup and migration history: `supabase/README.md`. The tools in `scripts/`: `scripts/README.txt`. Artwork slots: `assets/README.txt`.
 - Rules for pages, windows and components: `.claude/rules/frontend.md`. Server and database: `.claude/rules/backend.md`. Each loads by itself when Claude opens a file in its area.

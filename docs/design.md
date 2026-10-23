@@ -2,6 +2,10 @@
 
 Read this before any UI work. It is not needed for backend or logic tasks.
 
+**How to change the look** (a colour, a font, the overall size) is `docs/theming.md`: every value lives in
+`app/theme/tokens.css`, `app/theme/fonts.ts` and `app/lib/ui/themes.ts`, and `/specimen` shows all of them
+in both themes on one page.
+
 ## Palette: "Dyacid Dyes"
 - Nigrosine #1A1525
 - Royal Blue #1D3CA6
@@ -13,7 +17,7 @@ Read this before any UI work. It is not needed for backend or logic tasks.
 - Plus black and white
 
 Use with creative liberty. Do not force a rigid colour-to-role mapping. Colours reach components only
-through the theme tokens (`app/globals.css`, `app/lib/ui/themes.ts`); no hex values in components.
+through the theme tokens (`app/lib/ui/themes.ts`, copied into `app/theme/tokens.css`); no hex values in components.
 
 ## The look: Gnorp windows (SPEC-readability.md, 2026-10-22)
 Styled after *(the) Gnorp Apologue*: smooth dark windows, thin light outlines, a quiet pixel font.
@@ -47,9 +51,10 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
 ## Type
 - One face: **DotGothic16**, one weight. `font-synthesis: none`, so bold does nothing - emphasis comes
   from colour (the accent ink) or size, never weight.
-- Sizes: the smallest label is **13px**; labels and buttons 13-14px; title lines **16px**; writing
-  (posts, comments, comms, lore pages, bios, notes, and the fields they are typed in) **15px at
-  line-height 1.5**. Phone inputs stay 16px (stops the zoom). Nothing below 13px.
+- Sizes: the smallest label is **13px** (`text-label`); labels and buttons 13-14px (`text-key`); title
+  lines **16px** (`text-title`); writing (posts, comments, comms, lore pages, bios, notes, and the fields
+  they are typed in) **15px at line-height 1.5** (`text-prose`). Phone inputs stay 16px (stops the zoom).
+  Nothing below 13px.
 - DotGothic16 is drawn on a 16px grid: 16 and 32 are pixel-sharp, 13-15 are slightly soft but read well.
 - Labels stay in capitals, as written: that is the site's voice. Prose shows the case people typed.
 - Glyphs like ♪ ▶ ◀ ↻ fall back to system fonts. RADI-OH's faces use `--font-emote` (a typewriter face).

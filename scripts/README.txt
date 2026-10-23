@@ -193,3 +193,26 @@ it drew a person, or that the person looks right. A screenshot lands in `Temp/br
 where it belongs: the code is tracked, the machine-local output is not. `.claude/rules/core.md` has the two faults
 that were hiding behind these (a `frameloop="demand"` nothing invalidated, and an `EffectComposer`
 that cleared its own frame), and both were found only because a headless Chrome could be driven.
+
+check-tokens.cjs
+----------------
+    npm run tokens                      the theming guard (also inside npm run verify)
+    npm run tokens -- --write           rewrite the colour block in app/theme/tokens.css from themes.ts
+
+Fails when a raw look value turns up outside the three token files (app/theme/tokens.css,
+app/theme/fonts.ts, app/lib/ui/themes.ts): a colour value, Tailwind's own palette, a bracketed size or
+spacing on a look utility, a numbered line width, a named face, or a literal size/colour in a style object
+or a stylesheet. It reads string literals through the TypeScript parser, so comments may name values
+freely. Known exceptions and their reasons are the EXCEPTIONS list at its top. docs/theming.md is the guide.
+
+style-snapshot.cjs
+------------------
+    npm run styles -- --out Temp/styles/before             15 pages, desktop + phone, both themes
+    npm run styles -- --out Temp/styles/before --signin    the same, signed in as kept test account A
+    npm run styles -- --compare Temp/styles/before Temp/styles/after
+
+Records what every element (and every drawn ::before/::after) *computes to* - colours, sizes, spacing,
+lines, faces, layers - against a local `next start` on :3210 (`--base` for another), with motion frozen.
+The proof for a change that is meant to move nothing: a screenshot cannot prove that (clocks tick, a crawl
+scrolls), and a source diff cannot either. Widths and positions are counted separately from the look,
+because a relative time changing its words moves a box without anything having been restyled.
