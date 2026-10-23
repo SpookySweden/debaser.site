@@ -104,7 +104,6 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
   return (
     <PopoutWindow
       title={`COMMENT WINDOW :: ${anchor.label}`}
-      badge="[ THREAD ]"
       onClose={onClose}
       maxWidth="max-w-2xl"
       bodyClassName="bg-paper"

@@ -27,7 +27,6 @@ export default function TrackPickerWindow({ id, author, onClose, onPick }: Track
   return (
     <PopoutWindow
       title="SOUNDTRACK :: PICK A TRACK"
-      badge="[ MP3 ]"
       onClose={onClose}
       maxWidth="max-w-xl"
       status="ONE TRACK TO A POST :: THE ARCHIVE KEEPS OWNING THE AUDIO"

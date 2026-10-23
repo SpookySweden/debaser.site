@@ -18,7 +18,6 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
   return (
     <PopoutWindow
       title="PLAYER OPTIONS"
-      badge="[ ♪ ]"
       onClose={onClose}
       maxWidth="max-w-sm"
       status="HOW A PROFILE'S TRACK SHOULD BEHAVE"

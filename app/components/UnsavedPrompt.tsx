@@ -44,7 +44,6 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
   return (
     <PopoutWindow
       title={`${summarise(changes)} :: ${what} WOULD LOSE THEM`}
-      badge="[ HOLD ON ]"
       onClose={onStay}
       maxWidth="max-w-xl"
       dismissOnBackdrop={false}

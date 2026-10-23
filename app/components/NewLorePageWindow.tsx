@@ -68,7 +68,6 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
   return (
     <PopoutWindow
       title="OPEN A LORE PAGE"
-      badge="[ NEW ]"
       onClose={onClose}
       maxWidth="max-w-xl"
       status="THE ADDRESS IS READ OFF THE TITLE"

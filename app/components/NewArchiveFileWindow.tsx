@@ -119,7 +119,6 @@ export default function NewArchiveFileWindow({
   return (
     <PopoutWindow
       title={`NEW FILE :: ${folderLabel(parent)}`}
-      badge="[ FILE ]"
       onClose={onClose}
       maxWidth="max-w-2xl"
       actions={

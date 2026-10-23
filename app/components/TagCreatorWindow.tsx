@@ -54,7 +54,6 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
   return (
     <PopoutWindow
       title="TAG EDITOR :: CREATE A TAG"
-      badge="[ 16 COLOURS ]"
       onClose={onCancel}
       maxWidth="max-w-md"
       bodyClassName="bg-paper"

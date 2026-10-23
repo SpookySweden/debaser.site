@@ -54,7 +54,6 @@ export default function IncomingMessageWindow({
   return (
     <PopoutWindow
       title={`COMMS :: NEW MESSAGE FROM ${name.toUpperCase()}`}
-      badge="[ INCOMING ]"
       onClose={onClose}
       maxWidth="max-w-xl"
       status="ANSWER HERE, OR OPEN THE COMMS PAGE :: ESC CLOSES"

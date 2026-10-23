@@ -438,7 +438,6 @@ export default function TagWindow({
   return (
     <PopoutWindow
       title="ALL TAGS"
-      badge="[ TAG INDEX ]"
       status={`${showing} OF ${total} POSTS SHOWN`}
       maxWidth="max-w-3xl"
       onClose={onClose}
