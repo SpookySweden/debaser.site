@@ -816,6 +816,32 @@ img {
     }
   }
 
+  /* The same two rows at any width, for a line too narrow for its title and its extras side by side
+     even on a desktop: the side panel's ACCOUNT DIRECTORY, whose title and `[ 9 :: ALL ]` need about
+     280px of a 250px line, and wrapped the title onto two lines between two stub rules. */
+  .title-stack:has(> * + *) {
+    display: grid;
+    grid-template-columns: minmax(0.75rem, 1fr) minmax(0, auto) minmax(0.75rem, 1fr);
+    row-gap: 4px;
+  }
+
+  .title-stack:has(> * + *)::before {
+    grid-area: 1 / 1;
+  }
+
+  .title-stack:has(> * + *) > :first-child {
+    grid-area: 1 / 2;
+  }
+
+  .title-stack:has(> * + *)::after {
+    grid-area: 1 / 3;
+  }
+
+  .title-stack:has(> * + *) > * + * {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
   /* The plate's face: the window's own fill inside the key's outline, with the drawing over it when
      there is one. The drawing is `--frame-art`, the layer under the four outline stripes. */
   .plate,

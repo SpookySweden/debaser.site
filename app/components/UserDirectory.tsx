@@ -79,7 +79,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
   return (
     <div className="space-y-3">
       <section className={PANEL}>
-        <div className={TITLE_BAR_INACTIVE}>
+        <div className={compact ? `${TITLE_BAR_INACTIVE} title-stack` : TITLE_BAR_INACTIVE}>
           <span>ACCOUNT DIRECTORY</span>
           <span>
             {compact ? (

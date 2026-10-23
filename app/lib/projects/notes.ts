@@ -101,8 +101,8 @@ export const PROJECT_NOTES: ProjectNote[] = [
     body: [
       'Every page is drawn inside one window: a title bar, the page, the side panel on the right, and a taskbar along the foot with `[ START ]` at the left of it. Nothing in the chrome belongs to a page - a page hands over its content and, at most, which taskbar key it owns.',
       'The task buttons are the wide window\'s. A phone reaches the same keys, and the project\'s shelves, from the Start menu instead: one list is a better answer than five buttons competing with the Start button for a narrow strip of screen.',
-      'The type is a bitmap face (Silkscreen, loaded by app/layout.tsx) with a real bold, because every label on this site is bold. It is deliberately not antialiased: smoothing is what turns a face drawn on a grid into a blurred one. The fallbacks - MS Sans Serif, Courier New - are the faces a desktop of this era actually had.',
-      'The teal behind the window is a dither tile, and the pointers are hand-drawn files named in globals.css (assets/cursors/README.txt has the sizes to draw them at). Both are the site\'s furniture rather than its artwork: nothing there draws a character, an icon or a scene, which is the rule the sheets and the sprites answer to.',
+      'The type is a pixel face (DotGothic16, loaded by app/layout.tsx): thin, dotted, with a real lowercase, in one weight. Nothing is bold - a word that matters is marked by colour or size instead. Labels are written in capitals; anything people type keeps the case they typed it in.',
+      'The desktop behind the window is a dither tile, and the pointers are hand-drawn files named in globals.css (assets/cursors/README.txt has the sizes to draw them at). Both are the site\'s furniture rather than its artwork: nothing there draws a character, an icon or a scene, which is the rule the sheets and the sprites answer to.',
     ],
   },
   {

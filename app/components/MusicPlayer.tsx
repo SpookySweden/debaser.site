@@ -629,8 +629,10 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
           which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The
           right edge has no padding because the fold key's box already holds its glyph off the edge. */}
-      <div className="flex items-center justify-between gap-1 bg-ena pl-2 text-[13px] font-bold text-ink-bar">
-        <span className="truncate">♪ PLAYER</span>
+      {/* No bar behind the row: the card's own fill, the name in the accent ink the way a window is
+          titled, and a rule under it - the last Royal Blue strip left from the Win95 chrome. */}
+      <div className="flex items-center justify-between gap-1 border-b-2 border-ink pl-2 text-[13px] font-bold">
+        <span className="truncate text-accent-ink">♪ PLAYER</span>
 
         <span className="flex shrink-0 items-center">
           <button
