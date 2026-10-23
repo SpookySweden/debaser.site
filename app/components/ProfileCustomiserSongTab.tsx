@@ -130,23 +130,28 @@ export default function ProfileCustomiserSongTab({
               className={FIELD}
             />
 
+            {/* The tip sits on a wrapper: the key is disabled until a track is chosen and titled, and a
+                disabled button shows no tip in some browsers. */}
             <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={onFileVersion}
-                disabled={busy || pendingSrc === null || title.trim().length === 0}
-                className={PLATE_LARGE}
-              >
-                {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
-              </button>
-              <p className="text-label text-ink">THE PROFILE CHANGES THE MOMENT IT IS FILED.</p>
+              <span title="THE PROFILE CHANGES THE MOMENT IT IS FILED.">
+                <button
+                  type="button"
+                  onClick={onFileVersion}
+                  disabled={busy || pendingSrc === null || title.trim().length === 0}
+                  className={PLATE_LARGE}
+                >
+                  {busy ? '[ WORKING... ]' : `[ FILE AS M${nextVersion} ]`}
+                </button>
+              </span>
             </div>
           </div>
         </div>
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>TRACK HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
+        <p className={CUSTOMISER_NOTE} title="APPEND ONLY: FILING A NEW VERSION NEVER OVERWRITES AN OLD ONE.">
+          TRACK HISTORY
+        </p>
 
         {versions.length === 0 ? (
           <p className="mt-2 text-label font-bold text-ink">NOTHING HAS EVER BEEN FILED.</p>
@@ -160,7 +165,7 @@ export default function ProfileCustomiserSongTab({
                 <div className="min-w-0 flex-1 text-label text-ink">
                   <p className="font-bold">
                     M{version.version}
-                    {version.id === profile.song.currentVersionId ? ' [ CURRENT ]' : ''} :: {version.title} ::{' '}
+                    {version.id === profile.song.currentVersionId ? ' (CURRENT)' : ''} :: {version.title} ::{' '}
                     <TimeStamp at={version.createdAt} /> :: {commentCountForSongVersion(profile, version)} COMMENTS
                   </p>
                   {version.note.length === 0 ? null : <p className="mt-1">{version.note}</p>}

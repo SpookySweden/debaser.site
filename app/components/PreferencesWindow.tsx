@@ -8,8 +8,6 @@ import {
   subscribeToPreferencesWindow,
 } from '../lib/ui/preferences-window';
 import {
-  currentTheme,
-  FALLBACK_THEME,
   setTheme,
   subscribeToTheme,
   themeState,
@@ -37,12 +35,13 @@ function ThemeSwatch({ theme }: { theme: Theme }) {
 }
 
 /**
- * One theme's row: a plate that switches to it, ticked if it is the one on.
+ * One theme's row: a key that switches to it, filled while it is the one on.
  *
  * A `button` with `aria-pressed` rather than a radio group, because the whole row is the control on
  * this site - a 13px radio beside a label would be the only native input on the page that is not a
- * field, and it would not take the site's press. The tick is the same `[ ON ]`/`[ ]` mark the shelf
- * keys use, so "which one is selected" reads the same way everywhere.
+ * field, and it would not take the site's press. The filled pill is what says which one is on, as it
+ * does for every tab and switch, so the `[ ON ]` / `[ ]` mark went (SPEC-efficiency.md, 2026-10-23);
+ * the theme's note is the row's hover tip.
  */
 function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
   return (
@@ -50,8 +49,8 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       type="button"
       onClick={() => setTheme(theme.id)}
       aria-pressed={active}
-      title={theme.experimental ? `${theme.label} - experimental` : theme.label}
-      className={`flex w-full cursor-pointer items-start gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
+      title={theme.note}
+      className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         active
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
           : 'key'
@@ -59,18 +58,9 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
     >
       <ThemeSwatch theme={theme} />
 
-      <span className="min-w-0 flex-1">
-        <span className="block truncate">
-          [ {theme.label} ]
-          {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
-        </span>
-        <span className={`mt-0.5 block text-label ${active ? '' : 'text-ink-quiet'}`}>
-          {theme.note}
-        </span>
-      </span>
-
-      <span aria-hidden="true" className="shrink-0 pt-0.5">
-        {active ? '[ ON ]' : '[ ]'}
+      <span className="min-w-0 flex-1 truncate">
+        [ {theme.label} ]
+        {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
       </span>
     </button>
   );
@@ -90,7 +80,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
  * same arrangement the arcade and the archive keep.
  */
 export default function PreferencesWindow() {
-  // Subscribed rather than read once, so the tick moves the moment a theme is pressed.
+  // Subscribed rather than read once, so the filled row moves the moment a theme is pressed.
   const { id } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
   const { open } = useSyncExternalStore(
     subscribeToPreferencesWindow,
@@ -106,7 +96,6 @@ export default function PreferencesWindow() {
   return (
     <DockWindow
       title="PREFERENCES"
-      badge="[ SETTINGS ]"
       onClose={closePreferences}
       status="CHANGES APPLY AT ONCE :: DRAG THE TITLE BAR TO MOVE IT"
       dock="bottom"
@@ -114,16 +103,15 @@ export default function PreferencesWindow() {
       defaultSize={{ w: 384, h: 460 }}
       minSize={{ w: 280, h: 200 }}
     >
+      {/* What each section is for is its title line's hover tip, not a paragraph under it
+          (SPEC-efficiency.md, 2026-10-23). The SESSION placeholder, the "on the theme now" readback and
+          the back-to-default key went with them: the filled row already says which theme is on. */}
       <section>
         <div className={TITLE_BAR_INACTIVE}>
-          <span>THEME</span>
-          <span>[ {THEMES.length} ]</span>
+          <span title="THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO NOTHING HERE CAN MAKE A PAGE UNREADABLE.">
+            THEME
+          </span>
         </div>
-
-        <p className="border-b border-ink px-2 py-1 text-label text-ink-quiet">
-          THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO
-          NOTHING HERE CAN MAKE A PAGE UNREADABLE.
-        </p>
 
         <div className="space-y-1 p-2">
           {THEMES.map((theme) => (
@@ -137,47 +125,19 @@ export default function PreferencesWindow() {
       <section className="mt-2 hidden sm:block">
         <div className={TITLE_BAR_INACTIVE}>
           <span>WINDOWS</span>
-          <span>[ THIS SCREEN SHAPE ]</span>
         </div>
 
-        <p className="px-2 pt-1 text-label text-ink-quiet">
-          WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN
-          ITS CORNER AND FORGETS THIS SHAPE&apos;S SAVED LAYOUT.
-        </p>
         <p className="p-2">
-          <button type="button" onClick={resetLayout} className={PLATE}>
+          <button
+            type="button"
+            onClick={resetLayout}
+            title="WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN ITS CORNER AND FORGETS THIS SHAPE'S SAVED LAYOUT."
+            className={PLATE}
+          >
             [ RESET LAYOUT ]
           </button>
         </p>
       </section>
-
-      <section className="mt-2">
-        <div className={TITLE_BAR_INACTIVE}>
-          <span>SESSION</span>
-          <span>[ SOON ]</span>
-        </div>
-
-        <p className="p-2 text-label text-ink-quiet">
-          WHAT THIS WILL HOLD - SIGN-OUT, THE NOTIFICATION SOUND, WHETHER THE PLAYER BAR STARTS OPEN -
-          IS STILL BEING DECIDED, SO NOTHING IS DRAWN HERE YET. THE ROW IS LEFT IN PLACE SO THE WINDOW
-          DOES NOT GROW ONE LATER.
-        </p>
-      </section>
-
-      <p className="mt-2 text-center text-label text-ink-quiet">
-        ON THE THEME NOW:{' '}
-        <span className="text-accent-ink">{currentTheme().label}</span>
-      </p>
-
-      {/* The one place `PLATE` is spent in this window: a reader who wants the tick they came for and
-          nothing else can get back to the default in one press. */}
-      {id === FALLBACK_THEME.id ? null : (
-        <p className="mt-1 text-center">
-          <button type="button" onClick={() => setTheme(FALLBACK_THEME.id)} className={PLATE}>
-            [ BACK TO THE DEFAULT ]
-          </button>
-        </p>
-      )}
     </DockWindow>
   );
 }

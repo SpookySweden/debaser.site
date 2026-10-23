@@ -70,7 +70,6 @@ export default function AccountDetails() {
       >
         <div className="title-line text-accent-ink">
           <span>ACCOUNT DETAILS</span>
-          <span>[ READ ONLY ]</span>
         </div>
 
         <div className="space-y-2 p-3 text-label font-bold text-ink">
@@ -96,9 +95,6 @@ export default function AccountDetails() {
             <button type="button" onClick={() => void signOut()} disabled={busy} className={PLATE_LARGE}>
               [ SIGN OUT ]
             </button>
-            <p className="text-ink">
-              NEED TO CHANGE THE NAME, EMAIL OR PASSWORD? USE THE EDIT ACCOUNT SECTION BELOW.
-            </p>
           </div>
 
           {message === null ? null : <p className="text-label font-bold text-ink">{message}</p>}
@@ -110,7 +106,6 @@ export default function AccountDetails() {
       >
         <div className="title-line text-accent-ink">
           <span>BOARD ACTIVITY</span>
-          <span>[ {myThreads.length + myReplies} POSTS ]</span>
         </div>
 
         <div className="space-y-2 p-3 text-label font-bold text-ink">
@@ -139,7 +134,6 @@ export default function AccountDetails() {
       >
         <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-key font-bold text-ink-bar">
           <span>DANGER ZONE</span>
-          <span>[ CAREFUL ]</span>
         </div>
 
         <div className="flex flex-wrap items-center gap-2 p-3 text-label font-bold text-ink">

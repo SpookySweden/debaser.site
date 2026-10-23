@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -23,7 +23,7 @@ import CharacterEditorPanel from './CharacterEditorPanel';
 type TabKey = 'profile' | 'character' | 'privacy';
 
 const TABS: { key: TabKey; label: string }[] = [
-  { key: 'profile', label: '[ PICTURE, BIO & TAGS ]' },
+  { key: 'profile', label: '[ PROFILE ]' },
   // Between the two, because it is the middle thing: the page gets dressed first, the switches at the end are
   // about who may look, and the figure is neither - it is something built rather than described.
   { key: 'character', label: '[ CHAR 🐰 ]' },
@@ -41,9 +41,16 @@ const TABS: { key: TabKey; label: string }[] = [
  * and Nigrosine on Black (1.18:1) in the other. `Temp/check-themes.cjs` reads this literal's pair, and
  * that is what found it.
  */
-function PanelHeading({ children }: { children: React.ReactNode }) {
-  return <p className="bg-ena-deep px-2 py-1 text-label font-bold text-ink-bar">{children}</p>;
+function PanelHeading({ children, tip }: { children: React.ReactNode; tip?: string }) {
+  return (
+    <p title={tip} className="bg-ena-deep px-2 py-1 text-label font-bold text-ink-bar">
+      {children}
+    </p>
+  );
 }
+
+/** How long `SAVED` stays in the foot after a save: long enough to read, then out of the way. */
+const SAVED_FLASH_MS = 2000;
 
 type ProfileCustomiserWindowProps = {
   userId: string;
@@ -54,8 +61,8 @@ type ProfileCustomiserWindowProps = {
 /**
  * The customisation console for the public face of an account.
  *
- * Opened as a self-contained pop-up from the account page ("CUSTOMISE PUBLIC
- * PROFILE"), which is the only way in: the console is a window, not a page.
+ * Opened as a self-contained pop-up from the account page ("[ EDIT PROFILE ]"),
+ * which is the only way in: the console is a window, not a page.
  * Nothing here writes to the board: it only styles the profile page visitors
  * reach from a username or a picture.
  */
@@ -65,8 +72,18 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
   const [tab, setTab] = useState<TabKey>('profile');
   const [busy, setBusy] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /**
+   * Counts saves while `SAVED` is showing; 0 means nothing to show. A counter rather than a flag, so a
+   * second save inside the two seconds restarts the clock instead of being swallowed by the first.
+   */
+  const [savedTick, setSavedTick] = useState(0);
+
+  useEffect(() => {
+    if (savedTick === 0) return;
+    const timer = window.setTimeout(() => setSavedTick(0), SAVED_FLASH_MS);
+    return () => window.clearTimeout(timer);
+  }, [savedTick]);
 
   // Picture drafts.
   const [pendingSrc, setPendingSrc] = useState<string | null>(null);
@@ -157,14 +174,18 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const countryProblem = validateCountry(country);
   const statusProblem = validateStatus(status);
 
-  async function run(action: () => Promise<unknown>, ok: string) {
+  /**
+   * Every save goes through here: on success the foot says `SAVED` for a moment, and on failure the
+   * problem stays on screen until the next try. There is no standing status line any more
+   * (SPEC-efficiency.md, 2026-10-23) - a save that worked has nothing more to say than that.
+   */
+  async function run(action: () => Promise<unknown>) {
     setBusy(true);
     setError(null);
-    setMessage(null);
 
     try {
       await action();
-      setMessage(ok);
+      setSavedTick((tick) => tick + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
     } finally {
@@ -245,7 +266,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
     useCharacterStore.getState().revert();
 
-    setMessage('CHANGES THROWN AWAY.');
     setError(null);
   }
 
@@ -289,7 +309,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         await repository.saveProfile(userId, { visibility: visibilityDraft });
         setVisibilityDraft({});
       }
-    }, 'SAVED, THEN WENT WHERE YOU ASKED.');
+    });
 
     finish(intent);
   }
@@ -332,7 +352,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       });
       setPendingSrc(null);
       setNote('');
-    }, 'NEW PICTURE VERSION FILED - THE OLD ONE STAYS IN THE HISTORY.');
+    });
   }
 
   /**
@@ -390,7 +410,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       setSongCredit('');
       setSongNote('');
       setSongMessage(null);
-    }, 'NEW TRACK VERSION FILED - THE EARLIER ONES STAY IN THE HISTORY.');
+    });
   }
 
   async function handleSaveIdentity() {
@@ -424,29 +444,24 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       setCountryDraft(null);
       setStatusDraft(null);
       setNameColourDraft(null);
-    }, 'NAME, NAME COLOUR, COUNTRY FLAG, STATUS AND BIO SAVED.');
+    });
   }
 
   async function handleSavePrivacy() {
     await run(async () => {
       await repository.saveProfile(userId, { visibility: visibilityDraft });
       setVisibilityDraft({});
-    }, 'VISIBILITY SAVED.');
+    });
   }
 
   async function handleSetAllHidden(hidden: boolean) {
     await run(async () => {
       for (const tag of profile.tags) await repository.setTagVisibility(userId, tag.id, hidden);
-    }, hidden ? 'EVERY TAG HIDDEN.' : 'EVERY TAG SHOWN (IF THE GLOBAL SWITCH IS ON).');
+    });
   }
 
   const panel = (
     <div className="space-y-3 text-ink">
-      <p className="text-label font-bold">
-        THIS CONSOLE STYLES WHAT OTHER PEOPLE SEE AT /profile/{userId} - THE PAGE A USERNAME OR A PICTURE OPENS FROM
-        THE BOARD. IT DOES NOT CHANGE HOW YOUR POSTS LOOK ON THE BOARD ITSELF.
-      </p>
-
       <div className="flex flex-wrap gap-1">
         {TABS.map((entry) => (
           <button
@@ -467,7 +482,12 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           makes the page they add up to visible while you work on it. */}
       {tab === 'profile' ? (
         <div className="space-y-3">
-          <PanelHeading>PICTURE</PanelHeading>
+          {/* HOW IT WORKS used to be a paragraph beside the upload; it is this heading's hover tip now. */}
+          <PanelHeading
+            tip={`CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P${profile.avatar.versions.length + 1}. THE OLD ONE STAYS IN THE HISTORY BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.`}
+          >
+            PICTURE
+          </PanelHeading>
           <ProfileCustomiserPictureTab
             profile={profile}
             pendingSrc={pendingSrc}
@@ -479,12 +499,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onNoteChange={setNote}
             onUpload={(file) => void handleUpload(file)}
             onFileVersion={() => void handleFileVersion()}
-            onRestore={(versionId) =>
-              void run(
-                () => repository.restoreAvatarVersion(userId, versionId),
-                'OLDER DRAWING FILED AS A NEW VERSION.',
-              )
-            }
+            onRestore={(versionId) => void run(() => repository.restoreAvatarVersion(userId, versionId))}
             busy={busy}
             uploadMessage={uploadMessage}
           />
@@ -501,9 +516,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onNoteChange={setSongNote}
             onUpload={(file) => void handleSongUpload(file)}
             onFileVersion={() => void handleFileSongVersion()}
-            onRestore={(versionId) =>
-              void run(() => repository.restoreSongVersion(userId, versionId), 'OLDER TRACK FILED AS A NEW VERSION.')
-            }
+            onRestore={(versionId) => void run(() => repository.restoreSongVersion(userId, versionId))}
             busy={busy}
             uploadMessage={songMessage}
           />
@@ -532,13 +545,8 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           <ProfileTagsTab
             profile={profile}
             busy={busy}
-            onSetHidden={(tagId, hidden) =>
-              void run(
-                () => repository.setTagVisibility(userId, tagId, hidden),
-                hidden ? 'TAG HIDDEN FROM VISITORS.' : 'TAG SHOWN TO VISITORS.',
-              )
-            }
-            onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId), 'TAG REMOVED.')}
+            onSetHidden={(tagId, hidden) => void run(() => repository.setTagVisibility(userId, tagId, hidden))}
+            onRemove={(tagId) => void run(() => repository.removeTag(userId, tagId))}
             onSetAllHidden={(hidden) => void handleSetAllHidden(hidden)}
           />
         </div>
@@ -567,16 +575,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         />
       ) : null}
 
-      <div className="p-2 text-label font-bold">
-        <p>STATUS: {message ?? 'NOTHING SAVED IN THIS SESSION YET.'}</p>
-        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-ink-bar">PROBLEM: {error}</p>}
-        <p className="mt-1 text-ink">
-          PICTURE FILES: {profile.avatar.versions.length} :: VISIBLE TO VISITORS: TAGS{' '}
-          {profile.visibility.showTags ? 'YES' : 'NO'}, PROFILE COMMENTS{' '}
-          {profile.visibility.showProfileComments ? 'YES' : 'NO'}, PICTURE COMMENTS{' '}
-          {profile.visibility.showAvatarComments ? 'YES' : 'NO'}
-        </p>
-      </div>
+      {/* A problem stays on screen until the next try; a success is the `SAVED` in the foot. */}
+      {error === null ? null : (
+        <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">PROBLEM: {error}</p>
+      )}
     </div>
   );
 
@@ -609,7 +611,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     <>
       <PopoutWindow
         title="CUSTOMISE PUBLIC PROFILE"
-        badge="[ ACCOUNT ]"
         onClose={() => guard({ kind: 'close' })}
         // Clicking the desktop does not close this one: it holds unsaved work, and a mis-aimed press is not a
         // decision to discard it. Every other window keeps the behaviour - see `PopoutWindow`.
@@ -619,12 +620,19 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         maxWidth={tab === 'character' ? 'max-w-6xl' : 'max-w-3xl'}
         status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC ASKS BEFORE CLOSING"
         actions={
-          <a
-            href={`/profile/${encodeURIComponent(userId)}`}
-            className="key px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
-          >
-            [ VIEW PUBLIC PAGE ]
-          </a>
+          <>
+            {/* The foot sits outside the scrolling body, so `SAVED` is seen whichever section was saved.
+                Its box is laid out whether or not the word is in it, so the key beside it never moves. */}
+            <span aria-live="polite" className="inline-block w-12 text-right text-label text-ink">
+              {savedTick > 0 ? 'SAVED' : ''}
+            </span>
+            <a
+              href={`/profile/${encodeURIComponent(userId)}`}
+              className="key px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
+            >
+              [ VIEW PROFILE ]
+            </a>
+          </>
         }
       >
         {panel}

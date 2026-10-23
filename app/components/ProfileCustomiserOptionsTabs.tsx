@@ -94,7 +94,14 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
 
-      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR: PICK ONE OF THE EIGHT DYES</p>
+      {/* The three explainers that used to sit under these fields are hover tips now: the swatches'
+          on this label, the flag's on its label, the account name's on the save key. */}
+      <p
+        className={`${CUSTOMISER_NOTE} mt-2`}
+        title="AN INK SWATCH IS A NAME THAT READS ON THE PAGE, IN EITHER THEME - WHERE THE FIELD IS DARK THE COLOUR IS RESTATED RATHER THAN KEPT (BLACK BECOMES PURE WHITE, ROYAL BLUE BECOMES DAFFODIL). A GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE."
+      >
+        NAME COLOUR: PICK ONE OF THE EIGHT DYES
+      </p>
 
       {NAME_COLOUR_ROWS.map((row) => (
         <div key={row.label} className="mt-1">
@@ -138,15 +145,13 @@ export function ProfileIdentityTab({
         <span className="text-label text-ink">PREVIEW :: {nameColourLabel(nameColour)}</span>
       </div>
 
-      <p className="mt-1 text-label text-ink">
-        AN INK SWATCH IS A NAME THAT READS ON THE PAGE, IN EITHER THEME - WHERE THE FIELD IS DARK THE
-        COLOUR IS RESTATED RATHER THAN KEPT (BLACK BECOMES PURE WHITE, ROYAL BLUE BECOMES DAFFODIL). A
-        GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE.
-      </p>
-
       {/* A select rather than a text box, and that is the whole change: a place line was a sentence
           the site could not draw, and a country is a code off the list below, which it can. */}
-      <label className={`${CUSTOMISER_NOTE} mt-2 block`} htmlFor="customise-country">
+      <label
+        className={`${CUSTOMISER_NOTE} mt-2 block`}
+        htmlFor="customise-country"
+        title="A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE STAND IN FOR IT."
+      >
         COUNTRY FLAG: DRAWN BESIDE YOUR NAME ON YOUR POSTS AND ON YOUR PAGE
       </label>
       <div className="mt-1 flex flex-wrap items-center gap-2">
@@ -169,10 +174,6 @@ export function ProfileIdentityTab({
         <CountryFlag code={country} width={24} height={16} />
         <span className="text-label text-ink">{country.length === 0 ? 'NO FLAG PICKED' : countryName(country)}</span>
       </div>
-      <p className="mt-1 text-label text-ink">
-        A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE
-        STAND IN FOR IT.
-      </p>
       {countryProblem === undefined ? null : (
         <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{countryProblem}</p>
       )}
@@ -202,7 +203,7 @@ export function ProfileIdentityTab({
 
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <label htmlFor="customise-bio" className={CUSTOMISER_NOTE}>
-          BIO: SHOWN AT THE TOP OF YOUR PUBLIC PROFILE
+          BIO
         </label>
         <span className={CUSTOMISER_NOTE}>
           {bio.length} / {MAX_BIO_LENGTH}
@@ -219,12 +220,11 @@ export function ProfileIdentityTab({
       {bioProblem === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
-          {busy ? '[ WORKING... ]' : '[ SAVE NAME, COLOUR AND BIO ]'}
-        </button>
-        <p className="text-label text-ink">
-          THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.
-        </p>
+        <span title="THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.">
+          <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
+            {busy ? '[ WORKING... ]' : '[ SAVE ]'}
+          </button>
+        </span>
       </div>
     </div>
   );
@@ -246,7 +246,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
     {
       key: 'showTags',
       label: 'SHOW THE TAGS OTHER USERS GAVE ME',
-      note: 'ARRIVES HIDDEN. EACH TAG ALSO HAS ITS OWN SWITCH IN THE TAGS TAB.',
+      note: 'ARRIVES HIDDEN. EACH TAG ALSO HAS ITS OWN SWITCH ON THE PROFILE TAB.',
     },
     {
       key: 'showProfileComments',
@@ -291,10 +291,11 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
       </ul>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
-          {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
-        </button>
-        <p className="text-label text-ink">PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.</p>
+        <span title="PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.">
+          <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
+            {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
+          </button>
+        </span>
       </div>
     </div>
   );

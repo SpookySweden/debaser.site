@@ -149,19 +149,16 @@ export default function AccountSecurityPanel() {
     <section
       id="edit-account"
     >
+      {/* What this section is for is the title line's hover tip rather than a paragraph under it. */}
       <div className="title-line text-accent-ink">
-        <span>EDIT ACCOUNT</span>
-        <span>[ EDIT ]</span>
+        <span title="THESE ARE THE DETAILS THE ACCOUNT SIGNS IN WITH. THE PUBLIC PROFILE - PICTURE, BIO, WHAT VISITORS SEE - IS EDITED ABOVE.">
+          EDIT ACCOUNT
+        </span>
       </div>
 
       <div className="p-3">
-        <p className={NOTE}>
-          THESE ARE THE DETAILS THE ACCOUNT SIGNS IN WITH. THE PUBLIC PROFILE - PICTURE, BIO, WHAT VISITORS SEE - IS
-          EDITED ABOVE.
-        </p>
-
         {/* Display name */}
-        <div className="mt-3 p-2">
+        <div className="p-2">
           <p className={NOTE}>1. DISPLAY NAME</p>
           <Field
             id="edit-account-name"
