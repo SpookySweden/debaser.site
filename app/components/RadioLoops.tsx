@@ -92,7 +92,7 @@ export default function RadioLoops() {
             <button
               type="button"
               onClick={clearAllLoops}
-              className="shrink-0 cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink max-sm:min-h-tap"
+              className="shrink-0 cursor-pointer key px-1 py-1 text-label font-bold max-sm:min-h-tap"
             >
               [ CLEAR ALL ]
             </button>

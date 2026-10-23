@@ -91,8 +91,8 @@ export default function LibraryRow({
             disabled={busy}
             aria-pressed={liked}
             title={liked ? `Take ${track.title} out of liked` : `Like ${track.title}`}
-            className={`cursor-pointer rounded-none border border-ink px-1 text-label font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
-              liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
+            className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
+              liked ? 'key key-fill [--key-fill:var(--color-bubble-pale)] text-ink-bar' : 'key'
             }`}
           >
             {liked ? '♥' : '♡'}
@@ -139,8 +139,8 @@ export default function LibraryRow({
                   ? `Take ${track.title} out of ${list.name}`
                   : `Add ${track.title} to ${list.name}`
               }
-              className={`cursor-pointer rounded-none border border-ink px-1 text-label font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-tap max-sm:px-2 ${
-                inOpenList && current ? 'bg-ena text-sun' : 'bg-sun-pale text-ink hover:bg-ice'
+              className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-1 ${
+                inOpenList && current ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : 'key'
               }`}
             >
               [ {list.name} ]

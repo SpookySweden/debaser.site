@@ -18,7 +18,7 @@ const MENU_ITEM =
   'flex w-full items-center gap-2 rounded-none border border-ink bg-paper px-2 py-0.75 text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
 
 const LOG_IN_BUTTON =
-  'shrink-0 key bg-sun-pale px-3 py-1 text-key font-bold text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate';
+  'shrink-0 key px-1.5 py-1.5 text-key font-bold active:translate-y-press active:bg-bubble active:text-ink-plate';
 
 const PICTURE_BUTTON = `${GLYPH_BUTTON} gap-1 p-0.5 border-r-line border-b-line`;
 

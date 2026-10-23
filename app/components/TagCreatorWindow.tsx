@@ -63,7 +63,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
         <button
           type="button"
           onClick={handleCreate}
-          className="cursor-pointer key bg-sun-pale px-3 py-1 text-key font-bold hover:text-accent-ink"
+          className="cursor-pointer key px-1.5 py-1.5 text-key font-bold"
         >
           [ CREATE TAG ]
         </button>

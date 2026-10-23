@@ -50,8 +50,8 @@ export default function ListRow({
           onClick={onDrop}
           title={`Delete the playlist ${label}`}
           aria-label={`Delete the playlist ${label}`}
-          className={`shrink-0 cursor-pointer rounded-none border border-ink px-1 text-label font-bold max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
-            selected ? 'bg-hardware text-ink-bar hover:bg-chrome' : 'bg-paper text-ink hover:bg-ice'
+          className={`shrink-0 cursor-pointer key px-1 text-label max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
+            selected ? '[--key-ink:var(--color-sun)] [--key-hover-ink:var(--color-ink-plate)]' : ''
           }`}
         >
           ×

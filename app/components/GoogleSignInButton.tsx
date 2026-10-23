@@ -6,7 +6,7 @@ import { useAuth } from './AuthProvider';
 import SheetImage from './SheetImage';
 
 const BUTTON =
-  'inline-flex w-full cursor-pointer items-center justify-center gap-2 key bg-sun-pale font-bold text-ink hover:text-accent-ink disabled:cursor-wait disabled:opacity-60';
+  'inline-flex w-full cursor-pointer items-center justify-center gap-2 key font-bold disabled:cursor-wait';
 
 type GoogleSignInButtonProps = {
   /** 'large' is the one the side panel and the mobile menu use. */

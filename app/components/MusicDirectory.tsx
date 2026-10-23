@@ -53,7 +53,7 @@ const ROW_GRID =
 
 /** A control small enough to sit on a folder row, beside the folder's name. */
 const ROW_BUTTON =
-  'shrink-0 cursor-pointer key bg-sun-pale px-1 py-0.25 text-label font-bold text-ink hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60 max-sm:min-h-tap max-sm:px-2 max-sm:py-0.75';
+  'shrink-0 cursor-pointer key px-0.5 py-0.75 text-label font-bold disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-1 max-sm:py-0.75';
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
@@ -183,8 +183,8 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
             disabled={busy}
             aria-pressed={liked}
             title={liked ? `Take ${row.track.title} out of liked` : `Like ${row.track.title}`}
-            className={`cursor-pointer rounded-none border border-ink px-1 text-label font-bold disabled:cursor-not-allowed disabled:bg-chrome-dark disabled:text-ink max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
-              liked ? 'bg-bubble-pale text-ink-bar hover:bg-ena' : 'bg-paper text-ink hover:bg-ice'
+            className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
+              liked ? 'key key-fill [--key-fill:var(--color-bubble-pale)] text-ink-bar' : 'key'
             }`}
           >
             {liked ? '♥' : '♡'}

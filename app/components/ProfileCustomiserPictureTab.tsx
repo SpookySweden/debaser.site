@@ -119,7 +119,7 @@ export default function ProfileCustomiserPictureTab({
                   className={`flex cursor-pointer items-center gap-2 p-1 text-label ${
                     pendingSrc === picture.src
                       ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
-                      : 'key bg-sun-pale text-ink hover:text-accent-ink'
+                      : 'key'
                   }`}
                   title={picture.src}
                 >

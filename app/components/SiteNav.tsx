@@ -158,7 +158,7 @@ function tabClass(isActive: boolean): string {
 
   return isActive
     ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
-    : `${base} key bg-sun-pale text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate`;
+    : `${base} key active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
 /**

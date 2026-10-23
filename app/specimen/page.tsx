@@ -14,6 +14,7 @@ import {
   PLATE_LINK,
   PLATE_MAIN,
   PLATE_MEDIUM,
+  PLATE_ON_BLACK,
   PLATE_PRESSED,
   SHELF_CHIP,
   STATUS_BAR,
@@ -174,12 +175,13 @@ function ThemeColumn({ theme }: { theme: Theme }) {
               [ DISABLED ]
             </button>
             <span className={PLATE_LINK}>[ LINK ]</span>
-            <span className={SHELF_CHIP}>SHELF CHIP</span>
+            <span className={SHELF_CHIP}>[ SHELF CHIP ]</span>
+            <button type="button" className={PLATE_HARDWARE}>[ DECK ]</button>
             <button type="button" className={TITLE_BAR_BUTTON}>[ × ]</button>
             <button type="button" className={`${GLYPH_BUTTON} h-6 w-6`}>?</button>
           </div>
           <div className="bg-hardware p-2">
-            <button type="button" className={PLATE_HARDWARE}>[ ▶ PLAY ]</button>
+            <button type="button" className={PLATE_ON_BLACK}>[ ON BLACK ]</button>
           </div>
           <input className={FIELD} defaultValue="A field: writing goes here." aria-label="Sample field" />
           <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">A FAULT CHIP: WHITE ON ROSE</p>

@@ -178,14 +178,14 @@ export default function MusicPlayer() {
 
   if (!open) {
     return (
-      <button
-        type="button"
-        onClick={() => setBarOpen(true)}
-        title="Open the player"
-        className={`fixed bottom-2 left-2 z-50 ${PLATE}`}
-      >
-        ♪ {player.playing ? 'PLAYING' : 'PLAYER'}
-      </button>
+      // Folded, the player is a window put away: a small framed tile on the desktop, its one key inside.
+      // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
+      // desktop is under 3:1.
+      <span className="fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5">
+        <button type="button" onClick={() => setBarOpen(true)} title="Open the player" className={PLATE}>
+          [ ♪ {player.playing ? 'PLAYING' : 'PLAYER'} ]
+        </button>
+      </span>
     );
   }
 
@@ -334,7 +334,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
           <span className="flex items-center gap-1 frame bg-sun-pale p-0.5">
-            <span className="key bg-ena px-2 py-0.75 text-label font-bold text-ink-bar">
+            <span className="px-1 text-label text-ink">
               ♪ DEBASER PLAYER
             </span>
 

@@ -294,7 +294,7 @@ export default function CommsConsole() {
             <button
               type="button"
               onClick={() => setMobileView('list')}
-              className="shrink-0 cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold leading-none text-ink hover:text-accent-ink lg:hidden"
+              className="shrink-0 cursor-pointer key px-1 py-1 text-label font-bold leading-none lg:hidden"
             >
               ← LIST
             </button>

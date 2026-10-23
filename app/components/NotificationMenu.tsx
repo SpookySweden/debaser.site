@@ -114,7 +114,7 @@ function NotificationRow({
           {item.threadTitle.length === 0 ? (item.kind === 'invite' ? 'A GAME' : 'A POST') : item.threadTitle}
         </span>
         {isInvite ? (
-          <span className="ml-auto shrink-0 key bg-sun-pale px-1 text-label font-bold text-ink">
+          <span className="ml-auto shrink-0 key px-0.5 py-0.5 text-label font-bold">
             [ ACCEPT &amp; PLAY ]
           </span>
         ) : null}
@@ -256,7 +256,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           <button
             type="button"
             onClick={retry}
-            className="mt-1 cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink"
+            className="mt-1 cursor-pointer key px-1 py-1 text-label font-bold"
           >
             [ RETRY ]
           </button>
@@ -280,14 +280,14 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={() => {
             void markAllRead();
           }}
-          className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink disabled:cursor-not-allowed disabled:opacity-60"
+          className="cursor-pointer key px-1 py-1 text-label font-bold disabled:cursor-not-allowed"
         >
           [ MARK ALL READ ]
         </button>
         <Link
           href="/forum"
           onClick={onClose}
-          className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink"
+          className="cursor-pointer key px-1 py-1 text-label font-bold"
         >
           [ OPEN THE BOARD ]
         </Link>

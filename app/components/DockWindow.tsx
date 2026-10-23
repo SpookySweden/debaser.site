@@ -183,7 +183,7 @@ export default function DockWindow({
               disabled={!grouped}
               aria-label={`Detach ${title} from its group`}
               title="Detach from group"
-              className="hidden cursor-pointer key bg-sun-pale px-2 py-0.25 text-label font-bold leading-none text-ink hover:text-accent-ink disabled:cursor-default disabled:opacity-40 disabled:hover:bg-sun-pale sm:inline-block"
+              className="hidden cursor-pointer key px-1 py-0.75 text-label font-bold leading-none disabled:cursor-not-allowed sm:inline-block"
             >
               ⇲
             </button>
@@ -193,7 +193,7 @@ export default function DockWindow({
               onDoubleClick={(event) => event.stopPropagation()}
               onClick={onClose}
               aria-label={`Close ${title}`}
-              className="cursor-pointer key bg-sun-pale px-2 py-0.25 text-label font-bold leading-none text-ink hover:text-accent-ink max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
+              className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
             >
               ×
             </button>

@@ -552,7 +552,7 @@ function GameChoice({ value, onChange }: { value: GameId; onChange: (game: GameI
           disabled={value === game.id}
           className={value === game.id ? PLATE_PRESSED : PLATE}
         >
-          {game.title}
+          [ {game.title} ]
         </button>
       ))}
     </span>

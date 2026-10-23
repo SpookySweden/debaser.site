@@ -211,7 +211,7 @@ export default function PersonalLibrary() {
 
         <Link
           href="/account"
-          className="mt-2 inline-block cursor-pointer key bg-hardware px-2 py-0.75 text-label font-bold text-ink-bar hover:text-sun"
+          className={`mt-2 inline-block ${PLATE}`}
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>

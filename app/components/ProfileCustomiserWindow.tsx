@@ -454,7 +454,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             type="button"
             onClick={() => guard({ kind: 'tab', tab: entry.key })}
             className={`cursor-pointer px-3 py-1 text-key max-sm:min-h-tap ${
-              tab === entry.key ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key bg-sun-pale text-ink hover:text-accent-ink'
+              tab === entry.key ? 'key key-fill [--key-fill:var(--color-ink)] text-paper' : 'key'
             }`}
           >
             {entry.label}
@@ -621,7 +621,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         actions={
           <a
             href={`/profile/${encodeURIComponent(userId)}`}
-            className="key bg-sun-pale px-2 py-0.5 underline hover:text-accent-ink max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
+            className="key px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
           >
             [ VIEW PUBLIC PAGE ]
           </a>

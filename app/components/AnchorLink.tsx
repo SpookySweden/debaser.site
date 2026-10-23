@@ -39,7 +39,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
       <Link
         href={target.href}
         title={`Open ${anchor.label} at ${target.href}`}
-        className="key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink underline hover:text-accent-ink"
+        className="key px-1 py-1 text-label font-bold"
       >
         {label}
       </Link>

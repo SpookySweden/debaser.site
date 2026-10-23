@@ -1,10 +1,10 @@
 /**
  * The keys, and the fields that sit beside them, in one place.
  *
- * Every control on this site is the same outlined key (`.key` in app/globals.css): a 2px line in the
- * key's own ink whose corners step in one pixel, the way the buttons in *(the) Gnorp Apologue* are
- * drawn. It replaced the Win95 plate (SPEC-readability.md, 2026-10-22) - a Daffodil face with a
- * white-and-black bevel - which read as a wall of yellow and put every label on a moving surface.
+ * Every control on this site is the same bracket key (`.key` in app/globals.css): its label in brackets,
+ * `[ LOG IN ]`, in the accent ink, with no outline (SPEC-efficiency.md, 2026-10-23). It replaced the
+ * outlined key (SPEC-readability.md), which framed every label twice - a box, and the brackets inside
+ * it - and that replaced the Win95 plate, a Daffodil face with a white-and-black bevel.
  *
  * The sizes are named for the job rather than the numbers, so the choice is read off the
  * page: `PLATE` for a control in a row of text, `PLATE_LARGE` for one that is the only
@@ -13,11 +13,12 @@
  * that is already down (the tab you are standing on), and `PLATE_MAIN` for the one action a
  * screen exists for (post, send, save, log in).
  *
- * **Three looks, and nothing in between.** At rest a key is outlined on the window's own fill. The
+ * **Three looks, and nothing in between.** At rest a key is its bracketed label in the accent ink. The
  * one main action is filled Daffodil with Black words. A key that is already down - a tab, a switch -
- * is a filled pill in the field ink. Hover is an instant colour swap (the words and the outline turn
- * the accent ink); nothing wobbles, because a label that moves is a label that cannot be read. The
- * press is the one movement left: a 1px drop and the Brilliant Pink flash, with no easing.
+ * is a filled pill in the field ink. Hover is an instant fill: the key fills with the accent ink and its
+ * words take the window's colour; nothing wobbles, because a label that moves is a label that cannot be
+ * read. The press is the one movement left: a 1px drop and the Brilliant Pink flash, with no easing.
+ * On a phone a key keeps its 44px tap height as invisible padding, not a visible box.
  */
 
 import { DYES } from './themes';
@@ -26,8 +27,8 @@ import { DYES } from './themes';
 const KEY_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble';
 /** The press: the key drops a pixel and flashes Brilliant Pink, with the plate ink on it. */
 const KEY_PRESS = 'active:animate-flash active:translate-y-press active:bg-bubble active:text-ink-plate';
-/** A key that cannot be pressed: the outline turns dotted (`.key:disabled`) and the words go quiet. */
-const KEY_DISABLED = 'disabled:cursor-not-allowed disabled:text-ink-quiet disabled:hover:text-ink-quiet';
+/** A key that cannot be pressed: the words go quiet and nothing answers the pointer (`.key:disabled` in globals.css). */
+const KEY_DISABLED = 'disabled:cursor-not-allowed';
 
 /** The outline every frame and key wears; the bevel is gone, the names stay for the components that ask. */
 export const BEVEL_OUT = 'frame';
@@ -37,11 +38,17 @@ export const PRESSED = 'active:translate-y-press';
 
 /** A control in a row of text: `[ SHOW ]`, `[ ▶ PLAY ]`, `[ DELETE ]`. */
 export const PLATE =
-  `key cursor-pointer bg-sun-pale px-2 py-0.5 text-label text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer px-1 py-1 text-label ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1 max-sm:py-2 max-sm:text-sm`;
+
+/**
+ * The same key on a strip that is Black in both themes (the guest banner): Daffodil words, a Daffodil
+ * fill with Black words under the pointer. The accent ink would be Royal Blue on Black there (2.2:1).
+ */
+export const PLATE_ON_BLACK = `${PLATE} [--key-ink:var(--color-sun)] [--key-hover-ink:var(--color-ink-plate)]`;
 
 /** The largest: a control that has its line to itself. */
 export const PLATE_LARGE =
-  `key cursor-pointer bg-sun-pale px-3 py-1 text-key text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-4 max-sm:py-2 max-sm:text-base`;
+  `key cursor-pointer px-1.5 py-1.5 text-key ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1.5 max-sm:py-2.5 max-sm:text-base`;
 
 /**
  * The one action a screen exists for: `[ POST ]`, `[ SEND ]`, `[ SAVE ]`, `[ LOG IN ]`.
@@ -57,30 +64,26 @@ export const PLATE_MAIN =
 
 /** The middle size: a panel control whose label needs the extra room. */
 export const PLATE_MEDIUM =
-  `key cursor-pointer bg-sun-pale px-3 py-1 text-label text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key cursor-pointer px-1 py-1.5 text-label ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1 max-sm:py-2.5 max-sm:text-sm`;
 
 /** Thumb-sized, for the phone's player: a plate has to be pressable with a thumb. */
 export const PLATE_TAP =
-  `key cursor-pointer bg-sun-pale px-3 py-2 text-sm text-ink hover:text-accent-ink ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED}`;
+  `key cursor-pointer px-1.5 py-2.5 text-sm ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED}`;
 
 /**
- * The deck's own controls: the transport keys on the docked player.
- *
- * Bigger than any plate in a row of text, with the label always written out - `[ ▶ PLAY ]` rather than
- * a triangle - because a row of icon-only keys is a puzzle. They are also the one place the site
- * allows a black face: a transport key on a physical deck is not the same surface as the panel it is
- * bolted to, so these are black with an Emerald label and outline, Daffodil under the pointer, and a
- * press turns them magenta.
+ * The deck's own controls: the keys on the docked player, a little taller than a key in a row of text.
+ * The black faces went with the outlines (SPEC-efficiency.md): the transport glyphs `◀ ▶` are bare
+ * glyphs in a row of glyphs, and the rest are bracket keys like every other.
  */
 export const PLATE_HARDWARE =
-  `key cursor-pointer bg-hardware px-3 py-2 text-key text-acid hover:text-sun ${KEY_FOCUS} ${KEY_PRESS} disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-4 max-sm:text-sm`;
+  `key cursor-pointer px-1.5 py-2.5 text-key ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1.5 max-sm:text-sm`;
 
 /** A key already down: the tab you are standing on, the switch that is on. A filled pill in the field ink. */
 export const PLATE_PRESSED = `key key-fill key-on [--key-fill:var(--color-ink)] px-2 py-0.5 text-label text-paper max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
 
 /** The plate drawn as a link: no pointer or disabled hints, because an anchor has neither. */
 export const PLATE_LINK =
-  `key bg-sun-pale px-3 py-1 text-label text-ink hover:text-accent-ink active:translate-y-press active:bg-bubble active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm`;
+  `key px-1 py-1.5 text-label active:translate-y-press active:bg-bubble active:text-ink-plate max-sm:min-h-tap max-sm:px-1 max-sm:py-2.5 max-sm:text-sm`;
 
 /** A field: the paper you write on, inside the same notched outline, with the room it needs under its label. */
 export const FIELD =
@@ -141,14 +144,14 @@ export const PANEL = 'frame bg-sun-pale';
  * how anybody moves between shelves.
  */
 export const SHELF_CHIP =
-  'key cursor-pointer bg-sun-pale px-2 py-0.5 text-ink hover:text-accent-ink max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-3 max-sm:text-sm';
+  'key cursor-pointer px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-1 max-sm:text-sm';
 
 /** A well inside a panel - a page, a board: the same notched outline, filled by the caller. */
 export const PANEL_INSET = 'frame';
 
 /** A key small enough to sit at the end of a title line: `[ × ]`, `[ ⇲ ]`. */
 export const TITLE_BAR_BUTTON =
-  'key cursor-pointer bg-sun-pale px-2 py-0.25 text-label leading-none text-ink hover:text-accent-ink active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-3 max-sm:py-1 max-sm:text-sm';
+  'key cursor-pointer px-1 py-0.75 text-label leading-none active:animate-flash active:bg-bubble active:text-ink-plate max-sm:px-1.5 max-sm:py-1.5 max-sm:text-sm';
 
 /**
  * A control whose face is a glyph rather than a word.
@@ -168,7 +171,7 @@ export const TITLE_BAR_BUTTON =
  * rather than out of the tap area.
  */
 export const GLYPH_BUTTON =
-  'key inline-flex cursor-pointer items-center justify-center bg-sun-pale text-ink hover:text-accent-ink active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-tap max-sm:min-w-tap max-sm:px-2 max-sm:text-base';
+  'key inline-flex cursor-pointer items-center justify-center p-0.5 active:bg-bubble active:text-ink-plate max-sm:-mx-1 max-sm:min-h-tap max-sm:min-w-tap max-sm:px-2 max-sm:text-base';
 
 /**
  * A space that a reveal is allowed to fill, because it is already there either way.

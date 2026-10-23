@@ -113,7 +113,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
                 <button
                   type="button"
                   onClick={() => onChange('')}
-                  className="mt-1 cursor-pointer key bg-sun-pale px-1 py-0.25 text-label font-bold text-ink hover:text-accent-ink max-sm:min-h-tap max-sm:px-3"
+                  className="mt-1 cursor-pointer key px-0.5 py-0.75 text-label font-bold max-sm:min-h-tap max-sm:px-1"
                 >
                   [ CLEAR ]
                 </button>

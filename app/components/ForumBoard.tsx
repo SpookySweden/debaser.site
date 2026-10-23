@@ -409,9 +409,9 @@ export default function ForumBoard() {
                       type="button"
                       onClick={() => toggleTagFilter(key)}
                       title={`Stop including ${label}`}
-                      className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold hover:text-accent-ink"
+                      className="cursor-pointer key px-1 py-1 text-label font-bold"
                     >
-                      {label} Ã—
+                      [ {label} × ]
                     </button>
                   );
                 })}
@@ -447,7 +447,7 @@ export default function ForumBoard() {
                 <button
                   type="button"
                   onClick={clearTagFilters}
-                  className="cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold hover:text-accent-ink"
+                  className="cursor-pointer key px-1 py-1 text-label font-bold"
                 >
                   [ CLEAR TAGS ]
                 </button>
@@ -638,7 +638,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key px-1 py-1.5 text-label font-bold disabled:cursor-not-allowed"
               >
                 [ &lt;&lt; PREV ]
               </button>
@@ -661,7 +661,7 @@ export default function ForumBoard() {
                 type="button"
                 onClick={() => goToPage(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold hover:text-accent-ink disabled:cursor-default disabled:opacity-50"
+                className="cursor-pointer key px-1 py-1.5 text-label font-bold disabled:cursor-not-allowed"
               >
                 [ NEXT &gt;&gt; ]
               </button>
@@ -693,7 +693,7 @@ export default function ForumBoard() {
                   className={
                     number === currentPage
                       ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-1 text-label font-bold text-paper'
-                      : 'cursor-pointer key bg-sun-pale px-2 py-1 text-label font-bold text-ink hover:text-accent-ink'
+                      : 'cursor-pointer key px-1 py-1.5 text-label font-bold'
                   }
                 >
                   {number}

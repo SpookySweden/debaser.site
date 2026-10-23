@@ -527,8 +527,8 @@ img {
     border-image-source: var(--art-frame-inset, none);
   }
 
-  /* A key - a button, a chip, a tab - is outlined in its own ink, so the hover that swaps the ink swaps
-     the outline with it in the same frame. */
+  /* The legacy plate classes are outlined in their own ink, so the hover that swaps the ink swaps the
+     outline with it in the same frame. (`.key` itself has no outline now unless it is filled - below.) */
   .key,
   .plate,
   .plate-large,
@@ -551,10 +551,40 @@ img {
     background-color: var(--key-fill);
   }
 
-  /* A key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. A key that
-     is *on* (`.key-on`, `PLATE_PRESSED`) and disabled because it is already chosen - `[ PICKED ]` - stays a
-     solid pill: it is a state, not a refusal. */
-  .key:disabled:not(.key-on),
+  /* A bracket key (SPEC-efficiency.md, 2026-10-23): at rest a key is its label and nothing else -
+     `[ LOG IN ]` in the accent ink, no outline, on whatever it sits on. The brackets in the words are the
+     frame, so after this, accent-ink brackets mean "press me". Under the pointer it fills with that ink
+     and the words take the window's own colour (`paper`: Nigrosine on Daffodil 15.9:1, White on Royal
+     Blue 9.3:1 - the plate ink, Black, would be 2.2:1 on the bright theme's Royal Blue). No border at
+     all, so the box the outline used to take is given back to the line. `--key-ink` is the one dial: a
+     key on a Black strip (the guest banner) asks for Daffodil, which reads on Black in both themes.
+     The filled keys (`.key-fill`: the main action, a key that is on, the pink inject) keep their pill. */
+  .key:not(.key-fill) {
+    --frame-line: transparent;
+    border-width: 0;
+    background-image: none;
+    background-color: transparent;
+    color: var(--key-ink, var(--color-accent-ink));
+  }
+
+  .key:not(.key-fill):hover:not(:disabled) {
+    background-color: var(--key-ink, var(--color-accent-ink));
+    color: var(--key-hover-ink, var(--color-paper));
+  }
+
+  /* A bracket key that cannot be pressed goes quiet: the quiet ink (16:1 in both themes, never a dimmed
+     field ink under 4.5:1), no fill under the pointer, and the pointer says so. */
+  .key:not(.key-fill):disabled {
+    background-image: none;
+    background-color: transparent;
+    color: var(--color-ink-quiet);
+    cursor: not-allowed;
+  }
+
+  /* A filled key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. A key
+     that is *on* (`.key-on`, `PLATE_PRESSED`) and disabled because it is already chosen - `[ PICKED ]` -
+     stays a solid pill: it is a state, not a refusal. */
+  .key-fill:disabled:not(.key-on),
   .plate:disabled,
   .plate-large:disabled,
   .plate-medium:disabled,

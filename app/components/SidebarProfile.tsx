@@ -18,11 +18,11 @@ import ProfileName from './ProfileName';
 import { TITLE_BAR } from '../lib/ui/controls';
 
 const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink';
+  'inline-flex cursor-pointer items-center gap-1 key px-1 py-1 text-label font-bold';
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
-  'cursor-pointer key bg-sun-pale px-1 text-label font-bold leading-none text-ink hover:text-accent-ink';
+  'cursor-pointer key px-0.5 py-0.5 text-label font-bold leading-none';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =
@@ -127,7 +127,7 @@ export default function SidebarProfile() {
                   aria-haspopup="dialog"
                   aria-label="Edit your public profile"
                   title="Edit your public profile"
-                  className="shrink-0 cursor-pointer rounded-none border border-ink bg-paper px-0.75 leading-none text-ink hover:bg-ice"
+                  className="shrink-0 cursor-pointer key px-0.5 leading-none"
                 >
                   <span aria-hidden="true">✎</span>
                 </button>

@@ -46,7 +46,7 @@ const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
 const SHELF_KEYS: NavItem[] = [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES];
 
 const RAIL_BUTTON =
-  'cursor-pointer key bg-sun-pale px-2 py-0.5 text-label font-bold text-ink hover:text-accent-ink max-md:min-h-tap max-md:min-w-tap max-md:text-base';
+  'cursor-pointer key px-1 py-1 text-label font-bold max-md:min-h-tap max-md:min-w-tap max-md:text-base';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -125,14 +125,12 @@ function ShelfKey({
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label ${
         isOpen
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
-          : 'key bg-sun-pale text-ink hover:text-accent-ink'
+          : 'key'
       }`}
     >
-      <span aria-hidden="true" className="text-label leading-none">
-        {item.mark}
+<span className="min-w-0 flex-1 truncate text-left">
+        [ <span aria-hidden="true">{item.mark}</span> {item.label} ]
       </span>
-      <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
-      <span aria-hidden="true">{isOpen ? '[ ON ]' : '[ ▶ ]'}</span>
     </button>
   );
 }
@@ -251,7 +249,7 @@ export default function DesktopSidebar() {
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer key bg-sun-pale px-2 text-label font-bold text-ink hover:text-accent-ink"
+          className="cursor-pointer key px-1 py-0.5 text-label font-bold"
         >
           {'>'}
         </button>

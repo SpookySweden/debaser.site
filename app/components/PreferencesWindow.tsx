@@ -54,14 +54,14 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
       className={`flex w-full cursor-pointer items-start gap-2 px-2 py-1 text-left text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         active
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
-          : 'key bg-sun-pale text-ink hover:text-accent-ink'
+          : 'key'
       }`}
     >
       <ThemeSwatch theme={theme} />
 
       <span className="min-w-0 flex-1">
         <span className="block truncate">
-          {theme.label}
+          [ {theme.label} ]
           {theme.experimental === true ? ' :: EXPERIMENTAL' : ''}
         </span>
         <span className={`mt-0.5 block text-label ${active ? '' : 'text-ink-quiet'}`}>

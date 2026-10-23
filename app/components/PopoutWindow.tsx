@@ -138,7 +138,7 @@ export default function PopoutWindow({
             <button
               type="button"
               onClick={onClose}
-              className="cursor-pointer key bg-sun-pale px-3 py-1 text-key font-bold hover:text-accent-ink max-sm:min-h-tap max-sm:px-4 max-sm:py-2 max-sm:text-sm"
+              className="cursor-pointer key px-1.5 py-1.5 text-key font-bold max-sm:min-h-tap max-sm:px-1.5 max-sm:py-2 max-sm:text-sm"
             >
               [ CLOSE ]
             </button>

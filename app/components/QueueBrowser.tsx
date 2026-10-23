@@ -270,7 +270,7 @@ function BroadcastSwitch({
           className={`cursor-pointer px-2 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-3 ${
             isPublic
               ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate'
-              : 'key bg-sun-pale text-ink hover:text-accent-ink'
+              : 'key'
           }`}
         >
           {isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}

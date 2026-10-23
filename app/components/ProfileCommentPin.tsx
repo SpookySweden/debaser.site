@@ -69,7 +69,7 @@ export default function ProfileCommentPin({
             ? 'UNPIN :: THE COMMENT GOES BACK AMONG THE OTHERS'
             : 'PIN :: THE COMMENT LEADS EVERY THIRD ROW OF THE WIRE'
         }
-        className="cursor-pointer key bg-ena px-1 py-0.25 text-label leading-none text-ink-bar hover:bg-ena-deep disabled:cursor-wait disabled:opacity-60 max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
+        className="cursor-pointer key px-0.5 py-0.75 text-label leading-none disabled:cursor-wait max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
       >
         <span aria-hidden="true">📌</span>
       </button>

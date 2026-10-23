@@ -126,10 +126,10 @@ function QueueTabPlate({
       className={`min-w-0 flex-1 cursor-pointer truncate px-2 py-1 text-key tracking-wide max-sm:min-h-tap max-sm:px-3 max-sm:text-sm ${
         selected
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
-          : 'key bg-sun-pale text-ink hover:text-accent-ink'
+          : 'key'
       }`}
     >
-      {label}
+      [ {label} ]
     </button>
   );
 }

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useAuth } from './AuthProvider';
 import MarqueeText from './MarqueeText';
+import { PLATE_ON_BLACK } from '../lib/ui/controls';
 
 /**
  * The guest fault: a fixed strip pinned across the top of the viewport while nobody is signed in.
@@ -68,7 +69,7 @@ export default function GuestPrompt() {
 
         <Link
           href="/account"
-          className="shrink-0 cursor-pointer key bg-hardware px-2 py-0.75 text-label font-bold text-ink-bar hover:text-sun active:translate-y-press active:bg-bubble active:text-ink-plate"
+          className={`shrink-0 ${PLATE_ON_BLACK}`}
         >
           [ CREATE ACCOUNT OR LOG IN ]
         </Link>
