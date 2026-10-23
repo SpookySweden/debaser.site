@@ -1,7 +1,8 @@
 # Theming: how the look is changed
 
 Every visual value on the site lives in three files, and components ask for **names**, never values.
-`npm run tokens` (inside `npm run verify`) fails the build if a raw value creeps back in anywhere else.
+`npm run tokens` (inside `npm run verify`) fails if a raw value creeps back in anywhere else. Vercel runs
+only the build, not verify, so a push that skipped verify is not stopped: run verify before pushing.
 To see everything at once, open **`/specimen`** (not linked from anywhere): both themes side by side,
 every colour, ink-on-surface pair with its contrast, text size, face, line, key, spacing step, layer
 and motion, with the measured value beside each.
@@ -13,7 +14,9 @@ and motion, with the measured value beside each.
 | Colours: the nine dyes, and which dye plays which part in each theme | `app/lib/ui/themes.ts` | `bg-paper`, `text-ink`, `border-ink-plate` |
 
 ## Change a colour
-- **A dye everywhere** (say Royal Blue): edit it in `DYES` at the top of `themes.ts`.
+- **A dye in both themes** (say Royal Blue): edit it in `DYES` at the top of `themes.ts`. Not quite
+  everywhere: `app/lib/profile/name-colours.ts` keeps its own copy of the swatch for people's chosen name
+  colours, and the online lamp and the site account's name read from there - change it there too.
 - **What plays a part in one theme** (say the dark windows' fill, `sun-pale`): edit that token in
   `DARK_THEME` or `DEFAULT_THEME`, pointing it at a dye.
 - Then run `npm run tokens -- --write`. It rewrites the colour block in `tokens.css` (what a page shows
@@ -44,8 +47,9 @@ Two dials at the top of `tokens.css`:
 - `--scale-type: 1` - every text size. `1.1` is everything 10% bigger.
 - `--scale-space: 1` - every padding, gap, margin and box size on Tailwind's scale (`p-2`, `gap-3`, `w-56`).
 
-Floors that ignore the dials: the 44px phone tap target (`--spacing-tap`, used as `min-h-tap` /
-`min-w-tap`) and the phone's 16px field text (`--text-field-phone`, which stops the phone zooming in).
+Two floors: the 44px phone tap target (`--spacing-tap`, used as `min-h-tap` / `min-w-tap`) ignores the
+space dial entirely, and the phone's field text (`--text-field-phone`, which stops the phone zooming in)
+never goes below 16px but does grow with the type dial above 1.
 Outline thickness is a value, not a dial: `--border-width-line` (2px). Keep it a whole number of pixels.
 
 To change one size rather than all: edit its token (`--text-label: calc(13px * var(--scale-type))`).
@@ -54,6 +58,8 @@ To change one size rather than all: edit its token (`--text-label: calc(13px * v
 - **Text, by job:** `text-label` 13 (the floor), `text-key` 14, `text-prose` 15, `text-title` 16,
   `text-heading` 18, `text-display` 20, `text-headline` 24. `text-sm`, `text-base`, `text-xl`, `text-4xl`,
   `text-5xl` are Tailwind's steps and carry their own line spacing (mostly phone key sizes and page headings).
+  Tailwind's other steps (`text-xs`, `text-lg`, `text-2xl`, `text-3xl`, `text-6xl` and up) are switched
+  off and would render no size at all; the guard refuses them.
 - **Line spacing:** `leading-tight/snug/normal/relaxed`, and `leading-readout` (14px) for single-line readouts.
 - **Spacing:** Tailwind's unit, in quarter steps: `py-0.5` is 2px, `py-0.75` 3px, `gap-2.5` 10px.
 - **Lines:** `border-line` (and `border-t-line`, ...), `border-thick`, plain `border` for a hairline.
@@ -78,7 +84,9 @@ For a refactor that should not change the look (moving values onto tokens, renam
    `npm run styles -- --out Temp/styles/before` (add `--signin` for a second pass signed in as test account A).
 2. Make the change, rebuild, restart, record `Temp/styles/after` the same way.
 3. `npm run styles -- --compare Temp/styles/before Temp/styles/after` - every element's computed look,
-   15 pages, desktop and phone, both themes. It must say `0 look differences`.
+   15 pages, desktop and phone, both themes. It must say `0 look differences, 0 with a different tree`.
+   A different tree means the page itself changed between recordings (new content, or a signed-in
+   account's saved windows): explain it before trusting the recording.
 
 ## Traps
 - **Two classes for one property on one element** (`py-1` and `py-0.5`, `gap-1` and `gap-0.75`): Tailwind

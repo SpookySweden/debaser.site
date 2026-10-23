@@ -140,11 +140,34 @@ const STOCK = /^(?:bg|text|border(?:-[xytblrse])?|outline|ring|ring-offset|fill|
 /** Look utilities that may not take a hand-typed value in brackets. */
 const LOOK = /^-?(?:text|bg|border(?:-[xytblrse])?|outline(?:-offset)?|ring(?:-offset)?|fill|stroke|decoration|underline-offset|accent|caret|shadow|rounded(?:-[a-z]+)?|font|leading|tracking|p[xytblrse]?|m[xytblrse]?|gap(?:-[xy])?|space-[xy]|z|translate(?:-[xyz])?|opacity|indent)-\[/;
 const FAMILY_UTIL = /^font-(?:sans|serif)$/;
+/** Tailwind's sizes that tokens.css switched off (`--text-*: initial`): they render no size at all. */
+const GONE_SIZE = /^text-(?:xs|lg|2xl|3xl|[6-9]xl)$/;
+/** An arbitrary property (`[font-size:13px]`) that writes the look without a token. */
+const LOOK_PROPERTY = /^\[(?:font-size|font-family|color|background(?:-color)?|padding[\w-]*|margin[\w-]*|gap|row-gap|column-gap|z-index|line-height|letter-spacing|border[\w-]*)\s*:(?!var\()/;
+
+/**
+ * The utility a class names, without its variants and its `!`. The cut is at the last colon *outside*
+ * brackets, so `max-[400px]:py-[2px]`, `data-[open=true]:text-[13px]` and `has-[:checked]:bg-white` are
+ * all read as the utility they end in.
+ */
+function bareUtility(raw) {
+  let depth = 0;
+  let cut = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i];
+    if (c === '[' || c === '(') depth++;
+    else if (c === ']' || c === ')') depth--;
+    else if (c === ':' && depth === 0) cut = i + 1;
+  }
+  return raw.slice(cut).replace(/^!|!$/g, '');
+}
 
 function checkClassToken(file, line, raw) {
-  const token = raw.replace(/^(?:[^\s:[\]]+:|\[[^\]]*\]:)*/, '').replace(/^!/, '');
+  const token = bareUtility(raw);
   if (STOCK.test(token)) find(file, line, raw, "Tailwind's own palette - use a colour by job (bg-paper, border-ink-plate)");
   else if (LOOK.test(token)) find(file, line, raw, 'a hand-typed look value - use a token (text-label, py-0.5, z-popout)');
+  else if (GONE_SIZE.test(token)) find(file, line, raw, 'a Tailwind size this site switched off (it renders no size) - use text-label and the rest');
+  else if (LOOK_PROPERTY.test(token)) find(file, line, raw, 'a look property written by hand - use a token');
   else if (FAMILY_UTIL.test(token)) find(file, line, raw, 'a font family - use a job (font-body, font-mono, font-display)');
   else if (/^border(?:-[xytblrse])?-[2-9]\d*$/.test(token)) find(file, line, raw, 'a numbered line width - use border-line or border-thick');
 }

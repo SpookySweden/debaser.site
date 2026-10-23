@@ -233,7 +233,7 @@ function LoopIcon({
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
         aria-label={`${label} - press to go back to where you were in it`}
-        className="group flex h-11 cursor-pointer items-end justify-center rounded-none px-1 pb-1.25 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+        className="group flex h-tap cursor-pointer items-end justify-center rounded-none px-1 pb-1.25 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
       >
         <span
           aria-hidden="true"

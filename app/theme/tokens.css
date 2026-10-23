@@ -13,7 +13,8 @@
    THE DIALS. One number each, and everything of that kind follows.
      --scale-type    every text size on the site (1.1 = everything 10% bigger)
      --scale-space   every padding, gap, margin and box size on Tailwind's scale (`p-2`, `gap-3`, `w-56`)
-   The 44px phone tap size and the phone's 16px field text do not follow the dials: they are floors.
+   Two floors: the 44px phone tap size ignores the space dial, and the phone's field text never goes
+   below 16px (it grows with the type dial above 1).
    Outlines are not a dial but a value (`--border-width-line`): a line must stay a whole number of pixels.
    ----------------------------------------------------------------------------------------------------- */
 :root,

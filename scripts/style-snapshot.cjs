@@ -176,6 +176,7 @@ function compare(beforeDir, afterDir) {
   const files = readdirSync(beforeDir).filter((f) => f.endsWith('.json.gz'));
   let lookDiffs = 0;
   let unmatched = 0;
+  let structural = 0;
 
   for (const file of files) {
     const afterFile = path.join(afterDir, file);
@@ -215,7 +216,11 @@ function compare(beforeDir, afterDir) {
     }
 
     lookDiffs += lines.length;
-    const status = lines.length === 0 ? 'SAME' : `${lines.length} LOOK DIFFERENCES`;
+    // An element on one side only is a different page, not a matching one: the tree changed (state, new
+    // content, or a real change), so the recording is not proof of sameness until that is explained.
+    if (onlyBefore + onlyAfter > 0) structural++;
+    const status =
+      lines.length > 0 ? `${lines.length} LOOK DIFFERENCES` : onlyBefore + onlyAfter > 0 ? 'TREE DIFFERS' : 'SAME';
     console.log(
       `${file}: ${status}  (${before.rows.length} elements; ${onlyBefore} only before, ${onlyAfter} only after, ` +
         `${textChanged} with changed words skipped, ${geometry} moved)`,
@@ -225,8 +230,10 @@ function compare(beforeDir, afterDir) {
     for (const line of tokenLines.slice(0, 10)) console.log(`  token ${line}`);
   }
 
-  console.log(`\n${files.length} recordings compared: ${lookDiffs} look differences, ${unmatched} missing.`);
-  process.exitCode = lookDiffs === 0 && unmatched === 0 ? 0 : 1;
+  console.log(
+    `\n${files.length} recordings compared: ${lookDiffs} look differences, ${structural} with a different tree, ${unmatched} missing.`,
+  );
+  process.exitCode = lookDiffs === 0 && structural === 0 && unmatched === 0 ? 0 : 1;
 }
 
 const compareAt = process.argv.indexOf('--compare');
