@@ -24,9 +24,9 @@ type PopoutWindowProps = {
    * the window with something to lose opts out.
    */
   dismissOnBackdrop?: boolean;
-  /** Status bar text, left of the buttons. */
+  /** How to handle the window: the hover tip of its title line (it was a status line across the foot). */
   status?: string;
-  /** Status bar controls, right of the default close button. */
+  /** Controls for the window's foot. The foot is drawn only when there are some. */
   actions?: ReactNode;
   /** Tailwind max-width class for the window itself. */
   maxWidth?: string;
@@ -105,6 +105,7 @@ export default function PopoutWindow({
         <div
           {...dragHandlers}
           className={`${TITLE_BAR} touch-none cursor-move select-none`}
+          title={status ?? 'ESC OR CLICK THE DESKTOP TO CLOSE :: DRAG THE TITLE BAR TO MOVE'}
         >
           <span id={titleId} className="truncate">
             {title}
@@ -130,20 +131,13 @@ export default function PopoutWindow({
           {children}
         </div>
 
-        {/* Status bar */}
-        <div className={STATUS_BAR}>
-          <span>{status ?? 'ESC OR CLICK THE DESKTOP TO CLOSE :: DRAG THE TITLE BAR TO MOVE'}</span>
-          <span className="flex items-center gap-2">
-            {actions}
-            <button
-              type="button"
-              onClick={onClose}
-              className="cursor-pointer key px-1.5 py-1.5 text-key font-bold max-sm:min-h-tap max-sm:px-1.5 max-sm:py-2 max-sm:text-sm"
-            >
-              [ CLOSE ]
-            </button>
-          </span>
-        </div>
+        {/* The foot: the caller's own controls, when it has any. The how-to line it used to carry is the
+            title line's tip, and the close key is the `×` in the title. */}
+        {actions === undefined || actions === null ? null : (
+          <div className={STATUS_BAR}>
+            <span className="ml-auto flex items-center gap-2">{actions}</span>
+          </div>
+        )}
       </div>
     </div>,
     host,

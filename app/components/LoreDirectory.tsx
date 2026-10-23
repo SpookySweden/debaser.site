@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { lorePagePath } from '../lib/lore/pages';
 import { getLoreRepository } from '../lib/lore/repository';
 import type { LorePageSummary } from '../lib/lore/types';
-import { PANEL, PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import NewLorePageWindow from './NewLorePageWindow';
 import TimeStamp from './TimeStamp';
@@ -57,30 +57,39 @@ export default function LoreDirectory() {
   return (
     <section className={PANEL}>
       <div className={TITLE_BAR}>
-        <span>LORE PAGES</span>
-        <span>{ready ? `[ ${pages.length} FILED ]` : '[ READING... ]'}</span>
+        <span>PAGES</span>
       </div>
 
+      {/* One row of keys. A guest is told once, in one line, what an account would add; the sentence
+          that used to sit beside the keys is the new page key's tip (SPEC-efficiency.md). */}
       <div className="flex flex-wrap items-center gap-2 border-b border-ink px-3 py-2">
+        {signedIn ? (
+          <button
+            type="button"
+            onClick={() => setOpening(true)}
+            title="Any account may open a page :: pages are written together, as they are typed"
+            className={PLATE}
+          >
+            [ NEW PAGE ]
+          </button>
+        ) : (
+          <p className="text-label text-ink">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO OPEN A PAGE
+          </p>
+        )}
+
         <button
           type="button"
-          onClick={() => setOpening(true)}
-          disabled={!signedIn}
-          title={signedIn ? 'Open a page' : 'Opening a page takes an account'}
+          onClick={refresh}
+          title="Read the shelf again"
+          aria-label="Read the shelf again"
           className={PLATE}
         >
-          [ NEW PAGE ]
+          [ ↻ ]
         </button>
-
-        <button type="button" onClick={refresh} className={PLATE}>
-          [ READ THE SHELF AGAIN ]
-        </button>
-
-        <span className="text-label font-bold text-ink">
-          {signedIn
-            ? 'ANY ACCOUNT MAY OPEN A PAGE :: THEY ARE WRITTEN TOGETHER, AS THEY ARE TYPED'
-            : 'SIGN IN TO OPEN A PAGE :: READING TAKES NOTHING'}
-        </span>
       </div>
 
       {error === null ? null : <p className="mx-3 my-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
@@ -104,9 +113,8 @@ export default function LoreDirectory() {
                 {page.title}
               </Link>
 
-              <span className="min-w-0 flex-1 text-label font-bold">
-                {page.summary.length === 0 ? 'NO SUMMARY FILED.' : page.summary}
-              </span>
+              {/* A page with no summary draws nothing here, rather than a line saying so. */}
+              <span className="min-w-0 flex-1 text-label font-bold">{page.summary}</span>
 
               <span className="text-label text-ink">
                 LAST FILED BY {page.updatedByLabel} <TimeStamp at={page.updatedAt} />

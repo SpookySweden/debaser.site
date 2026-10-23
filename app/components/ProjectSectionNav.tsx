@@ -13,8 +13,9 @@ type ProjectSectionNavProps = {
 /**
  * The strip that runs along the top of every page under the debaser project.
  *
- * It is the project's own little taskbar: a way back to the project page, one
- * button per shelf with the current one marked, and a way home. Pages outside the
+ * It is the project's own little taskbar: a way back to the project page, and one
+ * button per shelf with the current one marked. (Its `[ HOME ]` went to `/` while the
+ * header's HOME goes to `/projects`; two homes was one too many.) Pages outside the
  * project (the board, comms, the account page) do not use it - they are the
  * site's, not the project's.
  */
@@ -38,10 +39,6 @@ export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
           </Link>
         ),
       )}
-
-      <Link href="/" className={`ml-auto ${SHELF_CHIP}`}>
-        [ HOME ]
-      </Link>
     </div>
   );
 }

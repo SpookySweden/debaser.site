@@ -28,9 +28,8 @@ export default async function ProfilePage({ params }: ProfilePageProps) {
   const id = decodeURIComponent(userId);
 
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PUBLIC PROFILE]" active="forum" status="Profile Viewer Active">
-    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // PUBLIC PROFILE</h1>
-    <p className="text-key mb-4">WHAT THIS ACCOUNT CHOSE TO SHOW.</p>
+    <SiteWindow title="DEBASER_OS - v1.0 [PUBLIC PROFILE]" active="forum">
+    <h1 className="sr-only">DEBASER.SITE // PUBLIC PROFILE</h1>
 
     <PublicProfileWindow userId={id} />
     </SiteWindow>

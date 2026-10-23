@@ -2,9 +2,8 @@
 
 import Link from 'next/link';
 import { useMemo } from 'react';
-import { wordCountOf } from '../lib/lore/pages';
 import { useLorePage, type LoreEditor as LoreEditorIdentity } from '../lib/lore/use-lore-page';
-import { PANEL, TITLE_BAR } from '../lib/ui/controls';
+import { PANEL, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import LoreEditor from './LoreEditor';
 import TimeStamp from './TimeStamp';
@@ -64,7 +63,6 @@ export default function LorePageView({ slug }: LorePageViewProps) {
   }
 
   const page = lore.page;
-  const words = wordCountOf(page.bodyText);
   const paragraphs = page.bodyText
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
@@ -75,13 +73,10 @@ export default function LorePageView({ slug }: LorePageViewProps) {
       <section className={PANEL}>
         <div className={TITLE_BAR}>
           <span className="truncate">{page.title}</span>
-          <span className="shrink-0">
-            [ {words === 1 ? '1 WORD' : `${words} WORDS`} ]
-          </span>
         </div>
 
         <div className="p-3 text-label font-bold text-ink">
-          <p>{page.summary.length === 0 ? 'NO SUMMARY FILED.' : page.summary}</p>
+          {page.summary.length === 0 ? null : <p>{page.summary}</p>}
           <p className="mt-1 text-ink">
             OPENED BY {page.createdByLabel} :: LAST FILED BY {page.updatedByLabel}{' '}
             <TimeStamp at={page.updatedAt} />
@@ -93,7 +88,6 @@ export default function LorePageView({ slug }: LorePageViewProps) {
         <section className={PANEL}>
           <div className={TITLE_BAR}>
             <span>THE PAGE</span>
-            <span>[ READING ONLY ]</span>
           </div>
 
           <div className="space-y-2 p-3 text-prose leading-normal text-ink">
@@ -120,11 +114,15 @@ export default function LorePageView({ slug }: LorePageViewProps) {
         />
       ) : null}
 
-      <p className="text-label font-bold text-ink">
-        {editor === null
-          ? 'SIGN IN TO WRITE ON THIS PAGE :: ANY ACCOUNT MAY, AND WHAT YOU TYPE APPEARS ON EVERYBODY ELSE\'S COPY AS YOU TYPE IT.'
-          : 'THE PAGE IS WRITTEN TOGETHER. TWO PEOPLE IN THE SAME PARAGRAPH BOTH KEEP TYPING - NOTHING EITHER OF THEM WRITES IS LOST.'}
-      </p>
+      {/* A guest gets one line; a writer's explanation is the editor's title tip (./LoreEditor.tsx). */}
+      {editor === null ? (
+        <p className="text-label text-ink">
+          <Link href="/account" className={PLATE_LINK}>
+            [ LOG IN ]
+          </Link>{' '}
+          TO WRITE ON THIS PAGE
+        </p>
+      ) : null}
     </div>
   );
 }

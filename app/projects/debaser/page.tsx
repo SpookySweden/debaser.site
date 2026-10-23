@@ -33,12 +33,11 @@ const SITE_ROOMS = ['forum', 'users', 'comms', 'account'];
 
 export default function DebaserProjectPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER]" status="Debaser Project Active">
-    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // {DEBASER_PROJECT.title}</h1>
-    <p className="text-sm mb-2 leading-relaxed">{DEBASER_PROJECT.summary}</p>
-    <p className="text-label font-bold mb-4 text-ink">
-      {DEBASER_PROJECT.subtitle}
-    </p>
+    <SiteWindow
+      title="DEBASER_OS - v1.0 [PROJECTS / DEBASER]"
+      tip={`${DEBASER_PROJECT.subtitle} :: ${DEBASER_PROJECT.summary}`}
+    >
+    <h1 className="sr-only">DEBASER.SITE // {DEBASER_PROJECT.title}</h1>
 
     <ProjectSectionNav />
 
@@ -51,12 +50,11 @@ export default function DebaserProjectPage() {
         >
           <div className="title-line text-accent-ink">
             <span>{section.label}</span>
-            <span>[ {SECTION_COUNTS[section.id] ?? 'OPEN'} ]</span>
+            <span>{SECTION_COUNTS[section.id] ?? 'OPEN'}</span>
           </div>
           <div className="space-y-1 p-3 text-label font-bold">
             <p className="text-key">{section.summary}</p>
             <p className="text-ink">{section.note}</p>
-            <p className="text-ink">OPEN {section.href}</p>
           </div>
         </Link>
       ))}

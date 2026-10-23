@@ -14,7 +14,7 @@ type ConceptSheetFrameProps = {
  */
 export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFrameProps) {
   return (
-    <article className="frame bg-sun-pale">
+    <article id={sheet.id} className="frame scroll-mt-2 bg-sun-pale">
       <div className="title-line text-accent-ink">
         <span>{sheet.title}</span>
         <span>F{index + 1}</span>
@@ -24,15 +24,11 @@ export default function ConceptSheetFrame({ sheet, index }: ConceptSheetFramePro
         <SheetImage src={sheet.src} alt={sheet.caption} width={sheet.width} height={sheet.height} />
       </div>
 
-      <div className="mt-2 bg-ice-pale p-2 text-label font-bold text-ink">
-        CAPTION: {sheet.caption}
-      </div>
-
-      {/* Comment control sits directly under the artwork */}
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-sun-pale p-2">
-        <span className="text-label font-bold text-ink">
-          ARCHIVE FILE: {sheet.src}
-        </span>
+      {/* The caption and the comment control, directly under the artwork. The `CAPTION:` prefix and the
+          `ARCHIVE FILE:` path went with SPEC-efficiency.md: the words are plainly the caption, and a file
+          path is nothing a reader acts on. */}
+      <div className="flex flex-wrap items-center justify-between gap-2 p-2">
+        <span className="text-label font-bold text-ink">{sheet.caption}</span>
         <CommentPopout anchor={sheet.anchor} />
       </div>
     </article>

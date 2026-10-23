@@ -135,7 +135,10 @@ export default function LoreEditor({
   return (
     <section>
       <div className={TITLE_BAR}>
-        <span>THE PAGE :: {peers.length === 1 ? '1 EDITOR' : `${peers.length} EDITORS`}</span>
+        {/* No editor count: IN THE ROOM below lists them by name. */}
+        <span title="The page is written together. Two people in the same paragraph both keep typing - nothing either of them writes is lost.">
+          THE PAGE
+        </span>
         <span className="min-w-0 shrink whitespace-normal text-right">{LORE_STATUS_LINES[status]}</span>
       </div>
 

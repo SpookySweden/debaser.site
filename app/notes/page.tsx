@@ -15,12 +15,8 @@ export default function NotesPage() {
   const section = projectSection('notes');
 
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / NOTES]" status="Notes Shelf Active">
-    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // NOTES</h1>
-    <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
-    <p className="text-label font-bold mb-4 text-ink">
-      NOTES ARE WRITTEN RATHER THAN DRAWN, SO THEY ARE FILED AS TEXT.
-    </p>
+    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / NOTES]" tip={section?.note}>
+    <h1 className="sr-only">DEBASER.SITE // NOTES</h1>
 
     <ProjectSectionNav current="notes" />
 
@@ -34,17 +30,16 @@ export default function NotesPage() {
             <span>{note.title}</span>
             {/* The stamp is the board's blue on light panels; on the navy bar it
                 stays plain white so it can be read. */}
-            <span>[ FILED {formatStamp(note.filed)} ]</span>
+            <span>FILED {formatStamp(note.filed)}</span>
           </div>
 
           <div className="space-y-2 p-3">
             <p className="flex flex-wrap items-center gap-1 text-label font-bold">
               {note.kinds.map((kind) => (
                 <span key={kind} className="border border-ink-plate bg-paper px-1">
-                  [ {kind} ]
+                  {kind}
                 </span>
               ))}
-              <span className="text-ink">NOTE ID {note.id}</span>
             </p>
 
             {note.body.map((paragraph) => (

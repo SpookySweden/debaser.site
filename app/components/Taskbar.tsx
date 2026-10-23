@@ -6,36 +6,31 @@ import { useComms } from './CommsProvider';
 import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
 
-type TaskbarProps = {
-  /** What the status strip says: the page's own line. */
-  status: string;
-};
-
 /**
  * The taskbar along the foot of the window: the Start button, and the tray.
  *
  * The window's keys are the header (see ./SiteNav.tsx), so the foot strip holds the two things a
  * desktop keeps at the foot of the screen and nowhere else: the way into everything - the Start
- * menu, which lists the same keys as the header *and* the debaser project's shelves - and the tray,
- * which is the page's status line, the encoding this window is written in and the notices bell.
+ * menu, which lists the same keys as the header *and* the debaser project's shelves - and the sprite
+ * slot beside it. The tray's `Status: ... :: UTF-8` line is gone (SPEC-efficiency.md, 2026-10-23): the
+ * window's title already names the page, and an encoding is nothing a reader acts on.
  *
- * On a phone the plate is gone entirely. `hidden sm:inline-flex` is the whole of that rule, and it is
- * deliberate rather than incidental: a phone's only permanent control is the profile picture in the
- * title bar, which opens the same menu this plate does (see ./ProfileControl.tsx). A tray that kept
- * the plate would put navigation back on the screen the feed is supposed to own.
+ * On a phone the whole strip is gone. A phone's only permanent control is the profile picture in the
+ * title bar, which opens the same menu the Start key does (see ./ProfileControl.tsx), and with the
+ * status line cut there was nothing left in the strip but a row of height the feed is supposed to own.
  *
  * It is drawn with `order-last` while being written before the page, so a keyboard user meets the
  * page's own content first and the tray last, which is the order they read in.
  *
  * Client-side because the menu opens: that is the only piece of state in the chrome.
  */
-export default function Taskbar({ status }: TaskbarProps) {
+export default function Taskbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   // The menu's COMMS row carries the unread count, which is the only place it is listed in a menu.
   const { unreadTotal } = useComms();
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-line border-ink px-1 py-0.75 text-label text-ink">
+    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-line border-ink px-1 py-0.75 text-label text-ink max-sm:hidden">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}
@@ -65,21 +60,6 @@ export default function Taskbar({ status }: TaskbarProps) {
         height={24}
         title="A pixel sprite loops here once assets/sprites/walk-cycle.gif is drawn"
       />
-
-      {/* The tray: the page's own status line, and what the window is encoded in. On a phone the
-          status line is left to fill the strip, so the foot of the window is one quiet line rather
-          than a row of controls.
-
-          The strip has no bar of its own any more - it is a rule across the foot of the window, on the
-          window's fill - so the caption is in the field's quiet ink, which moves with the theme. (It was
-          `text-ink-plate` while the strip was a Daffodil bar that did not move with the theme.) */}
-      <span className="ml-auto flex min-w-0 flex-wrap items-center gap-2 px-1 text-label text-ink-quiet">
-        <span className="truncate">Status: {status}</span>
-        <span aria-hidden="true" className="max-sm:hidden">
-          ::
-        </span>
-        <span className="max-sm:hidden">UTF-8</span>
-      </span>
 
       {menuOpen ? <StartMenu onDismiss={() => setMenuOpen(false)} commsUnread={unreadTotal} /> : null}
     </div>

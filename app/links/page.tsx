@@ -2,7 +2,6 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import ProjectSectionNav from '../components/ProjectSectionNav';
 import SiteWindow from '../components/SiteWindow';
-import { pluralise } from '../lib/forum/format';
 import { projectSection } from '../lib/projects/debaser';
 import { ARCHIVE_LINKS, OUTBOUND_LINKS } from '../lib/projects/links';
 
@@ -23,20 +22,14 @@ export default function LinksPage() {
   const section = projectSection('links');
 
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LINKS]" status="Link Shelf Active">
-    <h1 className="text-xl font-bold mb-2">DEBASER.SITE // LINKS</h1>
-    <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
-    <p className="text-label font-bold mb-4 text-ink">
-      {ARCHIVE_LINKS.length + OUTBOUND_LINKS.length}{' '}
-      {pluralise(ARCHIVE_LINKS.length + OUTBOUND_LINKS.length, 'LINK')} FILED.
-    </p>
+    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LINKS]" tip={section?.note}>
+    <h1 className="sr-only">DEBASER.SITE // LINKS</h1>
 
     <ProjectSectionNav current="links" />
 
     <section>
       <div className="title-line text-accent-ink">
         <span>THE ARCHIVE</span>
-        <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
       </div>
 
       <ul>
@@ -48,7 +41,6 @@ export default function LinksPage() {
             <Link href={link.href} className="text-key underline hover:bg-pointed max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
               {link.label}
             </Link>
-            <span className="text-ink">{link.href}</span>
             <span className="text-ink">:: {link.summary}</span>
           </li>
         ))}
@@ -58,7 +50,6 @@ export default function LinksPage() {
     <section className="mt-4">
       <div className="title-line text-accent-ink">
         <span>OUTBOUND</span>
-        <span>[ {OUTBOUND_LINKS.length} LINKS ]</span>
       </div>
 
       {OUTBOUND_LINKS.length === 0 ? (
@@ -75,8 +66,9 @@ export default function LinksPage() {
               key={link.id}
               className="rule-pixel flex flex-wrap items-baseline gap-x-2 gap-y-1 p-2 text-label font-bold"
             >
-              <span className="text-key">{link.label}</span>
-              <span className="text-ink">{link.href}</span>
+              <span className="text-key" title={link.href}>
+                {link.label}
+              </span>
               <span className="text-ink">:: {link.summary}</span>
             </li>
           ))}

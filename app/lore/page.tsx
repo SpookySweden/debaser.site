@@ -22,18 +22,16 @@ export default function LorePage() {
   const section = projectSection('lore');
 
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LORE]" status="Lore Shelf Active">
-      <h1 className="text-xl font-bold mb-4">DEBASER.SITE // LORE</h1>
-      <p className="text-sm mb-2 leading-relaxed">{section?.note}</p>
+    <SiteWindow
+      title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LORE]"
+      tip={`${section?.note ?? ''} Every sheet in this archive is hand-drawn and every page here is typed: the two sit side by side under the project.`.trim()}
+    >
+      <h1 className="sr-only">DEBASER.SITE // LORE</h1>
 
       <ProjectSectionNav current="lore" />
 
       <LoreDirectory />
 
-      <p className="mt-4 text-label font-bold text-ink">
-        A PAGE IS WRITTEN, NOT DRAWN: EVERY SHEET IN THIS ARCHIVE IS HAND-DRAWN, AND EVERY PAGE HERE
-        IS TYPED. THE TWO SIT SIDE BY SIDE UNDER THE PROJECT FOR THAT REASON.
-      </p>
     </SiteWindow>
   );
 }

@@ -208,7 +208,7 @@ function ThemeColumn({ theme }: { theme: Theme }) {
 
 export default function SpecimenPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [SPECIMEN]" status="Every token, both themes">
+    <SiteWindow title="DEBASER_OS - v1.0 [SPECIMEN]" tip="Every token, both themes">
       <h1 className="mb-2 text-xl">DEBASER.SITE // SPECIMEN</h1>
       <p className="mb-2 text-prose leading-normal">
         Every size, colour, line and key the site is drawn with, in both themes at once. Not linked from anywhere.

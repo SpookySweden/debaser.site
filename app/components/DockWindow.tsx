@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { PLATE, STATUS_BAR, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
 import {
   beginMove,
@@ -30,7 +30,10 @@ type DockWindowProps = {
   /** Right-hand title bar text, e.g. `[ MP3 ]`. */
   badge?: string;
   onClose: () => void;
-  /** The one line in the status bar: what this window is, and how to get rid of it. */
+  /**
+   * What this window is and how to handle it: the hover tip of its title line. It used to be a status
+   * line across the foot, always on screen (SPEC-efficiency.md moved every how-to sentence into a tip).
+   */
   status?: string;
   /** Which of the two corners it sits in before anybody drags it. */
   dock?: 'top' | 'bottom';
@@ -169,24 +172,30 @@ export default function DockWindow({
         <div
           {...titleHandlers}
           className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}
+          title={
+            grouped
+              ? 'GROUPED :: SHAKE WHILE DRAGGING TO DETACH, OR PRESS ⇲'
+              : (status ?? 'DOCKED BESIDE THE BOARD :: DRAG THE TITLE BAR TO MOVE IT')
+          }
         >
           <span className="truncate">{title}</span>
           <span className="flex items-center gap-2">
             {badge === undefined ? null : <span>{badge}</span>}
-            {/* The key way out of a group, for a hand that cannot shake a mouse. Always in its place on a
-                desktop so the title bar never shifts; dimmed while there is no group to leave. */}
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onDoubleClick={(event) => event.stopPropagation()}
-              onClick={() => detachWindow(id)}
-              disabled={!grouped}
-              aria-label={`Detach ${title} from its group`}
-              title="Detach from group"
-              className="hidden cursor-pointer key px-1 py-0.75 text-label font-bold leading-none disabled:cursor-not-allowed sm:inline-block"
-            >
-              ⇲
-            </button>
+            {/* The key way out of a group, for a hand that cannot shake a mouse. Drawn only while the
+                window is grouped: a key that is always there and always disabled is a key nobody can use. */}
+            {grouped ? (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                onClick={() => detachWindow(id)}
+                aria-label={`Detach ${title} from its group`}
+                title="Detach from group"
+                className="hidden cursor-pointer key px-1 py-0.75 text-label font-bold leading-none sm:inline-block"
+              >
+                ⇲
+              </button>
+            ) : null}
             <button
               type="button"
               onPointerDown={(event) => event.stopPropagation()}
@@ -200,18 +209,8 @@ export default function DockWindow({
           </span>
         </div>
 
+        {/* No foot: its how-to line is the title line's tip, and its close key is the `×` above. */}
         <div className="min-h-0 flex-1 overflow-y-auto p-2">{children}</div>
-
-        <div className={STATUS_BAR}>
-          <span className="truncate">
-            {grouped
-              ? 'GROUPED :: SHAKE WHILE DRAGGING TO DETACH, OR PRESS ⇲'
-              : (status ?? 'DOCKED BESIDE THE BOARD :: DRAG THE TITLE BAR TO MOVE IT')}
-          </span>
-          <button type="button" onClick={onClose} className={PLATE}>
-            [ CLOSE ]
-          </button>
-        </div>
       </div>
 
       {/* The detach cue: a pink frame that blinks and is gone. Keyed by the detach count, so it plays once

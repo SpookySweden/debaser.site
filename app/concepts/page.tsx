@@ -13,14 +13,11 @@ export const metadata: Metadata = {
 
 export default function Concepts() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [CONCEPT ARCHIVE]" status="Concept Archive Active">
-    <h1 className="text-xl font-bold mb-4">DEBASER.SITE // CONCEPT ARCHIVE</h1>
-    <p className="text-sm mb-2 leading-relaxed">
-      Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet.
-    </p>
-    <p className="text-label font-bold mb-4">
-      CLICK THE [ COMMENT ] CONTROL UNDER A SHEET TO POP OPEN AN ENCASED WINDOW HOLDING ITS FORUM THREAD.
-    </p>
+    <SiteWindow
+      title="DEBASER_OS - v1.0 [CONCEPT ARCHIVE]"
+      tip="Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet. The [ COMMENT ] key under a sheet opens its forum thread in a window."
+    >
+    <h1 className="sr-only">DEBASER.SITE // CONCEPT ARCHIVE</h1>
 
     <ProjectSectionNav current="concepts" />
 
@@ -36,14 +33,10 @@ export default function Concepts() {
       <p className="text-key font-bold mb-2">SHEET INDEX:</p>
       <ul className="space-y-1">
         {CONCEPT_SHEETS.map((sheet, index) => (
-          <li
-            key={sheet.id}
-            className="flex flex-wrap items-center justify-between gap-2 border border-ink bg-paper p-2"
-          >
-            <span className="text-label font-bold">
-              {index + 1}. {sheet.title} :: {sheet.src}
-            </span>
-            <CommentPopout anchor={sheet.anchor} compact />
+          <li key={sheet.id} className="text-label font-bold">
+            <a href={`#${sheet.id}`} className="underline hover:bg-pointed max-sm:inline-flex max-sm:min-h-tap max-sm:items-center">
+              {index + 1}. {sheet.title}
+            </a>
           </li>
         ))}
       </ul>

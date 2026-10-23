@@ -71,7 +71,7 @@ export default function GuestPrompt() {
           href="/account"
           className={`shrink-0 ${PLATE_ON_BLACK}`}
         >
-          [ CREATE ACCOUNT OR LOG IN ]
+          [ LOG IN ]
         </Link>
       </div>
     </div>
