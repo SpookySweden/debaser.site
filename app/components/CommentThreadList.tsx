@@ -39,10 +39,10 @@ type CommentThreadListProps = {
 /**
  * Replies, with reply threads.
  *
- * Every comment carries a small `[ COMMENT ]` control that opens a box right
+ * Every comment carries a small `[ REPLY ]` control that opens a box right
  * under it, so a reply can answer the post (the composer at the foot of the
  * window or card) or answer an existing comment (this list). Comments that have
- * replies carry `[ SHOW n REPLIES ] / [ HIDE n REPLIES ]`, so a long thread can
+ * replies carry `[ n REPLIES ▾ ] / [ n REPLIES ▴ ]`, so a long thread can
  * be read without the deep ones pushing everything about.
  *
  * The same component draws the comment window on an asset and the replies under a

@@ -24,7 +24,7 @@ type PostReplyReelProps = {
  * in the reserved right column of a collapsed row (./PostRowDetails.tsx), and the narrow board -
  * below `sm`, where that column is `hidden` and nothing at all can reach it - shows it under the
  * credit strip of the collapsed row instead (./ForumThreadCard.tsx). One component means one strip:
- * the labelling, the rows and the still state cannot drift between the two.
+ * the rows and the still state cannot drift between the two.
  *
  * It is a reading aid, not a control: `aria-hidden` because every word of it is on the expanded card
  * already, and the rows carry no link for the same reason.
@@ -36,9 +36,8 @@ export default function PostReplyReel({ comments, className = '' }: PostReplyRee
 
   return (
     <div className={className} aria-hidden="true">
-      {/* The strip is labelled, because a line of quoted fragments sliding past on its own reads as
-          stray text: `LATEST REPLIES` says what is going past before the first name arrives. */}
-      <p className="text-label font-bold text-ink">LATEST REPLIES</p>
+      {/* No heading: each row already says `[ REPLY ]` beside the name, so a `LATEST REPLIES` line
+          over the strip said it twice (SPEC-efficiency.md). */}
       <NewsCrawl items={rows} className="overflow-hidden" />
     </div>
   );

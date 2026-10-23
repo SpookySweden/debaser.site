@@ -56,7 +56,7 @@ type ForumThreadCardProps = {
  * post's tags - carry the row. The drawing a post was filed with is *not* drawn
  * while the row is collapsed: the title says `[ IMG ]` and the picture waits for
  * the click that opens the post. The band down the right of a collapsed row carries
- * the post's own words, clipped to the row's height and faded into an `[ EXPAND ]`,
+ * the post's own words, clipped to the row's height and faded out at the foot,
  * with a wire of the thread's replies under them (./PostRowDetails.tsx) - in both
  * states, so pointing at a row is only a highlight. Expanding puts the picture and
  * the small tags in a left column with the body of the text beside them - the rules
@@ -389,10 +389,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
               </p>
             ) : null}
 
-            <div className="mt-1 text-label font-bold text-ink">
-              <AnchorLink anchor={thread.anchor} prefix="FILED UNDER" preview={anchorPreview} />
-              <p className="mt-1">ORIGIN: {thread.origin.toUpperCase()}</p>
-            </div>
+            {/* `FILED UNDER ...` and `ORIGIN: USER/SEED` used to close this column: housekeeping a
+                reader does not act on, cut with the board id and the reply count below
+                (SPEC-efficiency.md). A thread an item opened still links back to it, in the body. */}
           </div>
 
           <div className="min-w-0 flex-1">
@@ -415,11 +414,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             <MentionRow body={thread.body} accounts={accounts} />
 
             <div className="mt-2 border-t border-ink pt-2">
-              <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
-                <span>{layout.repliesLabel} ON THIS POST</span>
-                <span>BOARD ID: {thread.id}</span>
-              </div>
-
+              {/* No count line over the replies: the title row already says how many there are. */}
               <CommentThreadList
                 thread={thread}
                 avatarSize={48}

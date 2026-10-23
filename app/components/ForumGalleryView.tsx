@@ -22,7 +22,7 @@ type ForumGalleryViewProps = {
  * them drawn open, in a grid rather than a column. It is a *view* and not a second board - the board's
  * query, its paging and its tag filter are the ones feeding it (see `imageOnly` in
  * app/lib/forum/board-query.ts), so a search or a tag narrows this exactly as it narrows the feed, and
- * the count over the top of it says what is in it.
+ * the board's paging readout under it says how many there are.
  *
  * The container keeps the feed's own id (`forum-thread-list`), because it is the same place on the
  * page: the board scrolls it into view when the page changes, and a deep link to a post has to land

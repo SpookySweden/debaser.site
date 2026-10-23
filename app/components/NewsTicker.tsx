@@ -26,29 +26,26 @@ import { TITLE_BAR } from '../lib/ui/controls';
  *
  * A post a moderator has pinned comes first and goes past with a `PINNED` plate on it, so the
  * announcement is what a reader sees whichever part of the run they happen to catch.
+ *
+ * With nothing pinned the wire is not drawn at all: an empty strip saying so was one more line a
+ * phone had to scroll past before the first post (SPEC-efficiency.md). How to read it is the crawl's
+ * hover tip rather than a line under it.
  */
 export default function NewsTicker() {
   const forum = useForum();
   const items = buildNewsFeed(forum.threads, undefined, { pins: forum.pins });
 
+  if (items.length === 0) return null;
+
   return (
     <section>
       <div className={TITLE_BAR}>
         <span>NEWSWIRE :: PINNED POSTS</span>
-        <span>[ {items.length === 0 ? 'NOTHING PINNED' : `${items.length} PINNED`} ]</span>
       </div>
 
-      <NewsCrawl
-        items={items}
-        className="overflow-hidden px-1 py-0.75"
-        emptyLabel="NOTHING PINNED YET - A POST APPEARS HERE ONCE A MODERATOR PINS IT."
-      />
-
-      {items.length === 0 ? null : (
-        <p className="px-2 py-1 text-label font-bold text-ink">
-          POINT AT IT TO STOP THE CRAWL :: CLICK A ROW TO OPEN THE POST
-        </p>
-      )}
+      <div title="Point at it to stop the crawl; click a row to open the post">
+        <NewsCrawl items={items} className="overflow-hidden px-1 py-0.75" />
+      </div>
     </section>
   );
 }

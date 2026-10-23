@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { authorTag } from '../lib/auth/author';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import { paginate } from '../lib/forum/paging';
@@ -14,11 +13,9 @@ import ForumPinPanel from './ForumPinPanel';
 import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
 import ForumGalleryView from './ForumGalleryView';
-import ProfileLink from './ProfileLink';
-import ProfileName from './ProfileName';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { PANEL, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 
 /**
  * How the board is read.
@@ -49,13 +46,26 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'profile', label: 'PROFILE COMMENTS' },
 ];
 
-/** Posts-per-page choices offered at the foot of the board. */
+/** Posts-per-page choices, offered in the sort / search panel. */
 const PAGE_SIZES = [5, 10, 20, 50];
 
+/** Past this many pages the foot draws a key per page as well: up to it, `[ < ]` and `[ > ]` walk it. */
+const NUMBERED_PAGES_AFTER = 5;
+
+/** The two panels that hang from the controls row: the tag wall, and sort / source / search / paging. */
+type BoardMenu = 'tags' | 'controls';
+
 /**
- * The board itself: status window, filters, composer and the collapsible
- * thread list. All state lives in ForumProvider, so a comment filed from the
- * home page or the concepts archive lands here without a reload.
+ * A panel hanging from the controls row: out of the flow, under the row and as wide as it, so opening
+ * one lays itself over the posts instead of pushing them down (CLAUDE.md, "Reveals take their space in
+ * both states"). Framed like the Start menu, because it floats over the board rather than sitting in it.
+ */
+const MENU_PANEL = 'absolute top-full right-0 left-0 z-menu mt-1 frame bg-paper p-2';
+
+/**
+ * The board itself: one row of controls, the collapsible thread list, the paging readout under it,
+ * and the composer. All state lives in ForumProvider, so a comment filed from the home page or the
+ * concepts archive lands here without a reload.
  */
 export default function ForumBoard() {
   const forum = useForum();
@@ -82,8 +92,10 @@ export default function ForumBoard() {
   const [musicOnly, setMusicOnly] = useState(false);
   const [musicTagKeys, setMusicTagKeys] = useState<string[]>([]);
   const [tagWindowOpen, setTagWindowOpen] = useState(false);
-  /** The tag filter's own chip wall: the whole vocabulary starts folded away. */
-  const [tagWallOpen, setTagWallOpen] = useState(false);
+  /** Which of the row's two panels is open, if either: the board opens with both folded away. */
+  const [menu, setMenu] = useState<BoardMenu | null>(null);
+  /** The controls row: a press outside it closes its panel. */
+  const controlsRef = useRef<HTMLDivElement | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [perPage, setPerPage] = useState<number>(PAGE_SIZES[0]);
   const [page, setPage] = useState(1);
@@ -110,11 +122,6 @@ export default function ForumBoard() {
         forum.pins,
       ),
     [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, musicOnly, musicTagKeys, view],
-  );
-
-  const totalReplies = useMemo(
-    () => forum.threads.reduce((sum, thread) => sum + thread.comments.length, 0),
-    [forum.threads],
   );
 
   // Paging: the page is clamped, so filtering a page away can never show a blank board.
@@ -162,10 +169,38 @@ export default function ForumBoard() {
     setPerPage(next);
     setPage(1);
   }, []);
-  const localThreads = useMemo(
-    () => forum.threads.filter((thread) => thread.origin === 'user').length,
-    [forum.threads],
-  );
+
+  /** A panel's own key opens it, and a second press on that key closes it again. */
+  const toggleMenu = useCallback((next: BoardMenu) => {
+    setMenu((current) => (current === next ? null : next));
+  }, []);
+
+  /** The whole tag index is a window of its own: the panel folds away as it opens. */
+  const openTagIndex = useCallback(() => {
+    setMenu(null);
+    setTagWindowOpen(true);
+  }, []);
+
+  // A panel also closes the way the Start menu does (./StartMenu.tsx): on ESC, or on a press anywhere
+  // outside the row it hangs from. `pointerdown` rather than `mousedown`, so a tap on a phone counts.
+  useEffect(() => {
+    if (menu === null) return;
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMenu(null);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (controlsRef.current !== null && !controlsRef.current.contains(event.target as Node)) setMenu(null);
+    };
+
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [menu]);
 
   const handleToggle = useCallback(
     (threadId: string, open: boolean) => {
@@ -276,314 +311,309 @@ export default function ForumBoard() {
       {/* The wire: the board as one line that crawls past. It is the shape this page can
           afford - a strip across the window - and it reads the same rows the profile
           threads read, so a post or a reply looks like a comment looks. A pinned post leads
-          it, which is how the announcement is seen without anybody opening it. */}
+          it, which is how the announcement is seen without anybody opening it - and with
+          nothing pinned it is not drawn at all (./NewsTicker.tsx). */}
       <NewsTicker />
 
       {/* The moderators' panel: what is pinned, by whom, and for how much longer. Drawn for
           the house account alone - everybody else sees the pins themselves. */}
       <ForumPinPanel />
 
-      {/* Board status window */}
-      <section className={PANEL}>
-        <div className={TITLE_BAR}>
-          <span className="truncate">FORUM BOARD // ANONYMOUS POSTING ENABLED</span>
-          <span className="flex items-center gap-2">
+      {/* The board's one row of controls: how it is read, what it is narrowed to, and the one main key.
+          Everything else the board used to say above its first post - its own title, the counts, who
+          is posting, how to pick tags - went, or moved into the two panels and the tips
+          (SPEC-efficiency.md), so that on a phone the first post is on the first screen. The row wraps
+          at phone width; `ml-auto` keeps `+ NEW POST` at the right end of whichever line it lands on. */}
+      <div ref={controlsRef} className="relative flex flex-wrap items-center gap-2 text-label text-ink">
+        {/* How the board is read: two plates, and the one you are standing on is pressed in
+            (`PLATE_PRESSED`), which is the same way every other switch on the site says "on". The
+            label is a word rather than an icon, because a pair of glyphs is a puzzle. */}
+        <span className="flex items-center gap-1">
+          {VIEWS.map((option) => (
             <button
+              key={option.value}
               type="button"
-              onClick={() => setComposerOpen(true)}
-              aria-haspopup="dialog"
-              aria-expanded={composerOpen}
-              title="Open the composer window to file a new thread"
-              className={PLATE_MAIN}
+              onClick={() => handleView(option.value)}
+              aria-pressed={view === option.value}
+              title={option.title}
+              className={view === option.value ? PLATE_PRESSED : PLATE}
             >
-              + NEW POST...
+              {option.label}
             </button>
+          ))}
+        </span>
 
-            <span>{forum.ready ? '[ SYNCED ]' : '[ SYNCING... ]'}</span>
-          </span>
-        </div>
+        <button
+          type="button"
+          onClick={() => toggleMenu('tags')}
+          aria-expanded={menu === 'tags'}
+          title="Pick tags to filter the board, or click a badge on any post to add it here"
+          className={PLATE}
+        >
+          {menu === 'tags' ? '[ TAGS ▴ ]' : '[ TAGS ▾ ]'}
+        </button>
 
-        <div className="space-y-1.5 p-2 text-label font-bold text-ink">
-          {/* One compact status line instead of a paragraph of housekeeping. */}
-          <p className="flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span>
-              POSTS: {forum.threads.length} :: REPLIES: {totalReplies} :: FILED HERE: {localThreads}
-            </span>
-            <span>
-              POSTING AS:{' '}
-              <ProfileLink author={forum.author} className="font-bold">
-                <ProfileName author={forum.author}>{authorTag(forum.author)}</ProfileName>
-              </ProfileLink>
-            </span>
-          </p>
+        <button
+          type="button"
+          onClick={() => toggleMenu('controls')}
+          aria-expanded={menu === 'controls'}
+          title="Sort the board, narrow it to one source, search it, or change how many posts a page holds"
+          className={PLATE}
+        >
+          {menu === 'controls' ? '[ SORT / SEARCH ▴ ]' : '[ SORT / SEARCH ▾ ]'}
+        </button>
 
-          {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
-              music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
-              a board's tags are *for* is telling you what is on it, and that is a count. */}
-          <div>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <p className="text-label font-bold text-ink">
-                TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
-              </p>
+        {/* Said only while it is true: a board that has synced says nothing about it. */}
+        {forum.ready ? null : <span>SYNCING...</span>}
 
+        <button
+          type="button"
+          onClick={() => {
+            setMenu(null);
+            setComposerOpen(true);
+          }}
+          aria-haspopup="dialog"
+          aria-expanded={composerOpen}
+          title="Open the composer window to file a new thread"
+          className={`${PLATE_MAIN} ml-auto`}
+        >
+          + NEW POST
+        </button>
+
+        {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
+            music - one key away (./TagWindow.tsx). The ranking is the only order offered: what a
+            board's tags are *for* is telling you what is on it, and that is a count. */}
+        {menu === 'tags' ? (
+          <div className={MENU_PANEL}>
+            {/* The wall scrolls inside the panel, so a hundred chips never make the panel taller
+                than the screen it opened on. */}
+            <div className="flex max-h-72 flex-wrap gap-x-3 gap-y-0.75 overflow-y-auto">
+              {forum.tagVocabulary.map((option) => {
+                const tag = makeUserTag(option.label, option.colour);
+                const active = tagFilters.includes(option.key);
+
+                return (
+                  <button
+                    key={option.key}
+                    type="button"
+                    onClick={() => toggleTagFilter(option.key)}
+                    aria-pressed={active}
+                    title={
+                      active
+                        ? `Stop including ${option.label}`
+                        : `Include posts tagged ${option.label} (${option.count} in use)`
+                    }
+                    className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
+                      active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
+                    }`}
+                  >
+                    <TagMark colour={tagMarkColour(tag)} compact />
+                    {option.key}
+                    {option.count > 0 ? (
+                      <span className={active ? 'text-ink' : 'text-ink'}>({option.count})</span>
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-2 font-bold">
               <button
                 type="button"
-                onClick={() => setTagWindowOpen(true)}
+                onClick={openTagIndex}
                 title="Every tag the board has, ranked, with the music filed on it"
                 className={PLATE}
               >
-                [ ALL TAGS... ]
+                [ TAG INDEX... ]
               </button>
 
-              {/* The wall of chips is a question asked once or twice and in the way the rest of the
-                  time, so the board opens with it folded and this plate is the way in. */}
-              <button
-                type="button"
-                onClick={() => setTagWallOpen((open) => !open)}
-                aria-expanded={tagWallOpen}
-                title={tagWallOpen ? 'Fold the tag list away' : 'Show every tag in use, most used first'}
-                className={PLATE}
-              >
-                {tagWallOpen ? '[ - TAGS ]' : '[ + TAGS ]'}
-              </button>
+              {/* How picked tags combine, and the way to drop them all: only worth saying once
+                  something is picked. */}
+              {tagFilters.length === 0 ? null : (
+                <>
+                  <span>MATCH:</span>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="tag-match"
+                      value="any"
+                      checked={tagMatchMode === 'any'}
+                      onChange={() => {
+                        setTagMatchMode('any');
+                        setPage(1);
+                      }}
+                    />
+                    ANY
+                  </label>
+                  <label className="flex items-center gap-1">
+                    <input
+                      type="radio"
+                      name="tag-match"
+                      value="all"
+                      checked={tagMatchMode === 'all'}
+                      onChange={() => {
+                        setTagMatchMode('all');
+                        setPage(1);
+                      }}
+                    />
+                    ALL
+                  </label>
 
-              {musicOnly ? (
-                <span className="border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">MUSIC ONLY</span>
-              ) : null}
-              {musicTagKeys.length === 0 ? null : (
-                <span className="border border-ink-plate bg-bubble-pale px-1 text-label font-bold text-ink-bar">
-                  {musicTagKeys.length} MUSIC TAG(S)
-                </span>
+                  <button type="button" onClick={clearTagFilters} className={PLATE}>
+                    [ CLEAR TAGS ]
+                  </button>
+                </>
               )}
             </div>
+          </div>
+        ) : null}
 
-            {/* The wall itself: every tag the board is using, ranked. Folded away until `[ + TAGS ]`
-                is pressed, because a filter is a question a reader has once or twice and a hundred
-                chips is what the threads have to be read past the rest of the time. */}
-            {tagWallOpen ? (
-              <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.75 text-label">
-                {forum.tagVocabulary.map((option) => {
-                  const tag = makeUserTag(option.label, option.colour);
-                  const active = tagFilters.includes(option.key);
+        {/* Sort / source / search, and how many posts a page holds: folded away by default, because
+            the posts themselves are the practical information on this page. */}
+        {menu === 'controls' ? (
+          <div className={`${MENU_PANEL} grid gap-3 sm:grid-cols-2`}>
+            <fieldset>
+              <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
+              <label className="flex items-center gap-2 text-label font-bold text-ink">
+                <input
+                  type="radio"
+                  name="forum-sort"
+                  value="newest"
+                  checked={sortMode === 'newest'}
+                  onChange={() => {
+                    setSortMode('newest');
+                    setPage(1);
+                  }}
+                />
+                NEWEST FIRST
+              </label>
+              <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
+                <input
+                  type="radio"
+                  name="forum-sort"
+                  value="replies"
+                  checked={sortMode === 'replies'}
+                  onChange={() => {
+                    setSortMode('replies');
+                    setPage(1);
+                  }}
+                />
+                MOST REPLIES
+              </label>
+              <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
+                <input
+                  type="radio"
+                  name="forum-sort"
+                  value="tags"
+                  checked={sortMode === 'tags'}
+                  onChange={() => {
+                    setSortMode('tags');
+                    setPage(1);
+                  }}
+                />
+                MOST SELECTED TAGS
+              </label>
+            </fieldset>
 
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => toggleTagFilter(option.key)}
-                      aria-pressed={active}
-                      title={
-                        active
-                          ? `Stop including ${option.label}`
-                          : `Include posts tagged ${option.label} (${option.count} in use)`
-                      }
-                      className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
-                        active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
-                      }`}
-                    >
-                      <TagMark colour={tagMarkColour(tag)} compact />
-                      {option.key}
-                      {option.count > 0 ? (
-                        <span className={active ? 'text-ink' : 'text-ink'}>({option.count})</span>
-                      ) : null}
-                    </button>
-                  );
-                })}
-              </div>
-            ) : null}
+            <div>
+              <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">
+                FILTER SOURCE:
+              </label>
+              <select
+                id="forum-source-filter"
+                value={sourceFilter}
+                onChange={(event) => {
+                  setSourceFilter(event.target.value as SourceFilter);
+                  setPage(1);
+                }}
+                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
+              >
+                {SOURCE_FILTERS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-            {tagFilters.length === 0 ? (
-              <p className="mt-1 text-label text-ink">
-                PICK TAGS WITH [+ TAGS], OR CLICK A BADGE ON ANY POST TO ADD IT HERE.
-              </p>
-            ) : (
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-                <span>INCLUDED:</span>
-                {tagFilters.map((key) => {
-                  const label =
-                    forum.tagVocabulary.find((option) => option.key === key)?.label ?? key.toUpperCase();
+            <div>
+              <label htmlFor="forum-search" className="block text-label font-bold text-ink">
+                SEARCH TITLE / BODY / TAG / ACCOUNT:
+              </label>
+              <input
+                id="forum-search"
+                type="text"
+                value={query}
+                onChange={(event) => {
+                  setQuery(event.target.value);
+                  setPage(1);
+                }}
+                placeholder="e.g. LORE, spoiler, account name"
+                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
+              />
+            </div>
 
-                  return (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleTagFilter(key)}
-                      title={`Stop including ${label}`}
-                      className="cursor-pointer key px-1 py-1 text-label font-bold"
-                    >
-                      [ {label} × ]
-                    </button>
-                  );
-                })}
+            <div>
+              <label htmlFor="forum-per-page" className="block text-label font-bold text-ink">
+                POSTS PER PAGE:
+              </label>
+              <select
+                id="forum-per-page"
+                value={perPage}
+                onChange={(event) => handlePerPageChange(Number(event.target.value))}
+                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
+              >
+                {PAGE_SIZES.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-                <span>MATCH:</span>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="tag-match"
-                    value="any"
-                    checked={tagMatchMode === 'any'}
-                    onChange={() => {
-                      setTagMatchMode('any');
-                      setPage(1);
-                    }}
-                  />
-                  ANY
-                </label>
-                <label className="flex items-center gap-1">
-                  <input
-                    type="radio"
-                    name="tag-match"
-                    value="all"
-                    checked={tagMatchMode === 'all'}
-                    onChange={() => {
-                      setTagMatchMode('all');
-                      setPage(1);
-                    }}
-                  />
-                  ALL
-                </label>
-
-                <button
-                  type="button"
-                  onClick={clearTagFilters}
-                  className="cursor-pointer key px-1 py-1 text-label font-bold"
-                >
-                  [ CLEAR TAGS ]
+            {/* The mock store's housekeeping: never drawn on the live board. */}
+            {forum.source === 'mock' ? (
+              <div>
+                <button type="button" onClick={handleReset} className={PLATE}>
+                  [ PURGE LOCAL POSTS ]
                 </button>
               </div>
-            )}
+            ) : null}
           </div>
+        ) : null}
+      </div>
 
-          {/* Sort / filter / search / paging are collapsed by default: the posts
-              themselves are the practical information on this page. */}
-          <details>
-            <summary className="cursor-pointer select-none text-label font-bold text-ink">
-              [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
-            </summary>
+      {/* What the board is narrowed to, after the row: each picked tag as a key that drops it, and the
+          music filters the tag index can set. Drawn only while something is picked. */}
+      {tagFilters.length === 0 && !musicOnly && musicTagKeys.length === 0 ? null : (
+        <div className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+          {tagFilters.map((key) => {
+            const label =
+              forum.tagVocabulary.find((option) => option.key === key)?.label ?? key.toUpperCase();
 
-            <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              <fieldset>
-                <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
-                <label className="flex items-center gap-2 text-label font-bold text-ink">
-                  <input
-                    type="radio"
-                    name="forum-sort"
-                    value="newest"
-                    checked={sortMode === 'newest'}
-                    onChange={() => {
-                      setSortMode('newest');
-                      setPage(1);
-                    }}
-                  />
-                  NEWEST FIRST
-                </label>
-                <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
-                  <input
-                    type="radio"
-                    name="forum-sort"
-                    value="replies"
-                    checked={sortMode === 'replies'}
-                    onChange={() => {
-                      setSortMode('replies');
-                      setPage(1);
-                    }}
-                  />
-                  MOST REPLIES
-                </label>
-                <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
-                  <input
-                    type="radio"
-                    name="forum-sort"
-                    value="tags"
-                    checked={sortMode === 'tags'}
-                    onChange={() => {
-                      setSortMode('tags');
-                      setPage(1);
-                    }}
-                  />
-                  MOST SELECTED TAGS
-                </label>
-              </fieldset>
-
-              <div>
-                <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">
-                  FILTER SOURCE:
-                </label>
-                <select
-                  id="forum-source-filter"
-                  value={sourceFilter}
-                  onChange={(event) => {
-                    setSourceFilter(event.target.value as SourceFilter);
-                    setPage(1);
-                  }}
-                  className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
-                >
-                  {SOURCE_FILTERS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div>
-                <label htmlFor="forum-search" className="block text-label font-bold text-ink">
-                  SEARCH TITLE / BODY / TAG / ACCOUNT:
-                </label>
-                <input
-                  id="forum-search"
-                  type="text"
-                  value={query}
-                  onChange={(event) => {
-                    setQuery(event.target.value);
-                    setPage(1);
-                  }}
-                  placeholder="e.g. LORE, spoiler, account name"
-                  className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
-                />
-              </div>
-            </div>
-          </details>
-        </div>
-
-        {/* List controls: always on screen, one row above the threads. */}
-        <div className="flex flex-wrap items-center gap-2 border-t-line border-ink bg-sun-pale px-2 py-0.75">
-          <span className="text-label font-bold text-ink">
-            SHOWING {visibleThreads.length === 0 ? 0 : pageStart + 1}-{pageStart + pageThreads.length} OF{' '}
-            {visibleThreads.length} MATCHING ({forum.threads.length} TOTAL)
-          </span>
-
-          {/* How the board is read: two plates, and the one you are standing on is pressed in
-              (`PLATE_PRESSED`), which is the same way every other switch on the site says "on". The
-              label is a word rather than an icon, because a pair of glyphs is a puzzle. */}
-          <span className="flex items-center gap-1 text-label font-bold text-ink">
-            VIEW:
-            {VIEWS.map((option) => (
+            return (
               <button
-                key={option.value}
+                key={key}
                 type="button"
-                onClick={() => handleView(option.value)}
-                aria-pressed={view === option.value}
-                title={option.title}
-                className={view === option.value ? PLATE_PRESSED : PLATE}
+                onClick={() => toggleTagFilter(key)}
+                title={`Stop including ${label}`}
+                className={PLATE}
               >
-                {option.label}
+                [ {label} × ]
               </button>
-            ))}
-          </span>
+            );
+          })}
 
-          {forum.source === 'mock' ? (
-            <button
-              type="button"
-              onClick={handleReset}
-              className={`${PLATE} ml-auto`}
-            >
-              [ PURGE LOCAL POSTS ]
-            </button>
+          {musicOnly ? (
+            <span className="border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">MUSIC ONLY</span>
           ) : null}
+          {musicTagKeys.length === 0 ? null : (
+            <span className="border border-ink-plate bg-bubble-pale px-1 text-label font-bold text-ink-bar">
+              {musicTagKeys.length} MUSIC TAG(S)
+            </span>
+          )}
         </div>
-      </section>
+      )}
 
       {visibleThreads.length === 0 ? (
         <div
@@ -592,7 +622,7 @@ export default function ForumBoard() {
         >
           <p className="p-3 text-key font-bold text-ink">
             {forum.threads.length === 0
-              ? 'THE BOARD IS EMPTY. USE [+ NEW POST...] ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
+              ? 'THE BOARD IS EMPTY. USE + NEW POST ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
               : view === 'gallery'
                 ? 'NO POST WITH A PICTURE MATCHES THIS FILTER. THE GALLERY SHOWS THE POSTS SOMEBODY FILED A DRAWING WITH.'
                 : 'NO THREADS MATCH THIS FILTER.'}
@@ -624,84 +654,47 @@ export default function ForumBoard() {
         </div>
       )}
 
-      {/* Paging controls, at the foot of the board */}
+      {/* The foot: one readout, `[ < ] 1-5 OF 7 [ > ]` - which posts these are, of how many match,
+          and the way to either side. A key per page joins it only past five pages, where the arrows
+          stop being a short walk; how many posts a page holds is in the sort / search panel. */}
       {visibleThreads.length === 0 ? null : (
-        <section className="p-3">
-          <div className="flex flex-wrap items-center justify-between gap-3 text-label font-bold text-ink">
-            <span>
-              SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}
-              {currentPage} OF {totalPages}
-            </span>
+        <nav aria-label="Board pages" className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+          <button
+            type="button"
+            onClick={() => goToPage(currentPage - 1)}
+            disabled={currentPage === 1}
+            aria-label="Previous page"
+            className={PLATE}
+          >
+            [ &lt; ]
+          </button>
 
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="cursor-pointer key px-1 py-1.5 text-label font-bold disabled:cursor-not-allowed"
-              >
-                [ &lt;&lt; PREV ]
-              </button>
+          <span>{`${pageStart + 1}-${pageStart + pageThreads.length} OF ${visibleThreads.length}`}</span>
 
-              <label htmlFor="forum-page">PAGE:</label>
-              <select
-                id="forum-page"
-                value={currentPage}
-                onChange={(event) => goToPage(Number(event.target.value))}
-                className="frame bg-paper p-1 font-mono text-label text-ink outline-none"
-              >
-                {pageNumbers.map((number) => (
-                  <option key={number} value={number}>
-                    {number} OF {totalPages}
-                  </option>
-                ))}
-              </select>
+          <button
+            type="button"
+            onClick={() => goToPage(currentPage + 1)}
+            disabled={currentPage === totalPages}
+            aria-label="Next page"
+            className={PLATE}
+          >
+            [ &gt; ]
+          </button>
 
-              <button
-                type="button"
-                onClick={() => goToPage(currentPage + 1)}
-                disabled={currentPage === totalPages}
-                className="cursor-pointer key px-1 py-1.5 text-label font-bold disabled:cursor-not-allowed"
-              >
-                [ NEXT &gt;&gt; ]
-              </button>
-
-              <label htmlFor="forum-per-page">POSTS PER PAGE:</label>
-              <select
-                id="forum-per-page"
-                value={perPage}
-                onChange={(event) => handlePerPageChange(Number(event.target.value))}
-                className="frame bg-paper p-1 font-mono text-label text-ink outline-none"
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {totalPages > 1 ? (
-            <div className="mt-2 flex flex-wrap items-center gap-1">
-              {pageNumbers.map((number) => (
+          {totalPages > NUMBERED_PAGES_AFTER
+            ? pageNumbers.map((number) => (
                 <button
                   key={number}
                   type="button"
                   onClick={() => goToPage(number)}
                   aria-current={number === currentPage ? 'page' : undefined}
-                  className={
-                    number === currentPage
-                      ? 'cursor-pointer key key-fill [--key-fill:var(--color-ink)] px-2 py-1 text-label font-bold text-paper'
-                      : 'cursor-pointer key px-1 py-1.5 text-label font-bold'
-                  }
+                  className={number === currentPage ? PLATE_PRESSED : PLATE}
                 >
-                  {number}
+                  {`[ ${number} ]`}
                 </button>
-              ))}
-            </div>
-          ) : null}
-        </section>
+              ))
+            : null}
+        </nav>
       )}
 
       {/* Composer only appears when asked for */}
@@ -709,8 +702,8 @@ export default function ForumBoard() {
         <NewPostForm onClose={() => setComposerOpen(false)} onCreated={handleCreated} />
       ) : null}
 
-      {/* The whole tag index, and the board's music, in a window of its own. It sets the same filter
-          the rows above do - one state, two places to reach it from. */}
+      {/* The whole tag index, and the board's music, in a window of its own (`[ TAG INDEX... ]` in the
+          tag panel). It sets the same filter the panel does - one state, two places to reach it from. */}
       {tagWindowOpen ? (
         <TagWindow
           onClose={() => setTagWindowOpen(false)}

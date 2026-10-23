@@ -31,16 +31,17 @@ type NewPostFormProps = {
 /**
  * The composer, presented as a Win95 pop-up window.
  *
- * It stays out of the way until something opens it: the board's [+ NEW POST...] control, or the
+ * It stays out of the way until something opens it: the board's `+ NEW POST` key, or the
  * music directory's `[ ♪ TO A POST ]` on a row, which opens it with that file already filed. A post
  * can be filed straight onto the board (with attached media) or onto any item on the site, which is
  * how "comments under an asset" and "new threads" end up in the same list.
  *
  * The window is organised the way a file dialog is, in two columns rather than two long
- * drop-downs: the destination is a tree of pages you open and click into, the artwork is a pane
- * of thumbnails with the chosen sheet beside it, and the line under both restates the choice in
- * words. Nothing here draws artwork - a sheet is a file in the project assets folder, and the
- * picker only points at it (CLAUDE.md).
+ * drop-downs: the destination is a tree of pages you open and click into, and the artwork is a pane
+ * of thumbnails with the chosen sheet beside it. Both already show what is chosen, so the
+ * `FILING INTO:` line that restated it in words was cut (SPEC-efficiency.md). Nothing here draws
+ * artwork - a sheet is a file in the project assets folder, and the picker only points at it
+ * (CLAUDE.md).
  */
 export default function NewPostForm({ onClose, onCreated, initialTrack = null }: NewPostFormProps) {
   const forum = useForum();
@@ -122,7 +123,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
   }
 
   return (
-    <PopoutWindow title="COMPOSER :: NEW POST" badge="[ FILE ]" onClose={onClose} maxWidth="max-w-2xl">
+    <PopoutWindow title="NEW POST" onClose={onClose} maxWidth="max-w-2xl">
         <label htmlFor="new-post-title" className="block text-label font-bold text-ink">
           TITLE:
         </label>
@@ -158,21 +159,15 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
                 <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
               </div>
             ) : (
-              <div className="mt-1 p-2 text-label font-bold text-ink">
+              <div
+                className="mt-1 p-2 text-label font-bold text-ink"
+                title="Shows up under that item on its page, and takes no picture of its own"
+              >
                 FILED AGAINST: {anchor.label}
-                <br />
-                <span className="font-normal text-ink">
-                  SHOWS UP UNDER THAT ITEM ON ITS PAGE, AND TAKES NO PICTURE OF ITS OWN.
-                </span>
               </div>
             )}
           </div>
         </div>
-
-        <p className="mt-2 text-label font-bold text-ink">
-          FILING INTO: {target.group} :: {anchor.label} [{anchor.kind}]
-          {media === undefined ? '' : ` :: ${media.label}`}
-        </p>
 
         <CommentComposer
           id="new-post-body"

@@ -1,13 +1,11 @@
 'use client';
 
-import { authorTag } from '../lib/auth/author';
 import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { type Mentionable } from '../lib/forum/mentions';
 import type { ForumAuthor, ForumTag, ForumTrack } from '../lib/forum/types';
 import { useForum } from './ForumProvider';
 import MediaPicker from './MediaPicker';
 import MentionPicker from './MentionPicker';
-import ProfileName from './ProfileName';
 import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
 import TrackControl from './TrackControl';
@@ -46,12 +44,14 @@ type CommentComposerProps = {
   /**
    * How much of the composer the caller wants.
    *
-   * `full` is the window's own form: the byline, the count, every attachment control laid out under
-   * the box. `reply` is the box that opens inside a post, and it is the textarea and the plate and
-   * nothing else - a reader who has just opened a post is answering it, and the tag chooser, the
-   * account tagger, the picture picker and the MP3 control were seven lines of form standing between
-   * the words and the button. They are all still there, behind one plate, because a reply *can* carry
-   * a picture or a track and a feature nobody can find is a feature that was removed.
+   * `full` is the window's own form: every attachment control laid out under the box, and the filled
+   * main key, because filing is what that window is for. `reply` is the box that opens inside a post,
+   * and it is the textarea and a bracket key and nothing else - a reader who has just opened a post is
+   * answering it, and the tag chooser, the account tagger, the picture picker and the MP3 control were
+   * seven lines of form standing between the words and the button. They are all still there, behind
+   * one key, because a reply *can* carry a picture or a track and a feature nobody can find is a
+   * feature that was removed. Its submit is a bracket key rather than the filled pill: the board's one
+   * main key is `+ NEW POST`, and an open post can hold several reply boxes (SPEC-efficiency.md).
    */
   variant?: 'full' | 'reply';
 };
@@ -108,7 +108,7 @@ export default function CommentComposer({
   );
 
   const submit = (
-    <button type="submit" disabled={busy} className={`${PLATE_MAIN}${condensed ? ' sm:shrink-0' : ''}`}>
+    <button type="submit" disabled={busy} className={condensed ? `${PLATE} sm:shrink-0` : PLATE_MAIN}>
       {busy ? '[ WORKING... ]' : submitLabel}
     </button>
   );
@@ -175,18 +175,9 @@ export default function CommentComposer({
       }}
       className="mt-2 border border-ink bg-sun-pale p-2"
     >
-      {/* The byline and the count say nothing a reply's reader does not already know: the board names
-          the account it is posting as, and the count is not a thing anybody writes to. They stay in
-          the window's own form, where a post is being composed rather than answered. */}
-      {condensed ? null : (
-        <div className="mb-1 flex items-center justify-between text-label font-bold text-ink">
-          <span>
-            AUTHOR: <ProfileName author={author}>{authorTag(author)}</ProfileName>
-          </span>
-          <span>{value.trim().length} CHARS</span>
-        </div>
-      )}
-
+      {/* No byline and no character count, in either shape (SPEC-efficiency.md): a post is filed as
+          whoever is signed in, and a count is only worth showing near a limit - which posts and
+          comments do not have, so there is nothing to count towards. */}
       {condensed ? (
         <div className="flex flex-col gap-2 sm:flex-row sm:items-start">
           {field}
@@ -201,11 +192,12 @@ export default function CommentComposer({
       )}
 
       {condensed && hasAttachmentControls ? (
-        // One plate, one line: what a reply can carry is here rather than in the way. The word list is
-        // spelled out because `[ + ]` is a puzzle - a reader has to be able to see that the picture
-        // they want is behind it.
+        // One key, one line: what a reply can carry is here rather than in the way. `[ + ATTACH ]`
+        // rather than a bare `[ + ]`, which is a puzzle; the list of what is behind it is the tip.
         <details className="mt-1">
-          <summary className={PLATE}>[ + TAGS / PICTURE / MP3 / @NAME ]</summary>
+          <summary className={PLATE} title="Tags, a picture, an MP3 or an @name">
+            [ + ATTACH ]
+          </summary>
           <div className="mt-1">{attachmentControls}</div>
         </details>
       ) : null}
