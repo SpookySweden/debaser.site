@@ -26,10 +26,13 @@ export default function AccountConsole() {
 
   return (
     <div className="space-y-3">
-      <p className="px-3 text-label text-ink">
-        SIGNED IN AS{' '}
-        {user === null ? 'Anonymous (guest)' : <ProfileName author={authorFromAccount(user)} lamp={false} />}
-      </p>
+      {/* Drawn only for somebody who is signed in: a guest is not "signed in as" anybody, and the forms
+          below already say what an account is for. */}
+      {user === null ? null : (
+        <p className="px-3 text-label text-ink">
+          SIGNED IN AS <ProfileName author={authorFromAccount(user)} lamp={false} />
+        </p>
+      )}
 
       {user === null ? <AccountForms /> : <AccountDetails />}
     </div>

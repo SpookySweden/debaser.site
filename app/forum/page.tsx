@@ -25,7 +25,7 @@ export default function Forum() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [FORUM BOARD]"
       active="forum"
-      tip="The board: anonymous posting, open to everybody. Guests post as Anonymous; an account signs your posts."
+      tip="The board: anonymous posting, open to everybody."
     >
     <h1 className="sr-only">DEBASER.SITE // MESSAGE BOARD</h1>
 
