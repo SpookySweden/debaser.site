@@ -49,7 +49,7 @@ read-site.cjs
 -------------
     npm run read                        the deployed site, default expectations
     npm run read:local                  a local `next start` on :3210
-    npm run read -- "[ ♪ MUSIC ]"       expect this text to be present
+    npm run read -- "+ NEW POST"        expect this text to be present
     npm run read -- --absent "[ SHELF (" expect this text to be gone
     npm run read -- --url <address>     read any route
 

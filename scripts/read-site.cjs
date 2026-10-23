@@ -9,7 +9,7 @@
  *
  *   npm run read                       the deployed site, default expectations
  *   npm run read:local                 a local `next start` on :3210
- *   npm run read -- "[ ♪ MUSIC ]"      expect this text to be present
+ *   npm run read -- "+ NEW POST"       expect this text to be present
  *   npm run read -- --absent "[ SHELF (" expect this text to be gone
  *
  * Why a script rather than a grep, and why it is not a matter of taste: **React wraps dynamic text in
@@ -21,9 +21,12 @@
  * perfectly present. That misled twice here - each time it looked like a stale deploy rather than a
  * wrong grep. Stripping `<!-- -->` before matching is the whole fix.
  *
- * The default expectations are the two controls whose migration produced this tool: the player's music
- * key (present) and the shelf button it replaced (absent). With no arguments it answers "is the site
- * serving what the repository says it should" - which is the question worth asking after every change.
+ * The default expectations started as the two controls whose migration produced this tool: the player's
+ * music key (present) and the shelf button it replaced (absent). The efficiency pass (SPEC-efficiency.md,
+ * 2026-10-23) cut that music key from the docked bar, so since 2026-10-24 the defaults are the player's own
+ * name and the board's main key (present), and that shelf button and the newswire's old how-to line
+ * (absent). With no arguments it answers "is the site serving what the repository says it should" -
+ * which is the question worth asking after every change.
  */
 const DEPLOYED = 'https://debaser-site.vercel.app/forum';
 const LOCAL = 'http://127.0.0.1:3210/forum';
@@ -50,7 +53,7 @@ function expectations() {
 
   // No arguments: the two controls this tool was written for, so the bare command is worth running.
   if (present.length === 0 && absent.length === 0) {
-    return { present: ['[ ♪ MUSIC ]'], absent: ['[ SHELF (60) ]'] };
+    return { present: ['♪ PLAYER', '+ NEW POST'], absent: ['[ SHELF (60) ]', 'POINT AT IT TO STOP'] };
   }
 
   return { present, absent };
