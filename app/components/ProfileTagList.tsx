@@ -97,10 +97,11 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
   return (
     <div className="space-y-1">
       <div className="flex flex-wrap items-center justify-between gap-1">
+        {/* A label and no readback: a visitor is not counted at, nor told which switches the owner
+            flipped. The owner alone hears how many are waiting on them. */}
         <span className="text-label font-bold">
-          TAGS :: {approved.length} SHOWING
+          TAGS
           {owner && waiting.length > 0 ? ` :: ${waiting.length} WAITING` : ''}
-          {!owner && !profile.visibility.showTags ? ' :: SWITCHED OFF' : ''}
         </span>
 
         {canGiveTag(owner, profile.visibility) ? (

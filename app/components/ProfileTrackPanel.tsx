@@ -31,10 +31,8 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
 
   return (
     <div className="p-2">
-      <div className="flex items-baseline justify-between gap-2 text-label font-bold text-ink">
-        <span className="text-ink">{owner ? 'your track' : 'their track'}</span>
-        <span className="text-ink">{element === undefined ? 'nothing filed' : element.tag}</span>
-      </div>
+      {/* No version tag beside the caption: `M1` is the store's name for it, not the reader's. */}
+      <p className="text-label font-bold text-ink">{owner ? 'your track' : 'their track'}</p>
 
       {/* The readout, in the player's own colours: it is the same shelf, one track over. */}
       <div className="mt-1 frame bg-hardware px-2 py-1">
@@ -47,7 +45,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
             ? owner
               ? 'FILE A TRACK IN THE CUSTOMISER AND IT PLAYS FROM THE BAR BELOW.'
               : 'THIS ACCOUNT HAS NOT PUT A TRACK UP.'
-            : `${element.tag}${element.current ? ' (current)' : ''} :: ${element.credit}`}
+            : element.credit}
         </p>
       </div>
 
@@ -55,6 +53,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <button
             type="button"
+            title="PLAYS THROUGH THE BAR AT THE FOOT OF THE PAGE"
             onClick={() =>
               playing
                 ? player.toggle()
@@ -69,8 +68,6 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
           >
             {playing ? '[ ❚❚ PAUSE ]' : '[ ▶ PLAY ]'}
           </button>
-
-          <span className="text-label text-ink">PLAYS THROUGH THE BAR AT THE FOOT OF THE PAGE</span>
         </div>
       )}
     </div>

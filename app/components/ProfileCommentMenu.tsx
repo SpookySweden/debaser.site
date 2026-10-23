@@ -101,7 +101,6 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
  */
 export default function ProfileCommentMenu({ options, onChoose }: ProfileCommentMenuProps) {
   const [open, setOpen] = useState(false);
-  const openable = options.filter((option) => option.available).length;
 
   return (
     <div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
@@ -129,10 +128,8 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
         </button>
       </span>
 
-      <span className="text-label font-bold text-ink">
-        {openable === 0 ? 'nothing open to comments' : `${openable} of ${options.length} open to comments`}
-      </span>
-
+      {/* No count of how many threads are open: the menu says it per aspect, which is the one
+          place a reader who wants to comment will look. */}
       {!open ? null : (
         <ProfileCommentOptions
           options={options}

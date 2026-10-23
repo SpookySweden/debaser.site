@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getCommsRepository } from '../lib/comms/repository';
 import { lastMessage, otherParticipant, participantFromThread, threadLabel } from '../lib/comms/threads';
 import { MAX_GROUP_MEMBERS, MAX_GROUP_NAME_LENGTH } from '../lib/comms/types';
-import { PLATE } from '../lib/ui/controls';
+import { PLATE, PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import CommsGroupBar from './CommsGroupBar';
 import CommsThreadPanel from './CommsThreadPanel';
@@ -105,24 +105,15 @@ export default function CommsConsole() {
     setTestNote('LOCAL TEST CONVERSATIONS CLEARED.');
   }
 
+  // Messages travel between accounts, so a guest has no inbox: one line says so and where to go.
   if (userId === null) {
     return (
-      <section>
-        <div className="title-line text-accent-ink">
-          <span>COMMS</span>
-          <span>[ NOBODY SIGNED IN ]</span>
-        </div>
-
-        <div className="space-y-2 p-3 text-label font-bold text-ink">
-          <p>MESSAGES TRAVEL BETWEEN ACCOUNTS, SO THERE IS NO ANONYMOUS INBOX.</p>
-          <p>
-            <Link href="/account" className="underline hover:bg-ice">
-              [ GO TO THE ACCOUNT PAGE ]
-            </Link>{' '}
-            TO SIGN IN OR CREATE ONE.
-          </p>
-        </div>
-      </section>
+      <p className="text-label text-ink">
+        <Link href="/account" className={PLATE_LINK}>
+          [ LOG IN ]
+        </Link>{' '}
+        TO MESSAGE PEOPLE
+      </p>
     );
   }
 
@@ -146,7 +137,6 @@ export default function CommsConsole() {
       <section className={`lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
         <div className="title-line text-accent-ink">
           <span>CONVERSATIONS</span>
-          <span>[ {threads.length} ]</span>
         </div>
 
         <div className="p-2">
@@ -303,7 +293,9 @@ export default function CommsConsole() {
               {active === undefined ? '' : ` :: ${threadLabel(active, userId ?? '', nameFor)}`}
             </span>
           </span>
-          <span className="shrink-0">[ {ready ? 'LIVE' : 'READING...'} ]</span>
+          {/* Said only while it is true, like the board's SYNCING...: a bracketed `[ LIVE ]` in the
+              accent ink read as a key, and "live" is simply the normal state. */}
+          {ready ? null : <span className="shrink-0">READING...</span>}
         </div>
 
         <div className="flex min-h-[24rem] flex-1 flex-col p-3">
@@ -326,10 +318,7 @@ export default function CommsConsole() {
           )}
 
           {active === undefined || activeOtherId === null ? (
-            <p className="text-label font-bold text-ink">
-              PICK A CONVERSATION ON THE LEFT, OR START A NEW ONE. ONE THREAD IS OPEN AT A TIME, WHICH IS THE SAME
-              SHAPE THE NOTIFICATION WINDOW OPENS IN ON A DESKTOP.
-            </p>
+            <p className="text-label font-bold text-ink">PICK A CONVERSATION, OR START ONE.</p>
           ) : (
             <CommsThreadPanel
               idPrefix="comms-page"

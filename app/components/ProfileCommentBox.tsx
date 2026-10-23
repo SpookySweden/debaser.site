@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { MAX_COMMENT_LENGTH } from '../lib/profile/types';
 import { validateProfileComment } from '../lib/profile/visibility';
 import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 
@@ -29,7 +30,7 @@ type ProfileCommentBoxProps = {
  * The caller supplies the write itself (so the box works on your own profile and on
  * somebody else's) and the choices (so one box serves a drawing, a track and the profile
  * without knowing which it is writing about). What is left here is the part that is always
- * the same: the field, the count, the button, and the answer.
+ * the same: the field, the button, the answer, and a count once the limit is near.
  */
 export default function ProfileCommentBox({
   id,
@@ -92,7 +93,12 @@ export default function ProfileCommentBox({
         <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN}>
           {busy ? '[ WORKING... ]' : submitLabel}
         </button>
-        <span className="text-label text-ink">{body.trim().length} CHARS</span>
+        {/* The count is only worth reading in the last tenth before the limit. */}
+        {body.trim().length < MAX_COMMENT_LENGTH * 0.9 ? null : (
+          <span className="text-label text-ink">
+            {body.trim().length} / {MAX_COMMENT_LENGTH}
+          </span>
+        )}
         {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
         {status === null ? null : <p className="text-label font-bold text-ink">{status}</p>}
       </div>
