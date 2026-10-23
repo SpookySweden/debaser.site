@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { MIN_PASSWORD_LENGTH, hasErrors, validateSignIn, validateSignUp } from '../lib/auth/validation';
 import type { CredentialErrors } from '../lib/auth/validation';
-import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
+import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import GoogleSignInButton from './GoogleSignInButton';
 
@@ -166,7 +166,7 @@ export default function AccountForms() {
           />
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <button type="submit" disabled={signUpBusy} className={PLATE_MAIN}>
+            <button type="submit" disabled={signUpBusy} className={PLATE_LARGE}>
               {signUpBusy ? '[ WORKING... ]' : '[ CREATE ACCOUNT ]'}
             </button>
             {signUpMessage === null ? null : (
