@@ -141,7 +141,7 @@ export default function CommsThreadPanel({
 
       <ul
         ref={listRef}
-        className="min-h-32 flex-1 space-y-2 overflow-y-auto frame bg-paper p-2"
+        className="min-h-32 flex-1 space-y-2 overflow-y-auto p-2"
       >
         {shown.length === 0 ? (
           <li className="text-label font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
@@ -197,7 +197,7 @@ export default function CommsThreadPanel({
         )}
       </ul>
 
-      <div className="mt-2 frame bg-sun-pale p-2">
+      <div className="mt-2 p-2">
         <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
           <label htmlFor={`${idPrefix}-body`}>
             {isGroup ? (

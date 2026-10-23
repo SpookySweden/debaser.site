@@ -108,7 +108,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
             ))}
           </div>
 
-          <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
+          <div className="mt-3 p-2">
             <p className="text-label font-bold">PREVIEW:</p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <span className={tagChipClasses(makeUserTag(previewLabel))}>

@@ -333,7 +333,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               music key, which made it the last of six controls rather than part of the bar's identity -
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. */}
-          <span className="flex items-center gap-1 frame bg-sun-pale p-0.5">
+          <span className="flex items-center gap-1">
             <span className="px-1 text-label text-ink">
               ♪ DEBASER PLAYER
             </span>
@@ -490,7 +490,7 @@ function TransportPad({
   const ANIMATION = { playing: 'animate-blip', paused: undefined, looping: 'animate-wobble' } as const;
 
   return (
-    <span className="frame bg-sun-pale p-1">
+    <span>
       <span className="flex items-stretch gap-1">
         <button
           type="button"
@@ -574,7 +574,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
             return (
               <li
                 key={`${entry.id}-${position}`}
-                className={`flex flex-wrap items-center gap-2 rounded-none border border-ink p-2 text-label font-bold text-ink ${
+                className={`flex flex-wrap items-center gap-2 p-2 text-label font-bold text-ink ${
                   playingThis ? 'bg-sun-pale' : 'bg-paper'
                 }`}
               >

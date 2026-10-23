@@ -1,7 +1,6 @@
 'use client';
 
 import { LINES, tttDraw, tttWinningLine, tttWinner, type Board, type Mark } from '../lib/games/tic-tac-toe';
-import { PANEL_INSET } from '../lib/ui/controls';
 
 /**
  * The nine-plate board.
@@ -32,7 +31,7 @@ export default function TicTacToeBoard({
   const sealed = disabled || winner !== null || draw;
 
   return (
-    <div className={`${PANEL_INSET} bg-sun-pale p-1`}>
+    <div className="frame bg-sun-pale p-1">
       <div className="grid aspect-square w-full grid-cols-3 gap-1">
         {board.map((cell, index) => {
           const inWinningLine = winning !== null && winning.includes(index);

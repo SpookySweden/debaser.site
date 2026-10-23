@@ -114,7 +114,7 @@ export default function PreferencesWindow() {
       defaultSize={{ w: 384, h: 460 }}
       minSize={{ w: 280, h: 200 }}
     >
-      <section className="frame bg-sun-pale">
+      <section>
         <div className={TITLE_BAR_INACTIVE}>
           <span>THEME</span>
           <span>[ {THEMES.length} ]</span>
@@ -134,7 +134,7 @@ export default function PreferencesWindow() {
 
       {/* Window layout: a desktop thing only, so a phone - which has bottom sheets, not windows - does
           not see it at all. */}
-      <section className="mt-2 hidden frame bg-sun-pale sm:block">
+      <section className="mt-2 hidden sm:block">
         <div className={TITLE_BAR_INACTIVE}>
           <span>WINDOWS</span>
           <span>[ THIS SCREEN SHAPE ]</span>
@@ -151,7 +151,7 @@ export default function PreferencesWindow() {
         </p>
       </section>
 
-      <section className="mt-2 frame bg-sun-pale">
+      <section className="mt-2">
         <div className={TITLE_BAR_INACTIVE}>
           <span>SESSION</span>
           <span>[ SOON ]</span>

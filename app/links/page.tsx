@@ -33,7 +33,7 @@ export default function LinksPage() {
 
     <ProjectSectionNav current="links" />
 
-    <section className="frame bg-sun-pale">
+    <section>
       <div className="title-line text-accent-ink">
         <span>THE ARCHIVE</span>
         <span>[ {ARCHIVE_LINKS.length} PAGES ]</span>
@@ -55,7 +55,7 @@ export default function LinksPage() {
       </ul>
     </section>
 
-    <section className="mt-4 frame bg-sun-pale">
+    <section className="mt-4">
       <div className="title-line text-accent-ink">
         <span>OUTBOUND</span>
         <span>[ {OUTBOUND_LINKS.length} LINKS ]</span>

@@ -47,7 +47,7 @@ export default function ProfileCustomiserPictureTab({
 
   return (
     <div className="space-y-3">
-      <div className="frame bg-sun-pale p-3">
+      <div className="p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div>
             <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
@@ -102,7 +102,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="frame bg-sun-pale p-3">
+      <div className="p-3">
         <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
 
         {SITE_PICTURES.length === 0 ? (
@@ -164,7 +164,7 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
-      <div className="frame bg-sun-pale p-3">
+      <div className="p-3">
         <p className={CUSTOMISER_NOTE}>HISTORY ({versions.length} VERSIONS) :: APPEND ONLY</p>
 
         {versions.length === 0 ? (
@@ -174,7 +174,7 @@ export default function ProfileCustomiserPictureTab({
             {versions.map((version) => (
               <li
                 key={version.id}
-                className="flex flex-wrap items-start gap-3 rounded-none border border-ink bg-ice-pale p-2"
+                className="flex flex-wrap items-start gap-3 p-2"
               >
                 <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel />
 

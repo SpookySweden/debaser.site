@@ -23,7 +23,7 @@ export default function ProfileBoardActivity({
   threads,
 }: ProfileBoardActivityProps) {
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       <div className="title-line text-accent-ink">
         <span>BOARD ACTIVITY</span>
         <span>[ {threads.length} THREADS ]</span>

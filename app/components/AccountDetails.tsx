@@ -67,7 +67,6 @@ export default function AccountDetails() {
 
       <section
         id="account-summary"
-        className="frame bg-sun-pale"
       >
         <div className="title-line text-accent-ink">
           <span>ACCOUNT DETAILS</span>
@@ -108,7 +107,6 @@ export default function AccountDetails() {
 
       <section
         id="activity"
-        className="frame bg-sun-pale"
       >
         <div className="title-line text-accent-ink">
           <span>BOARD ACTIVITY</span>
@@ -138,7 +136,6 @@ export default function AccountDetails() {
 
       <section
         id="danger-zone"
-        className="frame bg-sun-pale"
       >
         <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-key font-bold text-ink-bar">
           <span>DANGER ZONE</span>

@@ -111,7 +111,7 @@ export default function AccountForms() {
 
   return (
     <div className="grid gap-3 lg:grid-cols-2">
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>CREATE ACCOUNT</span>
           <span>[ SIGN UP ]</span>
@@ -184,7 +184,7 @@ export default function AccountForms() {
         </form>
       </section>
 
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>LOG IN</span>
           <span>[ SESSION ]</span>

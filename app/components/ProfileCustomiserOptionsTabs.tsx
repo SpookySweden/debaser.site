@@ -82,7 +82,7 @@ export function ProfileIdentityTab({
   const countries = useMemo(() => countryOptions(), []);
 
   return (
-    <div className="frame bg-sun-pale p-3">
+    <div className="p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
         PUBLIC NAME: SIGNS YOUR PROFILE PAGE AND YOUR ACCOUNT
       </label>
@@ -266,10 +266,10 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
   ];
 
   return (
-    <div className="frame bg-sun-pale p-3">
+    <div className="p-3">
       <ul className="space-y-2">
         {rows.map((row) => (
-          <li key={row.key} className="rounded-none border border-ink bg-ice-pale p-2">
+          <li key={row.key} className="rule-pixel p-2">
             <label className="flex items-start gap-2 text-label font-bold text-ink">
               <input
                 type="checkbox"

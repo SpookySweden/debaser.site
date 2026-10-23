@@ -29,7 +29,6 @@ export default function NotesPage() {
         <section
           key={note.id}
           id={note.id}
-          className="frame bg-sun-pale"
         >
           <div className="title-line flex-wrap text-accent-ink">
             <span>{note.title}</span>

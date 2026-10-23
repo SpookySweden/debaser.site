@@ -69,7 +69,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
   }, [compact, ownTrack, player, profile, ready]);
 
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       <div className="title-line text-accent-ink">
         <span>PUBLIC PROFILE</span>
         <span>[ {ready ? 'READY' : 'READING...'} ]</span>

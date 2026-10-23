@@ -320,7 +320,7 @@ export default function ForumBoard() {
           {/* Tag inclusion: one ranked list, most used first, with the whole index - and the board's
               music - one button away (./TagWindow.tsx). The ranking is the only order offered: what
               a board's tags are *for* is telling you what is on it, and that is a count. */}
-          <div className="frame bg-ice-pale p-2">
+          <div>
             <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
               <p className="text-label font-bold text-ink">
                 TAG FILTER ({tagFilters.length} INCLUDED) :: MOST USED FIRST
@@ -457,13 +457,13 @@ export default function ForumBoard() {
 
           {/* Sort / filter / search / paging are collapsed by default: the posts
               themselves are the practical information on this page. */}
-          <details className="frame bg-ice-pale p-2">
+          <details>
             <summary className="cursor-pointer select-none text-label font-bold text-ink">
               [ BOARD CONTROLS ] SORT :: SOURCE :: SEARCH :: PAGING
             </summary>
 
             <div className="mt-2 grid gap-3 sm:grid-cols-3">
-              <fieldset className="rounded-none border border-ink p-2">
+              <fieldset>
                 <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
                 <label className="flex items-center gap-2 text-label font-bold text-ink">
                   <input
@@ -588,7 +588,7 @@ export default function ForumBoard() {
       {visibleThreads.length === 0 ? (
         <div
           id="forum-thread-list"
-          className="frame bg-paper text-ink"
+          className="text-ink"
         >
           <p className="p-3 text-key font-bold text-ink">
             {forum.threads.length === 0
@@ -610,7 +610,7 @@ export default function ForumBoard() {
       ) : (
         <div
           id="forum-thread-list"
-          className="frame bg-paper text-ink"
+          className="text-ink"
         >
           {pageThreads.map((thread) => (
             <ForumThreadCard
@@ -626,7 +626,7 @@ export default function ForumBoard() {
 
       {/* Paging controls, at the foot of the board */}
       {visibleThreads.length === 0 ? null : (
-        <section className="frame bg-sun-pale p-3">
+        <section className="p-3">
           <div className="flex flex-wrap items-center justify-between gap-3 text-label font-bold text-ink">
             <span>
               SHOWING {pageStart + 1}-{pageStart + pageThreads.length} OF {visibleThreads.length} THREADS :: PAGE{' '}

@@ -370,7 +370,7 @@ export default function TagWindow({
         ) : (
           <ul className="mt-2 space-y-1">
             {listed.map((file) => (
-              <li key={file.track.src} className="rounded-none border border-ink bg-paper p-1 text-label text-ink">
+              <li key={file.track.src} className="rule-pixel p-1 text-label text-ink">
                 <span className="flex flex-wrap items-center gap-x-2 gap-y-1 font-bold">
                   <span>{file.track.title}</span>
                   <span className="text-ink">{file.track.credit}</span>

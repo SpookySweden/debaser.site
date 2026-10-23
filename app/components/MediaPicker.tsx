@@ -37,7 +37,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
   const selected = items.find((item) => item.id === value);
 
   return (
-    <div id={id} className="rounded-none border border-ink bg-ice-pale p-1">
+    <div id={id} className="p-1">
       <div className="flex flex-col gap-1 sm:flex-row">
         <div
           className={`w-full overflow-y-auto frame bg-paper p-1 sm:w-3/5 ${heightClass}`}

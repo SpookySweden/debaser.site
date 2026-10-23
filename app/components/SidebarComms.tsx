@@ -67,7 +67,7 @@ export default function SidebarComms() {
   }
 
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       {/* The title bar is the control. `[ COMMS ]` is the button a reader presses to see the
           conversations, and the count beside it is what says whether that is worth a press - which is
           why the count is on the *button* rather than in a heading that would vanish with the list. */}
@@ -116,7 +116,7 @@ export default function SidebarComms() {
                     type="button"
                     onClick={() => openConversation(thread.id)}
                     disabled={busyId !== null}
-                    className="w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-left text-label font-bold text-ink hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
+                    className="w-full cursor-pointer p-1 text-left text-label font-bold text-ink hover:bg-ice-pale disabled:cursor-wait disabled:opacity-60"
                   >
                     <span className="flex flex-wrap items-center justify-between gap-1">
                       {thread.kind === 'group' ? (

@@ -39,7 +39,7 @@ export default function ProjectsPage() {
         {shelfCount} {pluralise(shelfCount, 'SHELF')} ON THE LINK PAGE.
       </p>
 
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>THE PROJECTS</span>
           <span>[ {ARCHIVE_PROJECTS.length} ]</span>

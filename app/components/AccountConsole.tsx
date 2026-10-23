@@ -28,7 +28,7 @@ export default function AccountConsole() {
 
   return (
     <div className="space-y-3">
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>ACCOUNT TERMINAL</span>
           <span>
@@ -50,7 +50,7 @@ export default function AccountConsole() {
         </div>
       </section>
 
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>WHAT LIVES UNDER THIS TAB</span>
           <span>{signedIn ? '[ OPEN ]' : '[ OPENS AFTER SIGN IN ]'}</span>
@@ -80,7 +80,7 @@ export default function AccountConsole() {
       </section>
 
       {status === 'loading' ? (
-        <p className="frame bg-paper p-3 text-key font-bold text-ink">
+        <p className="p-3 text-key font-bold text-ink">
           READING THE LOCAL SESSION...
         </p>
       ) : user === null ? (

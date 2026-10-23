@@ -119,7 +119,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
 
   return (
     <div className="space-y-3">
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>
             {/* The name in its own colour, or the title bar's white when the account has
@@ -353,7 +353,6 @@ function CommentsSection({
   return (
     <section
       id={PROFILE_COMMENTS_ANCHOR}
-      className="frame bg-sun-pale"
     >
       <div className="title-line text-accent-ink">
         <span>COMMENTS ON THIS PROFILE</span>

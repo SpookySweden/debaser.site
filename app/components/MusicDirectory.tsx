@@ -516,7 +516,7 @@ export default function MusicDirectory() {
           }`}
         >
           <div className="min-h-0">
-            <fieldset className="mt-2 rounded-none border border-ink p-2">
+            <fieldset className="mt-2">
               <legend className="px-1 text-label font-bold text-ink">TAGS</legend>
 
               <div className="flex flex-wrap items-center gap-1 text-label font-bold text-ink">
@@ -572,7 +572,7 @@ export default function MusicDirectory() {
           </p>
         ) : null}
 
-        <div className="@container mt-1 frame bg-paper">
+        <div className="@container mt-1">
           {/* The directory's own column labels, and nothing else. */}
           <div
             className={`${ROW_GRID} hidden border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar @2xl:grid`}

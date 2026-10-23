@@ -107,7 +107,7 @@ export default function CommsConsole() {
 
   if (userId === null) {
     return (
-      <section className="frame bg-sun-pale">
+      <section>
         <div className="title-line text-accent-ink">
           <span>COMMS</span>
           <span>[ NOBODY SIGNED IN ]</span>
@@ -131,7 +131,7 @@ export default function CommsConsole() {
       {/* A store that cannot be read is said out loud rather than left looking like an
           account with nothing in it. On a wide screen it takes the first row to itself. */}
       {error === null ? null : (
-        <div className="flex flex-wrap items-center gap-2 frame bg-sun-pale p-2 text-label font-bold text-ink lg:basis-full">
+        <div className="flex flex-wrap items-center gap-2 p-2 text-label font-bold text-ink lg:basis-full">
           <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar">[ COMMS OFFLINE ]</span>
           <span className="min-w-0 flex-1 break-words">
             <span className="bg-bubble-pale px-1 text-ink-bar box-decoration-clone">{error}</span>
@@ -143,7 +143,7 @@ export default function CommsConsole() {
       )}
 
       {/* Conversations rail */}
-      <section className={`frame bg-sun-pale lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
+      <section className={`lg:w-64 lg:shrink-0 ${compact && mobileView === 'thread' ? 'hidden' : ''}`}>
         <div className="title-line text-accent-ink">
           <span>CONVERSATIONS</span>
           <span>[ {threads.length} ]</span>
@@ -155,7 +155,7 @@ export default function CommsConsole() {
           </button>
 
           {picking ? (
-            <div className="mt-2 rounded-none border border-ink bg-ice-pale p-2">
+            <div className="mt-2 p-2">
               <p className="text-label font-bold text-ink">MESSAGE AN ACCOUNT:</p>
               {!accountsReady ? (
                 <p className="mt-1 text-label text-ink">READING THE ACCOUNT LIST...</p>
@@ -195,7 +195,7 @@ export default function CommsConsole() {
           </button>
 
           {grouping ? (
-            <div className="mt-2 space-y-1 rounded-none border border-ink bg-ice-pale p-2 text-label font-bold text-ink">
+            <div className="mt-2 space-y-1 p-2 text-label font-bold text-ink">
               <label htmlFor="group-name" className="block">
                 GROUP NAME:
               </label>
@@ -288,7 +288,7 @@ export default function CommsConsole() {
         </div>
       </section>
       {/* The open conversation */}
-      <section className={`flex min-h-0 flex-1 flex-col frame bg-sun-pale ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
+      <section className={`flex min-h-0 flex-1 flex-col ${compact && mobileView === 'list' ? 'hidden' : ''}`}>
         <div className="title-line text-accent-ink">
           <span className="flex min-w-0 items-center gap-2">
             <button

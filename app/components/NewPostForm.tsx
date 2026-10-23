@@ -158,7 +158,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null }:
                 <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
               </div>
             ) : (
-              <div className="mt-1 frame bg-paper p-2 text-label font-bold text-ink">
+              <div className="mt-1 p-2 text-label font-bold text-ink">
                 FILED AGAINST: {anchor.label}
                 <br />
                 <span className="font-normal text-ink">

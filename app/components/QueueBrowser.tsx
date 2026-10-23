@@ -98,7 +98,7 @@ export default function QueueBrowser() {
   const open = openId === null ? undefined : queues?.find((queue) => queue.userId === openId);
 
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       <div className={TITLE_BAR_INACTIVE}>
         <span>QUEUES // WHO IS LISTENING</span>
         <span>[ {shown === null ? 'READING...' : shown.length} ]</span>

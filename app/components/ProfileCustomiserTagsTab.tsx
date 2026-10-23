@@ -19,7 +19,7 @@ export type ProfileTagsTabProps = {
 /** The tags other users gave you, and which of them visitors may see. */
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
-    <div className="frame bg-sun-pale p-3">
+    <div className="p-3">
       <p className={CUSTOMISER_NOTE}>
         GLOBAL TAG SWITCH: {profile.visibility.showTags ? 'VISIBLE' : 'HIDDEN'} (SEE THE PRIVACY TAB). EVERY TAG BELOW
         STARTS HIDDEN.
@@ -42,7 +42,7 @@ export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllH
 
           <ul className="mt-2 space-y-2">
             {profile.tags.map((tag) => (
-              <li key={tag.id} className="rounded-none border border-ink bg-ice-pale p-2">
+              <li key={tag.id} className="rule-pixel p-2">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label })}>
                     <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} />

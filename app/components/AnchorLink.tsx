@@ -53,7 +53,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
       {preview === 'none' || anchor.kind === 'profile' ? null : (
         <span className="pointer-events-none absolute left-0 top-full z-30 mt-1 hidden w-48 frame bg-sun-pale p-1 group-hover/link:block">
           {target.preview === undefined ? (
-            <span className="block frame bg-paper p-2 text-label font-bold text-ink">
+            <span className="block p-2 text-label font-bold text-ink">
               {anchor.kind.toUpperCase()} ITEM
               <br />
               OPENS: {target.href}

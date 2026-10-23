@@ -30,7 +30,7 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
   const playing = element !== undefined && player.track?.src === element.src && player.playing;
 
   return (
-    <div className="frame bg-sun-pale p-2">
+    <div className="p-2">
       <div className="flex items-baseline justify-between gap-2 text-label font-bold text-ink">
         <span className="text-ink">{owner ? 'your track' : 'their track'}</span>
         <span className="text-ink">{element === undefined ? 'nothing filed' : element.tag}</span>

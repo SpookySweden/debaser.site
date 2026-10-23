@@ -123,7 +123,7 @@ export default function CommentRow({ data, variant = 'full', href, hrefTitle, pi
   }
 
   return (
-    <li className={`rounded-none border border-ink p-1 ${pinned === null ? 'bg-paper' : 'bg-sun-pale'}`}>
+    <li className={`rule-pixel p-1 ${pinned === null ? '' : 'bg-sun-pale'}`}>
       <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold">
         <span className="flex flex-wrap items-center gap-1">
           <ProfileLink author={author}>

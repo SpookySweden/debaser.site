@@ -26,7 +26,7 @@ const TITLE_CONTROL =
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =
-  'block w-full cursor-pointer rounded-none border border-ink bg-paper px-2 py-0.75 text-left text-label font-bold text-ink hover:bg-ice-pale';
+  'block w-full cursor-pointer px-2 py-0.75 text-left text-label font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The side panel's top block: who is signed in.
@@ -70,7 +70,7 @@ export default function SidebarProfile() {
   );
 
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
         <span className="flex items-center gap-1">

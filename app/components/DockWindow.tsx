@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
-import { PANEL, PLATE, STATUS_BAR, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, STATUS_BAR, WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
 import {
   beginMove,
@@ -165,7 +165,7 @@ export default function DockWindow({
       data-dock-window={id}
       data-grouped={grouped ? 'true' : undefined}
     >
-      <div className={`${PANEL} flex ${managed ? 'h-full' : 'max-h-full'} flex-col`}>
+      <div className={`frame bg-sun-pale flex ${managed ? 'h-full' : 'max-h-full'} flex-col`}>
         <div
           {...titleHandlers}
           className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}

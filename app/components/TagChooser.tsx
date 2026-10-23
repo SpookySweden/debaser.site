@@ -81,7 +81,7 @@ export default function TagChooser({
   }
 
   return (
-    <fieldset id={id} className="mt-2 rounded-none border border-ink p-2">
+    <fieldset id={id} className="mt-2">
       <legend className="px-1 text-label font-bold text-ink">
         TAGS ({value.length}/{max})
       </legend>

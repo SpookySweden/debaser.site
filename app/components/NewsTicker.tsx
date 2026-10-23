@@ -32,7 +32,7 @@ export default function NewsTicker() {
   const items = buildNewsFeed(forum.threads, undefined, { pins: forum.pins });
 
   return (
-    <section className="frame bg-sun-pale">
+    <section>
       <div className={TITLE_BAR}>
         <span>NEWSWIRE :: PINNED POSTS</span>
         <span>[ {items.length === 0 ? 'NOTHING PINNED' : `${items.length} PINNED`} ]</span>

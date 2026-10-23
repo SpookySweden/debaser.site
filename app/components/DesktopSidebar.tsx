@@ -269,7 +269,7 @@ export default function DesktopSidebar() {
             middle-click still work - and so the Start menu's shelves, a post's plates and the bell's
             invitation, which are *links* into the same two windows, are unaffected. See `SIDE_ARCADE`
             and `SIDE_MUSIC` in ./SiteNav.tsx. */}
-        <section className="frame bg-sun-pale">
+        <section>
           <div className={TITLE_BAR_INACTIVE}>
             <span>SHELF</span>
             {/* Counted rather than typed: the row below is the list, and a number written by hand beside

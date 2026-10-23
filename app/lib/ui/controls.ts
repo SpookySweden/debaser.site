@@ -112,9 +112,10 @@ export const LINK_PIXEL = 'link-pixel cursor-pointer';
 export const SPRITE_SLOT = 'sprite-slot overflow-hidden rounded-none border border-ink-plate';
 
 /* The chrome: title lines, panels and status lines, in one place. ------------------
-   Every window and panel on the site wears the same notched outline (`.frame` in globals.css) and the
-   same title line, `——— TITLE ———`, so a title is a title whatever it sits on top of. There are no bars
-   any more (SPEC-readability.md): the Win95 navy strip became a rule with the name set into it. */
+   Every window on the site wears the same notched outline (`.frame` in globals.css), and so does every
+   field - a box is what says "type here". A section inside a window wears nothing: it is separated by its
+   title line alone, `——— TITLE ———` (SPEC-efficiency.md, 2026-10-23 - it used to be a box inside a box
+   inside the window, four outlines deep on a phone). There are no bars either (SPEC-readability.md). */
 
 /** A panel's title line: the name between two rules, in the accent ink of the thing being worked in. */
 export const TITLE_BAR = 'title-line text-accent-ink';
@@ -135,8 +136,8 @@ export const WINDOW_TITLE_BAR = 'title-line title-window px-3 py-1.5 text-accent
 /** The frame's own title line when its window has been put aside. */
 export const WINDOW_TITLE_BAR_INACTIVE = 'title-line title-window px-3 py-1.5 text-ink';
 
-/** A panel: the window's fill inside the notched outline. */
-export const PANEL = 'frame bg-sun-pale';
+/** A section inside a window: no outline and no fill of its own - its title line is what separates it. */
+export const PANEL = '';
 
 /**
  * The small white chip a shelf is linked with: the project strip across a page, and the same list on
@@ -146,8 +147,8 @@ export const PANEL = 'frame bg-sun-pale';
 export const SHELF_CHIP =
   'key cursor-pointer px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center max-sm:px-1 max-sm:text-sm';
 
-/** A well inside a panel - a page, a board: the same notched outline, filled by the caller. */
-export const PANEL_INSET = 'frame';
+/** A well inside a section - a list, a board: flat too, filled by the caller where it needs a fill. */
+export const PANEL_INSET = '';
 
 /** A key small enough to sit at the end of a title line: `[ × ]`, `[ ⇲ ]`. */
 export const TITLE_BAR_BUTTON =

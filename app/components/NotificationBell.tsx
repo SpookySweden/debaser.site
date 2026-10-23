@@ -90,7 +90,7 @@ export default function NotificationBell() {
 }
 
 const MENU_ITEM =
-  'block w-full rounded-none border border-ink bg-paper px-2 py-0.75 text-left text-label font-bold text-ink hover:bg-ice-pale';
+  'block w-full px-2 py-0.75 text-left text-label font-bold text-ink hover:bg-ice-pale';
 
 /**
  * The same menu, as a phone does it: one row among the other buttons in the profile pop-up.

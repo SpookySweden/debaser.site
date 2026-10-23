@@ -142,7 +142,7 @@ function QueueTabPlate({
  */
 function EmptyTab({ name }: { name: string }) {
   return (
-    <section className="frame bg-sun-pale p-3">
+    <section className="p-3">
       <p className="text-key font-bold text-ink">{name} IS NOT BUILT YET.</p>
       <p className="mt-1 text-label text-ink-quiet">
         THE TAB IS HERE SO THE STRIP KEEPS ITS SHAPE. WHAT IT WILL HOLD IS STILL BEING DECIDED, SO

@@ -148,7 +148,6 @@ export default function AccountSecurityPanel() {
   return (
     <section
       id="edit-account"
-      className="frame bg-sun-pale"
     >
       <div className="title-line text-accent-ink">
         <span>EDIT ACCOUNT</span>
@@ -162,7 +161,7 @@ export default function AccountSecurityPanel() {
         </p>
 
         {/* Display name */}
-        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
+        <div className="mt-3 p-2">
           <p className={NOTE}>1. DISPLAY NAME</p>
           <Field
             id="edit-account-name"
@@ -183,7 +182,7 @@ export default function AccountSecurityPanel() {
         </div>
 
         {/* Sign-in address */}
-        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
+        <div className="mt-3 p-2">
           <p className={NOTE}>2. SIGN-IN EMAIL</p>
           <Field
             id="edit-account-email"
@@ -221,7 +220,7 @@ export default function AccountSecurityPanel() {
         </div>
 
         {/* Password */}
-        <div className="mt-3 rounded-none border border-ink bg-ice-pale p-2">
+        <div className="mt-3 p-2">
           <p className={NOTE}>3. PASSWORD</p>
           <Field
             id="edit-account-current-password"

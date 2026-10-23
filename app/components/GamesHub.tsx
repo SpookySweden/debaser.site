@@ -283,10 +283,10 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
   return (
     <div className="space-y-3">
       {error === null ? null : (
-        <p className="rounded-none border-line border-ink-plate bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar">{error}</p>
+        <p className="w-fit bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar">{error}</p>
       )}
       {notice === null ? null : (
-        <p className="rounded-none border-line border-ink-plate bg-paper px-2 py-1 text-label font-bold text-ink">{notice}</p>
+        <p className="px-2 py-1 text-label font-bold text-ink">{notice}</p>
       )}
 
       {/* What the window was opened to do, when a post's `[ CHALLENGE ]` opened it: the account is
@@ -354,7 +354,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           {GAME_CATALOGUE.map((game) => (
             <div
               key={game.id}
-              className="frame bg-sun-pale p-2"
+              className="p-2"
             >
               <p className="flex items-center gap-2 text-key font-bold text-ink">
                 {/* Navy or Rose in both themes, so the bar ink; `text-paper` went Nigrosine in the dark one. */}
@@ -473,7 +473,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           ) : null}
 
           {around.length === 0 ? null : (
-            <ul className="overflow-hidden rounded-none border border-ink bg-paper text-ink">
+            <ul className="overflow-hidden text-ink">
               {around.map((row) => (
                 <UserDirectoryRow
                   key={row.account.id}

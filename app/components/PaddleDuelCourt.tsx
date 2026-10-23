@@ -11,7 +11,6 @@ import {
   type DuelSide,
   type DuelState,
 } from '../lib/games/paddle-duel';
-import { PANEL_INSET } from '../lib/ui/controls';
 
 /**
  * The court: a ball, two paddles, and the wall behind each of them.
@@ -73,7 +72,7 @@ export default function PaddleDuelCourt({
   };
 
   return (
-    <div className={`${PANEL_INSET} bg-ena-deep p-1`}>
+    <div className="frame bg-ena-deep p-1">
       <div
         ref={field}
         onPointerMove={aim}
