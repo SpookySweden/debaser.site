@@ -17,9 +17,6 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { TITLE_BAR } from '../lib/ui/controls';
 
-const SMALL =
-  'inline-flex cursor-pointer items-center gap-1 key px-1 py-1 text-label font-bold';
-
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
   'cursor-pointer key px-0.5 py-0.5 text-label font-bold leading-none';
@@ -31,12 +28,13 @@ const MENU_ROW =
 /**
  * The side panel's top block: who is signed in.
  *
- * Signed out it is the way in - the account page's forms, and the Google button
- * beside them - because on a wide screen there is room to offer both without a
- * visitor having to go looking. Signed in it is the visitor's own card, and it
- * carries four things: their picture and their name, both of which open their
- * public profile; a pencil, which opens the customiser; the status they wrote;
- * and a cog, which opens the account's own menu.
+ * Signed out it is the Google key and nothing else: a guest gets one sign-in call per
+ * screen, and that is the top banner's `[ LOG IN ]` (SPEC-efficiency.md) - the panel's
+ * old sentence and its own `[ LOG IN OR CREATE AN ACCOUNT ]` were the second and third
+ * saying of it. Signed in it is the visitor's own card, and it carries four things:
+ * their picture and their name, both of which open their public profile; a pencil,
+ * which opens the customiser; the status they wrote, when they wrote one; and a cog,
+ * which opens the account's own menu.
  *
  * Two verbs, two controls, and the difference is deliberate. Pressing a name means
  * "show me this account" and pressing the pencil means "let me change mine", so a
@@ -73,9 +71,8 @@ export default function SidebarProfile() {
     <section>
       <div className={TITLE_BAR}>
         <span>PROFILE</span>
+        {/* No `[ SIGNED IN ]` / `[ GUEST ]` beside the name: the card under it already shows which. */}
         <span className="flex items-center gap-1">
-          <span>[ {status === 'loading' ? 'READING...' : status === 'signed-in' ? 'SIGNED IN' : 'GUEST'} ]</span>
-
           {/* The cog. Only for somebody with a profile to set, because every row behind it is a thing
               an account does, and a guest has none of them. */}
           {status === 'signed-in' && user !== null ? (
@@ -135,17 +132,13 @@ export default function SidebarProfile() {
 
               {/* What they wrote, not when they joined. A join date is a fact that never moves, so it
                   is the one line here that costs a reader attention without ever changing; a status is
-                  the account's own words, which is what this row is for. Empty is a real state and it
-                  says so rather than showing a blank. */}
-              <p className="truncate" title={profile.status.length === 0 ? undefined : profile.status}>
-                {profile.status.length === 0 ? (
-                  'NO STATUS SET'
-                ) : (
-                  <>
-                    STATUS: <span className="text-ink">{profile.status}</span>
-                  </>
-                )}
-              </p>
+                  the account's own words, which is what this row is for. No status draws no line: the
+                  old `NO STATUS SET` was a line spent saying nothing (SPEC-efficiency.md). */}
+              {profile.status.length === 0 ? null : (
+                <p className="truncate" title={profile.status}>
+                  STATUS: <span className="text-ink">{profile.status}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -195,16 +188,8 @@ export default function SidebarProfile() {
           ) : null}
         </div>
       ) : (
-        <div className="space-y-2 p-2">
-          <p className="text-label font-bold text-ink">
-            NOBODY IS SIGNED IN. READING THE BOARD TAKES NO ACCOUNT - AN ACCOUNT IS WHAT SIGNS YOUR
-            POSTS AND OPENS YOUR MESSAGES.
-          </p>
-
-          <Link href="/account" className={`${SMALL} w-full justify-center`}>
-            [ LOG IN OR CREATE AN ACCOUNT ]
-          </Link>
-
+        // The Google key only: the top banner's `[ LOG IN ]` is the guest's one call to the account page.
+        <div className="p-2">
           <GoogleSignInButton />
         </div>
       )}

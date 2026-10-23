@@ -2,8 +2,7 @@
 
 import { useCallback, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { formatClock, formatClockOrNothing } from '../lib/audio/format';
-import { trackCaption } from '../lib/audio/tracks';
+import type { AudioTrack } from '../lib/audio/tracks';
 import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
 import {
   musicAddressSpentByClose,
@@ -17,7 +16,7 @@ import {
   toggleQueues,
 } from '../lib/audio/queue-window';
 import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
-import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_TAP } from '../lib/ui/controls';
+import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MarqueeText from './MarqueeText';
@@ -38,24 +37,27 @@ import PopoutWindow from './PopoutWindow';
  *
  * Two shapes, because a wide bar and a phone are not the same instrument:
  *
- * - A wide window gets the Win95 bar: the badge, the LED display (track, running time,
- *   where it came from), the transport, the volume slider, the loop switch, the music
- *   key and the fold.
+ * - A wide window gets the bar: the name and its fold, the LED display (track, running time,
+ *   who uploaded it), the transport, the volume slider and the options.
  * - A phone gets a small card in the corner shaped the way a phone's player is shaped -
  *   what is playing at the top, a bar you can drag to seek, one big play button with the
- *   two skips beside it, repeat and volume under it - in the same retro chrome, because
- *   the shape is the part that has to be a phone player and the colour is the part that
- *   has to be this site. It is folded away to a `♪` button until it is asked for: a card
- *   sitting over the page it is playing to is not what a phone wants first.
+ *   two skips beside it, repeat and volume under it, and the music and queue keys - in the
+ *   same retro chrome, because the shape is the part that has to be a phone player and the
+ *   colour is the part that has to be this site. It is folded away to a `♪` button until it
+ *   is asked for: a card sitting over the page it is playing to is not what a phone wants first.
  *
  * **`[ ♪ MUSIC ]`, and what it replaced.** The bar used to carry `[ SHELF (n) ]`, which opened
  * `ShelfWindow` - the queue, in the order it would play. That was the only door to the queue, so
  * removing it had to be a replacement rather than a deletion, and the question was what a *player*
  * should offer. A player is the one place a reader is certain to be thinking about music, and the two
  * things worth reaching from there are the two screens the music window already has: the reader's own
- * (what they liked, the lists they made) and the archive. This key opens the same window the side
- * panel's key does, on the same screen, through the same `toggleMusic` - so the panel and the bar are
- * one behaviour written once, not two that will disagree.
+ * (what they liked, the lists they made) and the archive. The key opens the same window the side
+ * panel's key does, on the same screen, through the same `toggleMusic` - so the panel and the player
+ * are one behaviour written once, not two that will disagree.
+ *
+ * Only the phone card carries `[ ♪ MUSIC ]` and `[ ⟳ QUEUES ]` now (SPEC-efficiency.md): on a wide
+ * screen the side panel's shelf is the one launcher for both, and the wide bar is the tightest strip on
+ * the site, so it gave them up for room.
  *
  * The queue is not lost. The archive screen is a file browser whose every row has `[ ▶ PLAY ]`, which
  * hands that file to this player - so playing a specific track, which is what the shelf window was
@@ -134,12 +136,12 @@ export default function MusicPlayer() {
   const open = setting === null ? !compact : setting === 'open';
 
   /**
-   * The music key on the bar.
+   * The music key on the phone card.
    *
    * It is the side panel's press, to the letter: the same window, the screen `SIDE_MUSIC.href` names
    * (the reader's own), and the same spending of the address afterwards. Written as a second copy of
    * that logic rather than shared with `DesktopSidebar` because the two live in different trees - the
-   * bar is drawn on every page including the phone, the panel only from `md` - and because the shared
+   * card is drawn on the phone, the panel only from `md` - and because the shared
    * part is one call plus one question, which is not enough to be worth a hook both must import. What
    * *is* shared is everything that could drift: the `toggleMusic` and the screen, both derived.
    *
@@ -159,13 +161,12 @@ export default function MusicPlayer() {
   }, [pathname, router]);
 
   /**
-   * The queue key on the bar.
+   * The queue key on the phone card.
    *
    * The same press as the panel's QUEUES key and the same shape as `pressMusic` just above, deliberately:
-   * a reader who has just been displaced by somebody's queue is looking at *this* bar when they want
-   * their own listening back, so the way to RADI-OH has to be within reach of the transport rather than
-   * only in the side panel. It opens whichever tab the window last had, which for the panel's key and
-   * this one is the same answer - a key that says QUEUES and nothing more opens the window.
+   * a phone has no side panel, so a reader who has just been displaced by somebody's queue needs the way
+   * to RADI-OH within reach of the transport. It opens whichever tab the window last had, which for the
+   * panel's key and this one is the same answer - a key that says QUEUES and nothing more opens the window.
    */
   const pressQueues = useCallback(() => {
     const asked = window.location.search;
@@ -199,12 +200,7 @@ export default function MusicPlayer() {
           onSettings={() => setSettingsOpen(true)}
         />
       ) : (
-        <DockedBar
-          onHide={() => setBarOpen(false)}
-          onMusic={pressMusic}
-          onQueues={pressQueues}
-          onSettings={() => setSettingsOpen(true)}
-        />
+        <DockedBar onHide={() => setBarOpen(false)} onSettings={() => setSettingsOpen(true)} />
       )}
 
       {shelfOpen ? <ShelfWindow onClose={() => setShelfOpen(false)} /> : null}
@@ -216,26 +212,39 @@ export default function MusicPlayer() {
 /** What either shape of bar needs from the component that draws it. */
 type BarControls = {
   onHide: () => void;
+  onSettings: () => void;
+};
+
+/** What the phone card needs on top: the two doors a wide screen keeps in the side panel's shelf. */
+type CardControls = BarControls & {
   /** Opens the music window - the reader's own screen, the same one the side panel's key opens. */
   onMusic: () => void;
   /**
-   * Opens the queue window - RADI-OH and the people broadcasting.
-   *
-   * On the bar as well as in the panel, because the two are read at different moments: the panel is
-   * where a reader *browses*, and the bar is where they are when something takes the player over. The
-   * press is identical either way (`pressQueues`), so the two cannot disagree about what QUEUES means.
+   * Opens the queue window - RADI-OH and the people broadcasting. The press is the side panel's
+   * (`pressQueues`), so the two cannot disagree about what QUEUES means.
    */
   onQueues: () => void;
-  onSettings: () => void;
 };
+
+/**
+ * The line under the song: who uploaded it, and nothing else.
+ *
+ * It used to read `UPLOADED :: UPLOADED TO THE SHELF :: sweden :: LOOPING THIS ONE`; the shelf and the
+ * kind were furniture, and the `↻` already says looping (SPEC-efficiency.md). The caller still puts a
+ * follow note in front of it, and an error in its place.
+ */
+function uploaderCaption(track: AudioTrack | undefined): string {
+  return track === undefined ? 'NOTHING QUEUED' : track.credit;
+}
 
 /**
  * The wide window's bar.
  *
  * One line, left to right: the player's name and its fold, the LED display, the D-pad transport, the
- * volume, the settings, and the music key. The display carries the track, where it came from, the
- * running time and a bar that shows how far in it is - everything a reader wants to know about what
- * is coming out of the speakers, at a glance, without leaving the page they are reading.
+ * volume and the options. The display carries the track, who uploaded it, the running time and a bar
+ * that shows how far in it is - everything a reader wants to know about what is coming out of the
+ * speakers, at a glance, without leaving the page they are reading. No music or queue key: the side
+ * panel's shelf has both on a wide screen, and this strip is kept with room to spare for the wider face.
  *
  * The fold is next to the name rather than at the end, which is the one ordering change this bar has
  * had: `[ HIDE ]` closed the strip from the opposite end to everything else, so the key that puts the
@@ -283,7 +292,7 @@ function followNote(follow: FollowState): string {
   return follow.ended === null ? '' : `STOPPED FOLLOWING - ${follow.ended} :: `;
 }
 
-function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
+function DockedBar({ onHide, onSettings }: BarControls) {
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
@@ -332,10 +341,11 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               this strip is, and how to put it away. The fold used to sit at the far right, past the
               music key, which made it the last of six controls rather than part of the bar's identity -
               and a reader looking for it had to scan the whole line to find the one key that closes it.
-              Kept in one recess so the two read as a unit. */}
+              Kept in one recess so the two read as a unit. `♪ PLAYER`, not `♪ DEBASER PLAYER`: the
+              site's name is already on the window above it. */}
           <span className="flex items-center gap-1">
             <span className="px-1 text-label text-ink">
-              ♪ DEBASER PLAYER
+              ♪ PLAYER
             </span>
 
             <button
@@ -364,7 +374,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             <MarqueeText
               className="mt-1 block text-label leading-readout-tight text-ink-bar"
               durationSeconds={22}
-              text={`${followNote(follow)}${error ?? trackCaption(track)}${loop ? ' :: LOOPING THIS ONE' : ''}`}
+              text={`${followNote(follow)}${error ?? uploaderCaption(track)}`}
             />
             <span className="mt-1 block h-1 w-full bg-ena-deep">
               <span className="block h-1 bg-acid" style={{ width: `${Math.round(progress * 100)}%` }} />
@@ -383,6 +393,7 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             onNext={player.next}
           />
 
+          {/* No number beside the slider: where the thumb sits is the reading. */}
           <label className="flex items-center gap-1 text-label font-bold text-ink">
             VOL
             <input
@@ -395,39 +406,10 @@ function DockedBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               style={{ accentColor: ACCENT_COLOUR }}
               aria-label="Volume"
             />
-            <span className="w-7 text-right">{Math.round(volume * 100)}</span>
           </label>
 
           <button type="button" onClick={onSettings} className={PLATE_HARDWARE} title="Player options">
             [ OPTIONS ]
-          </button>
-
-          {/* The music key, wearing the same mark and word the side panel's key wears, so one thing is
-              one thing wherever it is pressed. It opens the reader's own music, which is what
-              `SIDE_MUSIC.href` names - see the note at the top of the file for what it replaced and why
-              the queue is still reachable. */}
-          <button
-            type="button"
-            onClick={onMusic}
-            className={PLATE_HARDWARE}
-            title="Open your music"
-            aria-haspopup="dialog"
-          >
-            [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
-          </button>
-
-          {/* The queue key, wearing `SIDE_QUEUES`' own mark and word for the same reason the music key
-              wears `SIDE_MUSIC`': one thing is one thing wherever it is pressed. It is here rather than
-              only in the panel because this is the bar a reader is looking at when somebody's queue has
-              just taken the player over and they want to know where their own listening went. */}
-          <button
-            type="button"
-            onClick={onQueues}
-            className={PLATE_HARDWARE}
-            title="Open queues - what you were listening to, and who is broadcasting"
-            aria-haspopup="dialog"
-          >
-            [ {SIDE_QUEUES.mark} {SIDE_QUEUES.label} ]
           </button>
         </div>
       </div>
@@ -616,7 +598,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
  * phone's player is a solved shape.
  */
-function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
+function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
   const player = useMusicPlayer();
   const { track, playing, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
@@ -626,9 +608,10 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
   return (
     <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink">
       {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
-          edge to edge: their own boxes are the spacing. That leaves 67px of a 304px card for the name,
-          which is why it is `♪ PLAYER` here (64px) and not the bar's `♪ DEBASER PLAYER` (127px). The
-          right edge has no padding because the fold key's box already holds its glyph off the edge. */}
+          edge to edge: their own boxes are the spacing. Only the two glyph keys sit here: the music and
+          queue keys became bracket keys (SPEC-efficiency.md), and as words in brackets they no longer fit
+          beside the name in a 304px card, so they have a row of their own at the foot. The right edge
+          has no padding because the fold key's box already holds its glyph off the edge. */}
       {/* No bar behind the row: the card's own fill, the name in the accent ink the way a window is
           titled, and a rule under it - the last Royal Blue strip left from the Win95 chrome. */}
       <div className="flex items-center justify-between gap-1 border-b-line border-ink pl-2 text-label font-bold">
@@ -642,29 +625,6 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
             title="Player options"
           >
             ⚙
-          </button>
-
-          {/* The same key the bar and the side panel carry: the mark, the word, and the thumb's own
-              affordances - the card's controls are text rather than plates, so this is underlined rather
-              than drawn as a button, in a box a thumb can find. */}
-          <button
-            type="button"
-            onClick={onMusic}
-            className="min-h-tap cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
-            title="Open your music"
-            aria-haspopup="dialog"
-          >
-            {SIDE_MUSIC.mark} music
-          </button>
-
-          <button
-            type="button"
-            onClick={onQueues}
-            className="min-h-tap cursor-pointer px-1 underline underline-offset-2 hover:bg-sun-pale hover:text-accent-ink"
-            title="Open queues"
-            aria-haspopup="dialog"
-          >
-            {SIDE_QUEUES.mark} queues
           </button>
 
           <button
@@ -682,15 +642,16 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
         {/* The readout, the same green on black the bar has. */}
         <div className="frame bg-hardware px-2 py-1">
           <NowPlaying />
-          {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. */}
+          {/* The same black screen as the bar's LED, so the same bar ink - see the note up there. The
+              uploader only, as on the bar: the `[ ↻ ]` key below says whether it loops. */}
           <p className="truncate text-label text-ink-bar">
             {followNote(follow)}
-            {error ?? trackCaption(track)}
-            {loop ? ' :: LOOPING' : ''}
+            {error ?? uploaderCaption(track)}
           </p>
         </div>
 
-        {/* Draggable: a phone expects to be able to scrub, so the bar is the control. */}
+        {/* Draggable: a phone expects to be able to scrub, so the bar is the control. No clock under
+            it: the readout above already says `1:19 / 5:12`. */}
         <input
           type="range"
           min={0}
@@ -703,11 +664,6 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
           style={{ accentColor: ACCENT_COLOUR }}
           aria-label="Seek"
         />
-
-        <div className="flex items-center justify-between text-label font-bold text-ink">
-          <span>{formatClock(elapsed)}</span>
-          <span>{formatClockOrNothing(seekable ? duration : undefined)}</span>
-        </div>
 
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
           <button type="button" onClick={player.previous} className={PLATE_TAP} title="Previous track">
@@ -729,14 +685,17 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
         </div>
 
         <div className="mt-2 flex flex-wrap items-center gap-2">
+          {/* One `[ ↻ ]` key, drawn as a switch: the filled pill while it loops, a plain key while it
+              does not - the way every switch on the site says on (SPEC-efficiency.md). */}
           <button
             type="button"
             onClick={() => player.setLoop(!loop)}
-            className={PLATE_TAP}
-            title="Repeat this track when it ends"
+            className={loop ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            title={loop ? 'Looping this track - press to stop' : 'Repeat this track when it ends'}
+            aria-label="Loop this track"
             aria-pressed={loop}
           >
-            {loop ? '[ LOOP ON ]' : '[ LOOP OFF ]'}
+            [ ↻ ]
           </button>
 
           <label className="ml-auto flex items-center gap-1 text-label font-bold text-ink">
@@ -752,6 +711,25 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: BarControls) {
               aria-label="Volume"
             />
           </label>
+        </div>
+
+        {/* The two doors the side panel's shelf holds on a wide screen, here because a phone has no
+            panel. They wear `SIDE_MUSIC`' and `SIDE_QUEUES`' own mark and word, so one thing is one
+            thing wherever it is pressed; the card's foot is the only row with room for them as words. */}
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={onMusic} className={PLATE} title="Open your music" aria-haspopup="dialog">
+            [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
+          </button>
+
+          <button
+            type="button"
+            onClick={onQueues}
+            className={PLATE}
+            title="Open queues - what you were listening to, and who is broadcasting"
+            aria-haspopup="dialog"
+          >
+            [ {SIDE_QUEUES.mark} {SIDE_QUEUES.label} ]
+          </button>
         </div>
       </div>
     </section>

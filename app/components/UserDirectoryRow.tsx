@@ -2,14 +2,17 @@
 
 import type { ReactNode } from 'react';
 import type { UserDirectoryRow as DirectoryRow } from '../lib/profile/directory';
-import { presenceLabel, presenceLine } from '../lib/profile/presence';
+import { presenceLine } from '../lib/profile/presence';
 import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import RelativeShort from './RelativeShort';
 import StatusDot from './StatusDot';
-import TimeStamp from './TimeStamp';
+
+/** What the side panel's one-letter marks stand for, said under the pointer. */
+const ADMIN_TIP = 'Admin: the house account, which runs the archive';
+const BANNED_TIP = 'Banned: their posts are hidden from everybody but the admin';
 
 type UserDirectoryRowProps = {
   row: DirectoryRow;
@@ -31,10 +34,9 @@ type UserDirectoryRowProps = {
   /**
    * The side panel's row: a glance rather than a listing.
    *
-   * The panel is 18rem of column, and the row it used to draw spent most of that on things a reader
-   * scanning a short list does not need - the lamp's word, the account's join date, and the count's
-   * own legend. Compact keeps what identifies an account and what says whether they are about: the
-   * picture, the name, its marks, and how long ago they were last here in one character (`22s`).
+   * The panel is 18rem of column, so it keeps what identifies an account and what says whether they
+   * are about: the picture, the name, its marks (`[ A ]` and `[ X ]` short, with a tip saying what
+   * each stands for), and how long ago they were last here in one character (`22s`).
    */
   compact?: boolean;
 };
@@ -42,14 +44,12 @@ type UserDirectoryRowProps = {
 /**
  * One line of the user directory.
  *
- * Left to right: the lamp and what it means, the account's picture and name (the
- * name in the colour that account chose, both opening its public profile), the
- * `[ ADMIN ]` / `[ YOU ]` / `[ BANNED ]` marks, when the account was made, and the
- * buttons that ask something of it - a conversation, an invitation, or whatever else
- * the screen passing them in has to offer.
- *
- * On a phone the lamp takes its own line and the rest follows under it: the lamp's own
- * column is 13rem, which at a hand's width is the whole row.
+ * Left to right: the lamp and how long ago the account was last here (`3w`, the side panel's reading;
+ * the longer `LAST ONLINE ...` line is the lamp's tip), the account's picture and name (the name
+ * in the colour that account chose, both opening its public profile), the `[ ADMIN ]` / `[ YOU ]` /
+ * `[ BANNED ]` marks, and the buttons that ask something of it - a conversation, an invitation, or
+ * whatever else the screen passing them in has to offer. No join date: it never changes, and the
+ * profile has it (SPEC-efficiency.md).
  *
  * The lamp is drawn straight from `StatusDot` rather than through `ProfileName`,
  * and that is deliberate: the house account wears no lamp on the board - a post an
@@ -71,13 +71,11 @@ export default function UserDirectoryRow({
   /**
    * The panel's row: one line, and only the parts a glance needs.
    *
-   * The lamp is the whole of the presence reading here - no word beside it, because a colour with a
-   * legend two inches up the same panel does not need to say "ONLINE" as well - and the last-seen
-   * reading is the compact one (`22s`), in the lamp's own colour, so the thing that says *how fresh*
-   * is the thing that carries the state.
+   * The lamp is the whole of the presence reading here - no word beside it, because the colours are
+   * explained once, in the list's title-line tip - and the last-seen reading is the compact one (`22s`).
    *
    * No join date: it is the one fact on this row that never changes, which makes it the right one to
-   * leave to `/users`. The `[ ADMIN ]` mark still rides the name, because it changes how the account
+   * leave to the profile. The `[ A ]` mark still rides the name, because it changes how the account
    * is read; `[ YOU ]` does too, because a reader scanning for themselves should find themselves.
    */
   if (compact) {
@@ -91,10 +89,16 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
 
-        {row.admin ? <span className="shrink-0 border border-ink-plate bg-ena px-1 text-ink-bar">[ A ]</span> : null}
+        {row.admin ? (
+          <span className="shrink-0 border border-ink-plate bg-ena px-1 text-ink-bar" title={ADMIN_TIP}>
+            [ A ]
+          </span>
+        ) : null}
         {row.you ? <span className="shrink-0 border border-ink-plate bg-paper px-1">[ YOU ]</span> : null}
         {row.account.banned === true ? (
-          <span className="shrink-0 border border-ink-plate bg-bubble-pale px-1 text-ink-bar">[ X ]</span>
+          <span className="shrink-0 border border-ink-plate bg-bubble-pale px-1 text-ink-bar" title={BANNED_TIP}>
+            [ X ]
+          </span>
         ) : null}
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
@@ -112,17 +116,16 @@ export default function UserDirectoryRow({
         row.admin ? 'bg-sun-pale' : ''
       }`}
     >
+      {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, else
+          how long ago in one character (`3w`). A fixed narrow column, so the names still line up. */}
       <span
-        className="inline-flex w-full shrink-0 items-center gap-1 sm:w-52"
+        className="inline-flex w-12 shrink-0 items-center gap-1"
         title={presenceLine(row.status, row.record)}
       >
         <StatusDot status={row.status} record={row.record} />
-        {presenceLabel(row.status)}
-        {row.status === 'online' || row.record === undefined ? null : (
-          <span className="text-ink">
-            :: <TimeStamp at={row.record.lastSeenAt} />
-          </span>
-        )}
+        <span className="text-ink">
+          {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+        </span>
       </span>
 
       <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
@@ -141,16 +144,16 @@ export default function UserDirectoryRow({
         ) : null}
       </span>
 
-      {row.account.createdAt.length === 0 ? null : (
-        <span className="text-ink">
-          JOINED <TimeStamp at={row.account.createdAt} />
-        </span>
-      )}
-
       {asked ? (
         <span className="ml-auto flex flex-wrap items-center gap-2">
           {showMessage ? (
-            <button type="button" onClick={() => onMessage?.(row.account.id)} disabled={busy} className={PLATE}>
+            <button
+              type="button"
+              onClick={() => onMessage?.(row.account.id)}
+              disabled={busy}
+              className={PLATE}
+              title="A message opens that conversation on the comms page"
+            >
               {busy ? '[ OPENING... ]' : '[ MESSAGE ]'}
             </button>
           ) : null}

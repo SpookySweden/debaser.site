@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import type { AvatarVersion } from '../lib/profile/types';
 import { currentAvatarVersion } from '../lib/profile/visibility';
-import { GLYPH_BUTTON } from '../lib/ui/controls';
+import { GLYPH_BUTTON, PLATE_LINK } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useAuth } from './AuthProvider';
 import { useNotifications } from './NotificationsProvider';
@@ -262,14 +262,15 @@ function GuestProfileMenu() {
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className={MENU_PANEL} role="menu">
             <p className="border-b-line border-ink pb-1">ANONYMOUS VISITOR</p>
-            <p className="pb-1 text-label">READING TAKES NO ACCOUNT. AN ACCOUNT SIGNS YOUR POSTS.</p>
 
-            <Link href="/account" className={MENU_ITEM} onClick={() => setOpen(false)} role="menuitem">
-              <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
-                ⚿
-              </span>
-              <span>CREATE ACCOUNT / LOG IN</span>
-            </Link>
+            {/* The way in, as one line rather than a sentence and a row (SPEC-efficiency.md): the key,
+                then what it unlocks. The account page offers both logging in and signing up. */}
+            <p className="pb-1 text-label text-ink">
+              <Link href="/account" className={PLATE_LINK} onClick={() => setOpen(false)} role="menuitem">
+                [ LOG IN ]
+              </Link>{' '}
+              TO SIGN YOUR POSTS
+            </p>
 
             {/* The same drawer a signed-in reader gets: one control opens the whole site. */}
             {NAV_ITEMS.filter((item) => item.key !== 'home' && item.key !== 'forum').map((item) => (

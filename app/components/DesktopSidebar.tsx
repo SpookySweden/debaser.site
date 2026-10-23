@@ -26,27 +26,13 @@ import {
   subscribeToQueueWindow,
   toggleQueues,
 } from '../lib/audio/queue-window';
-import { TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 
 /**
  * Where the panel remembers whether it is open. Named like the store keys so the
  * browser's storage reads as one set of settings.
  */
 const SIDEBAR_STORAGE_KEY = 'debaser.shell.sidebar.v1';
-
-/**
- * The shelf's keys, in the order they are drawn.
- *
- * A list rather than a number typed into the title bar, so the count is the length of the row above it
- * and adding a shelf cannot leave the count behind. The presses stay explicit in the JSX below, because
- * each one answers a *different* question - the archive opens its own screen, the queue window opens
- * whichever tab it last had - and folding three different behaviours into one table would hide that
- * behind a lookup.
- */
-const SHELF_KEYS: NavItem[] = [SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES];
-
-const RAIL_BUTTON =
-  'cursor-pointer key px-1 py-1 text-label font-bold max-md:min-h-tap max-md:min-w-tap max-md:text-base';
 
 /**
  * The panel's answer, in one place rather than in each window.
@@ -229,7 +215,7 @@ export default function DesktopSidebar() {
   if (!isOpen) {
     return (
       <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-line border-ink bg-sun-pale py-2 md:flex">
-        <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={RAIL_BUTTON}>
+        <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={TITLE_BAR_BUTTON}>
           {'<'}
         </button>
         <span className="text-label font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
@@ -243,13 +229,14 @@ export default function DesktopSidebar() {
     // phone rule holds (the picture in the title bar is the only door), and from `md` the archive and
     // the arcade would otherwise be unreachable, since `SiteNav`'s keys do not carry them.
     <aside className="hidden w-60 shrink-0 flex-col border-l-line border-ink bg-sun-pale md:flex lg:w-72">
-      <div className={TITLE_BAR_INACTIVE}>
-        <span>SIDE PANEL</span>
+      {/* No `SIDE PANEL` title (SPEC-efficiency.md): the panel is plainly the panel. The fold key keeps
+          the top right corner on its own, where the title line used to end. */}
+      <div className="flex justify-end px-2 pt-1">
         <button
           type="button"
           onClick={() => setSidebarOpen(false)}
           title="Collapse the side panel"
-          className="cursor-pointer key px-1 py-0.5 text-label font-bold"
+          className={TITLE_BAR_BUTTON}
         >
           {'>'}
         </button>
@@ -270,11 +257,9 @@ export default function DesktopSidebar() {
             invitation, which are *links* into the same two windows, are unaffected. See `SIDE_ARCADE`
             and `SIDE_MUSIC` in ./SiteNav.tsx. */}
         <section>
+          {/* No count beside the name: the three keys under it are the count. */}
           <div className={TITLE_BAR_INACTIVE}>
             <span>SHELF</span>
-            {/* Counted rather than typed: the row below is the list, and a number written by hand beside
-                it is the kind of thing that stays at 2 while a third key appears. */}
-            <span>[ {SHELF_KEYS.length} ]</span>
           </div>
 
           <div className="space-y-1 p-2">
