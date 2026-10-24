@@ -1,14 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
 import { type Mentionable } from '../lib/forum/mentions';
-import { useCatalogue } from '../lib/media/catalogue';
-import { pictureTiles } from '../lib/media/uses';
 import type { ForumAuthor, ForumTag, ForumTrack } from '../lib/forum/types';
 import { useForum } from './ForumProvider';
-import MediaPicker from './MediaPicker';
-import MediaUploadWindow from './MediaUploadWindow';
 import MentionPicker from './MentionPicker';
+import PicturePicker from './PicturePicker';
 import TagChooser from './TagChooser';
 import TagStrip from './TagStrip';
 import TrackControl from './TrackControl';
@@ -93,11 +89,6 @@ export default function CommentComposer({
   const { tagVocabulary } = useForum();
   const showTagChooser = tags !== undefined && onTagsChange !== undefined;
   const showMediaPicker = mediaId !== undefined && onMediaIdChange !== undefined;
-  // Every picture the site holds, not only the concept sheets: the catalogue is what a post picks
-  // from, and a new picture goes into the catalogue first (SPEC-media-catalogue.md, decision 5).
-  const catalogue = useCatalogue();
-  const pictures = useMemo(() => pictureTiles(catalogue.items), [catalogue.items]);
-  const [uploadingPicture, setUploadingPicture] = useState(false);
   const showTrackPicker = onTrackChange !== undefined;
   const condensed = variant === 'reply';
 
@@ -139,43 +130,10 @@ export default function CommentComposer({
           somebody - and says so when the reply answers somebody and tags them by itself. */}
       <MentionPicker id={`${id}-mentions`} accounts={accounts} body={value} onChange={onChange} autoTag={autoTag} />
 
+      {/* The picture, from the catalogue or filed into it first (./PicturePicker.tsx). */}
       {showMediaPicker ? (
         <div className="mt-2">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <p className="text-label font-bold text-ink">CONTAINING MEDIA:</p>
-            {author.id === null ? null : (
-              <button
-                type="button"
-                onClick={() => setUploadingPicture(true)}
-                className={PLATE}
-                title="File a picture of your own into the catalogue and attach it"
-              >
-                [ + UPLOAD A PICTURE ]
-              </button>
-            )}
-          </div>
-          <div className="mt-1">
-            <MediaPicker
-              id={`${id}-media`}
-              items={pictures}
-              value={mediaId ?? ''}
-              onChange={onMediaIdChange ?? (() => undefined)}
-              heightClass="h-24"
-            />
-          </div>
-          {uploadingPicture ? (
-            <MediaUploadWindow
-              uploader={author.id === null ? null : { id: author.id, displayName: author.displayName }}
-              items={catalogue.items}
-              bytesUsed={catalogue.bytesUsed}
-              kinds={['image']}
-              onClose={() => setUploadingPicture(false)}
-              onFiled={(item) => {
-                setUploadingPicture(false);
-                onMediaIdChange?.(item.id);
-              }}
-            />
-          ) : null}
+          <PicturePicker id={`${id}-media`} value={mediaId ?? ''} onChange={onMediaIdChange ?? (() => undefined)} author={author} />
         </div>
       ) : null}
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TRACK_TARGET_GROUP, forumTrackFromArchive, trackTargetKey, trackTargets } from '../lib/audio/forum-tracks';
 import { useCatalogue } from '../lib/media/catalogue';
-import { pictureTiles, postUse, previewFor, recordUses, replyUse } from '../lib/media/uses';
+import { postUse, previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { AUTO_FILED_BODY, BOARD_TARGET, POST_TARGETS, autoThreadTitle, postTargetTree } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
@@ -12,9 +12,9 @@ import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import CommentComposer from './CommentComposer';
 import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
-import MediaPicker from './MediaPicker';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { useNotifications } from './NotificationsProvider';
+import PicturePicker from './PicturePicker';
 import PopoutWindow from './PopoutWindow';
 import TreePicker from './TreePicker';
 
@@ -272,14 +272,11 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
           </div>
 
           <div>
-            <span className="block text-label font-bold text-ink">CONTAINING MEDIA:</span>
             {isBoardPost ? (
-              <div className="mt-1">
-                <MediaPicker id="new-post-media" items={pictureTiles(catalogue.items)} value={mediaId} onChange={setMediaId} />
-              </div>
+              <PicturePicker id="new-post-media" value={mediaId} onChange={setMediaId} author={forum.author} heightClass="h-28" />
             ) : (
               <div
-                className="mt-1 p-2 text-label font-bold text-ink"
+                className="p-2 text-label font-bold text-ink"
                 title="Your words file as a comment on that item's one thread, which its own comment box reads too"
               >
                 COMMENT ON: {anchor.label}
