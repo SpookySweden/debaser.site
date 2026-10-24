@@ -33,8 +33,14 @@ export type MusicWindowState = {
 
 export type MusicScreen = 'archive' | 'mine';
 
-/** Shut, on the archive. One shared object, so React can compare it by identity. */
-const SHUT: MusicWindowState = { open: false, screen: 'archive' };
+/**
+ * Shut, on the reader's own music. One shared object, so React can compare it by identity.
+ *
+ * `mine` rather than `archive` since 2026-10-24: the archive screen moved to the catalogue page
+ * (`/media?kind=audio`, SPEC-media-catalogue.md, decisions 2 and 3), and this window is the reader's
+ * own shelf. `archive` stays in the type so the screen tab can still be named and linked.
+ */
+const SHUT: MusicWindowState = { open: false, screen: 'mine' };
 
 const slot = createWindowSlot<MusicWindowState>(SHUT);
 
@@ -44,8 +50,12 @@ export const musicWindowState = slot.state;
 /** Draws from the window: the listener fires when it opens or closes. */
 export const subscribeToMusicWindow = slot.subscribe;
 
-/** The archive's address: the board, so the reader keeps the thread they were on. */
-export const MUSIC_HREF = '/forum?music=1';
+/**
+ * The archive's address: the catalogue page's audio tab, where the shelf's folders, rows and
+ * `[ INJECT ]` keys live now. Every link that meant "show me this file" - a post's `♪ MP3` plate, a
+ * track's tag badge, a track anchor - still points here and still lands on the shelf.
+ */
+export const MUSIC_HREF = '/media?kind=audio';
 
 /** The reader's own music, as its own address: a link somebody can be sent, and a screen that survives a reload. */
 export const LIBRARY_HREF = '/forum?music=mine';
@@ -58,7 +68,7 @@ export const LIBRARY_HREF = '/forum?music=mine';
  * them. Defaulting to the archive keeps every existing caller - the MUSIC shelf, a post's plate, a tag
  * badge - working unchanged.
  */
-export function openMusic(screen: MusicScreen = 'archive'): void {
+export function openMusic(screen: MusicScreen = 'mine'): void {
   slot.set({ open: true, screen });
 }
 
@@ -95,7 +105,7 @@ export function showMusicScreen(screen: MusicScreen): void {
  * land on that screen, or the key would do nothing visible to a reader already looking at the other
  * one - the same fault the links avoid by never closing.
  */
-export function toggleMusic(screen: MusicScreen = 'archive'): void {
+export function toggleMusic(screen: MusicScreen = 'mine'): void {
   if (!slot.state().open) {
     openMusic(screen);
     return;
@@ -134,7 +144,10 @@ export function musicRequested(search: string): boolean {
  * what opens the window; it simply names no screen, so the archive is what shows.
  */
 export function musicScreenRequested(search: string): MusicScreen {
-  return new URLSearchParams(search).get('music') === 'mine' ? 'mine' : 'archive';
+  // Every value opens the reader's own music now: the archive is a page (`MUSIC_HREF`), and a link
+  // written before that (`?music=1`) should open the window rather than a screen that is not here.
+  void search;
+  return 'mine';
 }
 
 /**

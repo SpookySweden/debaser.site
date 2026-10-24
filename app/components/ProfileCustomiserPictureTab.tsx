@@ -13,6 +13,12 @@ export type ProfileCustomiserPictureTabProps = {
   profile: PublicProfile;
   /** Slot path or upload chosen but not yet filed as a version. */
   pendingSrc: string | null;
+  /**
+   * Square-ish pictures from the media catalogue (SPEC-media-catalogue.md, decision 5): what other
+   * people and this account have filed, offered beside the site's own sheets. The sheets are in this
+   * list too once the catalogue holds them, so a sheet is never drawn twice.
+   */
+  cataloguePictures?: { id: string; label: string; preview: { src: string; alt: string; width: number; height: number } }[];
   onSelectSrc: (src: string) => void;
   note: string;
   onNoteChange: (value: string) => void;
@@ -32,6 +38,7 @@ export type ProfileCustomiserPictureTabProps = {
 export default function ProfileCustomiserPictureTab({
   profile,
   pendingSrc,
+  cataloguePictures = [],
   onSelectSrc,
   note,
   onNoteChange,
@@ -43,6 +50,13 @@ export default function ProfileCustomiserPictureTab({
 }: ProfileCustomiserPictureTabProps) {
   const current = currentAvatarVersion(profile);
   const versions = avatarVersionsNewestFirst(profile);
+  /** The site's sheets, then the catalogue's pictures that are not those same sheets. */
+  const offered = [
+    ...SITE_PICTURES,
+    ...cataloguePictures
+      .filter((tile) => !SITE_PICTURES.some((picture) => picture.src === tile.preview.src))
+      .map((tile) => ({ id: tile.id, label: tile.label, src: tile.preview.src, alt: tile.preview.alt, width: tile.preview.width, height: tile.preview.height })),
+  ];
   const nextVersion = profile.avatar.versions.length + 1;
 
   return (
@@ -98,15 +112,15 @@ export default function ProfileCustomiserPictureTab({
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE:</p>
+        <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE (THE MEDIA CATALOGUE):</p>
 
-        {SITE_PICTURES.length === 0 ? (
+        {offered.length === 0 ? (
           <p className="mt-2 text-label text-ink">
             NONE OF THE DRAWINGS ON THE SITE IS THE RIGHT SHAPE FOR A PROFILE PICTURE YET.
           </p>
         ) : (
           <ul className="mt-2 flex flex-wrap gap-2">
-            {SITE_PICTURES.map((picture) => (
+            {offered.map((picture) => (
               <li key={picture.id}>
                 <button
                   type="button"

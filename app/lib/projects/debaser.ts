@@ -67,11 +67,11 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
   {
     id: 'music',
     label: 'MUSIC',
-    // The one shelf that is a window rather than a page: the archive docks beside the board, so its
-    // address is the board's with the archive's own query (`lib/audio/music-window.ts`).
-    href: '/forum?music=1',
+    // The archive's address: the AUDIO tab of the media catalogue, where the shelf lives since
+    // 2026-10-24 (`lib/audio/music-window.ts`, MUSIC_HREF). The reader's own music stays a window.
+    href: '/media?kind=audio',
     summary: 'The score, and the rough mixes.',
-    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag - opened beside the thread you are reading, with `[ INJECT ]` on any row.',
+    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag, on the media catalogue page with `[ INJECT ]` on any row.',
   },
   {
     id: 'notes',

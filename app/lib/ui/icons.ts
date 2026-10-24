@@ -39,6 +39,9 @@ export const ICON_COMMS = '✉';
 /** The account: a key, because that is what an account is here. */
 export const ICON_ACCOUNT = '⚿';
 
+/** The media catalogue: a contact sheet, a grid of frames (SPEC-media-catalogue.md). */
+export const ICON_MEDIA = '▦';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 

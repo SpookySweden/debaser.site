@@ -51,9 +51,9 @@ export const ARCHIVE_LINKS: ArchiveLink[] = [
   {
     id: 'music',
     label: 'MUSIC',
-    // The board's address with the archive's own query: the shelf is a window docked over the forum
-    // (`app/lib/audio/music-window.ts`), not a page, so this link opens it where the reader stands.
-    href: '/forum?music=1',
+    // The archive's address: the AUDIO tab of the media catalogue page, which took the shelf over
+    // from the music window on 2026-10-24 (`app/lib/audio/music-window.ts`, MUSIC_HREF).
+    href: '/media?kind=audio',
     summary: 'The score and the rough mixes, played from the track list.',
   },
   {

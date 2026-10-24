@@ -13,7 +13,7 @@ Read `docs/design.md` before any UI work.
 
 ## How the site behaves
 Guidelines that came from real bugs. Bend them if there's a good reason, but tell me.
-- **The board (`/forum`) is the desktop.** The arcade and the music archive are windows drawn in `app/layout.tsx`, not pages; don't add `/games` or `/music` routes back. A window opens from an address (`/forum?arcade=1`, `?music=1`, `?invite=<id>`, `?challenge=<userId>&game=<gameId>`), built and read in one place per window (`app/lib/games/arcade-window.ts`, `app/lib/audio/music-window.ts`).
+- **The board (`/forum`) is the desktop.** The arcade and the reader's own music (MY MUSIC) are windows drawn in `app/layout.tsx`, not pages; don't add a `/games` route back. A window opens from an address (`/forum?arcade=1`, `?music=1`, `?invite=<id>`, `?challenge=<userId>&game=<gameId>`), built and read in one place per window (`app/lib/games/arcade-window.ts`, `app/lib/audio/music-window.ts`). The one exception, Luke's decision on 2026-10-24 (SPEC-media-catalogue.md): the music *archive* is a page again, as the AUDIO tab of the media catalogue at `/media`, because the catalogue lists every file the site holds and is a place a reader goes.
 - **Windows don't re-render the page.** Each window's state lives in a small store (`app/lib/ui/window-slot.ts`) that only that window reads.
 - **A window with unsaved work asks before it closes** (the customiser; see `app/lib/profile/unsaved-changes.ts`).
 - **Starting something from the board takes two presses**: one to open, one to commit.

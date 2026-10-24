@@ -118,7 +118,7 @@ const FileRow = memo(function FileRow({ row, index, onPost }: FileRowProps) {
     player.play(track, {
       origin: 'shelf',
       href: MUSIC_HREF,
-      where: 'THE MUSIC WINDOW',
+      where: 'THE MEDIA PAGE',
     });
   }
 

@@ -9,7 +9,8 @@ import {
   type FolderPath,
 } from '../lib/audio/archive-tree';
 import { measureTrackLength } from '../lib/audio/attach';
-import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
+import { MAX_TRACK_BYTES, MUSIC_ACCEPT, MUSIC_BUCKET } from '../lib/audio/catalogue';
+import { findOriginal, recordMedia } from '../lib/media/upload';
 import { getMusicRepository, type MusicFolder } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import type { ForumAuthor } from '../lib/forum/types';
@@ -95,6 +96,16 @@ export default function NewArchiveFileWindow({
         await createFolder(chosen, { id: author.id, displayName: author.displayName });
       }
 
+      // The catalogue's rule, kept on the shelf too: the same bytes already filed are the same file,
+      // so a second upload of them is not filed twice (SPEC-media-catalogue.md, decision 4). The
+      // original is on the media page - and on this shelf when it was filed here; a profile's track
+      // with the same bytes is in the catalogue only, which the ALL tab lists and plays.
+      const { fingerprint, original } = await findOriginal('audio', file);
+      if (original !== null) {
+        setError(`ALREADY IN THE CATALOGUE AS "${original.title}" - FIND IT UNDER ALL ON THE MEDIA PAGE.`);
+        return;
+      }
+
       const length = await measureTrackLength(file);
 
       const track = await getMusicRepository().uploadTrack({
@@ -106,6 +117,22 @@ export default function NewArchiveFileWindow({
         ...(length === undefined ? {} : { length }),
         folderPath: chosen,
         file,
+      });
+
+      // ...and recorded in the catalogue, so the media page lists it with everything else. The
+      // file is safely on the shelf either way; a record that fails is reported, not thrown.
+      await recordMedia({
+        kind: 'audio',
+        file,
+        fingerprint: { ...fingerprint, ...(length === undefined ? {} : { length }) },
+        bucket: track.shelf === 'bucket' ? MUSIC_BUCKET : '',
+        path: track.id,
+        src: track.src,
+        title: fileName,
+        credit: track.credit,
+        tags,
+        folderPath: chosen,
+        uploader: { id: author.id, displayName: author.displayName },
       });
 
       onCreated(track);

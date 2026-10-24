@@ -1,7 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { uploadAvatarDrawing } from '../lib/profile/avatar-upload';
+import { useEffect, useMemo, useState } from 'react';
+import { MUSIC_BUCKET } from '../lib/audio/catalogue';
+import { useCatalogue } from '../lib/media/catalogue';
+import { findOriginal, recordMedia, type MediaFingerprint } from '../lib/media/upload';
+import { itemForSrc, pictureTiles, recordUses } from '../lib/media/uses';
+import { AVATAR_BUCKET, uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { validateBio, validateCountry, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
@@ -87,6 +91,15 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
   // Picture drafts.
   const [pendingSrc, setPendingSrc] = useState<string | null>(null);
+  /** The fingerprint of a drawing just uploaded, so filing it as a version can record it. */
+  const [pendingUpload, setPendingUpload] = useState<{ file: File; fingerprint: MediaFingerprint } | null>(null);
+  const [pendingSongUpload, setPendingSongUpload] = useState<{ file: File; fingerprint: MediaFingerprint } | null>(null);
+  // The catalogue: what the picture tab offers beside the sheets, and where an upload is recorded.
+  const catalogue = useCatalogue();
+  const cataloguePictures = useMemo(
+    () => pictureTiles(catalogue.items).filter((tile) => tile.preview.width > 0 && Math.abs(tile.preview.width / tile.preview.height - 1) <= 0.1),
+    [catalogue.items],
+  );
   const [note, setNote] = useState('');
   const [uploadMessage, setUploadMessage] = useState<string | null>(null);
 
@@ -321,6 +334,16 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     setBusy(true);
 
     try {
+      // The catalogue's rule first (SPEC-media-catalogue.md, decision 4): the same drawing already
+      // filed anywhere on the site is the same file, so its address is used and nothing is uploaded.
+      const { fingerprint, original } = await findOriginal('image', file);
+      if (original !== null) {
+        setPendingSrc(original.src);
+        setPendingUpload(null);
+        setUploadMessage(`ALREADY IN THE CATALOGUE AS "${original.title}" - USING THE ORIGINAL. FILE IT AS A VERSION BELOW.`);
+        return;
+      }
+
       // Which store it lands in is the upload module's business: Supabase Storage
       // when profiles live there, the project's own assets folder otherwise.
       const result = await uploadAvatarDrawing({
@@ -335,6 +358,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       }
 
       setPendingSrc(result.src);
+      setPendingUpload({ file, fingerprint });
       setUploadMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
     } finally {
       setBusy(false);
@@ -350,7 +374,29 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         note,
         alt: `${name} profile picture`,
       });
+
+      // Recorded in the catalogue as a picture of this account's, with the page as its use. A
+      // drawing picked from the catalogue (or a sheet) already has its row; only the use is new.
+      const recorded =
+        pendingUpload === null
+          ? (itemForSrc(catalogue.items, pendingSrc) ?? null)
+          : await recordMedia({
+              kind: 'image',
+              file: pendingUpload.file,
+              fingerprint: pendingUpload.fingerprint,
+              bucket: pendingSrc.startsWith('/') ? '' : AVATAR_BUCKET,
+              path: pendingSrc,
+              src: pendingSrc,
+              title: `${name.toUpperCase()} // PICTURE v${profile.avatar.versions.length + 1}`,
+              credit: name,
+              uploader: { id: userId, displayName: name },
+            });
+      if (recorded !== null && recorded.source !== 'sheet') {
+        recordUses([recorded], { useKind: 'profile_picture', useId: `${userId}:v${profile.avatar.versions.length + 1}`, href: `/profile/${encodeURIComponent(userId)}`, label: `${name.toUpperCase()}'S PROFILE PICTURE`, addedBy: userId }, { mediaId: recorded.id });
+      }
+
       setPendingSrc(null);
+      setPendingUpload(null);
       setNote('');
     });
   }
@@ -368,6 +414,17 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     setBusy(true);
 
     try {
+      // The same bytes already on the shelf or in the catalogue: the original plays from here too.
+      const { fingerprint, original } = await findOriginal('audio', file);
+      if (original !== null) {
+        setSongSrc(original.src);
+        setPendingSongUpload(null);
+        if (songTitle.trim().length === 0) setSongTitle(original.title);
+        if (songCredit.trim().length === 0) setSongCredit(original.credit);
+        setSongMessage(`ALREADY IN THE CATALOGUE AS "${original.title}" - USING THE ORIGINAL. FILE IT AS A VERSION BELOW.`);
+        return;
+      }
+
       const result = await uploadSongFile({ file, userId, version: profile.song.versions.length + 1 });
 
       if (!result.ok) {
@@ -375,6 +432,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         return;
       }
 
+      setPendingSongUpload({ file, fingerprint });
       setSongSrc(result.src);
       if (songTitle.trim().length === 0) setSongTitle(file.name.replace(/\.[a-z0-9]+$/i, '').toUpperCase());
       setSongMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
@@ -405,7 +463,27 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         credit: songCredit,
         note: songNote,
       });
+
+      const recorded =
+        pendingSongUpload === null
+          ? (itemForSrc(catalogue.items, songSrc) ?? null)
+          : await recordMedia({
+              kind: 'audio',
+              file: pendingSongUpload.file,
+              fingerprint: pendingSongUpload.fingerprint,
+              bucket: songSrc.startsWith('/') ? '' : MUSIC_BUCKET,
+              path: songSrc,
+              src: songSrc,
+              title: songTitle,
+              credit: songCredit,
+              uploader: { id: userId, displayName: name },
+            });
+      if (recorded !== null) {
+        recordUses([recorded], { useKind: 'profile_song', useId: `${userId}:v${profile.song.versions.length + 1}`, href: `/profile/${encodeURIComponent(userId)}`, label: `${name.toUpperCase()}'S PROFILE TRACK`, addedBy: userId }, { mediaId: recorded.id });
+      }
+
       setSongSrc(null);
+      setPendingSongUpload(null);
       setSongTitle('');
       setSongCredit('');
       setSongNote('');
@@ -491,8 +569,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           <ProfileCustomiserPictureTab
             profile={profile}
             pendingSrc={pendingSrc}
+            cataloguePictures={cataloguePictures}
             onSelectSrc={(src) => {
               setPendingSrc(src);
+              setPendingUpload(null);
               setUploadMessage(null);
             }}
             note={note}

@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { TRACK_TARGET_GROUP, forumTrackFromArchive, trackTargetKey, trackTargets } from '../lib/audio/forum-tracks';
-import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
+import { useCatalogue } from '../lib/media/catalogue';
+import { pictureTiles, postUse, previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { AUTO_FILED_BODY, BOARD_TARGET, POST_TARGETS, autoThreadTitle, postTargetTree } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
@@ -112,7 +113,8 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
   const [openedHere, setOpenedHere] = useState<Record<string, ForumThread>>({});
   /** The item's thread, when it already has one: the comment joins it rather than opening another. */
   const existingThread = isBoardPost ? undefined : (forum.threadForAnchor(anchor) ?? openedHere[anchor.id]);
-  const media = ARCHIVE_MEDIA.find((item) => item.id === mediaId);
+  const catalogue = useCatalogue();
+  const media = previewFor(catalogue.items, mediaId);
   const previewTags = useMemo(() => deriveTags({ text: `${title}\n${body}`, anchor }), [title, body, anchor]);
   /** Whoever the words name with `@`: tagging them is what files a notification. */
   const mentions = useMemo(() => mentionsIn(body, accounts), [accounts, body]);
@@ -151,9 +153,10 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
           body: trimmedBody,
           anchor,
           userTags: tags,
-          media: media?.preview,
+          media,
           ...(track === null ? {} : { track }),
         });
+        recordUses(catalogue.items, postUse(thread, forum.author.id), { mediaId, preview: media, ...(track === null ? {} : { track }) });
         status = 'THREAD FILED.';
       } else {
         // The item's one thread, opened here if nothing has been said about it yet - the track
@@ -178,7 +181,9 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
             setOpenedHere((current) => ({ ...current, [anchor.id]: home }));
 
             try {
-              thread = (await forum.addComment({ threadId: home.id, ...commentInput })).thread;
+              const filed = await forum.addComment({ threadId: home.id, ...commentInput });
+              thread = filed.thread;
+              recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), commentInput);
             } catch (caught) {
               // Opened and then not commented on would leave an empty thread on the board: take it
               // down again, and let the comment's own refusal be the one that is shown.
@@ -194,10 +199,14 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
             if (opened) throw caught;
             // Somebody else opened the item's thread since the board was last read: the repository
             // finds it by its anchor and files the comment there, as the item's own comment box does.
-            thread = (await forum.addComment({ anchor, ...commentInput })).thread;
+            const filed = await forum.addComment({ anchor, ...commentInput });
+            thread = filed.thread;
+            recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), commentInput);
           }
         } else {
-          thread = (await forum.addComment({ threadId: existingThread.id, ...commentInput })).thread;
+          const filed = await forum.addComment({ threadId: existingThread.id, ...commentInput });
+          thread = filed.thread;
+          recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), commentInput);
         }
 
         status = opened ? 'THREAD OPENED ON THE BOARD.' : 'COMMENT FILED.';
@@ -266,7 +275,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
             <span className="block text-label font-bold text-ink">CONTAINING MEDIA:</span>
             {isBoardPost ? (
               <div className="mt-1">
-                <MediaPicker id="new-post-media" items={ARCHIVE_MEDIA} value={mediaId} onChange={setMediaId} />
+                <MediaPicker id="new-post-media" items={pictureTiles(catalogue.items)} value={mediaId} onChange={setMediaId} />
               </div>
             ) : (
               <div

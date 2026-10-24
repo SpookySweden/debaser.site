@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { threadDomId } from '../lib/forum/anchors';
 import { countReplies } from '../lib/forum/format';
 import { mentionsIn } from '../lib/forum/mentions';
 import { deriveTags, displayTags } from '../lib/forum/tags';
 import type { ForumAnchor, ForumTrack } from '../lib/forum/types';
+import { useCatalogue } from '../lib/media/catalogue';
+import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -35,6 +36,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
   const { accounts } = useComms();
   const notifications = useNotifications();
   const thread = forum.threadForAnchor(anchor);
+  const catalogue = useCatalogue();
 
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
@@ -71,11 +73,17 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
     setError(null);
 
     try {
+      const media = previewFor(catalogue.items, commentMediaId);
       const result = await forum.addComment({
         body: trimmed,
         anchor,
         userTags: commentTags,
-        media: ARCHIVE_MEDIA.find((item) => item.id === commentMediaId)?.preview,
+        media,
+        ...(commentTrack === null ? {} : { track: commentTrack }),
+      });
+      recordUses(catalogue.items, replyUse(result.comment, result.thread, forum.author.id), {
+        mediaId: commentMediaId,
+        preview: media,
         ...(commentTrack === null ? {} : { track: commentTrack }),
       });
 

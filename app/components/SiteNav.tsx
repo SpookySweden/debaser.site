@@ -8,6 +8,7 @@ import {
   ICON_FORUM,
   ICON_HOME,
   ICON_LOOP,
+  ICON_MEDIA,
   ICON_MUSIC,
   ICON_USERS,
 } from '../lib/ui/icons';
@@ -22,7 +23,7 @@ import { useComms } from './CommsProvider';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -72,6 +73,10 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME :: THE PROJECTS', mark: ICON_HOME, href: '/projects' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
+  // The catalogue is a place a reader goes, not a window (Luke, 2026-10-24, SPEC-media-catalogue.md):
+  // every file the site holds, and where each is used. It took over the ARCHIVE screen of the shelf
+  // window, which keeps the reader's own tracks and lists.
+  { key: 'media', label: 'MEDIA', mark: ICON_MEDIA, href: '/media' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },

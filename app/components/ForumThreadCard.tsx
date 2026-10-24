@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { authorLabel } from '../lib/auth/author';
-import { ARCHIVE_MEDIA } from '../lib/concepts/sheets';
 import { commentDomId, threadDomId } from '../lib/forum/anchors';
 import { carriesImage, threadTagMatches } from '../lib/forum/board-query';
 import { countReplies } from '../lib/forum/format';
@@ -15,6 +14,8 @@ import { postCredit } from '../lib/forum/site-author';
 import { displayTags } from '../lib/forum/tags';
 import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
+import { useCatalogue } from '../lib/media/catalogue';
+import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import CommentComposer from './CommentComposer';
@@ -94,6 +95,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
   const [replyTags, setReplyTags] = useState<string[]>([]);
   const [replyMediaId, setReplyMediaId] = useState('');
   const [replyTrack, setReplyTrack] = useState<ForumTrack | null>(null);
+  const catalogue = useCatalogue();
 
   async function handleReply() {
     const body = reply.trim();
@@ -114,11 +116,17 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
       if (thread.anchor.kind === 'profile') {
         await forum.addProfileComment(thread.anchor, body);
       } else {
-        await forum.addComment({
+        const media = previewFor(catalogue.items, replyMediaId);
+        const filed = await forum.addComment({
           body,
           threadId: thread.id,
           userTags: replyTags,
-          media: ARCHIVE_MEDIA.find((item) => item.id === replyMediaId)?.preview,
+          media,
+          ...(replyTrack === null ? {} : { track: replyTrack }),
+        });
+        recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), {
+          mediaId: replyMediaId,
+          preview: media,
           ...(replyTrack === null ? {} : { track: replyTrack }),
         });
       }

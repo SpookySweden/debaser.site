@@ -1,5 +1,6 @@
 import type { ForumTrack } from '../forum/types';
-import { validateTrackFile } from './catalogue';
+import { findOriginal, recordMedia } from '../media/upload';
+import { MUSIC_BUCKET, validateTrackFile } from './catalogue';
 import { formatTrackLength } from './format';
 import { getMusicRepository } from './repository';
 import { normaliseAudioTags } from './tags';
@@ -101,6 +102,20 @@ export async function uploadPostTrack(input: UploadPostTrackInput): Promise<Foru
   if (problem !== undefined) throw new Error(problem);
 
   const title = input.title.trim().length === 0 ? titleFromFileName(input.file.name) : input.title.trim();
+
+  // The catalogue's rule (SPEC-media-catalogue.md, decision 4): the same bytes already filed are the
+  // same file, so the post carries the original and nothing is uploaded twice.
+  const { fingerprint, original } = await findOriginal('audio', input.file);
+  if (original !== null) {
+    return {
+      src: original.src,
+      title: original.title,
+      credit: original.credit,
+      tags: normaliseAudioTags(original.tags),
+      ...(original.length.length === 0 ? {} : { length: original.length }),
+    };
+  }
+
   // Measured here, before the bytes go anywhere: the browser can read a file's
   // running time in a moment, and the length column of the directory wants a
   // number rather than a placeholder.
@@ -114,6 +129,20 @@ export async function uploadPostTrack(input: UploadPostTrackInput): Promise<Foru
     tags: normaliseAudioTags(input.tags),
     ...(length === undefined ? {} : { length }),
     file: input.file,
+  });
+
+  // ...and recorded in the catalogue, where the media page lists it with everything else.
+  await recordMedia({
+    kind: 'audio',
+    file: input.file,
+    fingerprint: { ...fingerprint, ...(length === undefined ? {} : { length }) },
+    bucket: track.shelf === 'bucket' ? MUSIC_BUCKET : '',
+    path: track.id,
+    src: track.src,
+    title: track.title,
+    credit: track.credit,
+    tags: track.tags,
+    uploader: input.uploader,
   });
 
   return {
