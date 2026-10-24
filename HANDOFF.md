@@ -11,8 +11,15 @@
   (14 addresses -> 11 items, 16 uses; 3 duplicate uploads found on the shelf). `--write` RUN 2026-10-24 with
   Luke's OK: media_items 5 audio + 5 pictures (migrated) + 1 sheet; media_uses 9 profile_picture, 3 profile_song,
   2 reply, 1 post. Live /media: ALL 11 / IMAGES 6 / AUDIO 9 / VIDEO 0, 33.6MB of 1GB, the sheet IN 7 PLACES.
-  Pictures: Temp/browse/item-threads/live-media-1280.png + live-media-390.png. Not exercised live: an upload,
-  the looks-alike nudge and a use recorded from the site (they need an account; checked on the mock store).
+  Pictures: Temp/browse/item-threads/live-media-1280.png + live-media-390.png.
+- Live upload PROVEN (Temp/media-upload-drive.cjs, as TEST ACCOUNT A, 2026-10-24): a half-size copy of the
+  sheet was flagged `THIS LOOKS LIKE "SHEET 01 // FIGURE STUDY"`, KEEP MINE uploaded it (`TEST UPLOAD // SHEET 01
+  AT HALF SIZE`, 30KB), the post filed with it, /media lists it IN 2 PLACES (two test posts `TEST: CATALOGUE
+  UPLOAD`, from two drive runs) and a second upload of the same bytes answers `ALREADY IN THE CATALOGUE`.
+  The drive's last step (waiting for THREAD FILED) times out because the composer closes on success; the
+  data was checked in the database and the browser instead. The two test posts and the test picture are
+  live and are Luke's to delete (DB deletes). The new-post window got its upload key in ecfabe9 (it had
+  been in the reply boxes only; PicturePicker.tsx now serves all three composers).
 - Checks updated on purpose: check-flows (MUSIC_HREF), check-music-library (archive href), check-projects
   (shelf href), check-shell (six tabs). Known gaps: a profile song re-uploaded to the shelf is refused (the
   original is in the catalogue, not on the shelf); browser and sharp looks-alike hashes differ a little.
