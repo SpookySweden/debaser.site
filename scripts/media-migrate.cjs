@@ -265,7 +265,9 @@ async function main() {
       const owner = row.name.split('/')[0];
       const ownerKnown = names.has(owner);
       const stem = row.name.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').toUpperCase();
-      describe(plain, kind, {
+      // Recorded under the encoded address, which is the one the shelf's own listing hands the
+      // player (a space in a name is `%20` there), so the row and the shelf agree on the file.
+      describe(src, kind, {
         title: stem, credit: ownerKnown ? nameOf(owner) : '', tags: [], source: 'migrated',
         uploadedBy: ownerKnown ? owner : null, uploadedByLabel: ownerKnown ? nameOf(owner) : SITE_ACCOUNT_LABEL, createdAt: row.created_at,
         width: null, height: null, folderPath: null, length: '',

@@ -12,8 +12,12 @@
   proves the shelves, keys, guest/account cases and the tag filter.
 - scripts/media-migrate.cjs now also reads the `mp3` and `avatars` buckets (a hand-dropped file has no row
   anywhere else). Review: 12 items / 16 uses, i.e. one new audio row (a bucket file no table described);
-  the `images` / `video` buckets are not read (a row-less file there was deleted on purpose). `--write` of
-  that one row is pending Luke's OK.
+  the `images` / `video` buckets are not read (a row-less file there was deleted on purpose). `--write` RUN
+  2026-10-24 with Luke's OK: one row, `FRANCIS SAMPLE REMINSCING` (mp3 bucket root, 561KB); survivors 12 items
+  / 6 audio / 16 uses. Its src was then corrected to the `%20` form the shelf's `getPublicUrl` spells
+  (`encodeURI`), so the row and the shelf name the same file; the script now writes that form.
+- Phone layout of the audio tab checked live after 2456bb7: a track's keys sit under its words, titles
+  read in full (Temp/browse/titlebar/final-audio-390-b.png). Desktop: final-audio-1440.png.
 
 ---
 
