@@ -1,7 +1,7 @@
-import { isAutoFiledBody } from './anchors';
+import { autoThreadTitle, isAutoFiledBody, profileAnchorTarget } from './anchors';
 import { SITE_ACCOUNT_DISPLAY_NAME, SITE_ACCOUNT_ID } from '../auth/builtin-account';
 import { DEFAULT_AVATAR_SRC } from '../profile/avatar-catalogue';
-import type { ForumAuthor, ForumThread } from './types';
+import type { ForumAnchor, ForumAuthor, ForumThread } from './types';
 
 /**
  * Who a post is credited to.
@@ -17,6 +17,11 @@ import type { ForumAuthor, ForumThread } from './types';
  * credentials in that file, carries the dark blue name its profile seeds, and
  * links through to a public profile page like anybody else. An ordinary post
  * written straight onto the board keeps naming the account that filed it.
+ *
+ * A profile's own threads (the page, one of its pictures, the track beside it) are
+ * the exception: the item *is* an account, so the credit is that account - the page's
+ * owner - and never the site. A reader took `debaser.site` over a profile's comments
+ * for an empty post the site had made (Luke, 2026-10-24).
  *
  * The rule itself lives in `isItemOwnedThread` / `postCredit` so the post layout,
  * the board search and the account filter all read the same answer.
@@ -40,8 +45,37 @@ export function isItemOwnedThread(thread: ForumThread): boolean {
   return isAutoFiledBody(thread.body);
 }
 
-/** Who the post header credits: the site for an item-owned thread, else the poster. */
+/**
+ * What a thread is called on screen: its own title, or `COMMENTS ON <item>` for an item's own
+ * thread whatever an older build stored (`RE: ...`). The card, the tile, the newswire, the search
+ * and the pin panel all read this, so an old row is called one thing everywhere.
+ */
+export function displayTitle(thread: ForumThread): string {
+  return isItemOwnedThread(thread) ? autoThreadTitle(thread.anchor) : thread.title;
+}
+
+/**
+ * The owner of a profile anchor, as the board names them; null for any other anchor.
+ *
+ * The label spells the name after the subject (`PICTURE v3 // DEMZOU`), upper-cased, so a
+ * caller with the owner's profile to hand prefers the name the profile carries.
+ */
+export function profileOwner(anchor: ForumAnchor): ForumAuthor | null {
+  const target = profileAnchorTarget(anchor);
+  if (target === null) return null;
+
+  const name = anchor.label.split('//').pop()?.trim() ?? '';
+
+  return { id: target.userId, displayName: name };
+}
+
+/**
+ * Who the post header credits: the poster for a post; for an item-owned thread, the
+ * page's owner when the item is a profile, else the site.
+ */
 export function postCredit(thread: ForumThread): ForumAuthor {
-  return isItemOwnedThread(thread) ? SITE_AUTHOR : thread.author;
+  if (!isItemOwnedThread(thread)) return thread.author;
+
+  return profileOwner(thread.anchor) ?? SITE_AUTHOR;
 }
 

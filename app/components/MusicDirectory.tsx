@@ -17,7 +17,7 @@ import {
   type FolderPath,
 } from '../lib/audio/archive-tree';
 import { formatClock } from '../lib/audio/format';
-import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
+import { forumTrackFromArchive, trackTargetKey } from '../lib/audio/forum-tracks';
 import { MUSIC_HREF } from '../lib/audio/music-window';
 import { TRACK_SORTS, type TrackSort } from '../lib/audio/sorts';
 import { audioTagKey, buildAudioTagVocabulary, normaliseAudioTags } from '../lib/audio/tags';
@@ -56,7 +56,7 @@ const ROW_GRID =
  * (SPEC-efficiency.md - an explanation lives on the thing it explains).
  */
 function injectTip(title: string): string {
-  return `INJECT TO POST :: FILES ${title} WITH THE POST YOU ARE WRITING`;
+  return `INJECT TO POST :: OPENS A POST FILED UNDER ${title}, WITH THE FILE ON IT`;
 }
 
 /** The tag keys the address asks for: `/music?tag=lo-fi`, or `?tag=lo-fi,ambient`. */
@@ -666,10 +666,12 @@ export default function MusicDirectory() {
         />
       ) : null}
 
-      {/* The archive's own way onto the board: the composer, with the file already filed, so a track
-          somebody is listening to can be written about without a round trip through /forum. */}
+      {/* The archive's own way onto the board: the composer, filed under this track with the file
+          already on it, so a song somebody is listening to can be written about without a round
+          trip through /forum - and everything written about it lands in the track's own place. */}
       {posting === null ? null : (
         <NewPostForm
+          initialTarget={trackTargetKey(posting)}
           initialTrack={forumTrackFromArchive(posting)}
           onClose={() => setPosting(null)}
         />

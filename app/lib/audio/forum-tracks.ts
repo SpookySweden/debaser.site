@@ -1,5 +1,6 @@
-import type { ForumAuthor, ForumThread, ForumTrack } from '../forum/types';
-import { threadDomId } from '../forum/anchors';
+import type { ForumAnchor, ForumAuthor, ForumThread, ForumTrack } from '../forum/types';
+import { threadDomId, type ForumTarget } from '../forum/anchors';
+import { MUSIC_HREF } from './music-window';
 import type { TrackSort } from './sorts';
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack } from './tracks';
@@ -32,6 +33,39 @@ export function forumTrackFromArchive(track: AudioTrack): ForumTrack {
     tags: normaliseAudioTags(track.tags),
     ...(track.length.length === 0 ? {} : { length: track.length }),
   };
+}
+
+/**
+ * A track as a *subject*: the thing a post can be filed under, the way a concept sheet is.
+ *
+ * Attaching a file to a post says the post carries it; filing the post under the track says
+ * the post is *about* it, so everything written about one song is found in one place (Luke,
+ * 2026-10-24: music as something a comment can be assigned to). The id is the file's own
+ * address, which is the one key a track keeps across the shelf, the bucket and a post's copy
+ * (`music_tracks.src` is unique), so the same song is the same subject wherever it is met.
+ */
+export function trackAnchor(track: AudioTrack): ForumAnchor {
+  return {
+    kind: 'track',
+    id: trackTargetKey(track),
+    label: `TRACK // ${track.title.toUpperCase()}`,
+    href: MUSIC_HREF,
+  };
+}
+
+/** The composer's key for that destination, and the anchor's id: `track:<address>`. */
+export function trackTargetKey(track: Pick<AudioTrack, 'src'>): string {
+  return `track:${track.src}`;
+}
+
+/** The folder the composer's FILE UNDER tree keeps the shelf in. */
+export const TRACK_TARGET_GROUP = 'MUSIC ARCHIVE';
+
+/** The archive's tracks as destinations in that tree, by title. */
+export function trackTargets(tracks: AudioTrack[]): ForumTarget[] {
+  return [...tracks]
+    .sort((a, b) => a.title.localeCompare(b.title))
+    .map((track) => ({ key: trackTargetKey(track), group: TRACK_TARGET_GROUP, anchor: trackAnchor(track) }));
 }
 
 /** One posted track, with the post it came from. */

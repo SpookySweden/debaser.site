@@ -1,3 +1,4 @@
+import { displayTitle } from './site-author';
 import { threadDomId } from './anchors';
 import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
@@ -101,12 +102,12 @@ export function buildNewsFeed(
       kind: 'post',
       tag: 'POST',
       author: thread.author,
-      text: clipForNews(thread.body.length === 0 ? thread.title : thread.body),
+      text: clipForNews(thread.body.length === 0 ? displayTitle(thread) : thread.body),
       createdAt: thread.createdAt,
       href: newsHref(thread.id),
-      hrefTitle: `Open "${thread.title}"`,
+      hrefTitle: `Open "${displayTitle(thread)}"`,
       threadId: thread.id,
-      threadTitle: thread.title,
+      threadTitle: displayTitle(thread),
       pinned: true,
       pinLabel: pinLabel(pin, at),
     });

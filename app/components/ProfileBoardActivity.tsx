@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { threadDomId } from '../lib/forum/anchors';
+import { displayTitle } from '../lib/forum/site-author';
 import { countReplies } from '../lib/forum/format';
 import type { ForumThread } from '../lib/forum/types';
 import ProfileName from './ProfileName';
@@ -41,7 +42,7 @@ export default function ProfileBoardActivity({
             {threads.slice(0, 8).map((thread) => (
               <li key={thread.id} className="text-label font-bold">
                 <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
-                  [<TimeStamp at={thread.createdAt} />] {thread.title}
+                  [<TimeStamp at={thread.createdAt} />] {displayTitle(thread)}
                 </Link>
                 <span className="ml-1 text-ink">:: {countReplies(thread.comments.length)}</span>
               </li>

@@ -48,6 +48,12 @@ type PostAuthorRowProps = {
   /** Tags other users gave the author, filtered to the ones they display. */
   displayedTags?: GivenTag[];
   /**
+   * A word in front of the picture - `ON`, for the strip that names whose page a thread is about
+   * rather than who posted it (./ThreadSubjectRow.tsx). Inside the row rather than beside it, so
+   * only the stamp wraps on a narrow row and never the whole byline.
+   */
+  lead?: ReactNode;
+  /**
    * Room for a verb about this account - a `[ CHALLENGE ]` on a post, say.
    *
    * The same slot `UserDirectoryRow` carries, and for the same reason: a screen with its own
@@ -80,11 +86,13 @@ export default function PostAuthorRow({
   displayedTags = [],
   stamp,
   actions,
+  lead,
 }: PostAuthorRowProps) {
   const label = authorLabel(author);
 
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      {lead}
       {avatar === 'hidden' ? null : (
         /*
           The space the picture will take is reserved in both states, so pointing at a post reveals

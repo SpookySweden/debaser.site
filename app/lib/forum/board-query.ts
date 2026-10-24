@@ -1,5 +1,5 @@
 import { tagKey } from './tag-vocabulary';
-import { postCredit } from './site-author';
+import { displayTitle, postCredit } from './site-author';
 import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack } from './types';
 
 /**
@@ -227,7 +227,7 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
     if (needle.length === 0) return true;
 
     return (
-      thread.title.toLowerCase().includes(needle) ||
+      displayTitle(thread).toLowerCase().includes(needle) ||
       thread.body.toLowerCase().includes(needle) ||
       thread.anchor.label.toLowerCase().includes(needle) ||
       thread.tags.some((tag) => tag.label.toLowerCase().includes(needle) || tagKey(tag.label).includes(needle)) ||

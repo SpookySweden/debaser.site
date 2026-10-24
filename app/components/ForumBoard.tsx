@@ -44,6 +44,8 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   // Comments left on a profile, a picture, or the track beside it: the board reads them as threads
   // of their own (app/lib/forum/profile-threads.ts), so they can be filtered like everything else.
   { value: 'profile', label: 'PROFILE COMMENTS' },
+  // Posts filed under a track on the shelf (app/lib/audio/forum-tracks.ts, `trackAnchor`).
+  { value: 'track', label: 'TRACK THREADS' },
 ];
 
 /** Posts-per-page choices, offered in the sort / search panel. */

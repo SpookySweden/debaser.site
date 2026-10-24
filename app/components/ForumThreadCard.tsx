@@ -17,7 +17,6 @@ import { tagKey } from '../lib/forum/tag-vocabulary';
 import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
-import AnchorLink from './AnchorLink';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
 import { useComms } from './CommsProvider';
@@ -32,6 +31,7 @@ import PostReplyReel from './PostReplyReel';
 import PostRowDetails from './PostRowDetails';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
+import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
 
 type ForumThreadCardProps = {
@@ -62,9 +62,10 @@ type ForumThreadCardProps = {
  * the small tags in a left column with the body of the text beside them - the rules
  * live in app/lib/forum/post-layout.ts.
  *
- * A thread an item's comment box opened is credited to the item, so its header
- * names the site and shows the default pfp rather than repeating the account that
- * commented first; the comment below already carries that account's id.
+ * A thread an item's comment box opened is not a post, and its strip says so: it
+ * names what the comments are on (the page's owner, the track, the sheet), and that
+ * name is the link to the item (./ThreadSubjectRow.tsx). It never repeats the account
+ * that commented first; the comment below already carries that account's id.
  *
  * Native <details>/<summary> keeps the collapse behaviour (and the #thread-<id>
  * jump links) without extra JS. The board offers no expand-all: a reader opens
@@ -187,11 +188,6 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
    */
   const isRead = postIsRead(forum.seenByThread, thread.id);
 
-  // While the card is open its left column already draws the item's own sheet, so
-  // the links back to that item must not pop a second copy of it on hover: the
-  // preview is kept for the cases where the drawing lives somewhere else.
-  const anchorPreview = isOpen && images.source === 'item' ? 'none' : 'hover';
-
   return (
     <article id={threadDomId(thread.id)} className={`rule-pixel px-2 py-2 ${isRead ? ROW_READ : ROW_UNREAD}`}>
       <details
@@ -263,21 +259,42 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   filed for was invisible until somebody hovered. It waits for the click that opens the
                   post, and the title row wears `[ IMG ]` until then. */}
               <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
-                <PostAuthorRow
-                  author={layout.author.credit}
-                  avatar={layout.avatar}
-                  avatarSize={28}
-                  nameColour={layout.author.nameColour}
-                  picture={layout.author.picture}
-                  country={layout.author.country}
-                  displayedTags={layout.author.displayedTags}
-                  stamp={
-                    /* The instant is the one blue thing in the strip: POSTED stays black. */
-                    <span className="font-bold">
-                      POSTED <TimeStamp at={thread.createdAt} />
-                    </span>
-                  }
-                />
+                {layout.subject === undefined ? (
+                  <PostAuthorRow
+                    author={layout.author.credit}
+                    avatar={layout.avatar}
+                    avatarSize={28}
+                    nameColour={layout.author.nameColour}
+                    picture={layout.author.picture}
+                    country={layout.author.country}
+                    displayedTags={layout.author.displayedTags}
+                    stamp={
+                      /* The instant is the one blue thing in the strip: POSTED stays black. */
+                      <span className="font-bold">
+                        POSTED <TimeStamp at={thread.createdAt} />
+                      </span>
+                    }
+                  />
+                ) : (
+                  /* An item's own thread: nobody posted it, so the strip names what the comments
+                     are on and dates itself by the newest of them. */
+                  <ThreadSubjectRow
+                    subject={layout.subject}
+                    nameColour={layout.author.nameColour}
+                    country={layout.author.country}
+                    stamp={
+                      <span className="font-bold">
+                        {layout.lastActivityAt === undefined ? (
+                          'NO COMMENTS YET'
+                        ) : (
+                          <>
+                            LAST COMMENT <TimeStamp at={layout.lastActivityAt} />
+                          </>
+                        )}
+                      </span>
+                    }
+                  />
+                )}
               </div>
 
               {/* The replies, for a phone and for any window narrower than `sm`. Below that breakpoint
@@ -395,9 +412,10 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
           </div>
 
           <div className="min-w-0 flex-1">
-            {layout.right.isAnchorPost ? (
-              <AnchorLink anchor={thread.anchor} preview={anchorPreview} />
-            ) : (
+            {/* An item's own thread has no body: the strip above already names and links the item,
+                so nothing stands between the title and the comments (the `[ ↳ GO TO ... ]` key that
+                did was cut - Luke, 2026-10-24). */}
+            {layout.right.isAnchorPost ? null : (
               <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
             )}
 

@@ -1,3 +1,4 @@
+import { MUSIC_HREF } from '../audio/music-window';
 import { CONCEPT_SHEETS } from '../concepts/sheets';
 import type { ProfileCommentKind } from '../profile/types';
 import type { ForumAnchor, ForumPreview } from './types';
@@ -184,9 +185,17 @@ export function commentDomId(commentId: string): string {
   return `comment-${commentId}`;
 }
 
-/** Title used when a comment left under an asset/text box opens a new thread. */
+/**
+ * Title of the thread an item collects its comments in: `COMMENTS ON SHEET 01 // FIGURE STUDY`.
+ *
+ * It says what the thread is - the item's comments, not a post somebody wrote - which `RE:` did
+ * not: a reader took `RE: PROFILE // DEMZOU`, credited to the site with an empty body, for an
+ * empty post the site had made and somebody had answered (Luke, 2026-10-24). Rows written under
+ * the old title are shown under this one by the layout (app/lib/forum/post-layout.ts), so the two
+ * builds read alike.
+ */
 export function autoThreadTitle(anchor: ForumAnchor): string {
-  return `RE: ${anchor.label}`;
+  return `COMMENTS ON ${anchor.label}`;
 }
 
 /**
@@ -211,6 +220,8 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   // A profile anchor always carries its own href (`profileAnchor` builds it); this is the fallback
   // for a row written by hand, and the directory is where an account is looked up.
   profile: '/users',
+  // A track lives in the music window, which opens off the board (app/lib/audio/music-window.ts).
+  track: MUSIC_HREF,
 };
 
 export function allKnownAnchors(): ForumAnchor[] {

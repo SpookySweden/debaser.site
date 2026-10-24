@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
+import { displayTitle } from '../lib/forum/site-author';
 import { DEFAULT_PIN_DURATION, PIN_DURATIONS, livePins, pinLabel, pinSummary } from '../lib/forum/pins';
 import type { ForumThread, PinDurationKey } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
@@ -202,7 +203,7 @@ export default function ForumPinPanel() {
                     <span className="text-ink">A POST THAT IS NO LONGER ON THE BOARD</span>
                   ) : (
                     <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
-                      {thread.title}
+                      {displayTitle(thread)}
                     </Link>
                   )}
 

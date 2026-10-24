@@ -21,7 +21,7 @@ export type ForumTag = {
 };
 
 /** Where a thread came from: the board itself, a hand-drawn asset, a text box, or a profile. */
-export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile';
+export type ForumAnchorKind = 'board' | 'asset' | 'text-box' | 'profile' | 'track';
 
 /** Artwork preview shown when hovering a link back to the item. */
 export type ForumPreview = {

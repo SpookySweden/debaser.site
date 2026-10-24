@@ -6,6 +6,7 @@ import { authorFromAccount } from '../lib/auth/author';
 import { resetMockAuth } from '../lib/auth/mock-auth';
 import { isSiteAccount } from '../lib/auth/builtin-account';
 import { threadDomId } from '../lib/forum/anchors';
+import { displayTitle } from '../lib/forum/site-author';
 import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE_LARGE } from '../lib/ui/controls';
@@ -120,7 +121,7 @@ export default function AccountDetails() {
               {myThreads.slice(0, 6).map((thread) => (
                 <li key={thread.id}>
                   <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
-                    [<TimeStamp at={thread.createdAt} />] {thread.title}
+                    [<TimeStamp at={thread.createdAt} />] {displayTitle(thread)}
                   </Link>
                 </li>
               ))}

@@ -2,7 +2,8 @@ import type { ForumAuthor, ForumPreview, ForumTag, ForumThread } from './types';
 import { displayTags } from './tags';
 import { countReplies, formatStamp } from './format';
 import { collectThreadImages, imageSourceLabel } from './media';
-import { SITE_AUTHOR_PICTURE, isItemOwnedThread, postCredit } from './site-author';
+import { SITE_AUTHOR, SITE_AUTHOR_PICTURE, displayTitle, isItemOwnedThread, postCredit } from './site-author';
+import { lastActivityAt, threadSubject, type ThreadSubject } from './thread-subject';
 import { profileNameColour } from '../profile/name-colours';
 import { countryName } from '../profile/countries';
 import type { GivenTag, PublicProfile } from '../profile/types';
@@ -27,13 +28,24 @@ import { currentAvatarVersion, visibleGivenTags } from '../profile/visibility';
  *              into an `[ EXPAND ]`, with the thread's replies crawling under it.
  *
  * Who the header credits is part of the layout too: a thread opened by an item's
- * comment box belongs to that item, so it is credited to the site rather than to
- * the account that happened to comment first (app/lib/forum/site-author.ts).
+ * comment box belongs to that item, so it is credited to the item's owner - the
+ * site, or the account whose profile it is - rather than to the account that
+ * happened to comment first (app/lib/forum/site-author.ts). Such a thread's strip
+ * does not draw that credit as a byline at all: `subject` names what the comments
+ * are on, and the card draws that instead (app/lib/forum/thread-subject.ts).
  */
 export type PostLayout = {
   /** "POSTED 2026-09-21 04:12" */
   postedLabel: string;
+  /** The stored title - or, for an item's own thread, `COMMENTS ON <item>` whatever an older build stored. */
   title: string;
+  /**
+   * What an item's own thread is about, for the strip under its title: the page's owner, the
+   * track, or the item and its drawing. Undefined for a post, whose strip is the poster's byline.
+   */
+  subject: ThreadSubject | undefined;
+  /** The newest comment's instant: what an item's strip dates itself by. Undefined with no comment yet. */
+  lastActivityAt: string | undefined;
   /** Author information for the meta row: name, country flag, chosen tags. */
   author: {
     /**
@@ -118,26 +130,38 @@ export function buildPostLayout(input: PostLayoutInput): PostLayout {
   // A post an item owns - the thread an item's comment box opened - is credited
   // to the item, so its header never repeats the account that commented first.
   const itemOwned = isItemOwnedThread(thread);
-  const credit = postCredit(thread);
-  // The credit is a real account either way - the house account on an item's own
+  const stored = postCredit(thread);
+  const creditProfile = authorProfile ?? null;
+  // A profile's own thread is credited to the page's owner, whose name the anchor only carries
+  // upper-cased: their profile, when it is to hand, spells it as they do.
+  const credit: ForumAuthor =
+    itemOwned && stored.id !== SITE_AUTHOR.id && creditProfile !== null && creditProfile.displayName.length > 0
+      ? { ...stored, displayName: creditProfile.displayName }
+      : stored;
+  const siteCredit = credit.id === SITE_AUTHOR.id;
+  // The credit is a real account either way - the house account on a sheet's own
   // post - so its profile answers for the name colour and the picture. Given tags
   // stay off an item-owned post: they belong to a person, not to the archive.
-  const creditProfile = authorProfile ?? null;
   const displayedTags = itemOwned || creditProfile === null ? [] : visibleGivenTags(creditProfile);
   const showsPicture = credit.id !== null;
   // A picture of its own wins; otherwise the archive's byline falls back to the
   // hand-drawn default pfp slot, so it is never a bare "?" square.
-  const usesDefaultPicture = itemOwned && currentAvatarVersion(creditProfile) === undefined;
+  const usesDefaultPicture = itemOwned && siteCredit && currentAvatarVersion(creditProfile) === undefined;
+  // The subject's person is the credit, spelt as above: the anchor alone only knows them upper-cased.
+  const rawSubject = threadSubject(thread);
+  const subject = rawSubject?.kind === 'person' ? { ...rawSubject, owner: credit } : rawSubject;
 
   return {
     postedLabel: input.postedLabel,
-    title: thread.title,
+    title: displayTitle(thread),
+    subject,
+    lastActivityAt: thread.comments.length === 0 ? undefined : lastActivityAt(thread),
     author: {
       credit,
       name: displayNameFor(credit),
       nameColour: profileNameColour(creditProfile),
       picture: usesDefaultPicture ? SITE_AUTHOR_PICTURE : undefined,
-      country: itemOwned ? '' : (creditProfile?.country ?? ''),
+      country: siteCredit ? '' : (creditProfile?.country ?? ''),
       displayedTags,
     },
     hasProfile: credit.id !== null,

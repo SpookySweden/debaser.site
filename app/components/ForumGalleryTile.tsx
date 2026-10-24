@@ -12,6 +12,7 @@ import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import PostAuthorRow from './PostAuthorRow';
 import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
+import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
 
 type ForumGalleryTileProps = {
@@ -98,20 +99,39 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
         {/* The same one-line credit strip the board's rows carry, so a post looks like itself in
             both views: the picture leading, then the name, the stamp and the tags given to them. */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
-          <PostAuthorRow
-            author={layout.author.credit}
-            avatar={layout.avatar}
-            avatarSize={28}
-            nameColour={layout.author.nameColour}
-            picture={layout.author.picture}
-            country={layout.author.country}
-            displayedTags={layout.author.displayedTags}
-            stamp={
-              <span className="font-bold">
-                POSTED <TimeStamp at={thread.createdAt} />
-              </span>
-            }
-          />
+          {layout.subject === undefined ? (
+            <PostAuthorRow
+              author={layout.author.credit}
+              avatar={layout.avatar}
+              avatarSize={28}
+              nameColour={layout.author.nameColour}
+              picture={layout.author.picture}
+              country={layout.author.country}
+              displayedTags={layout.author.displayedTags}
+              stamp={
+                <span className="font-bold">
+                  POSTED <TimeStamp at={thread.createdAt} />
+                </span>
+              }
+            />
+          ) : (
+            <ThreadSubjectRow
+              subject={layout.subject}
+              nameColour={layout.author.nameColour}
+              country={layout.author.country}
+              stamp={
+                <span className="font-bold">
+                  {layout.lastActivityAt === undefined ? (
+                          'NO COMMENTS YET'
+                        ) : (
+                          <>
+                            LAST COMMENT <TimeStamp at={layout.lastActivityAt} />
+                          </>
+                        )}
+                </span>
+              }
+            />
+          )}
         </div>
 
         {layout.right.isAnchorPost ? null : (
