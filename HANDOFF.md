@@ -1,4 +1,4 @@
-# Latest: the media catalogue (SPEC-media-catalogue.md) - BUILT, NOT YET LIVE (waiting on Luke's OK for the schema)
+# Latest: the media catalogue (SPEC-media-catalogue.md) - LIVE (f558bac), schema pushed, 11 files imported, verified on the deployed site
 - Code: app/lib/media/* (types, rules, fingerprint, repository switch `NEXT_PUBLIC_MEDIA_DATA_SOURCE`, mock +
   Supabase stores, upload.ts, catalogue.ts shared store, uses.ts), app/media/page.tsx + MediaCatalogue.tsx +
   MediaUploadWindow.tsx, app/api/media/upload (mock store's route), MEDIA key in the top bar (ICON_MEDIA ▦),
@@ -6,10 +6,13 @@
   the catalogue and can upload one, the customiser's picture/song uploads go through findOriginal/recordMedia,
   uses recorded on filing (signed-in only; guests' uses come from the migration).
 - Schema: supabase/migrations/20261024021600_media_catalogue.sql (buckets images/video, media_items, media_uses,
-  RLS, realtime publication). `npm run db:push:dry` lists it. NOT PUSHED.
+  RLS, realtime publication). PUSHED 2026-10-24 with Luke's OK (2 buckets, 7 policies, both tables published).
 - Migration of existing files: `node scripts/media-migrate.cjs --review` writes Temp/media-migration.sql
-  (14 addresses -> 11 items, 16 uses; 3 duplicate uploads found on the shelf). `--write` applies that file.
-  NOT RUN. Order: db:push -> media-migrate --write -> push code (.env.production switches media to supabase).
+  (14 addresses -> 11 items, 16 uses; 3 duplicate uploads found on the shelf). `--write` RUN 2026-10-24 with
+  Luke's OK: media_items 5 audio + 5 pictures (migrated) + 1 sheet; media_uses 9 profile_picture, 3 profile_song,
+  2 reply, 1 post. Live /media: ALL 11 / IMAGES 6 / AUDIO 9 / VIDEO 0, 33.6MB of 1GB, the sheet IN 7 PLACES.
+  Pictures: Temp/browse/item-threads/live-media-1280.png + live-media-390.png. Not exercised live: an upload,
+  the looks-alike nudge and a use recorded from the site (they need an account; checked on the mock store).
 - Checks updated on purpose: check-flows (MUSIC_HREF), check-music-library (archive href), check-projects
   (shelf href), check-shell (six tabs). Known gaps: a profile song re-uploaded to the shelf is refused (the
   original is in the catalogue, not on the shelf); browser and sharp looks-alike hashes differ a little.
