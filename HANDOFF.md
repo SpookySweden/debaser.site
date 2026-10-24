@@ -1,3 +1,22 @@
+# Latest: the audio tab rebuilt in the catalogue's shape; the title bar one shape on every page (2026-10-24)
+- Title bar: USERS and MEDIA carried a `[ × ]` close key that pushed their title left of every other page's.
+  The key and SiteWindow's `closeHref` prop are gone; every page draws the identical bar.
+- AUDIO tab (MediaCatalogue.tsx): the catalogue's own rows grouped under a title line per folder (A-Z, empty
+  folders too), UNFILED last; each track row carries the shelf's keys (♡ via useMusicLibrary, [ ▶ PLAY ] via
+  the one player, [ INJECT ] -> NewPostForm filed under the track). `+ NEW FILE` / `[ + NEW FOLDER ]` for an
+  account (NewArchiveFileWindow / NewArchiveFolderWindow, folders from useArchiveFolders); `[ + FILE ]` on each
+  folder's line; `?tag=` from a tag pill filters flat with `[ CLEAR ]`. Search and sort are the page's own.
+  The AUDIO count is the catalogue's audio rows (the shelf's duplicate copies collapse: the point).
+- app/components/MusicDirectory.tsx DELETED (Luke's OK). Checks updated: check-account-music (its directory
+  section cut), check-flows / check-music-library / check-projects read MediaCatalogue; check-media-catalogue
+  proves the shelves, keys, guest/account cases and the tag filter.
+- scripts/media-migrate.cjs now also reads the `mp3` and `avatars` buckets (a hand-dropped file has no row
+  anywhere else). Review: 12 items / 16 uses, i.e. one new audio row (a bucket file no table described);
+  the `images` / `video` buckets are not read (a row-less file there was deleted on purpose). `--write` of
+  that one row is pending Luke's OK.
+
+---
+
 # Latest: the media catalogue (SPEC-media-catalogue.md) - LIVE (f558bac), schema pushed, 11 files imported, verified on the deployed site
 - Code: app/lib/media/* (types, rules, fingerprint, repository switch `NEXT_PUBLIC_MEDIA_DATA_SOURCE`, mock +
   Supabase stores, upload.ts, catalogue.ts shared store, uses.ts), app/media/page.tsx + MediaCatalogue.tsx +

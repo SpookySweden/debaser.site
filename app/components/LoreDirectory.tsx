@@ -16,7 +16,7 @@ import TimeStamp from './TimeStamp';
  * The list is read from the store rather than from a manifest, because a page is written by
  * whoever is at the keyboard - so the shelf is what the site actually holds, in the order people
  * last touched it. Guest readers get the list and one line explaining what an account would buy
- * them, which is the same shape the music archive keeps (see ./MusicDirectory.tsx).
+ * them, which is the same shape the media catalogue's audio shelf keeps (see ./MediaCatalogue.tsx).
  */
 export default function LoreDirectory() {
   const { user, status } = useAuth();

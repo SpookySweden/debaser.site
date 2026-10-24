@@ -9,7 +9,9 @@
  *
  * What it reads (all read-only): `music_tracks`, `profile_avatar_versions`, `profile_song_versions`,
  * `forum_threads` / `forum_comments` (the picture and the track each carries), `profiles` (names),
- * and the concept sheets from the manifest in app/lib/concepts/sheets.ts. Every distinct address is
+ * every object in the site's buckets (`storage.objects`: a file dropped into a bucket by hand has no
+ * row anywhere else, and the shelf lists it), and the concept sheets from the manifest in
+ * app/lib/concepts/sheets.ts. Every distinct address is
  * downloaded once and fingerprinted the way the browser does (sha256 of the bytes; for a picture the
  * 9x8 difference hash too, through sharp) - so a file uploaded twice under two names is one
  * `media_items` row and two uses.
@@ -242,6 +244,32 @@ async function main() {
         width: null, height: null, folderPath: null, length: track.length ?? '',
       });
       uses.push({ src: track.src, ...site });
+    }
+  }
+
+  // 4b. Every file in the shelf's and the customiser's buckets, for the ones no table describes
+  //     (dropped in by hand, or filed before a table existed), titled the way the shelf titles such
+  //     a file: from its name. The catalogue's own buckets (`images`, `video`) are not read: a file
+  //     there without a row is one whose row was deleted on purpose.
+  const bucketKinds = { mp3: 'audio', avatars: 'image' };
+  const host = [...items.keys()].map((src) => src.match(/^(https:\/\/[^/]+)\/storage\/v1\/object\/public\//)?.[1]).find(Boolean);
+  if (host === undefined) {
+    console.log('no storage address seen in the tables, so the buckets are not read this run');
+  } else {
+    for (const row of rows("select bucket_id, name, created_at from storage.objects where bucket_id in ('mp3', 'avatars') and name not like '%/' order by created_at")) {
+      const kind = bucketKinds[row.bucket_id];
+      if (kind === undefined) continue;
+      const src = `${host}/storage/v1/object/public/${row.bucket_id}/${row.name.split('/').map(encodeURIComponent).join('/')}`;
+      const plain = `${host}/storage/v1/object/public/${row.bucket_id}/${row.name}`;
+      if (items.has(src) || items.has(plain)) continue;
+      const owner = row.name.split('/')[0];
+      const ownerKnown = names.has(owner);
+      const stem = row.name.split('/').pop().replace(/\.[^.]+$/, '').replace(/[-_]+/g, ' ').toUpperCase();
+      describe(plain, kind, {
+        title: stem, credit: ownerKnown ? nameOf(owner) : '', tags: [], source: 'migrated',
+        uploadedBy: ownerKnown ? owner : null, uploadedByLabel: ownerKnown ? nameOf(owner) : SITE_ACCOUNT_LABEL, createdAt: row.created_at,
+        width: null, height: null, folderPath: null, length: '',
+      });
     }
   }
 

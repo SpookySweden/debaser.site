@@ -1,13 +1,12 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import DesktopSidebar from './DesktopSidebar';
 import ProfileControl from './ProfileControl';
 import SiteNav from './SiteNav';
 import Taskbar from './Taskbar';
 import type { NavKey } from './SiteNav';
-import { PLATE_LINK, WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import GuestPrompt from './GuestPrompt';
 
 type SiteWindowProps = {
@@ -21,15 +20,6 @@ type SiteWindowProps = {
    * every explanation into a tip; the heading stays for screen readers only).
    */
   tip?: string;
-  /**
-   * Set when this page is a window opened *over* the desktop rather than a page of its own.
-   *
-   * The site's desktop is the board (see `app/forum/page.tsx`): the music directory, the arcade and
-   * the account directory are utilities that open from it, so each is drawn as one of its windows -
-   * the title bar carries a `[ × ]` back to the board and the key the header lights is FORUM's,
-   * because that is the surface underneath. Passing nothing keeps a page a page.
-   */
-  closeHref?: string;
   children: ReactNode;
 };
 
@@ -49,7 +39,7 @@ type SiteWindowProps = {
  * Client-side because the chrome is: the taskbar reads the unread badge and opens the Start menu,
  * the profile control opens a menu, and the side panel remembers whether it is collapsed.
  */
-export default function SiteWindow({ title, active, tip, closeHref, children }: SiteWindowProps) {
+export default function SiteWindow({ title, active, tip, children }: SiteWindowProps) {
   return (
     // The surface behind the window is the desktop's own tile. (The room kept for the player's bar and
     // the guest strip is the two spacers, below.)
@@ -75,23 +65,15 @@ export default function SiteWindow({ title, active, tip, closeHref, children }: 
       <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
       <div className="my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale">
 
-        {/* Title Bar: the window title, the close plate when this is a window over the desktop, and
-            the profile control on a phone. */}
+        {/* Title Bar: the window title and the profile control on a phone. The same on every page:
+            USERS and MEDIA used to carry a `[ × ]` close key here, which pushed their title and its
+            rules left of every other page's (Luke, 2026-10-24) - a page is not a window over the
+            board, and the band under this bar already goes everywhere. */}
         <div className={WINDOW_TITLE_BAR}>
           <span className="truncate" title={tip}>
             {title}
           </span>
           <span className="flex items-center gap-2">
-            {closeHref === undefined ? null : (
-              <Link
-                href={closeHref}
-                className={PLATE_LINK}
-                title="Close this window and go back to the board"
-                aria-label="Close this window and go back to the board"
-              >
-                [ × ]
-              </Link>
-            )}
             <ProfileControl />
           </span>
         </div>

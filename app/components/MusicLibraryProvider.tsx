@@ -9,7 +9,7 @@ import { useAuth } from './AuthProvider';
  * The reader's own music, read once for the whole site.
  *
  * This exists because two screens need the same two facts. `./PersonalLibrary.tsx` draws them, and
- * `./MusicDirectory.tsx` needs them so a row in the *archive* can wear a heart and be liked without the
+ * `./MediaCatalogue.tsx` needs them so a row on the *shelf* can wear a heart and be liked without the
  * reader switching screens. That second need is what settled the shape: the archive's rows live under a
  * recursive folder tree of memoised components, so handing likes down as props would mean threading them
  * through every `FolderBranch` - and, worse, a new identity for the array on every read would defeat the

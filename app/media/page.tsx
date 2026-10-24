@@ -20,7 +20,6 @@ export default function MediaPage() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [MEDIA CATALOGUE]"
       active="media"
-      closeHref="/forum"
       tip="Every file the site holds - pictures, music, video - with who filed it, its tags, and every place it is used. Pick a tab for one kind, search by title, credit or tag, and open a row to see the file and where it appears. Filing takes an account; a file that is already here is matched and the original used."
     >
       <h1 className="sr-only">DEBASER.SITE // MEDIA CATALOGUE</h1>

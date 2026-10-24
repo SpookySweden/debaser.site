@@ -13,7 +13,7 @@ import { createWindowSlot } from '../ui/window-slot';
  *   /forum?music=1        open the archive (the MUSIC shelf, a track's tag badge, a post's plate)
  *   /forum?music=1&tag=…  open it already filtered, which is what a tag badge means
  *
- * `tag` is the directory's own business (`MusicDirectory` reads it), so this module only answers the
+ * `tag` is the shelf's own business (`MediaCatalogue` reads it), so this module only answers the
  * one question the window is: was it asked for? A state that lives in a module rather than in a
  * provider is what keeps the board from re-rendering when the archive is opened, filtered or closed.
  */
