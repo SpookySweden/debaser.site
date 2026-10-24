@@ -17,8 +17,10 @@
   AT HALF SIZE`, 30KB), the post filed with it, /media lists it IN 2 PLACES (two test posts `TEST: CATALOGUE
   UPLOAD`, from two drive runs) and a second upload of the same bytes answers `ALREADY IN THE CATALOGUE`.
   The drive's last step (waiting for THREAD FILED) times out because the composer closes on success; the
-  data was checked in the database and the browser instead. The two test posts and the test picture are
-  live and are Luke's to delete (DB deletes). The new-post window got its upload key in ecfabe9 (it had
+  data was checked in the database and the browser instead. The two test posts, the test picture and its
+  uses were DELETED 2026-10-24 with Luke's OK (listed first; survivors 11 items / 16 uses / 6 threads, as
+  before the drive). The 30KB file itself is still in the `images` bucket under TEST ACCOUNT A's folder
+  (storage rows are not deleted through SQL here; remove it from the dashboard if wanted). The new-post window got its upload key in ecfabe9 (it had
   been in the reply boxes only; PicturePicker.tsx now serves all three composers).
 - Checks updated on purpose: check-flows (MUSIC_HREF), check-music-library (archive href), check-projects
   (shelf href), check-shell (six tabs). Known gaps: a profile song re-uploaded to the shelf is refused (the
