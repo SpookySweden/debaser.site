@@ -448,7 +448,9 @@ function CatalogueRow({
 
   return (
     <li className="rule-pixel py-2">
-      <div className="flex items-start gap-2">
+      {/* `flex-wrap` for the phone: a track's three keys drop to their own line under the words there,
+          rather than squeezing the title to a word a line beside them. */}
+      <div className="flex flex-wrap items-start gap-2">
         {/* The picture itself, small; a glyph for sound and video, which have no face. */}
         {item.kind === 'image' ? (
           <button type="button" onClick={onToggle} className="shrink-0 cursor-pointer" title={open ? 'Close' : 'Open'}>
@@ -491,7 +493,7 @@ function CatalogueRow({
         {/* A track's three keys, the shelf's own: the heart, play through the site's one player, and
             INJECT - the one Brilliant Pink pill, which opens a post filed under the track. */}
         {track === undefined ? null : (
-          <span className="flex shrink-0 flex-wrap items-center justify-end gap-1">
+          <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
             <button
               type="button"
               onClick={onLike === undefined ? undefined : () => onLike(track)}
