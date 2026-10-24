@@ -165,7 +165,13 @@ export default function MediaCatalogue() {
     const unfiled = byFolder.get('') ?? [];
     byFolder.delete('');
 
-    const named = [...byFolder.entries()].sort(([a], [b]) => a.localeCompare(b));
+    // A folder that only holds other folders is a path, not a shelf: `HEXHAM` with everything under
+    // `HEXHAM / GRIDLOCK` would be a line saying EMPTY over the shelf that is not. A folder somebody
+    // made and has put nothing in at all still shows, so they can find it and file into it.
+    const paths = [...byFolder.keys()];
+    const named = [...byFolder.entries()]
+      .filter(([path, entries]) => entries.length > 0 || !paths.some((other) => other.startsWith(`${path}/`)))
+      .sort(([a], [b]) => a.localeCompare(b));
     return [...named.map(([path, entries]) => ({ path, entries })), { path: '', entries: unfiled }];
   }, [tab, filtering, shown, folders.folders]);
 
