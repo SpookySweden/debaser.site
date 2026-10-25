@@ -19,8 +19,11 @@ type UserDirectoryProps = {
   compact?: boolean;
 };
 
-/** How many accounts the side panel shows before it hands over to /users. */
-const COMPACT_LIMIT = 6;
+/**
+ * How many accounts the side panel shows before it hands over to /users. Six left a third of the
+ * panel empty on a desktop screen; twelve fills it, and a shorter screen scrolls the panel as before.
+ */
+const COMPACT_LIMIT = 12;
 
 /**
  * What the lamp means, as the hover tip of the list's title line.
