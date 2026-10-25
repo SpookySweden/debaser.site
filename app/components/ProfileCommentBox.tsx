@@ -8,7 +8,8 @@ import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 type ProfileCommentBoxProps = {
   /** Unique id for the textarea, so the window can focus it on open. */
   id: string;
-  title: string;
+  /** A heading over the box; the profile's window has none, because its title bar says it. */
+  title?: string;
   placeholder: string;
   submitLabel: string;
   onSubmit: (body: string) => Promise<void>;
@@ -70,14 +71,17 @@ export default function ProfileCommentBox({
 
   return (
     <div className="mt-2 p-2">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
-        <span>{title}</span>
-      </div>
+      {title === undefined ? null : (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
+          <span>{title}</span>
+        </div>
+      )}
 
-      {chooser === undefined ? null : <div className="mt-1">{chooser}</div>}
+      {chooser === undefined ? null : <div className={title === undefined ? undefined : 'mt-1'}>{chooser}</div>}
 
       <textarea
         id={id}
+        aria-label="Comment"
         value={body}
         onChange={(event) => setBody(event.target.value)}
         placeholder={placeholder}

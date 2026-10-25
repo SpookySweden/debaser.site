@@ -1,23 +1,16 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import {
-  carriesMusic,
-  matchesMusicTags,
-  selectBoardThreads,
-  type BoardQuery,
-  type TagMatchMode,
-} from '../lib/forum/board-query';
+import type { TagMatchMode } from '../lib/forum/board-query';
 import {
   collectFiledTracks,
   filedFileUploader,
   groupFiledTracks,
   sortFiledFiles,
-  type FiledFile,
 } from '../lib/audio/forum-tracks';
 import { buildAudioTagVocabulary, filterTracksByTags } from '../lib/audio/tags';
 import { TRACK_SORTS, type TrackSort } from '../lib/audio/sorts';
-import type { ForumTag, ForumThread } from '../lib/forum/types';
+import type { ForumTag } from '../lib/forum/types';
 import { tagKey, type TagOption } from '../lib/forum/tag-vocabulary';
 import { useForum } from './ForumProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -29,7 +22,7 @@ import { PLATE } from '../lib/ui/controls';
 /**
  * Every tag the board has, in one window, with the music filed under it.
  *
- * Three tabs, and the point of each:
+ * Two tabs, and the point of each:
  *
  *   MAIN    every tag on the board, most used first - one list, no filing by kind, because the
  *           question this window answers is "what is on this board" and the answer is a ranking.
@@ -38,21 +31,17 @@ import { PLATE } from '../lib/ui/controls';
  *           the sounds the filed files wear (tick one to keep only the posts whose music wears it),
  *           and a searcher over the files themselves - by name, sound, poster or credit, in the
  *           order you ask for: recently posted, most posted, or by uploader.
- *   TEST    the rules this window and the board are built on, run against the board right now and
- *           reported line by line. It is the browser-side twin of the scratch checks in `Temp/`:
- *           each line is a property that would be a bug if it stopped holding.
  *
  * The window is self-contained: it is drawn through the site's own pop-up shell (draggable, portal,
  * ESC/click-away to close), it reads the board and writes nothing but the filter the board already
  * owns, and it can be closed without the page under it noticing.
  */
 
-type TabKey = 'main' | 'music' | 'test';
+type TabKey = 'main' | 'music';
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'main', label: '[ MAIN ]' },
   { key: 'music', label: '[ MUSIC ]' },
-  { key: 'test', label: '[ TEST ]' },
 ];
 
 /** A tag the filter can include: the mark, the key, and how often the board uses it. */
@@ -74,7 +63,6 @@ function TagTick({
       type="button"
       onClick={onToggle}
       aria-pressed={active}
-      title={active ? `Stop including ${tag.label}` : `Include posts tagged ${tag.label}`}
       className={`inline-flex cursor-pointer items-center gap-0.75 px-1 text-label font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
         active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
       }`}
@@ -103,100 +91,9 @@ type TagWindowProps = {
   /** What the board is showing with the filter as it stands, out of what it holds. */
   showing: number;
   total: number;
-  /** Which tab opens first: the index, unless the caller is asking about the music or the rules. */
+  /** Which tab opens first: the index, unless the caller is asking about the music. */
   initialTab?: TabKey;
 };
-
-/** One line of the TEST tab: a property that has to hold, and what it was checked against. */
-type TestLine = { label: string; ok: boolean; detail: string };
-
-/** True when the numbers run one way or the other the whole way down. */
-function isOrdered(values: number[], descending: boolean): boolean {
-  return values.every(
-    (value, index) => index === 0 || (descending ? values[index - 1] >= value : values[index - 1] <= value),
-  );
-}
-
-/**
- * The rules this window and the board are built on, run against the board as it is right now.
- *
- * Every line is a property that is written down somewhere else as a promise - the chooser's counts
- * matching the filter (`Temp/check-live-tag-filter.cjs`), the music switch keeping only posts that
- * carry music, each ordering actually being in order (`Temp/check-board-comments.cjs`) - asked here
- * of the live board rather than of a fixture. A line that says FAIL is the bug report.
- */
-function boardSelfTest(
-  threads: ForumThread[],
-  options: TagOption[],
-  files: FiledFile[],
-  showing: number,
-  total: number,
-): TestLine[] {
-  const query = (extra: Partial<BoardQuery>): BoardQuery => ({
-    query: '',
-    sourceFilter: 'all',
-    tagKeys: [],
-    tagMatchMode: 'any',
-    sortMode: 'newest',
-    ...extra,
-  });
-
-  const offered = options.filter((option) => option.count > 0);
-  const sounds = buildAudioTagVocabulary(files.map((file) => file.track)).filter((option) => option.count > 0);
-  const recent = sortFiledFiles(files, 'recent');
-  const popular = sortFiledFiles(files, 'popular');
-  const uploader = sortFiledFiles(files, 'uploader');
-
-  return [
-    {
-      label: 'THE TAG LIST IS RANKED BY USE',
-      ok: options.every((option, index) => index === 0 || options[index - 1].count >= option.count),
-      detail: `${options.length} tags, most used first`,
-    },
-    {
-      label: 'EVERY TAG OFFERED BRINGS A POST',
-      ok: offered.every((option) => selectBoardThreads(threads, query({ tagKeys: [option.key] })).length > 0),
-      detail: `${offered.length} tags carry a count`,
-    },
-    {
-      label: 'MUSIC ONLY KEEPS POSTS CARRYING A TRACK',
-      ok: selectBoardThreads(threads, query({ musicOnly: true })).every(carriesMusic),
-      detail: `${threads.filter(carriesMusic).length} of ${threads.length} posts carry music`,
-    },
-    {
-      label: 'A MUSIC TAG KEEPS THE MUSIC WEARING IT',
-      ok: sounds.every((option) =>
-        selectBoardThreads(threads, query({ musicOnly: true, musicTagKeys: [option.key] })).every((thread) =>
-          matchesMusicTags(thread, [option.key]),
-        ),
-      ),
-      detail: `${sounds.length} sounds in use`,
-    },
-    {
-      label: 'RECENT IS NEWEST FIRST',
-      ok: isOrdered(recent.map((file) => Date.parse(file.newest)), true),
-      detail: `${recent.length} files`,
-    },
-    {
-      label: 'POPULAR IS MOST POSTED FIRST',
-      ok: isOrdered(popular.map((file) => file.count), true),
-      detail: `${popular.length} files`,
-    },
-    {
-      label: 'UPLOADER IS A TO Z',
-      ok: uploader.every(
-        (file, index) =>
-          index === 0 || filedFileUploader(uploader[index - 1]).toLowerCase() <= filedFileUploader(file).toLowerCase(),
-      ),
-      detail: `${uploader.length} files`,
-    },
-    {
-      label: 'THE BOARD SHOWS NO MORE THAN IT HOLDS',
-      ok: showing <= total,
-      detail: `${showing} shown of ${total}`,
-    },
-  ];
-}
 
 export default function TagWindow({
   onClose,
@@ -248,12 +145,6 @@ export default function TagWindow({
     return sortFiledFiles(searched, fileSort);
   }, [fileQuery, fileSort, files, musicTagKeys]);
 
-  const musicPosts = useMemo(() => forum.threads.filter(carriesMusic).length, [forum.threads]);
-  const results = useMemo(
-    () => boardSelfTest(forum.threads, options, files, showing, total),
-    [files, forum.threads, options, showing, total],
-  );
-
   /** A vocabulary option as the chip painter wants it: colour if it has one, nothing invented if not. */
   const asTag = (option: TagOption): ForumTag => ({
     id: `tag-${option.key}`,
@@ -266,7 +157,7 @@ export default function TagWindow({
   const mainPanel = (
     <div>
       <p className="text-label font-bold text-ink">
-        {options.length} TAGS, MOST USED FIRST :: {tagKeys.length} INCLUDED :: CLICK ONE TO INCLUDE IT IN THE BOARD
+        {tagKeys.length} INCLUDED
       </p>
 
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.75">
@@ -308,14 +199,11 @@ export default function TagWindow({
     <div>
       <label className="flex items-center gap-2 text-label font-bold text-ink">
         <input type="checkbox" checked={musicOnly} onChange={(event) => onMusicOnly(event.target.checked)} />
-        FILTER THE FORUM TO MUSIC ONLY
+        MUSIC ONLY
       </label>
-      <p className="mt-1 text-label text-ink">
-        {musicPosts} OF {total} POSTS CARRY A TRACK :: {files.length} FILE(S) FILED ON THE BOARD
-      </p>
 
       <p className="mt-3 text-label font-bold text-ink">
-        SET MUSIC TAGS ({musicTagKeys.length} IN FORCE) :: A POST SHOWS WHEN ITS MUSIC WEARS ONE
+        MUSIC TAGS ({musicTagKeys.length})
       </p>
       <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.75">
         {musicOptions.map((option) => (
@@ -365,7 +253,7 @@ export default function TagWindow({
 
         {listed.length === 0 ? (
           <p className="mt-2 text-label font-bold text-ink">
-            NO FILE MATCHES. A FILE GETS HERE BY BEING ATTACHED TO A POST OR A REPLY.
+            NO FILE MATCHES.
           </p>
         ) : (
           <ul className="mt-2 space-y-1">
@@ -405,40 +293,9 @@ export default function TagWindow({
     </div>
   );
 
-  /** The rules, asked of the board as it stands: a FAIL line is a bug report. */
-  const testPanel = (
-    <div>
-      <p className="text-label font-bold text-ink">
-        {results.filter((result) => result.ok).length} OF {results.length} PROPERTIES HOLD. EACH LINE IS A RULE THIS
-        BOARD IS BUILT ON, ASKED OF IT AS IT IS NOW.
-      </p>
-
-      <ul className="mt-2 space-y-1">
-        {results.map((result) => (
-          <li
-            key={result.label}
-            className={`flex flex-wrap items-center gap-2 border p-1 text-label font-bold ${
-              result.ok ? 'border-ink bg-paper text-ink' : 'border-ink-plate bg-sun-pale text-ink'
-            }`}
-          >
-            <span className={result.ok ? undefined : 'bg-bubble-pale px-1 text-ink-bar'}>{result.ok ? '[ PASS ]' : '[ FAIL ]'}</span>
-            <span>{result.label}</span>
-            <span className="ml-auto font-normal text-ink">{result.detail}</span>
-          </li>
-        ))}
-      </ul>
-
-      <p className="mt-2 text-label text-ink">
-        THE SAME RULES RUN WITHOUT A BROWSER IN Temp/check-board-comments.cjs AND Temp/check-live-tag-filter.cjs. A FAIL
-        HERE MEANS THE BOARD AND ITS OWN RULES DISAGREE RIGHT NOW.
-      </p>
-    </div>
-  );
-
   return (
     <PopoutWindow
       title="TAG INDEX"
-      status={`${showing} OF ${total} POSTS SHOWN`}
       maxWidth="max-w-3xl"
       onClose={onClose}
       actions={
@@ -447,7 +304,7 @@ export default function TagWindow({
         </button>
       }
     >
-      {/* The tabs: three plates, the open one filled with the navy this site selects in. */}
+      {/* The tabs: two plates, the open one filled with the navy this site selects in. */}
       <div className="flex flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75">
         {TABS.map((entry) => (
           <button
@@ -462,17 +319,11 @@ export default function TagWindow({
             {entry.label}
           </button>
         ))}
-        <span className="ml-auto text-label text-ink">
-          {tab === 'main' ? 'EVERY TAG ON THE BOARD' : null}
-          {tab === 'music' ? 'THE BOARD`S OWN MUSIC' : null}
-          {tab === 'test' ? 'THE RULES, RUN AGAINST THE BOARD' : null}
-        </span>
       </div>
 
       <div className="max-h-[58vh] overflow-y-auto p-2">
         {tab === 'main' ? mainPanel : null}
         {tab === 'music' ? musicPanel : null}
-        {tab === 'test' ? testPanel : null}
       </div>
     </PopoutWindow>
   );

@@ -104,7 +104,7 @@ export default function CommentThreadList({
       setDrafts((current) => ({ ...current, [parentId]: '' }));
       setDraftTracks((current) => ({ ...current, [parentId]: null }));
       setOpenReplyId(null);
-      setStatus({ id: parentId, message: 'COMMENT FILED.' });
+      setStatus({ id: parentId, message: 'REPLY FILED.' });
       // Keep the new reply on screen even if that comment's replies were folded.
       setCollapsedIds((current) => current.filter((id) => id !== parentId));
     } catch (caught) {

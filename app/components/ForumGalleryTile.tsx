@@ -75,9 +75,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
           and "a picture somebody replied with" are different things to be shown - the second is why a
           reply can put a post in this view at all (app/lib/forum/media.ts). */}
       <div className="flex items-center justify-between gap-2 bg-chrome-dark px-2 py-0.75 text-label font-bold leading-none text-ink">
-        <span className="truncate" title={layout.left.imageSource}>
-          {layout.left.imageSource}
-        </span>
+        <span className="truncate">{layout.left.imageSource}</span>
         <span className="shrink-0">{layout.repliesLabel}</span>
       </div>
 
@@ -156,10 +154,9 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
         <button
           type="button"
           onClick={() => onOpen(thread.id)}
-          title="Leave the gallery, open this post and read its replies"
           className={`${PLATE} mt-auto self-start`}
         >
-          [ OPEN THE POST ]
+          [ OPEN ]
         </button>
       </div>
     </li>

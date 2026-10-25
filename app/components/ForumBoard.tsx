@@ -27,13 +27,9 @@ import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
  */
 type BoardView = 'feed' | 'gallery';
 
-const VIEWS: { value: BoardView; label: string; title: string }[] = [
-  { value: 'feed', label: '[ FEED ]', title: 'Every post as one row: the reading order the board has always had' },
-  {
-    value: 'gallery',
-    label: '[ GALLERY ]',
-    title: 'Only the posts filed with a picture, drawn open - the Explorer view',
-  },
+const VIEWS: { value: BoardView; label: string }[] = [
+  { value: 'feed', label: '[ FEED ]' },
+  { value: 'gallery', label: '[ GALLERY ]' },
 ];
 
 const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
@@ -226,9 +222,9 @@ export default function ForumBoard() {
   );
 
   /**
-   * A tile's `[ OPEN THE POST ]`: the board goes back to the feed with that post open.
+   * A tile's `[ OPEN ]`: the board goes back to the feed with that post open.
    *
-   * Two frames, and for the same reason the tag filter's `[ OPEN THE REPLY ]` waits for two
+   * Two frames, and for the same reason the tag filter's `[ OPEN REPLY ]` waits for two
    * (`./ForumThreadCard.tsx`): the first lets the board re-render with the row open, and by the
    * second the row is in the document to scroll to. Without the pair the scroll happens against a
    * tile that is no longer there.
@@ -344,7 +340,6 @@ export default function ForumBoard() {
               type="button"
               onClick={() => handleView(option.value)}
               aria-pressed={view === option.value}
-              title={option.title}
               className={view === option.value ? PLATE_PRESSED : PLATE}
             >
               {option.label}
@@ -358,7 +353,6 @@ export default function ForumBoard() {
           onClick={() => toggleMenu('tags')}
           aria-expanded={menu === 'tags'}
           aria-controls="board-tags-panel"
-          title="Pick tags to filter the board, or click a badge on any post to add it here"
           className={PLATE}
         >
           {menu === 'tags' ? '[ TAGS ▴ ]' : '[ TAGS ▾ ]'}
@@ -382,11 +376,6 @@ export default function ForumBoard() {
                     type="button"
                     onClick={() => toggleTagFilter(option.key)}
                     aria-pressed={active}
-                    title={
-                      active
-                        ? `Stop including ${option.label}`
-                        : `Include posts tagged ${option.label} (${option.count} in use)`
-                    }
                     className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                       active ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                     }`}
@@ -405,7 +394,6 @@ export default function ForumBoard() {
               <button
                 type="button"
                 onClick={openTagIndex}
-                title="Every tag the board has, ranked, with the music filed on it"
                 className={PLATE}
               >
                 [ TAG INDEX... ]
@@ -458,7 +446,6 @@ export default function ForumBoard() {
           onClick={() => toggleMenu('controls')}
           aria-expanded={menu === 'controls'}
           aria-controls="board-controls-panel"
-          title="Sort the board, narrow it to one source, search it, or change how many posts a page holds"
           className={PLATE}
         >
           {menu === 'controls' ? '[ SORT / SEARCH ▴ ]' : '[ SORT / SEARCH ▾ ]'}
@@ -534,7 +521,7 @@ export default function ForumBoard() {
 
             <div>
               <label htmlFor="forum-search" className="block text-label font-bold text-ink">
-                SEARCH TITLE / BODY / TAG / ACCOUNT:
+                SEARCH:
               </label>
               <input
                 id="forum-search"
@@ -544,7 +531,7 @@ export default function ForumBoard() {
                   setQuery(event.target.value);
                   setPage(1);
                 }}
-                placeholder="e.g. LORE, spoiler, account name"
+                placeholder="Title, body, tag or account"
                 className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
               />
             </div>
@@ -572,7 +559,6 @@ export default function ForumBoard() {
           }}
           aria-haspopup="dialog"
           aria-expanded={composerOpen}
-          title="Open the composer window to file a new thread"
           className={`${PLATE_MAIN} ml-auto`}
         >
           + NEW POST
@@ -592,7 +578,6 @@ export default function ForumBoard() {
                 key={key}
                 type="button"
                 onClick={() => toggleTagFilter(key)}
-                title={`Stop including ${label}`}
                 className={PLATE}
               >
                 [ {label} × ]
@@ -618,10 +603,10 @@ export default function ForumBoard() {
         >
           <p className="p-3 text-key font-bold text-ink">
             {forum.threads.length === 0
-              ? 'THE BOARD IS EMPTY. USE + NEW POST ABOVE TO FILE THE FIRST THREAD, OR COMMENT ON A PIECE IN THE CONCEPT ARCHIVE.'
+              ? 'THE BOARD IS EMPTY.'
               : view === 'gallery'
-                ? 'NO POST WITH A PICTURE MATCHES THIS FILTER. THE GALLERY SHOWS THE POSTS SOMEBODY FILED A DRAWING WITH.'
-                : 'NO THREADS MATCH THIS FILTER.'}
+                ? 'NO PICTURES MATCH.'
+                : 'NO THREADS MATCH.'}
           </p>
         </div>
       ) : view === 'gallery' ? (

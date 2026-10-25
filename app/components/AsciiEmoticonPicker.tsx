@@ -28,17 +28,13 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
   return (
     <div className="relative">
       <button type="button" onClick={() => setOpen(!open)} disabled={disabled} className={PLATE}>
-        {open ? '[ CLOSE SHELF ]' : '[ :) EMOTICONS ]'}
+        {open ? '[ CLOSE ]' : '[ :) EMOTICONS ]'}
       </button>
 
       {open ? (
         <div className="absolute bottom-full left-0 z-20 mb-1 w-[22rem] frame bg-sun-pale p-2 shadow-none">
-          <p className="text-label font-bold text-ink">
-            TEXT FACES :: CLICK ONE TO DROP IT IN WHERE THE CARET IS
-          </p>
-
-          {ASCII_EMOTICONS.map((group) => (
-            <div key={group.id} className="mt-2">
+          {ASCII_EMOTICONS.map((group, index) => (
+            <div key={group.id} className={index === 0 ? undefined : 'mt-2'}>
               <p className="text-label font-bold text-ink">{group.label}</p>
               <ul className="mt-1 flex flex-wrap gap-1">
                 {group.emoticons.map((emoticon) => (
@@ -56,10 +52,6 @@ export default function AsciiEmoticonPicker({ onPick, disabled = false }: AsciiE
               </ul>
             </div>
           ))}
-
-          <p className="mt-2 border-t border-ink pt-1 text-label text-ink">
-            NO PICTURES, NO UNICODE: EVERY FACE HERE IS PLAIN TEXT, THE SAME AS TYPING IT.
-          </p>
         </div>
       ) : null}
     </div>

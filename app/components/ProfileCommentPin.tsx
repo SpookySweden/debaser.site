@@ -64,11 +64,7 @@ export default function ProfileCommentPin({
         disabled={busy}
         aria-pressed={pinned}
         aria-label={pinned ? 'Unpin this comment' : 'Pin this comment'}
-        title={
-          pinned
-            ? 'UNPIN :: THE COMMENT GOES BACK AMONG THE OTHERS'
-            : 'PIN :: THE COMMENT LEADS EVERY THIRD ROW OF THE WIRE'
-        }
+        title={pinned ? 'UNPIN' : 'PIN'}
         className="cursor-pointer key px-0.5 py-0.75 text-label leading-none disabled:cursor-wait max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
       >
         <span aria-hidden="true">📌</span>

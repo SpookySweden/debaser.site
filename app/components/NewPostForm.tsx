@@ -209,7 +209,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
           recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), commentInput);
         }
 
-        status = opened ? 'THREAD OPENED ON THE BOARD.' : 'COMMENT FILED.';
+        status = opened ? 'FILED.' : 'COMMENT FILED.';
       }
 
       // Whoever the post names is told, after the post itself is filed: a tag that could not be
@@ -249,7 +249,6 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
               type="text"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Subject line for the thread"
               className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none max-sm:min-h-tap"
             />
           </>
@@ -275,16 +274,13 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
             {isBoardPost ? (
               <PicturePicker id="new-post-media" value={mediaId} onChange={setMediaId} author={forum.author} heightClass="h-28" />
             ) : (
-              <div
-                className="p-2 text-label font-bold text-ink"
-                title="Your words file as a comment on that item's one thread, which its own comment box reads too"
-              >
+              <div className="p-2 text-label font-bold text-ink">
                 COMMENT ON: {anchor.label}
                 <br />
                 <span className="text-ink-quiet">
                   {existingThread === undefined
-                    ? 'OPENS ITS THREAD ON THE BOARD'
-                    : `JOINS ITS THREAD (${countReplies(existingThread.comments.length)})`}
+                    ? 'NEW THREAD'
+                    : countReplies(existingThread.comments.length)}
                 </span>
               </div>
             )}
@@ -297,7 +293,7 @@ export default function NewPostForm({ onClose, onCreated, initialTrack = null, i
           onChange={setBody}
           onSubmit={handleSubmit}
           submitLabel={isBoardPost ? '[ FILE POST ]' : '[ FILE COMMENT ]'}
-          placeholder={isBoardPost ? 'Write the post... tag somebody with @name.' : 'Write the comment... tag somebody with @name.'}
+          placeholder={isBoardPost ? 'Write the post...' : 'Write the comment...'}
           author={forum.author}
           accounts={accounts}
           previewTags={previewTags}

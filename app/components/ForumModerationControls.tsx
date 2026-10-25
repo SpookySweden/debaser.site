@@ -115,7 +115,7 @@ export function AuthorModeration({ author }: { author: ForumAuthor }) {
           </button>
 
           <span className="bg-bubble-pale px-1 text-ink-bar">
-            BANNING STOPS THIS ACCOUNT WRITING ANYWHERE AND HIDES WHAT IT ALREADY WROTE FROM EVERYBODY BUT YOU.
+            BLOCKS WRITING; HIDES THEIR POSTS.
           </span>
         </span>
       ) : null}
@@ -184,8 +184,6 @@ export function ThreadModeration({ thread }: { thread: ForumThread }) {
         </button>
 
         <AuthorModeration author={thread.author} />
-
-        {confirming ? <span className="bg-bubble-pale px-1 text-ink-bar">CLICK AGAIN TO TAKE THE POST OFF THE BOARD.</span> : null}
       </div>
 
       {editing ? (
@@ -283,7 +281,7 @@ export function CommentModeration({ comment }: { comment: ForumComment }) {
 
         {/* Removing a reply takes the replies to it with it, which is worth saying. */}
         {confirming ? (
-          <span className="bg-bubble-pale px-1 text-ink-bar">CLICK AGAIN TO REMOVE THIS REPLY AND THE REPLIES TO IT.</span>
+          <span className="bg-bubble-pale px-1 text-ink-bar">REMOVES ITS REPLIES TOO.</span>
         ) : null}
       </div>
 

@@ -83,18 +83,14 @@ export default function TagChooser({
 
   return (
     <fieldset id={id} className="mt-2">
-      {/* How tags work is the legend's tip rather than a line under the chooser (SPEC-efficiency.md). */}
-      <legend
-        className="px-1 text-label font-bold text-ink"
-        title="Tags are colour coded, filed by namespace (theme: warn: user:), and link every post that uses them"
-      >
+      <legend className="px-1 text-label font-bold text-ink">
         TAGS ({value.length}/{max})
       </legend>
 
       <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.75 text-label font-bold text-ink">
         <span className="text-ink">SELECTED:</span>
         {value.length === 0 ? (
-          <span className="text-ink">NONE - PICK OR TYPE BELOW</span>
+          <span className="text-ink">NONE</span>
         ) : (
           value.map((label) => {
             const tag = makeUserTag(label, tagColours[tagKey(label)]);
@@ -132,7 +128,6 @@ export default function TagChooser({
                   key={option.key}
                   type="button"
                   onClick={() => toggle(option.label)}
-                  title={option.starter ? 'Pre-made tag' : `Used on ${option.count} post(s)`}
                   className={`inline-flex cursor-pointer items-center gap-0.75 px-1 font-bold max-sm:min-h-tap max-sm:px-2 max-sm:text-sm ${
                     isSelected ? 'bg-ena text-ink-bar' : 'text-ink hover:underline'
                   }`}
@@ -153,7 +148,6 @@ export default function TagChooser({
         <button
           type="button"
           onClick={() => setCreatorOpen(true)}
-          title="Open the tag editor to create and colour a new tag"
           className={PLATE}
         >
           [ + NEW TAG ]

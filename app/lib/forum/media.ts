@@ -45,11 +45,11 @@ export function collectThreadImages(thread: ForumThread): ThreadImageSummary {
 export function imageSourceLabel(source: ThreadImageSource | undefined): string {
   switch (source) {
     case 'post':
-      return 'IMAGE ATTACHED TO THIS POST';
+      return 'POST IMAGE';
     case 'comment':
-      return 'IMAGE ATTACHED TO A REPLY';
+      return 'REPLY IMAGE';
     case 'item':
-      return 'ARTWORK OF THE ITEM THIS THREAD IS FILED UNDER';
+      return 'ITEM ARTWORK';
     default:
       return 'NO IMAGE';
   }

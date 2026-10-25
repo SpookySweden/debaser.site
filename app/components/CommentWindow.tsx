@@ -101,7 +101,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
       setCommentTags([]);
       setCommentMediaId('');
       setCommentTrack(null);
-      setStatus(result.createdThread ? 'THREAD OPENED ON THE BOARD.' : 'COMMENT FILED.');
+      setStatus(result.createdThread ? 'FILED.' : 'COMMENT FILED.');
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
     } finally {
@@ -121,16 +121,13 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
             href={`/forum#${threadDomId(thread.id)}`}
             className="key px-1 py-1"
           >
-            [ OPEN FULL THREAD ON THE BOARD ]
+            [ OPEN ON BOARD ]
           </Link>
         )
       }
     >
       <div className="text-ink">
           <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold">
-            <span>
-              SOURCE: {anchor.kind.toUpperCase()} :: ID: {anchor.id}
-            </span>
             <span>{thread === undefined ? 'NO THREAD YET' : countReplies(thread.comments.length)}</span>
           </div>
 
@@ -139,14 +136,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
             <AnchorLink anchor={anchor} prefix="LOOK AT" />
           </div>
 
-          {thread === undefined ? (
-            <>
-              <p className="mt-2 text-key font-bold">NO THREAD EXISTS FOR THIS ITEM YET.</p>
-              <p className="mt-1 text-label">
-                Filing the first comment opens one on the forum board automatically.
-              </p>
-            </>
-          ) : (
+          {thread === undefined ? null : (
             <>
               <p className="mt-2 text-key font-bold">{thread.title}</p>
               {/*
@@ -157,13 +147,12 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
                 <span>
                   FILED <TimeStamp at={thread.createdAt} />
                 </span>
-                <span>ORIGIN: {thread.origin.toUpperCase()}</span>
               </div>
 
               {/* A thread with audio in it says so: the players are in the replies below. */}
               {filedTracks === 0 ? null : (
                 <p className="mt-1 text-label font-bold text-accent-ink">
-                  {filedTracks} MP3{filedTracks === 1 ? '' : 'S'} FILED HERE - PRESS PLAY ON ONE TO HEAR IT.
+                  {filedTracks} MP3{filedTracks === 1 ? '' : 'S'}
                 </p>
               )}
 
@@ -172,7 +161,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
               <CommentThreadList
                 thread={thread}
                 avatarSize={44}
-                emptyLabel="NO COMMENTS YET. BE THE FIRST TO COMMENT ON THIS ITEM."
+                emptyLabel="NO COMMENTS YET."
               />
             </>
           )}
@@ -183,7 +172,7 @@ export default function CommentWindow({ anchor, onClose }: CommentWindowProps) {
             onChange={setBody}
             onSubmit={handleSubmit}
             submitLabel="[ FILE COMMENT ]"
-            placeholder="Type the comment for this item..."
+            placeholder="Comment..."
             author={forum.author}
             accounts={accounts}
             autoTag={thread?.author ?? null}

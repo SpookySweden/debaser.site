@@ -20,7 +20,7 @@ type MediaPickerProps = {
 };
 
 /** The tile that means "no artwork": a post does not have to carry a picture. */
-const NONE = 'NONE - TEXT ONLY';
+const NONE = 'NONE';
 
 /**
  * Artwork picker, laid out like the icon view of a file browser.
@@ -97,11 +97,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
             rather than inheriting, so each one has to say it. */}
         <div className={`flex w-full items-center gap-2 border border-ink bg-bubble-pale p-1 [--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-bubble-pale)] [--key-quiet-ink:var(--color-ink-bar)] sm:flex-1 ${heightClass}`}>
           {selected === undefined ? (
-            <p className="text-label font-bold text-ink-bar">
-              {NONE}
-              <br />
-              <span className="font-normal text-ink-bar">PICK A SHEET TO ATTACH IT.</span>
-            </p>
+            <p className="text-label font-bold text-ink-bar">{NONE}</p>
           ) : (
             <>
               <MediaThumbnail media={selected.preview} size={56} />
@@ -123,11 +119,7 @@ export default function MediaPicker({ id, items, value, onChange, heightClass = 
         </div>
       </div>
 
-      <p className="mt-1 px-1 text-label text-ink">
-        {items.length === 0
-          ? 'THE ARCHIVE IS EMPTY.'
-          : `${items.length} SHEET${items.length === 1 ? '' : 'S'} IN THE ARCHIVE.`}
-      </p>
+      {items.length === 0 ? <p className="mt-1 px-1 text-label text-ink">THE ARCHIVE IS EMPTY.</p> : null}
     </div>
   );
 }

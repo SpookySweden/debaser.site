@@ -243,14 +243,13 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 {hasImage ? (
                   <span
                     className="shrink-0 border border-ink-plate bg-acid px-1 text-label font-bold text-ink-plate"
-                    title="A picture is filed with this post: open it to see the drawing"
                   >
                     [ IMG{images.count > 1 ? ` x${images.count}` : ''} ]
                   </span>
                 ) : null}
                 {/* A post that came with a track says so before it is opened. */}
                 {thread.track === undefined ? null : (
-                  <span className="shrink-0 border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar" title="An MP3 is filed with this post">
+                  <span className="shrink-0 border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">
                     ♪ MP3
                   </span>
                 )}
@@ -347,10 +346,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                     <button
                       type="button"
                       onClick={() => revealReply(matchedReplies[0].id)}
-                      title="Open this post at the reply the tag was typed into"
                       className={PLATE}
                     >
-                      [ OPEN THE REPLY ]
+                      [ OPEN REPLY ]
                     </button>
                   )}
                 </div>
@@ -410,7 +408,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
 
             {images.count > 1 ? (
               <p className="mt-1 text-label font-bold text-ink">
-                +{images.count - 1} MORE IMAGE(S) IN THE REPLIES
+                +{images.count - 1} IN REPLIES
               </p>
             ) : null}
 
@@ -446,7 +444,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 avatarSize={48}
                 matchedIds={matchedIds}
                 seenByThread={forum.seenByThread}
-                emptyLabel="NO REPLIES YET. BE THE FIRST ANONYMOUS POSTER."
+                emptyLabel="NO REPLIES YET."
               />
 
               <CommentComposer
@@ -456,7 +454,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 onSubmit={handleReply}
                 variant="reply"
                 submitLabel="[ FILE REPLY ]"
-                placeholder="Reply to this thread..."
+                placeholder="Reply..."
                 author={forum.author}
                 accounts={accounts}
                 autoTag={thread.author}

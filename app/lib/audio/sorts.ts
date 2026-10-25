@@ -12,8 +12,8 @@
 export type TrackSort = 'name' | 'recent' | 'popular' | 'uploader';
 
 export const TRACK_SORTS: { value: TrackSort; label: string; hint: string }[] = [
-  { value: 'name', label: 'A TO Z', hint: 'By track title, the order the directory is read in' },
-  { value: 'recent', label: 'RECENT', hint: 'Newest post first; a file nobody has posted yet comes last' },
-  { value: 'popular', label: 'POPULAR', hint: 'Most posted first: how many posts and replies carry the file' },
-  { value: 'uploader', label: 'UPLOADER', hint: 'By whoever filed it, then by name' },
+  { value: 'name', label: 'A TO Z', hint: 'By title' },
+  { value: 'recent', label: 'RECENT', hint: 'Newest post first' },
+  { value: 'popular', label: 'POPULAR', hint: 'Most posted first' },
+  { value: 'uploader', label: 'UPLOADER', hint: 'By poster' },
 ];

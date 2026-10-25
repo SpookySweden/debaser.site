@@ -9,6 +9,7 @@ import type { ForumThread, PinDurationKey } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
 import { useForum } from './ForumProvider';
 import { useAdmin } from './ForumModerationControls';
+import InfoFold from './InfoFold';
 
 function failure(caught: unknown, fallback: string): string {
   return caught instanceof Error ? caught.message : fallback;
@@ -124,7 +125,7 @@ export function ThreadPinControl({ thread }: { thread: ForumThread }) {
         type="button"
         onClick={cycleDuration}
         disabled={busy}
-        title={`Pin for ${durationChoice?.label.toLowerCase() ?? ''} - click to cycle`}
+        title={`Pin for ${durationChoice?.label.toLowerCase() ?? ''}`}
         className={`${PLATE} pin-tick`}
       >
         [ {durationChoice?.short ?? duration} ]
@@ -180,14 +181,12 @@ export default function ForumPinPanel() {
       </div>
 
       <div className="p-2 text-ink">
-        <p className="text-label font-bold">
-          A PIN HOLDS A POST AT THE TOP OF THE BOARD AND LEADS THE WIRE UNTIL IT RUNS OUT - OR
-          FOREVER, IF THAT IS WHAT WAS PICKED. `[ PIN POST ]` ON ANY POST BELOW TAKES ONE.
-        </p>
+        <InfoFold topic="pins">
+          A PIN HOLDS A POST AT THE TOP OF THE BOARD AND LEADS THE WIRE UNTIL IT RUNS OUT. [ PIN POST ] ON ANY
+          POST TAKES ONE.
+        </InfoFold>
 
-        {pins.length === 0 ? (
-          <p className="mt-1 text-label text-ink">NO POST IS PINNED AT THE MOMENT.</p>
-        ) : (
+        {pins.length === 0 ? null : (
           <ul className="mt-1 space-y-1">
             {pins.map((pin) => {
               const thread = forum.threads.find((item) => item.id === pin.threadId);
@@ -200,7 +199,7 @@ export default function ForumPinPanel() {
                   <span className="border border-ink-plate bg-bubble-pale px-1 text-ink-bar">{pinLabel(pin)}</span>
 
                   {thread === undefined ? (
-                    <span className="text-ink">A POST THAT IS NO LONGER ON THE BOARD</span>
+                    <span className="text-ink">(REMOVED POST)</span>
                   ) : (
                     <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
                       {displayTitle(thread)}

@@ -40,7 +40,7 @@ export default function TrackControl({ id, value, onChange, author }: TrackContr
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
-          title="File an MP3 with this post: one the archive holds, one from this machine, or a link"
+          title="Attach an MP3"
           className={PLATE_LARGE}
         >
           [ ♪ SOUNDTRACK ]
@@ -86,7 +86,6 @@ export default function TrackControl({ id, value, onChange, author }: TrackContr
       <button
         type="button"
         onClick={() => onChange(null)}
-        title={`Take ${value.title} off this post`}
         className={PLATE}
       >
         [ CLEAR ]

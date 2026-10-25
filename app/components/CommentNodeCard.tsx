@@ -125,10 +125,7 @@ export default function CommentNodeCard({
               <ProfileName author={comment.author}>{authorTag(comment.author)}</ProfileName>
             </ProfileLink>
             {matched ? (
-              <span
-                className="border border-ink-plate bg-sun-pale px-1 text-label font-bold text-ink"
-                title="The tag filter on the board matched this reply"
-              >
+              <span className="border border-ink-plate bg-sun-pale px-1 text-label font-bold text-ink">
                 FILTER MATCH
               </span>
             ) : null}
@@ -162,7 +159,7 @@ export default function CommentNodeCard({
         <TagStrip tags={displayTags(comment.tags)} className="mt-1" limit={5} />
 
         <div className="mt-1 flex flex-wrap items-center gap-1">
-          <button type="button" onClick={onToggleReply} title="Answer this reply" className={PLATE}>
+          <button type="button" onClick={onToggleReply} className={PLATE}>
             {replyOpen ? '[ CANCEL ]' : '[ REPLY ]'}
           </button>
 
@@ -173,7 +170,6 @@ export default function CommentNodeCard({
               type="button"
               onClick={onToggleReplies}
               aria-expanded={!repliesHidden}
-              title={repliesHidden ? 'Show the replies to this one' : 'Fold the replies to this one away'}
               className={PLATE}
             >
               {`[ ${countReplies(replyCount)} ${repliesHidden ? '▾' : '▴'} ]`}
@@ -191,8 +187,8 @@ export default function CommentNodeCard({
             onChange={onDraftChange}
             onSubmit={onSubmit}
             variant="reply"
-            submitLabel="[ FILE COMMENT ]"
-            placeholder="Add to this reply thread..."
+            submitLabel="[ FILE REPLY ]"
+            placeholder="Reply..."
             author={viewer}
             accounts={accounts}
             autoTag={comment.author}

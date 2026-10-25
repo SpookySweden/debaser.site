@@ -102,8 +102,6 @@ export function deriveTags({ text, maxTags = DEFAULT_MAX_TAGS }: DeriveTagsInput
   return unique.slice(0, maxTags);
 }
 
-export const AUTO_TAG_NOTE = 'Theme tags are read from the post text; pick your own to add colour.';
-
 /**
  * Combines the tags a poster picked with the automatic ones.
  *

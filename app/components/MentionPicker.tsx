@@ -67,9 +67,6 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
         >
           [ TAG ]
         </button>
-        <span className="font-normal text-ink">
-          OR WRITE @NAME IN THE POST - IT IS THE SAME TAG.
-        </span>
       </div>
 
       {mentioned.length === 0 ? null : (
@@ -85,7 +82,6 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
                 type="button"
                 onClick={() => onChange(removeMention(body, account.displayName))}
                 aria-label={`Stop tagging ${account.displayName}`}
-                title="Remove this tag"
                 className="cursor-pointer border border-ink bg-sun-pale px-1 text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
               >
                 x
@@ -97,9 +93,7 @@ export default function MentionPicker({ id, accounts, body, onChange, autoTag = 
 
       {autoTag === null ? null : (
         <p className="mt-1 text-label font-bold text-ink">
-          ANSWERS THIS POST, SO{' '}
-          <ProfileName author={{ id: autoTag.id, displayName: autoTag.displayName }} lamp={false} /> IS TAGGED
-          AUTOMATICALLY.
+          AUTO-TAGGED: <ProfileName author={{ id: autoTag.id, displayName: autoTag.displayName }} lamp={false} />
         </p>
       )}
     </div>

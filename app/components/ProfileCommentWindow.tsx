@@ -33,9 +33,9 @@ const ASPECT_LABEL: Record<ProfileCommentKind, string> = {
 
 /** What each aspect is, in the window's own words, when it is the one being written about. */
 const ASPECT_NOTE: Record<ProfileCommentKind, string> = {
-  avatar: 'the drawing, as it stands in the version being read.',
-  song: 'the track, as it stands in the version being read.',
-  profile: 'the profile itself: the name, the biography, the tags and the page - not the picture, and not the music.',
+  avatar: 'The drawing.',
+  song: 'The track.',
+  profile: 'Name, bio, tags.',
 };
 
 /** One choice in a run of them: a link, with the one in force marked by the arrow. */
@@ -86,7 +86,6 @@ function VersionStrip({
           <Choice
             active={version.id === currentId}
             onClick={() => onSelect(version.id)}
-            title={version.kind === 'picture' ? `${version.tag} :: hover to see it` : `Comment on ${version.tag}`}
           >
             {version.tag}
             {version.current ? ' (current)' : ''}
@@ -251,14 +250,12 @@ export default function ProfileCommentWindow({
       onClose={onClose}
       status={
         offered.length === 0
-          ? 'COMMENTING ON THIS PROFILE IS SWITCHED OFF :: ESC CLOSES'
-          : `ABOUT: ${label.toUpperCase()}${shown === undefined ? '' : ` :: ${shown.tag} :: ${count} ALREADY`} :: ESC CLOSES`
+          ? undefined
+          : `ABOUT: ${label.toUpperCase()}${shown === undefined ? '' : ` :: ${shown.tag} :: ${count} ALREADY`}`
       }
     >
       {offered.length === 0 ? (
-        <p className="text-label font-bold text-ink">
-          NOTHING ON THIS PROFILE CAN BE COMMENTED ON RIGHT NOW - THE OWNER HAS THE THREADS SWITCHED OFF.
-        </p>
+        <p className="text-label font-bold text-ink">COMMENTS ARE OFF.</p>
       ) : (
         <div className="flex flex-col gap-3 sm:flex-row">
           <AspectPreview profile={profile} aspect={aspect} shown={shown} />
@@ -266,14 +263,7 @@ export default function ProfileCommentWindow({
           <div className="min-w-0 flex-1">
             <ProfileCommentBox
               id={`profile-comment-${aspect}-${profile.userId}`}
-              title={owner ? `COMMENT ON YOUR OWN ${label.toUpperCase()}` : `COMMENT ON THIS ${label.toUpperCase()}`}
-              placeholder={
-                aspect === 'avatar'
-                  ? 'What do you make of this drawing?'
-                  : aspect === 'song'
-                    ? 'What do you make of this one?'
-                    : 'Say something about this profile...'
-              }
+              placeholder="Comment..."
               submitLabel="[ FILE COMMENT ]"
               chooser={
                 <div>
@@ -285,7 +275,6 @@ export default function ProfileCommentWindow({
                         key={option}
                         active={option === aspect}
                         onClick={() => setAspect(option)}
-                        title={ASPECT_NOTE[option]}
                       >
                         {ASPECT_LABEL[option]}
                         {option === 'avatar' && picture !== undefined ? ` (${picture.tag})` : ''}
@@ -304,7 +293,7 @@ export default function ProfileCommentWindow({
                 </div>
               }
               footer={
-                viewerId === null ? 'COMMENTS FROM GUESTS ARE SIGNED ANONYMOUS (GUEST) - LOG IN TO SIGN YOURS.' : null
+                viewerId === null ? 'POSTING AS GUEST.' : null
               }
               onSubmit={async (body) => {
                 if (aspect === 'profile') {

@@ -65,7 +65,6 @@ export function ProfileCommentOptions({ options, onChoose }: ProfileCommentOptio
                   ? 'cursor-pointer text-ink hover:bg-ena hover:text-ink-bar'
                   : 'cursor-default text-ink'
               }`}
-              title={option.reason}
             >
               <span className="min-w-0 truncate">
                 {option.available ? '' : '· '}
@@ -111,7 +110,6 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
           className={HYPER_TEXT}
           aria-haspopup="menu"
           aria-expanded={open}
-          title="Leave a comment on this profile"
         >
           comment
         </button>
@@ -122,7 +120,6 @@ export default function ProfileCommentMenu({ options, onChoose }: ProfileComment
           className={HYPER_ARROW}
           aria-hidden="true"
           tabIndex={-1}
-          title={open ? 'Close the comment menu' : 'What can be commented on'}
         >
           {open ? '▴' : '▾'}
         </button>

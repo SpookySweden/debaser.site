@@ -42,9 +42,8 @@ export default function PicturePicker({ id, value, onChange, author, heightClass
             type="button"
             onClick={() => setUploading(true)}
             className={PLATE}
-            title="File a picture of your own into the catalogue and attach it"
           >
-            [ + UPLOAD A PICTURE ]
+            [ + UPLOAD ]
           </button>
         )}
       </div>

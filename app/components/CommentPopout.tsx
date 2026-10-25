@@ -33,7 +33,6 @@ export default function CommentPopout({ anchor, compact = false }: CommentPopout
         onClick={() => setIsOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
-        title={`Open the comment window for ${anchor.label}`}
         className={compact ? PLATE : PLATE_LARGE}
       >
         [ COMMENT{commentCount > 0 ? ` (${commentCount})` : ''} ]

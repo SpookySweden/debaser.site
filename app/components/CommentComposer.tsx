@@ -186,9 +186,9 @@ export default function CommentComposer({
 
       {condensed && hasAttachmentControls ? (
         // One key, one line: what a reply can carry is here rather than in the way. `[ + ATTACH ]`
-        // rather than a bare `[ + ]`, which is a puzzle; the list of what is behind it is the tip.
+        // rather than a bare `[ + ]`, which is a puzzle.
         <details className="mt-1">
-          <summary className={PLATE} title="Tags, a picture, an MP3 or an @name">
+          <summary className={PLATE}>
             [ + ATTACH ]
           </summary>
           <div className="mt-1">{attachmentControls}</div>

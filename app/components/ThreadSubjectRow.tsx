@@ -58,7 +58,7 @@ export default function ThreadSubjectRow({
       {subject.kind === 'item' && subject.preview !== undefined ? (
         /* The item's own drawing, at the size a byline's picture takes, so a sheet's thread leads
            with the sheet the way a person's leads with their picture. */
-        <Link href={subject.href} title={`Open ${subject.label}`} className="inline-flex shrink-0">
+        <Link href={subject.href} className="inline-flex shrink-0">
           <Image
             src={subject.preview.src}
             alt={subject.preview.alt}
@@ -71,7 +71,7 @@ export default function ThreadSubjectRow({
       ) : null}
       <Link
         href={subject.href}
-        title={subject.kind === 'track' ? `Open the music window` : `Open ${subject.label}`}
+        title={subject.kind === 'track' ? 'Open the music window' : undefined}
         className={SUBJECT_LINK}
       >
         {subject.kind === 'track' ? `♪ ${subject.title}` : subject.label}
