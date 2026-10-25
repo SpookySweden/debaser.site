@@ -1193,6 +1193,8 @@ img {
     --key-ink: var(--lit-ink);
     --key-hover-ink: var(--lit);
     --key-quiet-ink: var(--lit-ink);
+    /* A touch heavier, drawn in each letter's own ink. The letters keep their width, so nothing moves. */
+    -webkit-text-stroke: var(--stroke-lit) currentColor;
   }
 
   .name-glow:hover .name-ink,

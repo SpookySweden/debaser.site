@@ -167,6 +167,10 @@
   --border-width-thick: 4px;
   /* `border` with no number: a hairline. */
   --default-border-width: 1px;
+  /* The extra weight a lit directory row's words take (`.name-glow`): an outline round each letter in its
+     own ink. Only weight 400 of the face is loaded, so this is the heavier letter without a second file
+     and without turning every `font-bold` on the site heavier. In em, so it follows the type dial. */
+  --stroke-lit: 0.04em;
 
   /* How far a key drops when it is pressed. */
   --translate-press: 1px;
