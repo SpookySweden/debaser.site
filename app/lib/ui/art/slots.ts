@@ -386,8 +386,8 @@ export const ART_SLOTS = [
     k: 2,
     fit: 'contain',
     css: ['--art-mark-signin'],
-    fallback: 'the provider name in a bordered plate (`/signin`)',
-    brief: 'The mark beside "SIGN IN WITH ...". A glyph, not a logo lock-up, at 20px.',
+    fallback: 'the key reads `[ G ]` (`GoogleSignInButton`)',
+    brief: 'The Google mark: its own key beside `[ LOG IN ]`. A glyph, not a logo lock-up, at 20px.',
   },
 
   /* ----------------------------------------------------------------- the moving */

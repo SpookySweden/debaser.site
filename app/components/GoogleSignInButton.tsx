@@ -1,36 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import Image from 'next/image';
+import { useCallback, useState } from 'react';
 import { GOOGLE_ICON_SRC, GOOGLE_NEEDS_SUPABASE } from '../lib/auth/google';
+import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
-import SheetImage from './SheetImage';
-
-const BUTTON =
-  'inline-flex w-full cursor-pointer items-center justify-center gap-2 key font-bold disabled:cursor-wait';
 
 type GoogleSignInButtonProps = {
-  /** 'large' is the one the side panel and the mobile menu use. */
+  /** 'large' takes the bigger key; the side panel and the account page use 'normal'. */
   size?: 'normal' | 'large';
   className?: string;
 };
 
 /**
- * Sign in with Google.
+ * Sign in with Google: a `[ LOG IN ]` key with the Google mark beside it, and both start the same
+ * sign-in.
  *
- * The backend does the work - on Supabase this sends the browser to Google and
- * back to /account, where the session lands through the auth provider's
- * subscription - so this is the button, the retro mark and the honest answer when
- * the backend cannot do OAuth at all.
+ * The backend does the work - on Supabase this sends the browser to Google and back to /account, where
+ * the session lands through the auth provider's subscription - so this is the two keys and the honest
+ * answer when the backend cannot do OAuth at all.
  *
- * The mark is a hand-drawn file in `assets/icons/` shown through `SheetImage`, the
- * same slot the concept sheets use: until the drawing exists the button shows
- * "[ ? ]" in the icon box rather than an invented logo, because no logo on this
- * site is drawn in CSS or SVG.
+ * The mark is a hand-drawn file in `assets/icons/` (the `mark-signin` slot in app/lib/ui/art/slots.ts,
+ * shown at 20x20). Until it exists the key reads `[ G ]`: the words and the picture share one grid cell,
+ * so the key keeps the larger of the two boxes and nothing moves when the drawing lands - the picture is
+ * only shown once it has loaded, and no logo on this site is drawn in CSS or SVG.
  */
 export default function GoogleSignInButton({ size = 'normal', className }: GoogleSignInButtonProps) {
   const { signInWithGoogle, googleSignInAvailable } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [markDrawn, setMarkDrawn] = useState(false);
+  const markRef = useCallback((img: HTMLImageElement | null) => {
+    if (img?.complete && img.naturalWidth > 0) setMarkDrawn(true);
+  }, []);
 
   async function handleClick() {
     setBusy(true);
@@ -47,21 +49,47 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
   // One line, one source: while the backend cannot do OAuth the standing note is
   // the same message a click would produce, so it is never printed twice.
   const note = message ?? (googleSignInAvailable ? null : GOOGLE_NEEDS_SUPABASE);
+  const key = size === 'large' ? PLATE_LARGE : PLATE;
 
   return (
     <div className={`space-y-1 ${className ?? ''}`}>
-      <button
-        type="button"
-        onClick={() => void handleClick()}
-        disabled={busy}
-        title="Sign in with a Google account"
-        className={`${BUTTON} ${size === 'large' ? 'px-4 py-2 text-key' : 'px-3 py-1 text-label'}`}
-      >
-        <span className="inline-flex h-6 min-w-6 shrink-0 items-center justify-center rounded-none border border-ink-plate bg-paper px-0.5">
-          <SheetImage src={GOOGLE_ICON_SRC} alt="Google" width={20} height={20} sizes="20px" compact />
-        </span>
-        {busy ? '[ OPENING GOOGLE... ]' : '[ LOG IN WITH GOOGLE ]'}
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => void handleClick()}
+          disabled={busy}
+          title="Sign in with a Google account"
+          className={`${key} disabled:cursor-wait`}
+        >
+          {busy ? '[ OPENING GOOGLE... ]' : '[ LOG IN ]'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => void handleClick()}
+          disabled={busy}
+          aria-label="Log in with Google"
+          title="Sign in with a Google account"
+          className={`${key} inline-grid place-items-center disabled:cursor-wait max-sm:min-w-tap`}
+        >
+          <span aria-hidden="true" className={`col-start-1 row-start-1 ${markDrawn ? 'invisible' : ''}`}>
+            [ G ]
+          </span>
+          <Image
+            src={GOOGLE_ICON_SRC}
+            alt=""
+            width={20}
+            height={20}
+            // The file as drawn (40x40, k=2): the optimiser would resample it to 32 or 48 and blur it.
+            unoptimized
+            loading="eager"
+            // A cached file can finish before the key mounts, when no load event is left to hear.
+            ref={markRef}
+            onLoad={() => setMarkDrawn(true)}
+            className={`col-start-1 row-start-1 size-5 rounded-none ${markDrawn ? '' : 'opacity-0'}`}
+          />
+        </button>
+      </div>
 
       {note === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{note}</p>}
     </div>
