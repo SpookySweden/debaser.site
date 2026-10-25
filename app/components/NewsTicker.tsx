@@ -40,10 +40,10 @@ export default function NewsTicker() {
   return (
     <section>
       <div className={TITLE_BAR}>
-        <span>NEWSWIRE :: PINNED POSTS</span>
+        <span>NEWSWIRE</span>
       </div>
 
-      <div title="Point at it to stop the crawl; click a row to open the post">
+      <div>
         <NewsCrawl items={items} className="overflow-hidden px-1 py-0.75" />
       </div>
     </section>

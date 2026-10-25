@@ -1,6 +1,6 @@
 'use client';
 
-import { LINES, tttDraw, tttWinningLine, tttWinner, type Board, type Mark } from '../lib/games/tic-tac-toe';
+import { tttDraw, tttWinningLine, tttWinner, type Board, type Mark } from '../lib/games/tic-tac-toe';
 
 /**
  * The nine-plate board.
@@ -61,13 +61,9 @@ export default function TicTacToeBoard({
       </div>
 
       <p className="mt-1 truncate text-label font-bold text-ink">
-        {winner === null
-          ? draw
-            ? 'ALL NINE PLATES TAKEN. NOBODY WINS THIS ONE.'
-            : `YOU ARE ${myMark}. ${LINES.length} WAYS TO TAKE IT.`
-          : winner === myMark
-            ? `${winner} TAKES IT. WELL PLAYED.`
-            : `${winner} TAKES IT. GO AGAIN?`}
+        {/* A space while the game runs, so the line keeps its height and the board does not move. The
+            side panel already says which mark is yours. */}
+        {winner === null ? (draw ? 'DRAW' : '\u00a0') : winner === myMark ? 'YOU WIN' : `${winner} WINS`}
       </p>
     </div>
   );

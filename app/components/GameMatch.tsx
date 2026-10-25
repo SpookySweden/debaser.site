@@ -115,7 +115,7 @@ export default function GameMatch({
 
     const wire = createGameChannel(invite.id, (status) => {
       if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-        setNote('THE LIVE WIRE IS DOWN. THE GAME STILL PLAYS ON THIS SCREEN.');
+        setNote('OFFLINE :: LOCAL ONLY');
       }
     });
 
@@ -301,6 +301,7 @@ export default function GameMatch({
                   aim.current = y;
                 }}
                 scoresHidden={waiting}
+                waitingFor={opponentName}
               />
             )}
           </div>
@@ -323,23 +324,13 @@ export default function GameMatch({
                 [ LEAVE ]
               </button>
             </div>
-
-            {invite === null ? (
-              <p className="text-label text-ink">
-                Nobody else on this one. {entry.players} - invite somebody from the list below.
-              </p>
-            ) : (
-              <p className="text-label text-ink">
-                {host ? 'YOU OPENED THIS MATCH.' : 'YOU WERE INVITED TO THIS MATCH.'} LEAVE WHEN YOU ARE DONE.
-              </p>
-            )}
           </div>
         </div>
       </div>
 
       <div className={STATUS_BAR}>
         <span className="truncate">{score}</span>
-        <span className="truncate">{waiting ? `WAITING FOR ${opponentName}` : game === 'paddle-duel' ? 'DRAG TO MOVE' : 'TAP A PLATE'}</span>
+        <span className="truncate">{waiting ? `WAITING FOR ${opponentName}` : ''}</span>
       </div>
     </section>
   );

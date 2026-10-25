@@ -128,10 +128,10 @@ export function tttEmptyCells(board: Board): number[] {
 export function tttStatus(board: Board, me: Mark | null): string {
   const winner = tttWinner(board);
   if (winner !== null) return `${winner} WINS`;
-  if (tttFull(board)) return 'DRAW - NOBODY MOVES';
+  if (tttFull(board)) return 'DRAW';
 
   const turn = tttTurn(board);
   if (me === null) return `${turn} TO MOVE`;
 
-  return turn === me ? 'YOUR MOVE' : 'WAITING FOR THE OTHER PLAYER';
+  return turn === me ? 'YOUR MOVE' : 'THEIR MOVE';
 }

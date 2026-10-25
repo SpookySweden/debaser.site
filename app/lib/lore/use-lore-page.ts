@@ -141,7 +141,7 @@ export function useLorePage(slug: string, editor: LoreEditor | null): UseLorePag
         setLoaded({
           key: loadKey,
           page: null,
-          error: caught instanceof Error ? caught.message : 'THE LORE SHELF DID NOT ANSWER.',
+          error: caught instanceof Error ? caught.message : 'LORE DID NOT LOAD.',
           doc: null,
           awareness: null,
         });
@@ -181,7 +181,7 @@ export function useLorePage(slug: string, editor: LoreEditor | null): UseLorePag
         setFiled((previous) => ({
           key,
           savedAt: previous !== null && previous.key === key ? previous.savedAt : null,
-          saveError: caught instanceof Error ? caught.message : 'THE PAGE COULD NOT BE FILED.',
+          saveError: caught instanceof Error ? caught.message : 'NOT SAVED.',
         }));
       } finally {
         setSaving(false);

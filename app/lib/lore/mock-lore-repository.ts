@@ -37,7 +37,7 @@ type PersistedState = {
 };
 
 /** The one refusal that is about being signed out rather than about the page. */
-const NEEDS_ACCOUNT = 'OPENING AND FILING A PAGE TAKES AN ACCOUNT - SIGN IN FIRST.';
+const NEEDS_ACCOUNT = 'SIGN IN FIRST.';
 
 /**
  * A Yjs document built from prose, which is how a page the archive starts life holding is filed.
@@ -245,10 +245,10 @@ class MockLoreRepository implements LoreRepository {
     if (input.creatorId === null) throw new Error(NEEDS_ACCOUNT);
 
     const slug = loreSlug(input.title);
-    if (!isLoreSlug(slug)) throw new Error('THAT TITLE MAKES NO ADDRESS - GIVE THE PAGE A NAME TO FILE IT UNDER.');
+    if (!isLoreSlug(slug)) throw new Error('TITLE NEEDS A LETTER OR DIGIT.');
 
     const pages = ensureState();
-    if (pages.some((page) => page.slug === slug)) throw new Error('A PAGE ALREADY LIVES AT THAT ADDRESS.');
+    if (pages.some((page) => page.slug === slug)) throw new Error('THAT ADDRESS IS TAKEN.');
 
     const now = new Date().toISOString();
     const page: LorePage = {
@@ -274,7 +274,7 @@ class MockLoreRepository implements LoreRepository {
     if (input.editorId === null) throw new Error(NEEDS_ACCOUNT);
 
     const page = ensureState().find((row) => row.id === input.id);
-    if (page === undefined) throw new Error('THAT PAGE IS NOT THERE - IT MAY HAVE BEEN TAKEN OFF THE SHELF.');
+    if (page === undefined) throw new Error('PAGE NOT FOUND.');
 
     page.state = input.state;
     page.bodyText = input.bodyText;

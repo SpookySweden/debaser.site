@@ -220,7 +220,7 @@ export function duelSides(host: boolean): { mine: DuelSide; theirs: DuelSide } {
 export function duelStatus(state: DuelState): string {
   const winner = duelWinner(state);
   if (winner !== null) {
-    return `${winner === 'left' ? 'LEFT' : 'RIGHT'} PADDLE TAKES IT ${state.leftScore}-${state.rightScore}`;
+    return `${winner === 'left' ? 'LEFT' : 'RIGHT'} WINS ${state.leftScore}-${state.rightScore}`;
   }
 
   return `${state.leftScore} - ${state.rightScore} :: FIRST TO ${DUEL_TARGET}`;

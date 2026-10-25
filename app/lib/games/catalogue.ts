@@ -10,7 +10,7 @@ import type { GameId } from './types';
 export type GameEntry = {
   id: GameId;
   title: string;
-  /** One line, in the site's voice: what the game is. */
+  /** One line, in the site's voice: what the game is. The bell's body for an invitation. */
   tagline: string;
   /** `1 PLAYER`, `2 PLAYERS` - how many keyboards, not how many accounts. */
   players: string;
@@ -34,7 +34,7 @@ export const GAME_CATALOGUE: GameEntry[] = [
     title: 'PADDLE DUEL',
     tagline: 'Two paddles, one ball, first to seven.',
     players: '1 OR 2 PLAYERS',
-    controls: 'DRAG THE COURT. FIRST TO 7 TAKES IT.',
+    controls: 'DRAG THE COURT.',
     badge: 'bg-bubble-pale',
   },
 ];

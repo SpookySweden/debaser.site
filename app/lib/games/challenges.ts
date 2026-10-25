@@ -1,6 +1,6 @@
 import { gameById } from './catalogue';
 import { gameEvent } from './events';
-import { INVITE_WINDOW_MS, type GameId, type GameInvite, type GamesRepository } from './types';
+import type { GameId, GameInvite, GamesRepository } from './types';
 import type { CommsEvent } from '../comms/types';
 import { presenceLabel, type PresenceStatus } from '../profile/presence';
 
@@ -19,13 +19,10 @@ import { presenceLabel, type PresenceStatus } from '../profile/presence';
  */
 
 /** The refusal a signed-out reader meets, wherever they meet it. */
-export const CHALLENGE_SIGN_IN = 'SIGN IN FIRST: AN INVITATION IS FROM ONE ACCOUNT TO ANOTHER.';
+export const CHALLENGE_SIGN_IN = 'SIGN IN FIRST.';
 
 /** The refusal for asking yourself, which the store's own constraint also refuses. */
-export const CHALLENGE_SELF = 'AN INVITATION GOES TO SOMEBODY ELSE - THE ARCADE WILL NOT LET YOU PLAY YOURSELF.';
-
-/** How long an unanswered invitation is good for, in the words the plate and the window both use. */
-const INVITE_WINDOW_MINUTES = Math.round(INVITE_WINDOW_MS / (60 * 1000));
+export const CHALLENGE_SELF = "CAN'T INVITE YOURSELF.";
 
 /**
  * Why an account cannot be asked right now.
@@ -36,7 +33,7 @@ const INVITE_WINDOW_MINUTES = Math.round(INVITE_WINDOW_MS / (60 * 1000));
  * (`presenceLabel`), so the tooltip, the directory and this line cannot disagree.
  */
 export function challengeOfflineReason(displayName: string, status: PresenceStatus): string {
-  return `${displayName.toUpperCase()} IS ${presenceLabel(status)} - A MATCH NEEDS BOTH SCREENS, AND AN INVITATION LASTS ${INVITE_WINDOW_MINUTES} MINUTES.`;
+  return `${displayName.toUpperCase()} IS ${presenceLabel(status)}.`;
 }
 
 /**

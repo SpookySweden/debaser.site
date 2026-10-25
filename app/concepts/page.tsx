@@ -15,7 +15,7 @@ export default function Concepts() {
   return (
     <SiteWindow
       title="DEBASER_OS - v1.0 [CONCEPT ARCHIVE]"
-      tip="Visual development for the serialized comic book world. Every sheet is hand-drawn on a Kamvas tablet. The [ COMMENT ] key under a sheet opens its forum thread in a window."
+      tip="Concept sheets."
     >
     <h1 className="sr-only">DEBASER.SITE // CONCEPT ARCHIVE</h1>
 
@@ -42,7 +42,7 @@ export default function Concepts() {
       </ul>
 
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-ink pt-2">
-        <span className="text-label font-bold">ARCHIVE HOUSEKEEPING / SHEET REQUESTS:</span>
+        <span className="text-label font-bold">REQUESTS:</span>
         <CommentPopout anchor={FORUM_ANCHORS.conceptsSheetIndex} compact />
       </div>
     </div>

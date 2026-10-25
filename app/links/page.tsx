@@ -54,10 +54,7 @@ export default function LinksPage() {
 
       {OUTBOUND_LINKS.length === 0 ? (
         <div className="space-y-2 p-3 text-label font-bold text-ink">
-          <p>NOTHING FILED ON THIS SHELF YET.</p>
-          <p className="text-ink">
-            LINKS ARE ADDED BY HAND - EACH ONE WITH A LABEL, ITS ADDRESS AND A LINE SAYING WHAT IS THERE.
-          </p>
+          <p>NOTHING YET.</p>
         </div>
       ) : (
         <ul>

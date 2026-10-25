@@ -38,7 +38,7 @@ export default function Taskbar() {
         aria-expanded={menuOpen}
         // The name it is read with starts with the word on the plate, so the two never drift.
         aria-label="START :: the site menu"
-        title="The site menu: every page, and the debaser project's shelves"
+        title="Menu"
         // Pressed in while its menu is open, which is what a Start button does - and off the phone's
         // screen entirely, where the profile picture is the only door.
         className={`hidden sm:inline-flex ${

@@ -93,7 +93,7 @@ class MockGamesRepository implements GamesRepository {
   }
 
   async create(input: CreateInviteInput): Promise<GameInvite> {
-    if (input.from.id === input.to.id) throw new Error('YOU CANNOT INVITE YOURSELF.');
+    if (input.from.id === input.to.id) throw new Error("CAN'T INVITE YOURSELF.");
 
     const now = new Date().toISOString();
     const invite: GameInvite = {

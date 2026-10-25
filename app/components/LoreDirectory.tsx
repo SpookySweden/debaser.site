@@ -42,7 +42,7 @@ export default function LoreDirectory() {
       .catch((caught: unknown) => {
         if (cancelled) return;
 
-        setError(caught instanceof Error ? caught.message : 'THE LORE SHELF DID NOT ANSWER.');
+        setError(caught instanceof Error ? caught.message : 'LORE DID NOT LOAD.');
         setReady(true);
       });
 
@@ -67,7 +67,6 @@ export default function LoreDirectory() {
           <button
             type="button"
             onClick={() => setOpening(true)}
-            title="Any account may open a page :: pages are written together, as they are typed"
             className={PLATE}
           >
             [ NEW PAGE ]
@@ -97,9 +96,7 @@ export default function LoreDirectory() {
       {!ready ? (
         <p className="px-3 py-2 text-label font-bold text-ink">READING THE SHELF...</p>
       ) : pages.length === 0 ? (
-        <p className="px-3 py-2 text-label font-bold text-ink">
-          NOTHING IS FILED YET. THE FIRST PAGE IS ONE BUTTON AWAY.
-        </p>
+        <p className="px-3 py-2 text-label font-bold text-ink">NO PAGES YET.</p>
       ) : (
         <ol>
           {pages.map((page, position) => (

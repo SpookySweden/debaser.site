@@ -103,7 +103,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           setSolo(null);
           setMatch({ ...invite, status });
         } else {
-          setNotice(`${opponentOf(invite, userId ?? me.id)} DECLINED. NO HARD FEELINGS.`);
+          setNotice(`${opponentOf(invite, userId ?? me.id)} DECLINED.`);
         }
       } catch (caught: unknown) {
         setError(caught instanceof Error ? caught.message : 'THE ARCADE STORE DID NOT ANSWER.');
@@ -297,17 +297,12 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
       {/* What the window was opened to do, when a post's `[ CHALLENGE ]` opened it: the account is
           already addressed and the game is already chosen, so the reader's next press is the
           invitation itself. The panel is navy because it is the thing being done, the same rule the
-          match window keeps. How it works is the title line's tip; the game it will send sits at the
-          title line's end, and a card's `[ INVITE SOMEONE ]` below changes it. */}
+          match window keeps. The game it will send sits at the title line's end, and a card's
+          `[ PICK ]` below changes it. */}
       {challengeOpponent === null ? null : (
         <section className={PANEL}>
           <div className={TITLE_BAR}>
-            <span
-              className="truncate"
-              title={`ASK ${challengeOpponent.displayName.toUpperCase()} FOR A GAME. THE BOARD OPENS ON BOTH SCREENS THE MOMENT THEY ANSWER, AND THE BELL TELLS THEM IT IS WAITING.`}
-            >
-              CHALLENGE // {challengeOpponent.displayName.toUpperCase()}
-            </span>
+            <span className="truncate">CHALLENGE // {challengeOpponent.displayName.toUpperCase()}</span>
             <span className="truncate">{picked.title}</span>
           </div>
 
@@ -319,7 +314,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                 disabled={busy !== null || challengeRefusalText !== null}
                 onClick={() => void invitePlayer(challengeOpponent)}
               >
-                {busy === challengeOpponent.id ? '[ ASKING... ]' : '[ SEND INVITATION ]'}
+                {busy === challengeOpponent.id ? '[ ASKING... ]' : '[ INVITE ]'}
               </button>
 
               {challengeRefusalText === null ? null : (
@@ -352,8 +347,8 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
 
         <div className="grid gap-2 p-2 sm:grid-cols-2">
           {GAME_CATALOGUE.map((game) => (
-            // Who plays and how is the card's tip; a running match keeps its controls line on screen.
-            <div key={game.id} className="p-2" title={`${game.players} :: ${game.controls}`}>
+            // How it is played is said once, in the match's own panel.
+            <div key={game.id} className="p-2">
               <p className="flex items-center gap-2 text-key font-bold text-ink">
                 {/* Navy or Rose in both themes, so the bar ink; `text-paper` went Nigrosine in the dark one. */}
                 <span className={`px-1 text-label text-ink-bar ${game.badge}`}>
@@ -361,7 +356,6 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                 </span>
                 {game.title}
               </p>
-              <p className="mt-1 text-label text-ink">{game.tagline}</p>
 
               <div className="mt-2 flex flex-wrap gap-2">
                 <button
@@ -375,7 +369,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                   [ PLAY SOLO ]
                 </button>
                 <button type="button" className={chosen === game.id ? PLATE_PRESSED : PLATE} disabled={chosen === game.id} onClick={() => setChosen(game.id)}>
-                  {chosen === game.id ? '[ PICKED ]' : '[ INVITE SOMEONE ]'}
+                  {chosen === game.id ? '[ PICKED ]' : '[ PICK ]'}
                 </button>
               </div>
             </div>
@@ -393,10 +387,10 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         </div>
 
         <div className="space-y-2 p-2">
-          {!loaded ? <p className="text-label text-ink">READING THE ARCADE STORE...</p> : null}
+          {!loaded ? <p className="text-label text-ink">READING...</p> : null}
 
           {loaded && visible.length === 0 ? (
-            <p className="text-label text-ink">No invitations either way. Pick a game above, then somebody below.</p>
+            <p className="text-label text-ink">NONE.</p>
           ) : null}
 
           {split.incoming.map((invite) => (
@@ -452,19 +446,19 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         </div>
 
         <div className="space-y-2 p-2">
-          {/* The game is picked on its card above (`[ INVITE SOMEONE ]`), so there is no second row of
-              game plates here; each `[ INVITE TO GAME ]` names the picked game in its tip. */}
+          {/* The game is picked on its card above (`[ PICK ]`), so there is no second row of game
+              plates here; each `[ INVITE ]` names the picked game in its tip. */}
           {userId === null ? (
             <p className="text-label text-ink">
               <Link href="/account" className={PLATE_LINK}>
                 [ LOG IN ]
               </Link>{' '}
-              TO INVITE ANYBODY
+              TO INVITE
             </p>
           ) : null}
 
           {userId !== null && around.length === 0 ? (
-            <p className="text-label text-ink">Nobody else is on. Both players have to be here, so try solo meanwhile.</p>
+            <p className="text-label text-ink">NOBODY ELSE ON.</p>
           ) : null}
 
           {around.length === 0 ? null : (
@@ -479,10 +473,10 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
                       type="button"
                       className={PLATE}
                       disabled={busy === row.account.id}
-                      title={`Invite ${row.account.displayName} to ${picked.title}`}
+                      title={picked.title}
                       onClick={() => void invitePlayer({ id: row.account.id, displayName: row.account.displayName })}
                     >
-                      {busy === row.account.id ? '[ ASKING... ]' : '[ INVITE TO GAME ]'}
+                      {busy === row.account.id ? '[ ASKING... ]' : '[ INVITE ]'}
                     </button>
                   }
                 />

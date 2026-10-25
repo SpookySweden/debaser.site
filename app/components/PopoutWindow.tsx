@@ -105,7 +105,7 @@ export default function PopoutWindow({
         <div
           {...dragHandlers}
           className={`${TITLE_BAR} touch-none cursor-move select-none`}
-          title={status ?? 'ESC OR CLICK THE DESKTOP TO CLOSE :: DRAG THE TITLE BAR TO MOVE'}
+          title={status}
         >
           <span id={titleId} className="truncate">
             {title}

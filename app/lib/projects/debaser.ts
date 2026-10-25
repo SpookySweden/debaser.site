@@ -19,15 +19,13 @@ export type ProjectSection = {
   href: string;
   /** One line under the label, on the landing page's tile. */
   summary: string;
-  /** What the shelf is for, in the section's own words. */
+  /** A short phrase: the hover tip of the section's own page. */
   note: string;
 };
 
 export type ArchiveProject = {
   id: string;
   title: string;
-  /** The line under the title where the project is listed. */
-  subtitle: string;
   href: string;
   summary: string;
 };
@@ -35,10 +33,8 @@ export type ArchiveProject = {
 export const DEBASER_PROJECT: ArchiveProject = {
   id: 'debaser',
   title: 'DEBASER PROJECT',
-  subtitle: 'THE COMIC, ITS MUSIC, ITS NOTES, ITS LINKS',
   href: '/projects/debaser',
-  summary:
-    'The serialized comic and everything around it: the hand-drawn concept sheets, the score, the working notes and the links worth keeping.',
+  summary: 'The comic: sheets, lore, score, notes, links.',
 };
 
 /**
@@ -55,14 +51,14 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     label: 'CONCEPTS',
     href: '/concepts',
     summary: 'The hand-drawn concept sheets.',
-    note: 'Visual development, one sheet per window, each carrying its own comment thread on the board.',
+    note: 'Concept sheets.',
   },
   {
     id: 'lore',
     label: 'LORE',
     href: '/lore',
     summary: 'The world, written down.',
-    note: 'The lore pages: what the world is made of, written by whoever has a page open and merged as it is typed.',
+    note: 'Lore pages.',
   },
   {
     id: 'music',
@@ -71,21 +67,21 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     // 2026-10-24 (`lib/audio/music-window.ts`, MUSIC_HREF). The reader's own music stays a window.
     href: '/media?kind=audio',
     summary: 'The score, and the rough mixes.',
-    note: 'The netlabel shelf: every release the archive holds, filed by artist and sorted by tag, on the media catalogue page with `[ INJECT ]` on any row.',
+    note: 'The music archive.',
   },
   {
     id: 'notes',
     label: 'NOTES',
     href: '/notes',
     summary: 'Working notes and house rules.',
-    note: 'How the archive is built and how a post, a sheet or a lamp is meant to work - written down where it can be read.',
+    note: 'Working notes and house rules.',
   },
   {
     id: 'links',
     label: 'LINKS',
     href: '/links',
     summary: 'Everywhere else worth going.',
-    note: 'Every shelf the archive keeps, plus the outbound links that are filed by hand.',
+    note: 'Every shelf, and links out.',
   },
 ];
 

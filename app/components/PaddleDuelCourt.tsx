@@ -29,6 +29,7 @@ export default function PaddleDuelCourt({
   mySide,
   onAim,
   scoresHidden = false,
+  waitingFor = 'THE OTHER PLAYER',
 }: {
   state: DuelState;
   mySide: DuelSide;
@@ -36,6 +37,8 @@ export default function PaddleDuelCourt({
   onAim: (y: number | null) => void;
   /** True while the other side is not here yet: the ball holds still until both are. */
   scoresHidden?: boolean;
+  /** Who the court is waiting for, while `scoresHidden`. */
+  waitingFor?: string;
 }) {
   const field = useRef<HTMLDivElement | null>(null);
 
@@ -108,7 +111,7 @@ export default function PaddleDuelCourt({
 
         {scoresHidden ? (
           <span className="absolute inset-0 flex items-center justify-center bg-sun-pale/85 px-2 text-center text-key font-bold text-ink">
-            WAITING FOR THE OTHER PLAYER. THE BALL HOLDS STILL UNTIL THEY ARE HERE.
+            WAITING FOR {waitingFor}
           </span>
         ) : null}
 
@@ -118,7 +121,7 @@ export default function PaddleDuelCourt({
       </div>
 
       <p className="mt-1 truncate text-label font-bold text-ink-bar">
-        {mySide === 'left' ? 'YOU ARE THE LEFT PADDLE.' : 'YOU ARE THE RIGHT PADDLE.'} DRAG ANYWHERE TO MOVE IT.
+        {mySide === 'left' ? 'YOU: LEFT' : 'YOU: RIGHT'}
       </p>
     </div>
   );

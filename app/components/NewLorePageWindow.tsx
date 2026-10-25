@@ -37,12 +37,12 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
 
   async function open(): Promise<void> {
     if (user === null) {
-      setError('OPENING A PAGE TAKES AN ACCOUNT - SIGN IN FIRST.');
+      setError('SIGN IN FIRST.');
       return;
     }
 
     if (!usable) {
-      setError('THAT TITLE MAKES NO ADDRESS - GIVE THE PAGE A NAME TO FILE IT UNDER.');
+      setError('TITLE NEEDS A LETTER OR DIGIT.');
       return;
     }
 
@@ -60,17 +60,16 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
       onOpened();
       router.push(lorePagePath(page.slug));
     } catch (caught: unknown) {
-      setError(caught instanceof Error ? caught.message : 'THE PAGE COULD NOT BE OPENED.');
+      setError(caught instanceof Error ? caught.message : 'COULD NOT CREATE THE PAGE.');
       setBusy(false);
     }
   }
 
   return (
     <PopoutWindow
-      title="OPEN A LORE PAGE"
+      title="NEW LORE PAGE"
       onClose={onClose}
       maxWidth="max-w-xl"
-      status="THE ADDRESS IS READ OFF THE TITLE"
     >
       <label className="block text-label font-bold text-ink" htmlFor="lore-new-title">
         TITLE
@@ -84,32 +83,28 @@ export default function NewLorePageWindow({ onClose, onOpened }: NewLorePageWind
       />
 
       <label className="mt-2 block text-label font-bold text-ink" htmlFor="lore-new-summary">
-        ONE LINE ABOUT IT (OPTIONAL)
+        SUMMARY (OPTIONAL)
       </label>
       <input
         id="lore-new-summary"
         value={summary}
         onChange={(event) => setSummary(event.target.value)}
-        placeholder="where the comic opens, and what the corridor is made of"
+        placeholder="one line"
         className={FIELD}
       />
 
       <p className="mt-2 text-label font-bold text-ink">
         LIVES AT:{' '}
         <span className="text-accent-ink">
-          {usable ? lorePagePath(slug) : 'AN ADDRESS NEEDS A LETTER OR A DIGIT IN THE TITLE'}
+          {usable ? lorePagePath(slug) : 'NEEDS A LETTER OR DIGIT'}
         </span>
-      </p>
-
-      <p className="mt-1 text-label font-bold text-ink">
-        {'THE PAGE IS OPENED EMPTY, AND IT IS WRITTEN TOGETHER: ANY ACCOUNT MAY TYPE ON IT, AND EVERYBODY WITH IT OPEN SEES THE OTHERS\' WORDS AS THEY LAND.'}
       </p>
 
       {error === null ? null : <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <button type="button" onClick={() => void open()} disabled={busy || !usable} className={PLATE_MAIN}>
-          {busy ? '[ OPENING... ]' : '[ OPEN THE PAGE ]'}
+          {busy ? '[ CREATING... ]' : '[ CREATE ]'}
         </button>
         <button type="button" onClick={onClose} className={PLATE_LARGE}>
           [ CANCEL ]

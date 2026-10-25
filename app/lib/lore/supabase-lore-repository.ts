@@ -148,10 +148,10 @@ class SupabaseLoreRepository implements LoreRepository {
   }
 
   async createPage(input: CreateLorePageInput): Promise<LorePage> {
-    if (input.creatorId === null) this.fail('OPENING A PAGE TAKES AN ACCOUNT - SIGN IN FIRST.');
+    if (input.creatorId === null) this.fail('SIGN IN FIRST.');
 
     const slug = loreSlug(input.title);
-    if (!isLoreSlug(slug)) this.fail('THAT TITLE MAKES NO ADDRESS - GIVE THE PAGE A NAME TO FILE IT UNDER.');
+    if (!isLoreSlug(slug)) this.fail('TITLE NEEDS A LETTER OR DIGIT.');
 
     const { data, error } = await this.client()
       .from(TABLE)
@@ -171,19 +171,19 @@ class SupabaseLoreRepository implements LoreRepository {
 
     if (error !== null) {
       if (isMissingSchema(error)) this.fail(LORE_NEED_MIGRATION);
-      if (error.code === DUPLICATE) this.fail('A PAGE ALREADY LIVES AT THAT ADDRESS.');
+      if (error.code === DUPLICATE) this.fail('THAT ADDRESS IS TAKEN.');
       this.fail(error.message);
     }
 
     const rows = (data ?? []) as LoreRow[];
     const row = rows[0];
-    if (row === undefined) this.fail('THE PAGE WAS NOT FILED - TRY AGAIN.');
+    if (row === undefined) this.fail('NOT SAVED - TRY AGAIN.');
 
     return toPage(row);
   }
 
   async savePage(input: SaveLorePageInput): Promise<LorePage> {
-    if (input.editorId === null) this.fail('FILING A PAGE TAKES AN ACCOUNT - SIGN IN FIRST.');
+    if (input.editorId === null) this.fail('SIGN IN FIRST.');
 
     const { data, error } = await this.client()
       .from(TABLE)
@@ -205,7 +205,7 @@ class SupabaseLoreRepository implements LoreRepository {
 
     const rows = (data ?? []) as LoreRow[];
     const row = rows[0];
-    if (row === undefined) this.fail('THAT PAGE IS NOT THERE - IT MAY HAVE BEEN TAKEN OFF THE SHELF.');
+    if (row === undefined) this.fail('PAGE NOT FOUND.');
 
     return toPage(row);
   }

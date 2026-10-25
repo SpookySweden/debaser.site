@@ -37,8 +37,6 @@ export const PROJECT_NOTES: ProjectNote[] = [
       'The palette is sixteen hues at one weight - the same saturation, the same lightness, only the hue changing - so two tags a step apart are equally strong and none of them shouts. A colour chosen in the tag editor is brought to that same weight before it is drawn, which is why a colour nobody would have picked as a fill still works as a key.',
       'A username colour works the other way round, because a name is ink rather than a mark: the sixteen swatches are offered in two rows, INK for a name the page cannot swallow and GLOW for one the page shows through. The rows are worked out from the contrast arithmetic rather than from taste, so the list of "hard to read" swatches is exactly the glow row and never drifts away from it.',
     ],
-    href: '/notes',
-    hrefLabel: '[ HOUSE RULES ]',
   },
   {
     id: 'note-what-a-tag-filter-matches',
@@ -51,7 +49,7 @@ export const PROJECT_NOTES: ProjectNote[] = [
       'The number on a chip counts uses rather than posts - one thread with the same tag on two replies reads (2) and brings one post - and the two numbers are meant to differ: the chip measures the vocabulary, and the board says SHOWING n OF n MATCHING underneath it when a post count is what you are after.',
     ],
     href: '/forum',
-    hrefLabel: '[ FORUM BOARD ]',
+    hrefLabel: '[ FORUM ]',
   },
   {
     id: 'note-the-tag-window',
@@ -60,11 +58,11 @@ export const PROJECT_NOTES: ProjectNote[] = [
     filed: '2026-09-23T13:00:00.000Z',
     body: [
       'Every tag the board has is one list, ranked by how much it is used, and that list is a window of its own: `[ TAGS ▾ ]` opens it, it drags about the desktop, and closing it leaves the board exactly as it was. The ranking is the point. What a list of tags is *for* is telling you what is on the board, and that is a count - so nothing is filed by kind, and the same word is not shown twice for being two sorts of thing.',
-      'The window has three tabs. MAIN is the index. MUSIC is the board`s own music: a switch that narrows the whole board to posts carrying a track, the sounds the filed files wear - tick one and only the posts whose music wears it stay - and a searcher over the files themselves, by title, artist, sound or poster, in the order you ask for: recently posted, most posted, or by uploader. TEST runs the rules this board is built on against the board as it is right now, one line each, PASS or FAIL: the same promises the scratch checks in `Temp/` hold, asked where the data lives.',
+      'The window has three tabs. MAIN is the index. MUSIC is the board\'s own music: a switch that narrows the whole board to posts carrying a track, the sounds the filed files wear - tick one and only the posts whose music wears it stay - and a searcher over the files themselves, by title, artist, sound or poster, in the order you ask for: recently posted, most posted, or by uploader. TEST runs the rules this board is built on against the board as it is right now, one line each, PASS or FAIL: the same promises the scratch checks in `Temp/` hold, asked where the data lives.',
       'A file is "popular" when more posts carry it, and RECENT is when it was last posted. Both are read off the board rather than kept in a column, which is why a hand-written catalogue entry with no post behind it sorts last instead of claiming to be new - and why the /music browser can offer the same three orders (a to z, recent, popular, uploader) without a second source of truth to drift away from.',
     ],
     href: '/forum',
-    hrefLabel: '[ FORUM BOARD ]',
+    hrefLabel: '[ FORUM ]',
   },
   {
     id: 'note-profile-comments-on-the-board',
@@ -72,12 +70,12 @@ export const PROJECT_NOTES: ProjectNote[] = [
     kinds: ['BOARD', 'ACCOUNTS'],
     filed: '2026-09-23T14:00:00.000Z',
     body: [
-      'A profile can be commented on in three places - the page itself, one of its pictures, and the track beside the picture - and each of those is a subject of its own on the board: a remark on somebody`s drawing is not a remark on their page, and a remark on v3 of a drawing is not a remark on v7 of it. So each files as its own thread, labelled with what it is: `PROFILE // [name]`, `PICTURE v3 // [name]`, `TRACK v2 // [name]`.',
-      'The words stay where they were written, in the profile`s own comment list, which is what keeps two things that a board comment has no place for: the owner`s switch (this page does not carry comments) and the owner`s pin on a single remark. The board shows exactly what the page shows the reader and nothing wider, because the same row-level rules decide what arrives - and a reply written on the board is filed as a profile comment, against the same version, so both surfaces read the same row back.',
+      'A profile can be commented on in three places - the page itself, one of its pictures, and the track beside the picture - and each of those is a subject of its own on the board: a remark on somebody\'s drawing is not a remark on their page, and a remark on v3 of a drawing is not a remark on v7 of it. So each files as its own thread, labelled with what it is: `PROFILE // [name]`, `PICTURE v3 // [name]`, `TRACK v2 // [name]`.',
+      'The words stay where they were written, in the profile\'s own comment list, which is what keeps two things that a board comment has no place for: the owner\'s switch (this page does not carry comments) and the owner\'s pin on a single remark. The board shows exactly what the page shows the reader and nothing wider, because the same row-level rules decide what arrives - and a reply written on the board is filed as a profile comment, against the same version, so both surfaces read the same row back.',
       'On the board they behave like any other thread: `PROFILE COMMENTS` on the source filter, tags read out of the words so the tag filter and the search reach them, the strip under the title naming whose page it is (their picture and name, which open the page) rather than crediting anybody, since nobody posted it. Answering one from the board is answering it on the page.',
     ],
     href: '/forum',
-    hrefLabel: '[ FORUM BOARD ]',
+    hrefLabel: '[ FORUM ]',
   },
 
   {
@@ -139,7 +137,7 @@ export const PROJECT_NOTES: ProjectNote[] = [
       'Anything written straight onto the board keeps naming the account that filed it, and guests post as Anonymous until they sign in. The rule lives in one place so the board, the search and the account filter never disagree about it.',
     ],
     href: '/forum',
-    hrefLabel: '[ MESSAGE BOARD ]',
+    hrefLabel: '[ FORUM ]',
   },
   {
     id: 'note-where-the-archive-fits',

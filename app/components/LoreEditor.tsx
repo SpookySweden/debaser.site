@@ -32,9 +32,9 @@ export const SAVE_AFTER_MS = 2500;
 
 /** What the room's line says, in the site's own words. */
 export const LORE_STATUS_LINES: Record<LoreStatus, string> = {
-  SYNCING: 'ASKING WHO ELSE IS HERE...',
-  LIVE: 'LIVE :: WHAT YOU TYPE IS ALREADY ON EVERYBODY ELSE\'S PAGE',
-  ALONE: 'NOBODY ELSE IS ON THIS PAGE :: WHAT YOU WRITE IS FILED AS YOU GO',
+  SYNCING: 'CONNECTING...',
+  LIVE: 'LIVE',
+  ALONE: 'ALONE',
 };
 
 /** A toolbar plate that reads as pressed while the mark it toggles is on the cursor. */
@@ -136,9 +136,7 @@ export default function LoreEditor({
     <section>
       <div className={TITLE_BAR}>
         {/* No editor count: IN THE ROOM below lists them by name. */}
-        <span title="The page is written together. Two people in the same paragraph both keep typing - nothing either of them writes is lost.">
-          THE PAGE
-        </span>
+        <span>THE PAGE</span>
         <span className="min-w-0 shrink whitespace-normal text-right">{LORE_STATUS_LINES[status]}</span>
       </div>
 
@@ -205,14 +203,14 @@ export default function LoreEditor({
       {/* The filing line: what the shelf has, and the button that files what it does not. */}
       <div className="flex flex-wrap items-center gap-2 border-t border-ink px-2 py-1 text-label font-bold text-ink">
         {savedAt === null ? (
-          <span className="bg-bubble-pale px-1 text-ink-bar">NOT FILED YET :: THE ROOM SEES IT, THE SHELF DOES NOT</span>
+          <span className="bg-bubble-pale px-1 text-ink-bar">UNSAVED</span>
         ) : (
           <span>
-            FILED :: <TimeStamp at={savedAt} />
+            SAVED :: <TimeStamp at={savedAt} />
           </span>
         )}
 
-        {saving ? <span>FILING...</span> : null}
+        {saving ? <span>SAVING...</span> : null}
         {saveError === null ? null : <span className="bg-bubble-pale px-1 text-ink-bar">{saveError}</span>}
 
         <button type="button" className={`ml-auto ${PLATE}`} onClick={saveNow} disabled={saving}>

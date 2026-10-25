@@ -30,8 +30,8 @@ function glowStyle(chosen: string | undefined): CSSProperties | undefined {
 }
 
 /** What the side panel's one-letter marks stand for, said under the pointer. */
-const ADMIN_TIP = 'Admin: the house account, which runs the archive';
-const BANNED_TIP = 'Banned: their posts are hidden from everybody but the admin';
+const ADMIN_TIP = 'Admin';
+const BANNED_TIP = 'Banned';
 
 type UserDirectoryRowProps = {
   row: DirectoryRow;
@@ -177,7 +177,6 @@ export default function UserDirectoryRow({
               onClick={() => onMessage?.(row.account.id)}
               disabled={busy}
               className={PLATE}
-              title="A message opens that conversation on the comms page"
             >
               {busy ? '[ OPENING... ]' : '[ MESSAGE ]'}
             </button>

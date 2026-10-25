@@ -27,26 +27,27 @@ export const ARCHIVE_LINKS: ArchiveLink[] = [
   {
     id: 'home',
     label: 'HOME',
-    href: '/',
-    summary: 'The landing page: what the archive is, and the projects filed in it.',
+    // `/` hands the visitor to the board (app/page.tsx); HOME is the projects map, as on the header.
+    href: '/projects',
+    summary: 'The projects.',
   },
   {
     id: 'project',
     label: 'DEBASER PROJECT',
     href: '/projects/debaser',
-    summary: 'The project page, where the four shelves below are gathered.',
+    summary: 'Its five shelves, on one page.',
   },
   {
     id: 'concepts',
     label: 'CONCEPT ARCHIVE',
     href: '/concepts',
-    summary: 'The hand-drawn sheets, each in its own window with its own thread.',
+    summary: 'Hand-drawn sheets.',
   },
   {
     id: 'lore',
     label: 'LORE PAGES',
     href: '/lore',
-    summary: 'The world written down: pages any account can add to, merged as they are typed.',
+    summary: 'The world, written down.',
   },
   {
     id: 'music',
@@ -54,37 +55,37 @@ export const ARCHIVE_LINKS: ArchiveLink[] = [
     // The archive's address: the AUDIO tab of the media catalogue page, which took the shelf over
     // from the music window on 2026-10-24 (`app/lib/audio/music-window.ts`, MUSIC_HREF).
     href: '/media?kind=audio',
-    summary: 'The score and the rough mixes, played from the track list.',
+    summary: 'Score and rough mixes.',
   },
   {
     id: 'notes',
     label: 'NOTES',
     href: '/notes',
-    summary: 'How the archive is built, and the rules it keeps.',
+    summary: 'Working notes and house rules.',
   },
   {
     id: 'forum',
     label: 'MESSAGE BOARD',
     href: '/forum',
-    summary: 'Every thread: what was posted straight onto the board, and what the items collected.',
+    summary: 'Every thread.',
   },
   {
     id: 'users',
     label: 'USER DIRECTORY',
     href: '/users',
-    summary: 'Every account on the site, with the lamp that says who is around.',
+    summary: 'Every account, and who is on.',
   },
   {
     id: 'comms',
     label: 'COMMS',
     href: '/comms',
-    summary: 'Direct messages between accounts.',
+    summary: 'Direct messages.',
   },
   {
     id: 'account',
     label: 'ACCOUNT',
     href: '/account',
-    summary: 'Sign in, edit the account, and shape the public profile visitors see.',
+    summary: 'Sign in, account, profile.',
   },
 ];
 

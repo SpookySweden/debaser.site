@@ -26,12 +26,19 @@ export default function NotesPage() {
           key={note.id}
           id={note.id}
         >
-          <div className="title-line flex-wrap text-accent-ink">
-            <span>{note.title}</span>
+          {/* Each note folds shut under its title (Luke, 2026-10-25, SPEC-less-text.md): the page is a
+              list of titles, and a reader opens the one they want. Native <details>, like a thread. */}
+          <details className="group">
+          <summary className="title-line flex-wrap cursor-pointer select-none text-accent-ink hover:underline max-sm:min-h-tap">
+            <span>
+              <span aria-hidden="true" className="group-open:hidden">[+] </span>
+              <span aria-hidden="true" className="hidden group-open:inline">[-] </span>
+              {note.title}
+            </span>
             {/* The stamp is the board's blue on light panels; on the navy bar it
                 stays plain white so it can be read. */}
             <span>FILED {formatStamp(note.filed)}</span>
-          </div>
+          </summary>
 
           <div className="space-y-2 p-3">
             <p className="flex flex-wrap items-center gap-1 text-label font-bold">
@@ -56,6 +63,7 @@ export default function NotesPage() {
               </p>
             )}
           </div>
+          </details>
         </section>
       ))}
     </div>

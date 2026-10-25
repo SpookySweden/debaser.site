@@ -32,7 +32,7 @@ export default function DebaserProjectPage() {
   return (
     <SiteWindow
       title="DEBASER_OS - v1.0 [PROJECTS / DEBASER]"
-      tip={`${DEBASER_PROJECT.subtitle} :: ${DEBASER_PROJECT.summary}`}
+      tip={DEBASER_PROJECT.summary}
     >
     <h1 className="sr-only">DEBASER.SITE // {DEBASER_PROJECT.title}</h1>
 
@@ -51,7 +51,6 @@ export default function DebaserProjectPage() {
           </div>
           <div className="space-y-1 p-3 text-label font-bold">
             <p className="text-key">{section.summary}</p>
-            <p className="text-ink">{section.note}</p>
           </div>
         </Link>
       ))}

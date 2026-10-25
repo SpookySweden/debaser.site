@@ -40,7 +40,7 @@ export default function ChallengeControl({ author, status, viewerId }: Challenge
     <button
       type="button"
       disabled={refusal !== null}
-      title={refusal ?? `Ask ${label} for a game: the arcade opens over this thread`}
+      title={refusal ?? `Challenge ${label}`}
       onClick={() => openArcade({ kind: 'challenge', opponentId: targetId, game: ARCADE_DEFAULT_GAME })}
       className={PLATE}
     >

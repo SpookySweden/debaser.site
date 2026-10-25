@@ -53,10 +53,10 @@ export default function LorePageView({ slug }: LorePageViewProps) {
     return (
       <div className="space-y-2">
         <p className="p-3 text-label font-bold text-ink">
-          NO PAGE LIVES AT /lore/{slug}. IT MAY HAVE BEEN RENAMED, OR NEVER OPENED AT ALL.
+          NO PAGE AT /lore/{slug}.
         </p>
         <Link href="/lore" className="text-label font-bold underline hover:bg-ice-pale">
-          [ &lt; BACK TO THE LORE SHELF ]
+          [ &lt; LORE ]
         </Link>
       </div>
     );
@@ -92,7 +92,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
           <div className="space-y-2 p-3 text-prose leading-normal text-ink">
             {paragraphs.length === 0 ? (
-              <p className="text-label font-bold text-ink">NOTHING HAS BEEN WRITTEN ON THIS PAGE YET.</p>
+              <p className="text-label font-bold text-ink">EMPTY PAGE.</p>
             ) : (
               paragraphs.map((paragraph, index) => <p key={index}>{paragraph}</p>)
             )}
@@ -120,7 +120,7 @@ export default function LorePageView({ slug }: LorePageViewProps) {
           <Link href="/account" className={PLATE_LINK}>
             [ LOG IN ]
           </Link>{' '}
-          TO WRITE ON THIS PAGE
+          TO WRITE
         </p>
       ) : null}
     </div>

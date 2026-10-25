@@ -71,7 +71,7 @@ export type NavItem = {
  * separation: a band that grew a window key back would be a band that lies about what a key does.
  */
 export const NAV_ITEMS: NavItem[] = [
-  { key: 'home', label: 'HOME :: THE PROJECTS', mark: ICON_HOME, href: '/projects' },
+  { key: 'home', label: 'HOME', mark: ICON_HOME, href: '/projects' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
   // The catalogue is a place a reader goes, not a window (Luke, 2026-10-24, SPEC-media-catalogue.md):
   // every file the site holds, and where each is used. It took over the ARCHIVE screen of the shelf

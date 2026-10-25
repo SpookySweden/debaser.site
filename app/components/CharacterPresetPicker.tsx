@@ -67,7 +67,7 @@ function Picker() {
         className="w-full max-w-4xl rounded-none border-line border-ink bg-sun-pale"
       >
         <div className={`${TITLE_BAR_INACTIVE} w-full`}>
-          <span>NEW FIGURE - PICK ONE TO START FROM</span>
+          <span>NEW FIGURE</span>
           <button type="button" onClick={close} aria-label="Close the figure picker" className="px-1 font-bold max-sm:min-h-tap">
             [ × ]
           </button>
@@ -112,7 +112,7 @@ function Picker() {
             }}
             className="cursor-pointer rounded-none border-line border-ink bg-ena px-3 py-2 text-key font-bold text-ink-bar disabled:cursor-not-allowed disabled:bg-sun-pale disabled:text-ink max-sm:min-h-tap"
           >
-            {picked === null ? '[ PICK A FIGURE ABOVE ]' : `[ START WITH ${RIG_PRESETS[picked].label} ]`}
+            [ START ]
           </button>
           <button
             type="button"
@@ -121,7 +121,6 @@ function Picker() {
           >
             [ CANCEL ]
           </button>
-          <span className="text-label text-ink">REPLACES THE FIGURE ON THE BENCH. UNDO BRINGS IT BACK.</span>
         </div>
       </section>
     </div>

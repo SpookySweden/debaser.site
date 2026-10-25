@@ -32,11 +32,7 @@ const COMPACT_LIMIT = 12;
  * to other pages); the colours explain themselves after one look, so the sentence waits under the
  * pointer instead (SPEC-efficiency.md).
  */
-const LAMP_TIP =
-  'The lamp: green while a tab of that account is open, yellow for an hour after it closes, red once that has passed.';
-
-/** What the full listing adds to that tip for somebody who can ask: where else a game is asked for. */
-const GAME_TIP = ' A game is asked for from the arcade - or with [ CHALLENGE ] on a post that names them.';
+const LAMP_TIP = 'Green: on. Yellow: under 1h. Red: away.';
 
 /**
  * The account directory: every account the site knows, with its lamp.
@@ -95,13 +91,13 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
     <div className="space-y-3">
       <section className={PANEL}>
         <div className={compact ? `${TITLE_BAR_INACTIVE} title-stack` : TITLE_BAR_INACTIVE}>
-          <span title={compact || user === null ? LAMP_TIP : `${LAMP_TIP}${GAME_TIP}`}>ACCOUNT DIRECTORY</span>
+          <span title={LAMP_TIP}>ACCOUNT DIRECTORY</span>
           <span>
             {/* Said once and short (SPEC-efficiency.md): the panel's key to the whole list, and the page's
                 one count. `n SEEN THIS HOUR :: n ELSEWHERE` and the account total were the lamps again in
                 words; the lamps are on every row. */}
             {compact ? (
-              <Link href="/users" className={TITLE_BAR_BUTTON} title="Every account, on the people page">
+              <Link href="/users" className={TITLE_BAR_BUTTON}>
                 [ ALL ]
               </Link>
             ) : accountsReady ? (
@@ -154,7 +150,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
             <Link href="/account" className={PLATE_LINK}>
               [ LOG IN ]
             </Link>{' '}
-            TO MESSAGE PEOPLE
+            TO MESSAGE
           </p>
         )}
       </section>

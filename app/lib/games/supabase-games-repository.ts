@@ -94,7 +94,7 @@ class SupabaseGamesRepository implements GamesRepository {
    * after, so the write and its answer are one round trip.
    */
   async create(input: CreateInviteInput): Promise<GameInvite> {
-    if (input.from.id === input.to.id) throw new Error('YOU CANNOT INVITE YOURSELF.');
+    if (input.from.id === input.to.id) throw new Error("CAN'T INVITE YOURSELF.");
 
     const { data, error } = await this.client()
       .from(TABLE)

@@ -30,7 +30,7 @@ export default function ProjectSectionNav({ current }: ProjectSectionNavProps) {
 
       {PROJECT_SECTIONS.map((section) =>
         section.id === current ? (
-          <span key={section.id} className={CURRENT} title={`You are on ${section.label}`}>
+          <span key={section.id} className={CURRENT} aria-current="page">
             [ {section.label} ]
           </span>
         ) : (

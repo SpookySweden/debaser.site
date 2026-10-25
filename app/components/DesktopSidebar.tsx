@@ -107,7 +107,6 @@ function ShelfKey({
       onClick={onPress}
       aria-haspopup="dialog"
       aria-pressed={isOpen}
-      title={isOpen ? `Close the ${item.label.toLowerCase()}` : `Open the ${item.label.toLowerCase()}`}
       className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label ${
         isOpen
           ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'

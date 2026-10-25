@@ -24,7 +24,7 @@ export default function LorePage() {
   return (
     <SiteWindow
       title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / LORE]"
-      tip={`${section?.note ?? ''} Every sheet in this archive is hand-drawn and every page here is typed: the two sit side by side under the project.`.trim()}
+      tip={section?.note}
     >
       <h1 className="sr-only">DEBASER.SITE // LORE</h1>
 

@@ -25,7 +25,7 @@ export default function ProjectsPage() {
   return (
     <SiteWindow
       title="DEBASER_OS - v1.0 [PROJECTS]"
-      tip="Everything the archive holds, gathered under the project it belongs to. The board and the site's own rooms - users, comms, the account - are the archive's rather than any project's: they live on the header along the top of every page."
+      tip="The projects."
     >
       <h1 className="sr-only">DEBASER.SITE // PROJECTS</h1>
 
@@ -39,12 +39,10 @@ export default function ProjectsPage() {
             <li key={project.id} className="rule-pixel">
               <Link
                 href={project.href}
-                title={project.summary}
                 className="block p-3 text-label font-bold hover:bg-pointed"
               >
                 <span className="flex flex-wrap items-baseline gap-x-2">
                   <span className="text-sm">{project.title}</span>
-                  <span className="text-ink">:: {project.subtitle}</span>
                 </span>
                 <span className="mt-1 block max-w-prose font-normal text-ink">{project.summary}</span>
               </Link>

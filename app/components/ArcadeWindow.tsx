@@ -68,7 +68,6 @@ export default function ArcadeWindow() {
       id="arcade"
       defaultSize={{ w: 448, h: 560 }}
       minSize={{ w: 320, h: 260 }}
-      status="THE BOARD IS STILL BEHIND THIS :: PLAYS SOLO, OR OPENS ON BOTH SCREENS WHEN THEY ANSWER"
     >
       <GamesHub focus={state.focus} />
     </DockWindow>

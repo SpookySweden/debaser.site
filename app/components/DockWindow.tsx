@@ -172,11 +172,7 @@ export default function DockWindow({
         <div
           {...titleHandlers}
           className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}
-          title={
-            grouped
-              ? 'GROUPED :: SHAKE WHILE DRAGGING TO DETACH, OR PRESS ⇲'
-              : (status ?? 'DOCKED BESIDE THE BOARD :: DRAG THE TITLE BAR TO MOVE IT')
-          }
+          title={grouped ? 'SHAKE WHILE DRAGGING TO DETACH' : status}
         >
           <span className="truncate">{title}</span>
           <span className="flex items-center gap-2">

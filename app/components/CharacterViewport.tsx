@@ -53,7 +53,7 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
   select: {
     label: 'SELECT',
     status: 'CLICK A SHAPE',
-    hint: 'CLICK A SHAPE TO PICK IT. DRAG IT TO MOVE, DRAG A YELLOW SQUARE TO SIZE IT, DRAG THE GREEN KNOB TO TURN IT.',
+    hint: 'CLICK A SHAPE. DRAG: MOVE. YELLOW SQUARE: SIZE. GREEN KNOB: TURN.',
   },
   add: {
     label: 'ADD',
@@ -63,13 +63,13 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
   move: {
     label: 'MOVE',
     status: 'DRAG A SHAPE',
-    hint: 'DRAG ANY SHAPE TO SLIDE IT. FRONT MOVES ACROSS AND UP; SIDE MOVES FORWARD AND UP.',
+    hint: 'DRAG ANY SHAPE TO SLIDE IT.',
   },
   turn: { label: 'TURN', status: 'DRAG TO SPIN', hint: 'DRAG ANY SHAPE ROUND ITS MIDDLE TO SPIN IT, LIKE A DIAL.' },
   size: {
     label: 'SIZE',
     status: 'DRAG TO RESIZE',
-    hint: 'DRAG ANY SHAPE: RIGHT TO WIDEN, UP TO MAKE IT TALLER. IT GROWS FROM ITS MIDDLE.',
+    hint: 'DRAG RIGHT: WIDER. UP: TALLER.',
   },
   pose: { label: 'POSE', status: 'DRAG A NODE', hint: 'DRAG A GREEN NODE. PINNED SHAPES FOLLOW AND TURN WITH THEIR BONE.' },
   delete: { label: 'DELETE', status: 'CLICK TO REMOVE', hint: 'CLICK A SHAPE TO REMOVE IT. UNDO BRINGS IT BACK.' },
@@ -79,7 +79,7 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
 const LAYERS: Record<LayerId, { label: string; hint: string }> = {
   pixelate: { label: 'PIXELATE', hint: 'BIG PIXELS, AS THE FIGURE WILL LOOK. OFF: FULL RESOLUTION.' },
   // A no-break space: `w-min` would otherwise stack "12" over "PX".
-  fine: { label: '12 PX', hint: 'BIGGER PIXELS: EACH VIEW IS ABOUT 12 PIXELS ON ITS LONGER SIDE. WORKS WITH PIXELATE ON.' },
+  fine: { label: '12 PX', hint: 'BIGGER PIXELS, ABOUT 12 ACROSS. WITH PIXELATE ON.' },
   normalLight: { label: 'NORMAL LIGHT', hint: 'SHADE THE FIGURE IN THREE HARD BANDS. OFF: FLAT COLOURS.' },
   normalMap: { label: 'NORMAL MAP', hint: 'SHOW WHAT THE LIGHT READS: EACH PIXEL COLOURED BY THE WAY IT FACES.' },
 };
@@ -429,7 +429,7 @@ function PlacingOptions() {
       ? placing.what === 'shape'
         ? ['CLICK A NODE', 'CLICK THE NODE THE NEW SHAPE HANGS FROM. IT APPEARS THERE, PINNED TO IT.']
         : ['CLICK A NODE', 'CLICK THE NODE THE NEW NODE HANGS FROM: ITS PARENT.']
-      : ['DRAG, THEN ✓', 'DRAG ANYWHERE IN EITHER VIEW TO MOVE IT, THEN ✓ TO KEEP IT OR ✗ TO CANCEL.'];
+      : ['DRAG, THEN ✓', 'DRAG TO MOVE. ✓ KEEPS, ✗ CANCELS.'];
 
   return (
     <>
@@ -789,7 +789,7 @@ function Stats() {
         PIXELS <span data-stat="pixels">{pixels ?? '-'}</span>
       </span>
       <span aria-hidden>·</span>
-      <span title="HOW FAR THE MOST-TIPPED SHAPE HAS SAGGED. 100%: A SHAPE THAT STUCK STRAIGHT OUT NOW HANGS STRAIGHT DOWN.">
+      <span title="THE MOST SAG ON ANY SHAPE. 100%: HANGS STRAIGHT DOWN.">
         SAG <span data-stat="sag">{Math.round(share * 100)}</span>%
       </span>
     </p>
@@ -826,7 +826,7 @@ function ShapesList() {
         type="button"
         onClick={toggleList}
         aria-expanded={listOpen}
-        title={brokenCount > 0 ? `${brokenCount} MARKED: NOT CONNECTED TO A NODE. THE FIGURE CAN'T BE SAVED UNTIL THEY ARE.` : undefined}
+        title={brokenCount > 0 ? `${brokenCount} NOT CONNECTED: CAN'T SAVE YET.` : undefined}
         className={`${TITLE_BAR_INACTIVE} w-full cursor-pointer hover:bg-ice max-sm:min-h-tap`}
       >
         <span>
@@ -986,7 +986,7 @@ function ShapeProperties({ shape }: { shape: Shape }) {
           aria-label="Pinned to"
           value={shape.pin ?? ''}
           onChange={(event) => setPin(shape.id, event.target.value === '' ? null : event.target.value)}
-          title={shape.pin === null ? "PINNED TO NOTHING: THE FIGURE CAN'T BE SAVED UNTIL IT IS PINNED TO A NODE." : 'FOLLOWS AND TURNS WITH THIS NODE WHEN YOU POSE.'}
+          title={shape.pin === null ? 'PIN IT TO A NODE TO SAVE.' : 'FOLLOWS AND TURNS WITH THIS NODE WHEN YOU POSE.'}
           className="w-full rounded-none border-line border-ink bg-paper px-1 py-1 text-key text-ink max-sm:min-h-tap"
         >
           <option value="">NOTHING - CAN&apos;T SAVE</option>
@@ -1121,12 +1121,11 @@ function NodeDelete({ nodeId }: { nodeId: string }) {
     return (
       <div role="group" aria-label="Confirm deleting the node" className="flex flex-col gap-1 border-line border-ink p-1 text-label text-ink">
         <p className="font-bold">
-          DELETES {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}. UNPINS {losing.map((shape) => shape.name).join(', ')}
-          {' '}- MARKED UNTIL RE-PINNED.
+          DELETE {removed.length === 1 ? 'THIS NODE' : `${removed.length} NODES`}? UNPINS {losing.map((shape) => shape.name).join(', ')}.
         </p>
         <div className="flex gap-1">
           <button type="button" onClick={() => deleteNode(nodeId)} className={`flex-1 px-2 py-1 text-label ${pressable(false)} hover:bg-bubble-pale`}>
-            [ YES, DELETE ]
+            [ YES ]
           </button>
           <button type="button" onClick={() => setAsking(false)} className={`flex-1 px-2 py-1 text-label ${pressable(false)}`}>
             [ NO ]

@@ -12,7 +12,7 @@ export default function UsersPage() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [USERS]"
       active="users"
-      tip="Every account the site knows about, with a lamp that says whether anybody is behind it: green while a tab is open, yellow for the hour after it closes, red after that. debaser.site is listed first as the house account. Each name opens that account's public profile."
+      tip="Every account."
     >
     <h1 className="sr-only">DEBASER.SITE // USER DIRECTORY</h1>
 

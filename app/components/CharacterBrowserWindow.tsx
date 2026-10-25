@@ -16,10 +16,10 @@ import {
 } from '../lib/character/library';
 import type { Figure } from '../lib/character/figure';
 import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
-import { MASS_SHAPES } from '../lib/character/shapes';
 import { useCharacterStore, type Placing } from '../lib/character/store';
 import { saveRefusal } from '../lib/character/structure';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import InfoFold from './InfoFold';
 import PopoutWindow from './PopoutWindow';
 
 /** A placement half done is not a figure yet: ✓ or ✗ it first. */
@@ -122,11 +122,10 @@ export default function CharacterBrowserWindow() {
       badge={`[ ${shelf.length} ]`}
       onClose={closeCharacterBrowser}
       maxWidth="max-w-3xl"
-      status="LOAD PUTS A FIGURE ON THE BENCH :: SAVING AGAIN REPLACES THE FIGURE ON IT, NOT THIS LIST"
     >
       <div className="space-y-2 text-label text-ink">
         <div className="frame bg-sun-pale p-2">
-          <p className="font-bold">KEEP THE FIGURE THAT IS ON THE BENCH</p>
+          <p className="font-bold">SAVE FIGURE</p>
 
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1" htmlFor="character-save-name">
@@ -142,7 +141,7 @@ export default function CharacterBrowserWindow() {
             </label>
 
             <button type="button" onClick={keep} className={PLATE_LARGE}>
-              [ SAVE TO THE SHELF ]
+              [ SAVE ]
             </button>
           </div>
 
@@ -152,15 +151,16 @@ export default function CharacterBrowserWindow() {
             </p>
           ) : null}
 
-          <p className="mt-1 text-ink-quiet">
-            LEAVE THE NAME EMPTY AND IT IS NUMBERED. THIS SHELF HOLDS UP TO {MAX_SAVED_LABEL} FIGURES; SAVING BEYOND
-            THAT DROPS THE OLDEST.
-          </p>
+          {/* The one rule the controls do not show (SPEC-less-text.md): the shelf's limit. */}
+          <InfoFold topic="the shelf limit" className="mt-1">
+            UP TO {MAX_SAVED_LABEL} FIGURES; SAVING ONE MORE DROPS THE OLDEST. AN EMPTY NAME IS NUMBERED. FIGURES
+            LIVE IN THIS BROWSER, PER ACCOUNT.
+          </InfoFold>
         </div>
 
         {shelf.length === 0 ? (
           <p className="frame bg-sun-pale p-3 font-bold">
-            NOTHING SAVED YET. BUILD A FIGURE ON THE CHAR TAB, THEN PRESS [ SAVE TO THE SHELF ] ABOVE.
+            NOTHING SAVED YET.
           </p>
         ) : (
           <ul className="divide-y divide-ink frame bg-sun-pale">
@@ -205,7 +205,7 @@ export default function CharacterBrowserWindow() {
                           confirmCharacterRemoval(null);
                         }}
                       >
-                        [ YES, FORGET IT ]
+                        [ YES ]
                       </button>
                       <button type="button" className={PLATE} onClick={() => confirmCharacterRemoval(null)}>
                         [ NO ]
@@ -234,13 +234,7 @@ export default function CharacterBrowserWindow() {
               .map(([id, total]) => `${id.toUpperCase()} ${total}`)
               .join(' :: ') || 'NONE'}
           </span>
-          <span>[ {shelf.length} ]</span>
         </div>
-
-        <p className="text-ink-quiet">
-          FIGURES LIVE IN THIS BROWSER, PER ACCOUNT. THE SHAPE VOCABULARY IS {Object.values(MASS_SHAPES).length}{' '}
-          PRIMITIVES, SO A FIGURE TAKEN OFF THIS SHELF KEEPS WHICHEVER OF THEM IT USES.
-        </p>
       </div>
     </PopoutWindow>
   );
