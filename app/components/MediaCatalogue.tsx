@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useState } from 'react';
 import { folderLabel, type FolderPath } from '../lib/audio/archive-tree';
-import { forumTrackFromArchive, trackTargetKey } from '../lib/audio/forum-tracks';
 import { MUSIC_HREF } from '../lib/audio/music-window';
 import { audioTagKey } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
@@ -13,7 +12,7 @@ import { KIND_LABELS, MEDIA_KINDS, useCatalogue } from '../lib/media/catalogue';
 import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
 import type { CatalogueEntry, MediaItem, MediaKind } from '../lib/media/types';
-import { FIELD_TIGHT, PLATE, PLATE_ACCENT, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
@@ -23,7 +22,6 @@ import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
-import NewPostForm from './NewPostForm';
 import ProfileLink from './ProfileLink';
 import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
@@ -80,8 +78,8 @@ function trackFor(item: MediaItem, queue: AudioTrack[]): AudioTrack {
  * The AUDIO tab is the music archive, in the same shape as the other tabs (Luke, 2026-10-24: the old
  * music window's browser had been dropped onto the page whole, with its own controls, pink folder
  * bands and a different row). The rows are the catalogue's, grouped under a title line per folder
- * with the unfiled files last, and each carries the shelf's three keys - the heart, PLAY and
- * INJECT. A signed-in reader files a new track or folder here with the windows the shelf had.
+ * with the unfiled files last, and each carries the shelf's two keys - the heart and PLAY (the
+ * INJECT key went 2026-10-25, Luke: a track is picked in the composer instead). A signed-in reader files a new track or folder here with the windows the shelf had.
  *
  * The tab lives in the address (`/media?kind=audio`), so the music window's ARCHIVE link, a track's
  * key and a copied address all land on the right shelf; a tag pressed on a track adds `&tag=...`.
@@ -104,7 +102,6 @@ export default function MediaCatalogue() {
   const [openId, setOpenId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
-  const [posting, setPosting] = useState<AudioTrack | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
   const show = useCallback(
@@ -205,7 +202,6 @@ export default function MediaCatalogue() {
         liked={track === undefined ? false : library.likedIds.has(track.id)}
         onLike={library.canWrite ? (candidate) => void toggleLike(candidate) : undefined}
         onPlay={(candidate) => player.play(candidate, { origin: 'shelf', href: MUSIC_HREF, where: 'THE MEDIA PAGE' })}
-        onInject={setPosting}
       />
     );
   };
@@ -406,12 +402,6 @@ export default function MediaCatalogue() {
           }}
         />
       ) : null}
-
-      {/* The shelf's own way onto the board: the composer, filed under this track with the file
-          already on it (`INJECT`), so everything written about a song lands in the track's own place. */}
-      {posting === null ? null : (
-        <NewPostForm initialTarget={trackTargetKey(posting)} initialTrack={forumTrackFromArchive(posting)} onClose={() => setPosting(null)} />
-      )}
     </section>
   );
 }
@@ -427,7 +417,6 @@ function CatalogueRow({
   liked,
   onLike,
   onPlay,
-  onInject,
 }: {
   entry: CatalogueEntry;
   open: boolean;
@@ -440,7 +429,6 @@ function CatalogueRow({
   /** Hearts the track; undefined for a guest, who is offered the heart's state but not the press. */
   onLike?: (track: AudioTrack) => void;
   onPlay: (track: AudioTrack) => void;
-  onInject: (track: AudioTrack) => void;
 }) {
   const { item, uses } = entry;
   const [editing, setEditing] = useState(false);
@@ -448,7 +436,7 @@ function CatalogueRow({
 
   return (
     <li className="rule-pixel py-2">
-      {/* `flex-wrap` for the phone: a track's three keys drop to their own line under the words there,
+      {/* `flex-wrap` for the phone: a track's keys drop to their own line under the words there,
           rather than squeezing the title to a word a line beside them. */}
       <div className="flex flex-wrap items-start gap-2">
         {/* The picture itself, small; a glyph for sound and video, which have no face. */}
@@ -490,8 +478,8 @@ function CatalogueRow({
           </div>
         </div>
 
-        {/* A track's three keys, the shelf's own: the heart, play through the site's one player, and
-            INJECT - the one Brilliant Pink pill, which opens a post filed under the track. */}
+        {/* A track's two keys, the shelf's own: the heart, and play through the site's one player.
+            Writing about a track starts in the composer, which picks it there. */}
         {track === undefined ? null : (
           <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
             <button
@@ -506,14 +494,6 @@ function CatalogueRow({
             </button>
             <button type="button" onClick={() => onPlay(track)} className={PLATE} title={`Play ${track.title}`}>
               [ ▶ PLAY ]
-            </button>
-            <button
-              type="button"
-              onClick={() => onInject(track)}
-              className={PLATE_ACCENT}
-              title={`INJECT TO POST :: OPENS A POST FILED UNDER ${track.title}, WITH THE FILE ON IT`}
-            >
-              [ INJECT ]
             </button>
           </span>
         )}
@@ -547,7 +527,7 @@ function CatalogueRow({
           <p className={`${TITLE_BAR} mt-2`}>WHERE IT IS USED</p>
           {uses.length === 0 ? (
             <p className="text-label font-bold text-ink">
-              {item.kind === 'audio' ? 'NOWHERE YET. INJECT IT INTO A POST.' : 'NOWHERE YET. PICK IT FROM THE CATALOGUE WHEN YOU WRITE A POST.'}
+              {item.kind === 'audio' ? 'NOWHERE YET. PICK IT WHEN YOU WRITE A POST.' : 'NOWHERE YET. PICK IT FROM THE CATALOGUE WHEN YOU WRITE A POST.'}
             </p>
           ) : (
             <ul className="space-y-0.5">
