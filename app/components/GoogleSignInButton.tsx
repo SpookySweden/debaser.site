@@ -9,6 +9,9 @@ import { useAuth } from './AuthProvider';
 type GoogleSignInButtonProps = {
   /** 'large' takes the bigger key; the side panel and the account page use 'normal'. */
   size?: 'normal' | 'large';
+  /** The words on the sign-in key. The account page says `[ LOG IN WITH ]`, because its own email form
+      ends in a `[ LOG IN ]` key and two keys with one name would be a guess. */
+  label?: string;
   className?: string;
 };
 
@@ -25,7 +28,7 @@ type GoogleSignInButtonProps = {
  * so the key keeps the larger of the two boxes and nothing moves when the drawing lands - the picture is
  * only shown once it has loaded, and no logo on this site is drawn in CSS or SVG.
  */
-export default function GoogleSignInButton({ size = 'normal', className }: GoogleSignInButtonProps) {
+export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN ]', className }: GoogleSignInButtonProps) {
   const { signInWithGoogle, googleSignInAvailable } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -61,7 +64,7 @@ export default function GoogleSignInButton({ size = 'normal', className }: Googl
           title="Sign in with a Google account"
           className={`${key} disabled:cursor-wait`}
         >
-          {busy ? '[ OPENING GOOGLE... ]' : '[ LOG IN ]'}
+          {busy ? '[ OPENING GOOGLE... ]' : label}
         </button>
 
         <button

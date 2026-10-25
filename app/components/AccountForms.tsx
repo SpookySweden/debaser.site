@@ -197,7 +197,7 @@ export default function AccountForms() {
         >
           {/* One tap, and no password to remember. Wired to Supabase's provider: on
               the mock backend the button says what it needs instead of failing quietly. */}
-          <GoogleSignInButton className="mb-3" />
+          <GoogleSignInButton label="[ LOG IN WITH ]" className="mb-3" />
 
           <p className="mb-3 border-t border-ink pt-2 text-label font-bold text-ink">OR</p>
 
