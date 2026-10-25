@@ -124,6 +124,8 @@ export default function MediaCatalogue() {
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
   const [openId, setOpenId] = useState<string | null>(null);
+  /** The PROFILE MUSIC folder (`profile-music`) and the people in it (`profile:<user id>`) that are open. */
+  const [openShelves, setOpenShelves] = useState<ReadonlySet<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -171,8 +173,8 @@ export default function MediaCatalogue() {
   /**
    * The AUDIO tab's shelves: one group per folder, A to Z, with the folders somebody made but has not
    * filed anything into yet, then one shelf per profile for the tracks that are somebody's profile song
-   * (`PROFILE MUSIC / SWEDEN`, numbered 1, 2, 3 in the order the profile used them; one also filed in a
-   * folder shows there too), and the rest of the unfiled files last. A search or a tag flattens the list, as it does on every other
+   * (drawn inside the one PROFILE MUSIC folder, numbered 1, 2, 3 in the order the profile used them; one
+   * also filed in a folder shows there too), and the rest of the unfiled files last. A search or a tag flattens the list, as it does on every other
    * tab, because a match is what the reader asked for and its folder is a detail.
    */
   const groups = useMemo(() => {
@@ -209,7 +211,7 @@ export default function MediaCatalogue() {
       ...named.map(([path, entries]) => ({ key: path, title: shelfName(path), path: path as string | null, entries, numbered: false })),
       ...profiles.map(([owner, shelf]) => ({
         key: `profile:${owner}`,
-        title: `PROFILE MUSIC / ${shelf.name}`,
+        title: shelf.name,
         path: null,
         entries: shelf.songs.sort((a, b) => a.version - b.version).map((song) => song.entry),
         numbered: true,
@@ -229,6 +231,92 @@ export default function MediaCatalogue() {
       setNotice(caught instanceof Error ? caught.message : 'THAT COULD NOT BE LIKED.');
     }
   }
+
+  /** Opens a folder that is shut, or shuts it. */
+  const toggleShelf = (key: string) =>
+    setOpenShelves((current) => {
+      const next = new Set(current);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
+
+  /** A folder's shelf: its title line, then its files, or EMPTY. */
+  const shelfFor = (group: NonNullable<typeof groups>[number]) => (
+    <section key={group.key} aria-label={group.key.length === 0 ? 'Unfiled tracks' : group.title} className="mt-3">
+      {/* The folder, as a title line: the name between two rules, the count and the key at
+          the right end, the way every section inside a window is titled. */}
+      <div className={TITLE_BAR}>
+        <span>{group.title}</span>
+        <span className="text-label text-ink">
+          {group.entries.length} FILE{group.entries.length === 1 ? '' : 'S'}
+          {user === null || group.path === null ? null : (
+            <button
+              type="button"
+              onClick={() => setCreating({ kind: 'file', parent: group.path })}
+              className={`${PLATE} ml-2`}
+              title={`File a new track into ${folderLabel(group.path)}`}
+            >
+              [ + FILE ]
+            </button>
+          )}
+        </span>
+      </div>
+      {group.entries.length === 0 ? (
+        <p className="text-label text-ink-quiet">EMPTY.</p>
+      ) : (
+        <ul aria-label="Files">{group.entries.map((entry) => rowFor(entry, { key: group.key, source: false }))}</ul>
+      )}
+    </section>
+  );
+
+  /**
+   * The people whose profile songs are on the shelf, as one folder that opens onto a line per person,
+   * A to Z, each of which opens onto their songs, numbered (Luke, 2026-10-25). Both start shut.
+   */
+  const profileFolder = (people: NonNullable<typeof groups>) => {
+    if (people.length === 0) return null;
+    const open = openShelves.has('profile-music');
+
+    return (
+      <section key="profile-music" aria-label="Profile music" className="mt-3">
+        <div className={TITLE_BAR}>
+          <button type="button" onClick={() => toggleShelf('profile-music')} aria-expanded={open} className="cursor-pointer hover:underline">
+            {open ? '[-]' : '[+]'} PROFILE MUSIC
+          </button>
+          <span className="text-label text-ink">
+            {people.length} {people.length === 1 ? 'PERSON' : 'PEOPLE'}
+          </span>
+        </div>
+        {open
+          ? people.map((person) => {
+              const personOpen = openShelves.has(person.key);
+              return (
+                <section key={person.key} aria-label={`Profile music: ${person.title}`} className="mt-1 pl-4">
+                  <div className={TITLE_BAR}>
+                    <button
+                      type="button"
+                      onClick={() => toggleShelf(person.key)}
+                      aria-expanded={personOpen}
+                      className="cursor-pointer hover:underline"
+                    >
+                      {personOpen ? '[-]' : '[+]'} {person.title}
+                    </button>
+                    <span className="text-label text-ink">
+                      {person.entries.length} FILE{person.entries.length === 1 ? '' : 'S'}
+                    </span>
+                  </div>
+                  {personOpen ? (
+                    <ul aria-label="Files">
+                      {person.entries.map((entry, index) => rowFor(entry, { key: person.key, number: index + 1, source: hasSource(entry) }))}
+                    </ul>
+                  ) : null}
+                </section>
+              );
+            })
+          : null}
+      </section>
+    );
+  };
 
   const rowFor = (entry: CatalogueEntry, shelf?: { key: string; number?: number; source: boolean }) => {
     const rowId = `${shelf?.key ?? ''}|${entry.item.id}`;
@@ -362,35 +450,11 @@ export default function MediaCatalogue() {
             NOTHING FILED HERE YET.{user === null ? '' : ' + NEW FILE AND + NEW FOLDER MAKE SOMETHING.'}
           </p>
         ) : (
-          groups.map((group) => (
-            <section key={group.key} aria-label={group.key.length === 0 ? 'Unfiled tracks' : group.title} className="mt-3">
-              {/* The folder, as a title line: the name between two rules, the count and the key at
-                  the right end, the way every section inside a window is titled. */}
-              <div className={TITLE_BAR}>
-                <span>{group.title}</span>
-                <span className="text-label text-ink">
-                  {group.entries.length} FILE{group.entries.length === 1 ? '' : 'S'}
-                  {user === null || group.path === null ? null : (
-                    <button
-                      type="button"
-                      onClick={() => setCreating({ kind: 'file', parent: group.path })}
-                      className={`${PLATE} ml-2`}
-                      title={`File a new track into ${folderLabel(group.path)}`}
-                    >
-                      [ + FILE ]
-                    </button>
-                  )}
-                </span>
-              </div>
-              {group.entries.length === 0 ? (
-                <p className="text-label text-ink-quiet">EMPTY.</p>
-              ) : (
-                <ul aria-label="Files">{group.entries.map((entry, index) =>
-                    rowFor(entry, { key: group.key, number: group.numbered ? index + 1 : undefined, source: group.numbered && hasSource(entry) }),
-                  )}</ul>
-              )}
-            </section>
-          ))
+          <>
+            {groups.filter((group) => !group.numbered && group.key.length > 0).map(shelfFor)}
+            {profileFolder(groups.filter((group) => group.numbered))}
+            {groups.filter((group) => group.key.length === 0).map(shelfFor)}
+          </>
         )
       ) : shown.length === 0 ? (
         <p className="mt-3 text-label font-bold text-ink">{filtering ? 'NO FILE MATCHES.' : 'NOTHING FILED HERE YET.'}</p>
