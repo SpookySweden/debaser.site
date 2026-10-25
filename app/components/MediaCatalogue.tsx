@@ -53,6 +53,30 @@ function shelfName(path: string): string {
   return path.split('/').filter((part) => part.length > 0).join(' / ');
 }
 
+/**
+ * The profile a track is the song of, if any (Luke, 2026-10-25: tracks uploaded to a profile were all
+ * listed as UNFILED). The owner's name is the one the use was recorded with (`SWEDEN'S PROFILE TRACK`),
+ * and the version is the profile's own (`<user id>:v2`), which orders the shelf. A track somebody also
+ * filed into a folder shows on both shelves (Luke, same day).
+ */
+function profileShelf({ item, uses }: CatalogueEntry): { owner: string; name: string; version: number } | null {
+  if (item.kind !== 'audio') return null;
+
+  const songs = uses
+    .filter((use) => use.useKind === 'profile_song')
+    .sort((a, b) => a.usedAt.localeCompare(b.usedAt));
+  if (songs.length === 0) return null;
+
+  const [owner, versionPart] = songs[0].useId.split(':v');
+  const name = songs[0].label.replace(/'S PROFILE TRACK$/i, '').trim();
+  return { owner, name: name.length === 0 ? 'SOMEONE' : name.toUpperCase(), version: Number(versionPart) || 0 };
+}
+
+/** Whether a profile song was on the site before or besides the profile: filed in a folder, or used elsewhere. */
+function hasSource({ item, uses }: CatalogueEntry): boolean {
+  return (item.folderPath ?? '').length > 0 || uses.some((use) => use.useKind !== 'profile_song');
+}
+
 /** A catalogued track as the player's own kind: the shelf's row when it has one, else from the record. */
 function trackFor(item: MediaItem, queue: AudioTrack[]): AudioTrack {
   const onShelf = queue.find((track) => track.src === item.src);
@@ -146,15 +170,25 @@ export default function MediaCatalogue() {
 
   /**
    * The AUDIO tab's shelves: one group per folder, A to Z, with the folders somebody made but has not
-   * filed anything into yet, and the unfiled files last. A search or a tag flattens the list, as it
-   * does on every other tab, because a match is what the reader asked for and its folder is a detail.
+   * filed anything into yet, then one shelf per profile for the tracks that are somebody's profile song
+   * (`PROFILE MUSIC / SWEDEN`, numbered 1, 2, 3 in the order the profile used them; one also filed in a
+   * folder shows there too), and the rest of the unfiled files last. A search or a tag flattens the list, as it does on every other
+   * tab, because a match is what the reader asked for and its folder is a detail.
    */
   const groups = useMemo(() => {
     if (tab !== 'audio' || filtering) return null;
 
     const byFolder = new Map<string, CatalogueEntry[]>();
+    const byProfile = new Map<string, { name: string; songs: { version: number; entry: CatalogueEntry }[] }>();
     for (const folder of folders.folders) byFolder.set(folder.path, []);
     for (const entry of shown) {
+      const profile = profileShelf(entry);
+      if (profile !== null) {
+        const shelf = byProfile.get(profile.owner) ?? { name: profile.name, songs: [] };
+        shelf.songs.push({ version: profile.version, entry });
+        byProfile.set(profile.owner, shelf);
+        if ((entry.item.folderPath ?? '').length === 0) continue;
+      }
       const key = entry.item.folderPath ?? '';
       byFolder.set(key, [...(byFolder.get(key) ?? []), entry]);
     }
@@ -169,7 +203,19 @@ export default function MediaCatalogue() {
     const named = [...byFolder.entries()]
       .filter(([path, entries]) => entries.length > 0 || !paths.some((other) => other.startsWith(`${path}/`)))
       .sort(([a], [b]) => a.localeCompare(b));
-    return [...named.map(([path, entries]) => ({ path, entries })), { path: '', entries: unfiled }];
+    const profiles = [...byProfile.entries()].sort(([, a], [, b]) => a.name.localeCompare(b.name));
+
+    return [
+      ...named.map(([path, entries]) => ({ key: path, title: shelfName(path), path: path as string | null, entries, numbered: false })),
+      ...profiles.map(([owner, shelf]) => ({
+        key: `profile:${owner}`,
+        title: `PROFILE MUSIC / ${shelf.name}`,
+        path: null,
+        entries: shelf.songs.sort((a, b) => a.version - b.version).map((song) => song.entry),
+        numbered: true,
+      })),
+      { key: '', title: 'UNFILED', path: null, entries: unfiled, numbered: false },
+    ];
   }, [tab, filtering, shown, folders.folders]);
 
   const share = Math.min(1, catalogue.bytesUsed / STORAGE_CEILING_BYTES);
@@ -184,15 +230,18 @@ export default function MediaCatalogue() {
     }
   }
 
-  const rowFor = (entry: CatalogueEntry) => {
+  const rowFor = (entry: CatalogueEntry, shelf?: { key: string; number?: number; source: boolean }) => {
+    const rowId = `${shelf?.key ?? ''}|${entry.item.id}`;
     const track = entry.item.kind === 'audio' ? trackFor(entry.item, player.queue) : undefined;
 
     return (
       <CatalogueRow
         key={entry.item.id}
         entry={entry}
-        open={openId === entry.item.id}
-        onToggle={() => setOpenId((current) => (current === entry.item.id ? null : entry.item.id))}
+        number={shelf?.number}
+        source={shelf?.source ?? false}
+        open={openId === rowId}
+        onToggle={() => setOpenId((current) => (current === rowId ? null : rowId))}
         viewerId={user?.id ?? null}
         onChanged={(message) => {
           setNotice(message);
@@ -314,14 +363,14 @@ export default function MediaCatalogue() {
           </p>
         ) : (
           groups.map((group) => (
-            <section key={group.path} aria-label={group.path.length === 0 ? 'Unfiled tracks' : shelfName(group.path)} className="mt-3">
+            <section key={group.key} aria-label={group.key.length === 0 ? 'Unfiled tracks' : group.title} className="mt-3">
               {/* The folder, as a title line: the name between two rules, the count and the key at
                   the right end, the way every section inside a window is titled. */}
               <div className={TITLE_BAR}>
-                <span>{group.path.length === 0 ? 'UNFILED' : shelfName(group.path)}</span>
+                <span>{group.title}</span>
                 <span className="text-label text-ink">
                   {group.entries.length} FILE{group.entries.length === 1 ? '' : 'S'}
-                  {user === null || group.path.length === 0 ? null : (
+                  {user === null || group.path === null ? null : (
                     <button
                       type="button"
                       onClick={() => setCreating({ kind: 'file', parent: group.path })}
@@ -336,7 +385,9 @@ export default function MediaCatalogue() {
               {group.entries.length === 0 ? (
                 <p className="text-label text-ink-quiet">EMPTY.</p>
               ) : (
-                <ul aria-label="Files">{group.entries.map(rowFor)}</ul>
+                <ul aria-label="Files">{group.entries.map((entry, index) =>
+                    rowFor(entry, { key: group.key, number: group.numbered ? index + 1 : undefined, source: group.numbered && hasSource(entry) }),
+                  )}</ul>
               )}
             </section>
           ))
@@ -345,7 +396,7 @@ export default function MediaCatalogue() {
         <p className="mt-3 text-label font-bold text-ink">{filtering ? 'NO FILE MATCHES.' : 'NOTHING FILED HERE YET.'}</p>
       ) : (
         <ul className="mt-2" aria-label="Files">
-          {shown.map(rowFor)}
+          {shown.map((entry) => rowFor(entry))}
         </ul>
       )}
 
@@ -358,7 +409,7 @@ export default function MediaCatalogue() {
           onFiled={(item, note) => {
             setUploading(false);
             setNotice(note);
-            setOpenId(item.id);
+            setOpenId(`|${item.id}`);
             catalogue.reload();
             if (tab !== 'all' && tab !== item.kind) show(item.kind);
           }}
@@ -409,6 +460,8 @@ export default function MediaCatalogue() {
 /** One file: the row, and under it when opened, the file itself and the places it is used. */
 function CatalogueRow({
   entry,
+  number,
+  source,
   open,
   onToggle,
   viewerId,
@@ -419,6 +472,10 @@ function CatalogueRow({
   onPlay,
 }: {
   entry: CatalogueEntry;
+  /** Its place on a numbered shelf (a profile's songs: 1, 2, 3); undefined on every other shelf. */
+  number?: number;
+  /** A profile song that was on the site already: its row ends in a key to where it came from. */
+  source: boolean;
   open: boolean;
   onToggle: () => void;
   viewerId: string | null;
@@ -455,7 +512,7 @@ function CatalogueRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <button type="button" onClick={onToggle} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
-              {open ? '[-]' : '[+]'} {item.title}
+              {open ? '[-]' : '[+]'} {number === undefined ? null : <span className="mr-1">{number}</span>} {item.title}
             </button>
             <span className="text-label font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
             {item.length.length === 0 ? null : <span className="text-label text-ink">{item.length}</span>}
@@ -495,6 +552,17 @@ function CatalogueRow({
             <button type="button" onClick={() => onPlay(track)} className={PLATE} title={`Play ${track.title}`}>
               [ ▶ PLAY ]
             </button>
+            {source ? (
+              <button
+                type="button"
+                onClick={onToggle}
+                aria-expanded={open}
+                className={open ? PLATE_PRESSED : PLATE}
+                title="Where this track was filed first and everywhere it is used"
+              >
+                [ SOURCE ]
+              </button>
+            ) : null}
           </span>
         )}
       </div>
@@ -523,6 +591,23 @@ function CatalogueRow({
               OPEN THE FILE
             </a>
           </p>
+
+          {source ? (
+            <>
+              <p className={`${TITLE_BAR} mt-2`}>SOURCE</p>
+              <p className="text-label text-ink">
+                {item.folderPath ? (
+                  <>
+                    FILED IN <span className="font-bold">{shelfName(item.folderPath)}</span> BY{' '}
+                  </>
+                ) : (
+                  'FILED BY '
+                )}
+                <ProfileLink author={{ id: item.uploadedBy, displayName: item.uploadedByLabel }} className="font-bold" />{' '}
+                <TimeStamp at={item.createdAt} />
+              </p>
+            </>
+          ) : null}
 
           <p className={`${TITLE_BAR} mt-2`}>WHERE IT IS USED</p>
           {uses.length === 0 ? (
