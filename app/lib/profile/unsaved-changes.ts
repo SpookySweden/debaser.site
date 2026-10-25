@@ -34,11 +34,21 @@ export type StoredProfile = {
   country: string;
   status: string;
   nameColour: string | null;
-  visibility: {
-    showTags: boolean;
-    showProfileComments: boolean;
-    showAvatarComments: boolean;
-  };
+  visibility: ProfileVisibility;
+};
+
+/**
+ * Every visibility switch, under the name the customiser's SHOW / HIDE tab gives it.
+ *
+ * A `Record` over the profile's own type, so a switch added to `ProfileVisibility` does not compile until it is
+ * named here. The list this replaced named three of the four by hand, and TRACK COMMENTS - the fourth - could be
+ * changed and closed without a warning (Temp/check-unsaved-changes.cjs, 8b).
+ */
+const SWITCH_LABELS: Record<keyof ProfileVisibility, string> = {
+  showTags: 'TAGS',
+  showProfileComments: 'PROFILE COMMENTS',
+  showAvatarComments: 'PICTURE COMMENTS',
+  showSongComments: 'TRACK COMMENTS',
 };
 
 /**
@@ -141,25 +151,14 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
     changes.push({ tab: 'profile', label: 'TRACK UPLOADED', detail: 'NOT FILED YET' });
   }
 
-  /**
-   * The visibility switches, keyed by the fields the draft actually holds.
-   *
-   * A `for` over the three names rather than three `if`s, so a fourth switch added to the profile's visibility is
-   * a change to this list and to the type - not a switch that silently cannot be reported as unsaved.
-   */
-  for (const key of ['showTags', 'showProfileComments', 'showAvatarComments'] as const) {
+  /** The visibility switches, every one of them (`SWITCH_LABELS` cannot miss one). */
+  for (const key of Object.keys(SWITCH_LABELS) as (keyof ProfileVisibility)[]) {
     const draft = drafts.visibility[key];
     if (draft === undefined || draft === stored.visibility[key]) continue;
 
     changes.push({
       tab: 'privacy',
-      label: key
-        .replace(/^show/, '')
-        .replace(/([A-Z])/g, ' $1')
-        .trim()
-        .toUpperCase()
-        // The switch is labelled PICTURE COMMENTS in the customiser; the field is still named for avatars.
-        .replace('AVATAR', 'PICTURE'),
+      label: SWITCH_LABELS[key],
       detail: `${stored.visibility[key] ? 'VISIBLE' : 'HIDDEN'} -> ${draft ? 'VISIBLE' : 'HIDDEN'}`,
     });
   }

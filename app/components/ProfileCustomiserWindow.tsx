@@ -158,6 +158,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           showTags: profile.visibility.showTags,
           showProfileComments: profile.visibility.showProfileComments,
           showAvatarComments: profile.visibility.showAvatarComments,
+          showSongComments: profile.visibility.showSongComments,
         },
       },
       {
