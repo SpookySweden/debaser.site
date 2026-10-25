@@ -36,7 +36,7 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
 
   async function make() {
     if (author.id === null) {
-      setError('MAKING A FOLDER TAKES AN ACCOUNT.');
+      setError('LOG IN TO MAKE A FOLDER.');
       return;
     }
 
@@ -70,8 +70,6 @@ export default function NewArchiveFolderWindow({ parent, author, create, onCreat
         </button>
       }
     >
-      <p className="text-label font-bold text-ink">IN: {folderLabel(parent)}</p>
-
       <label htmlFor="new-folder-name" className="mt-2 block text-label font-bold text-ink">
         NAME
       </label>

@@ -129,7 +129,7 @@ export default function CommsThreadPanel({
         className="min-h-32 flex-1 space-y-2 overflow-y-auto p-2"
       >
         {shown.length === 0 ? (
-          <li className="text-label font-bold text-ink">NO MESSAGES YET - SAY SOMETHING.</li>
+          <li className="text-label font-bold text-ink">NO MESSAGES YET.</li>
         ) : (
           shown.map((message) => (
             <li
@@ -169,7 +169,7 @@ export default function CommsThreadPanel({
                     <button
                       type="button"
                       onClick={() => openArcade({ kind: 'invite', inviteId: message.event!.inviteId })}
-                      title="Open this invitation in the arcade"
+                      title="Open in the arcade"
                       className={PLATE}
                     >
                       [ OPEN ]

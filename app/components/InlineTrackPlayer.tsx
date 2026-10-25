@@ -51,10 +51,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
   }
 
   return (
-    <div
-      className={`${compact ? 'p-1' : 'p-1.25'}`}
-      title={`MP3 filed by ${poster}`}
-    >
+    <div className={`${compact ? 'p-1' : 'p-1.25'}`}>
       <div className="flex items-center gap-2">
         <button
           type="button"

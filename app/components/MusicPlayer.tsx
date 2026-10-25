@@ -184,7 +184,7 @@ export default function MusicPlayer() {
       // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
       // desktop is under 3:1.
       <span className="fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5">
-        <button type="button" onClick={() => setBarOpen(true)} title="Open the player" className={PLATE}>
+        <button type="button" onClick={() => setBarOpen(true)} className={PLATE}>
           [ ♪ {player.playing ? 'PLAYING' : 'PLAYER'} ]
         </button>
       </span>
@@ -290,7 +290,8 @@ function followNote(follow: FollowState): string {
     return `FOLLOWING ${follow.hostName}${follow.catchingUp ? ' >> CATCHING UP' : ''} :: `;
   }
 
-  return follow.ended === null ? '' : `STOPPED FOLLOWING - ${follow.ended} :: `;
+  if (follow.ended === null) return '';
+  return follow.ended.length === 0 ? 'STOPPED FOLLOWING :: ' : `STOPPED FOLLOWING - ${follow.ended} :: `;
 }
 
 function DockedBar({ onHide, onSettings }: BarControls) {
@@ -356,7 +357,6 @@ function DockedBar({ onHide, onSettings }: BarControls) {
               type="button"
               onClick={onHide}
               className={PLATE_HARDWARE}
-              title="Fold the player away"
             >
               [ HIDE ]
             </button>
@@ -412,7 +412,7 @@ function DockedBar({ onHide, onSettings }: BarControls) {
             />
           </label>
 
-          <button type="button" onClick={onSettings} className={PLATE_HARDWARE} title="Player options">
+          <button type="button" onClick={onSettings} className={PLATE_HARDWARE}>
             [ OPTIONS ]
           </button>
         </div>
@@ -498,7 +498,7 @@ function TransportPad({
             type="button"
             onClick={onCycle}
             disabled={disabled}
-            title={`${WORD[state]} - press for ${WORD[state === 'playing' ? 'paused' : state === 'paused' ? 'looping' : 'playing']}`}
+            title={WORD[state]}
             className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-display font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
@@ -635,7 +635,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             type="button"
             onClick={onHide}
             className="min-h-tap min-w-tap cursor-pointer px-1 text-sm leading-none hover:bg-sun-pale hover:text-accent-ink"
-            title="Fold the player away"
+            title="Hide player"
           >
             ▾
           </button>
@@ -670,7 +670,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
         />
 
         <div className="mt-1 flex flex-wrap items-center justify-center gap-2">
-          <button type="button" onClick={player.previous} className={PLATE_TAP} title="Previous track">
+          <button type="button" onClick={player.previous} className={PLATE_TAP}>
             [ PREV ]
           </button>
 
@@ -678,12 +678,11 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             type="button"
             onClick={player.toggle}
             className={`${PLATE_TAP} min-w-[8rem] text-base`}
-            title={playing ? 'Pause' : 'Play'}
           >
             {playing ? '[ PAUSE ]' : '[ PLAY ]'}
           </button>
 
-          <button type="button" onClick={player.next} className={PLATE_TAP} title="Next track">
+          <button type="button" onClick={player.next} className={PLATE_TAP}>
             [ NEXT ]
           </button>
         </div>
@@ -695,7 +694,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             type="button"
             onClick={() => player.setLoop(!loop)}
             className={loop ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
-            title={loop ? 'Looping this track - press to stop' : 'Repeat this track when it ends'}
+            title="Loop"
             aria-label="Loop this track"
             aria-pressed={loop}
           >
@@ -721,7 +720,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             panel. They wear `SIDE_MUSIC`' and `SIDE_QUEUES`' own mark and word, so one thing is one
             thing wherever it is pressed; the card's foot is the only row with room for them as words. */}
         <div className="mt-1 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={onMusic} className={PLATE} title="Open your music" aria-haspopup="dialog">
+          <button type="button" onClick={onMusic} className={PLATE} aria-haspopup="dialog">
             [ {SIDE_MUSIC.mark} {SIDE_MUSIC.label} ]
           </button>
 
@@ -729,7 +728,6 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             type="button"
             onClick={onQueues}
             className={PLATE}
-            title="Open queues - what you were listening to, and who is broadcasting"
             aria-haspopup="dialog"
           >
             [ {SIDE_QUEUES.mark} {SIDE_QUEUES.label} ]

@@ -50,7 +50,7 @@ type MusicLibraryValue = {
   reload: () => void;
 };
 
-const NO_ACCOUNT = 'LIKING A TRACK AND KEEPING LISTS TAKES AN ACCOUNT.';
+const NO_ACCOUNT = 'LOG IN TO LIKE AND KEEP LISTS.';
 
 const EMPTY: MusicLibraryValue = {
   answered: true,

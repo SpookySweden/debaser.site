@@ -45,7 +45,7 @@ export async function POST(request: Request) {
 
   const extension = extensionForTrack(file);
   if (extension === undefined) {
-    return json({ ok: false, error: 'ONLY MP3, M4A, OGG, WAV AND FLAC TRACKS ARE ACCEPTED.' }, 415);
+    return json({ ok: false, error: 'MP3, M4A, OGG, WAV OR FLAC ONLY.' }, 415);
   }
 
   const stamp = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);

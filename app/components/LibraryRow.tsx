@@ -90,7 +90,7 @@ export default function LibraryRow({
             onClick={onLike}
             disabled={busy}
             aria-pressed={liked}
-            title={liked ? `Take ${track.title} out of liked` : `Like ${track.title}`}
+            title={liked ? `Unlike ${track.title}` : `Like ${track.title}`}
             className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
               liked ? 'key key-fill [--key-fill:var(--color-bubble-pale)] text-ink-bar' : 'key'
             }`}
@@ -101,7 +101,7 @@ export default function LibraryRow({
           <button
             type="button"
             onClick={onComment}
-            title={`Write a post about ${track.title}: the composer opens with this file already filed`}
+            title={`Post about ${track.title}`}
             className={`${PLATE_ACCENT} hidden sm:inline-flex`}
           >
             [ ✎ COMMENT ]
@@ -156,7 +156,7 @@ export default function LibraryRow({
         <button
           type="button"
           onClick={onComment}
-          title={`Write a post about ${track.title}: the composer opens with this file already filed`}
+          title={`Post about ${track.title}`}
           className={PLATE_ACCENT}
         >
           [ ✎ COMMENT ]

@@ -62,7 +62,7 @@ export function extensionForTrack(file: File): string | undefined {
 /** The rules the form keeps, so a refusal reads the same wherever it comes from. */
 export function validateTrackFile(file: File): string | undefined {
   if (extensionForTrack(file) === undefined) {
-    return 'ONLY MP3, M4A, OGG, WAV AND FLAC TRACKS ARE ACCEPTED.';
+    return 'MP3, M4A, OGG, WAV OR FLAC ONLY.';
   }
 
   if (file.size > MAX_TRACK_BYTES) {

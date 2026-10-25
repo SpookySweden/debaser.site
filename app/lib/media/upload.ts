@@ -133,7 +133,7 @@ export async function uploadMedia(input: MediaUploadInput): Promise<MediaUploadR
         ok: true,
         item: original,
         reused: true,
-        note: `ALREADY IN THE CATALOGUE AS "${original.title}" - USING THE ORIGINAL.`,
+        note: `ALREADY FILED AS "${original.title}" - USING THE ORIGINAL.`,
       };
     }
 
@@ -153,7 +153,7 @@ export async function uploadMedia(input: MediaUploadInput): Promise<MediaUploadR
     // by id finds it there (the live store has no event to push it; the mock writes one itself).
     await refreshCatalogue();
 
-    return { ok: true, item, reused: false, note: 'FILED IN THE CATALOGUE.' };
+    return { ok: true, item, reused: false, note: 'FILED.' };
   } catch (caught) {
     return { ok: false, error: caught instanceof Error ? caught.message : 'THE UPLOAD WAS REFUSED.' };
   }

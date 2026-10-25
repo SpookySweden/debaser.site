@@ -65,14 +65,12 @@ export default function MusicWindow() {
       id="music"
       defaultSize={{ w: 576, h: 700 }}
       minSize={{ w: 380, h: 260 }}
-      status="♥ LIKED PLAYS THE WHOLE LIST :: THE ARCHIVE IS ON THE MEDIA PAGE"
     >
       {/* The strip the two screens shared: MY MUSIC is on, and ARCHIVE is the link to where it went. */}
       <div className="mb-2 flex items-stretch gap-1">
         <Link
           href={MUSIC_HREF}
           onClick={close}
-          title="The shelf: every track, in its folders, on the media catalogue page"
           className="key cursor-pointer px-2 py-1 text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-sm"
         >
           [ ARCHIVE ]

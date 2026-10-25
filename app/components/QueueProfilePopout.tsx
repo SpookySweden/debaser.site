@@ -24,6 +24,7 @@ import { QUEUES_LIST_HREF } from '../lib/audio/queue-window';
 import { saveLoop } from '../lib/audio/loops';
 import { queueContext } from '../lib/audio/track-context';
 import { useQueueName } from '../lib/audio/use-queue-name';
+import InfoFold from './InfoFold';
 import { useMusicPlayer } from './MusicPlayerProvider';
 
 /**
@@ -137,7 +138,7 @@ export default function QueueProfilePopout({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            title="Close - or press anywhere off this card"
+            title="Close"
             className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-key font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
@@ -159,7 +160,7 @@ export default function QueueProfilePopout({
           onSkip={() => takeOver(0)}
           onUnfollow={() => {
             player.setPlaybackRate(1);
-            stopFollowing('YOU UNFOLLOWED');
+            stopFollowing('');
           }}
           onClose={onClose}
         />
@@ -202,6 +203,16 @@ function QueueCardBody({
   onClose: () => void;
 }) {
   const canFollow = !mine && !following && playable && state !== 'silent';
+  // One line on where you stand with them; the SILENT and PAUSED badges above say the rest.
+  const standing = mine
+    ? 'YOUR QUEUE.'
+    : following
+      ? catchingUp
+        ? `CATCHING UP :: ${Math.round(Math.max(0, behind))}S BEHIND`
+        : 'FOLLOWING'
+      : !playable
+        ? "CAN'T FOLLOW - FILE NOT HERE."
+        : null;
 
   return (
     <div className="space-y-2 p-3">
@@ -218,21 +229,7 @@ function QueueCardBody({
         </p>
       </div>
 
-      <p className="text-label text-ink-quiet">
-        {mine
-          ? 'THIS IS YOUR OWN QUEUE - THIS IS WHAT EVERYBODY ELSE SEES.'
-          : following
-            ? catchingUp
-              ? `FOLLOWING ${name}. ${Math.round(Math.max(0, behind))} SECONDS BEHIND - PLAYING FAST TO CATCH UP.`
-              : `FOLLOWING ${name}. YOU ARE LEVEL WITH THEM.`
-            : !playable
-              ? 'THEY ARE PLAYING A FILE THIS SHELF DOES NOT HOLD, SO IT CANNOT BE FOLLOWED.'
-              : state === 'silent'
-                ? 'THEY HAVE NOT MOVED THIS IN A WHILE, SO THERE IS NOTHING TO FOLLOW.'
-                : state === 'paused'
-                  ? 'THEY HAVE PAUSED. FOLLOW AND YOU WILL START WHEN THEY DO.'
-                  : 'FOLLOW AND YOUR PLAYER STAYS WITH THEIRS - THEIR NEXT TRACK, THEIR PAUSES - UNTIL YOU PRESS SOMETHING YOURSELF.'}
-      </p>
+      {standing === null ? null : <p className="text-label text-ink-quiet">{standing}</p>}
 
       <p className="flex flex-wrap gap-2 pt-1">
         {following ? (
@@ -245,7 +242,7 @@ function QueueCardBody({
               type="button"
               onClick={onCatchUp}
               disabled={!canFollow}
-              title="Start a little behind them and play fast until you are level"
+              title="Play fast to catch up"
               className={PLATE}
             >
               [ CATCH UP ]
@@ -254,22 +251,24 @@ function QueueCardBody({
               type="button"
               onClick={onSkip}
               disabled={!canFollow}
-              title="Jump straight to where they are"
               className={PLATE}
             >
               [ SKIP AHEAD ]
             </button>
           </>
         )}
-        <button type="button" onClick={onClose} className={PLATE}>
-          {following || mine ? '[ CLOSE ]' : '[ LEAVE IT ]'}
-        </button>
+        {following || mine ? (
+          <button type="button" onClick={onClose} className={PLATE}>
+            [ CLOSE ]
+          </button>
+        ) : null}
       </p>
 
       {following || mine ? null : (
-        <p className="text-label text-ink-quiet">
-          FOLLOWING TAKES THE PLAYER OVER. WHAT YOU HAVE NOW IS KEPT IN RADI-OH.
-        </p>
+        <InfoFold topic="following a queue">
+          FOLLOWING TAKES YOUR PLAYER OVER: IT STAYS WITH THEIRS (THEIR NEXT TRACK, THEIR PAUSES) UNTIL YOU PRESS
+          SOMETHING YOURSELF. WHAT YOU HAD IS KEPT IN RADI-OH.
+        </InfoFold>
       )}
     </div>
   );

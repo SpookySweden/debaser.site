@@ -130,7 +130,7 @@ export default function PersonalLibrary() {
 
     try {
       const { liked: nowLiked } = await library.toggleLike(track.id);
-      setNotice(nowLiked ? `${track.title} LIKED.` : `${track.title} TAKEN BACK OUT OF LIKED.`);
+      setNotice(nowLiked ? `${track.title} LIKED.` : `${track.title} UNLIKED.`);
     } catch (caught) {
       setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
     } finally {
@@ -203,7 +203,7 @@ export default function PersonalLibrary() {
         <Link href="/account" className={PLATE_LINK}>
           [ LOG IN ]
         </Link>{' '}
-        TO KEEP THE TRACKS YOU LIKE AND THE LISTS YOU MAKE
+        TO KEEP LIKES AND LISTS
       </p>
     );
   }
@@ -222,8 +222,7 @@ export default function PersonalLibrary() {
         </div>
 
         <p className="mt-2 text-label font-bold text-ink">
-          THE LIBRARY DID NOT ANSWER, SO NOTHING HERE IS YOURS TO READ YET. YOUR LIKES AND LISTS ARE NOT LOST -
-          THIS SCREEN SIMPLY COULD NOT ASK FOR THEM.
+          LIBRARY OFFLINE. NOTHING IS LOST.
         </p>
 
         <button type="button" onClick={refresh} className={`${PLATE} mt-2`}>
@@ -247,9 +246,7 @@ export default function PersonalLibrary() {
           from here they are genuinely indistinguishable and guessing at one would be inventing. */}
       {shown.missing === 0 ? null : (
         <p className="mb-2 border border-ink bg-sun-pale px-2 py-1 text-label font-bold text-ink" role="status">
-          {shown.missing} TRACK{shown.missing === 1 ? '' : 'S'} IN THIS LIST {shown.missing === 1 ? 'IS' : 'ARE'} NOT
-          ON THE SHELF RIGHT NOW - {shown.missing === 1 ? 'IT HAS' : 'THEY HAVE'} EITHER BEEN TAKEN DOWN OR THE
-          ARCHIVE DID NOT ANSWER IN FULL. YOUR LIST STILL HOLDS {shown.missing === 1 ? 'IT' : 'THEM'}.
+          {shown.missing} TRACK{shown.missing === 1 ? '' : 'S'} UNAVAILABLE.
         </p>
       )}
 
@@ -335,9 +332,7 @@ export default function PersonalLibrary() {
           <p className="p-3 text-label font-bold text-ink">READING THE LIBRARY...</p>
         ) : rows.length === 0 ? (
           <p className="p-3 text-label font-bold text-ink">
-            {current === null
-              ? 'NOTHING LIKED YET. EVERY ROW IN THE ARCHIVE WEARS A HEART - PRESS ONE AND IT LANDS HERE.'
-              : 'THIS LIST IS EMPTY. THE BUTTONS UNDER A ROW PUT A TRACK INTO IT.'}
+            {current === null ? 'NOTHING LIKED YET.' : 'EMPTY.'}
           </p>
         ) : (
           <ul>

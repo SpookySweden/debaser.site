@@ -121,8 +121,7 @@ export default function QueueBrowser() {
       ) : shown.length === 0 ? (
         // A guest's way to broadcast is the `[ LOG IN ]` line above, so the empty state does not say it twice.
         <p className="p-3 text-key font-bold text-ink">
-          NOBODY IS BROADCASTING RIGHT NOW.
-          {signedIn ? ' GO PUBLIC ABOVE AND YOUR QUEUE APPEARS HERE FOR EVERYBODY.' : null}
+          NOBODY IS BROADCASTING.
         </p>
       ) : (
         <ul className="divide-y divide-ink">
@@ -212,7 +211,7 @@ function BroadcastSwitch({
         <Link href="/account" className={PLATE_LINK}>
           [ LOG IN ]
         </Link>{' '}
-        TO BROADCAST WHAT YOU ARE LISTENING TO
+        TO BROADCAST
       </p>
     );
   }
@@ -223,7 +222,7 @@ function BroadcastSwitch({
     if (userId === null) return;
 
     if (track === null) {
-      setMessage('PUT SOMETHING ON FIRST - A QUEUE WITH NOTHING IN IT IS NOT WORTH BROADCASTING.');
+      setMessage('PLAY SOMETHING FIRST.');
       return;
     }
 
@@ -244,7 +243,6 @@ function BroadcastSwitch({
       })
       .then(() => {
         setIsPublic(next);
-        setMessage(next ? 'YOU ARE ON THE LIST.' : 'YOU ARE OFF THE LIST.');
 
         // Both listeners: `onChanged` re-reads the window's own list, and the event wakes the heartbeat,
         // which is drawn by the shell and cannot see this component at all.
@@ -267,7 +265,6 @@ function BroadcastSwitch({
           onClick={press}
           disabled={busy}
           aria-pressed={isPublic}
-          title={isPublic ? 'Take your queue off the list' : 'Put your queue on the list'}
           className={`cursor-pointer px-2 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-3 ${
             isPublic
               ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate'
@@ -315,7 +312,6 @@ function QueueRow({
       <button
         type="button"
         onClick={onOpen}
-        title={mine ? 'Your own queue, as others see it' : `Open ${name}'s queue`}
         className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap ${
           following ? 'bg-ice' : ''
         }`}
@@ -331,7 +327,7 @@ function QueueRow({
 
         {following ? (
           <span className="shrink-0 text-ink">
-            {catchingUp ? `FOLLOWING :: ${Math.round(Math.max(0, behind))}S BEHIND >>` : 'FOLLOWING'}
+            {catchingUp ? `CATCHING UP :: ${Math.round(Math.max(0, behind))}S BEHIND` : 'FOLLOWING'}
           </span>
         ) : null}
 

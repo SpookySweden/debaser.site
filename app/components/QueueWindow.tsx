@@ -87,7 +87,7 @@ export default function QueueWindow() {
       id="queue"
       defaultSize={{ w: 736, h: 600 }}
       minSize={{ w: 420, h: 260 }}
-      status="LISTEN ALONG :: FOLLOWING SOMEBODY TAKES THE PLAYER OVER, AND WHAT YOU HAD IS KEPT IN RADI-OH"
+      status="LISTEN ALONG"
     >
       <div className="mb-2 flex items-stretch gap-1" role="tablist" aria-label="Queue screens">
         <QueueTabPlate label="RADI-OH" selected={tab === 'radio'} onSelect={() => show('radio')} />

@@ -77,9 +77,9 @@ export function mediaExtension(kind: MediaKind, file: Pick<File, 'type' | 'name'
 }
 
 const KIND_WORDS: Record<MediaKind, string> = {
-  image: 'ONLY PNG, JPG, WEBP OR GIF PICTURES ARE ACCEPTED.',
-  audio: 'ONLY MP3, M4A, OGG, WAV AND FLAC TRACKS ARE ACCEPTED.',
-  video: 'ONLY MP4 OR WEBM VIDEO IS ACCEPTED.',
+  image: 'PNG, JPG, WEBP OR GIF ONLY.',
+  audio: 'MP3, M4A, OGG, WAV OR FLAC ONLY.',
+  video: 'MP4 OR WEBM ONLY.',
 };
 
 /** The refusal, as a sentence fit to show, or undefined for a file the catalogue takes. */

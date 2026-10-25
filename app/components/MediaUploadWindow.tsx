@@ -106,7 +106,7 @@ export default function MediaUploadWindow({
 
   async function fileIt() {
     if (uploader === null) {
-      setError('FILING A FILE TAKES AN ACCOUNT.');
+      setError('LOG IN TO FILE.');
       return;
     }
 
@@ -116,7 +116,7 @@ export default function MediaUploadWindow({
     }
 
     if (kind === 'video' && videoRefused) {
-      setError(`THE CATALOGUE IS ${Math.round(share * 100)}% FULL - VIDEO IS REFUSED UNTIL ROOM IS MADE.`);
+      setError(`CATALOGUE ${Math.round(share * 100)}% FULL - NO VIDEO.`);
       return;
     }
 
@@ -142,10 +142,10 @@ export default function MediaUploadWindow({
 
   return (
     <PopoutWindow
-      title="UPLOAD :: FILE INTO THE CATALOGUE"
+      title="UPLOAD"
       onClose={onClose}
       maxWidth="max-w-2xl"
-      status={`PICTURES ${formatBytes(MEDIA_LIMITS.image)} :: VIDEO ${formatBytes(MEDIA_LIMITS.video)} :: THE SAME FILE TWICE IS THE SAME FILE`}
+      status={`PICTURES ${formatBytes(MEDIA_LIMITS.image)} :: VIDEO ${formatBytes(MEDIA_LIMITS.video)}`}
       actions={
         looked?.state === 'original' ? (
           <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN}>
@@ -176,20 +176,20 @@ export default function MediaUploadWindow({
           </button>
         ))}
         {onAudioWanted === undefined ? null : (
-          <button type="button" onClick={onAudioWanted} className={PLATE} title="Audio is filed from the AUDIO tab, which keeps the shelf's folders">
-            [ AUDIO: FILE IT ON THE SHELF ]
+          <button type="button" onClick={onAudioWanted} className={PLATE}>
+            [ AUDIO ]
           </button>
         )}
       </div>
 
       {kind === 'video' && videoRefused ? (
         <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-          THE CATALOGUE IS {Math.round(share * 100)}% FULL. VIDEO IS REFUSED FIRST.
+          CATALOGUE {Math.round(share * 100)}% FULL - NO VIDEO.
         </p>
       ) : null}
 
       <label htmlFor="media-upload-file" className="mt-3 block text-label font-bold text-ink">
-        THE FILE ({kind === 'image' ? 'PNG, JPG, WEBP, GIF' : 'MP4, WEBM'} - {formatBytes(MEDIA_LIMITS[kind])} MAX)
+        FILE (MAX {formatBytes(MEDIA_LIMITS[kind])})
       </label>
       <input
         id="media-upload-file"
@@ -207,7 +207,7 @@ export default function MediaUploadWindow({
 
         {looked?.state === 'original' ? (
           <p className="w-fit bg-sun-pale px-1 text-label font-bold text-ink">
-            ALREADY IN THE CATALOGUE AS &quot;{looked.item.title}&quot; - NOTHING NEEDS UPLOADING. USE THE ORIGINAL.
+            ALREADY FILED AS &quot;{looked.item.title}&quot;.
           </p>
         ) : null}
 
@@ -218,7 +218,7 @@ export default function MediaUploadWindow({
             </span>
             <div className="min-w-0 flex-1">
               <p className="text-label font-bold text-ink">
-                THIS LOOKS LIKE &quot;{looked.item.title}&quot;, ALREADY IN THE CATALOGUE. CITE THE ORIGINAL INSTEAD?
+                LOOKS LIKE &quot;{looked.item.title}&quot;.
               </p>
               <div className="mt-1 flex flex-wrap gap-2">
                 <button type="button" onClick={() => takeOriginal(looked.item)} className={PLATE_MAIN}>
@@ -233,19 +233,19 @@ export default function MediaUploadWindow({
         ) : null}
 
         {looked?.state === 'new' && file !== null ? (
-          <p className="text-label font-bold text-ink-quiet">NEW TO THE CATALOGUE: {formatBytes(file.size)}</p>
+          <p className="text-label font-bold text-ink-quiet">NEW :: {formatBytes(file.size)}</p>
         ) : null}
       </div>
 
       <label htmlFor="media-upload-title" className="mt-2 block text-label font-bold text-ink">
         TITLE
       </label>
-      <input id="media-upload-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="What it is called" className={FIELD} />
+      <input id="media-upload-title" value={title} onChange={(event) => setTitle(event.target.value)} className={FIELD} />
 
       <label htmlFor="media-upload-credit" className="mt-2 block text-label font-bold text-ink">
         CREDITED TO
       </label>
-      <input id="media-upload-credit" value={credit} onChange={(event) => setCredit(event.target.value)} placeholder={uploader?.displayName ?? 'Who made it'} className={FIELD} />
+      <input id="media-upload-credit" value={credit} onChange={(event) => setCredit(event.target.value)} placeholder={uploader?.displayName} className={FIELD} />
 
       <AudioTagChooser id="media-upload" value={tags} onChange={setTags} />
 

@@ -90,7 +90,7 @@ export default function LoopPopout({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            title="Close - or press anywhere off this card"
+            title="Close"
             className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-key font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
           >
             ×
@@ -107,12 +107,12 @@ export default function LoopPopout({
 
           <p className="text-label text-ink-quiet">
             {loop.kind === 'taken-over'
-              ? `THIS WAS PLAYING WHEN ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}'S QUEUE TOOK THE PLAYER OVER.`
+              ? `TAKEN OVER BY ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}`
               : `${originLabel(loop)}${loop.plays > 1 ? ` :: PLAYED ${loop.plays} TIMES` : ''}`}
           </p>
 
           <p className="text-label font-bold text-ink">
-            GOES TO {formatClock(loop.positionSeconds)} IN THAT TRACK
+            AT {formatClock(loop.positionSeconds)}
           </p>
 
           <p className="flex flex-wrap gap-2 pt-1">
@@ -120,16 +120,13 @@ export default function LoopPopout({
               type="button"
               onClick={goBack}
               disabled={track === undefined}
-              title={track === undefined ? 'That file is no longer on the shelf' : undefined}
+              title={track === undefined ? 'Not on the shelf' : undefined}
               className={PLATE}
             >
-              [ GO BACK TO IT ]
+              [ RESUME ]
             </button>
             <button type="button" onClick={onRemove} className={PLATE}>
-              [ REMOVE IT ]
-            </button>
-            <button type="button" onClick={onClose} className={PLATE}>
-              [ LEAVE IT ]
+              [ REMOVE ]
             </button>
           </p>
         </div>

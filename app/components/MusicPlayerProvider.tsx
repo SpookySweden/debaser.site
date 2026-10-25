@@ -347,7 +347,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
      */
     const onPause = () => {
       if (intendsToPlay.current && !audio.ended && Date.now() - swappedAt.current > 2000) {
-        stopFollowing('THE PLAYER WAS PAUSED');
+        stopFollowing('PAUSED');
       }
 
       setPlaying(false);
@@ -360,7 +360,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setError(null);
     };
     const onError = () =>
-      setError(`THAT FILE COULD NOT BE PLAYED :: ${loadedSrc.current ?? 'no source'} - CHECK IT IS IN THE SHELF.`);
+      setError("CAN'T PLAY THIS FILE.");
 
     audio.addEventListener('timeupdate', onTime);
     audio.addEventListener('loadedmetadata', onDuration);
@@ -485,7 +485,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       intendsToPlay.current = false;
       // A follow cannot carry on through a browser that will not play: the follower would ask again
       // every second and the error would flash for ever.
-      stopFollowing('THE BROWSER WOULD NOT START IT');
+      stopFollowing("CAN'T PLAY");
 
       // A track that was handed over to be started by itself is the one case where a
       // refusal is not the end of it: browsers allow sound after the listener has touched
@@ -501,8 +501,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setPlaying(false);
       setError(
         track === undefined
-          ? 'THERE IS NOTHING ON THE SHELF TO PLAY.'
-          : `THE BROWSER WOULD NOT START "${track.title}" - PRESS PLAY AGAIN, OR CHECK THE FILE.`,
+          ? 'SHELF EMPTY.'
+          : 'PRESS PLAY TO START.',
       );
     });
   }, [armAutoplay, playing, track]);
@@ -619,7 +619,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
     // A headset's buttons are the reader's hands as much as the bar's are, so they end a follow too.
     const mine = (action: () => void) => () => {
-      stopFollowing('YOU TOOK THE CONTROLS BACK');
+      stopFollowing('');
       action();
     };
 
@@ -638,10 +638,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const toggle = useCallback(() => {
     setError(null);
-    stopFollowing('YOU TOOK THE CONTROLS BACK');
+    stopFollowing('');
 
     if (track === undefined) {
-      setError('THERE IS NOTHING ON THE SHELF TO PLAY YET.');
+      setError('SHELF EMPTY.');
       return;
     }
 
@@ -657,7 +657,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * how every other control here asks for silence.
    */
   const stop = useCallback(() => {
-    stopFollowing('YOU TOOK THE CONTROLS BACK');
+    stopFollowing('');
     const audio = audioRef.current;
     if (audio !== null) audio.currentTime = 0;
 
@@ -667,14 +667,14 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const next = useCallback(() => {
     setError(null);
     pendingStart.current = null;
-    stopFollowing('YOU TOOK THE CONTROLS BACK');
+    stopFollowing('');
     setIndex((current) => nextIndex(current, queue.length));
   }, [queue.length]);
 
   const previous = useCallback(() => {
     setError(null);
     pendingStart.current = null;
-    stopFollowing('YOU TOOK THE CONTROLS BACK');
+    stopFollowing('');
     setIndex((current) => previousIndex(current, queue.length));
   }, [queue.length]);
 
@@ -682,7 +682,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     (target: number) => {
       setError(null);
     pendingStart.current = null;
-      stopFollowing('YOU TOOK THE CONTROLS BACK');
+      stopFollowing('');
       setIndex(Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0)));
       setPlaying(true);
     },
@@ -698,7 +698,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    */
   const play = useCallback(
     (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => {
-      if (start?.follow !== true) stopFollowing('YOU PICKED SOMETHING ELSE');
+      if (start?.follow !== true) stopFollowing('');
 
       playedFrom.current = origin ?? null;
       setHeardFrom(origin === undefined ? null : { src: wanted.src, origin });
@@ -815,7 +815,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const steer = useCallback((wanted: boolean) => setPlaying(wanted), []);
 
   const seek = useCallback((seconds: number, options?: { follow?: boolean }) => {
-    if (options?.follow !== true) stopFollowing('YOU MOVED THE PLAYHEAD');
+    if (options?.follow !== true) stopFollowing('');
 
     const audio = audioRef.current;
     if (audio === null || !Number.isFinite(seconds)) return;

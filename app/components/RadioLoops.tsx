@@ -56,15 +56,12 @@ export default function RadioLoops() {
       {/* How the faces work is the title line's tip rather than a paragraph under it, and the count is
           gone - the faces are right there to be counted (SPEC-efficiency.md). */}
       <div className={TITLE_BAR_INACTIVE}>
-        <span title="EVERYTHING YOU HAD ON, NEWEST FIRST - UP TO 30. POINT AT A FACE TO SEE IT BELOW, AND PRESS IT TO GO BACK TO WHERE YOU WERE IN IT.">
-          RADI-OH // WHERE YOU WERE
-        </span>
+        <span title="Recently played. Press a face to resume.">RADI-OH</span>
       </div>
 
       {loops.length === 0 ? (
         <p className="p-3 text-key font-bold text-ink">
-          NOTHING HERE YET. PUT SOMETHING ON - FROM THE MUSIC WINDOW, OR SOMEBODY&apos;S PROFILE - AND IT
-          WILL APPEAR, KEEPING YOUR PLACE.
+          NOTHING PLAYED YET.
         </p>
       ) : (
         <div className="p-2">
@@ -230,7 +227,7 @@ function LoopIcon({
         }}
         onPointerDown={() => setPressed(true)}
         onPointerUp={() => setPressed(false)}
-        aria-label={`${label} - press to go back to where you were in it`}
+        aria-label={`Resume ${label}`}
         className="group flex h-tap cursor-pointer items-end justify-center rounded-none px-1 pb-1.25 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
       >
         <span
@@ -256,7 +253,7 @@ function LoopIcon({
         onPointerLeave={() => setOverX(false)}
         onFocus={() => setOverX(true)}
         onBlur={() => setOverX(false)}
-        aria-label={`Clear ${label} from your recent listening`}
+        aria-label={`Remove ${label}`}
         className={`absolute -right-3 top-[5px] flex h-4 w-4 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-label font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble motion-reduce:transition-none ${
           overX ? 'origin-bottom-left translate-x-1 -translate-y-1 scale-150' : ''
         }`}

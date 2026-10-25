@@ -239,7 +239,7 @@ export function originLabel(entry: LoopSource): string {
     case 'queue':
       return 'HEARD ON A QUEUE';
     case 'shelf':
-      return 'PLAYED FROM THE MUSIC WINDOW';
+      return 'FROM THE SHELF';
     case 'own':
       return 'YOU HAD THIS ON';
   }

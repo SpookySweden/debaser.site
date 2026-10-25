@@ -91,7 +91,7 @@ export default function CommsConsole() {
   async function simulateIncoming() {
     const peer = (activeOtherId === null ? undefined : others.find((account) => account.id === activeOtherId)) ?? others[0];
     if (peer === undefined) {
-      setTestNote('A SECOND ACCOUNT IS NEEDED FOR A TEST MESSAGE. CREATE ONE ON THE ACCOUNT PAGE.');
+      setTestNote('NEEDS A SECOND ACCOUNT.');
       return;
     }
 
@@ -150,9 +150,7 @@ export default function CommsConsole() {
               {!accountsReady ? (
                 <p className="mt-1 text-label text-ink">READING THE ACCOUNT LIST...</p>
               ) : others.length === 0 ? (
-                <p className="mt-1 text-label text-ink">
-                  NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE AND IT APPEARS HERE.
-                </p>
+                <p className="mt-1 text-label text-ink">NO OTHER ACCOUNTS YET.</p>
               ) : (
                 <ul className="mt-1 space-y-1">
                   {others.map((account) => (
@@ -199,13 +197,13 @@ export default function CommsConsole() {
               />
 
               <p className="pt-1">
-                WHO IS IN IT ({groupMembers.length} PICKED) :: YOU ARE ALWAYS IN, AND A GROUP HOLDS {MAX_GROUP_MEMBERS}:
+                MEMBERS ({groupMembers.length + 1}/{MAX_GROUP_MEMBERS}):
               </p>
 
               {!accountsReady ? (
                 <p className="text-ink">READING THE ACCOUNT LIST...</p>
               ) : others.length === 0 ? (
-                <p className="text-ink">NO OTHER ACCOUNTS YET. CREATE ONE ON THE ACCOUNT PAGE.</p>
+                <p className="text-ink">NO OTHER ACCOUNTS YET.</p>
               ) : (
                 <ul className="space-y-1">
                   {others.map((account) => (
@@ -238,7 +236,7 @@ export default function CommsConsole() {
           ) : null}
 
           {rows.length === 0 ? (
-            <p className="mt-2 text-label font-bold text-ink">NO CONVERSATIONS YET. START ONE ABOVE.</p>
+            <p className="mt-2 text-label font-bold text-ink">NO CONVERSATIONS YET.</p>
           ) : (
             <ul className="mt-2 space-y-1">
               {rows.map(({ thread, row }) => (
@@ -318,7 +316,7 @@ export default function CommsConsole() {
           )}
 
           {active === undefined || activeOtherId === null ? (
-            <p className="text-label font-bold text-ink">PICK A CONVERSATION, OR START ONE.</p>
+            <p className="text-label font-bold text-ink">NONE OPEN.</p>
           ) : (
             <CommsThreadPanel
               idPrefix="comms-page"
@@ -335,9 +333,7 @@ export default function CommsConsole() {
 
         {source === 'mock' ? (
           <div className="flex flex-wrap items-center gap-2 border-t border-ink p-2 text-label font-bold text-ink">
-            <span className="text-ink">
-              LOCAL MODE: MESSAGES STAY IN THIS BROWSER.
-            </span>
+            <span className="text-ink">LOCAL MODE</span>
             <button type="button" onClick={() => void simulateIncoming()} className={PLATE}>
               [ SIMULATE INCOMING ]
             </button>

@@ -125,25 +125,20 @@ export default function CommsGroupBar({
         </button>
 
         <span className="text-ink">
-          {thread.participants.length} / {MAX_GROUP_MEMBERS} IN THE GROUP ::{' '}
-          {owner ? 'YOU OWN IT' : `OWNED BY ${nameFor(thread.ownerId ?? '').toUpperCase()}`}
+          {thread.participants.length}/{MAX_GROUP_MEMBERS}
         </span>
       </div>
 
-      {!confirmingLeave ? null : (
+      {!confirmingLeave || !owner ? null : (
         <p className="w-fit bg-bubble-pale px-1 text-ink-bar">
-          LEAVING TAKES YOU OUT OF THIS GROUP
-          {owner
-            ? ' AND HANDS IT TO WHOEVER HAS BEEN IN IT LONGEST - IF YOU ARE THE LAST ONE, THE GROUP GOES WITH YOU'
-            : ''}
-          . CLICK AGAIN TO CONFIRM.
+          {others.length === 0 ? 'THE GROUP GOES WITH YOU.' : 'OWNERSHIP PASSES TO THE LONGEST MEMBER.'}
         </p>
       )}
 
       {!renaming ? null : (
         <div className="flex flex-wrap items-end gap-2">
           <label className="min-w-40 flex-1" htmlFor={`group-rename-${thread.id}`}>
-            <span className="block">NEW NAME ({MAX_GROUP_NAME_LENGTH} CHARACTERS OR FEWER):</span>
+            <span className="block">NEW NAME:</span>
             <input
               id={`group-rename-${thread.id}`}
               type="text"
@@ -172,7 +167,7 @@ export default function CommsGroupBar({
 
       {!handingOver ? null : (
         <ul className="space-y-1">
-          <li className="text-ink">HAND THIS GROUP TO:</li>
+          <li className="text-ink">HAND TO:</li>
           {others.map((id) => (
             <li key={id}>
               <button
@@ -228,7 +223,7 @@ export default function CommsGroupBar({
       </ul>
 
       {!adding ? null : addable.length === 0 ? (
-        <p className="text-ink">THERE IS NOBODY LEFT TO ADD.</p>
+        <p className="text-ink">NOBODY TO ADD.</p>
       ) : (
         <ul className="space-y-1">
           {addable.map((account) => (

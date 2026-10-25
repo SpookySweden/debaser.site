@@ -78,7 +78,6 @@ export default function SidebarComms() {
           onClick={() => setExpanded(!expanded)}
           aria-expanded={expanded}
           aria-controls="sidebar-comms-list"
-          title={expanded ? 'Hide the conversations' : 'Show the conversations'}
           className={TITLE_BAR_BUTTON}
         >
           [ COMMS ] {expanded ? '▴' : '▾'}
@@ -110,9 +109,7 @@ export default function SidebarComms() {
             // A store that cannot be read is not the same as an account with nothing in it.
             <p className="m-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">COMMS OFFLINE :: {error}</p>
           ) : rows.length === 0 ? (
-            <p className="p-2 text-label font-bold text-ink">
-              NO CONVERSATIONS YET. OPEN ONE FROM THE DIRECTORY BELOW OR FROM THE COMMS PAGE.
-            </p>
+            <p className="p-2 text-label font-bold text-ink">NO CONVERSATIONS YET.</p>
           ) : (
             <ul className="space-y-1 p-2">
               {rows.map(({ thread, row }) => (
@@ -140,7 +137,7 @@ export default function SidebarComms() {
           )}
 
           <div className="flex flex-wrap items-center gap-1 px-2 pb-2">
-            <Link href="/comms" className={PLATE_LINK} title="Open the comms console">
+            <Link href="/comms" className={PLATE_LINK} title="Open comms">
               [ OPEN ]
             </Link>
           </div>

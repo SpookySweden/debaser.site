@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { threadDomId } from '../lib/forum/anchors';
 import { arcadeHref, openArcade } from '../lib/games/arcade-window';
 import {
-  notificationBreakdown,
   notificationLabel,
   splitNotifications,
   unreadNotificationCount,
@@ -13,7 +12,7 @@ import type { AppNotification } from '../lib/notifications/types';
 import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
-import { TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 /**
  * What kind of news a row is, as the badge this site already uses for that: navy for a tag and
@@ -224,7 +223,6 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
   const unread = unreadNotificationCount(items);
   // What is waiting, then what has been seen: the two groups the list is drawn in.
   const { fresh, earlier } = splitNotifications(items);
-  const breakdown = notificationBreakdown(items);
   const open = (opened: AppNotification) => {
     void markRead(opened.id);
   };
@@ -248,7 +246,10 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
 
       {userId === null ? (
         <p className="p-2 text-label font-bold text-ink">
-          TAGS AND REPLIES GO ACCOUNT TO ACCOUNT - SIGN IN TO BE TOLD ABOUT THEM.
+          <Link href="/account" onClick={onClose} className={PLATE_LINK}>
+            [ LOG IN ]
+          </Link>{' '}
+          TO GET NOTIFICATIONS
         </p>
       ) : !ready ? (
         <p className="p-2 text-label font-bold text-ink">READING THE NOTIFICATIONS...</p>
@@ -264,9 +265,7 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           </button>
         </div>
       ) : items.length === 0 ? (
-        <p className="p-2 text-label font-bold text-ink">
-          NOTHING HERE YET. TAGGING SOMEBODY IN A POST, OR REPLYING TO THEIR POST, IS WHAT LANDS IN THIS LIST.
-        </p>
+        <p className="p-2 text-label font-bold text-ink">NOTHING YET.</p>
       ) : (
         // One scrolling pane for both groups, so the headings stay with their rows.
         <div className="max-h-80 overflow-y-auto">
@@ -291,12 +290,8 @@ export default function NotificationMenu({ onClose, chrome = true }: Notificatio
           onClick={onClose}
           className="cursor-pointer key px-1 py-1 text-label font-bold"
         >
-          [ OPEN THE BOARD ]
+          [ BOARD ]
         </Link>
-        <span className="text-label text-ink">
-          {summary}
-          {breakdown === '' ? '' : ` :: ${breakdown}`}
-        </span>
       </div>
     </div>
   );

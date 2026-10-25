@@ -334,7 +334,7 @@ class SupabaseMusicRepository implements MusicRepository {
     if (problem !== undefined) throw new Error(problem);
 
     const extension = extensionForTrack(input.file);
-    if (extension === undefined) throw new Error('ONLY MP3, M4A, OGG, WAV AND FLAC TRACKS ARE ACCEPTED.');
+    if (extension === undefined) throw new Error('MP3, M4A, OGG, WAV OR FLAC ONLY.');
 
     const client = this.client();
     const path = trackStoragePath(input.uploaderId, input.file.name, extension);
@@ -513,7 +513,7 @@ class SupabaseMusicRepository implements MusicRepository {
       .select('id, owner_id, name, created_at, items');
 
     if (error !== null) throw new Error(error.message.toUpperCase());
-    if ((data ?? []).length === 0) throw new Error('THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER`S.');
+    if ((data ?? []).length === 0) throw new Error("THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER'S.");
 
     return toPlaylist((data as PlaylistRow[])[0]);
   }
@@ -527,7 +527,7 @@ class SupabaseMusicRepository implements MusicRepository {
       .select('id');
 
     if (error !== null) throw new Error(error.message.toUpperCase());
-    if ((data ?? []).length === 0) throw new Error('THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER`S.');
+    if ((data ?? []).length === 0) throw new Error("THE DATABASE REFUSED THAT - A PLAYLIST IS ITS OWNER'S.");
   }
 
   /* ---------------------------------------------------------------------------------------------

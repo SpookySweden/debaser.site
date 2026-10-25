@@ -12,7 +12,7 @@ import { KIND_LABELS, MEDIA_KINDS, useCatalogue } from '../lib/media/catalogue';
 import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
 import type { CatalogueEntry, MediaItem, MediaKind } from '../lib/media/types';
-import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import AudioTagChooser from './AudioTagChooser';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
@@ -254,7 +254,6 @@ export default function MediaCatalogue() {
               type="button"
               onClick={() => setCreating({ kind: 'file', parent: group.path })}
               className={`${PLATE} ml-2`}
-              title={`File a new track into ${folderLabel(group.path)}`}
             >
               [ + FILE ]
             </button>
@@ -363,8 +362,11 @@ export default function MediaCatalogue() {
         </div>
 
         {user === null ? (
-          <span className="text-label font-bold text-ink-quiet" title="Filing a file takes an account">
-            {tab === 'audio' ? 'SIGN IN TO FILE A TRACK OR A FOLDER' : 'SIGN IN TO FILE A PICTURE OR A VIDEO'}
+          <span className="text-label font-bold text-ink-quiet">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO FILE
           </span>
         ) : tab === 'audio' ? (
           /* The shelf's own two ways of adding something, in the place the other tabs keep UPLOAD. */
@@ -388,7 +390,7 @@ export default function MediaCatalogue() {
           count nothing. */}
       <p
         className="mt-1 text-label font-bold text-ink-quiet"
-        title="Uploaded files against the storage the site has. Past 80% video is refused first."
+        title="Past 80%, video is refused."
       >
         CATALOGUE: {formatBytes(catalogue.bytesUsed)} OF {formatBytes(STORAGE_CEILING_BYTES)} ({Math.round(share * 100)}%)
       </p>
@@ -408,7 +410,7 @@ export default function MediaCatalogue() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder={tab === 'audio' ? 'Search by title, folder, credit, uploader or tag...' : 'Search by title, credit, uploader or tag...'}
+          placeholder="Title, credit, tag..."
           className={`${FIELD_TIGHT} min-w-0 flex-1`}
         />
         <label htmlFor="media-sort" className="text-label font-bold text-ink">
@@ -438,7 +440,7 @@ export default function MediaCatalogue() {
 
       {!catalogue.answered ? (
         <p className="mt-3 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-          THE CATALOGUE COULD NOT BE READ. WHAT IS LISTED IS ONLY WHAT SHIPS WITH THE SITE.
+          CATALOGUE OFFLINE - SHOWING BUILT-IN FILES ONLY.
         </p>
       ) : null}
 
@@ -447,7 +449,7 @@ export default function MediaCatalogue() {
       ) : groups !== null ? (
         groups.every((group) => group.entries.length === 0) ? (
           <p className="mt-3 text-label font-bold text-ink">
-            NOTHING FILED HERE YET.{user === null ? '' : ' + NEW FILE AND + NEW FOLDER MAKE SOMETHING.'}
+            NOTHING FILED HERE YET.
           </p>
         ) : (
           <>
@@ -581,7 +583,7 @@ function CatalogueRow({
             <span className="text-label font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
             {item.length.length === 0 ? null : <span className="text-label text-ink">{item.length}</span>}
             {item.bytes === 0 ? null : <span className="text-label text-ink">{formatBytes(item.bytes)}</span>}
-            <span className="text-label font-bold text-ink" title="Where this file appears on the site">
+            <span className="text-label font-bold text-ink">
               {uses.length === 0 ? 'NOT USED YET' : `IN ${uses.length} PLACE${uses.length === 1 ? '' : 'S'}`}
             </span>
           </div>
@@ -609,11 +611,11 @@ function CatalogueRow({
               disabled={onLike === undefined}
               aria-pressed={liked}
               className={PLATE}
-              title={onLike === undefined ? 'Liking a track takes an account' : liked ? `Unlike ${track.title}` : `Like ${track.title}`}
+              title={onLike === undefined ? 'Log in to like' : liked ? `Unlike ${track.title}` : `Like ${track.title}`}
             >
               {liked ? '♥' : '♡'}
             </button>
-            <button type="button" onClick={() => onPlay(track)} className={PLATE} title={`Play ${track.title}`}>
+            <button type="button" onClick={() => onPlay(track)} className={PLATE}>
               [ ▶ PLAY ]
             </button>
             {source ? (
@@ -622,7 +624,6 @@ function CatalogueRow({
                 onClick={onToggle}
                 aria-expanded={open}
                 className={open ? PLATE_PRESSED : PLATE}
-                title="Where this track was filed first and everywhere it is used"
               >
                 [ SOURCE ]
               </button>
@@ -652,7 +653,7 @@ function CatalogueRow({
             {item.folderPath ? `${shelfName(item.folderPath)} :: ` : ''}
             {item.mime.length === 0 ? '' : `${item.mime} :: `}
             <a href={item.src} className="underline decoration-dotted hover:bg-ice" target="_blank" rel="noreferrer">
-              OPEN THE FILE
+              OPEN
             </a>
           </p>
 
@@ -676,7 +677,7 @@ function CatalogueRow({
           <p className={`${TITLE_BAR} mt-2`}>WHERE IT IS USED</p>
           {uses.length === 0 ? (
             <p className="text-label font-bold text-ink">
-              {item.kind === 'audio' ? 'NOWHERE YET. PICK IT WHEN YOU WRITE A POST.' : 'NOWHERE YET. PICK IT FROM THE CATALOGUE WHEN YOU WRITE A POST.'}
+              NOWHERE YET.
             </p>
           ) : (
             <ul className="space-y-0.5">
@@ -698,7 +699,7 @@ function CatalogueRow({
               <EditItemForm item={item} onClose={() => setEditing(false)} onSaved={(message) => { setEditing(false); onChanged(message); }} />
             ) : (
               <button type="button" onClick={() => setEditing(true)} className={`${PLATE} mt-2`}>
-                [ EDIT TITLE, CREDIT, TAGS ]
+                [ EDIT ]
               </button>
             )
           ) : null}

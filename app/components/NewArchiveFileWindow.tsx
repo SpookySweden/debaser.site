@@ -72,7 +72,7 @@ export default function NewArchiveFileWindow({
 
   async function fileIt() {
     if (author.id === null) {
-      setError('FILING A FILE TAKES AN ACCOUNT.');
+      setError('LOG IN TO FILE.');
       return;
     }
 
@@ -102,7 +102,7 @@ export default function NewArchiveFileWindow({
       // with the same bytes is in the catalogue only, which the ALL tab lists and plays.
       const { fingerprint, original } = await findOriginal('audio', file);
       if (original !== null) {
-        setError(`ALREADY IN THE CATALOGUE AS "${original.title}" - FIND IT UNDER ALL ON THE MEDIA PAGE.`);
+        setError(`ALREADY FILED AS "${original.title}" - IN THE ALL TAB.`);
         return;
       }
 
@@ -165,8 +165,6 @@ export default function NewArchiveFileWindow({
         className={FIELD}
       />
 
-      <p className="mt-1 text-label font-bold text-ink">FILES AS: {fileName}</p>
-
       <div className="mt-3 grid gap-3 sm:grid-cols-2">
         <div>
           <label htmlFor="new-file-folder" className="block text-label font-bold text-ink">
@@ -189,13 +187,12 @@ export default function NewArchiveFileWindow({
 
         <div>
           <label htmlFor="new-file-new-folder" className="block text-label font-bold text-ink">
-            OR A NEW ONE BELOW IT
+            NEW SUBFOLDER
           </label>
           <input
             id="new-file-new-folder"
             value={newFolder}
             onChange={(event) => setNewFolder(event.target.value)}
-            placeholder="e.g. WHAT THE RELEASE IS CALLED"
             className={FIELD}
           />
         </div>
@@ -219,7 +216,7 @@ export default function NewArchiveFileWindow({
 
         <div>
           <label htmlFor="new-file-upload" className="block text-label font-bold text-ink">
-            THE AUDIO FILE (MP3, M4A, OGG, WAV, FLAC - {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB MAX)
+            AUDIO FILE (MAX {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB)
           </label>
           <input
             id="new-file-upload"

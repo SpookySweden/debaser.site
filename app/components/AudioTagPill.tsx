@@ -58,7 +58,7 @@ export default function AudioTagPill({ tag, onToggle, active = false, count, com
 
   if (onToggle === undefined) {
     return (
-      <Link href={audioTagHref(tag)} title={`Show every track tagged ${label}`} className={className}>
+      <Link href={audioTagHref(tag)} title={`Tracks tagged ${label}`} className={className}>
         <TagMark colour={mark} compact={compact} />
         {label}
         {count === undefined || count === 0 ? null : ` (${count})`}

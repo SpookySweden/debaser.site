@@ -105,7 +105,7 @@ export default function QueueFollower() {
 
         if (track === undefined) {
           now.setPlaybackRate(1);
-          stopFollowing('THEY ARE PLAYING A FILE THIS SHELF DOES NOT HOLD');
+          stopFollowing('FILE NOT HERE');
           return;
         }
 

@@ -69,7 +69,7 @@ export const GROUPS_NEED_MIGRATION =
  * only the owner's controls need the file.
  */
 export const GROUP_OWNERSHIP_NEED_MIGRATION =
-  'RENAMING AND HANDING GROUPS OVER IS NOT SET UP YET - CHAT STILL WORKS.';
+  'NOT AVAILABLE YET.';
 
 /**
  * The codes PostgREST and Postgres answer with when the database is behind the code

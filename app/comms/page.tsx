@@ -12,7 +12,7 @@ export default function CommsPage() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [COMMS]"
       active="comms"
-      tip="Direct messages and group chats, listed down the left with the open one on the right. A message that arrives while the site is open pops up on a desktop, and takes a phone straight here."
+      tip="Direct messages and groups."
     >
     <h1 className="sr-only">DEBASER.SITE // COMMS</h1>
 

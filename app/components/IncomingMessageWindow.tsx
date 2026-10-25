@@ -53,10 +53,9 @@ export default function IncomingMessageWindow({
 
   return (
     <PopoutWindow
-      title={`COMMS :: NEW MESSAGE FROM ${name.toUpperCase()}`}
+      title={`MESSAGE :: ${name.toUpperCase()}`}
       onClose={onClose}
       maxWidth="max-w-xl"
-      status="ANSWER HERE, OR OPEN THE COMMS PAGE :: ESC CLOSES"
       actions={
         <Link
           href="/comms"
@@ -68,13 +67,13 @@ export default function IncomingMessageWindow({
     >
       {isGroup ? (
         <p className="mb-2 text-label font-bold text-ink">
-          IN {threadLabel(thread, userId, (id) => nameById.get(id) ?? id)} :: ANSWERING HERE WRITES TO THE WHOLE GROUP
+          IN {threadLabel(thread, userId, (id) => nameById.get(id) ?? id)}
         </p>
       ) : null}
 
       {hidden === 0 ? null : (
         <p className="mb-2 text-label font-bold text-ink">
-          {hidden} EARLIER MESSAGE{hidden === 1 ? '' : 'S'} STAY ON THE COMMS PAGE.
+          +{hidden} EARLIER
         </p>
       )}
 
