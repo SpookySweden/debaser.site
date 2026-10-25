@@ -51,7 +51,7 @@ const MENU_ROW =
  * reading, and nothing else.
  */
 export default function SidebarProfile() {
-  const { user, status, usingMockAuth } = useAuth();
+  const { user, status } = useAuth();
   const { profile } = usePublicProfile(user?.id ?? null);
   const [customising, setCustomising] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -92,7 +92,7 @@ export default function SidebarProfile() {
       </div>
 
       {status === 'loading' ? (
-        <p className="p-2 text-label font-bold text-ink">READING THE LOCAL SESSION...</p>
+        <p className="p-2 text-label font-bold text-ink">LOADING...</p>
       ) : status === 'signed-in' && user !== null ? (
         <div className="space-y-2 p-2">
           {/*
@@ -136,7 +136,7 @@ export default function SidebarProfile() {
                   old `NO STATUS SET` was a line spent saying nothing (SPEC-efficiency.md). */}
               {profile.status.length === 0 ? null : (
                 <p className="truncate" title={profile.status}>
-                  STATUS: <span className="text-ink">{profile.status}</span>
+                  <span className="text-ink">{profile.status}</span>
                 </p>
               )}
             </div>
@@ -145,7 +145,7 @@ export default function SidebarProfile() {
           {settingsOpen ? (
             <div className="space-y-1 border-t border-ink pt-2" role="menu" aria-label="Profile settings">
               <Link href="/account" className={MENU_ROW} role="menuitem" onClick={() => setSettingsOpen(false)}>
-                [ OPEN THE ACCOUNT PAGE ]
+                [ ACCOUNT ]
               </Link>
 
               {/*
@@ -183,9 +183,6 @@ export default function SidebarProfile() {
             </div>
           ) : null}
 
-          {usingMockAuth ? (
-            <p className="text-label text-ink">ACCOUNTS HERE LIVE ONLY IN THIS BROWSER.</p>
-          ) : null}
         </div>
       ) : (
         // The Google key only: the top banner's `[ LOG IN ]` is the guest's one call to the account page.

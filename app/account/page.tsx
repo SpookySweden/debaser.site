@@ -12,7 +12,7 @@ export default function Account() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [ACCOUNT MANAGER]"
       active="account"
-      tip="Create an account, log in, and manage how your posts are signed on the board. Reading and posting stay open to guests - an account just attaches your name to whatever you file."
+      tip="Sign up, log in, manage your account."
     >
     <h1 className="sr-only">DEBASER.SITE // ACCOUNT MANAGER</h1>
 

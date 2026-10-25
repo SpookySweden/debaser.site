@@ -14,6 +14,7 @@ import {
   validateTagLabel,
 } from '../lib/profile/visibility';
 import { FIELD_TIGHT, PLATE } from '../lib/ui/controls';
+import InfoFold from './InfoFold';
 import ProfileName from './ProfileName';
 import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
@@ -88,8 +89,8 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
           colour: tagColour(label),
         }),
       owner
-        ? 'TAG GIVEN - APPROVE IT WHEN YOU WANT IT SHOWN.'
-        : 'TAG GIVEN - THE OWNER DECIDES WHETHER IT SHOWS.',
+        ? 'TAG GIVEN. APPROVE IT TO SHOW IT.'
+        : 'TAG GIVEN. IT SHOWS ONCE THE OWNER APPROVES.',
     );
     setLabel('');
   }
@@ -113,9 +114,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
 
       {shown.length === 0 ? (
         <p className="text-label text-ink">
-          {owner
-            ? 'NOBODY HAS GIVEN YOU A TAG YET. YOU CAN GIVE YOURSELF ONE, BUT ONLY ONE OF YOUR OWN SHOWS AT A TIME.'
-            : 'NO TAGS TO SHOW.'}
+          {owner ? 'NONE YET.' : 'NONE.'}
         </p>
       ) : (
         <ul className="space-y-1">
@@ -153,7 +152,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                     onClick={() =>
                       void run(
                         () => repository.setTagVisibility(profile.userId, tag.id, !tag.hidden),
-                        tag.hidden ? 'TAG APPROVED - VISITORS CAN SEE IT NOW.' : 'TAG TAKEN BACK OFF THE PAGE.',
+                        tag.hidden ? 'APPROVED.' : 'HIDDEN.',
                       )
                     }
                     disabled={busy}
@@ -163,7 +162,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
                   </button>
                   <button
                     type="button"
-                    onClick={() => void run(() => repository.removeTag(profile.userId, tag.id), 'TAG REMOVED.')}
+                    onClick={() => void run(() => repository.removeTag(profile.userId, tag.id), 'REMOVED.')}
                     disabled={busy}
                     className={PLATE}
                   >
@@ -185,7 +184,7 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
       {adding ? (
         <div className="space-y-1 p-2">
           <label htmlFor={`give-tag-${profile.userId}`} className="block text-label font-bold text-ink">
-            {owner ? 'GIVE YOUR OWN PROFILE A TAG:' : 'GIVE THIS PROFILE A TAG:'}
+            NEW TAG:
           </label>
 
           <div className="flex flex-wrap items-center gap-1">
@@ -201,11 +200,12 @@ export default function ProfileTagList({ profile, repository, viewer, owner }: P
             </button>
           </div>
 
-          <p className="text-label text-ink">
+          {/* The approval rule is not visible from the controls, so it is kept, behind a [ ? ]. */}
+          <InfoFold topic="tag approval">
             {owner
-              ? 'YOUR OWN TAGS WAIT FOR YOUR APPROVAL TOO, AND ONLY ONE OF THEM SHOWS AT A TIME.'
-              : 'TAGS WAIT UNTIL THE OWNER APPROVES THEM. THE HOUSE ACCOUNT DOES NOT HAVE TO WAIT.'}
-          </p>
+              ? 'YOUR OWN TAGS WAIT FOR YOUR APPROVAL TOO. ONE OF YOURS SHOWS AT A TIME.'
+              : 'THE OWNER APPROVES TAGS BEFORE THEY SHOW.'}
+          </InfoFold>
         </div>
       ) : null}
 

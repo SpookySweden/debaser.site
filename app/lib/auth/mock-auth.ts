@@ -281,7 +281,7 @@ class MockAuthRepository implements AuthRepository {
     const current = readState();
 
     if (current.users.some((item) => item.email === email)) {
-      return { ok: false, error: 'AN ACCOUNT ALREADY EXISTS FOR THAT EMAIL ADDRESS.' };
+      return { ok: false, error: 'THAT EMAIL ALREADY HAS AN ACCOUNT.' };
     }
 
     const salt = createLocalId('salt');
@@ -309,10 +309,10 @@ class MockAuthRepository implements AuthRepository {
     const current = readState();
     const user = current.users.find((item) => item.email === email);
 
-    if (user === undefined) return { ok: false, error: 'NO ACCOUNT FOUND FOR THAT EMAIL ADDRESS.' };
+    if (user === undefined) return { ok: false, error: 'NO ACCOUNT FOR THAT EMAIL.' };
 
     const secretHash = await hashSecret(input.password, user.salt);
-    if (secretHash !== user.secretHash) return { ok: false, error: 'THAT PASSWORD IS NOT CORRECT.' };
+    if (secretHash !== user.secretHash) return { ok: false, error: 'WRONG PASSWORD.' };
 
     writeState({ ...current, sessionUserId: user.id });
     notify();
@@ -344,13 +344,13 @@ class MockAuthRepository implements AuthRepository {
     if (user === undefined) return { ok: false, error: 'SIGN IN FIRST.' };
 
     const secretHash = await hashSecret(input.currentPassword, user.salt);
-    if (secretHash !== user.secretHash) return { ok: false, error: 'THAT PASSWORD IS NOT CORRECT.' };
+    if (secretHash !== user.secretHash) return { ok: false, error: 'WRONG PASSWORD.' };
 
     const email = normaliseEmail(input.email);
-    if (email === user.email) return { ok: false, error: 'THAT IS ALREADY THE EMAIL ADDRESS ON THIS ACCOUNT.' };
+    if (email === user.email) return { ok: false, error: 'THAT IS ALREADY YOUR EMAIL.' };
 
     if (current.users.some((item) => item.email === email && item.id !== user.id)) {
-      return { ok: false, error: 'AN ACCOUNT ALREADY EXISTS FOR THAT EMAIL ADDRESS.' };
+      return { ok: false, error: 'THAT EMAIL ALREADY HAS AN ACCOUNT.' };
     }
 
     const updated: StoredUser = { ...user, email };
@@ -373,7 +373,7 @@ class MockAuthRepository implements AuthRepository {
     if (user === undefined) return { ok: false, error: 'SIGN IN FIRST.' };
 
     const secretHash = await hashSecret(input.currentPassword, user.salt);
-    if (secretHash !== user.secretHash) return { ok: false, error: 'THAT PASSWORD IS NOT CORRECT.' };
+    if (secretHash !== user.secretHash) return { ok: false, error: 'WRONG PASSWORD.' };
 
     const salt = createLocalId('salt');
     const updated: StoredUser = { ...user, salt, secretHash: await hashSecret(input.password, salt) };
@@ -413,7 +413,7 @@ class MockAuthRepository implements AuthRepository {
     const user = current.users.find((item) => item.id === current.sessionUserId);
     // The house account is the archive's own byline: it signs in, it is not deleted.
     if (user !== undefined && user.builtIn === true) {
-      return { ok: false, error: 'THE HOUSE ACCOUNT CANNOT BE DELETED - IT SIGNS THE ARCHIVE ITSELF.' };
+      return { ok: false, error: 'THE HOUSE ACCOUNT CANNOT BE DELETED.' };
     }
 
     writeState({
@@ -450,7 +450,7 @@ class MockAuthRepository implements AuthRepository {
   async banAccount(userId: string): Promise<void> {
     const current = readState();
     if (current.users.every((user) => user.id !== userId)) {
-      throw new Error('THAT ACCOUNT IS NOT IN THIS BROWSER.');
+      throw new Error('NO SUCH ACCOUNT.');
     }
 
     if (!current.bannedIds.includes(userId)) {

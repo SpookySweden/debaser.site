@@ -19,15 +19,15 @@ export function describeSignUpFailure(message: string): string {
   const lower = message.toLowerCase();
 
   if (lower.includes('sending') && lower.includes('email')) {
-    return "THE CONFIRMATION MAIL COULD NOT BE SENT, SO NOTHING WAS CREATED. THE ARCHIVE'S MAIL SERVICE IS BEING SORTED OUT - PLEASE TRY AGAIN LATER.";
+    return 'THE CONFIRMATION MAIL FAILED, SO NO ACCOUNT WAS MADE. TRY AGAIN LATER.';
   }
 
   if (lower.includes('rate limit')) {
-    return 'TOO MANY ACCOUNTS HAVE BEEN MADE IN THE LAST HOUR - PLEASE TRY AGAIN SOON.';
+    return 'TOO MANY SIGN-UPS. TRY AGAIN SOON.';
   }
 
   if (lower.includes('invalid') && lower.includes('email')) {
-    return 'THAT ADDRESS CANNOT RECEIVE MAIL, SO A CONFIRMATION LINK WOULD GO NOWHERE. CHECK THE SPELLING AND USE AN INBOX THAT WORKS.';
+    return 'THAT ADDRESS CANNOT RECEIVE MAIL. CHECK THE SPELLING.';
   }
 
   return message.toUpperCase();

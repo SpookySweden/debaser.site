@@ -162,7 +162,7 @@ class SupabaseAuthRepository implements AuthRepository {
     });
 
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
-    if (data.user === null) return { ok: false, error: 'NO SIGNED IN USER TO UPDATE.' };
+    if (data.user === null) return { ok: false, error: 'SIGN IN FIRST.' };
 
     return { ok: true, user: toAccount(data.user) };
   }
@@ -185,7 +185,7 @@ class SupabaseAuthRepository implements AuthRepository {
     }
 
     const check = await client.auth.signInWithPassword({ email: currentEmail, password: input.currentPassword });
-    if (check.error !== null) return { ok: false, error: 'THAT PASSWORD IS NOT CORRECT.' };
+    if (check.error !== null) return { ok: false, error: 'WRONG PASSWORD.' };
 
     const { data, error } = await client.auth.updateUser({ email: input.email.trim() });
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
@@ -211,11 +211,11 @@ class SupabaseAuthRepository implements AuthRepository {
     }
 
     const check = await client.auth.signInWithPassword({ email: currentEmail, password: input.currentPassword });
-    if (check.error !== null) return { ok: false, error: 'THAT PASSWORD IS NOT CORRECT.' };
+    if (check.error !== null) return { ok: false, error: 'WRONG PASSWORD.' };
 
     const { data, error } = await client.auth.updateUser({ password: input.password });
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
-    if (data.user === null) return { ok: false, error: 'NO SIGNED IN USER TO UPDATE.' };
+    if (data.user === null) return { ok: false, error: 'SIGN IN FIRST.' };
 
     return { ok: true, user: toAccount(data.user) };
   }
@@ -284,7 +284,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
     if (error !== null) throw new Error(error.message.toUpperCase());
     if ((data ?? []).length === 0) {
-      throw new Error('THE DATABASE REFUSED THAT - ONLY THE HOUSE ACCOUNT MAY BAN AN ACCOUNT.');
+      throw new Error('ONLY THE HOUSE ACCOUNT CAN BAN.');
     }
   }
 
@@ -297,7 +297,7 @@ class SupabaseAuthRepository implements AuthRepository {
 
     if (error !== null) throw new Error(error.message.toUpperCase());
     if ((data ?? []).length === 0) {
-      throw new Error('THE DATABASE REFUSED THAT - ONLY THE HOUSE ACCOUNT MAY LIFT A BAN.');
+      throw new Error('ONLY THE HOUSE ACCOUNT CAN LIFT A BAN.');
     }
   }
 

@@ -20,7 +20,8 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
       title="PLAYER OPTIONS"
       onClose={onClose}
       maxWidth="max-w-sm"
-      status="HOW A PROFILE'S TRACK SHOULD BEHAVE"
+      // Empty on purpose: no title-bar tip (the title names it; SPEC-less-text.md).
+      status=""
     >
       <div className="space-y-3 text-label font-bold text-ink">
         <label className="flex items-center gap-2">
@@ -39,12 +40,8 @@ export default function MusicOptionsPrompt({ onClose }: { onClose: () => void })
         </label>
 
         <button type="button" onClick={() => player.setPlayByDefault(!player.playByDefault)} className={PLATE_LARGE}>
-          {player.playByDefault ? '[ PLAY BY DEFAULT: ON ]' : '[ PLAY BY DEFAULT: OFF ]'}
+          {player.playByDefault ? '[ AUTOPLAY PROFILES: ON ]' : '[ AUTOPLAY PROFILES: OFF ]'}
         </button>
-
-        <p className="text-ink">
-          PLAY BY DEFAULT STARTS A PROFILE&apos;S TRACK AS SOON AS ITS PAGE LOADS. LEAVE IT OFF TO PRESS PLAY BY HAND.
-        </p>
 
         <div className="flex flex-wrap items-center gap-2 border-t border-ink pt-2">
           <button

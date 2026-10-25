@@ -7,7 +7,6 @@ import {
   makeUserTag,
   normaliseTagLabel,
 } from '../lib/forum/tag-vocabulary';
-import { contrastRatio } from '../lib/ui/colour';
 import PopoutWindow from './PopoutWindow';
 import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
 
@@ -44,7 +43,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
 
   function handleCreate() {
     if (label.length === 0) {
-      setError('GIVE THE TAG A NAME FIRST.');
+      setError('GIVE IT A NAME FIRST.');
       return;
     }
 
@@ -53,11 +52,12 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
 
   return (
     <PopoutWindow
-      title="TAG EDITOR :: CREATE A TAG"
+      title="NEW TAG"
       onClose={onCancel}
       maxWidth="max-w-md"
       bodyClassName="bg-paper"
-      status="ESC OR CLICK THE DESKTOP TO CANCEL"
+      // Empty on purpose: no "ESC CLOSES" title-bar tip (SPEC-less-text.md).
+      status=""
       actions={
         <button
           type="button"
@@ -87,7 +87,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
           />
 
           <p className="mt-3 text-label font-bold">
-            SWATCHES ({TAG_MARK_PALETTE.length}) :: EACH IS DRAWN AS A TAG&apos;S COLOUR KEY
+            COLOUR
           </p>
           <div className="mt-1 grid grid-cols-8 gap-1">
             {TAG_MARK_PALETTE.map((swatch) => (
@@ -95,7 +95,7 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 key={swatch}
                 type="button"
                 onClick={() => setColour(swatch)}
-                title={`${swatch.toUpperCase()} :: ${contrastRatio(swatch, '#ffffcc').toFixed(1)}:1 against the chip it sits on`}
+                title={swatch.toUpperCase()}
                 aria-label={`Use colour ${swatch}`}
                 aria-pressed={colour === swatch}
                 className={`flex cursor-pointer items-center justify-center rounded-none border border-bubble-pale bg-bubble-pale py-1 ${
@@ -114,14 +114,9 @@ export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: Ta
                 <TagMark colour={tagMarkColourFromColour(colour)} />
                 {previewLabel}
               </span>
-              <span className="text-label font-bold">KEY: {tagMarkColourFromColour(colour).toUpperCase()}</span>
             </div>
-            {foldsOnto === null ? (
-              <p className="mt-1 text-label">A NEW TAG WILL BE CREATED.</p>
-            ) : (
-              <p className="mt-1 text-label font-bold">
-                DECIDEDLY SIMILAR TO AN EXISTING TAG - IT WILL REUSE: {foldsOnto}
-              </p>
+            {foldsOnto === null ? null : (
+              <p className="mt-1 text-label font-bold">WILL USE EXISTING TAG: {foldsOnto}</p>
             )}
           </div>
 

@@ -64,12 +64,12 @@ export default function ProfileCustomiserPictureTab({
       <div className="p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div>
-            <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
+            <p className={CUSTOMISER_NOTE}>CURRENT</p>
             <ProfileAvatar version={current} displayName={profile.displayName} size={140} />
           </div>
 
           <div>
-            <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
+            <p className={CUSTOMISER_NOTE}>NEW</p>
             {pendingSrc === null ? (
               <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center frame bg-ice-pale p-2 text-center">
                 <span className="text-label font-bold text-ink">NOTHING CHOSEN</span>
@@ -91,10 +91,10 @@ export default function ProfileCustomiserPictureTab({
           </div>
 
           {/* basis-64: room to read or onto its own line (34px wide beside the two pictures on a 430px phone). */}
-          {/* HOW IT WORKS is the PICTURE heading's hover tip (ProfileCustomiserWindow). */}
+          {/* HOW IT WORKS is the [ ? ] under the PICTURE heading (ProfileCustomiserWindow). */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-upload">
-              UPLOAD A PICTURE (PNG / JPG / WEBP / GIF, UP TO {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
+              UPLOAD (MAX {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
             </label>
             <input
               id="customise-upload"
@@ -112,12 +112,10 @@ export default function ProfileCustomiserPictureTab({
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>OR PICK ONE OF THE PICTURES ALREADY ON THE SITE (THE MEDIA CATALOGUE):</p>
+        <p className={CUSTOMISER_NOTE}>OR PICK ONE:</p>
 
         {offered.length === 0 ? (
-          <p className="mt-2 text-label text-ink">
-            NONE OF THE DRAWINGS ON THE SITE IS THE RIGHT SHAPE FOR A PROFILE PICTURE YET.
-          </p>
+          <p className="mt-2 text-label text-ink">NONE YET.</p>
         ) : (
           <ul className="mt-2 flex flex-wrap gap-2">
             {offered.map((picture) => (
@@ -130,7 +128,6 @@ export default function ProfileCustomiserPictureTab({
                       ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
                       : 'key'
                   }`}
-                  title={picture.src}
                 >
                   <span className="inline-flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-none border border-ink-plate bg-paper">
                     <SheetImage
@@ -149,21 +146,20 @@ export default function ProfileCustomiserPictureTab({
         )}
 
         <label className={`${CUSTOMISER_NOTE} mt-3 block`} htmlFor="customise-note">
-          WHAT CHANGED? (KEPT AS THE NOTE FOR THIS VERSION)
+          NOTE
         </label>
         <textarea
           id="customise-note"
           value={note}
           onChange={(event) => onNoteChange(event.target.value)}
           rows={2}
-          placeholder="e.g. reworked the eyes after the third read-through"
+          placeholder="what changed?"
           className={FIELD}
         />
 
-        {/* The tip sits on a wrapper: the key is disabled until a picture is chosen, and a disabled
-            button shows no tip in some browsers. */}
+        {/* The wrapper span once held a hover tip (a disabled key shows none); kept so the row lays out as before. */}
         <div className="mt-2 flex flex-wrap items-center gap-2">
-          <span title="THE PAGE CHANGES THE MOMENT IT IS FILED.">
+          <span>
             <button
               type="button"
               onClick={onFileVersion}
@@ -177,12 +173,10 @@ export default function ProfileCustomiserPictureTab({
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE} title="APPEND ONLY: FILING A NEW VERSION NEVER OVERWRITES AN OLD ONE.">
-          HISTORY
-        </p>
+        <p className={CUSTOMISER_NOTE}>HISTORY</p>
 
         {versions.length === 0 ? (
-          <p className="mt-2 text-label font-bold text-ink">NO PICTURE HAS EVER BEEN FILED.</p>
+          <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
@@ -210,7 +204,6 @@ export default function ProfileCustomiserPictureTab({
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
                     className={PLATE_LARGE}
-                    title="Files a new version that copies this drawing"
                   >
                     [ USE THIS ONE ]
                   </button>

@@ -97,7 +97,8 @@ export default function PreferencesWindow() {
     <DockWindow
       title="PREFERENCES"
       onClose={closePreferences}
-      status="CHANGES APPLY AT ONCE :: DRAG THE TITLE BAR TO MOVE IT"
+      // Empty on purpose: no title-bar tip (DockWindow's fallback is a drag how-to, SPEC-less-text.md).
+      status=""
       dock="bottom"
       id="preferences"
       defaultSize={{ w: 384, h: 460 }}
@@ -108,9 +109,7 @@ export default function PreferencesWindow() {
           the back-to-default key went with them: the filled row already says which theme is on. */}
       <section>
         <div className={TITLE_BAR_INACTIVE}>
-          <span title="THE COLOURS THE WHOLE SITE IS DRAWN IN. EVERY THEME IS HELD TO THE SAME CONTRAST FLOOR, SO NOTHING HERE CAN MAKE A PAGE UNREADABLE.">
-            THEME
-          </span>
+          <span>THEME</span>
         </div>
 
         <div className="space-y-1 p-2">
@@ -131,7 +130,7 @@ export default function PreferencesWindow() {
           <button
             type="button"
             onClick={resetLayout}
-            title="WHERE THE DOCKED WINDOWS SIT IS SAVED FOR EACH SCREEN SHAPE. RESET PUTS EVERY OPEN WINDOW BACK IN ITS CORNER AND FORGETS THIS SHAPE'S SAVED LAYOUT."
+            title="PUT EVERY WINDOW BACK IN ITS CORNER"
             className={PLATE}
           >
             [ RESET LAYOUT ]

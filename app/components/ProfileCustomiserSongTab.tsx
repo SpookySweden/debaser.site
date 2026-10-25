@@ -59,29 +59,29 @@ export default function ProfileCustomiserSongTab({
       <div className="p-3">
         <div className="flex flex-wrap items-start gap-3">
           <div className="w-64">
-            <p className={CUSTOMISER_NOTE}>ON THE PAGE NOW</p>
+            <p className={CUSTOMISER_NOTE}>CURRENT</p>
             <div className="mt-1 frame bg-hardware px-2 py-1">
               <p className="truncate text-key font-bold text-acid">
-                {current === undefined ? 'NOTHING FILED YET' : current.title}
+                {current === undefined ? 'NONE YET' : current.title}
               </p>
               {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black.
-                  Wraps rather than truncates: at 10px the empty-slot sentence is wider than the box. */}
-              <p className="mt-1 text-label text-ink-bar">
-                {current === undefined ? 'THE PROFILE SHOWS AN EMPTY TRACK SLOT' : `V${current.version}`}
-              </p>
+                  Only the version line: an empty slot is the one line above. M, as in the history below. */}
+              {current === undefined ? null : (
+                <p className="mt-1 text-label text-ink-bar">{`M${current.version}`}</p>
+              )}
             </div>
           </div>
 
           {/* basis-64: at least as wide as the readout or onto its own line. With no basis the column
               never wrapped, and on a phone it sat beside the readout 30px wide. */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
-            <p className={CUSTOMISER_NOTE}>WAITING TO BE FILED</p>
+            <p className={CUSTOMISER_NOTE}>NEW</p>
             <p className="text-label text-ink">
-              {pendingSrc === null ? 'NO AUDIO CHOSEN YET.' : `READY: ${pendingSrc}`}
+              {pendingSrc === null ? 'NOTHING CHOSEN.' : `READY: ${pendingSrc}`}
             </p>
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-upload">
-              UPLOAD A TRACK (MP3 / M4A / OGG / WAV / FLAC, UP TO {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB):
+              UPLOAD (MAX {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB):
             </label>
             <input
               id="customise-song-upload"
@@ -108,7 +108,7 @@ export default function ProfileCustomiserSongTab({
             />
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-credit">
-              CREDITED TO (EMPTY MEANS YOUR NAME)
+              CREDIT
             </label>
             <input
               id="customise-song-credit"
@@ -119,21 +119,20 @@ export default function ProfileCustomiserSongTab({
             />
 
             <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-note">
-              WHAT IS IT? (KEPT AS THE NOTE FOR THIS VERSION)
+              NOTE
             </label>
             <textarea
               id="customise-song-note"
               value={note}
               onChange={(event) => onNoteChange(event.target.value)}
               rows={2}
-              placeholder="e.g. the rough mix that goes with issue three"
+              placeholder="what is it?"
               className={FIELD}
             />
 
-            {/* The tip sits on a wrapper: the key is disabled until a track is chosen and titled, and a
-                disabled button shows no tip in some browsers. */}
+            {/* The wrapper span once held a hover tip (a disabled key shows none); kept so the row lays out as before. */}
             <div className="flex flex-wrap items-center gap-2">
-              <span title="THE PROFILE CHANGES THE MOMENT IT IS FILED.">
+              <span>
                 <button
                   type="button"
                   onClick={onFileVersion}
@@ -149,12 +148,10 @@ export default function ProfileCustomiserSongTab({
       </div>
 
       <div className="p-3">
-        <p className={CUSTOMISER_NOTE} title="APPEND ONLY: FILING A NEW VERSION NEVER OVERWRITES AN OLD ONE.">
-          TRACK HISTORY
-        </p>
+        <p className={CUSTOMISER_NOTE}>HISTORY</p>
 
         {versions.length === 0 ? (
-          <p className="mt-2 text-label font-bold text-ink">NOTHING HAS EVER BEEN FILED.</p>
+          <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>
         ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
@@ -172,7 +169,6 @@ export default function ProfileCustomiserSongTab({
                   {version.restoredFromVersion === undefined ? null : (
                     <p className="mt-1">COPIED FROM M{version.restoredFromVersion}</p>
                   )}
-                  <p className="mt-1 truncate text-ink">{version.src}</p>
                 </div>
 
                 {version.id === profile.song.currentVersionId ? null : (
@@ -181,7 +177,6 @@ export default function ProfileCustomiserSongTab({
                     onClick={() => onRestore(version.id)}
                     disabled={busy}
                     className={PLATE_LARGE}
-                    title="Files a new version that copies this track"
                   >
                     [ USE THIS ONE ]
                   </button>

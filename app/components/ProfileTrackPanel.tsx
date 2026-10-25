@@ -37,23 +37,19 @@ export default function ProfileTrackPanel({ profile, element, owner }: ProfileTr
       {/* The readout, in the player's own colours: it is the same shelf, one track over. */}
       <div className="mt-1 frame bg-hardware px-2 py-1">
         <p className="truncate text-key font-bold text-acid">
-          {element === undefined ? 'NOTHING FILED YET' : element.title}
+          {element === undefined ? 'NONE YET' : element.title}
         </p>
-        {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black. */}
-        <p className="mt-1 truncate text-label text-ink-bar">
-          {element === undefined
-            ? owner
-              ? 'FILE A TRACK IN THE CUSTOMISER AND IT PLAYS FROM THE BAR BELOW.'
-              : 'THIS ACCOUNT HAS NOT PUT A TRACK UP.'
-            : element.credit}
-        </p>
+        {/* On the Black readout, so the bar ink: the quiet ink is Nigrosine here, 1.18:1 on Black.
+            The credit only: an empty slot is the one line above. */}
+        {element === undefined ? null : (
+          <p className="mt-1 truncate text-label text-ink-bar">{element.credit}</p>
+        )}
       </div>
 
       {element === undefined ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <button
             type="button"
-            title="PLAYS THROUGH THE BAR AT THE FOOT OF THE PAGE"
             onClick={() =>
               playing
                 ? player.toggle()

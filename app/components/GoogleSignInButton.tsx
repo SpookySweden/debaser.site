@@ -2,7 +2,7 @@
 
 import Image from 'next/image';
 import { useCallback, useState } from 'react';
-import { GOOGLE_ICON_SRC, GOOGLE_NEEDS_SUPABASE } from '../lib/auth/google';
+import { GOOGLE_ICON_SRC } from '../lib/auth/google';
 import { PLATE, PLATE_LARGE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 
@@ -29,7 +29,7 @@ type GoogleSignInButtonProps = {
  * only shown once it has loaded, and no logo on this site is drawn in CSS or SVG.
  */
 export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN ]', className }: GoogleSignInButtonProps) {
-  const { signInWithGoogle, googleSignInAvailable } = useAuth();
+  const { signInWithGoogle } = useAuth();
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [markDrawn, setMarkDrawn] = useState(false);
@@ -49,9 +49,9 @@ export default function GoogleSignInButton({ size = 'normal', label = '[ LOG IN 
     if (!result.ok) setMessage(result.error);
   }
 
-  // One line, one source: while the backend cannot do OAuth the standing note is
-  // the same message a click would produce, so it is never printed twice.
-  const note = message ?? (googleSignInAvailable ? null : GOOGLE_NEEDS_SUPABASE);
+  // Only a click's answer is shown: while the backend cannot do OAuth, the click itself says so
+  // (GOOGLE_NEEDS_SUPABASE), rather than a standing note under the keys.
+  const note = message;
   const key = size === 'large' ? PLATE_LARGE : PLATE;
 
   return (

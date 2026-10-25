@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { elementAsTrack } from '../lib/audio/profile-track';
 import { currentProfileElement } from '../lib/profile/elements';
-import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import { PLATE_LINK } from '../lib/ui/controls';
@@ -14,7 +13,6 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
-import ProfileName from './ProfileName';
 
 /**
  * The account page's profile section.
@@ -73,29 +71,20 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
         <span>PUBLIC PROFILE</span>
       </div>
 
-      {/* The picture, the name and the two ways in. The readback of what the profile holds (bio length,
+      {/* The picture and the two ways in. The readback of what the profile holds (bio length,
           picture versions, tag and comment counts, the visibility switches) is gone: the customiser and
           the profile itself show those (SPEC-efficiency.md, 2026-10-23). */}
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
         <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
 
         <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
-          <p>
-            NAME ON THE PROFILE:{' '}
-            <ProfileName
-              author={{ id: userId, displayName: profile.displayName }}
-              colour={profileNameColour(profile)}
-              lamp={false}
-            />
-          </p>
-
+          {/* No name here: ACCOUNT DETAILS below names the account once (SPEC-less-text.md). */}
           <div className="flex flex-wrap items-center gap-1 pt-1">
             <button type="button" onClick={() => setCustomising(true)} className={PLATE_LINK}>
               [ EDIT PROFILE ]
             </button>
             <Link
               href={`/profile/${encodeURIComponent(userId)}`}
-              title="VISITORS REACH THIS PAGE FROM ANY USERNAME OR PICTURE YOU POST UNDER."
               className={PLATE_LINK}
             >
               [ VIEW PROFILE ]

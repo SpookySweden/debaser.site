@@ -17,7 +17,7 @@ export function validateEmail(email: string): string | undefined {
   const value = email.trim();
 
   if (value.length === 0) return 'ENTER AN EMAIL ADDRESS.';
-  if (!EMAIL_PATTERN.test(value)) return 'THAT EMAIL ADDRESS DOES NOT LOOK RIGHT.';
+  if (!EMAIL_PATTERN.test(value)) return 'CHECK THE EMAIL ADDRESS.';
   if (value.length > 254) return 'THAT EMAIL ADDRESS IS TOO LONG.';
 
   return undefined;
@@ -84,9 +84,9 @@ export function validateSignUp(input: {
 export function validateSignInIdentifier(identifier: string): string | undefined {
   const value = identifier.trim();
 
-  if (value.length === 0) return 'ENTER YOUR EMAIL ADDRESS OR ACCOUNT NAME.';
-  if (/\s/.test(value)) return 'AN EMAIL ADDRESS OR ACCOUNT NAME CANNOT CONTAIN SPACES.';
-  if (value.length > 254) return 'THAT IS TOO LONG TO BE AN EMAIL ADDRESS OR ACCOUNT NAME.';
+  if (value.length === 0) return 'ENTER YOUR EMAIL OR NAME.';
+  if (/\s/.test(value)) return 'NO SPACES, PLEASE.';
+  if (value.length > 254) return 'THAT IS TOO LONG.';
 
   return undefined;
 }
@@ -131,7 +131,7 @@ export function validatePasswordChange(input: {
   if (password !== undefined) errors.password = password;
   else if (input.confirmPassword !== input.password) errors.confirmPassword = 'NEW PASSWORDS DO NOT MATCH.';
   else if (input.password === input.currentPassword) {
-    errors.password = 'THE NEW PASSWORD MUST BE DIFFERENT FROM THE CURRENT ONE.';
+    errors.password = 'THAT IS YOUR CURRENT PASSWORD.';
   }
 
   return errors;

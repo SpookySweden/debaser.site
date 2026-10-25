@@ -4,7 +4,6 @@ import { useState } from 'react';
 import {
   canCommentOnElement,
   elementComments,
-  elementNoun,
   profileElements,
   visibleElementComments,
   type ProfileElement,
@@ -80,7 +79,6 @@ export default function ElementComments({
   );
   const versions = profileElements(profile, kind);
   const writable = canCommentOnElement(owner, profile.visibility, kind);
-  const noun = elementNoun(kind);
 
   return (
     <div className="min-w-0">
@@ -119,7 +117,8 @@ export default function ElementComments({
       {open ? (
         thread.length === 0 ? (
           <p className="mt-1 text-label text-ink">
-            {writable ? `nothing has been said about ${element.tag} yet.` : `comments on the ${noun} are off.`}
+            {/* "comments off" is already on the caption line above, so it is not said twice. */}
+            {writable ? 'nothing yet.' : 'none.'}
           </p>
         ) : (
           <ul className="mt-1 space-y-1">

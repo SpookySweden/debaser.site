@@ -23,6 +23,7 @@ import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 import CharacterEditorPanel from './CharacterEditorPanel';
+import InfoFold from './InfoFold';
 
 type TabKey = 'profile' | 'character' | 'privacy';
 
@@ -242,7 +243,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   /**
    * Throw every draft away, and put the workbench back where it was kept.
    *
-   * **This is what `[ THROW THEM AWAY ]` promises, and it was a lie until this existed.** The prompt said the work
+   * **This is what `[ DISCARD ]` promises, and it was a lie until this existed.** The prompt said the work
    * would be lost, the reader agreed, and `finish()` merely cleared the prompt and carried on with the drafts
    * intact - so the one control whose entire purpose is to discard discarded nothing. A confirmation dialogue that
    * does not do what it says is worse than no dialogue, because it teaches the reader that the words on the
@@ -340,7 +341,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       if (original !== null) {
         setPendingSrc(original.src);
         setPendingUpload(null);
-        setUploadMessage(`ALREADY IN THE CATALOGUE AS "${original.title}" - USING THE ORIGINAL. FILE IT AS A VERSION BELOW.`);
+        setUploadMessage(`ALREADY ON THE SITE AS "${original.title}". NOT FILED YET.`);
         return;
       }
 
@@ -359,7 +360,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
       setPendingSrc(result.src);
       setPendingUpload({ file, fingerprint });
-      setUploadMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
+      setUploadMessage(`${result.note} NOT FILED YET.`);
     } finally {
       setBusy(false);
     }
@@ -421,7 +422,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         setPendingSongUpload(null);
         if (songTitle.trim().length === 0) setSongTitle(original.title);
         if (songCredit.trim().length === 0) setSongCredit(original.credit);
-        setSongMessage(`ALREADY IN THE CATALOGUE AS "${original.title}" - USING THE ORIGINAL. FILE IT AS A VERSION BELOW.`);
+        setSongMessage(`ALREADY ON THE SITE AS "${original.title}". NOT FILED YET.`);
         return;
       }
 
@@ -435,7 +436,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       setPendingSongUpload({ file, fingerprint });
       setSongSrc(result.src);
       if (songTitle.trim().length === 0) setSongTitle(file.name.replace(/\.[a-z0-9]+$/i, '').toUpperCase());
-      setSongMessage(`${result.note} - FILE IT AS A VERSION BELOW.`);
+      setSongMessage(`${result.note} NOT FILED YET.`);
     } finally {
       setBusy(false);
     }
@@ -560,12 +561,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           makes the page they add up to visible while you work on it. */}
       {tab === 'profile' ? (
         <div className="space-y-3">
-          {/* HOW IT WORKS used to be a paragraph beside the upload; it is this heading's hover tip now. */}
-          <PanelHeading
-            tip={`CHOOSE A PICTURE, SAY WHAT CHANGED, THEN FILE IT AS P${profile.avatar.versions.length + 1}. THE OLD ONE STAYS IN THE HISTORY BELOW, TOGETHER WITH THE COMMENTS WRITTEN AGAINST IT.`}
-          >
-            PICTURE
-          </PanelHeading>
+          {/* HOW IT WORKS: behind a [ ? ] under the heading (SPEC-less-text.md), not a hover tip a phone never shows. */}
+          <PanelHeading>PICTURE</PanelHeading>
+          <InfoFold topic="picture versions" className="px-3">
+            FILING MAKES A NEW VERSION (P{profile.avatar.versions.length + 1}). OLD ONES STAY IN THE HISTORY WITH THEIR COMMENTS.
+          </InfoFold>
           <ProfileCustomiserPictureTab
             profile={profile}
             pendingSrc={pendingSrc}
@@ -584,7 +584,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             uploadMessage={uploadMessage}
           />
 
-          <PanelHeading>THE TRACK BESIDE THE PICTURE</PanelHeading>
+          <PanelHeading>TRACK</PanelHeading>
           <ProfileCustomiserSongTab
             profile={profile}
             pendingSrc={songSrc}
@@ -601,7 +601,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             uploadMessage={songMessage}
           />
 
-          <PanelHeading>NAME, NAME COLOUR, COUNTRY FLAG, STATUS AND BIO</PanelHeading>
+          <PanelHeading>ABOUT</PanelHeading>
           <ProfileIdentityTab
             profile={profile}
             name={name}
@@ -621,7 +621,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             statusProblem={statusProblem}
           />
 
-          <PanelHeading>TAGS GIVEN TO YOU</PanelHeading>
+          <PanelHeading>TAGS</PanelHeading>
           <ProfileTagsTab
             profile={profile}
             busy={busy}
@@ -690,7 +690,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   return (
     <>
       <PopoutWindow
-        title="CUSTOMISE PUBLIC PROFILE"
+        title="EDIT PROFILE"
         onClose={() => guard({ kind: 'close' })}
         // Clicking the desktop does not close this one: it holds unsaved work, and a mis-aimed press is not a
         // decision to discard it. Every other window keeps the behaviour - see `PopoutWindow`.
@@ -698,7 +698,9 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         // The workbench is a canvas window - a tool strip, two views and two panels - and needs the room. The other
         // tabs are forms and stay at a reading width.
         maxWidth={tab === 'character' ? 'max-w-6xl' : 'max-w-3xl'}
-        status="PICK A TAB :: EVERY SAVE GOES STRAIGHT TO THE PROFILE STORE :: ESC ASKS BEFORE CLOSING"
+        // Empty on purpose: no title-bar tip. PopoutWindow's fallback ("CLICK THE DESKTOP TO CLOSE") would be
+        // wrong here, where a click behind the window does not close it.
+        status=""
         actions={
           <>
             {/* The foot sits outside the scrolling body, so `SAVED` is seen whichever section was saved.

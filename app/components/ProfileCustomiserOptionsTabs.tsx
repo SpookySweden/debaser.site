@@ -6,7 +6,6 @@ import { countryName, countryOptions } from '../lib/profile/countries';
 import {
   NAME_COLOURS_THAT_GLOW,
   NAME_COLOURS_THAT_READ,
-  nameColourContrast,
   nameColourDark,
   nameColourLabel,
 } from '../lib/profile/name-colours';
@@ -14,6 +13,7 @@ import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
+import InfoFold from './InfoFold';
 import { TagMark } from './TagBadge';
 
 export const CUSTOMISER_NOTE = 'text-label font-bold text-ink';
@@ -30,8 +30,8 @@ const SWATCH_CHIP =
 
 /** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_ROWS = [
-  { label: 'INK :: A NAME THE PAGE CANNOT SWALLOW', colours: NAME_COLOURS_THAT_READ },
-  { label: 'GLOW :: A NAME THE PAGE SHOWS THROUGH', colours: NAME_COLOURS_THAT_GLOW },
+  { label: 'INK', colours: NAME_COLOURS_THAT_READ },
+  { label: 'GLOW', colours: NAME_COLOURS_THAT_GLOW },
 ];
 
 export type ProfileVisibilityDraft = Partial<ProfileVisibility>;
@@ -84,7 +84,7 @@ export function ProfileIdentityTab({
   return (
     <div className="p-3">
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
-        PUBLIC NAME: SIGNS YOUR PROFILE PAGE AND YOUR ACCOUNT
+        NAME
       </label>
       <input
         id="customise-name"
@@ -94,14 +94,13 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
 
-      {/* The three explainers that used to sit under these fields are hover tips now: the swatches'
-          on this label, the flag's on its label, the account name's on the save key. */}
-      <p
-        className={`${CUSTOMISER_NOTE} mt-2`}
-        title="AN INK SWATCH IS A NAME THAT READS ON THE PAGE, IN EITHER THEME - WHERE THE FIELD IS DARK THE COLOUR IS RESTATED RATHER THAN KEPT (BLACK BECOMES PURE WHITE, ROYAL BLUE BECOMES DAFFODIL). A GLOW SWATCH IS A NAME THE PAGE SHOWS THROUGH - PICKED ON PURPOSE, AND HARD TO READ ON PURPOSE."
-      >
-        NAME COLOUR: PICK ONE OF THE EIGHT DYES
-      </p>
+      {/* What INK and GLOW mean is behind the [ ? ] (SPEC-less-text.md); the flag's asset note stays its
+          label's hover tip (Luke keeps the missing-artwork wording). */}
+      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR</p>
+      <InfoFold topic="name colours" className="mt-1">
+        INK READS IN EITHER THEME: ON A DARK FIELD THE COLOUR IS RESTATED (BLACK BECOMES PURE WHITE, ROYAL BLUE
+        BECOMES DAFFODIL). GLOW IS HARD TO READ ON PURPOSE.
+      </InfoFold>
 
       {NAME_COLOUR_ROWS.map((row) => (
         <div key={row.label} className="mt-1">
@@ -116,7 +115,6 @@ export function ProfileIdentityTab({
                   type="button"
                   onClick={() => onNameColourChange(colour.hex)}
                   aria-pressed={chosen}
-                  title={`${colour.label} :: ${nameColourContrast(colour.hex).toFixed(1)}:1 wherever the name is read`}
                   className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-ink' : ''}`}
                 >
                   <TagMark colour={colour.hex} />
@@ -152,7 +150,7 @@ export function ProfileIdentityTab({
         htmlFor="customise-country"
         title="A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE STAND IN FOR IT."
       >
-        COUNTRY FLAG: DRAWN BESIDE YOUR NAME ON YOUR POSTS AND ON YOUR PAGE
+        COUNTRY
       </label>
       <div className="mt-1 flex flex-wrap items-center gap-2">
         <select
@@ -161,7 +159,7 @@ export function ProfileIdentityTab({
           onChange={(event) => onCountryChange(event.target.value)}
           className={`${FIELD} min-w-56`}
         >
-          <option value="">NONE - NO FLAG</option>
+          <option value="">NONE</option>
           {countries.map((option) => (
             <option key={option.code} value={option.code}>
               {option.name}
@@ -172,7 +170,7 @@ export function ProfileIdentityTab({
             sees here is what a reader sees. Reserved at a fixed size so choosing a country cannot
             reflow the row (`SpriteSlot` holds its box whether or not the drawing exists). */}
         <CountryFlag code={country} width={24} height={16} />
-        <span className="text-label text-ink">{country.length === 0 ? 'NO FLAG PICKED' : countryName(country)}</span>
+        <span className="text-label text-ink">{country.length === 0 ? '' : countryName(country)}</span>
       </div>
       {countryProblem === undefined ? null : (
         <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{countryProblem}</p>
@@ -184,7 +182,7 @@ export function ProfileIdentityTab({
           and a reader should be able to tell which is which. */}
       <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
         <label htmlFor="customise-status" className={CUSTOMISER_NOTE}>
-          STATUS: ONE LINE BESIDE YOUR NAME ON THE SIDE PANEL (LEAVE EMPTY FOR NONE)
+          STATUS
         </label>
         <span className={CUSTOMISER_NOTE}>
           {status.length} / {MAX_STATUS_LENGTH}
@@ -220,7 +218,7 @@ export function ProfileIdentityTab({
       {bioProblem === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{bioProblem}</p>}
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span title="THE NAME IS PUSHED TO YOUR ACCOUNT TOO, SO POSTS AND THE PROFILE AGREE.">
+        <span>
           <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
             {busy ? '[ WORKING... ]' : '[ SAVE ]'}
           </button>
@@ -242,27 +240,20 @@ export type ProfilePrivacyTabProps = {
 export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: ProfilePrivacyTabProps) {
   const visibility: ProfileVisibility = { ...profile.visibility, ...draft };
 
-  const rows: { key: keyof ProfileVisibility; label: string; note: string }[] = [
+  // A note only where the rule is not visible from the switch, and then behind a [ ? ] (SPEC-less-text.md).
+  const rows: { key: keyof ProfileVisibility; label: string; note?: string }[] = [
     {
       key: 'showTags',
-      label: 'SHOW THE TAGS OTHER USERS GAVE ME',
-      note: 'ARRIVES HIDDEN. EACH TAG ALSO HAS ITS OWN SWITCH ON THE PROFILE TAB.',
+      label: 'TAGS',
+      note: 'TAGS ARRIVE HIDDEN. EACH TAG ALSO HAS ITS OWN SWITCH ON THE PROFILE TAB.',
     },
     {
       key: 'showProfileComments',
-      label: 'SHOW COMMENTS LEFT ON MY PROFILE',
-      note: 'ARRIVES HIDDEN. WHILE IT IS OFF NOBODY CAN ADD ONE EITHER.',
+      label: 'PROFILE COMMENTS',
+      note: 'THEY ARRIVE HIDDEN. WHILE THIS IS OFF, NOBODY CAN ADD ONE EITHER.',
     },
-    {
-      key: 'showAvatarComments',
-      label: 'SHOW COMMENTS LEFT ON MY PICTURE',
-      note: 'ON BY DEFAULT - EVERY COMMENT KEEPS THE VERSION IT WAS WRITTEN AGAINST.',
-    },
-    {
-      key: 'showSongComments',
-      label: 'SHOW COMMENTS LEFT ON MY TRACK',
-      note: 'ON BY DEFAULT - THE TRACK BESIDE THE PICTURE, KEEPING ITS OWN VERSION.',
-    },
+    { key: 'showAvatarComments', label: 'PICTURE COMMENTS' },
+    { key: 'showSongComments', label: 'TRACK COMMENTS' },
   ];
 
   return (
@@ -279,21 +270,22 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
               />
               <span>
                 {row.label}
-                <span className="mt-1 block font-normal text-ink">{row.note}</span>
+                {visibility[row.key] === profile.visibility[row.key] ? '' : ' *'}
               </span>
             </label>
-            <p className="mt-1 text-label text-ink">
-              CURRENTLY: {visibility[row.key] ? 'VISIBLE TO VISITORS' : 'HIDDEN FROM VISITORS'}
-              {visibility[row.key] === profile.visibility[row.key] ? '' : ' :: UNSAVED CHANGE'}
-            </p>
+            {row.note === undefined ? null : (
+              <InfoFold topic={`the ${row.label.toLowerCase()} switch`} className="mt-1">
+                {row.note}
+              </InfoFold>
+            )}
           </li>
         ))}
       </ul>
 
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span title="PRIVACY SETTINGS APPLY THE MOMENT THEY ARE SAVED.">
+        <span>
           <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
-            {busy ? '[ WORKING... ]' : '[ SAVE PRIVACY ]'}
+            {busy ? '[ WORKING... ]' : '[ SAVE ]'}
           </button>
         </span>
       </div>

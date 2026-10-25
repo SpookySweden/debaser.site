@@ -39,7 +39,7 @@ export async function uploadSongFile(input: {
   if (problem !== undefined) return { ok: false, error: problem };
 
   const extension = extensionForTrack(input.file);
-  if (extension === undefined) return { ok: false, error: 'ONLY MP3, M4A, OGG, WAV AND FLAC TRACKS ARE ACCEPTED.' };
+  if (extension === undefined) return { ok: false, error: 'MP3, M4A, OGG, WAV OR FLAC ONLY.' };
 
   if (PROFILE_DATA_SOURCE === 'supabase') {
     const client = getSupabaseBrowserClient();
@@ -61,7 +61,7 @@ export async function uploadSongFile(input: {
 
     const { data } = client.storage.from(MUSIC_BUCKET).getPublicUrl(path);
 
-    return { ok: true, src: data.publicUrl, note: 'TRACK FILED.' };
+    return { ok: true, src: data.publicUrl, note: 'UPLOADED.' };
   }
 
   try {
@@ -75,7 +75,7 @@ export async function uploadSongFile(input: {
       return { ok: false, error: payload.error ?? 'THE UPLOAD WAS REFUSED.' };
     }
 
-    return { ok: true, src: payload.src, note: 'TRACK FILED.' };
+    return { ok: true, src: payload.src, note: 'UPLOADED.' };
   } catch {
     return { ok: false, error: 'UPLOAD FAILED.' };
   }

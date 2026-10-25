@@ -32,7 +32,7 @@ const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
 /** The rules the form keeps, so a refusal reads the same wherever it comes from. */
 export function validateAvatarFile(file: File): string | undefined {
   if (CONTENT_TYPE_EXTENSIONS[file.type] === undefined) {
-    return 'ONLY PNG, JPG, WEBP OR GIF DRAWINGS ARE ACCEPTED.';
+    return 'PNG, JPG, WEBP OR GIF ONLY.';
   }
 
   if (file.size > MAX_AVATAR_BYTES) {
@@ -103,12 +103,12 @@ export async function uploadAvatarDrawing(input: {
 
     const { data } = client.storage.from(AVATAR_BUCKET).getPublicUrl(path);
 
-    return { ok: true, src: data.publicUrl, note: 'DRAWING FILED.' };
+    return { ok: true, src: data.publicUrl, note: 'UPLOADED.' };
   }
 
   try {
     const headers = await sessionHeaders();
-    if (headers === null) return { ok: false, error: 'SIGN IN AGAIN BEFORE FILING A DRAWING.' };
+    if (headers === null) return { ok: false, error: 'SIGN IN AGAIN.' };
 
     const form = new FormData();
     form.append('file', input.file);
@@ -121,7 +121,7 @@ export async function uploadAvatarDrawing(input: {
       return { ok: false, error: payload.error ?? 'THE UPLOAD WAS REFUSED.' };
     }
 
-    return { ok: true, src: payload.src, note: 'DRAWING FILED.' };
+    return { ok: true, src: payload.src, note: 'UPLOADED.' };
   } catch {
     return { ok: false, error: 'UPLOAD FAILED.' };
   }

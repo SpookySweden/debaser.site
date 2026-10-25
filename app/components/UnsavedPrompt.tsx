@@ -31,7 +31,7 @@ type UnsavedPromptProps = {
  * Hiding it inside the collapsed region would mean the reader who most needs it - the one who has not expanded -
  * cannot see it.
  *
- * **Three ways out, and the safe one is the one that looks like the default.** `[ GO BACK ]` comes first and is
+ * **Three ways out, and the safe one is the one that looks like the default.** `[ KEEP EDITING ]` comes first and is
  * styled as the ordinary plate; discarding is on its own after a separator and wears the warning colour, because
  * the whole point of this window is to make losing work take a deliberate second press.
  */
@@ -39,19 +39,20 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const what = intent === 'close' ? 'CLOSING THIS' : 'SWITCHING TAB';
+  const what = intent === 'close' ? 'CLOSING' : 'SWITCHING TAB';
 
   return (
     <PopoutWindow
-      title={`${summarise(changes)} :: ${what} WOULD LOSE THEM`}
+      title="UNSAVED CHANGES"
       onClose={onStay}
       maxWidth="max-w-xl"
       dismissOnBackdrop={false}
-      status="NOTHING HAS BEEN THROWN AWAY YET :: GO BACK AND IT IS ALL STILL THERE"
+      // Empty on purpose: no title-bar tip. PopoutWindow's fallback ("CLICK THE DESKTOP TO CLOSE") is wrong here.
+      status=""
     >
       <div className="space-y-2 text-label text-ink">
         <p className="font-bold">
-          YOU HAVE {summarise(changes)} THAT HAVE NOT BEEN SAVED. {what} PAGES THEM AWAY, AND THERE IS NO UNDO.
+          {summarise(changes)}. {what} LOSES THEM. NO UNDO.
         </p>
 
         <div className="frame bg-sun-pale">
@@ -66,39 +67,32 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
             <span>[ {changes.length} ]</span>
           </button>
 
-          {open ? (
-            <ol id="unsaved-list" className="divide-y divide-ink">
-              {changes.map((change, index) => (
-                <li key={`${change.tab}-${change.label}-${index}`} className="px-2 py-1">
-                  <p className="font-bold">
-                    {change.label}
-                    <span className="ml-2 font-normal text-ink-quiet">ON THE {change.tab.toUpperCase()} TAB</span>
-                  </p>
-                  <p className="text-ink-quiet">{change.detail}</p>
-                </li>
-              ))}
-            </ol>
-          ) : (
-            <p id="unsaved-list" className="px-2 py-1 text-ink-quiet">
-              FOLDED AWAY. PRESS THE BAR ABOVE TO SEE ALL {changes.length}.
-            </p>
-          )}
+          {/* Folded shut, the bar alone: the count is on it. `hidden` rather than unmounted, so the bar's
+              aria-controls always names an element that exists. */}
+          <ol id="unsaved-list" hidden={!open} className="divide-y divide-ink">
+            {changes.map((change, index) => (
+              <li key={`${change.tab}-${change.label}-${index}`} className="px-2 py-1">
+                <p className="font-bold">
+                  {change.label}
+                  <span className="ml-2 font-normal text-ink-quiet">ON THE {change.tab.toUpperCase()} TAB</span>
+                </p>
+                <p className="text-ink-quiet">{change.detail}</p>
+              </li>
+            ))}
+          </ol>
         </div>
 
         {/*
-         * The character figure's entry says it cannot be saved, and this line says what to do about it. Without
-         * this the prompt would list a thing the reader cannot act on, which is worse than not mentioning it.
+         * The character figure's entry says it cannot be saved from here, and this line says what keeps it - the
+         * same key its row names (`figureIsUnsaved` in lib/profile/unsaved-changes.ts).
          */}
         {changes.some((change) => change.tab === 'character') ? (
-          <p className="text-ink-quiet">
-            THE FIGURE IS NOT STORED ANYWHERE YET, SO NO SAVE WILL KEEP IT - GO BACK AND LEAVE THE TAB OPEN IF IT
-            MATTERS, OR CARRY ON AND BUILD IT AGAIN LATER.
-          </p>
+          <p className="text-ink-quiet">ONLY [ SAVED CHARACTERS ] ON THE CHAR TAB KEEPS THE FIGURE.</p>
         ) : null}
 
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <button type="button" onClick={onStay} className={PLATE_LARGE} autoFocus>
-            [ GO BACK AND KEEP WORKING ]
+            [ KEEP EDITING ]
           </button>
 
           {onSave === undefined ? null : (
@@ -113,7 +107,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
                 void Promise.resolve(onSave()).finally(() => setBusy(false));
               }}
             >
-              {busy ? '[ SAVING… ]' : '[ SAVE WHAT CAN BE SAVED ]'}
+              {busy ? '[ SAVING… ]' : '[ SAVE ]'}
             </button>
           )}
 
@@ -124,7 +118,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
             onClick={onDiscard}
             className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
           >
-            [ THROW THEM AWAY ]
+            [ DISCARD ]
           </button>
         </div>
       </div>

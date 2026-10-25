@@ -168,7 +168,7 @@ export async function POST(request: Request) {
 
   const extension = CONTENT_TYPE_EXTENSIONS[file.type];
   if (extension === undefined) {
-    return json({ ok: false, error: 'ONLY PNG, JPG, WEBP OR GIF DRAWINGS ARE ACCEPTED.' }, 415);
+    return json({ ok: false, error: 'PNG, JPG, WEBP OR GIF ONLY.' }, 415);
   }
 
   if (file.size > MAX_AVATAR_BYTES) {

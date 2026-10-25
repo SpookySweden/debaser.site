@@ -120,7 +120,7 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
     // is to be recognised. `''` reads as `(EMPTY)` through `show`, the same as a cleared bio.
     changes.push({
       tab: 'profile',
-      label: 'COUNTRY FLAG',
+      label: 'COUNTRY',
       detail: `${show(countryName(stored.country))} -> ${show(countryName(drafts.country))}`,
     });
   }
@@ -133,12 +133,12 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
     changes.push({
       tab: 'profile',
       label: 'PICTURE UPLOADED',
-      detail: 'UPLOADED BUT NOT FILED AS A VERSION',
+      detail: 'NOT FILED YET',
     });
   }
 
   if (drafts.pendingSong !== null) {
-    changes.push({ tab: 'profile', label: 'TRACK UPLOADED', detail: 'UPLOADED BUT NOT FILED' });
+    changes.push({ tab: 'profile', label: 'TRACK UPLOADED', detail: 'NOT FILED YET' });
   }
 
   /**
@@ -157,7 +157,9 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
         .replace(/^show/, '')
         .replace(/([A-Z])/g, ' $1')
         .trim()
-        .toUpperCase(),
+        .toUpperCase()
+        // The switch is labelled PICTURE COMMENTS in the customiser; the field is still named for avatars.
+        .replace('AVATAR', 'PICTURE'),
       detail: `${stored.visibility[key] ? 'VISIBLE' : 'HIDDEN'} -> ${draft ? 'VISIBLE' : 'HIDDEN'}`,
     });
   }

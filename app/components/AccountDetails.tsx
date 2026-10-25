@@ -47,15 +47,16 @@ export default function AccountDetails() {
 
   async function handleDelete() {
     if (!confirmDelete) {
+      // The key itself turns to [ CONFIRM DELETE ], so no message.
       setConfirmDelete(true);
-      setMessage('CLICK AGAIN TO CONFIRM DELETION.');
       return;
     }
 
     setBusy(true);
     const result = await deleteAccount();
     setBusy(false);
-    setMessage(result.ok ? 'ACCOUNT DELETED.' : result.error);
+    // A success signs out, and this panel unmounts with it: only a failure has anyone to read it.
+    if (!result.ok) setMessage(result.error);
   }
 
   return (
@@ -74,6 +75,8 @@ export default function AccountDetails() {
         </div>
 
         <div className="space-y-2 p-3 text-label font-bold text-ink">
+          {/* The one place the page names the account (SPEC-less-text.md): the account's own name, which
+              is always set, rather than the profile row's, which can still read 'Anonymous'. */}
           <p>
             NAME:{' '}
             <ProfileName
@@ -82,14 +85,12 @@ export default function AccountDetails() {
               lamp={false}
             />
           </p>
-          <p>EMAIL: {user.email.length === 0 ? 'NOT PROVIDED' : user.email}</p>
+          <p>EMAIL: {user.email.length === 0 ? 'NONE' : user.email}</p>
           <p>
             CREATED: <TimeStamp at={user.createdAt} />
           </p>
           {isSiteAccount(accountId) ? (
-            <p className="text-accent-ink">
-              HOUSE ACCOUNT: SIGNS EVERY POST AN ITEM OWNS, AND CANNOT BE DELETED.
-            </p>
+            <p className="text-accent-ink">HOUSE ACCOUNT</p>
           ) : null}
 
           <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -111,11 +112,11 @@ export default function AccountDetails() {
 
         <div className="space-y-2 p-3 text-label font-bold text-ink">
           <p>
-            THREADS FILED: {myThreads.length} :: REPLIES FILED: {myReplies}
+            THREADS: {myThreads.length} :: REPLIES: {myReplies}
           </p>
 
           {myThreads.length === 0 ? (
-            <p>NOTHING FILED YET - POSTS MADE WHILE SIGNED IN ARE LISTED HERE.</p>
+            <p>NOTHING YET.</p>
           ) : (
             <ul className="space-y-1">
               {myThreads.slice(0, 6).map((thread) => (
@@ -130,36 +131,32 @@ export default function AccountDetails() {
         </div>
       </section>
 
-      <section
-        id="danger-zone"
-      >
-        <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-key font-bold text-ink-bar">
-          <span>DANGER ZONE</span>
-        </div>
+      {/* Only the local backend can delete from here; on Supabase the section would hold nothing to press. */}
+      {usingMockAuth ? (
+        <section
+          id="danger-zone"
+        >
+          <div className="flex items-center justify-between bg-bubble-pale px-2 py-1 text-key font-bold text-ink-bar">
+            <span>DANGER ZONE</span>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-2 p-3 text-label font-bold text-ink">
-          {usingMockAuth ? (
-            <>
-              <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>
-                {confirmDelete ? '[ CONFIRM DELETE ACCOUNT ]' : '[ DELETE THIS ACCOUNT ]'}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  resetMockAuth();
-                  setMessage('ALL LOCAL MOCK ACCOUNTS CLEARED.');
-                }}
-                className={PLATE_LARGE}
-              >
-                [ CLEAR ALL LOCAL ACCOUNTS ]
-              </button>
-              <p>SIGNS YOU OUT AND CLEARS THE ACCOUNTS HELD IN THIS BROWSER.</p>
-            </>
-          ) : (
-            <p>ACCOUNT DELETION IS HANDLED BY THE ARCHIVE OWNER.</p>
-          )}
-        </div>
-      </section>
+          <div className="flex flex-wrap items-center gap-2 p-3 text-label font-bold text-ink">
+            <button type="button" onClick={() => void handleDelete()} disabled={busy} className={PLATE_LARGE}>
+              {confirmDelete ? '[ CONFIRM DELETE ]' : '[ DELETE ACCOUNT ]'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                resetMockAuth();
+                setMessage('LOCAL ACCOUNTS CLEARED.');
+              }}
+              className={PLATE_LARGE}
+            >
+              [ CLEAR LOCAL ACCOUNTS ]
+            </button>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

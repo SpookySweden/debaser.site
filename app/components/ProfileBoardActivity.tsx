@@ -5,7 +5,6 @@ import { threadDomId } from '../lib/forum/anchors';
 import { displayTitle } from '../lib/forum/site-author';
 import { countReplies } from '../lib/forum/format';
 import type { ForumThread } from '../lib/forum/types';
-import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
 
 type ProfileBoardActivityProps = {
@@ -16,13 +15,13 @@ type ProfileBoardActivityProps = {
   threads: ForumThread[];
 };
 
-/** Public board activity: the threads this account filed, newest first. */
-export default function ProfileBoardActivity({
-  userId,
-  displayName,
-  nameColour,
-  threads,
-}: ProfileBoardActivityProps) {
+/**
+ * Public board activity: the threads this account filed, newest first.
+ *
+ * The name props are no longer drawn (the empty state is `NOTHING YET.`, SPEC-less-text.md); they are
+ * kept so the caller is unchanged.
+ */
+export default function ProfileBoardActivity({ threads }: ProfileBoardActivityProps) {
   return (
     <section>
       <div className="title-line text-accent-ink">
@@ -31,12 +30,7 @@ export default function ProfileBoardActivity({
 
       <div className="p-3 text-ink">
         {threads.length === 0 ? (
-          <p className="text-label font-bold text-ink">
-            <ProfileName author={{ id: userId, displayName }} colour={nameColour} lamp={false}>
-              {displayName.toUpperCase()}
-            </ProfileName>{' '}
-            HAS NOT FILED ANYTHING ON THE BOARD YET.
-          </p>
+          <p className="text-label font-bold text-ink">NOTHING YET.</p>
         ) : (
           <ul className="space-y-1">
             {threads.slice(0, 8).map((thread) => (

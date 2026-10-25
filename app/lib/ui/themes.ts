@@ -188,7 +188,7 @@ export type Theme = {
   id: ThemeId;
   /** What the picker calls it. */
   label: string;
-  /** One line on what it is for, shown under the label. */
+  /** A few words on the look: the row's hover tip in PREFERENCES. */
   note: string;
   /** True while this is not a finished look - the picker says so rather than pretending. */
   experimental?: boolean;
@@ -214,7 +214,7 @@ export type Theme = {
 export const DEFAULT_THEME: Theme = {
   id: 'default',
   label: 'DEBASER',
-  note: 'THE BRIGHT DESK: FLAVINE WINDOWS WITH BLACK OUTLINES ON THE PINK DESKTOP.',
+  note: 'FLAVINE WINDOWS ON PINK.',
   scheme: 'light',
   tokens: {
     ink: DYES.black,
@@ -283,7 +283,7 @@ export const DEFAULT_THEME: Theme = {
 export const DARK_THEME: Theme = {
   id: 'dark',
   label: 'NIGROSINE',
-  note: 'DARK WINDOWS WITH WHITE OUTLINES. WHAT THE SITE OPENS IN UNTIL YOU PICK ANOTHER.',
+  note: 'DARK WINDOWS. THE DEFAULT.',
   scheme: 'dark',
   tokens: {
     // White prose on the Nigrosine field: 17.83:1.

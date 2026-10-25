@@ -70,7 +70,7 @@ export default function GuestPrompt() {
         </span>
 
         <MarqueeText
-          text="ERROR: UNREGISTERED ENTITY. CREATE ACCOUNT OR LOG IN TO INTERACT."
+          text="ERROR: UNREGISTERED ENTITY."
           className="min-w-0 flex-1"
           durationSeconds={18}
         />

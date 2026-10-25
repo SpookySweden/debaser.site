@@ -40,7 +40,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
 
 /** The signed-out half of the account page: create an account, or log in. */
 export default function AccountForms() {
-  const { signUp, signIn, requiresEmailConfirmation, usingMockAuth } = useAuth();
+  const { signUp, signIn } = useAuth();
 
   const [signUpEmail, setSignUpEmail] = useState('');
   const [signUpName, setSignUpName] = useState('');
@@ -79,13 +79,12 @@ export default function AccountForms() {
     }
 
     if (result.confirmationRequired === true) {
-      setSignUpMessage('ACCOUNT CREATED. CHECK YOUR EMAIL FOR THE CONFIRMATION LINK, THEN LOG IN.');
+      setSignUpMessage('CHECK YOUR EMAIL TO CONFIRM.');
       setSignUpPassword('');
       setSignUpConfirm('');
       return;
     }
-
-    setSignUpMessage('ACCOUNT CREATED - YOU ARE SIGNED IN.');
+    // Signed in: the forms unmount at once (AccountConsole swaps to the account), so no message.
   }
 
   async function handleSignIn() {
@@ -105,7 +104,7 @@ export default function AccountForms() {
       return;
     }
 
-    setSignInMessage('SIGNED IN.');
+    // Signed in: the forms unmount at once, so a message here would never be seen.
     setSignInPassword('');
   }
 
@@ -139,17 +138,17 @@ export default function AccountForms() {
             type="text"
             value={signUpName}
             onChange={setSignUpName}
-            placeholder="how your posts are signed"
+            placeholder=""
             autoComplete="nickname"
             error={signUpErrors.displayName}
           />
           <Field
             id="account-signup-password"
-            label={`PASSWORD (${MIN_PASSWORD_LENGTH}+ CHARACTERS):`}
+            label="PASSWORD:"
             type="password"
             value={signUpPassword}
             onChange={setSignUpPassword}
-            placeholder="password"
+            placeholder={`${MIN_PASSWORD_LENGTH}+ characters`}
             autoComplete="new-password"
             error={signUpErrors.password}
           />
@@ -172,14 +171,6 @@ export default function AccountForms() {
               <p className="text-label font-bold text-ink">{signUpMessage}</p>
             )}
           </div>
-
-          <p className="mt-2 text-label text-ink">
-            {requiresEmailConfirmation
-              ? 'NEW ACCOUNTS CONFIRM BY EMAIL BEFORE THE FIRST SIGN IN.'
-              : usingMockAuth
-                ? 'ACCOUNTS HERE ARE HELD ONLY IN THIS BROWSER.'
-                : ''}
-          </p>
         </form>
       </section>
 
@@ -203,7 +194,7 @@ export default function AccountForms() {
 
           <Field
             id="account-signin-email"
-            label="EMAIL ADDRESS OR ACCOUNT NAME:"
+            label="EMAIL OR NAME:"
             type="text"
             value={signInEmail}
             onChange={setSignInEmail}
@@ -230,11 +221,6 @@ export default function AccountForms() {
               <p className="text-label font-bold text-ink">{signInMessage}</p>
             )}
           </div>
-
-          {/* The one place /account says it on screen: the page's own intro is the window title's tip. */}
-          <p className="mt-2 text-label text-ink">
-            READING AND POSTING STAYS OPEN TO GUESTS - AN ACCOUNT JUST SIGNS YOUR POSTS.
-          </p>
         </form>
       </section>
     </div>

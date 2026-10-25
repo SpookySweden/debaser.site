@@ -3,8 +3,6 @@
 import AccountDetails from './AccountDetails';
 import AccountForms from './AccountForms';
 import { useAuth } from './AuthProvider';
-import ProfileName from './ProfileName';
-import { authorFromAccount } from '../lib/auth/author';
 
 /**
  * The account page body.
@@ -19,21 +17,14 @@ export default function AccountConsole() {
   if (status === 'loading') {
     return (
       <p className="p-3 text-key font-bold text-ink">
-        READING THE LOCAL SESSION...
+        LOADING...
       </p>
     );
   }
 
   return (
     <div className="space-y-3">
-      {/* Drawn only for somebody who is signed in: a guest is not "signed in as" anybody, and the forms
-          below already say what an account is for. */}
-      {user === null ? null : (
-        <p className="px-3 text-label text-ink">
-          SIGNED IN AS <ProfileName author={authorFromAccount(user)} lamp={false} />
-        </p>
-      )}
-
+      {/* No "SIGNED IN AS" line: the name is shown once, in ACCOUNT DETAILS below. */}
       {user === null ? <AccountForms /> : <AccountDetails />}
     </div>
   );

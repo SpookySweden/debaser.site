@@ -60,8 +60,6 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
 export default function AccountSecurityPanel() {
   const {
     user,
-    usingMockAuth,
-    requiresEmailConfirmation,
     updateDisplayName,
     updateEmail,
     updatePassword,
@@ -96,7 +94,7 @@ export default function AccountSecurityPanel() {
 
     setNameState({
       busy: false,
-      message: result.ok ? 'DISPLAY NAME SAVED. POSTS AND YOUR PROFILE USE IT.' : result.error,
+      message: result.ok ? 'SAVED.' : result.error,
       errors: {},
     });
   }
@@ -115,8 +113,8 @@ export default function AccountSecurityPanel() {
       errors: {},
       message: result.ok
         ? result.confirmationRequired === true
-          ? 'ADDRESS CHANGE ACCEPTED. CONFIRM IT FROM THE LINK SENT TO THE NEW ADDRESS.'
-          : 'SIGN-IN ADDRESS CHANGED.'
+          ? 'CHECK THE NEW ADDRESS TO CONFIRM.'
+          : 'EMAIL CHANGED.'
         : result.error,
     });
 
@@ -149,24 +147,21 @@ export default function AccountSecurityPanel() {
     <section
       id="edit-account"
     >
-      {/* What this section is for is the title line's hover tip rather than a paragraph under it. */}
       <div className="title-line text-accent-ink">
-        <span title="THESE ARE THE DETAILS THE ACCOUNT SIGNS IN WITH. THE PUBLIC PROFILE - PICTURE, BIO, WHAT VISITORS SEE - IS EDITED ABOVE.">
-          EDIT ACCOUNT
-        </span>
+        <span>EDIT ACCOUNT</span>
       </div>
 
       <div className="p-3">
         {/* Display name */}
         <div className="p-2">
-          <p className={NOTE}>1. DISPLAY NAME</p>
+          {/* The field's own label is the block's heading, so the name is said once. */}
           <Field
             id="edit-account-name"
-            label="NAME SHOWN ON POSTS AND ON YOUR PROFILE:"
+            label="DISPLAY NAME"
             type="text"
             value={name}
             onChange={setName}
-            placeholder="how you are credited"
+            placeholder=""
             autoComplete="nickname"
             error={nameState.errors.displayName}
           />
@@ -180,10 +175,10 @@ export default function AccountSecurityPanel() {
 
         {/* Sign-in address */}
         <div className="mt-3 p-2">
-          <p className={NOTE}>2. SIGN-IN EMAIL</p>
+          <p className={NOTE}>SIGN-IN EMAIL</p>
           <Field
             id="edit-account-email"
-            label="EMAIL ADDRESS:"
+            label="EMAIL:"
             type="email"
             value={email}
             onChange={setEmail}
@@ -193,7 +188,7 @@ export default function AccountSecurityPanel() {
           />
           <Field
             id="edit-account-email-password"
-            label="CURRENT PASSWORD (PROVES IT IS YOU):"
+            label="CURRENT PASSWORD:"
             type="password"
             value={emailPassword}
             onChange={setEmailPassword}
@@ -207,18 +202,11 @@ export default function AccountSecurityPanel() {
             </button>
             {emailState.message === null ? null : <p className={NOTE}>{emailState.message}</p>}
           </div>
-          <p className="mt-1 text-label text-ink">
-            {requiresEmailConfirmation
-              ? 'A CONFIRMATION LINK IS SENT TO THE NEW ADDRESS BEFORE THE CHANGE TAKES EFFECT.'
-              : usingMockAuth
-                ? 'THE ADDRESS CHANGES STRAIGHT AWAY.'
-                : ''}
-          </p>
         </div>
 
         {/* Password */}
         <div className="mt-3 p-2">
-          <p className={NOTE}>3. PASSWORD</p>
+          <p className={NOTE}>PASSWORD</p>
           <Field
             id="edit-account-current-password"
             label="CURRENT PASSWORD:"
@@ -255,11 +243,6 @@ export default function AccountSecurityPanel() {
             </button>
             {passwordState.message === null ? null : <p className={NOTE}>{passwordState.message}</p>}
           </div>
-          <p className="mt-1 text-label text-ink">
-            {usingMockAuth
-              ? 'PASSWORDS ARE HELD ONLY IN THIS BROWSER.'
-              : 'YOU MAY BE ASKED TO SIGN IN AGAIN.'}
-          </p>
         </div>
       </div>
     </section>

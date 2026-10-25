@@ -357,18 +357,16 @@ function CommentsSection({
       {!open ? null : (
         <div className="border-t border-ink p-2 text-ink">
           {owner && !visibility.showProfileComments ? (
-            <p className="text-label font-bold text-ink">
-              VISITORS CANNOT SEE THESE COMMENTS RIGHT NOW - SWITCH THEM ON IN THE CUSTOMISER.
-            </p>
+            <p className="text-label font-bold text-ink">HIDDEN FROM VISITORS.</p>
           ) : null}
 
           {owner && hiddenCount > 0 ? (
-            <p className="text-label font-bold text-ink">{hiddenCount} COMMENTS ARE HELD BACK FROM VISITORS.</p>
+            <p className="text-label font-bold text-ink">{hiddenCount} HIDDEN FROM VISITORS.</p>
           ) : null}
 
           {comments.length === 0 ? (
             <p className="text-label font-bold text-ink">
-              {visibility.showProfileComments ? 'NO COMMENTS ON THIS PROFILE YET.' : 'NO COMMENTS ARE SHOWING.'}
+              {owner || visibility.showProfileComments ? 'NONE YET.' : 'COMMENTS OFF.'}
             </p>
           ) : (
             <ul className="space-y-1">

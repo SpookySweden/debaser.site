@@ -53,7 +53,7 @@ const MENU_PANEL =
  */
 export function ProfileLogIn() {
   return (
-    <Link href="/account" className={LOG_IN_BUTTON} title="Log in or create an account">
+    <Link href="/account" className={LOG_IN_BUTTON}>
       [ LOG IN ]
     </Link>
   );
@@ -137,7 +137,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 ☻
               </span>
-              <span>MY PUBLIC PROFILE</span>
+              <span>MY PROFILE</span>
             </Link>
 
             <p className="border-b-line border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
@@ -261,15 +261,12 @@ function GuestProfileMenu() {
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} aria-hidden />
           <div className={MENU_PANEL} role="menu">
-            <p className="border-b-line border-ink pb-1">ANONYMOUS VISITOR</p>
-
-            {/* The way in, as one line rather than a sentence and a row (SPEC-efficiency.md): the key,
-                then what it unlocks. The account page offers both logging in and signing up. */}
+            {/* The way in, the key alone (SPEC-less-text.md): the account page offers both logging in
+                and signing up, and the guest banner already says what is missing. */}
             <p className="pb-1 text-label text-ink">
               <Link href="/account" className={PLATE_LINK} onClick={() => setOpen(false)} role="menuitem">
                 [ LOG IN ]
-              </Link>{' '}
-              TO SIGN YOUR POSTS
+              </Link>
             </p>
 
             {/* The same drawer a signed-in reader gets: one control opens the whole site. */}
