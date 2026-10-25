@@ -1169,6 +1169,43 @@ img {
   color: var(--name-ink-dark, var(--name-ink));
 }
 
+/* A directory row under the pointer lights up in its account's name colour, and its words flip to the
+   ink that reads on that colour (`inkOnNameColour`). Same pair as `.name-ink`: `--glow` / `--glow-ink`
+   for the bright theme, the `-dark` pair everywhere else. A name with no colour lights up in the page's
+   own ink with the paper on it. An instant fill, no soft edge (docs/design.md), and only where there is
+   a real pointer, so a tap on a phone does not leave a row lit. The marks keep their own boxed faces; the
+   bracket keys take the row's ink through `--key-ink` (a Daffodil key on a Daffodil row would vanish), and
+   the name's own link drops its Ice fill so the name is not a pale box on a lit row. */
+@media (hover: hover) {
+  .name-glow:hover {
+    --lit: var(--glow, var(--color-ink));
+    --lit-ink: var(--glow-ink, var(--color-paper));
+  }
+
+  :root:not([data-theme='default']) .name-glow:hover {
+    --lit: var(--glow-dark, var(--glow, var(--color-ink)));
+    --lit-ink: var(--glow-ink-dark, var(--glow-ink, var(--color-paper)));
+  }
+
+  .name-glow:hover {
+    background-color: var(--lit);
+    color: var(--lit-ink);
+    --key-ink: var(--lit-ink);
+    --key-hover-ink: var(--lit);
+    --key-quiet-ink: var(--lit-ink);
+  }
+
+  .name-glow:hover .name-ink,
+  :root:not([data-theme='default']) .name-glow:hover .name-ink,
+  .name-glow:hover .glow-text {
+    color: inherit;
+  }
+
+  .name-glow:hover .glow-link:hover {
+    background-color: transparent;
+  }
+}
+
 /* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like
    they came off a 1998 "under construction" page without saying so. */
 .sun-stripe {

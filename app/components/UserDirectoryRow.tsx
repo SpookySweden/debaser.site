@@ -1,14 +1,33 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { UserDirectoryRow as DirectoryRow } from '../lib/profile/directory';
+import { inkOnNameColour, nameColourDark, profileNameColour } from '../lib/profile/name-colours';
 import { presenceLine } from '../lib/profile/presence';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import RelativeShort from './RelativeShort';
 import StatusDot from './StatusDot';
+
+/**
+ * The row's hover fill: the account's name colour, in the value each theme draws the name in, and the ink
+ * that reads on it (`.name-glow` in globals.css). Undefined for a name with no colour, which lights up in
+ * the page's own ink instead.
+ */
+function glowStyle(chosen: string | undefined): CSSProperties | undefined {
+  if (chosen === undefined) return undefined;
+  const dark = nameColourDark(chosen) ?? chosen;
+
+  return {
+    '--glow': chosen,
+    '--glow-ink': inkOnNameColour(chosen),
+    '--glow-dark': dark,
+    '--glow-ink-dark': inkOnNameColour(dark),
+  } as CSSProperties;
+}
 
 /** What the side panel's one-letter marks stand for, said under the pointer. */
 const ADMIN_TIP = 'Admin: the house account, which runs the archive';
@@ -67,6 +86,8 @@ export default function UserDirectoryRow({
   const author = { id: row.account.id, displayName: row.account.displayName };
   const showMessage = onMessage !== undefined && viewerId !== null && !row.you;
   const asked = showMessage || actions !== undefined;
+  const { profile } = usePublicProfile(row.account.id);
+  const glow = glowStyle(profileNameColour(profile));
 
   /**
    * The panel's row: one line, and only the parts a glance needs.
@@ -80,12 +101,15 @@ export default function UserDirectoryRow({
    */
   if (compact) {
     return (
-      <li className={`flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}>
+      <li
+        className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}
+        style={glow}
+      >
         <StatusDot status={row.status} record={row.record} />
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
 
-        <ProfileLink author={author} className="min-w-0 flex-1 truncate">
+        <ProfileLink author={author} className="glow-link min-w-0 flex-1 truncate">
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
 
@@ -94,7 +118,7 @@ export default function UserDirectoryRow({
             [ A ]
           </span>
         ) : null}
-        {row.you ? <span className="shrink-0 border border-ink-plate bg-paper px-1">[ YOU ]</span> : null}
+        {row.you ? <span className="shrink-0 border border-ink-plate bg-paper px-1 text-ink">[ YOU ]</span> : null}
         {row.account.banned === true ? (
           <span className="shrink-0 border border-ink-plate bg-bubble-pale px-1 text-ink-bar" title={BANNED_TIP}>
             [ X ]
@@ -103,7 +127,7 @@ export default function UserDirectoryRow({
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
             reading that could not be taken says `--` rather than inventing one. */}
-        <span className="shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
+        <span className="glow-text shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
           {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
         </span>
       </li>
@@ -112,9 +136,10 @@ export default function UserDirectoryRow({
 
   return (
     <li
-      className={`flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-label font-bold last:border-b-0 ${
+      className={`name-glow flex flex-wrap items-center gap-x-3 border-b border-ink p-1 text-label font-bold last:border-b-0 ${
         row.admin ? 'bg-sun-pale' : ''
       }`}
+      style={glow}
     >
       {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, else
           how long ago in one character (`3w`). A fixed narrow column, so the names still line up. */}
@@ -123,20 +148,20 @@ export default function UserDirectoryRow({
         title={presenceLine(row.status, row.record)}
       >
         <StatusDot status={row.status} record={row.record} />
-        <span className="text-ink">
+        <span className="glow-text text-ink">
           {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
         </span>
       </span>
 
       <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
         <ProfileAvatarLink author={author} size={28} showName={false} />
-        <ProfileLink author={author}>
+        <ProfileLink author={author} className="glow-link">
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
         {row.admin ? (
           <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
         ) : null}
-        {row.you ? <span className="border border-ink-plate bg-paper px-1">[ YOU ]</span> : null}
+        {row.you ? <span className="border border-ink-plate bg-paper px-1 text-ink">[ YOU ]</span> : null}
         {/* Banned is worth saying out loud: their posts are hidden from everybody
             but the admin, so the name would otherwise just look quiet. */}
         {row.account.banned === true ? (

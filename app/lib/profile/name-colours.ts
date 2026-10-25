@@ -101,6 +101,16 @@ export function nameColourDark(hex: string): string | undefined {
   return NAME_COLOURS.find((colour) => colour.hex === hex)?.dark;
 }
 
+/**
+ * The ink that reads on a field *filled* with this colour: Black or Pure White, whichever stands further
+ * from it. A directory row lights up in its account's name colour under the pointer, and the words on it
+ * then need the opposite ink - White becomes Black, and so do the bright dyes (Brilliant Pink is 5.6:1
+ * against Black and 3.8:1 against White). Returned as the dye's token so the page keeps one source.
+ */
+export function inkOnNameColour(hex: string): string {
+  return contrastRatio(hex, '#000000') >= contrastRatio(hex, '#ffffff') ? 'var(--dye-black)' : 'var(--dye-white)';
+}
+
 /** What WCAG asks of body text. The words are here so the numbers below are not a mystery. */
 const READABLE = 4.5;
 
