@@ -19,7 +19,11 @@ import type {
   UpdatePasswordInput,
 } from '../lib/auth/types';
 
-export type AuthStatus = 'loading' | 'signed-in' | 'anonymous';
+/**
+ * `awaiting-confirmation`: a sign-up went through but needs its email link before there is a session.
+ * Not signed in, and not a guest to be told off either: the guest banner keys on `anonymous` only.
+ */
+export type AuthStatus = 'loading' | 'signed-in' | 'anonymous' | 'awaiting-confirmation';
 
 export type AuthContextValue = {
   user: AccountUser | null;
@@ -167,9 +171,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
    *   1. it does not treat a null from a successful sign-up as "signed out". With email confirmation
    *      on, Supabase hands back no session until the link is followed, so a reader who has just
    *      registered would otherwise be told they are an unregistered entity - the exact fault the
-   *      banner exists to complain about, shown to the person who just fixed it. The status stays
-   *      `loading` in that case, because the session genuinely has not been established yet and the
-   *      subscription will settle it when the link is followed in another tab.
+   *      banner exists to complain about, shown to the person who just fixed it. The status becomes
+   *      `awaiting-confirmation` in that case, and the subscription settles it when the link is
+   *      followed in another tab. It used to be `loading`, which the account page reads as "not
+   *      known yet" and swapped the form - with its CHECK YOUR EMAIL line - for a LOADING... that
+   *      never ended (Temp/check-signup-confirm.cjs).
    *   2. it does not write `user` twice for the same tick: the subscription fires for a sign-in as
    *      well, and this is the *immediate* answer so the page does not wait a round trip to stop
    *      drawing a guest state.
@@ -178,7 +184,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     if (!result.ok) return result;
 
     if (result.user === null) {
-      setStatus('loading');
+      setStatus('awaiting-confirmation');
       return result;
     }
 
