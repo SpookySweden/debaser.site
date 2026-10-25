@@ -15,7 +15,7 @@ import NewPostForm from './NewPostForm';
 import ForumGalleryView from './ForumGalleryView';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
+import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 
 /**
  * How the board is read.
@@ -660,7 +660,7 @@ export default function ForumBoard() {
             id="forum-per-page"
             value={perPage}
             onChange={(event) => handlePerPageChange(Number(event.target.value))}
-            className={FIELD_TIGHT}
+            className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
           >
             {PAGE_SIZES.map((size) => (
               <option key={size} value={size}>
