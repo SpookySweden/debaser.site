@@ -15,7 +15,7 @@ import NewPostForm from './NewPostForm';
 import ForumGalleryView from './ForumGalleryView';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
-import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 
 /**
  * How the board is read.
@@ -48,7 +48,7 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'track', label: 'TRACK THREADS' },
 ];
 
-/** Posts-per-page choices, offered in the sort / search panel. */
+/** Posts-per-page choices, offered at the board's foot beside the page arrows. */
 const PAGE_SIZES = [5, 10, 20, 50];
 
 /** Past this many pages the foot draws a key per page as well: up to it, `[ < ]` and `[ > ]` walk it. */
@@ -549,24 +549,6 @@ export default function ForumBoard() {
               />
             </div>
 
-            <div>
-              <label htmlFor="forum-per-page" className="block text-label font-bold text-ink">
-                POSTS PER PAGE:
-              </label>
-              <select
-                id="forum-per-page"
-                value={perPage}
-                onChange={(event) => handlePerPageChange(Number(event.target.value))}
-                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
-              >
-                {PAGE_SIZES.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-
             {/* The mock store's housekeeping: never drawn on the live board. */}
             {forum.source === 'mock' ? (
               <div>
@@ -669,10 +651,24 @@ export default function ForumBoard() {
       )}
 
       {/* The foot: one readout, `[ < ] 1-5 OF 7 [ > ]` - which posts these are, of how many match,
-          and the way to either side. A key per page joins it only past five pages, where the arrows
-          stop being a short walk; how many posts a page holds is in the sort / search panel. */}
+          and the way to either side - with how many posts a page holds just before it. A key per page
+          joins it only past five pages, where the arrows stop being a short walk. */}
       {visibleThreads.length === 0 ? null : (
         <nav aria-label="Board pages" className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+          <label htmlFor="forum-per-page">PER PAGE:</label>
+          <select
+            id="forum-per-page"
+            value={perPage}
+            onChange={(event) => handlePerPageChange(Number(event.target.value))}
+            className={FIELD_TIGHT}
+          >
+            {PAGE_SIZES.map((size) => (
+              <option key={size} value={size}>
+                {size}
+              </option>
+            ))}
+          </select>
+
           <button
             type="button"
             onClick={() => goToPage(currentPage - 1)}
