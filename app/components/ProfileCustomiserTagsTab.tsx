@@ -24,7 +24,7 @@ export type ProfileTagsTabProps = {
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
     <div className="p-3">
-      <p className={CUSTOMISER_NOTE}>SHOW / HIDE :: TAGS: {profile.visibility.showTags ? 'ON' : 'OFF'}</p>
+      <p className={CUSTOMISER_NOTE}>SHOW / HIDE :: TAGS: {profile.visibility.showTags ? 'ON' : 'OFF - NONE SHOW TO VISITORS'}</p>
 
       {profile.tags.length === 0 ? (
         <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>

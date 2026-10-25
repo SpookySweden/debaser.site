@@ -34,7 +34,7 @@ export const GAME_CATALOGUE: GameEntry[] = [
     title: 'PADDLE DUEL',
     tagline: 'Two paddles, one ball, first to seven.',
     players: '1 OR 2 PLAYERS',
-    controls: 'DRAG THE COURT.',
+    controls: 'DRAG THE COURT. FIRST TO 7.',
     badge: 'bg-bubble-pale',
   },
 ];

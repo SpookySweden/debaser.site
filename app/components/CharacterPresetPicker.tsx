@@ -121,6 +121,8 @@ function Picker() {
           >
             [ CANCEL ]
           </button>
+          {/* Kept: START throws the bench away, and this is the only warning (UNDO brings it back). */}
+          <span className="text-label text-ink">REPLACES THE CURRENT FIGURE. UNDO BRINGS IT BACK.</span>
         </div>
       </section>
     </div>
