@@ -57,11 +57,13 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
     + new post) is `PLATE_MAIN` - filled Daffodil, Black words, Emerald under the pointer, one per
     screen; a tab or switch that is on is a filled pill in the field ink (`PLATE_PRESSED`, `key-fill`);
     `PLATE_ACCENT` (`[ INJECT ]`) is the one Brilliant Pink pill.
-- **Explanations are tips.** A sentence that explains how to use something is the `title` (hover tip)
-  of the thing it explains, or of its section's title line - not a line on screen. A page's intro is
-  the window title's tip (`SiteWindow`'s `tip`); a window's how-to line is its title line's tip
-  (`DockWindow`/`PopoutWindow`'s `status`). Errors, refusals and empty states stay on screen. Phones do
-  not see tips; that is accepted. A tip on a disabled button goes on a wrapping `<span>`.
+- **Words are kept to a minimum** (Luke, 2026-10-25). A label names the thing and stops; a button says
+  the action; an empty state is one short line (`NOTHING YET.`) with no instructions after it. Nothing
+  restates what a title, badge, button or switch already shows. A sentence a reader really needs (how
+  following a queue works, what a privacy switch does) goes behind a `[ ? ]` key (`InfoFold`), which
+  folds it open and works on phones. A hover tip is a few words naming an unlabelled control, never an
+  explanation; page intros (`SiteWindow`'s `tip`) are a short phrase or nothing. Errors and refusals
+  stay on screen, as short as they can be while still saying what to do.
 - **Say it once.** No badge that repeats a window's title, no count of what is plainly on screen, no
   readback of a setting. A guest gets one sign-in call per screen (the banner's `[ LOG IN ]`); a locked
   action elsewhere is one line, `[ LOG IN ] TO <DO THE THING>`.
