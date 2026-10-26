@@ -16,7 +16,7 @@ import { getProfileRepository } from '../lib/profile/repository';
 import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
-import { canCommentOnProfile, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
+import { canCommentOnProfile, hiddenProfileCommentCount, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
 import { HYPER_ARROW } from '../lib/ui/hypertext';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
@@ -286,7 +286,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         owner={owner}
         visibility={profile.visibility}
         comments={comments}
-        hiddenCount={owner ? profileComments(profile).length - comments.length : 0}
+        hiddenCount={owner ? hiddenProfileCommentCount(profile) : 0}
         userId={userId}
         repository={repository}
       />
@@ -356,12 +356,11 @@ function CommentsSection({
 
       {!open ? null : (
         <div className="border-t border-ink p-2 text-ink">
+          {/* One line for the owner: how many visitors cannot see, or just that they cannot once there are none. */}
           {owner && !visibility.showProfileComments ? (
-            <p className="text-label font-bold text-ink">HIDDEN FROM VISITORS.</p>
-          ) : null}
-
-          {owner && hiddenCount > 0 ? (
-            <p className="text-label font-bold text-ink">{hiddenCount} HIDDEN FROM VISITORS.</p>
+            <p className="text-label font-bold text-ink">
+              {hiddenCount > 0 ? `${hiddenCount} ` : ''}HIDDEN FROM VISITORS.
+            </p>
           ) : null}
 
           {comments.length === 0 ? (

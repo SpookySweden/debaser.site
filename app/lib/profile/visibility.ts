@@ -303,6 +303,17 @@ export function avatarComments(profile: PublicProfile): ProfileComment[] {
   return profile.comments.filter((comment) => comment.kind === 'avatar');
 }
 
+/**
+ * How many of the profile's own comments its visitors cannot see: all of them while the switch is off, none
+ * while it is on (the switch is the only thing that hides one). Told to the owner, who sees them all.
+ *
+ * The page used to work this out as "every comment minus the ones on screen", but the owner's screen holds
+ * every comment, so the answer was always 0 and the line never showed (found 2026-10-25).
+ */
+export function hiddenProfileCommentCount(profile: PublicProfile): number {
+  return profile.visibility.showProfileComments ? 0 : profileComments(profile).length;
+}
+
 export function visibleProfileComments(profile: PublicProfile): ProfileComment[] {
   return profile.visibility.showProfileComments ? profileComments(profile) : [];
 }
