@@ -1,6 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import { watchClockSkewMs } from './rules';
 import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -510,9 +511,18 @@ class SupabaseWatchRepository implements WatchRepository {
       });
     };
 
-    const pending = leavingTopics.get(topic);
-    if (pending === undefined) join();
-    else void pending.then(join);
+    // The join is stamped by the database's clock (`watch_now`), not this machine's: "here longest" decides
+    // who hosts next, and a slow clock must not jump the queue. A failed ask falls back to this clock
+    // corrected by the skew read off the room's own writes.
+    const stamped = Promise.resolve(client.rpc('watch_now'))
+      .then(({ data, error }) => {
+        const at = error === null && typeof data === 'string' ? Date.parse(data) : Number.NaN;
+        self.joinedAt = Number.isFinite(at) ? at : Date.now() - watchClockSkewMs();
+      })
+      .catch(() => {
+        self.joinedAt = Date.now() - watchClockSkewMs();
+      });
+    void Promise.all([leavingTopics.get(topic), stamped]).then(join);
     onMembers([self]);
 
     return {

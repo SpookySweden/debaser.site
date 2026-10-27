@@ -89,6 +89,7 @@ order `db push` applies them:
     20261022000033_hidden_accounts_delete_guard.sql  the same guard refuses a visitor deleting a hidden profile row (it would come back unmarked)
     20261027120000_watch_rooms.sql             watch together: watch_rooms / watch_queue / watch_messages, RLS, host guard, watch_take_over + watch_close_stale (pushed 2026-10-27, Luke's OK)
     20261027130000_watch_queue_plays_by_host.sql  only the host files a queue row as already played (review fix, pushed 2026-10-27, Luke's OK)
+    20261027140000_watch_now.sql               watch_now(): the database's clock, for the order people joined a room (reads nothing; pushed 2026-10-27, Luke's OK)
 
 The date part is the date the section was written; the time part is **the
 schema section it holds**. That is deliberate: the old names were

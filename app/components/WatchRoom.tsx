@@ -30,6 +30,7 @@ import {
   viewerStep,
 } from '../lib/watch/rules';
 import type { WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
+import { steadyInterval } from '../lib/watch/steady-timer';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -203,7 +204,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     video.addEventListener('pause', say);
     video.addEventListener('seeked', say);
     video.addEventListener('ended', ended);
-    const beat = window.setInterval(say, WATCH_HEARTBEAT_MS);
+    // On a worker's clock, so a paused host in a background tab keeps the beat (lib/watch/steady-timer.ts).
+    const stopBeat = steadyInterval(say, WATCH_HEARTBEAT_MS);
 
     // Taking the transport over mid-file: carry on from where this player is, and say so at once.
     if (roomPlaying() && video.paused && !video.ended) void video.play().catch(() => setNeedsPress(true));
@@ -214,7 +216,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       video.removeEventListener('pause', say);
       video.removeEventListener('seeked', say);
       video.removeEventListener('ended', ended);
-      window.clearInterval(beat);
+      stopBeat();
     };
   }, [amHost, live, item?.src]);
 

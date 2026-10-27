@@ -6,9 +6,19 @@
   could not remove; now only the host files a played row). Proven live by `node Temp/probe-watch-policy.cjs`
   (B's forged play refused 42501, B's plain add and A's first play allowed; it writes, so it is named
   outside the check-* pattern and the suite never runs it).
-- Known risks told to Luke, not fixed: `watch_take_over` checks the host's silence (8s), not that the caller
-  is in the room (the DB cannot see presence) - a direct RPC can take over a quiet room; handover order is
-  each tab's own clock (`joined_at`), so a wrong clock can pick the wrong heir (still one winner).
+- The two risks, fixed 2026-10-27 at Luke's request (his OK for the function):
+  - A host paused in a background tab: Chrome throttles a hidden, silent tab's timers to one a minute after
+    5 min, so the 3s heartbeat went quiet and anybody in the room could take over (8s rule). The heartbeat
+    now runs on a worker's clock (app/lib/watch/steady-timer.ts), which that throttling does not slow. NOT
+    driven in the throttled state: under Playwright, Chrome reports every tab visible (headless, headed
+    off-screen, a second tab in front, minimized - all tried), so the drive checks the heartbeat runs on a
+    worker. "Must be in the room" was not added: anybody may join a room, so a members table guards
+    nothing; a host who really vanished being taken over is the design.
+  - Handover order by each machine's clock: a tab now stamps its join with the database's clock,
+    `watch_now()` (supabase/migrations/20261027140000_watch_now.sql, reads nothing, PUSHED with Luke's
+    OK; falls back to this clock minus the room's measured skew). The drive's TEST ACCOUNT C joins after B
+    with Date.now() a minute slow: before the fix A's prompt named C as next host (seen live); after, B -
+    and C still follows within 0.12-0.33s (the skew calibration holds).
 - What Luke sees: `[ ▶ STREAM ]` on every video in /media (accounts) opens the room window large over the board
   (`/forum?watch=new&media=<id>`), `[ GO LIVE ]` is the second press. Room: video left (host: play/pause, seek,
   `[ SKIP ▶▶ ]`, `[ END STREAM ]` twice-pressed; everyone: title, `n OF m`, time, mute, volume), QUEUE + CHAT
