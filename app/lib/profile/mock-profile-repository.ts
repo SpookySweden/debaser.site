@@ -6,7 +6,7 @@ import {
 } from '../auth/builtin-account';
 import { isNameColour } from './name-colours';
 import { NO_COUNTRY, normalizeCountryCode } from './countries';
-import type { PresenceRecord } from './presence';
+import type { LivePresence, LiveState, PresenceRecord } from './presence';
 import {
   DEFAULT_VISIBILITY,
   avatarVersionById,
@@ -680,6 +680,29 @@ class MockProfileRepository implements ProfileRepository {
     };
   }
 
+  /**
+   * The mock live room holds this tab alone: it is always connected, and the only account in it is the
+   * one signed in here (other local test accounts read as offline until they sign in in this tab).
+   */
+  subscribeLive(listener: (live: LivePresence | null) => void): () => void {
+    liveListeners.add(listener);
+    listener(liveRoom());
+
+    return () => {
+      liveListeners.delete(listener);
+    };
+  }
+
+  trackLive(userId: string, state: LiveState): void {
+    liveSelf = { userId, state };
+    for (const listener of liveListeners) listener(liveRoom());
+  }
+
+  untrackLive(): void {
+    liveSelf = null;
+    for (const listener of liveListeners) listener(liveRoom());
+  }
+
   async clearLocalProfiles(): Promise<void> {
     state = {};
     persist();
@@ -689,6 +712,13 @@ class MockProfileRepository implements ProfileRepository {
       for (const listener of listeners) listener(profile);
     }
   }
+}
+
+const liveListeners = new Set<(live: LivePresence | null) => void>();
+let liveSelf: { userId: string; state: LiveState } | null = null;
+
+function liveRoom(): LivePresence {
+  return liveSelf === null ? {} : { [liveSelf.userId]: liveSelf.state };
 }
 
 let mockProfileRepository: MockProfileRepository | null = null;

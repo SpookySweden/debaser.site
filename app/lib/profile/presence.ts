@@ -5,16 +5,14 @@ import { relativeTime } from '../ui/relative-time';
 /**
  * Presence: who is actually at the keyboard.
  *
- * One record per account, written by that account's own browser: a heartbeat
- * while the site is open, and a goodbye when the tab closes or the visitor signs
- * out. The dot beside a username is derived from the record alone, so the same
- * three colours come out of the mock store and, later, out of Supabase.
+ * Two sources, read together:
  *
- * The mock store is per browser, so today the only green dot anybody sees is
- * their own (and any other local test account's, once it has been signed in and
- * left). The shape is the one Supabase needs - `profiles.last_seen_at` plus an
- * `is_online` flag, or Supabase Realtime Presence for exact connect/disconnect
- * events - and no component changes when that lands.
+ *   - the live room (`LivePresence`): every open tab of the site joins one Supabase Realtime Presence
+ *     channel and says whether it is in use. Joining and leaving reach every other tab in a second or
+ *     two, so this is what turns a lamp green, yellow or red;
+ *   - the stored record (`PresenceRecord`, `profiles.last_seen_at` + `is_online`): a heartbeat once a
+ *     minute while a tab is open. It dates "LAST ONLINE 12 MINUTES AGO", and it stands in for the room
+ *     while the room is not connected (the clock rule in `presenceStatus`).
  */
 export type PresenceRecord = {
   userId: string;
@@ -24,33 +22,68 @@ export type PresenceRecord = {
   online: boolean;
 };
 
-export type PresenceStatus = 'online' | 'recent' | 'offline';
+/** Green: a tab is open and in use. Yellow: a tab is open but nobody is using it. Red: no tab open. */
+export type PresenceStatus = 'online' | 'away' | 'offline';
 
-/** A heartbeat inside this window means "at the keyboard right now". */
-export const PRESENCE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
-/** Seen inside this window still counts as "was here within the last hour". */
-export const PRESENCE_RECENT_WINDOW_MS = 60 * 60 * 1000;
-/** How often an open tab says it is still there. */
-export const PRESENCE_HEARTBEAT_MS = 60 * 1000;
-/** How often the dots recheck the clock, so a stale one fades on its own. */
-export const PRESENCE_TICK_MS = 30 * 1000;
+/** What one tab tells the live room about itself. */
+export type LiveState = 'active' | 'away';
 
 /**
- * The dot's state, judged on the clock rather than on the flag alone: a tab that
- * was closed without a goodbye leaves `online` true behind it, and a record that
- * old is not online any more.
+ * The live room: every account with a tab open, and whether any of its tabs is in use (one in use is
+ * enough for green). Null while the room is not connected, so callers fall back to the stored record.
  */
-export function presenceStatus(record: PresenceRecord | undefined, now: number): PresenceStatus {
+export type LivePresence = Record<string, LiveState>;
+
+/** Without the live room: a heartbeat inside this window means the site is open. */
+export const PRESENCE_ONLINE_WINDOW_MS = 2 * 60 * 1000;
+/** How often an open tab stamps `last_seen_at`. */
+export const PRESENCE_HEARTBEAT_MS = 60 * 1000;
+/** How often the dots recheck the clock, so "12 MINUTES AGO" keeps up and the fallback ages out. */
+export const PRESENCE_TICK_MS = 30 * 1000;
+/** A tab in the background this long is away (a quick look at another tab is not). */
+export const PRESENCE_AWAY_HIDDEN_MS = 30 * 1000;
+/** A tab in front with no mouse, key or touch for this long is away. */
+export const PRESENCE_AWAY_IDLE_MS = 5 * 60 * 1000;
+
+/**
+ * Folds every tab in the room into one state per account: any tab in use makes the account active.
+ */
+export function mergeLiveStates(entries: Array<{ userId: string; state: LiveState }>): LivePresence {
+  const merged: LivePresence = {};
+  for (const { userId, state } of entries) {
+    if (merged[userId] !== 'active') merged[userId] = state;
+  }
+
+  return merged;
+}
+
+/**
+ * The dot's state.
+ *
+ * With the live room connected it alone decides: in the room and in use is green, in the room but idle
+ * is yellow, not in the room is red. Without it (still connecting, or Realtime unreachable) the stored
+ * record decides on the clock - a tab closed without a goodbye leaves `online` true behind it, and a
+ * record that old is not online any more. The fallback never says away: only a tab can know that.
+ */
+export function presenceStatus(
+  record: PresenceRecord | undefined,
+  now: number,
+  live: LivePresence | null = null,
+  userId: string | undefined = record?.userId,
+): PresenceStatus {
+  if (live !== null) {
+    const state = userId === undefined ? undefined : live[userId];
+    if (state === 'active') return 'online';
+    if (state === 'away') return 'away';
+    return 'offline';
+  }
+
   if (record === undefined) return 'offline';
 
   const seen = Date.parse(record.lastSeenAt);
   if (Number.isNaN(seen)) return 'offline';
 
-  const age = now - seen;
-  if (record.online && age <= PRESENCE_ONLINE_WINDOW_MS) return 'online';
-  if (age <= PRESENCE_RECENT_WINDOW_MS) return 'recent';
-
-  return 'offline';
+  return record.online && now - seen <= PRESENCE_ONLINE_WINDOW_MS ? 'online' : 'offline';
 }
 
 /** The lamp's colour: three of the eight dyes (Emerald / Daffodil / Rose). */
@@ -58,7 +91,7 @@ export function presenceDotColour(status: PresenceStatus): string {
   switch (status) {
     case 'online':
       return nameColourHex('emerald') ?? DYES.emerald;
-    case 'recent':
+    case 'away':
       return nameColourHex('daffodil') ?? DYES.daffodil;
     default:
       return nameColourHex('rose') ?? DYES.rose;
@@ -70,8 +103,8 @@ export function presenceLabel(status: PresenceStatus): string {
   switch (status) {
     case 'online':
       return 'ONLINE NOW';
-    case 'recent':
-      return 'ONLINE WITHIN THE LAST HOUR';
+    case 'away':
+      return 'AWAY';
     default:
       return 'OFFLINE';
   }
@@ -96,7 +129,7 @@ export function presenceLine(
   record: PresenceRecord | undefined,
   now: number = Date.now(),
 ): string {
-  if (status === 'online') return presenceLabel('online');
+  if (status !== 'offline') return presenceLabel(status);
   if (record === undefined) return 'NEVER SEEN';
 
   return `LAST ONLINE ${relativeTime(record.lastSeenAt, now)}`;

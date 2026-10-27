@@ -2,7 +2,7 @@ import { getSupabaseBrowserClient } from '../supabase/client';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isNameColour } from './name-colours';
 import { normalizeCountryCode } from './countries';
-import type { PresenceRecord } from './presence';
+import { mergeLiveStates, type LivePresence, type LiveState, type PresenceRecord } from './presence';
 import {
   tagArrivesApproved,
   validateAvatarNote,
@@ -793,6 +793,28 @@ class SupabaseProfileRepository implements ProfileRepository {
       if (presenceListeners.size === 0) closePresenceChannel();
     };
   }
+
+  subscribeLive(listener: (live: LivePresence | null) => void): () => void {
+    liveListeners.add(listener);
+    openLiveChannel();
+    listener(liveSnapshot);
+
+    return () => {
+      liveListeners.delete(listener);
+      if (liveListeners.size === 0) scheduleLiveClose();
+    };
+  }
+
+  trackLive(userId: string, state: LiveState): void {
+    liveTracked = { user_id: userId, state };
+    openLiveChannel();
+    if (liveJoined && liveChannel !== null) void liveChannel.track(liveTracked).catch(() => undefined);
+  }
+
+  untrackLive(): void {
+    liveTracked = null;
+    if (liveJoined && liveChannel !== null) void liveChannel.untrack().catch(() => undefined);
+  }
 }
 
 // -----------------------------------------------------------------------------
@@ -883,6 +905,91 @@ function closePresenceChannel(): void {
 
   void client.removeChannel(presenceChannel);
   presenceChannel = null;
+}
+
+/**
+ * The live room: one Realtime Presence channel for the whole site.
+ *
+ * Every tab joins it, guests included, so every tab hears who comes and goes; a signed-in tab also
+ * `track`s itself as `{ user_id, state }`. Realtime keeps one entry per tab and drops it the moment
+ * that tab's connection closes (a dropped network takes the server's own timeout, about a minute),
+ * which is what makes a closed tab's lamp turn red in a second or two rather than ageing out.
+ *
+ * The channel is public, like the arcade's game rooms, so a determined visitor could put a fake
+ * entry in it; the stored record is still writable only by its owner. A rejoin after a dropped
+ * connection starts with nothing tracked, so the tab says its state again on every SUBSCRIBED.
+ */
+const LIVE_TOPIC = 'site-presence';
+/** A last listener leaving waits this long before closing, so a remount (Strict Mode) reuses it. */
+const LIVE_CLOSE_DELAY_MS = 1000;
+
+const liveListeners = new Set<(live: LivePresence | null) => void>();
+let liveChannel: RealtimeChannel | null = null;
+let liveJoined = false;
+let liveSnapshot: LivePresence | null = null;
+let liveTracked: { user_id: string; state: LiveState } | null = null;
+let liveCloseTimer: ReturnType<typeof setTimeout> | null = null;
+
+function emitLive(next: LivePresence | null): void {
+  liveSnapshot = next;
+  for (const listener of liveListeners) listener(next);
+}
+
+function isLiveState(value: unknown): value is LiveState {
+  return value === 'active' || value === 'away';
+}
+
+function openLiveChannel(): void {
+  if (liveCloseTimer !== null) {
+    clearTimeout(liveCloseTimer);
+    liveCloseTimer = null;
+  }
+  if (liveChannel !== null) return;
+
+  const client = getSupabaseBrowserClient();
+  if (client === null) return;
+
+  const channel = client.channel(LIVE_TOPIC);
+  channel.on('presence', { event: 'sync' }, () => {
+    if (channel !== liveChannel) return;
+    const entries = Object.values(channel.presenceState())
+      .flat()
+      .flatMap((meta) => {
+        const { user_id: userId, state } = meta as { user_id?: unknown; state?: unknown };
+        return typeof userId === 'string' && isLiveState(state) ? [{ userId, state }] : [];
+      });
+
+    emitLive(mergeLiveStates(entries));
+  });
+  channel.subscribe((status) => {
+    // A channel closed on its way out must not speak for the one that replaced it.
+    if (channel !== liveChannel) return;
+    if (status === 'SUBSCRIBED') {
+      liveJoined = true;
+      if (liveTracked !== null) void channel.track(liveTracked).catch(() => undefined);
+      return;
+    }
+
+    // Timed out, errored or closed: the lamps fall back to the stored record until it rejoins.
+    liveJoined = false;
+    emitLive(null);
+  });
+  liveChannel = channel;
+}
+
+function scheduleLiveClose(): void {
+  if (liveCloseTimer !== null) clearTimeout(liveCloseTimer);
+
+  liveCloseTimer = setTimeout(() => {
+    liveCloseTimer = null;
+    const client = getSupabaseBrowserClient();
+    if (client === null || liveChannel === null || liveListeners.size > 0) return;
+
+    void client.removeChannel(liveChannel);
+    liveChannel = null;
+    liveJoined = false;
+    liveSnapshot = null;
+  }, LIVE_CLOSE_DELAY_MS);
 }
 
 let supabaseProfileRepository: SupabaseProfileRepository | null = null;

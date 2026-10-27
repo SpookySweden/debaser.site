@@ -23,8 +23,8 @@ type StatusDotProps = {
 /**
  * The lamp that sits beside a username.
  *
- * Green is "online now", yellow is "was here within the hour", red is anything
- * older. It is a square lamp rather than a circle for the usual reason - nothing
+ * Green is "online now", yellow is "the site is open but nobody is using it",
+ * red is "not on the site" (the tooltip says how long ago). It is a square lamp rather than a circle for the usual reason - nothing
  * on this site rounds a corner - and its three colours are swatches from
  * `name-colours.ts` (green / yellow / red), so it belongs to the same palette the
  * usernames use. Swap it for a hand-drawn sprite by pointing the span's style at

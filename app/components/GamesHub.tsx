@@ -245,7 +245,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
 
   const split = useMemo(() => splitInvites(visible, userId ?? ''), [userId, visible]);
 
-  /** Who is around: the same directory the site draws everywhere, narrowed to its green lamp. */
+  /** Who is around: the same directory the site draws everywhere, narrowed to the lamps that are lit (green or away). */
   const around = useMemo(
     () =>
       buildUserDirectory({
@@ -253,7 +253,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
         statusFor: presence.statusFor,
         recordFor: presence.recordFor,
         viewerId: userId,
-      }).filter((row) => row.status === 'online' && !row.you),
+      }).filter((row) => row.status !== 'offline' && !row.you),
     [accounts, presence.recordFor, presence.statusFor, userId],
   );
 
@@ -442,7 +442,7 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
       <section className={PANEL}>
         <div className={TITLE_BAR_INACTIVE}>
           <span>WHO IS AROUND</span>
-          <span>{around.length} ONLINE</span>
+          <span>{around.length} AROUND</span>
         </div>
 
         <div className="space-y-2 p-2">

@@ -32,7 +32,7 @@ const COMPACT_LIMIT = 12;
  * to other pages); the colours explain themselves after one look, so the sentence waits under the
  * pointer instead (SPEC-efficiency.md).
  */
-const LAMP_TIP = 'Green: on. Yellow: under 1h. Red: away.';
+const LAMP_TIP = 'Green: in use. Yellow: away. Red: not on the site.';
 
 /**
  * The account directory: every account the site knows, with its lamp.

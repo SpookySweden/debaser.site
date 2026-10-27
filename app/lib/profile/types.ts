@@ -1,5 +1,5 @@
 import type { ForumAuthor } from '../forum/types';
-import type { PresenceRecord } from './presence';
+import type { LivePresence, LiveState, PresenceRecord } from './presence';
 
 /**
  * Domain types for public profiles.
@@ -337,6 +337,15 @@ export type ProfileRepository = {
   listPresence(userIds?: string[]): Promise<PresenceRecord[]>;
   /** Realtime hook: fires with a fresh snapshot whenever presence moves. */
   subscribePresence(listener: (records: PresenceRecord[]) => void): () => void;
+  /**
+   * The live room (see ../profile/presence.ts): fires with everybody who has a tab open whenever
+   * somebody joins, leaves or changes state, and with null while the room is not connected.
+   */
+  subscribeLive(listener: (live: LivePresence | null) => void): () => void;
+  /** This tab joins the room as the account, or changes its state there. */
+  trackLive(userId: string, state: LiveState): void;
+  /** This tab leaves the room (signing out); closing the tab leaves it by itself. */
+  untrackLive(): void;
 
   /** Mock-only helper so local test profiles can be purged. */
   clearLocalProfiles?(): Promise<void>;

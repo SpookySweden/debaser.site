@@ -12,8 +12,8 @@ import type { PresenceRecord, PresenceStatus } from './presence';
  *
  *   1. the house account first, because debaser.site administers the archive
  *      rather than taking a turn among its visitors (app/lib/auth/builtin-account.ts);
- *   2. then whoever is at the keyboard, then whoever was seen within the hour,
- *      then everybody else;
+ *   2. then whoever is at the keyboard, then whoever has the site open but is
+ *      away from it, then everybody else;
  *   3. inside a rank, alphabetically by name - and by id when two names match, so
  *      the list never reshuffles for no reason.
  */
@@ -27,8 +27,8 @@ export type UserDirectoryRow = {
   you: boolean;
 };
 
-/** Online first, then recently seen, then the rest. */
-const STATUS_RANK: Record<PresenceStatus, number> = { online: 0, recent: 1, offline: 2 };
+/** Online first, then away (the site open, not in use), then the rest. */
+const STATUS_RANK: Record<PresenceStatus, number> = { online: 0, away: 1, offline: 2 };
 
 export type UserDirectoryInput = {
   /** Every account the store can see (`AuthRepository.listAccounts`). */
@@ -61,7 +61,7 @@ export function compareDirectoryRows(a: UserDirectoryRow, b: UserDirectoryRow): 
 
 /** How many rows are in each state, for the panel's summary line. */
 export function countDirectoryStatuses(rows: UserDirectoryRow[]): Record<PresenceStatus, number> {
-  const counts: Record<PresenceStatus, number> = { online: 0, recent: 0, offline: 0 };
+  const counts: Record<PresenceStatus, number> = { online: 0, away: 0, offline: 0 };
   for (const row of rows) counts[row.status] += 1;
 
   return counts;

@@ -53,7 +53,8 @@ export function challengeRefusal(input: {
   if (input.viewerId === null) return CHALLENGE_SIGN_IN;
   if (input.viewerId === input.targetId) return CHALLENGE_SELF;
 
-  return input.status === 'online' ? null : challengeOfflineReason(input.targetName, input.status);
+  // Away still has the site open, so the invitation reaches them; only offline is refused.
+  return input.status === 'offline' ? challengeOfflineReason(input.targetName, input.status) : null;
 }
 
 /** The bell's half: `NotificationsProvider.notifyInvited`, passed in rather than imported. */

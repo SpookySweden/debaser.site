@@ -126,9 +126,9 @@ export default function UserDirectoryRow({
         ) : null}
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
-            reading that could not be taken says `--` rather than inventing one. */}
+            reading that could not be taken says `--` rather than inventing one; yellow says `AWAY`. */}
         <span className="glow-text shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
-          {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+          {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
         </span>
       </li>
     );
@@ -141,7 +141,7 @@ export default function UserDirectoryRow({
       }`}
       style={glow}
     >
-      {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, else
+      {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, `AWAY` while it is yellow, else
           how long ago in one character (`3w`). A fixed narrow column, so the names still line up. */}
       <span
         className="inline-flex w-12 shrink-0 items-center gap-1"
@@ -149,7 +149,7 @@ export default function UserDirectoryRow({
       >
         <StatusDot status={row.status} record={row.record} />
         <span className="glow-text text-ink">
-          {row.status === 'online' ? 'NOW' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+          {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
         </span>
       </span>
 
