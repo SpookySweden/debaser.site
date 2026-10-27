@@ -87,6 +87,7 @@ order `db push` applies them:
     20261013000031_window_layouts.sql          one row per account: docked-window layouts per screen shape (own row only)
     20261021000032_hidden_test_accounts.sql    profiles.is_hidden: TEST ACCOUNT A-D left out of every list of people; only a migration can set it
     20261022000033_hidden_accounts_delete_guard.sql  the same guard refuses a visitor deleting a hidden profile row (it would come back unmarked)
+    20261027120000_watch_rooms.sql             watch together: watch_rooms / watch_queue / watch_messages, RLS, host guard, watch_take_over + watch_close_stale (pushed 2026-10-27, Luke's OK)
 
 The date part is the date the section was written; the time part is **the
 schema section it holds**. That is deliberate: the old names were
