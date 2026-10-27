@@ -648,7 +648,9 @@ export default function ForumBoard() {
             className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
           >
             {PAGE_SIZES.map((size) => (
-              <option key={size} value={size}>
+              // The select is transparent, and Chrome on Windows paints a transparent popup white under the
+              // ink: each choice carries the paper itself so the list reads in every theme.
+              <option key={size} value={size} className="bg-paper">
                 {size}
               </option>
             ))}
