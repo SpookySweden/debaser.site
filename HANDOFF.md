@@ -1,3 +1,65 @@
+# Latest: watch together (SPEC-watch-together.md) - stream rooms, [ TV ] key, forum record, archive folds (2026-10-27)
+- STATUS: LIVE (5df486d data, 43fba4b screens), driven on https://debaser-site.vercel.app twice: dark theme
+  (clean leave) and bright theme (A's tab killed) - every step passed. Review fixes in the commit after.
+- NOT PUSHED, needs Luke's OK: supabase/migrations/20261027130000_watch_queue_plays_by_host.sql (review
+  finding: any account could insert a queue row already marked played, which the record would show and the
+  host could not remove; the policy now lets only the host file a played row). Dry run: that file only.
+- Known risks told to Luke, not fixed: `watch_take_over` checks the host's silence (8s), not that the caller
+  is in the room (the DB cannot see presence) - a direct RPC can take over a quiet room; handover order is
+  each tab's own clock (`joined_at`), so a wrong clock can pick the wrong heir (still one winner).
+- What Luke sees: `[ ▶ STREAM ]` on every video in /media (accounts) opens the room window large over the board
+  (`/forum?watch=new&media=<id>`), `[ GO LIVE ]` is the second press. Room: video left (host: play/pause, seek,
+  `[ SKIP ▶▶ ]`, `[ END STREAM ]` twice-pressed; everyone: title, `n OF m`, time, mute, volume), QUEUE + CHAT
+  right (phone: video, chat, queue folded), `WATCHING (n)` names + guests. Guests watch and read, `[ LOG IN ]
+  TO TALK`. Joining pauses the music player and ends a follow. `[ TV ]` beside anyone in a live room in the
+  directory rows (UserDirectoryRow, both versions), tip `WATCHING <file> WITH <host>` / `STREAMING <file>`.
+  Board: one thread per stream `STREAM :: <HOST> :: <yyyy-mm-dd>` (board anchor `watch:<roomId>`), LIVE
+  marker, open = the record drawn from the room (files in play order, a fold of timed chat each), replies
+  below; `STREAMS` source filter. /media video rows: `[+] STREAM CHAT (n)`, one fold per stream, newest first.
+- Code: app/lib/watch/* (types, rules [pure: sync, queue, handover, words], watch-window, repository switch
+  `NEXT_PUBLIC_WATCH_DATA_SOURCE` (supabase in .env.production), mock + supabase stores, use-watch-room
+  [one cached read + feed per room, changes applied from realtime rows so the 3s heartbeat never re-reads],
+  use-watching, use-stream-folds); components WatchWindow (address, pre-live, GO LIVE), WatchRoom (host /
+  follower logic, queue, chat, leave prompt), WatchKey, StreamRecord (+StreamMarker), StreamChatFolds.
+  `isItemOwnedThread` excludes stream threads (empty body but they keep their title).
+- DB: supabase/migrations/20261027120000_watch_rooms.sql PUSHED with Luke's OK: watch_rooms / watch_queue /
+  watch_messages, RLS (read all; insert as yourself while live; only the current host writes the room and
+  reorders/trims unplayed; authors delete own lines), guard trigger (original host, start, thread id fixed;
+  ended stays ended), `watch_take_over(room, gone_host)` (only after 8s host silence, one winner),
+  `watch_close_stale(room)` (3 min silence). All three on supabase_realtime.
+- Presence: each room has its own channel `watch:<id>` (per-tab key, join order = handover order); every
+  signed-in tab in a live room also tracks on `site-watching`, which the [ TV ] key reads. That channel is
+  separate from `site-presence` on purpose: joining/leaving is ~1-2s, a state change on Supabase is ~6s.
+- Timings on the deployed site: GO LIVE -> playing 1.0s; A on site-watching 2.8-3.6s; B joins (page load
+  included) 6.4s; B follows within 0.36-0.76s; chat 0.4s; host pause -> B 0.2s, play 0.9s; clean leave -> B
+  hosts 0.6s; A's tab killed -> B hosts 0.7s (the pagehide hand-over landed; locally, where it did not, the
+  8s take-over did it in 7.7-8.8s); last leaver off site-watching 0.4-1.6s.
+- Decided while building (tell Luke): the last file looping is ONE play in the record (otherwise a 10s clip
+  fills the thread); the add-a-video picker is a text list (videos have no thumbnails for MediaPicker); a
+  host who closes the tab with others present hands over on the way out (best effort; the 8s take-over
+  catches a lost write); a host alone who closes the tab does NOT end it (a reload resumes hosting) - the
+  room reads as over after 90s quiet and is closed by whoever looks after 3 min.
+- Test video: TEST SIGNAL // LOOP, 10s 640x360 VP8 WebM, 472KB, recorded by `node Temp/test-signal.cjs`
+  (canvas -> MediaRecorder, Duration patched into the WebM header so it seeks), uploaded as TEST ACCOUNT A
+  by `node Temp/watch-upload.cjs` (Luke's OK). It stays.
+- Proof: `node Temp/check-watch.cjs` (22; proven to fail with the stream-title fix undone and with every
+  viewer made host; header has the tsc lines). `node Temp/watch-drive.cjs [url] [--crash] [--bright] [--no-shots]`: A + B + a guest, 14 numbered
+  steps, pictures in Temp/browse/watch/<local|live>-<theme>[-crash]/. The drive caught a real bug (a queued
+  copy of the same file never restarted, so the loop stalled).
+- Gotchas: the [ TV ] key cannot be pressed by a drive - TEST ACCOUNT A-D are hidden from every directory -
+  so the drive listens on `site-watching` from Node and opens the address the key links to. The music
+  player's Audio element is made in script (not in the DOM): read its state from the bar's clock. The test
+  accounts' saved layouts open QUEUES/PREFERENCES over the board; the drive hides other docked windows.
+- Test data: every drive run leaves a room, chat lines and a board thread `STREAM :: TEST ACCOUNT A :: ...`
+  on the live board. As of the last drive: 8 rooms (all ended, all TEST ACCOUNT A), 8 threads (0 replies),
+  16 queue rows, 16 chat lines; 0 rooms by a real account. supabase/cleanup/watch-test-streams.sql lists
+  and (with OK) removes them, optionally keeping one as an example. NOT run yet.
+- Checks: verify passes; check-watch 22 (rules, mock store, and the screens drawn); check-structure needed
+  WatchWindow rendered by a check (it is now). 75/76 checks; check-comms-render still fails as before (not this work).
+  Audit unchanged (12 LOW).
+
+---
+
 # Latest: lamps react in seconds; yellow means AWAY (2ad6fa1) - live, timed on the deployed site (2026-10-27)
 - Luke asked for "far more reactive" online/away/offline lamps and chose: yellow = away only (site open, not in
   use); somebody who left is red, the tooltip says how long ago.
