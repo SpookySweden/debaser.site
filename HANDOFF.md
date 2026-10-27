@@ -19,6 +19,13 @@
     OK; falls back to this clock minus the room's measured skew). The drive's TEST ACCOUNT C joins after B
     with Date.now() a minute slow: before the fix A's prompt named C as next host (seen live); after, B -
     and C still follows within 0.12-0.33s (the skew calibration holds).
+- Found by the live drive while proving those (fixed, same day): the room drew a different tree on a phone
+  than on a desktop, so a width change rebuilt the <video> and the host's listeners stayed on the old one -
+  the host's file stopped at its end without looping, the room was written as paused, and a handover then
+  inherited a stalled stream. One tree at every width now (only the side column changes), the listeners
+  follow the element (`attachVideo`), and a host who takes over a player already at its end moves on at
+  once. Drive step "after the window changed width, the host still loops" fails on the old code (seen
+  live, twice) and passes on the new. Also: the room no longer flashes NOT ON THE BOARD right after GO LIVE.
 - What Luke sees: `[ ▶ STREAM ]` on every video in /media (accounts) opens the room window large over the board
   (`/forum?watch=new&media=<id>`), `[ GO LIVE ]` is the second press. Room: video left (host: play/pause, seek,
   `[ SKIP ▶▶ ]`, `[ END STREAM ]` twice-pressed; everyone: title, `n OF m`, time, mute, volume), QUEUE + CHAT

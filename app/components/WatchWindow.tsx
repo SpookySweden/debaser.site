@@ -87,6 +87,8 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
       try {
         const thread = await forum.createThread({ title: streamThreadTitle(user.displayName, read.room.startedAt), body: '', anchor: streamAnchor(id) });
         await getWatchRepository().attachThread(id, thread.id);
+        // Into the shared copy at once, so the room does not say NOT ON THE BOARD until the echo arrives.
+        primeRoom({ ...read, room: { ...read.room, forumThreadId: thread.id } });
       } catch {
         // Said by the room's own line (NOT ON THE BOARD) rather than here: the window is about to change.
       }

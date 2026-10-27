@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
 import { threadDomId } from '../lib/forum/anchors';
@@ -85,6 +85,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const waiting = upcoming(read.queue);
 
   const videoRef = useRef<HTMLVideoElement>(null);
+  /** The element itself, as state: the host's listeners and the follower's clock re-attach to a new one. */
+  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
+  const attachVideo = useCallback((element: HTMLVideoElement | null) => {
+    videoRef.current = element;
+    setVideoElement(element);
+  }, []);
   const [clock, setClock] = useState({ seconds: 0, duration: Number.NaN, paused: true });
   const [volume, setVolume] = useState(1);
   const [muted, setMuted] = useState(false);
@@ -207,8 +213,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     // On a worker's clock, so a paused host in a background tab keeps the beat (lib/watch/steady-timer.ts).
     const stopBeat = steadyInterval(say, WATCH_HEARTBEAT_MS);
 
-    // Taking the transport over mid-file: carry on from where this player is, and say so at once.
-    if (roomPlaying() && video.paused && !video.ended) void video.play().catch(() => setNeedsPress(true));
+    // Taking the transport over mid-file: carry on from where this player is, and say so at once. A follower
+    // waits at the end of a file for the host to move on, so a hand-over at that moment finds this player
+    // already ended - its `ended` came before it was host and will not come again: move on now.
+    if (roomPlaying() && video.ended) fileEnded();
+    else if (roomPlaying() && video.paused) void video.play().catch(() => setNeedsPress(true));
     say();
 
     return () => {
@@ -218,7 +227,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       video.removeEventListener('ended', ended);
       stopBeat();
     };
-  }, [amHost, live, item?.src]);
+  }, [amHost, live, item?.src, videoElement]);
 
   /* --- following ------------------------------------------------------------------------------- */
 
@@ -253,7 +262,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       window.clearInterval(timer);
       if (video !== null) video.playbackRate = 1;
     };
-  }, [amHost, live, item?.src]);
+  }, [amHost, live, item?.src, videoElement]);
 
   // A room that ended stops the picture where it is.
   useEffect(() => {
@@ -374,7 +383,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           </div>
         ) : (
           <video
-            ref={videoRef}
+            ref={attachVideo}
             src={item.src}
             preload="auto"
             playsInline
@@ -533,25 +542,29 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         </div>
       ) : null}
 
-      {compact ? (
-        <div className="flex flex-col gap-2">
-          {stage}
-          {chat}
-          <details>
-            <summary className={`${TITLE_BAR} cursor-pointer list-none`}>QUEUE ({playOrder(read.queue).length + waiting.length})</summary>
-            {queue}
-          </details>
+      {/* One tree at every width, so the video element is never rebuilt when the layout changes (a phone
+          turned, a window resized): the host's listeners are on that element, and a rebuilt one played on
+          without them - no loop, no pause written. Only the side column changes. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+        <div className="min-w-0 flex-1">{stage}</div>
+        <div className="flex flex-col gap-2 sm:w-80 sm:shrink-0">
+          {compact ? (
+            <>
+              {chat}
+              <details>
+                <summary className={`${TITLE_BAR} cursor-pointer list-none`}>QUEUE ({playOrder(read.queue).length + waiting.length})</summary>
+                {queue}
+              </details>
+            </>
+          ) : (
+            <>
+              <p className={TITLE_BAR}>QUEUE</p>
+              {queue}
+              {chat}
+            </>
+          )}
         </div>
-      ) : (
-        <div className="flex gap-3">
-          <div className="min-w-0 flex-1">{stage}</div>
-          <div className="flex w-80 shrink-0 flex-col gap-2">
-            <p className={TITLE_BAR}>QUEUE</p>
-            {queue}
-            {chat}
-          </div>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
