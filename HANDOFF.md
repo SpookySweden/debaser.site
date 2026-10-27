@@ -1,9 +1,11 @@
 # Latest: watch together (SPEC-watch-together.md) - stream rooms, [ TV ] key, forum record, archive folds (2026-10-27)
 - STATUS: LIVE (5df486d data, 43fba4b screens), driven on https://debaser-site.vercel.app twice: dark theme
   (clean leave) and bright theme (A's tab killed) - every step passed. Review fixes in the commit after.
-- NOT PUSHED, needs Luke's OK: supabase/migrations/20261027130000_watch_queue_plays_by_host.sql (review
-  finding: any account could insert a queue row already marked played, which the record would show and the
-  host could not remove; the policy now lets only the host file a played row). Dry run: that file only.
+- supabase/migrations/20261027130000_watch_queue_plays_by_host.sql PUSHED with Luke's OK (review finding:
+  any account could insert a queue row already marked played, which the record would show and the host
+  could not remove; now only the host files a played row). Proven live by `node Temp/probe-watch-policy.cjs`
+  (B's forged play refused 42501, B's plain add and A's first play allowed; it writes, so it is named
+  outside the check-* pattern and the suite never runs it).
 - Known risks told to Luke, not fixed: `watch_take_over` checks the host's silence (8s), not that the caller
   is in the room (the DB cannot see presence) - a direct RPC can take over a quiet room; handover order is
   each tab's own clock (`joined_at`), so a wrong clock can pick the wrong heir (still one winner).
@@ -53,7 +55,10 @@
 - Test data: every drive run leaves a room, chat lines and a board thread `STREAM :: TEST ACCOUNT A :: ...`
   on the live board. As of the last drive: 8 rooms (all ended, all TEST ACCOUNT A), 8 threads (0 replies),
   16 queue rows, 16 chat lines; 0 rooms by a real account. supabase/cleanup/watch-test-streams.sql lists
-  and (with OK) removes them, optionally keeping one as an example. NOT run yet.
+  and (with OK) removes them, optionally keeping one as an example. RUN 2026-10-27 with Luke's OK, keeping
+  the newest as an example: removed 8 rooms (7 drive streams + the policy probe's room) and 7 threads;
+  survivors 1 room (3d894b07..., 07:31, bright/killed-tab run) with 2 plays, 2 lines and its thread; the
+  board has 7 threads (6 before this work + that one). Live as a guest: 1 stream thread, STREAM CHAT (1).
 - Checks: verify passes; check-watch 22 (rules, mock store, and the screens drawn); check-structure needed
   WatchWindow rendered by a check (it is now). 75/76 checks; check-comms-render still fails as before (not this work).
   Audit unchanged (12 LOW).
