@@ -24,6 +24,8 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
+import StreamRecord, { StreamMarker } from './StreamRecord';
+import { streamRoomId } from '../lib/watch/rules';
 import InlineTrackPlayer from './InlineTrackPlayer';
 import MentionRow from './MentionRow';
 import { useNotifications } from './NotificationsProvider';
@@ -195,6 +197,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
    * reader may only be scrolling past.
    */
   const isRead = postIsRead(forum.seenByThread, thread.id);
+  /** A stream's record (SPEC-watch-together.md): its body is drawn from the room, not stored. */
+  const streamRoom = streamRoomId(thread.anchor);
 
   return (
     <article id={threadDomId(thread.id)} className={`rule-pixel px-2 py-2 ${isRead ? ROW_READ : ROW_UNREAD}`}>
@@ -236,6 +240,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                     {pinLabel(pin)}
                   </span>
                 )}
+                {streamRoom === null ? null : <StreamMarker roomId={streamRoom} />}
                 <span className="shrink-0 text-label text-ink">{layout.repliesLabel}</span>
                 {/* A post filed with a picture says so before it is opened: the drawing itself now
                     waits for the click (see the strip below), so this badge is what tells a reader
@@ -421,7 +426,9 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
             {/* An item's own thread has no body: the strip above already names and links the item,
                 so nothing stands between the title and the comments (the `[ ↳ GO TO ... ]` key that
                 did was cut - Luke, 2026-10-24). */}
-            {layout.right.isAnchorPost ? null : (
+            {streamRoom !== null ? (
+              isOpen ? <StreamRecord roomId={streamRoom} /> : null
+            ) : layout.right.isAnchorPost ? null : (
               <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
             )}
 

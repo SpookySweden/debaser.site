@@ -42,6 +42,8 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'profile', label: 'PROFILE COMMENTS' },
   // Posts filed under a track on the shelf (app/lib/audio/forum-tracks.ts, `trackAnchor`).
   { value: 'track', label: 'TRACK THREADS' },
+  // The records of watch-together streams (SPEC-watch-together.md): board posts that name a room.
+  { value: 'stream', label: 'STREAMS' },
 ];
 
 /** Posts-per-page choices, offered at the board's foot beside the page arrows. */

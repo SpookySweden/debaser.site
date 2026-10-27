@@ -17,6 +17,7 @@ import NotificationsProvider from './components/NotificationsProvider';
 import PreferencesWindow from './components/PreferencesWindow';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
+import WatchWindow from './components/WatchWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { themeBootScript } from './lib/ui/theme-slot';
 import { FACE_VARIABLES } from './theme/fonts';
@@ -93,6 +94,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         <ArcadeWindow />
                         <MusicWindow />
                         <QueueWindow />
+                        {/* The stream room (SPEC-watch-together.md): drawn here so a stream keeps
+                            playing while the reader walks the site. */}
+                        <WatchWindow />
                       </Suspense>
 
                       {/* Preferences: the one window with no address, because a theme is a setting on

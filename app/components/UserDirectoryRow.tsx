@@ -11,6 +11,7 @@ import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import RelativeShort from './RelativeShort';
 import StatusDot from './StatusDot';
+import WatchKey from './WatchKey';
 
 /**
  * The row's hover fill: the account's name colour, in the value each theme draws the name in, and the ink
@@ -113,6 +114,9 @@ export default function UserDirectoryRow({
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
 
+        {/* In a live room: the key that joins them (SPEC-watch-together.md, decision 4). */}
+        <WatchKey userId={row.account.id} />
+
         {row.admin ? (
           <span className="shrink-0 border border-ink-plate bg-ena px-1 text-ink-bar" title={ADMIN_TIP}>
             [ A ]
@@ -158,6 +162,7 @@ export default function UserDirectoryRow({
         <ProfileLink author={author} className="glow-link">
           <ProfileName author={author} lamp={false} />
         </ProfileLink>
+        <WatchKey userId={row.account.id} />
         {row.admin ? (
           <span className="border border-ink-plate bg-ena px-1 text-ink-bar">[ ADMIN ]</span>
         ) : null}

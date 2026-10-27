@@ -1,6 +1,7 @@
 import { tagKey } from './tag-vocabulary';
 import { displayTitle, postCredit } from './site-author';
 import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack } from './types';
+import { isStreamThread } from '../watch/rules';
 
 /**
  * Board query: filtering and ordering of the thread list.
@@ -27,7 +28,8 @@ import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack }
  */
 
 export type SortMode = 'newest' | 'replies' | 'tags';
-export type SourceFilter = 'all' | ForumAnchorKind;
+/** `stream`: the records of watch-together streams (board posts whose anchor names a room). */
+export type SourceFilter = 'all' | ForumAnchorKind | 'stream';
 export type TagMatchMode = 'any' | 'all';
 
 export type BoardQuery = {
@@ -219,7 +221,9 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
   const needle = options.query.trim().toLowerCase();
 
   const filtered = threads.filter((thread) => {
-    if (options.sourceFilter !== 'all' && thread.anchor.kind !== options.sourceFilter) return false;
+    if (options.sourceFilter === 'stream') {
+      if (!isStreamThread(thread)) return false;
+    } else if (options.sourceFilter !== 'all' && thread.anchor.kind !== options.sourceFilter) return false;
     if (!matchesTagFilter(thread, options.tagKeys, options.tagMatchMode)) return false;
     if (options.musicOnly === true && !carriesMusic(thread)) return false;
     if (options.imageOnly === true && !carriesImage(thread)) return false;

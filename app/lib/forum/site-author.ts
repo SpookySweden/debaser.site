@@ -1,6 +1,7 @@
 import { autoThreadTitle, isAutoFiledBody, profileAnchorTarget } from './anchors';
 import { SITE_ACCOUNT_DISPLAY_NAME, SITE_ACCOUNT_ID } from '../auth/builtin-account';
 import { DEFAULT_AVATAR_SRC } from '../profile/avatar-catalogue';
+import { isStreamThread } from '../watch/rules';
 import type { ForumAnchor, ForumAuthor, ForumThread } from './types';
 
 /**
@@ -42,7 +43,8 @@ export const SITE_AUTHOR_PICTURE = DEFAULT_AVATAR_SRC;
 
 /** True when the thread is the item's own: an item's comment box opened it. */
 export function isItemOwnedThread(thread: ForumThread): boolean {
-  return isAutoFiledBody(thread.body);
+  // A stream's record has no body either, but it is a post somebody filed by going live: its title stays.
+  return isAutoFiledBody(thread.body) && !isStreamThread(thread);
 }
 
 /**

@@ -8,6 +8,9 @@ import { MUSIC_HREF } from '../lib/audio/music-window';
 import { audioTagKey } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
+import { useStreamFolds } from '../lib/watch/use-stream-folds';
+import type { StreamFold } from '../lib/watch/types';
+import { watchHref } from '../lib/watch/watch-window';
 import { KIND_LABELS, MEDIA_KINDS, useCatalogue } from '../lib/media/catalogue';
 import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
@@ -24,6 +27,7 @@ import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
 import ProfileLink from './ProfileLink';
 import SheetImage from './SheetImage';
+import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
 
 type Tab = 'all' | MediaKind;
@@ -163,6 +167,10 @@ export default function MediaCatalogue() {
       return b.item.createdAt.localeCompare(a.item.createdAt);
     });
   }, [catalogue.entries, tab, query, tagKeys, sort]);
+
+  /** Every stream that played a video, for the STREAM CHAT folds under each (SPEC-watch-together.md). */
+  const videoIds = useMemo(() => catalogue.entries.filter(({ item }) => item.kind === 'video').map(({ item }) => item.id), [catalogue.entries]);
+  const streamFolds = useStreamFolds(videoIds);
 
   const counts = useMemo(() => {
     const byKind: Record<Tab, number> = { all: catalogue.entries.length, image: 0, audio: 0, video: 0 };
@@ -338,6 +346,7 @@ export default function MediaCatalogue() {
         liked={track === undefined ? false : library.likedIds.has(track.id)}
         onLike={library.canWrite ? (candidate) => void toggleLike(candidate) : undefined}
         onPlay={(candidate) => player.play(candidate, { origin: 'shelf', href: MUSIC_HREF, where: 'THE MEDIA PAGE' })}
+        folds={entry.item.kind === 'video' ? streamFolds[entry.item.id] : undefined}
       />
     );
   };
@@ -536,6 +545,7 @@ function CatalogueRow({
   liked,
   onLike,
   onPlay,
+  folds,
 }: {
   entry: CatalogueEntry;
   /** Its place on a numbered shelf (a profile's songs: 1, 2, 3); undefined on every other shelf. */
@@ -552,6 +562,8 @@ function CatalogueRow({
   /** Hearts the track; undefined for a guest, who is offered the heart's state but not the press. */
   onLike?: (track: AudioTrack) => void;
   onPlay: (track: AudioTrack) => void;
+  /** A video's streams, for its STREAM CHAT folds; undefined for anything never streamed. */
+  folds?: StreamFold[];
 }) {
   const { item, uses } = entry;
   const [editing, setEditing] = useState(false);
@@ -601,6 +613,16 @@ function CatalogueRow({
           </div>
         </div>
 
+        {/* A video's key: stream it to the site (SPEC-watch-together.md). It opens the room window
+            before anything is live; GO LIVE in there is the second press. Accounts only. */}
+        {item.kind === 'video' && viewerId !== null ? (
+          <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
+            <Link href={watchHref({ kind: 'prelive', mediaItemId: item.id })} className={PLATE_LINK}>
+              [ ▶ STREAM ]
+            </Link>
+          </span>
+        ) : null}
+
         {/* A track's two keys, the shelf's own: the heart, and play through the site's one player.
             Writing about a track starts in the composer, which picks it there. */}
         {track === undefined ? null : (
@@ -631,6 +653,8 @@ function CatalogueRow({
           </span>
         )}
       </div>
+
+      {item.kind === 'video' ? <StreamChatFolds folds={folds} /> : null}
 
       {open ? (
         <div className="mt-2 pl-14 max-sm:pl-0">
