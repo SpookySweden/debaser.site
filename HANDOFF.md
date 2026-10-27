@@ -1,3 +1,29 @@
+# Latest: lamps react in seconds; yellow means AWAY (2ad6fa1) - live, timed on the deployed site (2026-10-27)
+- Luke asked for "far more reactive" online/away/offline lamps and chose: yellow = away only (site open, not in
+  use); somebody who left is red, the tooltip says how long ago.
+- How: every tab joins one Supabase Realtime Presence channel `site-presence` (supabase-profile-repository.ts,
+  `subscribeLive` / `trackLive` / `untrackLive`; mock room = this tab only). Signed-in tabs track
+  `{ user_id, state: active|away }`; away = 30s in the background or 5 min untouched (PresenceProvider.tsx).
+  `presenceStatus(record, now, live, userId)`: the room decides when connected; otherwise the old clock rule on
+  `last_seen_at` (never yellow). The 60s heartbeat stays (dates LAST ONLINE). No DB change.
+- Decided while building (tell Luke): away people can still be challenged and appear in WHO IS AROUND (header now
+  says `n AROUND`); directory rows read AWAY for yellow; lamp tip `Green: in use. Yellow: away. Red: not on the site.`
+- Timed on the deployed site (`node Temp/presence-drive.cjs <url> [--idle] [--shots]`, A watches B's profile):
+  open -> green 3.0s (1.4s was page load), background -> AWAY 32s, back -> green 1.3s, network drop -> red 63s
+  (server timeout), network back -> green 10s, tab close -> red 0.1s. Idle step (local prod): AWAY at 309s.
+  Pictures: Temp/browse/presence/. Was: a closed tab stayed green up to ~2.5 min (9 of 13 rows had is_online stuck true).
+- Gotcha: Supabase relays presence *state changes* to other clients on a ~6s cycle (`Temp/presence-probe.cjs`
+  shows B's track lands in 0.02s, A gets the diff on a fixed tick), so away<->green takes 0-6s; join/leave is fast.
+  A broadcast message on the same channel could shave that, not built.
+- Known risk (Luke told): the channel is public, so a visitor could fake another person's lamp; closing it needs a
+  private channel + realtime.messages policy (a DB change).
+- Checks updated on purpose: presence, user-directory, flows, shell. check-presence proven to fail with the room
+  ignored. check-comms-render was already failing before this change (the side panel's COMMS folds by default).
+- Review fixes in the same commit: effect keyed on the account id (auth's fresh `user` objects made the tab leave
+  and rejoin), bfcache `pageshow` re-announce, stale-channel guard.
+
+---
+
 # Latest: the audio tab rebuilt in the catalogue's shape; the title bar one shape on every page (2026-10-24)
 - Title bar: USERS and MEDIA carried a `[ × ]` close key that pushed their title left of every other page's.
   The key and SiteWindow's `closeHref` prop are gone; every page draws the identical bar.
