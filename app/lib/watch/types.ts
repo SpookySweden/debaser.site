@@ -26,14 +26,26 @@ export type WatchRoom = {
   endedAt: string | null;
 };
 
-/** One file added to a room's queue. A play is a row: a file added twice is two rows. */
+/** Which player a link needs (SPEC-watch-links.md). Only `file` plays so far; the rest are the build order's later steps. */
+export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch';
+
+/** A video link in the queue: only its address, its player and its title are kept, never the video. */
+export type WatchLink = {
+  url: string;
+  kind: WatchLinkKind;
+  title: string;
+};
+
+/** One file or link added to a room's queue. A play is a row: a file added twice is two rows. */
 export type WatchQueueEntry = {
   id: string;
   roomId: string;
   /** The order of what is still to play. */
   position: number;
-  /** Null once the file has left the catalogue. */
+  /** Null for a link, and once the file has left the catalogue. */
   mediaItemId: string | null;
+  /** Set for a link instead of a catalogue file. */
+  link: WatchLink | null;
   addedBy: string | null;
   addedAt: string;
   /** Set when it started playing. */

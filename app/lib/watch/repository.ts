@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { StreamFold, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -41,6 +41,9 @@ export type SendMessageInput = {
   mediaSeconds: number;
 };
 
+/** One addition to a queue: a catalogue file or a link, never both. */
+export type AddToQueueInput = { roomId: string; addedBy: string; position: number } & ({ mediaItemId: string; link?: undefined } | { link: WatchLink; mediaItemId?: undefined });
+
 /** One write to a room, as `subscribeRoom` hands it over. `refresh` means "read it again". */
 export type RoomChange =
   | { kind: 'room'; room: WatchRoom }
@@ -73,7 +76,7 @@ export type WatchRepository = {
   endRoom(roomId: string): Promise<void>;
   /** Closes a room nobody has written for minutes. True when it was closed by this call. */
   closeStale(roomId: string): Promise<boolean>;
-  addToQueue(input: { roomId: string; mediaItemId: string; addedBy: string; position: number }): Promise<WatchQueueEntry>;
+  addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry>;
   removeFromQueue(entryId: string): Promise<void>;
   reorderQueue(moves: { id: string; position: number }[]): Promise<void>;
   sendMessage(input: SendMessageInput): Promise<WatchMessage>;

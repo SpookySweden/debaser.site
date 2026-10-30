@@ -38,7 +38,9 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
   const live = roomIsLive(read.room, now);
   const plays = playOrder(read.queue);
   const titleOf = (entry: WatchQueueEntry) =>
-    entry.mediaItemId === null ? 'A FILE NO LONGER HELD' : (catalogue.items.find((item) => item.id === entry.mediaItemId)?.title ?? 'A FILE NOT HELD');
+    entry.link !== null
+      ? entry.link.title
+      : entry.mediaItemId === null ? 'A FILE NO LONGER HELD' : (catalogue.items.find((item) => item.id === entry.mediaItemId)?.title ?? 'A FILE NOT HELD');
 
   // Each line belongs to the play it was said over; a line with no play (a file since removed) goes
   // with the first play of its file.
@@ -69,7 +71,7 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
       ) : (
         <ol className="text-label text-ink" aria-label="Files played">
           {plays.map((entry, index) => (
-            <PlayRow key={entry.id} number={index + 1} title={titleOf(entry)} messages={byEntry.get(entry.id) ?? []} />
+            <PlayRow key={entry.id} number={index + 1} title={titleOf(entry)} href={entry.link?.url.startsWith('https://') ? entry.link.url : undefined} messages={byEntry.get(entry.id) ?? []} />
           ))}
         </ol>
       )}
@@ -77,14 +79,34 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
   );
 }
 
-function PlayRow({ number, title, messages }: { number: number; title: string; messages: WatchMessage[] }) {
+/** One play. A link's title opens the original address (it has no /media page); the fold is the key before it. */
+function PlayRow({ number, title, href, messages }: { number: number; title: string; href?: string; messages: WatchMessage[] }) {
   const [open, setOpen] = useState(false);
+  const said = `${messages.length} MESSAGE${messages.length === 1 ? '' : 'S'}`;
 
   return (
     <li className="rule-pixel py-1">
-      <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="cursor-pointer text-left font-bold hover:underline">
-        {open ? '[-]' : '[+]'} {number}. {title} :: {messages.length} MESSAGE{messages.length === 1 ? '' : 'S'}
-      </button>
+      {href === undefined ? (
+        <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="cursor-pointer text-left font-bold hover:underline">
+          {open ? '[-]' : '[+]'} {number}. {title} :: {said}
+        </button>
+      ) : (
+        <span className="font-bold">
+          <button
+            type="button"
+            onClick={() => setOpen((value) => !value)}
+            aria-expanded={open}
+            aria-label={`${open ? 'Fold' : 'Unfold'} the chat over ${title}`}
+            className="cursor-pointer text-left font-bold hover:underline max-sm:min-h-tap"
+          >
+            {open ? '[-]' : '[+]'} {number}.
+          </button>{' '}
+          <a href={href} target="_blank" rel="noopener noreferrer" className="wrap-anywhere underline" data-stream-link={href}>
+            {title}
+          </a>{' '}
+          :: {said}
+        </span>
+      )}
       {open ? (
         messages.length === 0 ? (
           <p className="pl-4 text-ink-quiet">NOTHING WAS SAID.</p>

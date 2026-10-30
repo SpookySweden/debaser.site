@@ -1,4 +1,4 @@
-import type { OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { TAKE_OVER_QUIET_MS } from './rules';
 import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
@@ -40,7 +40,8 @@ function load(): Tables {
 
     return {
       rooms: Array.isArray(parsed.rooms) ? parsed.rooms : [],
-      queue: Array.isArray(parsed.queue) ? parsed.queue : [],
+      // Rows stored before links existed have no `link`.
+      queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null })) : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
     };
   } catch {
@@ -196,6 +197,7 @@ class MockWatchRepository implements WatchRepository {
       roomId: input.id,
       position: 0,
       mediaItemId: input.mediaItemId,
+      link: null,
       addedBy: input.host.id,
       addedAt: at,
       playedAt: at,
@@ -263,7 +265,7 @@ class MockWatchRepository implements WatchRepository {
     return true;
   }
 
-  async addToQueue(input: { roomId: string; mediaItemId: string; addedBy: string; position: number }): Promise<WatchQueueEntry> {
+  async addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === input.roomId);
     if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
@@ -272,7 +274,8 @@ class MockWatchRepository implements WatchRepository {
       id: newId(),
       roomId: input.roomId,
       position: input.position,
-      mediaItemId: input.mediaItemId,
+      mediaItemId: input.mediaItemId ?? null,
+      link: input.link ?? null,
       addedBy: input.addedBy,
       addedAt: stamp(),
       playedAt: null,

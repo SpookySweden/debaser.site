@@ -1,6 +1,7 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
-import type { OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import { isLinkKind } from './links';
 import { watchClockSkewMs } from './rules';
 import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
@@ -23,7 +24,7 @@ const MESSAGES = 'watch_messages';
 
 const ROOM_COLUMNS =
   'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at';
-const QUEUE_COLUMNS = 'id, room_id, position, media_item_id, added_by, added_at, played_at, play_index';
+const QUEUE_COLUMNS = 'id, room_id, position, media_item_id, source_url, source_kind, source_title, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
 
 /** Enough for a long night; the window draws the newest of them. */
@@ -49,6 +50,9 @@ type QueueRow = {
   room_id: string;
   position: number;
   media_item_id: string | null;
+  source_url: string | null;
+  source_kind: string | null;
+  source_title: string | null;
   added_by: string | null;
   added_at: string;
   played_at: string | null;
@@ -89,6 +93,8 @@ function toEntry(row: QueueRow): WatchQueueEntry {
     roomId: row.room_id,
     position: row.position,
     mediaItemId: row.media_item_id,
+    link:
+      row.source_url !== null && isLinkKind(row.source_kind) ? { url: row.source_url, kind: row.source_kind, title: row.source_title ?? row.source_url } : null,
     addedBy: row.added_by,
     addedAt: row.added_at,
     playedAt: row.played_at,
@@ -323,10 +329,18 @@ class SupabaseWatchRepository implements WatchRepository {
     return error === null && data === true;
   }
 
-  async addToQueue(input: { roomId: string; mediaItemId: string; addedBy: string; position: number }): Promise<WatchQueueEntry> {
+  async addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry> {
     const { data, error } = await requireClient()
       .from(QUEUE)
-      .insert({ room_id: input.roomId, media_item_id: input.mediaItemId, added_by: input.addedBy, position: input.position })
+      .insert({
+        room_id: input.roomId,
+        media_item_id: input.mediaItemId ?? null,
+        source_url: input.link?.url ?? null,
+        source_kind: input.link?.kind ?? null,
+        source_title: input.link?.title ?? null,
+        added_by: input.addedBy,
+        position: input.position,
+      })
       .select(QUEUE_COLUMNS)
       .single<QueueRow>();
     if (error) throw refused(error, 'THE FILE COULD NOT BE ADDED.');

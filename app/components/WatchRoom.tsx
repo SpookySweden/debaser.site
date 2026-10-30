@@ -9,6 +9,7 @@ import type { MediaItem } from '../lib/media/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useNow } from '../lib/ui/use-now';
+import { LINK_TITLE_MAX, linkTitle, probeVideoLink, recognizeLink } from '../lib/watch/links';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -29,7 +30,7 @@ import {
   upcoming,
   viewerStep,
 } from '../lib/watch/rules';
-import type { WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
+import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
@@ -45,6 +46,8 @@ function newTabKey(): string {
 const FOLLOW_TICK_MS = 500;
 /** How long `<NAME> IS HOSTING NOW` stays up. */
 const HANDOVER_NOTICE_MS = 15000;
+/** How long a host's player waits on a link that will not play before the room moves on. */
+const DEAD_LINK_SKIP_MS = 5000;
 
 type WatchRoomProps = {
   read: WatchRoomRead;
@@ -82,6 +85,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
   const entry = currentEntry(read);
   const item = entry?.mediaItemId ? itemsById.get(entry.mediaItemId) : undefined;
+  const link = entry?.link ?? null;
+  /** What the stage plays: the link's own address, or the catalogue file's. */
+  const src = link?.url ?? item?.src;
+  const entryTitle = link?.title ?? item?.title;
   const waiting = upcoming(read.queue);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -227,7 +234,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       video.removeEventListener('ended', ended);
       stopBeat();
     };
-  }, [amHost, live, item?.src, videoElement]);
+  }, [amHost, live, src, videoElement]);
 
   /* --- following ------------------------------------------------------------------------------- */
 
@@ -262,7 +269,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       window.clearInterval(timer);
       if (video !== null) video.playbackRate = 1;
     };
-  }, [amHost, live, item?.src, videoElement]);
+  }, [amHost, live, src, videoElement]);
 
   // A room that ended stops the picture where it is.
   useEffect(() => {
@@ -301,7 +308,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   const hostMember = accounts.find((member) => member.userId === hostId);
   const hostName = hostMember?.name ?? room.originalHostLabel;
-  const title = item?.title ?? '';
+  const title = entryTitle ?? '';
   useEffect(() => {
     if (user === null || !live) {
       repository.setWatching(null);
@@ -353,7 +360,24 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     if (video === null) return;
     video.volume = volume;
     video.muted = muted;
-  }, [volume, muted, item?.src]);
+  }, [volume, muted, src]);
+
+  // A link that will not play in this browser (an address tied to somebody else's session, one that
+  // expired in the queue): it says so on the stage, and chat goes on. A host's room moves on after a
+  // moment, so one dead link does not stop the stream for everybody.
+  const [deadEntry, setDeadEntry] = useState<string | null>(null);
+  const entryId = entry?.id ?? null;
+  const linkDead = link !== null && deadEntry !== null && deadEntry === entryId;
+  const skipDead = useEffectEvent(() => {
+    if (upcoming(read.queue).length === 0) return;
+    setNotice(`SKIPPED: ${(link?.title ?? '').toUpperCase()} WOULDN'T PLAY`);
+    moveOn(true);
+  });
+  useEffect(() => {
+    if (!linkDead || !amHost || !live) return;
+    const timer = window.setTimeout(() => skipDead(), DEAD_LINK_SKIP_MS);
+    return () => window.clearTimeout(timer);
+  }, [linkDead, amHost, live]);
 
   function onTime() {
     const video = videoRef.current;
@@ -377,14 +401,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const stage = (
     <div className="flex min-w-0 flex-col gap-1">
       <div className="relative bg-ink-plate">
-        {item === undefined ? (
+        {src === undefined ? (
           <div className="flex aspect-video w-full items-center justify-center text-label font-bold text-ink-bar">
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
         ) : (
           <video
             ref={attachVideo}
-            src={item.src}
+            src={src}
             preload="auto"
             playsInline
             autoPlay={amHost && live}
@@ -392,13 +416,25 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             onLoadedMetadata={onTime}
             onPlay={onTime}
             onPause={onTime}
+            // Playing again (the next file after one that would not start) clears the JOIN PLAYBACK key.
+            onPlaying={() => setNeedsPress(false)}
+            onError={() => {
+              if (link !== null) setDeadEntry(entryId);
+            }}
             className="aspect-video w-full object-contain"
             data-watch-video={amHost ? 'host' : 'viewer'}
           >
             <track kind="captions" />
           </video>
         )}
-        {needsPress && live ? (
+        {linkDead ? (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
+              THIS LINK WON&apos;T PLAY HERE
+            </p>
+          </div>
+        ) : null}
+        {needsPress && live && !linkDead ? (
           <div className="absolute inset-0 flex items-center justify-center">
             <button type="button" onClick={joinPlayback} className={PLATE_MAIN}>
               [ ▶ JOIN PLAYBACK ]
@@ -408,7 +444,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       </div>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
-        <span className="min-w-0 truncate text-sm font-bold">{item?.title ?? '...'}</span>
+        <span className="min-w-0 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
         <span className="font-bold">{queueBadge(read)}</span>
         <span>
           {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
@@ -598,7 +634,8 @@ function QueuePanel({
   const played = playOrder(read.queue);
   const waiting = upcoming(read.queue);
   const videos = catalogue.items.filter((item) => item.kind === 'video');
-  const titleOf = (entry: WatchQueueEntry) => (entry.mediaItemId ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD') : 'A FILE NO LONGER HELD');
+  const titleOf = (entry: WatchQueueEntry) =>
+    entry.link !== null ? entry.link.title : entry.mediaItemId ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD') : 'A FILE NO LONGER HELD';
   const fail = (fallback: string) => (failure: unknown) => onFault(failure instanceof Error ? failure.message : fallback);
 
   async function add(mediaItemId: string) {
@@ -612,11 +649,116 @@ function QueuePanel({
     }
   }
 
+  /* A pasted link (SPEC-watch-links.md): recognised as it is typed, its title filled in for editing, and
+     loaded once in this browser when [ + ADD ] is pressed, so a link that won't play is refused here. */
+  const [linkText, setLinkText] = useState('');
+  const [linkName, setLinkName] = useState('');
+  const [nameTyped, setNameTyped] = useState(false);
+  const [linkState, setLinkState] = useState<{ kind: 'idle' } | { kind: 'checking' } | { kind: 'queued' } | { kind: 'refused'; reason: string }>({ kind: 'idle' });
+  const verdict = linkText.trim().length === 0 ? null : recognizeLink(linkText);
+  useEffect(() => {
+    if (linkState.kind !== 'queued') return;
+    const timer = window.setTimeout(() => setLinkState({ kind: 'idle' }), 2000);
+    return () => window.clearTimeout(timer);
+  }, [linkState]);
+
+  function typeLink(next: string) {
+    setLinkText(next);
+    if (linkState.kind === 'refused' || linkState.kind === 'queued') setLinkState({ kind: 'idle' });
+    // An emptied box starts over; a title the adder typed is kept while they fix the link.
+    if (next.trim().length === 0) setNameTyped(false);
+    else if (nameTyped) return;
+    const recognised = next.trim().length === 0 ? null : recognizeLink(next);
+    setLinkName(recognised?.ok ? recognised.link.title : '');
+  }
+
+  async function addLink() {
+    if (userId === null || verdict === null || linkState.kind === 'checking') return;
+    if (!verdict.ok) {
+      setLinkState({ kind: 'refused', reason: verdict.reason });
+      return;
+    }
+    setLinkState({ kind: 'checking' });
+    const reason = await probeVideoLink(verdict.link.url);
+    if (reason !== null) {
+      setLinkState({ kind: 'refused', reason });
+      return;
+    }
+    const link: WatchLink = { ...verdict.link, title: linkTitle(linkName, verdict.link.title) };
+    try {
+      const entry = await repository.addToQueue({ roomId: read.room.id, link, addedBy: userId, position: nextQueuePosition(read.queue) });
+      applyLocalChange(read.room.id, { kind: 'entry', entry });
+      setLinkText('');
+      setLinkName('');
+      setNameTyped(false);
+      setLinkState({ kind: 'queued' });
+    } catch (failure) {
+      setLinkState({ kind: 'refused', reason: failure instanceof Error ? failure.message : 'THE LINK COULD NOT BE ADDED.' });
+    }
+  }
+
   const showList = !compact || unfolded;
   // Labelled and ruled off, so its rows never read as the queue's own.
   const picker = picking ? (
     <div className="rule-pixel pb-1">
       <p className="text-label text-ink-quiet">ADD A VIDEO</p>
+      {/* noValidate: the room says what is wrong with a link, not the browser's own bubble. */}
+      <form
+        noValidate
+        className="flex flex-col gap-1 pb-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void addLink();
+        }}
+      >
+        <div className="flex items-center gap-1">
+          <label htmlFor="watch-link" className="sr-only">
+            Video link
+          </label>
+          <input
+            id="watch-link"
+            type="url"
+            inputMode="url"
+            value={linkText}
+            onChange={(event) => typeLink(event.target.value)}
+            placeholder="PASTE A VIDEO LINK"
+            autoComplete="off"
+            spellCheck={false}
+            className={`${FIELD_TIGHT} min-w-0 flex-1`}
+          />
+          <button type="submit" className={PLATE} disabled={verdict === null || linkState.kind === 'checking'}>
+            [ + ADD ]
+          </button>
+        </div>
+        {/* Kept on screen with nothing in it, so the box above never moves. */}
+        <label htmlFor="watch-link-title" className="sr-only">
+          Title
+        </label>
+        <input
+          id="watch-link-title"
+          value={linkName}
+          maxLength={LINK_TITLE_MAX}
+          disabled={verdict === null || !verdict.ok}
+          onChange={(event) => {
+            setLinkName(event.target.value);
+            setNameTyped(true);
+          }}
+          placeholder="TITLE"
+          autoComplete="off"
+          className={`${FIELD_TIGHT} min-w-0`}
+        />
+        <p className="text-label font-bold text-ink" role="status" data-watch-link-state={linkState.kind}>
+          {linkState.kind === 'checking' ? (
+            'CHECKING THE LINK...'
+          ) : linkState.kind === 'queued' ? (
+            'QUEUED'
+          ) : linkState.kind === 'refused' ? (
+            <span className="bg-bubble-pale px-1 text-ink-bar">{linkState.reason}</span>
+          ) : (
+            ' '
+          )}
+        </p>
+      </form>
       {videos.length === 0 ? (
         <p className="text-label text-ink">NO VIDEOS YET.</p>
       ) : (
