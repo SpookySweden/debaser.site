@@ -10,6 +10,7 @@ import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
 import { displayCrop, versionCrop } from '../lib/profile/avatar-crop';
 import AvatarCropEditor from './AvatarCropEditor';
+import ChooseFileKey from './ChooseFileKey';
 import type { AvatarCrop } from '../lib/profile/avatar-crop';
 
 export type ProfileCustomiserPictureTabProps = {
@@ -102,18 +103,12 @@ export default function ProfileCustomiserPictureTab({
           {/* basis-64: room to read or onto its own line (34px wide beside the two pictures on a 430px phone). */}
           {/* HOW IT WORKS is the [ ? ] under the PICTURE heading (ProfileCustomiserWindow). */}
           <div className="min-w-0 flex-1 basis-64 space-y-2">
-            <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-upload">
-              UPLOAD (MAX {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB):
-            </label>
-            <input
+            <p className={CUSTOMISER_NOTE}>UPLOAD (MAX {Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB)</p>
+            <ChooseFileKey
               id="customise-upload"
-              type="file"
               accept={AVATAR_ACCEPT}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file !== undefined) onUpload(file);
-              }}
-              className="block w-full font-mono text-label text-ink max-sm:min-h-tap"
+              label={`Choose a picture to upload, up to ${Math.round(MAX_AVATAR_BYTES / (1024 * 1024))}MB`}
+              onChoose={onUpload}
             />
             {uploadMessage === null ? null : <p className="text-label font-bold text-ink">{uploadMessage}</p>}
           </div>

@@ -9,7 +9,7 @@ type UnsavedPromptProps = {
   /** What would be lost. Empty means the prompt should not be shown at all - see the caller. */
   changes: readonly UnsavedChange[];
   /** What the reader was trying to do, so the prompt says *that* rather than a generic warning. */
-  intent: 'close' | 'switch-tab';
+  intent: 'close' | 'switch-tab' | 'leave';
   /** Go back to the work, having discarded nothing. */
   onStay: () => void;
   /** Lose the changes and continue what was asked for. */
@@ -39,7 +39,7 @@ export default function UnsavedPrompt({ changes, intent, onStay, onDiscard, onSa
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
 
-  const what = intent === 'close' ? 'CLOSING' : 'SWITCHING TAB';
+  const what = intent === 'close' ? 'CLOSING' : intent === 'leave' ? 'LEAVING' : 'SWITCHING TAB';
 
   return (
     <PopoutWindow

@@ -5,6 +5,7 @@ import type { PublicProfile } from '../lib/profile/types';
 import { commentCountForSongVersion, currentSongVersion, songVersionsNewestFirst } from '../lib/profile/visibility';
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import ChooseFileKey from './ChooseFileKey';
 import TimeStamp from './TimeStamp';
 
 export type ProfileCustomiserSongTabProps = {
@@ -80,18 +81,12 @@ export default function ProfileCustomiserSongTab({
               {pendingSrc === null ? 'NOTHING CHOSEN.' : `READY: ${pendingSrc}`}
             </p>
 
-            <label className={`${CUSTOMISER_NOTE} block`} htmlFor="customise-song-upload">
-              UPLOAD (MAX {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB):
-            </label>
-            <input
+            <p className={CUSTOMISER_NOTE}>UPLOAD (MAX {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB)</p>
+            <ChooseFileKey
               id="customise-song-upload"
-              type="file"
               accept={MUSIC_ACCEPT}
-              onChange={(event) => {
-                const file = event.target.files?.[0];
-                if (file !== undefined) onUpload(file);
-              }}
-              className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-label font-bold text-ink max-sm:min-h-tap"
+              label={`Choose a track to upload, up to ${Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB`}
+              onChoose={onUpload}
             />
 
             {uploadMessage === null ? null : <p className="text-label font-bold text-ink">{uploadMessage}</p>}

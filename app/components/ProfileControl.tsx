@@ -140,8 +140,9 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
               onClick={() => setOpen(false)}
               role="menuitem"
             >
+              {/* Not ☻: that is USERS' mark further down, and two rows wearing one mark read as one place. */}
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
-                ☻
+                ◉
               </span>
               <span>VIEW PROFILE</span>
             </Link>

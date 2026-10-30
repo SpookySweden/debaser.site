@@ -1,5 +1,6 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { MUSIC_BUCKET } from '../lib/audio/catalogue';
 import { useCatalogue } from '../lib/media/catalogue';
@@ -23,9 +24,11 @@ import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
 import CharacterEditorPanel from './CharacterEditorPanel';
-import InfoFold from './InfoFold';
 
 type TabKey = 'profile' | 'character' | 'privacy';
+
+/** What the reader asked for that could lose unsaved work: shut the window, change tab, or go to the profile. */
+type Intent = { kind: 'close' } | { kind: 'tab'; tab: TabKey } | { kind: 'view' };
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'profile', label: '[ PROFILE ]' },
@@ -46,11 +49,38 @@ const TABS: { key: TabKey; label: string }[] = [
  * and Nigrosine on Black (1.18:1) in the other. `Temp/check-themes.cjs` reads this literal's pair, and
  * that is what found it.
  */
+const PANEL_BAR = 'bg-ena-deep px-2 py-1 text-label font-bold text-ink-bar';
+
 function PanelHeading({ children, tip }: { children: React.ReactNode; tip?: string }) {
   return (
-    <p title={tip} className="bg-ena-deep px-2 py-1 text-label font-bold text-ink-bar">
+    <p title={tip} className={PANEL_BAR}>
       {children}
     </p>
+  );
+}
+
+/**
+ * A heading whose explanation folds open from its own bar.
+ *
+ * The `[ ? ]` used to sit alone on a line under the heading, which made the section look emptier than it was. Now
+ * the whole bar is the fold's switch, with the `[ ? ]` at its right end in the bar's own ink (the accent ink would
+ * not hold its contrast on this band in every theme), and the words open underneath it like `InfoFold`'s.
+ */
+function PanelHeadingWithHelp({ title, topic, children }: { title: string; topic: string; children: React.ReactNode }) {
+  return (
+    <details className="group">
+      <summary
+        aria-label={`${title}: about ${topic}`}
+        className={`${PANEL_BAR} flex cursor-pointer items-center justify-between focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble`}
+      >
+        <span>{title}</span>
+        <span aria-hidden="true">
+          <span className="group-open:hidden">[ ? ]</span>
+          <span className="hidden group-open:inline">[ × ]</span>
+        </span>
+      </summary>
+      <div className="mt-1 px-3 text-label text-ink-quiet">{children}</div>
+    </details>
   );
 }
 
@@ -74,6 +104,9 @@ type ProfileCustomiserWindowProps = {
 export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCustomiserWindowProps) {
   const { profile, repository } = usePublicProfile(userId);
   const auth = useAuth();
+  const router = useRouter();
+  const pathname = usePathname();
+  const profileHref = `/profile/${encodeURIComponent(userId)}`;
 
   const [tab, setTab] = useState<TabKey>('profile');
   const [busy, setBusy] = useState(false);
@@ -127,9 +160,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
    * about it, and the `onStay` handler has to put them back where they were - so the tab they were *leaving* is
    * what has to be remembered, and `pendingIntent` carries both which action and where it was going.
    */
-  const [pendingIntent, setPendingIntent] = useState<
-    { kind: 'close' } | { kind: 'tab'; tab: TabKey } | null
-  >(null);
+  const [pendingIntent, setPendingIntent] = useState<Intent | null>(null);
 
   /**
    * Everything unsaved, in tab order, recomputed on every render from the drafts.
@@ -219,7 +250,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
    * current tab is either checking which one they are on or missing the one beside it, and a warning for that would
    * be noise.
    */
-  function guard(intent: { kind: 'close' } | { kind: 'tab'; tab: TabKey }) {
+  function guard(intent: Intent) {
     if (intent.kind === 'tab' && intent.tab === tab) return;
     if (unsaved.length === 0) {
       finish(intent);
@@ -230,11 +261,18 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   }
 
   /** Carry out what was asked, once it is safe to. */
-  function finish(intent: { kind: 'close' } | { kind: 'tab'; tab: TabKey }) {
+  function finish(intent: Intent) {
     setPendingIntent(null);
 
     if (intent.kind === 'close') {
       onClose();
+      return;
+    }
+
+    // Already on the profile (the key on its own title line opened this): closing is the whole trip.
+    if (intent.kind === 'view') {
+      onClose();
+      if (pathname !== profileHref) router.push(profileHref);
       return;
     }
 
@@ -562,11 +600,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
           makes the page they add up to visible while you work on it. */}
       {tab === 'profile' ? (
         <div className="space-y-3">
-          {/* HOW IT WORKS: behind a [ ? ] under the heading (SPEC-less-text.md), not a hover tip a phone never shows. */}
-          <PanelHeading>PICTURE</PanelHeading>
-          <InfoFold topic="picture versions" className="px-3">
+          {/* HOW IT WORKS: behind a [ ? ] on the heading's bar (SPEC-less-text.md), not a hover tip a phone never shows. */}
+          <PanelHeadingWithHelp title="PICTURE" topic="picture versions">
             FILING MAKES A NEW VERSION (P{profile.avatar.versions.length + 1}). OLD ONES STAY IN THE HISTORY WITH THEIR COMMENTS.
-          </InfoFold>
+          </PanelHeadingWithHelp>
           <ProfileCustomiserPictureTab
             profile={profile}
             pendingSrc={pendingSrc}
@@ -676,7 +713,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     pendingIntent === null ? null : (
       <UnsavedPrompt
         changes={unsaved}
-        intent={pendingIntent.kind === 'close' ? 'close' : 'switch-tab'}
+        intent={pendingIntent.kind === 'close' ? 'close' : pendingIntent.kind === 'view' ? 'leave' : 'switch-tab'}
         onStay={() => setPendingIntent(null)}
         onDiscard={() => {
           // Discard first, then carry out what was asked: the order matters, because `finish` closes the window
@@ -710,8 +747,15 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             <span aria-live="polite" className="inline-block w-12 text-right text-label text-ink">
               {savedTick > 0 ? 'SAVED' : ''}
             </span>
+            {/* Through the same gate as closing: a plain link here used to leave the page and lose
+                unsaved work without asking. Still a real link, so a middle-click opens a new tab. */}
             <a
-              href={`/profile/${encodeURIComponent(userId)}`}
+              href={profileHref}
+              onClick={(event) => {
+                if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+                event.preventDefault();
+                guard({ kind: 'view' });
+              }}
               className="key px-1 py-1 max-sm:inline-flex max-sm:min-h-tap max-sm:items-center"
             >
               [ VIEW PROFILE ]
