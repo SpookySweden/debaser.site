@@ -58,7 +58,7 @@ const TOOLS: Record<ToolId, { label: string; status: string; hint: string }> = {
   add: {
     label: 'ADD',
     status: 'PICK A SHAPE',
-    hint: 'PICK A SHAPE, CLICK THE NODE IT HANGS FROM, DRAG IT INTO PLACE, THEN ✓.',
+    hint: 'PICK A SHAPE, CLICK THE NODE IT HANGS FROM, THEN CLICK INSIDE THE RING TO PLACE IT.',
   },
   move: {
     label: 'MOVE',
@@ -419,6 +419,7 @@ function OptionsBar() {
 /** A ✗ first (it works before the new thing is out, when there is no ✗ beside it yet), what is being placed, and the one thing to do next. */
 function PlacingOptions() {
   const placing = useCharacterStore((state) => state.placing);
+  const figure = useCharacterStore((state) => state.figure);
   const cancelPlacing = useCharacterStore((state) => state.cancelPlacing);
   if (placing === null) return null;
 
@@ -427,9 +428,14 @@ function PlacingOptions() {
   const [next, hint] =
     placing.stage === 'node'
       ? placing.what === 'shape'
-        ? ['CLICK A NODE', 'CLICK THE NODE THE NEW SHAPE HANGS FROM. IT APPEARS THERE, PINNED TO IT.']
+        ? ['CLICK A NODE', 'CLICK THE NODE THE NEW SHAPE HANGS FROM. IT FOLLOWS THE POINTER IN A RING ROUND IT.']
         : ['CLICK A NODE', 'CLICK THE NODE THE NEW NODE HANGS FROM: ITS PARENT.']
-      : ['DRAG, THEN ✓', 'DRAG TO MOVE. ✓ KEEPS, ✗ CANCELS.'];
+      : placing.what === 'shape'
+        ? [
+            placingBlock(figure, placing) === null ? 'CLICK IN THE RING' : 'TOUCHES NOTHING HERE',
+            'MOVE IT INSIDE THE RING AND CLICK TO PLACE IT, PINNED TO ITS NODE. ON A TOUCH SCREEN DRAG IT, THEN ✓. ESC CANCELS.',
+          ]
+        : ['DRAG, THEN ✓', 'DRAG TO MOVE. ✓ KEEPS, ✗ CANCELS.'];
 
   return (
     <>
@@ -667,7 +673,8 @@ function View({ kind, label, hint }: { kind: ViewportKind; label: string; hint: 
  * The ✓ and ✗ of a placement, beside the new shape (at its top-right corner) or the new node, in each view - so they
  * are in reach whichever view the drag happens in. Absolutely positioned over the view and kept inside it, so they
  * move nothing and never fall off its edge. ✓ rests, with the reason in its tooltip, while the new shape touches
- * nothing valid. Thumb-sized on a phone.
+ * nothing valid. Thumb-sized on a phone. A new shape placed with a mouse is kept by a click in its ring, so its pair
+ * shows only once a finger (or pen) has moved it.
  */
 function PlacingButtons({ view }: { view: ViewportKind }) {
   const placing = useCharacterStore((state) => state.placing);
@@ -689,7 +696,9 @@ function PlacingButtons({ view }: { view: ViewportKind }) {
 
   let anchor: Vec3 | null = null;
   if (placing !== null && placing.stage === 'place') {
-    if (placing.what === 'shape') {
+    if (placing.what === 'shape' && !placing.touch) {
+      anchor = null;
+    } else if (placing.what === 'shape') {
       const box = screenBox(figure, placing.id, view, sagOf(figure).placements[placing.id]);
       if (box !== null) {
         const { right, up } = VIEW_BASIS[view];

@@ -20,7 +20,9 @@
  * drawn where sag tips it (`sag.ts`); what it is built as is never changed by that.
  *
  * **While placing** (ADD or +NODE) a sheet in front of everything takes every press: first to pick the node nearest
- * the pointer, then to drag the new shape or node from anywhere in the view. Nothing else can be grabbed meanwhile.
+ * the pointer, then to drag the new node from anywhere in the view - or, for a new shape, to have it follow the
+ * pointer inside the dotted ring round its node (`place.ts`) until a click in the ring keeps it. Nothing else can be
+ * grabbed meanwhile.
  */
 import { OrthographicCamera } from '@react-three/drei';
 import { Canvas, useThree, type ThreeEvent } from '@react-three/fiber';
@@ -41,6 +43,7 @@ import { unitGeometry } from '../lib/character/geometry';
 import { sagOf } from '../lib/character/sag';
 import { childrenOf, jointFrames, lengthOf, type Vec3 } from '../lib/character/skeleton';
 import { useCharacterStore, type GestureStart, type ToolId } from '../lib/character/store';
+import { insideRing } from '../lib/character/place';
 import { bareNodes, brokenShapes } from '../lib/character/structure';
 import { flatMaterial, PixelRender } from './CharacterPixelRender';
 
@@ -81,6 +84,7 @@ const ViewInfo = createContext<ViewContext>({ view: 'front', upp: 1 / 150, coars
 export default function CharacterScene({ view }: { view: ViewportKind }) {
   const tool = useCharacterStore((state) => state.tool);
   const stage = useCharacterStore((state) => state.placing?.stage ?? null);
+  const following = useCharacterStore((state) => state.placing?.stage === 'place' && state.placing.what === 'shape');
 
   return (
     <Canvas
@@ -89,7 +93,9 @@ export default function CharacterScene({ view }: { view: ViewportKind }) {
       // No tone mapping, so the overlays drawn with three's own materials (skeleton, wires, transform box, marks)
       // land on their palette values exactly. The pixel figure's passes are shaders that were never tone-mapped.
       flat
-      className={stage === 'node' ? 'cursor-pointer' : stage === 'place' ? 'cursor-move' : CURSOR_FOR_TOOL[tool]}
+      className={
+        stage === 'node' ? 'cursor-pointer' : following ? 'cursor-crosshair' : stage === 'place' ? 'cursor-move' : CURSOR_FOR_TOOL[tool]
+      }
     >
       <Fitted view={view}>
         <Layered />
@@ -121,6 +127,7 @@ function Layered() {
         <SelectionBox />
         <Bones />
         <BrokenMarks />
+        <PlacingRing />
       </group>
       {/* Only the FRONT view counts its pixels: the PIXELS stat is the front render's. */}
       <PixelRender groups={groups} countPixels={view === 'front'} />
@@ -281,14 +288,35 @@ function PlacingSheet() {
       onPointerMove={(event) => {
         const store = useCharacterStore.getState();
         if (store.placing?.stage === 'node') store.hoverPlacingNode(nearestNode(event.point));
+        // A new shape follows a mouse as it moves, and a finger (or pen) only while it is down.
+        const mouse = event.nativeEvent.pointerType === 'mouse';
+        if (store.gesture === null && (mouse || event.nativeEvent.buttons !== 0)) {
+          store.followPlacing(view, event.point, !mouse);
+        }
       }}
       onPointerOut={() => useCharacterStore.getState().hoverPlacingNode(null)}
       onPointerDown={(event) => {
         event.stopPropagation();
         const store = useCharacterStore.getState();
-        if (store.placing?.stage === 'node') {
+        const placing = store.placing;
+        if (placing?.stage === 'node') {
           const id = nearestNode(event.point);
           if (id !== null) store.pickPlacingNode(id);
+          return;
+        }
+        if (placing?.stage === 'place' && placing.what === 'shape') {
+          // A finger puts the shape under it and drags it; ✓ keeps it. A click inside the ring keeps it there (unless
+          // it touches nothing valid there, when ✓ would be refused too); a click outside the ring does nothing.
+          const mouse = event.nativeEvent.pointerType === 'mouse';
+          if (mouse && event.nativeEvent.button !== 0) return;
+          if (!mouse) {
+            store.followPlacing(view, event.point, true);
+            return;
+          }
+          const node = jointFrames(store.figure.skeleton)[placing.nodeId]?.position;
+          if (node === undefined || !insideRing(view, event.point, node, placing.radius)) return;
+          store.followPlacing(view, event.point, false);
+          store.confirmPlacing();
           return;
         }
         startDrag(event, { kind: 'place', view, upp });
@@ -299,6 +327,35 @@ function PlacingSheet() {
     </mesh>
   );
 }
+
+/**
+ * ADD's ring: a dotted circle round the node a new shape is being placed on, which the shape cannot leave. A guide,
+ * not artwork - dashes of the highlight pink, drawn over everything at the ring's real size.
+ */
+function PlacingRing() {
+  const { view } = useContext(ViewInfo);
+  const placing = useCharacterStore((state) => state.placing);
+  const skeleton = useCharacterStore((state) => state.figure.skeleton);
+  const ring = placing !== null && placing.stage === 'place' && placing.what === 'shape' ? placing : null;
+  const node = ring === null ? undefined : jointFrames(skeleton)[ring.nodeId]?.position;
+  if (ring === null || node === undefined) return null;
+
+  const { right, up } = VIEW_BASIS[view];
+  const at = (angle: number): Vec3 => {
+    const h = Math.cos(angle) * ring.radius;
+    const v = Math.sin(angle) * ring.radius;
+    return { x: node.x + right.x * h + up.x * v, y: node.y + right.y * h + up.y * v, z: node.z + right.z * h + up.z * v };
+  };
+  const points: Vec3[] = [];
+  for (let i = 0; i < RING_DASHES; i += 1) {
+    const step = (Math.PI * 2) / RING_DASHES;
+    points.push(at(i * step), at((i + 0.5) * step));
+  }
+  return <Segments points={points} colour={MODEL_HIGHLIGHT} />;
+}
+
+/** How many dashes make the ring. */
+const RING_DASHES = 40;
 
 function Shapes() {
   const figure = useCharacterStore((state) => state.figure);

@@ -23,7 +23,18 @@ Read this before touching how shapes connect, sag or get placed (`app/lib/charac
   and loading bring them back for free. Sag is applied when drawing only.
 
 ## Placing (ADD and +NODE)
-- Pick a shape (or +NODE), click a node, drag from anywhere in either view, then ✓ or ✗. ESC is ✗ - unless the ADD
+- +NODE: click a node, drag from anywhere in either view, then ✓ or ✗.
+- ADD: pick a shape, click a node (skipped when a node is already selected, e.g. from POSE). A dotted pink ring is
+  drawn round the node in both views (`place.ts`) and the new shape starts on it, pointing away from the root, never
+  buried at the node. With a mouse the shape's centre follows the pointer in whichever view it is over, held inside
+  the ring (outside, it stops on the edge; the view's hidden direction is kept); a click inside the ring keeps it,
+  pinned to that node, as one undo step; a click outside does nothing. On a touch screen a finger drags it the same
+  way, and ✓ / ✗ show by the shape once it has moved (`placing.touch`). A spot where it touches nothing is refused
+  like ✓, and the bar says TOUCHES NOTHING HERE.
+- **The ring's radius**: the farthest outline already pinned to the node (sampled in 26 directions from the node),
+  plus half a new shape, never less than one new shape (`RING_MIN`, 0.24). Fixed when the node is picked. The hips
+  ring is big (about 1.0 on BASE) because the legs hang from the hips. Proven by `Temp/check-character-place.cjs`.
+- ESC is ✗ - unless the ADD
   menu or the light pad is open (ESC shuts that first), or the key was pressed in another window such as the shelf.
   A press in a view leaves focus on the customiser window, which is *around* the workbench, so that ESC still counts.
 - The figure from before is `placing.base`; drags while placing file nothing; ✓ files `base` once (one undo step); ✗

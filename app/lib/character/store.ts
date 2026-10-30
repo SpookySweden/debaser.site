@@ -14,9 +14,11 @@
  * lasts: `beginGesture` remembers the starting figure, each frame recomputes from it, and `endGesture` files the
  * start once - and only if something actually changed, so a click is not an undo step.
  *
- * **Placing is one edit too.** ADD (a shape) and +NODE both run the same flow: pick a node, drag the new thing where
- * it goes, then ✓ or ✗. The figure from before the flow is kept (`placing.base`); drags while placing file nothing;
- * ✓ files the base once, and ✗ (or ESC) puts it back exactly.
+ * **Placing is one edit too.** ADD (a shape) and +NODE both start by picking a node (ADD skips that when a node is
+ * already selected). A new node is then dragged and ✓'d. A new shape follows the pointer inside a ring round its node
+ * (`place.ts`) and a click in the ring keeps it; on a touch screen it is dragged, then ✓'d. The figure from before
+ * the flow is kept (`placing.base`); moves while placing file nothing; keeping files the base once, and ✗ (or ESC)
+ * puts it back exactly.
  */
 import { create } from 'zustand';
 import {
@@ -54,6 +56,7 @@ import {
   type LightAngles,
   type LightStep,
 } from './pixel-render';
+import { followTo, ringRadius, ringStart } from './place';
 import { buildDefaultFigure, type RigPresetId } from './rig';
 import type { MassShapeId } from './shapes';
 import { addVec3, jointFrames, type Vec3 } from './skeleton';
@@ -64,7 +67,7 @@ import { problemText, structureOf } from './structure';
  *
  *   select  click a shape to pick it; the picked one shows a transform box (drag it to move, edge squares to size,
  *           the knob above to turn) - the all-in-one tool most people will stay on
- *   add     pick a shape from its menu, then a node, then drag it into place and ✓
+ *   add     pick a shape from its menu, then a node (or have one selected), then click inside the ring round it
  *   move    drag any shape to slide it
  *   turn    drag any shape to spin it round its centre
  *   size    drag any shape: sideways for width, up and down for height
@@ -92,13 +95,15 @@ export const HISTORY_LIMIT = 100;
 export const NEW_NODE_OFFSET: Vec3 = { x: 0.15, y: 0.15, z: 0 };
 
 /**
- * A placement in progress. `node` is the first stage (click a node); `place` is the second (drag, then ✓ or ✗).
- * `nodeId` is the node picked: the new shape's pin, or the new node's parent. `base` is the figure before the flow.
+ * A placement in progress. `node` is the first stage (click a node); `place` is the second (a shape follows the
+ * pointer in its ring and a click keeps it; a node is dragged, then ✓ or ✗). `nodeId` is the node picked: the new
+ * shape's pin, or the new node's parent. `base` is the figure before the flow. `radius` is the shape's ring, fixed
+ * when the node is picked; `touch` is set once a finger (or pen) has moved the shape, which is when ✓ / ✗ show by it.
  */
 export type Placing =
   | { what: 'shape'; kind: MassShapeId; stage: 'node' }
   | { what: 'node'; stage: 'node' }
-  | { what: 'shape'; kind: MassShapeId; stage: 'place'; nodeId: string; id: string; base: Figure }
+  | { what: 'shape'; kind: MassShapeId; stage: 'place'; nodeId: string; id: string; base: Figure; radius: number; touch: boolean }
   | { what: 'node'; stage: 'place'; nodeId: string; id: string; base: Figure };
 
 /** A drag in progress. `base` is the figure it started from; every frame is computed from it. */
@@ -179,7 +184,9 @@ type CharacterState = {
   hoverPlacingNode: (id: string | null) => void;
   /** The node clicked: the new shape appears on it, or the new node beside it. */
   pickPlacingNode: (id: string) => void;
-  /** ✓: keep it, as one undo step. Refused while the new shape touches nothing valid. */
+  /** A new shape follows a point (model units, seen in `view`), held inside its ring. `touch`: moved by a finger. */
+  followPlacing: (view: ViewportKind, point: Vec3, touch: boolean) => void;
+  /** ✓ (or a click in the ring): keep it, as one undo step. Refused while the new shape touches nothing valid. */
   confirmPlacing: () => void;
   /** ✗ or ESC: the figure goes back exactly as it was. */
   cancelPlacing: () => void;
@@ -248,6 +255,35 @@ function abandoned(state: CharacterState): Partial<CharacterState> {
     gesture: null,
     tool: state.tool === 'add' ? 'select' : state.tool,
     ...tidySelection(figure, state),
+  };
+}
+
+/** The node picked while placing: a new shape appears on its ring, pinned to it; a new node appears beside it. */
+function nodePicked(state: CharacterState, nodeId: string): Partial<CharacterState> {
+  const placing = state.placing;
+  const frame = jointFrames(state.figure.skeleton)[nodeId];
+  if (placing === null || placing.stage !== 'node' || frame === undefined) return {};
+
+  if (placing.what === 'shape') {
+    const radius = ringRadius(state.figure, nodeId);
+    const at = ringStart(state.figure, nodeId, radius) ?? frame.position;
+    const result = addShape(state.figure, { kind: placing.kind, at, pin: nodeId });
+    if (result.id === null) return {};
+    return {
+      figure: result.figure,
+      placing: { ...placing, stage: 'place', nodeId, id: result.id, base: state.figure, radius, touch: false },
+      placingHover: null,
+      selectedShapeId: result.id,
+    };
+  }
+
+  const result = addNode(state.figure, nodeId, addVec3(frame.position, NEW_NODE_OFFSET));
+  if (result.id === null) return {};
+  return {
+    figure: result.figure,
+    placing: { ...placing, stage: 'place', nodeId, id: result.id, base: state.figure },
+    placingHover: null,
+    selectedJointId: result.id,
   };
 }
 
@@ -345,8 +381,8 @@ export const useCharacterStore = create<CharacterState>((set) => ({
       const clean = { ...state, ...abandoned(state) } as CharacterState;
       if (request.what === 'shape' && clean.figure.shapes.length >= MAX_SHAPES) return state;
       if (request.what === 'node' && Object.keys(clean.figure.skeleton.joints).length >= MAX_NODES) return state;
-      return {
-        ...abandoned(state),
+      const started: CharacterState = {
+        ...clean,
         placing: request.what === 'shape' ? { what: 'shape', kind: request.kind, stage: 'node' } : { what: 'node', stage: 'node' },
         placingHover: null,
         tool: request.what === 'shape' ? 'add' : clean.tool,
@@ -354,35 +390,24 @@ export const useCharacterStore = create<CharacterState>((set) => ({
         selectedShapeId: null,
         lightPadOpen: false,
       };
+      // A new shape with a node already selected goes straight to that node: there is nothing to pick.
+      const node = clean.selectedJointId;
+      if (request.what === 'shape' && node !== null && clean.figure.skeleton.joints[node] !== undefined) {
+        return { ...started, ...nodePicked(started, node) };
+      }
+      return started;
     }),
 
   hoverPlacingNode: (id) => set((state) => (state.placingHover === id ? state : { placingHover: id })),
 
-  pickPlacingNode: (nodeId) =>
+  pickPlacingNode: (nodeId) => set((state) => nodePicked(state, nodeId)),
+
+  followPlacing: (view, point, touch) =>
     set((state) => {
       const placing = state.placing;
-      const frame = jointFrames(state.figure.skeleton)[nodeId];
-      if (placing === null || placing.stage !== 'node' || frame === undefined) return state;
-
-      if (placing.what === 'shape') {
-        const result = addShape(state.figure, { kind: placing.kind, at: frame.position, pin: nodeId });
-        if (result.id === null) return state;
-        return {
-          figure: result.figure,
-          placing: { ...placing, stage: 'place', nodeId, id: result.id, base: state.figure },
-          placingHover: null,
-          selectedShapeId: result.id,
-        };
-      }
-
-      const result = addNode(state.figure, nodeId, addVec3(frame.position, NEW_NODE_OFFSET));
-      if (result.id === null) return state;
-      return {
-        figure: result.figure,
-        placing: { ...placing, stage: 'place', nodeId, id: result.id, base: state.figure },
-        placingHover: null,
-        selectedJointId: result.id,
-      };
+      if (placing === null || placing.stage !== 'place' || placing.what !== 'shape') return state;
+      const figure = followTo(state.figure, placing.id, placing.nodeId, placing.radius, view, point);
+      return { figure, placing: touch && !placing.touch ? { ...placing, touch: true } : placing };
     }),
 
   confirmPlacing: () =>
