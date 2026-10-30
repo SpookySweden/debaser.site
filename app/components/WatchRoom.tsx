@@ -6,7 +6,7 @@ import { stopFollowing } from '../lib/audio/follow';
 import { threadDomId } from '../lib/forum/anchors';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
-import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useNow } from '../lib/ui/use-now';
 import { getWatchRepository } from '../lib/watch/repository';
@@ -508,7 +508,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   );
 
   const queue = (
-    <QueuePanel read={read} itemsById={itemsById} amHost={amHost && live} canAdd={user !== null && live} userId={user?.id ?? null} onFault={setFault} />
+    <QueuePanel
+      read={read}
+      itemsById={itemsById}
+      amHost={amHost && live}
+      canAdd={user !== null && live}
+      userId={user?.id ?? null}
+      compact={compact}
+      onFault={setFault}
+    />
   );
   const chat = <ChatPanel read={read} item={item} videoRef={videoRef} live={live} />;
 
@@ -548,21 +556,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
         <div className="min-w-0 flex-1">{stage}</div>
         <div className="flex flex-col gap-2 sm:w-80 sm:shrink-0">
-          {compact ? (
-            <>
-              {chat}
-              <details>
-                <summary className={`${TITLE_BAR} cursor-pointer list-none`}>QUEUE ({playOrder(read.queue).length + waiting.length})</summary>
-                {queue}
-              </details>
-            </>
-          ) : (
-            <>
-              <p className={TITLE_BAR}>QUEUE</p>
-              {queue}
-              {chat}
-            </>
-          )}
+          {queue}
+          {chat}
         </div>
       </div>
     </div>
@@ -577,6 +572,7 @@ function QueuePanel({
   amHost,
   canAdd,
   userId,
+  compact,
   onFault,
 }: {
   read: WatchRoomRead;
@@ -584,11 +580,21 @@ function QueuePanel({
   amHost: boolean;
   canAdd: boolean;
   userId: string | null;
+  /** On a phone the list folds under its title line; the add key stays on that line, outside the fold. */
+  compact: boolean;
   onFault: (message: string) => void;
 }) {
   const repository = getWatchRepository();
   const catalogue = useCatalogue();
   const [picking, setPicking] = useState(false);
+  const [unfolded, setUnfolded] = useState(false);
+  // The video just added reads QUEUED for a moment, so the picker can stay open for the next one.
+  const [justAdded, setJustAdded] = useState<string | null>(null);
+  useEffect(() => {
+    if (justAdded === null) return;
+    const timer = window.setTimeout(() => setJustAdded(null), 2000);
+    return () => window.clearTimeout(timer);
+  }, [justAdded]);
   const played = playOrder(read.queue);
   const waiting = upcoming(read.queue);
   const videos = catalogue.items.filter((item) => item.kind === 'video');
@@ -600,98 +606,117 @@ function QueuePanel({
     try {
       const entry = await repository.addToQueue({ roomId: read.room.id, mediaItemId, addedBy: userId, position: nextQueuePosition(read.queue) });
       applyLocalChange(read.room.id, { kind: 'entry', entry });
-      setPicking(false);
+      setJustAdded(mediaItemId);
     } catch (failure) {
       fail('THE FILE COULD NOT BE ADDED.')(failure);
     }
   }
 
+  const showList = !compact || unfolded;
+  // Labelled and ruled off, so its rows never read as the queue's own.
+  const picker = picking ? (
+    <div className="rule-pixel pb-1">
+      <p className="text-label text-ink-quiet">ADD A VIDEO</p>
+      {videos.length === 0 ? (
+        <p className="text-label text-ink">NO VIDEOS YET.</p>
+      ) : (
+        <ul className="max-h-48 overflow-y-auto" aria-label="Videos to add">
+          {videos.map((video) => (
+            <li key={video.id} className="rule-pixel flex items-center gap-1 py-0.5 text-label text-ink">
+              <span className="min-w-0 flex-1 wrap-anywhere">{video.title}</span>
+              {video.length.length === 0 ? null : <span className="shrink-0">{video.length}</span>}
+              {/* Its box is kept when empty, so the key beside it never moves. */}
+              <span className="w-14 shrink-0 text-right font-bold" role="status">
+                {justAdded === video.id ? 'QUEUED' : ''}
+              </span>
+              <button type="button" className={PLATE} onClick={() => void add(video.id)}>
+                [ ADD ]
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="flex flex-col gap-1">
-      <ol className="text-label text-ink" aria-label="Queue">
-        {played.map((entry) => {
-          const now = entry.id === read.room.currentEntryId;
-          return (
-            <li key={entry.id} className={`rule-pixel flex items-center gap-1 py-0.5 ${now ? 'font-bold' : 'text-ink-quiet'}`}>
-              <span className="w-12 shrink-0">{now ? '▶ NOW' : 'PLAYED'}</span>
-              <span className="min-w-0 flex-1 truncate">{titleOf(entry)}</span>
-            </li>
-          );
-        })}
-        {waiting.map((entry, index) => (
-          <li key={entry.id} className="rule-pixel flex items-center gap-1 py-0.5">
-            <span className="w-12 shrink-0">{index + 1}.</span>
-            <span className="min-w-0 flex-1 truncate">{titleOf(entry)}</span>
-            {amHost ? (
-              <span className="flex shrink-0 items-center">
-                <button
-                  type="button"
-                  className={PLATE}
-                  disabled={index === 0}
-                  aria-label={`Move ${titleOf(entry)} up`}
-                  onClick={() => void repository.reorderQueue(moveInQueue(read.queue, entry.id, -1)).catch(fail('THE QUEUE COULD NOT BE REORDERED.'))}
-                >
-                  [ ↑ ]
-                </button>
-                <button
-                  type="button"
-                  className={PLATE}
-                  disabled={index === waiting.length - 1}
-                  aria-label={`Move ${titleOf(entry)} down`}
-                  onClick={() => void repository.reorderQueue(moveInQueue(read.queue, entry.id, 1)).catch(fail('THE QUEUE COULD NOT BE REORDERED.'))}
-                >
-                  [ ↓ ]
-                </button>
-                <button
-                  type="button"
-                  className={PLATE}
-                  aria-label={`Take ${titleOf(entry)} out`}
-                  onClick={() =>
-                    void repository
-                      .removeFromQueue(entry.id)
-                      .then(() => applyLocalChange(read.room.id, { kind: 'removed', table: 'queue', id: entry.id }))
-                      .catch(fail('THE FILE COULD NOT BE TAKEN OUT.'))
-                  }
-                >
-                  [ × ]
-                </button>
-              </span>
-            ) : null}
-          </li>
-        ))}
-      </ol>
-      {waiting.length === 0 && played.length > 0 ? <p className="text-label text-ink-quiet">LAST FILE LOOPS.</p> : null}
-
-      {canAdd ? (
-        picking ? (
-          <div>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-label font-bold text-ink">ADD A VIDEO</span>
-              <button type="button" className={PLATE} onClick={() => setPicking(false)}>
-                [ × ]
-              </button>
-            </div>
-            {videos.length === 0 ? (
-              <p className="text-label text-ink">NO VIDEOS YET.</p>
-            ) : (
-              <ul className="max-h-40 overflow-y-auto">
-                {videos.map((video) => (
-                  <li key={video.id} className="rule-pixel flex items-center gap-1 py-0.5 text-label text-ink">
-                    <span className="min-w-0 flex-1 truncate">{video.title}</span>
-                    {video.length.length === 0 ? null : <span className="shrink-0">{video.length}</span>}
-                    <button type="button" className={PLATE} onClick={() => void add(video.id)}>
-                      [ ADD ]
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <button type="button" className={`${PLATE} w-fit`} onClick={() => setPicking(true)}>
-            [ + ADD ]
+      <div className={TITLE_BAR}>
+        {compact ? (
+          <button type="button" className="cursor-pointer max-sm:min-h-tap" aria-expanded={unfolded} onClick={() => setUnfolded((value) => !value)}>
+            QUEUE ({played.length + waiting.length}) {unfolded ? '▴' : '▾'}
           </button>
-        )
+        ) : (
+          <span>QUEUE</span>
+        )}
+        {canAdd ? (
+          <button
+            type="button"
+            className={picking ? `${TITLE_BAR_BUTTON} key-fill key-on [--key-fill:var(--color-ink)] text-paper` : TITLE_BAR_BUTTON}
+            aria-pressed={picking}
+            onClick={() => setPicking((value) => !value)}
+          >
+            {picking ? '[ DONE ]' : '[ + ADD VIDEO ]'}
+          </button>
+        ) : null}
+    </div>
+      {picker}
+      {showList ? (
+        <>
+          <ol className="text-label text-ink" aria-label="Queue">
+            {played.map((entry) => {
+              const now = entry.id === read.room.currentEntryId;
+              return (
+                <li key={entry.id} className={`rule-pixel flex items-center gap-1 py-0.5 ${now ? 'font-bold' : 'text-ink-quiet'}`}>
+                  <span className="w-14 shrink-0">{now ? '▶ NOW' : 'PLAYED'}</span>
+                  <span className="min-w-0 flex-1 wrap-anywhere">{titleOf(entry)}</span>
+                </li>
+              );
+            })}
+            {waiting.map((entry, index) => (
+              <li key={entry.id} className="rule-pixel flex items-center gap-1 py-0.5">
+                <span className="w-14 shrink-0">{index + 1}.</span>
+                <span className="min-w-0 flex-1 wrap-anywhere">{titleOf(entry)}</span>
+                {amHost ? (
+                  <span className="flex shrink-0 items-center">
+                    <button
+                      type="button"
+                      className={PLATE}
+                      disabled={index === 0}
+                      aria-label={`Move ${titleOf(entry)} up`}
+                      onClick={() => void repository.reorderQueue(moveInQueue(read.queue, entry.id, -1)).catch(fail('THE QUEUE COULD NOT BE REORDERED.'))}
+                    >
+                      [ ↑ ]
+                    </button>
+                    <button
+                      type="button"
+                      className={PLATE}
+                      disabled={index === waiting.length - 1}
+                      aria-label={`Move ${titleOf(entry)} down`}
+                      onClick={() => void repository.reorderQueue(moveInQueue(read.queue, entry.id, 1)).catch(fail('THE QUEUE COULD NOT BE REORDERED.'))}
+                    >
+                      [ ↓ ]
+                    </button>
+                    <button
+                      type="button"
+                      className={PLATE}
+                      aria-label={`Take ${titleOf(entry)} out`}
+                      onClick={() =>
+                        void repository
+                          .removeFromQueue(entry.id)
+                          .then(() => applyLocalChange(read.room.id, { kind: 'removed', table: 'queue', id: entry.id }))
+                          .catch(fail('THE FILE COULD NOT BE TAKEN OUT.'))
+                      }
+                    >
+                      [ × ]
+                    </button>
+                  </span>
+                ) : null}
+              </li>
+            ))}
+          </ol>
+          {waiting.length === 0 && played.length > 0 ? <p className="text-label text-ink-quiet">LAST FILE LOOPS.</p> : null}
+        </>
       ) : null}
     </div>
   );
