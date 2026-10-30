@@ -12,6 +12,7 @@ import { useNotifications } from './NotificationsProvider';
 import { NotificationMenuButton } from './NotificationBell';
 import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
+import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileName from './ProfileName';
 import { displayCrop, type AvatarCrop } from '../lib/profile/avatar-crop';
 
@@ -85,6 +86,7 @@ type ProfilePictureMenuProps = {
  */
 export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarCrop, unreadNotifications }: ProfilePictureMenuProps) {
   const [open, setOpen] = useState(false);
+  const [customising, setCustomising] = useState(false);
   const compact = useCompactViewport();
   const news = unreadNotifications === 0 ? '' : `, ${unreadNotifications} new`;
 
@@ -141,8 +143,26 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
               <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
                 ☻
               </span>
-              <span>MY PROFILE</span>
+              <span>VIEW PROFILE</span>
             </Link>
+
+            {/* Its own row, under VIEW: the editor was two hops away (ACCOUNT, then EDIT) and a
+                test run missed it (2026-10-30). The same pop-up the account page opens. */}
+            <button
+              type="button"
+              className={MENU_ITEM}
+              onClick={() => {
+                setOpen(false);
+                setCustomising(true);
+              }}
+              aria-haspopup="dialog"
+              role="menuitem"
+            >
+              <span aria-hidden="true" className="w-4 shrink-0 text-center text-label">
+                ✎
+              </span>
+              <span>EDIT PROFILE</span>
+            </button>
 
             <p className="border-b-line border-ink pb-1 pt-1">EVERYWHERE ELSE</p>
 
@@ -178,6 +198,8 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarC
           </div>
         </>
       ) : null}
+
+      {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
     </div>
   );
 }

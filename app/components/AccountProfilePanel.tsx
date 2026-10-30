@@ -7,7 +7,7 @@ import { elementAsTrack } from '../lib/audio/profile-track';
 import { currentProfileElement } from '../lib/profile/elements';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
-import { PLATE_LINK } from '../lib/ui/controls';
+import { PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
@@ -81,7 +81,9 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
         <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
           {/* No name here: ACCOUNT DETAILS below names the account once (SPEC-less-text.md). */}
           <div className="flex flex-wrap items-center gap-1 pt-1">
-            <button type="button" onClick={() => setCustomising(true)} className={PLATE_LINK}>
+            {/* The page's one main action: editing is what a reader comes here for, viewing is the
+                side road (a test run could not tell the two apart, 2026-10-30). */}
+            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE_MAIN}>
               [ EDIT PROFILE ]
             </button>
             <Link

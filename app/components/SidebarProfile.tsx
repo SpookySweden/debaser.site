@@ -15,7 +15,7 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
-import { TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, TITLE_BAR } from '../lib/ui/controls';
 import { displayCrop } from '../lib/profile/avatar-crop';
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
@@ -33,15 +33,15 @@ const MENU_ROW =
  * screen, and that is the top banner's `[ LOG IN ]` (SPEC-efficiency.md) - the panel's
  * old sentence and its own `[ LOG IN OR CREATE AN ACCOUNT ]` were the second and third
  * saying of it. Signed in it is the visitor's own card, and it carries four things:
- * their picture and their name, both of which open their public profile; a pencil,
+ * their picture and their name, both of which open their public profile; an `[ EDIT PROFILE ]` key,
  * which opens the customiser; the status they wrote, when they wrote one; and a cog,
  * which opens the account's own menu.
  *
  * Two verbs, two controls, and the difference is deliberate. Pressing a name means
- * "show me this account" and pressing the pencil means "let me change mine", so a
+ * "show me this account" and pressing EDIT means "let me change mine", so a
  * reader who meant one of them does not get the other - which is what a single
- * control that guessed from the current page would do. The pencil and the cog are
- * the same shapes a desktop uses for exactly these two jobs, so they need no label.
+ * control that guessed from the current page would do. The cog is
+ * the shape a desktop uses for that job, so it needs no label.
  *
  * The three states are told apart by `status` rather than by `user === null`, and that distinction
  * is the whole point of this component. `user` is null while the session is still being read, so a
@@ -97,9 +97,9 @@ export default function SidebarProfile() {
       ) : status === 'signed-in' && user !== null ? (
         <div className="space-y-2 p-2">
           {/*
-            The picture and the name are the door to the public profile, and the pencil beside them is
+            The picture and the name are the door to the public profile, and the EDIT key under them is
             the door to editing it. Two verbs, two controls, and the difference is the whole point:
-            a reader clicking a name means "show me this account", and a reader clicking a pencil means
+            a reader clicking a name means "show me this account", and a reader clicking EDIT means
             "let me change mine". One control doing both would be a switch that depends on which page
             you happened to be standing on.
           */}
@@ -115,21 +115,10 @@ export default function SidebarProfile() {
             </ProfileLink>
 
             <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
-              <p className="flex items-center gap-1">
-                <ProfileLink author={{ id: user.id, displayName: user.displayName }} className="min-w-0 truncate">
+              <p className="truncate">
+                <ProfileLink author={{ id: user.id, displayName: user.displayName }}>
                   <ProfileName author={{ id: user.id, displayName: user.displayName }} />
                 </ProfileLink>
-
-                <button
-                  type="button"
-                  onClick={() => setCustomising(true)}
-                  aria-haspopup="dialog"
-                  aria-label="Edit your public profile"
-                  title="Edit your public profile"
-                  className="shrink-0 cursor-pointer key px-0.5 leading-none"
-                >
-                  <span aria-hidden="true">✎</span>
-                </button>
               </p>
 
               {/* What they wrote, not when they joined. A join date is a fact that never moves, so it
@@ -141,6 +130,11 @@ export default function SidebarProfile() {
                   <span className="text-ink">{profile.status}</span>
                 </p>
               )}
+
+              {/* Said in words: an unlabelled pencil was missed in a test run (2026-10-30). */}
+              <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
+                [ EDIT PROFILE ]
+              </button>
             </div>
           </div>
 
@@ -194,7 +188,7 @@ export default function SidebarProfile() {
       )}
 
       {/* The same pop-up the account page opens (`./AccountProfilePanel.tsx`), so there is one
-          customiser rather than two that drift: this is the pencil's destination, not a second copy. */}
+          customiser rather than two that drift: this is the EDIT key's destination, not a second copy. */}
       {customising && user !== null ? (
         <ProfileCustomiserWindow userId={user.id} onClose={() => setCustomising(false)} />
       ) : null}

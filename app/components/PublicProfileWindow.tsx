@@ -18,6 +18,7 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
 import { canCommentOnProfile, hiddenProfileCommentCount, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
 import { HYPER_ARROW } from '../lib/ui/hypertext';
+import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import CommentRow, { commentRowData } from './CommentRow';
 import CountryFlag from './CountryFlag';
@@ -28,6 +29,7 @@ import ProfileBoardActivity from './ProfileBoardActivity';
 import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
 import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
+import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileStatusBar from './ProfileStatusBar';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
@@ -93,6 +95,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
   // or the profile itself. The menu above both columns is the only way in (see
   // ./ProfileCommentMenu), so these three options are what it offers.
   const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
+  const [customising, setCustomising] = useState(false);
   const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
   // The feed carries the whole page rather than one list of it - the profile's own remarks, the
   // picture's and the track's - so it is read through its own selector: each kind gated by the
@@ -129,6 +132,13 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
           <span style={nameColour === undefined ? undefined : { color: nameColour }}>
             {displayName.toUpperCase()}
           </span>
+          {/* The owner's way into the customiser: clicking your own name lands here, so this page must
+              not be a dead end for somebody who came to change it (a test run, 2026-10-30). */}
+          {owner ? (
+            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
+              [ EDIT PROFILE ]
+            </button>
+          ) : null}
         </div>
 
         {/* One comment control for the whole profile, above both columns, drawn whether or
@@ -255,6 +265,8 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             that age on their own. */}
         <ProfileStatusBar userId={userId} />
       </section>
+
+      {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
 
       {commentingOn === null ? null : (
         <ProfileCommentWindow
