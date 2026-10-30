@@ -26,7 +26,7 @@ export type WatchRoom = {
   endedAt: string | null;
 };
 
-/** Which player a link needs (SPEC-watch-links.md). Only `file` plays so far; the rest are the build order's later steps. */
+/** Which player a link needs (SPEC-watch-links.md). `file`, `hls` and `dash` play so far; the sites are the build order's later steps. */
 export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch';
 
 /** A video link in the queue: only its address, its player and its title are kept, never the video. */

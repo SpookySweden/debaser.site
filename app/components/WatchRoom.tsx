@@ -9,7 +9,7 @@ import type { MediaItem } from '../lib/media/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useNow } from '../lib/ui/use-now';
-import { LINK_TITLE_MAX, linkTitle, probeVideoLink, recognizeLink } from '../lib/watch/links';
+import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink } from '../lib/watch/links';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -32,6 +32,7 @@ import {
 } from '../lib/watch/rules';
 import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
+import { attachStream, checkLink, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -89,6 +90,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   /** What the stage plays: the link's own address, or the catalogue file's. */
   const src = link?.url ?? item?.src;
   const entryTitle = link?.title ?? item?.title;
+  const entryId = entry?.id ?? null;
+  /** A streaming link's player (hls.js / dash.js) while one is on; the stage's `src` is then its business. */
+  const streamRef = useRef<StreamHandle | null>(null);
+  /** The entry whose stream turned out to be live: no seek bar, LIVE for the time, everyone at the live edge. */
+  const [liveEntry, setLiveEntry] = useState<string | null>(null);
+  const stageLive = liveEntry !== null && liveEntry === entryId;
+  const stageLiveNow = useEffectEvent(() => stageLive);
+  /** Puts a live stream's player back at the live edge when it has fallen well behind (after a pause). */
+  const toLiveEdge = useEffectEvent((video: HTMLVideoElement) => {
+    if (!stageLive) return;
+    const jump = liveJump(streamRef.current?.liveEdge() ?? null, video.currentTime);
+    if (jump !== undefined) video.currentTime = jump;
+  });
   const waiting = upcoming(read.queue);
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -213,7 +227,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
     const say = () => publish();
     const ended = () => fileEnded();
-    video.addEventListener('play', say);
+    const played = () => {
+      toLiveEdge(video);
+      say();
+    };
+    video.addEventListener('play', played);
     video.addEventListener('pause', say);
     video.addEventListener('seeked', say);
     video.addEventListener('ended', ended);
@@ -228,7 +246,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     say();
 
     return () => {
-      video.removeEventListener('play', say);
+      video.removeEventListener('play', played);
       video.removeEventListener('pause', say);
       video.removeEventListener('seeked', say);
       video.removeEventListener('ended', ended);
@@ -244,6 +262,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     const tick = () => {
       const video = videoRef.current;
       if (video === null || video.readyState < 1) return;
+      // A live stream has no shared position: everybody plays and pauses with the host, at the live edge.
+      if (stageLiveNow()) {
+        toLiveEdge(video);
+        if (video.playbackRate !== 1) video.playbackRate = 1;
+        if (roomPlaying() && video.paused) void video.play().then(() => setNeedsPress(false), () => setNeedsPress(true));
+        else if (!roomPlaying() && !video.paused) video.pause();
+        return;
+      }
       const step = viewerStep(
         roomNow(),
         { seconds: video.currentTime, duration: video.duration, playing: !video.paused, ended: video.ended },
@@ -366,7 +392,6 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   // expired in the queue): it says so on the stage, and chat goes on. A host's room moves on after a
   // moment, so one dead link does not stop the stream for everybody.
   const [deadEntry, setDeadEntry] = useState<string | null>(null);
-  const entryId = entry?.id ?? null;
   const linkDead = link !== null && deadEntry !== null && deadEntry === entryId;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
@@ -378,6 +403,28 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     const timer = window.setTimeout(() => skipDead(), DEAD_LINK_SKIP_MS);
     return () => window.clearTimeout(timer);
   }, [linkDead, amHost, live]);
+
+  // A streaming link is fed into the same element by its library; the sync above reads and seeks it as
+  // it would a file.
+  const linkUrl = link?.url;
+  const linkKind = link?.kind;
+  const startsPlaying = useEffectEvent(() => amHost && live);
+  useEffect(() => {
+    if (videoElement === null || linkUrl === undefined || linkKind === undefined) return;
+    // Right after a play changes, this can still be the element that was just taken away.
+    if (videoRef.current !== videoElement) return;
+    const streamed = { url: linkUrl, kind: linkKind, title: '' };
+    if (playsDirectly(streamed)) return;
+    const handle = attachStream(videoElement, streamed, {
+      onLive: (isLive) => setLiveEntry(isLive ? entryId : null),
+      onFatal: () => setDeadEntry(entryId),
+    }, startsPlaying());
+    streamRef.current = handle;
+    return () => {
+      handle.detach();
+      if (streamRef.current === handle) streamRef.current = null;
+    };
+  }, [videoElement, linkUrl, linkKind, entryId]);
 
   function onTime() {
     const video = videoRef.current;
@@ -407,8 +454,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           </div>
         ) : (
           <video
+            // Files share one element (the next play may be the same file, nothing to reload); each stream
+            // gets its own, so a library tidying up after itself never touches the next play's element.
+            key={playsDirectly(link) ? 'direct' : `stream-${entryId}`}
             ref={attachVideo}
-            src={src}
+            src={playsDirectly(link) ? src : undefined}
             preload="auto"
             playsInline
             autoPlay={amHost && live}
@@ -446,9 +496,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
         <span className="min-w-0 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
         <span className="font-bold">{queueBadge(read)}</span>
-        <span>
-          {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
-        </span>
+        {stageLive ? (
+          <span className="bg-acid px-1 font-bold text-ink-plate">LIVE</span>
+        ) : (
+          <span>
+            {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
+          </span>
+        )}
       </div>
 
       {amHost && live ? (
@@ -465,6 +519,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           >
             {clock.paused ? '[ ▶ PLAY ]' : '[ ❚❚ PAUSE ]'}
           </button>
+          {/* A live stream has no seek bar; its space is kept so the keys beside it stay put. */}
+          {stageLive ? (
+            <span className="min-w-24 flex-1" />
+          ) : (
           <input
             type="range"
             aria-label="Seek"
@@ -478,6 +536,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             }}
             className="min-w-24 flex-1 accent-accent"
           />
+          )}
           <button type="button" className={PLATE} disabled={waiting.length === 0} onClick={() => moveOn(true)} title={waiting.length === 0 ? 'Nothing queued' : undefined}>
             [ SKIP ▶▶ ]
           </button>
@@ -679,7 +738,7 @@ function QueuePanel({
       return;
     }
     setLinkState({ kind: 'checking' });
-    const reason = await probeVideoLink(verdict.link.url);
+    const reason = await checkLink(verdict.link);
     if (reason !== null) {
       setLinkState({ kind: 'refused', reason });
       return;

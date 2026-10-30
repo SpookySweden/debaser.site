@@ -16,6 +16,8 @@ export const LINK_TITLE_MAX = 200;
 
 /** Video files a `<video>` plays from their address. */
 const FILE_EXTENSIONS = ['mp4', 'webm', 'ogg', 'ogv', 'mov'];
+/** Streams, played through a library (stream-player.ts): HLS playlists and DASH manifests. */
+const STREAM_EXTENSIONS: Record<string, WatchLinkKind> = { m3u8: 'hls', mpd: 'dash' };
 
 /** How long the adder's browser is given to load a link before it is refused. */
 export const LINK_PROBE_MS = 15000;
@@ -50,6 +52,8 @@ export function recognizeLink(text: string): LinkVerdict {
   const name = fileName(url);
   const extension = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
   if (FILE_EXTENSIONS.includes(extension)) return { ok: true, link: { url: raw, kind: 'file', title: clampTitle(name) || url.hostname } };
+  const stream = STREAM_EXTENSIONS[extension];
+  if (stream !== undefined) return { ok: true, link: { url: raw, kind: stream, title: clampTitle(name) || url.hostname } };
 
   return { ok: false, reason: LINK_REFUSALS.notVideo };
 }
@@ -71,6 +75,12 @@ function fileName(url: URL): string {
   } catch {
     return last;
   }
+}
+
+/** Whether a live stream's player should jump to its live edge: only when it has fallen well behind. */
+export const LIVE_BEHIND_SECONDS = 10;
+export function liveJump(edge: number | null, seconds: number): number | undefined {
+  return edge !== null && Number.isFinite(edge) && edge - seconds > LIVE_BEHIND_SECONDS ? edge : undefined;
 }
 
 /**
