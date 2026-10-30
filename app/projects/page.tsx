@@ -26,6 +26,7 @@ export default function ProjectsPage() {
     <SiteWindow
       title="DEBASER_OS - v1.0 [PROJECTS]"
       tip="The projects."
+      active="home"
     >
       <h1 className="sr-only">DEBASER.SITE // PROJECTS</h1>
 
