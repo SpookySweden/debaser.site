@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import {
   ICON_ACCOUNT,
   ICON_ARCADE,
@@ -14,7 +15,7 @@ import {
 } from '../lib/ui/icons';
 import { QUEUES_HREF } from '../lib/audio/queue-window';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
-import { useComms } from './CommsProvider';
+import { useAuth } from './AuthProvider';
 
 /**
  * The window's keys, and the mark each one wears.
@@ -145,85 +146,66 @@ export const SIDE_QUEUES: NavItem = {
 };
 
 /**
- * A key: raised while its page is closed, pressed in while it is the one on screen.
+ * The header's own list: named pages rather than glyphs (Luke, 2026-10-30).
  *
- * The glyph is the label and the word is the tooltip, which is the trade the marks in
- * `lib/ui/icons.ts` are for. A key is a square rather than a pill so a row of seven of them reads as
- * a row of switches - and so the two that open a *window* over the board rather than a page of their
- * own can sit in the same row without lying about what they do, which the title attribute and the
- * aria-label are what make honest.
+ * Kept apart from `NAV_ITEMS` on purpose. The phone's picture menu, the side panel and the Start menu
+ * still draw `NAV_ITEMS`, so COMMS and ACCOUNT stay reachable there even though the header dropped
+ * them. The last key is the reader's own name (see `SiteNav`), so it is not in this list.
  */
-function tabClass(isActive: boolean): string {
-  // The keys are 28px, which is comfortable for a pointer and too small for a thumb. They only appear
-  // from `sm` up (the band below is `hidden sm:flex`), and `sm` includes every tablet - so the phone
-  // rule has to be `max-md` rather than `max-sm` here. A tablet in portrait is held in two hands, the
-  // same as a phone, and gets the same floor.
-  const base =
-    'inline-flex h-7 min-w-7 items-center justify-center text-label leading-none max-md:min-h-tap max-md:min-w-tap max-md:text-base';
+const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
+  { key: 'home', label: 'PROJECTS', href: '/projects' },
+  { key: 'forum', label: 'FORUM', href: '/forum' },
+  { key: 'media', label: 'ARCHIVE', href: '/media' },
+  { key: 'users', label: 'DIRECTORY', href: '/users' },
+];
+
+/** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */
+function wordClass(isActive: boolean): string {
+  const base = 'inline-flex h-7 min-w-0 items-center px-2 text-label font-bold leading-none max-md:min-h-tap';
 
   return isActive
     ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
     : `${base} key active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
-/**
- * The window's keys: one per part of the site, with the open page's pressed in.
- *
- * They are the header of the window - the first thing under the title bar - rather than buttons in
- * the taskbar at its foot, because a key is where you are and the taskbar is what you can open. A
- * phone does not get them at all: the band is `hidden sm:flex`, and every one of these destinations
- * is behind the profile picture in the title bar instead (see ./ProfileControl.tsx). That is the
- * whole mobile rule in one line - the feed keeps the screen, and the one control that remains is the
- * reader's own face.
- *
- * Client-side because the comms key carries the unread count - the one number on the site that has to
- * move without a reload, and the same count the notification window clears when a message is put on
- * screen. `active` is left out by pages that are not one of the keys, so nothing lights up on them.
- */
 export default function SiteNav({ active }: { active?: NavKey }) {
-  const { unreadTotal } = useComms();
+  const { user, status } = useAuth();
+  const pathname = usePathname();
+
+  // The last key: the reader's name, going to their public profile; PROFILE while signed out, going
+  // to the log-in page. While the session is still being read it says PROFILE too, rather than
+  // flashing a name in and out.
+  const signedIn = status === 'signed-in' && user !== null;
+  const profileHref = signedIn ? `/profile/${user.id}` : '/account';
+  const onOwnProfile = signedIn && pathname === profileHref;
+  // A profile page passes `forum`; on your own profile it is your name that is pressed in instead.
+  const lit = onOwnProfile ? undefined : active;
 
   return (
     <nav
-      aria-label="Site keys"
-      // `hidden` below `md`, which is stricter than the `sm` it used to be: the brief asks for the
-      // band to be gone for the whole phone-and-small-tablet range, because between 640 and 768 the
-      // keys were visible *and* the profile menu was too, so the same destinations had two doors and
-      // the narrow band was doing nothing but crowding the title. The profile picture in the title bar
-      // is the only door below `md`, and `Temp/check-mobile.cjs` holds that.
+      aria-label="Site pages"
+      // `hidden` below `md`: the profile picture in the title bar is the only door on a phone.
       className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
-      {NAV_ITEMS.map((item) => {
-        const unread = item.key === 'comms' ? unreadTotal : 0;
-
-        return (
-          <Link
-            key={item.key}
-            href={item.href}
-            // The word the key is read with. The glyph itself is decorative once this is on, which is
-            // why `aria-hidden` marks it below rather than the whole link being labelled twice.
-            aria-label={unread === 0 ? item.label : `${item.label}, ${unread} unread`}
-            title={unread === 0 ? item.label : `${item.label} (${unread} unread)`}
-            aria-current={item.key === active ? 'page' : undefined}
-            className={tabClass(item.key === active)}
-          >
-            <span aria-hidden="true">{item.mark}</span>
-            {/* The count rides the key, and only ever on the one it belongs to. It is drawn on top of
-                the glyph rather than beside it, so the row's boxes stay square. It wears the key's own
-                ink: Emerald was 2.09:1 on the Daffodil key and 4.15:1 on the pressed Royal Blue one. */}
-            {unread === 0 ? null : (
-              <span
-                aria-hidden="true"
-                className="ml-0.5 text-label leading-none"
-              >
-                {unread}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+      {HEADER_ITEMS.map((item) => (
+        <Link
+          key={item.key}
+          href={item.href}
+          aria-current={item.key === lit ? 'page' : undefined}
+          className={wordClass(item.key === lit)}
+        >
+          {item.label}
+        </Link>
+      ))}
+      <Link
+        href={profileHref}
+        title={signedIn ? user.displayName : 'Log in to see your profile'}
+        aria-current={onOwnProfile ? 'page' : undefined}
+        className={`${wordClass(onOwnProfile)} max-w-48`}
+      >
+        <span className="truncate">{signedIn ? user.displayName.toUpperCase() : 'PROFILE'}</span>
+      </Link>
     </nav>
   );
 }
-
 
