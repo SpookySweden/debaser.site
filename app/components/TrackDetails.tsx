@@ -9,6 +9,7 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import MarqueeText from './MarqueeText';
 import ProfileAvatar from './ProfileAvatar';
+import { displayCrop } from '../lib/profile/avatar-crop';
 
 /**
  * One track, described the same way everywhere it is described: who uploaded it, what it was heard as
@@ -109,6 +110,7 @@ function UploaderPicture({ src, size }: { src: string | null; size: number }) {
         size={size}
         variant="plain"
         hideVersionLabel
+        crop={displayCrop(profile)}
       />
     );
 

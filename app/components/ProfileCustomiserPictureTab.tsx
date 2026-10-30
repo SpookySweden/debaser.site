@@ -8,6 +8,9 @@ import ProfileAvatar from './ProfileAvatar';
 import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
 import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
+import { displayCrop, versionCrop } from '../lib/profile/avatar-crop';
+import AvatarCropEditor from './AvatarCropEditor';
+import type { AvatarCrop } from '../lib/profile/avatar-crop';
 
 export type ProfileCustomiserPictureTabProps = {
   profile: PublicProfile;
@@ -25,6 +28,8 @@ export type ProfileCustomiserPictureTabProps = {
   onUpload: (file: File) => void;
   onFileVersion: () => void;
   onRestore: (versionId: string) => void;
+  /** Saves the crop at once (the switch, or the square when it is let go). */
+  onCropChange: (patch: Partial<AvatarCrop>) => Promise<void>;
   busy: boolean;
   uploadMessage: string | null;
 };
@@ -45,9 +50,12 @@ export default function ProfileCustomiserPictureTab({
   onUpload,
   onFileVersion,
   onRestore,
+  onCropChange,
   busy,
   uploadMessage,
 }: ProfileCustomiserPictureTabProps) {
+  /** debaser.site's picture is never cut, so it has no crop to set. */
+  const crop = displayCrop(profile);
   const current = currentAvatarVersion(profile);
   const versions = avatarVersionsNewestFirst(profile);
   /** The site's sheets, then the catalogue's pictures that are not those same sheets. */
@@ -65,7 +73,7 @@ export default function ProfileCustomiserPictureTab({
         <div className="flex flex-wrap items-start gap-3">
           <div>
             <p className={CUSTOMISER_NOTE}>CURRENT</p>
-            <ProfileAvatar version={current} displayName={profile.displayName} size={140} />
+            <ProfileAvatar version={current} displayName={profile.displayName} size={140} crop={displayCrop(profile)} />
           </div>
 
           <div>
@@ -86,6 +94,7 @@ export default function ProfileCustomiserPictureTab({
                 }}
                 displayName={profile.displayName}
                 size={140}
+                crop={versionCrop(profile, 'pending')}
               />
             )}
           </div>
@@ -172,6 +181,15 @@ export default function ProfileCustomiserPictureTab({
         </div>
       </div>
 
+      {current === undefined || crop === null || crop === undefined ? null : (
+        <div className="p-3">
+          <p className={CUSTOMISER_NOTE}>CROP</p>
+          <div className="mt-1">
+            <AvatarCropEditor src={current.src} crop={crop} onChange={onCropChange} disabled={busy} />
+          </div>
+        </div>
+      )}
+
       <div className="p-3">
         <p className={CUSTOMISER_NOTE}>HISTORY</p>
 
@@ -184,7 +202,7 @@ export default function ProfileCustomiserPictureTab({
                 key={version.id}
                 className="flex flex-wrap items-start gap-3 p-2"
               >
-                <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel />
+                <ProfileAvatar version={version} displayName={profile.displayName} size={80} hideVersionLabel crop={versionCrop(profile, version.id)} />
 
                 <div className="min-w-0 flex-1 text-label text-ink">
                   <p className="font-bold">

@@ -580,6 +580,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onNoteChange={setNote}
             onUpload={(file) => void handleUpload(file)}
             onFileVersion={() => void handleFileVersion()}
+            onCropChange={(patch) => run(() => repository.saveProfile(userId, { avatarCrop: patch }))}
             onRestore={(versionId) => void run(() => repository.restoreAvatarVersion(userId, versionId))}
             busy={busy}
             uploadMessage={uploadMessage}

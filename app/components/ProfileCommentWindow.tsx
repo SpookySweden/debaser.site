@@ -20,6 +20,7 @@ import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCommentBox from './ProfileCommentBox';
 import SheetImage from './SheetImage';
+import { versionCrop } from '../lib/profile/avatar-crop';
 
 /** The size the drawing is previewed at, so what is on screen is what is commented on. */
 const PICTURE_SIZE = 176;
@@ -137,6 +138,7 @@ function AspectPreview({
           displayName={profile.displayName}
           size={PICTURE_SIZE}
           hideVersionLabel
+          crop={versionCrop(profile, shown.id)}
         />
       ) : aspect === 'song' && shown !== undefined ? (
         <>

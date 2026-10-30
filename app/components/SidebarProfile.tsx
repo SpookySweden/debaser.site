@@ -16,6 +16,7 @@ import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import { TITLE_BAR } from '../lib/ui/controls';
+import { displayCrop } from '../lib/profile/avatar-crop';
 
 /** A control that sits on the title bar: small enough not to crowd it, and never a word. */
 const TITLE_CONTROL =
@@ -109,6 +110,7 @@ export default function SidebarProfile() {
                 displayName={user.displayName}
                 size={56}
                 hideVersionLabel
+                crop={displayCrop(profile)}
               />
             </ProfileLink>
 

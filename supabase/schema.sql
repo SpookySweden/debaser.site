@@ -87,6 +87,12 @@ create table if not exists public.profiles (
 alter table public.profiles
   add column if not exists status text not null default '';
 
+-- The picture's crop (20261030120000_profile_avatar_crop.sql carries the reasoning and the range check).
+alter table public.profiles
+  add column if not exists avatar_crop boolean not null default true,
+  add column if not exists avatar_crop_x smallint not null default 50,
+  add column if not exists avatar_crop_y smallint not null default 50;
+
 -- The same for the country flag, which replaced the free-text place line. The constraint is added by
 -- name so re-running the schema is still a no-op (20260930000029_profile_country_flag.sql carries it
 -- for a live project).

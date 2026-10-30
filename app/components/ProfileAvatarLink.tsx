@@ -6,6 +6,7 @@ import type { ForumAuthor } from '../lib/forum/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { currentAvatarVersion } from '../lib/profile/visibility';
 import ProfileAvatar from './ProfileAvatar';
+import { displayCrop } from '../lib/profile/avatar-crop';
 
 type ProfileAvatarLinkProps = {
   author: ForumAuthor;
@@ -58,6 +59,7 @@ export default function ProfileAvatarLink({
         size={size}
         variant={variant}
         hideVersionLabel
+        crop={displayCrop(profile)}
       />
       {showName ? (
         <span className="text-key font-bold text-ink underline decoration-dotted">{label}</span>

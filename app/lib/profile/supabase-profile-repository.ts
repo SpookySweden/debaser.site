@@ -1,4 +1,5 @@
 import { getSupabaseBrowserClient } from '../supabase/client';
+import { DEFAULT_AVATAR_CROP, mergeAvatarCrop, normalizeAvatarCrop } from './avatar-crop';
 import type { RealtimeChannel } from '@supabase/supabase-js';
 import { isNameColour } from './name-colours';
 import { normalizeCountryCode } from './countries';
@@ -140,6 +141,13 @@ type ProfileRow = {
   show_avatar_comments: boolean;
   show_song_comments: boolean;
   current_version_id: string | null;
+  /**
+   * The picture's crop (20261030120000_profile_avatar_crop.sql). Optional for the same reason
+   * `status` is: a row from a database without that migration reads as the default crop.
+   */
+  avatar_crop?: boolean | null;
+  avatar_crop_x?: number | null;
+  avatar_crop_y?: number | null;
   current_song_version_id: string | null;
   last_seen_at: string | null;
   is_online: boolean;
@@ -210,6 +218,7 @@ function toProfile(row: ProfileRow): PublicProfile {
     country: normalizeCountryCode(typeof row.country_code === 'string' ? row.country_code : ''),
     status: typeof row.status === 'string' ? row.status : '',
     avatar: { versions, currentVersionId: row.current_version_id },
+    avatarCrop: normalizeAvatarCrop({ on: row.avatar_crop ?? undefined, x: row.avatar_crop_x ?? undefined, y: row.avatar_crop_y ?? undefined }),
     song: { versions: songs, currentVersionId: row.current_song_version_id },
     visibility: withVisibilityDefaults({
       showTags: row.show_tags,
@@ -342,6 +351,16 @@ class SupabaseProfileRepository implements ProfileRepository {
       update.show_song_comments = visibility.showSongComments;
     }
 
+    if (patch.avatarCrop !== undefined) {
+      // Merged onto what is stored, like visibility: dragging the square leaves the switch alone.
+      const current = (await this.getProfile(userId))?.avatarCrop ?? DEFAULT_AVATAR_CROP;
+      const crop = mergeAvatarCrop(current, patch.avatarCrop);
+
+      update.avatar_crop = crop.on;
+      update.avatar_crop_x = crop.x;
+      update.avatar_crop_y = crop.y;
+    }
+
     if (Object.keys(update).length > 0) {
       const { error } = await this.client()
         .from(PROFILES_TABLE)
@@ -353,11 +372,17 @@ class SupabaseProfileRepository implements ProfileRepository {
     return this.requireProfile(userId);
   }
 
-  /** The picture on display, whoever filed it. */
+  /**
+   * The picture on display, whoever filed it. A new drawing has its own middle, so the crop's square
+   * goes back there; whether the crop is on stays as the owner left it.
+   */
   private async setCurrentVersion(userId: string, versionId: string): Promise<void> {
     const { error } = await this.client()
       .from(PROFILES_TABLE)
-      .upsert({ id: userId, current_version_id: versionId }, { onConflict: 'id' });
+      .upsert(
+        { id: userId, current_version_id: versionId, avatar_crop_x: DEFAULT_AVATAR_CROP.x, avatar_crop_y: DEFAULT_AVATAR_CROP.y },
+        { onConflict: 'id' },
+      );
 
     if (error !== null) this.fail(error.message);
   }

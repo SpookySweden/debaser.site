@@ -33,6 +33,7 @@ import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
 import ProfileWire from './ProfileWire';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { versionCrop } from '../lib/profile/avatar-crop';
 
 type PublicProfileWindowProps = {
   userId: string;
@@ -157,6 +158,7 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
               displayName={displayName}
               size={176}
               hideVersionLabel
+              crop={versionCrop(profile, picture?.id)}
             />
 
             {/* No caption under the drawing: its version tag was a console readout, and an empty

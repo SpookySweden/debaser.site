@@ -13,6 +13,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
+import { displayCrop } from '../lib/profile/avatar-crop';
 
 /**
  * The account page's profile section.
@@ -75,7 +76,7 @@ export default function AccountProfilePanel({ userId }: { userId: string }) {
           picture versions, tag and comment counts, the visibility switches) is gone: the customiser and
           the profile itself show those (SPEC-efficiency.md, 2026-10-23). */}
       <div className="flex flex-col gap-3 p-3 sm:flex-row">
-        <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} />
+        <ProfileAvatar version={currentAvatarVersion(profile)} displayName={profile.displayName} size={128} crop={displayCrop(profile)} />
 
         <div className="min-w-0 flex-1 space-y-1 text-label font-bold text-ink">
           {/* No name here: ACCOUNT DETAILS below names the account once (SPEC-less-text.md). */}

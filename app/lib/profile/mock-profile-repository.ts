@@ -1,4 +1,5 @@
 import { createLocalId } from '../forum/ids';
+import { DEFAULT_AVATAR_CROP, mergeAvatarCrop, normalizeAvatarCrop } from './avatar-crop';
 import {
   SITE_ACCOUNT_DISPLAY_NAME,
   SITE_ACCOUNT_ID,
@@ -145,6 +146,8 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
       currentVersionId: typeof song.currentVersionId === 'string' ? song.currentVersionId : null,
     },
     visibility: withVisibilityDefaults(row.visibility),
+    // A profile saved before the crop existed starts cropped to the middle, like a new one.
+    avatarCrop: normalizeAvatarCrop(row.avatarCrop),
     tags: Array.isArray(row.tags) ? row.tags.filter(isTagShaped) : [],
     comments: Array.isArray(row.comments) ? row.comments.filter(isCommentShaped) : [],
     updatedAt: typeof row.updatedAt === 'string' ? row.updatedAt : new Date().toISOString(),
@@ -233,6 +236,7 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     avatar: { versions: [], currentVersionId: null },
     song: { versions: [], currentVersionId: null },
     visibility: { ...DEFAULT_VISIBILITY },
+    avatarCrop: { ...DEFAULT_AVATAR_CROP },
     tags: [defaultProfileTag(now)],
     comments: [],
     updatedAt: now,
@@ -387,6 +391,7 @@ class MockProfileRepository implements ProfileRepository {
             ? { nameColour: undefined }
             : { nameColour: patch.nameColour }),
         visibility: withVisibilityDefaults({ ...profile.visibility, ...patch.visibility }),
+        avatarCrop: patch.avatarCrop === undefined ? profile.avatarCrop : mergeAvatarCrop(profile.avatarCrop, patch.avatarCrop),
       };
     });
   }
@@ -410,6 +415,8 @@ class MockProfileRepository implements ProfileRepository {
       return {
         ...profile,
         avatar: { versions: [...profile.avatar.versions, entry], currentVersionId: entry.id },
+        // A new drawing has its own middle: the square goes back there, the on/off choice stays.
+        avatarCrop: { ...profile.avatarCrop, x: DEFAULT_AVATAR_CROP.x, y: DEFAULT_AVATAR_CROP.y },
       };
     });
   }
@@ -433,6 +440,8 @@ class MockProfileRepository implements ProfileRepository {
       return {
         ...profile,
         avatar: { versions: [...profile.avatar.versions, entry], currentVersionId: entry.id },
+        // A new drawing has its own middle: the square goes back there, the on/off choice stays.
+        avatarCrop: { ...profile.avatarCrop, x: DEFAULT_AVATAR_CROP.x, y: DEFAULT_AVATAR_CROP.y },
       };
     });
   }

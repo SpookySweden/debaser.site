@@ -1,4 +1,5 @@
 import type { AvatarVersion } from '../lib/profile/types';
+import { DEFAULT_AVATAR_CROP, type AvatarCrop } from '../lib/profile/avatar-crop';
 import { DEFAULT_AVATAR_SRC } from '../lib/profile/avatar-catalogue';
 import { SPRITE_SLOT } from '../lib/ui/controls';
 import SheetImage from './SheetImage';
@@ -24,7 +25,19 @@ type ProfileAvatarProps = {
    * versioned it.
    */
   src?: string;
+  /**
+   * How the picture is cut to its square (../lib/profile/avatar-crop.ts): the owner's choice, read
+   * through `displayCrop(profile)`. Unset means the default - cut to the middle - and `null` means
+   * the picture keeps its own shape, which is what debaser.site's picture and a `src` picture do.
+   */
+  crop?: AvatarCrop | null;
 };
+
+/** The square's fill for a crop, or nothing for a picture that keeps its own shape. */
+function cropFit(crop: AvatarCrop | null): { mode: 'cover' | 'contain'; position?: string } | undefined {
+  if (crop === null) return undefined;
+  return crop.on ? { mode: 'cover', position: `${crop.x}% ${crop.y}%` } : { mode: 'contain' };
+}
 
 /**
  * Frame shared by every "plain" avatar: the board rows want the picture itself,
@@ -87,7 +100,9 @@ export default function ProfileAvatar({
   className,
   hideVersionLabel = false,
   src,
+  crop,
 }: ProfileAvatarProps) {
+  const fit = cropFit(crop === undefined ? (src === undefined ? DEFAULT_AVATAR_CROP : null) : crop);
   // Either a profile's picture or one the caller named, and neither means the anonymous slot.
   const picture = src ?? version?.src;
   const anonymous = picture === undefined;
@@ -105,6 +120,7 @@ export default function ProfileAvatar({
             height={size}
             sizes={`${size}px`}
             compact
+            fit={fit}
           />
         )}
       </span>
@@ -118,7 +134,7 @@ export default function ProfileAvatar({
     >
       {anonymous || picture === undefined ? (
         <AnonymousSlot size={size - 8} label={displayName} />
-      ) : (
+      ) : fit === undefined ? (
         <SheetImage
           src={picture}
           alt={version === undefined ? `${displayName} picture` : `${displayName} profile picture v${version.version}`}
@@ -126,6 +142,18 @@ export default function ProfileAvatar({
           height={size}
           sizes={`${size}px`}
         />
+      ) : (
+        // A square of its own, so a wide or tall picture no longer sets the frame's height.
+        <span className="block aspect-square w-full overflow-hidden bg-paper">
+          <SheetImage
+            src={picture}
+            alt={version === undefined ? `${displayName} picture` : `${displayName} profile picture v${version.version}`}
+            width={size}
+            height={size}
+            sizes={`${size}px`}
+            fit={fit}
+          />
+        </span>
       )}
 
       {anonymous || version === undefined || hideVersionLabel ? null : (

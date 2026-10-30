@@ -13,6 +13,7 @@ import { NotificationMenuButton } from './NotificationBell';
 import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import ProfileAvatar from './ProfileAvatar';
 import ProfileName from './ProfileName';
+import { displayCrop, type AvatarCrop } from '../lib/profile/avatar-crop';
 
 const MENU_ITEM =
   'flex w-full items-center gap-2 px-2 py-0.75 text-left text-ink hover:bg-ena hover:text-sun max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
@@ -64,6 +65,8 @@ type ProfilePictureMenuProps = {
   displayName: string;
   /** The picture version on display, straight from the profile store. */
   avatarVersion: AvatarVersion | undefined;
+  /** How that picture is cut to its square (`displayCrop`). */
+  avatarCrop?: AvatarCrop | null;
   /** How many notifications are waiting, for the mark on the picture. */
   unreadNotifications: number;
 };
@@ -80,7 +83,7 @@ type ProfilePictureMenuProps = {
  *
  * Tapping anywhere else closes it, the way a Win95 pop-up behaves.
  */
-export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadNotifications }: ProfilePictureMenuProps) {
+export function ProfilePictureMenu({ userId, displayName, avatarVersion, avatarCrop, unreadNotifications }: ProfilePictureMenuProps) {
   const [open, setOpen] = useState(false);
   const compact = useCompactViewport();
   const news = unreadNotifications === 0 ? '' : `, ${unreadNotifications} new`;
@@ -101,6 +104,7 @@ export function ProfilePictureMenu({ userId, displayName, avatarVersion, unreadN
             pointer's - see `PICTURE_SIZE`. */}
         <ProfileAvatar
           version={avatarVersion}
+          crop={avatarCrop}
           displayName={displayName}
           size={compact ? PICTURE_SIZE.compact : PICTURE_SIZE.desktop}
           variant="plain"
@@ -218,6 +222,7 @@ export default function ProfileControl() {
           userId={user.id}
           displayName={user.displayName}
           avatarVersion={currentAvatarVersion(profile)}
+          avatarCrop={displayCrop(profile)}
           unreadNotifications={notifications.unread}
         />
       )}

@@ -1,5 +1,6 @@
 import type { ForumAuthor } from '../forum/types';
 import type { LivePresence, LiveState, PresenceRecord } from './presence';
+import type { AvatarCrop } from './avatar-crop';
 
 /**
  * Domain types for public profiles.
@@ -160,6 +161,8 @@ export type PublicProfile = {
    */
   status: string;
   avatar: ProfileAvatar;
+  /** How the picture is cut to its square on screen (./avatar-crop.ts); the file itself is never cut. */
+  avatarCrop: AvatarCrop;
   /** The one track beside the picture, with the history behind it. */
   song: ProfileSong;
   visibility: ProfileVisibility;
@@ -187,6 +190,8 @@ export type ProfilePatch = {
   /** A swatch hex from name-colours.ts; an empty string clears it to the default. */
   nameColour?: string;
   visibility?: Partial<ProfileVisibility>;
+  /** Crop on or off, and where the square sits; positions are 0-100. */
+  avatarCrop?: Partial<AvatarCrop>;
 };
 
 export type AddAvatarVersionInput = {
