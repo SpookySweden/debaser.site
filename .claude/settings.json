@@ -16,16 +16,6 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Read|Edit|Write|MultiEdit|NotebookEdit|Grep|Glob|Bash|PowerShell",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/guard.cjs\" pre",
-            "timeout": 15
-          }
-        ]
-      },
-      {
         "matcher": "Agent",
         "hooks": [
           {

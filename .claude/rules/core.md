@@ -49,7 +49,7 @@ The main session plans, decides and talks to me. The agents in `.claude/agents/`
 - IMPORTANT: secrets (API keys, passwords, the Supabase access token) live in `.env.local` only. Never write them into code, logs, commits or this file. `.env.production` is committed, so it only holds `NEXT_PUBLIC_*` values.
 - Test with the kept test accounts or throwaways only, never real user accounts.
 - Tell me before deleting files or large blocks of code.
-- Hooks enforce some of this (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): `.env.local` can't be read or named in a command, secret-looking text can't be written, and the typecheck runs when a turn ends. Everything else runs without a click (bypass mode), so database writes and Vercel/Supabase connector changes wait for my typed OK in chat, per the rules above. A refusal from them is the rule working; don't route around it.
+- One hook runs (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): the typecheck when a turn ends. The secrets rules above are on trust, not enforced. Everything else runs without a click (bypass mode), so database writes and Vercel/Supabase connector changes wait for my typed OK in chat, per the rules above.
 
 ## Continuing across sessions
 - At the start of a session, read HANDOFF.md if it exists.
