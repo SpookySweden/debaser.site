@@ -60,10 +60,48 @@ body {
 
    Declared in `base` rather than loose, so a utility still wins: `cursor-pointer`,
    `cursor-wait` and `cursor-move` are deliberate statements about one control and are left
-   alone. */
+   alone.
+
+   The reader picks the set in PREFERENCES (`app/lib/ui/cursor-slot.ts` writes `data-cursor` on
+   <html>). Each set is three custom properties; the element rules below only ever read them.
+   CONTRAST - the default, and what a missing attribute means - is the white set on the dark theme
+   (the fallback, so it is the bare `:root`) and the black set on the light one. The explicit
+   choices come after it, so they win at the same specificity. */
 @layer base {
+  :root,
+  :root[data-cursor='white'] {
+    --cursor-arrow: url('/assets/cursors/arrow-white.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-white.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-white.png') 0 0, text;
+  }
+
+  :root[data-theme='default'],
+  :root[data-cursor='black'] {
+    --cursor-arrow: url('/assets/cursors/arrow-black.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-black.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-black.png') 0 0, text;
+  }
+
+  :root[data-theme='default'][data-cursor='white'] {
+    --cursor-arrow: url('/assets/cursors/arrow-white.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-white.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-white.png') 0 0, text;
+  }
+
+  :root[data-cursor='pink'] {
+    --cursor-arrow: url('/assets/cursors/arrow-pink.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-pink.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-pink.png') 0 0, text;
+  }
+
+  :root[data-cursor='system'] {
+    --cursor-arrow: auto;
+    --cursor-pointer: pointer;
+    --cursor-text: text;
+  }
+
   :root {
-    cursor: url('/assets/cursors/arrow.png') 0 0, auto;
+    cursor: var(--cursor-arrow);
   }
 
   a,
@@ -75,7 +113,7 @@ body {
   input[type='checkbox'],
   input[type='radio'],
   input[type='range'] {
-    cursor: url('/assets/cursors/pointer.png') 0 0, pointer;
+    cursor: var(--cursor-pointer);
   }
 
   input[type='text'],
@@ -83,7 +121,7 @@ body {
   input[type='password'],
   input[type='search'],
   textarea {
-    cursor: url('/assets/cursors/text.png') 0 0, text;
+    cursor: var(--cursor-text);
   }
 }
 

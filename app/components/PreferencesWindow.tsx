@@ -3,6 +3,13 @@
 import { useSyncExternalStore } from 'react';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import {
+  CURSORS,
+  cursorState,
+  setCursor,
+  subscribeToCursor,
+  type Cursor,
+} from '../lib/ui/cursor-slot';
+import {
   closePreferences,
   preferencesWindowState,
   subscribeToPreferencesWindow,
@@ -66,6 +73,25 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
   );
 }
 
+/** One cursor's row: the theme row's key, without a swatch (the cursor itself is the preview). */
+function CursorRow({ cursor, active }: { cursor: Cursor; active: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={() => setCursor(cursor.id)}
+      aria-pressed={active}
+      title={cursor.note}
+      className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label ${
+        active
+          ? 'key key-fill [--key-fill:var(--color-ink)] text-paper'
+          : 'key'
+      }`}
+    >
+      <span className="min-w-0 flex-1 truncate">[ {cursor.label} ]</span>
+    </button>
+  );
+}
+
 /**
  * Preferences: the settings a reader keeps for themselves, in a window beside the board.
  *
@@ -82,6 +108,7 @@ function ThemeRow({ theme, active }: { theme: Theme; active: boolean }) {
 export default function PreferencesWindow() {
   // Subscribed rather than read once, so the filled row moves the moment a theme is pressed.
   const { id } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
+  const { id: cursorId } = useSyncExternalStore(subscribeToCursor, cursorState, cursorState);
   const { open } = useSyncExternalStore(
     subscribeToPreferencesWindow,
     preferencesWindowState,
@@ -101,7 +128,7 @@ export default function PreferencesWindow() {
       status=""
       dock="bottom"
       id="preferences"
-      defaultSize={{ w: 384, h: 460 }}
+      defaultSize={{ w: 384, h: 620 }}
       minSize={{ w: 280, h: 200 }}
     >
       {/* What each section is for is its title line's hover tip, not a paragraph under it
@@ -115,6 +142,19 @@ export default function PreferencesWindow() {
         <div className="space-y-1 p-2">
           {THEMES.map((theme) => (
             <ThemeRow key={theme.id} theme={theme} active={theme.id === (id as ThemeId)} />
+          ))}
+        </div>
+      </section>
+
+      {/* The pointer: a desktop thing too, since a phone has no cursor to change. */}
+      <section className="mt-2 hidden sm:block">
+        <div className={TITLE_BAR_INACTIVE}>
+          <span>CURSOR</span>
+        </div>
+
+        <div className="space-y-1 p-2">
+          {CURSORS.map((cursor) => (
+            <CursorRow key={cursor.id} cursor={cursor} active={cursor.id === cursorId} />
           ))}
         </div>
       </section>

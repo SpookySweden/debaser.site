@@ -1,13 +1,12 @@
 PLACEHOLDERS FOR NOW
 ====================
-The three PNGs here are placeholders rather than drawings: each is a 32x32 canvas with a small black
-block at the hotspot in the corner, over transparency - `arrow` 4x4, `pointer` 6x6, `text` 8x8 - so
-the plumbing can be seen working (the pointer is where it should be, and each rule reaches the file it
-names) without pretending to be the finished thing. The canvas is already the size a finished cursor
-needs; it is the drawing on it that is missing. They are deliberately not artwork: nothing here is
-generated, and a stand-in illustration is the one thing this archive does not do (CLAUDE.md).
+The nine PNGs here are placeholders rather than drawings: each is a 32x32 canvas with a plain block at
+the hotspot in the corner, in its set's colour with a one-pixel edge in the opposite colour so it shows
+on any background - `arrow` 10x10, `pointer` 12x12, `text` 6x14 - over transparency. They are
+deliberately not artwork: nothing here is generated, and a stand-in illustration is the one thing this
+archive does not do (CLAUDE.md).
 
-`npm run art` reads this folder against `app/lib/ui/art/slots.ts` and prints each of the three as a
+`npm run art` reads this folder against `app/lib/ui/art/slots.ts` and prints each of the nine as a
 stand-in every run, so a placeholder is never mistaken for a finished drawing.
 
 Replace each one with the hand-drawn PNG described below and nothing else has to change - no code,
@@ -16,14 +15,27 @@ no path, no size in the CSS.
 RETRO CURSORS
 =============
 
-The three pointers this site wears. They are hand-drawn files like everything else and are never
-drawn in CSS: the `Cursors` block in `app/globals.css` names these paths, and until a file is
-there the browser falls back to the ordinary cursor beside the name - so the site reads normally
-whether they have been drawn or not, and a cursor that lands needs no further code.
+Three pointers, in three colour sets. The reader picks one in PREFERENCES > CURSOR:
 
-assets/cursors/arrow.png      the resting pointer, over the desktop
-assets/cursors/pointer.png    the link and button pointer, over anything clickable
-assets/cursors/text.png       the text pointer, over a field
+  CONTRAST  (the default) the WHITE set on the dark theme, the BLACK set on the light one
+  WHITE     the WHITE set on every theme
+  BLACK     the BLACK set on every theme
+  PINK      the PINK set (Brilliant Pink) on every theme
+  SYSTEM    the computer's own pointer - no files
+
+So there are nine files to draw, three per set:
+
+assets/cursors/arrow-white.png     pointer-white.png     text-white.png
+assets/cursors/arrow-black.png     pointer-black.png     text-black.png
+assets/cursors/arrow-pink.png      pointer-pink.png      text-pink.png
+
+arrow is the resting pointer, pointer is over anything clickable, text is over a field. Give each a
+one-pixel edge in the opposite colour (black round the white and pink ones, white round the black)
+so it still shows when it crosses something its own colour.
+
+They are hand-drawn files like everything else and are never drawn in CSS: the `Cursors` block in
+`app/globals.css` names these paths, and until a file is there the browser falls back to the
+ordinary cursor - so the site reads normally whether they have been drawn or not.
 
 What to draw
 ------------
@@ -36,7 +48,7 @@ What to draw
 
 Changing the names or the hotspots
 ----------------------------------
-Both live in the `Cursors` block of app/globals.css, one line per kind. Each list ends in the
+Both live in the `Cursors` block of app/globals.css, one line per kind in each set. Each list ends in the
 ordinary cursor (`auto`, `pointer`, `text`), which is what makes a missing file harmless.
 
 Where they apply

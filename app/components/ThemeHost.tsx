@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { initCursor } from '../lib/ui/cursor-slot';
 import { initTheme } from '../lib/ui/theme-slot';
 
 /**
@@ -17,6 +18,8 @@ import { initTheme } from '../lib/ui/theme-slot';
  */
 export default function ThemeHost() {
   useEffect(() => initTheme(), []);
+  // The reader's cursor rides along: it is one attribute on <html>, chosen in the same window.
+  useEffect(() => initCursor(), []);
 
   return null;
 }
