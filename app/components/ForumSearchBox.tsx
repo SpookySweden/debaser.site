@@ -126,12 +126,18 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
 
   const showList = open && (items.length > 0 || calendar);
 
-  /** Puts the caret where it should be once React has drawn the new text. */
-  const placeCaret = useCallback((at: number) => {
+  /**
+   * Puts the caret where it should be once React has drawn `forText` - and only if the box still says
+   * that: a fast typist's next letter may land before the frame does, and moving the caret then would
+   * put the rest of the word in front of it.
+   */
+  const placeCaret = useCallback((at: number, forText: string) => {
     setCaret(at);
     window.requestAnimationFrame(() => {
-      inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(at, at);
+      const input = inputRef.current;
+      if (input === null) return;
+      input.focus();
+      if (input.value === forText) input.setSelectionRange(at, at);
     });
   }, []);
 
@@ -149,7 +155,7 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
 
       setPills(allPills);
       setText(finished.rest);
-      placeCaret(finished.rest.length);
+      placeCaret(finished.rest.length, finished.rest);
       setOpen(false);
       setHighlight(-1);
 
@@ -171,7 +177,7 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
     const rest = `${text.slice(0, active.start)}${text.slice(active.end)}`.replace(/\s+/g, ' ').trimStart();
     setPills((current) => [...current, { key, value }]);
     setText(rest);
-    placeCaret(Math.min(active.start, rest.length));
+    placeCaret(Math.min(active.start, rest.length), rest);
     setHighlight(-1);
   };
 
@@ -180,7 +186,7 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
       const written = `${item.key}:`;
       const next = `${text.slice(0, active.start)}${written}${text.slice(active.end)}`;
       setText(next);
-      placeCaret(active.start + written.length);
+      placeCaret(active.start + written.length, next);
       resetHighlight(next, active.start + written.length);
       setOpen(true);
       return;
@@ -199,13 +205,15 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
     const next = pills.filter((_pill, at) => at !== index);
     setPills(next);
     if (running) run(next, text);
-    else placeCaret(caret);
+    // The words are unchanged, so only the focus comes back (now, not a frame later: a caret placed late
+    // lands in the middle of whatever was typed since).
+    else inputRef.current?.focus();
   };
 
   const clearAll = () => {
     setPills([]);
     setText('');
-    placeCaret(0);
+    placeCaret(0, '');
     setOpen(false);
     onClear();
   };
@@ -217,7 +225,7 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
       const rest = finished.rest.length > 0 && /\s$/.test(value) ? `${finished.rest} ` : finished.rest;
       setPills((current) => [...current, ...finished.filters]);
       setText(rest);
-      placeCaret(rest.length);
+      placeCaret(rest.length, rest);
       resetHighlight(rest, rest.length);
     } else {
       setText(value);

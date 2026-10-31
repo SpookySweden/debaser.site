@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { threadDomId } from '../lib/forum/anchors';
+import { commentDomId, threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
 import {
   BOARD_SORTS,
@@ -17,7 +17,7 @@ import {
   type SortChoice,
   type TopFrame,
 } from '../lib/forum/board-sort';
-import { searchBoard, type ParsedSearch } from '../lib/forum/board-search';
+import { DEFAULT_RESULT_SORT, formatSearch, searchBoard, sortHits, type ParsedSearch, type ResultSort, type SearchHit } from '../lib/forum/board-search';
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
@@ -29,6 +29,7 @@ import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
 import ForumGalleryView from './ForumGalleryView';
 import ForumSearchBox from './ForumSearchBox';
+import ForumSearchResults from './ForumSearchResults';
 import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
@@ -78,6 +79,9 @@ type BoardMenu = 'tags' | 'controls';
  * both states"). Framed like the Start menu, because it floats over the board rather than sitting in it.
  */
 const MENU_PANEL = 'absolute top-full right-0 left-0 z-menu mt-1 frame bg-paper p-2';
+
+/** What a post or reply opened from a search result wears for a moment: the press flash and a ring. */
+const JUMP_FLASH = ['animate-flash', 'outline-2', 'outline-dotted', 'outline-bubble', 'outline-offset-2'];
 
 /**
  * Puts the sort in the address (`?sort=top&t=week`) without a navigation, so a copied link opens with
@@ -142,11 +146,19 @@ export default function ForumBoard() {
   const [page, setPage] = useState(1);
   const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
 
-  /** The threads a running search found something in: the board narrows to them. */
-  const searchThreadIds = useMemo(
-    () => (search === null ? null : new Set(searchBoard(forum.threads, search, { pins: forum.pins }).map((hit) => hit.thread.id))),
-    [forum.threads, forum.pins, search],
+  /**
+   * The search's result rows (./ForumSearchResults.tsx), in the panel's order. Pins play no part:
+   * the board beside the panel is left as it was, and a row opens its thread there.
+   */
+  const [resultSort, setResultSort] = useState<ResultSort>(DEFAULT_RESULT_SORT);
+  const searchHits = useMemo(
+    () => (search === null ? [] : sortHits(searchBoard(forum.threads, search, { pins: forum.pins }), resultSort)),
+    [forum.threads, forum.pins, search, resultSort],
   );
+  /** On a phone the panel covers the board; pressing a row folds it away to show the thread. */
+  const [resultsFolded, setResultsFolded] = useState(false);
+  /** A result row that was pressed, waiting for the board to draw its thread before scrolling to it. */
+  const [pendingJump, setPendingJump] = useState<{ threadId: string; commentId?: string } | null>(null);
 
   const visibleThreads = useMemo(
     () =>
@@ -154,7 +166,7 @@ export default function ForumBoard() {
       // a pin that vanished the moment somebody searched would not be one. It is lifted inside
       // the filtered list rather than added to it, so a search that excludes it still excludes it.
       sortThreadsPinnedFirst(
-        selectBoardThreads(searchThreadIds === null ? forum.threads : forum.threads.filter((thread) => searchThreadIds.has(thread.id)), {
+        selectBoardThreads(forum.threads, {
           query: '',
           sourceFilter,
           tagKeys: tagFilters,
@@ -169,7 +181,7 @@ export default function ForumBoard() {
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, searchThreadIds, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
+    [forum.threads, forum.pins, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
   );
 
   /** BY TAG with no tags picked reads as HOT (board-query does the same), so the key names what is shown. */
@@ -334,6 +346,84 @@ export default function ForumBoard() {
     },
     [markThreadRead],
   );
+
+  /**
+   * A result row pressed: open its thread on the board, scrolled to the post or the reply, which
+   * flashes. The thread has to be on the board to be opened there, so whatever hides it gives way:
+   * the gallery, the tag / source / music filters, and TOP's frame (HOT for now, shown in the
+   * address but not remembered, as after filing a post). The scroll waits for the effect below.
+   */
+  const openResult = useCallback(
+    (hit: SearchHit) => {
+      setResultsFolded(true);
+      setView('feed');
+
+      const shown = selectBoardThreads([hit.thread], {
+        query: '',
+        sourceFilter,
+        tagKeys: tagFilters,
+        tagMatchMode,
+        sortMode,
+        topFrame,
+        musicOnly,
+        musicTagKeys,
+      });
+      if (shown.length === 0) {
+        setSourceFilter('all');
+        setTagFilters([]);
+        setMusicOnly(false);
+        setMusicTagKeys([]);
+        if (sortMode === 'top') {
+          setSortMode('hot');
+          writeSortToAddress({ sort: 'hot', frame: topFrame });
+        }
+      }
+
+      setPendingJump({ threadId: hit.thread.id, commentId: hit.comment?.id });
+    },
+    [sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys],
+  );
+
+  // The jump itself, once the board has drawn the thread: its page, open, then (two frames on, as the
+  // tag filter's [ OPEN REPLY ] waits) scrolled to and flashed. Started in a frame so nothing is set
+  // synchronously inside the effect body.
+  useEffect(() => {
+    if (pendingJump === null) return;
+    const index = visibleThreads.findIndex((thread) => thread.id === pendingJump.threadId);
+    if (index === -1) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      const { threadId, commentId } = pendingJump;
+      setPendingJump(null);
+      setPage(Math.floor(index / perPage) + 1);
+      markThreadRead(threadId);
+      setOpenThreadIds((current) => (current.includes(threadId) ? current : [...current, threadId]));
+
+      // Waits, a frame at a time (up to about a second), until the post or reply is really drawn: a
+      // reply inside a post that has not opened yet has no box, and scrolling to it does nothing.
+      let tries = 0;
+      const reveal = () => {
+        const target = document.getElementById(commentId === undefined ? threadDomId(threadId) : commentDomId(commentId));
+        if (target === null || target.getClientRects().length === 0) {
+          tries += 1;
+          if (tries < 60) window.requestAnimationFrame(reveal);
+          return;
+        }
+        target.scrollIntoView({ block: 'center' });
+        target.classList.add(...JUMP_FLASH);
+        window.setTimeout(() => target.classList.remove(...JUMP_FLASH), 1200);
+      };
+      window.requestAnimationFrame(reveal);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [pendingJump, visibleThreads, perPage, markThreadRead]);
+
+  /** The panel's [ × ] (or the phone's [ ◂ BACK ]): the search ends and the box empties with it. */
+  const closeSearch = useCallback(() => {
+    setSearch(null);
+    setSearchBoxKey((current) => current + 1);
+  }, []);
 
   const handleView = useCallback((next: BoardView) => {
     setView(next);
@@ -629,12 +719,9 @@ export default function ForumBoard() {
           running={search !== null}
           onRun={(next) => {
             setSearch(next);
-            setPage(1);
+            setResultsFolded(false);
           }}
-          onClear={() => {
-            setSearch(null);
-            setPage(1);
-          }}
+          onClear={() => setSearch(null)}
           onFocus={() => setMenu(null)}
         />
 
@@ -687,103 +774,131 @@ export default function ForumBoard() {
         </div>
       )}
 
-      {visibleThreads.length === 0 ? (
-        <div
-          id="forum-thread-list"
-          className="text-ink"
-        >
-          <p className="p-3 text-key font-bold text-ink">
-            {forum.threads.length === 0
-              ? 'THE BOARD IS EMPTY.'
-              : view === 'gallery'
-                ? 'NO PICTURES MATCH.'
-                : 'NO THREADS MATCH.'}
-          </p>
-        </div>
-      ) : view === 'gallery' ? (
-        /* The wall of pictures. The tiles are the same posts the feed draws, already open - and
-           drawn in the same reading state, from the same marks. */
-        <ForumGalleryView
-          threads={pageThreads}
-          onOpen={openFromGallery}
-          tagFilter={tagFilters}
-          seenByThread={forum.seenByThread}
-        />
-      ) : (
-        <div
-          id="forum-thread-list"
-          className="text-ink"
-        >
-          {pageThreads.map((thread) => (
-            <ForumThreadCard
-              key={thread.id}
-              thread={thread}
-              isOpen={openThreadIds.includes(thread.id)}
+      {/* The board, and beside it the search's results while a search is showing (./ForumSearchResults.tsx):
+          a column on a wide screen; on a phone the results cover the board, and pressing a row folds them
+          away to show the thread, with [ ◂ RESULTS ] to come back. */}
+      <div className={search === null ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4'}>
+        <div className={`min-w-0 space-y-3 ${search !== null && !resultsFolded ? 'max-lg:hidden' : ''}`}>
+          {search !== null && resultsFolded ? (
+            <button type="button" onClick={() => setResultsFolded(false)} className={`${PLATE} lg:hidden`}>
+              {`[ ◂ RESULTS (${searchHits.length}) ]`}
+            </button>
+          ) : null}
+
+          {visibleThreads.length === 0 ? (
+            <div
+              id="forum-thread-list"
+              className="text-ink"
+            >
+              <p className="p-3 text-key font-bold text-ink">
+                {forum.threads.length === 0
+                  ? 'THE BOARD IS EMPTY.'
+                  : view === 'gallery'
+                    ? 'NO PICTURES MATCH.'
+                    : 'NO THREADS MATCH.'}
+              </p>
+            </div>
+          ) : view === 'gallery' ? (
+            /* The wall of pictures. The tiles are the same posts the feed draws, already open - and
+               drawn in the same reading state, from the same marks. */
+            <ForumGalleryView
+              threads={pageThreads}
+              onOpen={openFromGallery}
               tagFilter={tagFilters}
-              onToggle={handleToggle}
+              seenByThread={forum.seenByThread}
             />
-          ))}
+          ) : (
+            <div
+              id="forum-thread-list"
+              className="text-ink"
+            >
+              {pageThreads.map((thread) => (
+                <ForumThreadCard
+                  key={thread.id}
+                  thread={thread}
+                  isOpen={openThreadIds.includes(thread.id)}
+                  tagFilter={tagFilters}
+                  onToggle={handleToggle}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* The foot: one readout, `[ < ] 1-5 OF 7 [ > ]` - which posts these are, of how many match,
+              and the way to either side - with how many posts a page holds just before it. A key per page
+              joins it only past five pages, where the arrows stop being a short walk. */}
+          {visibleThreads.length === 0 ? null : (
+            <nav aria-label="Board pages" className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+              <label htmlFor="forum-per-page">PER PAGE:</label>
+              <select
+                id="forum-per-page"
+                value={perPage}
+                onChange={(event) => handlePerPageChange(Number(event.target.value))}
+                className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
+              >
+                {PAGE_SIZES.map((size) => (
+                  // The select is transparent, and Chrome on Windows paints a transparent popup white under the
+                  // ink: each choice carries the paper itself so the list reads in every theme.
+                  <option key={size} value={size} className="bg-paper">
+                    {size}
+                  </option>
+                ))}
+              </select>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage - 1)}
+                disabled={currentPage === 1}
+                aria-label="Previous page"
+                className={PLATE}
+              >
+                [ &lt; ]
+              </button>
+
+              <span>{`${pageStart + 1}-${pageStart + pageThreads.length} OF ${visibleThreads.length}`}</span>
+
+              <button
+                type="button"
+                onClick={() => goToPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+                aria-label="Next page"
+                className={PLATE}
+              >
+                [ &gt; ]
+              </button>
+
+              {totalPages > NUMBERED_PAGES_AFTER
+                ? pageNumbers.map((number) => (
+                    <button
+                      key={number}
+                      type="button"
+                      onClick={() => goToPage(number)}
+                      aria-current={number === currentPage ? 'page' : undefined}
+                      className={number === currentPage ? PLATE_PRESSED : PLATE}
+                    >
+                      {`[ ${number} ]`}
+                    </button>
+                  ))
+                : null}
+            </nav>
+          )}
         </div>
-      )}
 
-      {/* The foot: one readout, `[ < ] 1-5 OF 7 [ > ]` - which posts these are, of how many match,
-          and the way to either side - with how many posts a page holds just before it. A key per page
-          joins it only past five pages, where the arrows stop being a short walk. */}
-      {visibleThreads.length === 0 ? null : (
-        <nav aria-label="Board pages" className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-          <label htmlFor="forum-per-page">PER PAGE:</label>
-          <select
-            id="forum-per-page"
-            value={perPage}
-            onChange={(event) => handlePerPageChange(Number(event.target.value))}
-            className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
-          >
-            {PAGE_SIZES.map((size) => (
-              // The select is transparent, and Chrome on Windows paints a transparent popup white under the
-              // ink: each choice carries the paper itself so the list reads in every theme.
-              <option key={size} value={size} className="bg-paper">
-                {size}
-              </option>
-            ))}
-          </select>
-
-          <button
-            type="button"
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            aria-label="Previous page"
-            className={PLATE}
-          >
-            [ &lt; ]
-          </button>
-
-          <span>{`${pageStart + 1}-${pageStart + pageThreads.length} OF ${visibleThreads.length}`}</span>
-
-          <button
-            type="button"
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            aria-label="Next page"
-            className={PLATE}
-          >
-            [ &gt; ]
-          </button>
-
-          {totalPages > NUMBERED_PAGES_AFTER
-            ? pageNumbers.map((number) => (
-                <button
-                  key={number}
-                  type="button"
-                  onClick={() => goToPage(number)}
-                  aria-current={number === currentPage ? 'page' : undefined}
-                  className={number === currentPage ? PLATE_PRESSED : PLATE}
-                >
-                  {`[ ${number} ]`}
-                </button>
-              ))
-            : null}
-        </nav>
-      )}
+        {search === null ? null : (
+          // Held in view while the board scrolls to a result, so the next row is still there to press.
+          <div className={`lg:sticky lg:top-0 lg:max-h-[80vh] lg:overflow-y-auto ${resultsFolded ? 'max-lg:hidden' : ''}`}>
+            <ForumSearchResults
+              key={formatSearch(search)}
+              hits={searchHits}
+              terms={search.terms}
+              sort={resultSort}
+              onSort={setResultSort}
+              onOpen={openResult}
+              onClose={closeSearch}
+            />
+          </div>
+        )}
+      </div>
 
       {/* Composer only appears when asked for */}
       {composerOpen ? (
