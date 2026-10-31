@@ -417,7 +417,16 @@ export default function ForumBoard() {
         }
         target.scrollIntoView({ block: 'center' });
         target.classList.add(...JUMP_FLASH);
-        window.setTimeout(() => target.classList.remove(...JUMP_FLASH), 1200);
+        // Opening the post marks it read, and React redraws its class then, wiping the flash after a few
+        // milliseconds (seen live: 18ms, so the jump looked like it went nowhere). Put back for the full time.
+        const keep = new MutationObserver(() => {
+          if (!target.classList.contains(JUMP_FLASH[0])) target.classList.add(...JUMP_FLASH);
+        });
+        keep.observe(target, { attributes: true, attributeFilter: ['class'] });
+        window.setTimeout(() => {
+          keep.disconnect();
+          target.classList.remove(...JUMP_FLASH);
+        }, 1200);
       };
       window.requestAnimationFrame(reveal);
     });
