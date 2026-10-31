@@ -1,3 +1,13 @@
+# Latest: VANITY spec written, nothing built (SPEC-vanity.md) (2026-10-31)
+- Interview only (two rounds + ideas). No code, no database changes. Build in a fresh session from
+  SPEC-vanity.md, step 1 first (song settings panel with ADD TO PLAYLIST: no DB change, uses the
+  existing `togglePlaylistTrack`; the archive at /media?kind=audio has no add-to-playlist today).
+- Gotchas found: no listen history, profile visits or listen-along are recorded anywhere yet (new
+  tables, each needs Luke's typed OK); no MP3 is filed under a project (DEBASER), so projects need a
+  folder mapping in code - Luke still has to name which top folders DEBASER owns before step 5.
+- Not mine, left alone: uncommitted stream-room work (MediaCatalogue, WatchRoom, lib/watch/*,
+  scripts/browser.cjs, lib/media/categories.ts) and SPEC-forum-search.md from other sessions.
+
 # Latest: watch together (SPEC-watch-together.md) - stream rooms, [ TV ] key, forum record, archive folds (2026-10-27)
 - STATUS: LIVE (5df486d data, 43fba4b screens), driven on https://debaser-site.vercel.app twice: dark theme
   (clean leave) and bright theme (A's tab killed) - every step passed. Review fixes in the commit after.
