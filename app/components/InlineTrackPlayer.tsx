@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { formatClock } from '../lib/audio/format';
 import { postedTrackAsAudio } from '../lib/audio/forum-tracks';
 import { normaliseAudioTags } from '../lib/audio/tags';
@@ -7,6 +8,7 @@ import type { ForumTrack } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { SongMenuKey, SongMenuPanel } from './SongMenu';
 
 type InlineTrackPlayerProps = {
   track: ForumTrack;
@@ -37,6 +39,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
   const playing = current && player.playing;
   const tags = normaliseAudioTags(track.tags ?? []);
   /** The running time: the player's own when this is what is playing, else what was filed. */
+  const [menuOpen, setMenuOpen] = useState(false);
   const length = current && Number.isFinite(player.duration) ? formatClock(player.duration) : (track.length ?? '--:--');
 
   function press() {
@@ -77,7 +80,12 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
             {playing ? ` :: ${formatClock(player.elapsed)}` : ''}
           </span>
         </span>
+
+        {/* The song settings panel (`./SongMenu.tsx`), the same one every song row carries. */}
+        <SongMenuKey open={menuOpen} onToggle={() => setMenuOpen((open) => !open)} title={track.title} />
       </div>
+
+      {menuOpen ? <SongMenuPanel track={postedTrackAsAudio(track, poster)} onClose={() => setMenuOpen(false)} /> : null}
 
       {tags.length === 0 ? null : (
         <div className="mt-1 flex flex-wrap items-center gap-1">

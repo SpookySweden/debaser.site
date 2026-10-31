@@ -4,20 +4,17 @@ import { playlistContext } from '../lib/audio/track-context';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  playlistIds,
   resolveLikes,
   resolvePlaylistItems,
   validatePlaylistName,
   type Playlist,
 } from '../lib/audio/library';
-import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
 import { getMusicRepository } from '../lib/audio/repository';
 import { formatClock } from '../lib/audio/format';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { FIELD, PANEL, PLATE, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import Link from 'next/link';
-import NewPostForm from './NewPostForm';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import LibraryRow from './LibraryRow';
 import ListRow from './ListRow';
@@ -62,15 +59,12 @@ export default function PersonalLibrary() {
   const [shelf, setShelf] = useState<AudioTrack[]>([]);
   const [ready, setReady] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
-  const [busy, setBusy] = useState<string | null>(null);
 
   /** The list being viewed: null is LIKED, which is the screen's own default. */
   const [openList, setOpenList] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [naming, setNaming] = useState(false);
 
-  /** The track the composer is open for. */
-  const [posting, setPosting] = useState<AudioTrack | null>(null);
 
   /**
    * Reads the shelf.
@@ -119,37 +113,6 @@ export default function PersonalLibrary() {
   );
 
   const rows = shown.rows;
-
-  // Built once for the whole list rather than re-scanned by every row. `isInPlaylist` is linear, so
-  // asking it per row is quadratic in the length of the list; the liked set is already shared.
-  const inOpenList = useMemo(() => playlistIds(current), [current]);
-
-  async function toggleLike(track: AudioTrack) {
-    setBusy(track.id);
-    setNotice(null);
-
-    try {
-      const { liked: nowLiked } = await library.toggleLike(track.id);
-      setNotice(nowLiked ? `${track.title} LIKED.` : `${track.title} UNLIKED.`);
-    } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
-    } finally {
-      setBusy(null);
-    }
-  }
-
-  async function addToList(track: AudioTrack, list: Playlist) {
-    setBusy(track.id);
-    setNotice(null);
-
-    try {
-      await library.togglePlaylistTrack(list.id, track.id);
-    } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'THE LIBRARY DID NOT ANSWER.');
-    } finally {
-      setBusy(null);
-    }
-  }
 
   async function makeList() {
     const problem = validatePlaylistName(newName);
@@ -341,10 +304,6 @@ export default function PersonalLibrary() {
                 key={track.id}
                 track={track}
                 index={index}
-                lists={library.playlists}
-                liked={library.likedIds.has(track.id)}
-                inOpenList={inOpenList.has(track.id)}
-                busy={busy === track.id}
                 playing={player.track?.src === track.src && player.playing}
                 current={player.track?.src === track.src}
                 duration={
@@ -363,21 +322,11 @@ export default function PersonalLibrary() {
                         context: playlistContext(current?.name ?? 'LIKED'),
                       })
                 }
-                onLike={() => void toggleLike(track)}
-                onAddToList={(list) => void addToList(track, list)}
-                onComment={() => setPosting(track)}
               />
             ))}
           </ul>
         )}
       </div>
-
-      {/* The board's own composer, opened with the track already filed. This is the *same* seam the
-          archive's `[ INJECT ]` uses - `initialTrack` on `./NewPostForm.tsx` - so a post about a
-          song reads the same whichever screen it was started from. */}
-      {posting === null ? null : (
-        <NewPostForm initialTrack={forumTrackFromArchive(posting)} onClose={() => setPosting(null)} />
-      )}
     </section>
   );
 }

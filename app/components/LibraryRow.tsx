@@ -1,60 +1,33 @@
 'use client';
 
-import type { Playlist } from '../lib/audio/library';
+import { useState } from 'react';
 import { normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
-import { PLATE, PLATE_ACCENT } from '../lib/ui/controls';
+import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
+import { SongMenuKey, SongMenuPanel } from './SongMenu';
 
 type LibraryRowProps = {
   track: AudioTrack;
   /** Its place in the list, printed as the row's own number so the two columns line up. */
   index: number;
-  /** The lists a track can be put into. Empty for a reader with none, which hides the row of buttons. */
-  lists: Playlist[];
-  liked: boolean;
-  /** Whether it is in the list currently being *viewed*, which is the only membership a row can know. */
-  inOpenList: boolean;
-  busy: boolean;
   playing: boolean;
   current: boolean;
   duration: string;
   onPlay: () => void;
-  onLike: () => void;
-  onAddToList: (list: Playlist) => void;
-  onComment: () => void;
 };
 
 /**
  * One track in the reader's own music.
  *
- * Three gestures, and each is one the site already has:
- *
- *   the heart       the like switch. Pressed in while liked, and it writes straight through - there is
- *                   no save, because a heart that needs confirming is not a heart. Its face *is* the
- *                   state, so a column of them can be read at a glance.
- *   `[ ✎ COMMENT ]` the board's composer, opened with this file already filed (`./NewPostForm.tsx`).
- *                   Navy, because it is the one control here that acts on the board rather than on the
- *                   library - the same accent the archive's `[ INJECT ]` wears, so the verb
- *                   that reaches out of a window is findable in a list of grey.
- *   `[ ▶ PLAY ]`    the row's own play, the same shape the archive's rows have.
+ * Two keys: `[ ⋯ ]`, the song settings panel (`./SongMenu.tsx`: lists, like, queue, link, post, folder),
+ * which opens under the row, and `[ ▶ PLAY ]`, the row's own play, the same shape the archive's rows have.
+ * The heart, the COMMENT key and the row of ADD TO lists all moved into the panel (SPEC-vanity.md), so
+ * a list reads as titles rather than as a wall of keys.
  */
-export default function LibraryRow({
-  track,
-  index,
-  lists,
-  liked,
-  inOpenList,
-  busy,
-  playing,
-  current,
-  duration,
-  onPlay,
-  onLike,
-  onAddToList,
-  onComment,
-}: LibraryRowProps) {
+export default function LibraryRow({ track, index, playing, current, duration, onPlay }: LibraryRowProps) {
   const tags = normaliseAudioTags(track.tags);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   return (
     <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
@@ -85,27 +58,7 @@ export default function LibraryRow({
         </span>
 
         <span className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={onLike}
-            disabled={busy}
-            aria-pressed={liked}
-            title={liked ? `Unlike ${track.title}` : `Like ${track.title}`}
-            className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
-              liked ? 'key key-fill [--key-fill:var(--color-bubble-pale)] text-ink-bar' : 'key'
-            }`}
-          >
-            {liked ? '♥' : '♡'}
-          </button>
-
-          <button
-            type="button"
-            onClick={onComment}
-            title={`Post about ${track.title}`}
-            className={`${PLATE_ACCENT} hidden sm:inline-flex`}
-          >
-            [ ✎ COMMENT ]
-          </button>
+          <SongMenuKey open={menuOpen} onToggle={() => setMenuOpen((open) => !open)} title={track.title} />
 
           <button
             type="button"
@@ -118,50 +71,7 @@ export default function LibraryRow({
         </span>
       </div>
 
-      {/* Which lists this track can go into.
-          A row of small plates rather than a dropdown: there are rarely more than a handful, and a menu
-          that has to be opened to find out whether a track is already in a list hides the very thing the
-          reader is asking. The mark is `inOpenList`, which is the only membership a row can honestly
-          claim - it knows about the list on screen and nothing about the others, so a track sitting in
-          two lists shows its mark only on the one it is being viewed from. */}
-      {lists.length === 0 ? null : (
-        <div className="mt-1 flex flex-wrap items-center gap-1 pl-8">
-          <span className="text-label font-bold text-ink">ADD TO:</span>
-
-          {lists.map((list) => (
-            <button
-              key={list.id}
-              type="button"
-              onClick={() => onAddToList(list)}
-              disabled={busy}
-              title={
-                inOpenList && current
-                  ? `Take ${track.title} out of ${list.name}`
-                  : `Add ${track.title} to ${list.name}`
-              }
-              className={`cursor-pointer px-1 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-1 ${
-                inOpenList && current ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : 'key'
-              }`}
-            >
-              [ {list.name} ]
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* On a phone there is no room for the comment plate beside the heart, so it takes its own line -
-          the same trade the archive's rows make, so the plate is never simply missing on a small
-          screen. */}
-      <div className="mt-1 pl-8 sm:hidden">
-        <button
-          type="button"
-          onClick={onComment}
-          title={`Post about ${track.title}`}
-          className={PLATE_ACCENT}
-        >
-          [ ✎ COMMENT ]
-        </button>
-      </div>
+      {menuOpen ? <SongMenuPanel track={track} fromShelf onClose={() => setMenuOpen(false)} /> : null}
     </li>
   );
 }

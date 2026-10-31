@@ -21,6 +21,9 @@ import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import MarqueeText from './MarqueeText';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { SongMenuKey, SongMenuPanel } from './SongMenu';
+import { shelfSong } from '../lib/audio/up-next';
 import TrackDetails from './TrackDetails';
 import { lengthSeconds, queueContext, trackContext } from '../lib/audio/track-context';
 import MusicOptionsPrompt from './MusicOptionsPrompt';
@@ -279,6 +282,48 @@ function NowPlaying({ marquee = false, extra }: { marquee?: boolean; extra?: Rea
 }
 
 /**
+ * The song on the display's own two keys: the one-click heart, and `[ ⋯ ]`, the song settings panel
+ * (`./SongMenu.tsx`), which opens as a small window above the key since the bar sits on the bottom edge.
+ *
+ * The heart is for a signed-in reader and a song the archive holds (matched by its file, as the panel
+ * does); otherwise only the panel key is drawn.
+ */
+function PlayerSongKeys({ plate, side }: { plate: string; side: 'left' | 'right' }) {
+  const player = useMusicPlayer();
+  const library = useMusicLibrary();
+  const [open, setOpen] = useState(false);
+  const { track } = player;
+
+  if (track === undefined) return null;
+
+  const song = shelfSong(player.queue, player.shelfSize, track.src);
+  const liked = song !== undefined && library.likedIds.has(song.id);
+
+  return (
+    // Not `relative`: the panel lines up with the whole bar or card (both are fixed, so positioned), which
+    // keeps it on screen wherever the keys happen to sit in the row.
+    <span className="flex items-center gap-1">
+      {library.canWrite && song !== undefined ? (
+        <button
+          type="button"
+          onClick={() => void library.toggleLike(song.id).catch(() => undefined)}
+          aria-pressed={liked}
+          className={plate}
+          title={liked ? `Unlike ${song.title}` : `Like ${song.title}`}
+          aria-label={liked ? `Unlike ${song.title}` : `Like ${song.title}`}
+        >
+          {liked ? '♥' : '♡'}
+        </button>
+      ) : null}
+
+      <SongMenuKey open={open} onToggle={() => setOpen((current) => !current)} title={track.title} plate={plate} />
+
+      {open ? <SongMenuPanel track={track} placement="above" side={side} onClose={() => setOpen(false)} /> : null}
+    </span>
+  );
+}
+
+/**
  * What the bar says about following, ahead of the track's own caption.
  *
  * Said on the bar because that is where a reader looks when the music changes under them - a follow
@@ -411,6 +456,8 @@ function DockedBar({ onHide, onSettings }: BarControls) {
               aria-label="Volume"
             />
           </label>
+
+          <PlayerSongKeys plate={PLATE_HARDWARE} side="right" />
 
           <button type="button" onClick={onSettings} className={PLATE_HARDWARE}>
             [ OPTIONS ]
@@ -700,6 +747,8 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
           >
             [ ↻ ]
           </button>
+
+          <PlayerSongKeys plate={PLATE} side="left" />
 
           <label className="ml-auto flex items-center gap-1 text-label font-bold text-ink">
             VOL

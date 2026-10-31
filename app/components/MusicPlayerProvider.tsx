@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { clipRepeats } from '../lib/audio/clip-loop';
+import { enqueueTrack } from '../lib/audio/up-next';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
 import { isFollowing, stopFollowing } from '../lib/audio/follow';
 import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
@@ -121,6 +122,15 @@ export type MusicPlayerValue = {
   setPlaybackRate: (rate: number) => void;
   /** Reads the shelf again, after an upload or a track dropped into the bucket. */
   refresh: () => void;
+  /**
+   * What plays before the shelf walks on: songs put there by a song panel's ADD TO QUEUE or PLAY NEXT.
+   * NEXT and the end of a track take the first of these, if there is one, before the shelf's next file.
+   */
+  upNext: AudioTrack[];
+  /** Puts a song at the end of `upNext` (`'end'`) or at its front (`'next'`). */
+  enqueue: (track: AudioTrack, where: 'end' | 'next') => void;
+  /** How much of the front of `queue` is the archive as read; songs after it were added by a press. */
+  shelfSize: number;
 };
 
 const MusicPlayerContext = createContext<MusicPlayerValue | null>(null);
@@ -239,6 +249,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const autoplayArmed = useRef(false);
 
   const [queue, setQueue] = useState<AudioTrack[]>(LOCAL_TRACKS);
+  /** How much of the front of `queue` came from reading the archive; the rest was added by a press. */
+  const [shelfSize, setShelfSize] = useState(LOCAL_TRACKS.length);
   const [index, setIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -248,6 +260,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const [volume, setVolumeState] = useState(() => loadSettings().volume);
   const [loop, setLoopState] = useState(() => loadSettings().loop);
   const [playbackRate, setPlaybackRateState] = useState(1);
+  /** The songs queued by hand (`enqueue`), and the same list as a ref for the `ended` handler. */
+  const [upNext, setUpNext] = useState<AudioTrack[]>([]);
+  const upNextRef = useRef<AudioTrack[]>([]);
 
   /**
    * Where the track now playing was pressed from.
@@ -409,6 +424,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
         const wanted = playingSrc.current ?? storedSrc.current ?? undefined;
 
         setQueue(next);
+        setShelfSize(next.length);
         setIndex((current) => {
           const found = wanted === undefined ? -1 : next.findIndex((entry) => entry.src === wanted);
           if (found !== -1) return found;
@@ -507,6 +523,51 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     });
   }, [armAutoplay, playing, track]);
 
+  /**
+   * Moves to the first song queued by hand, if there is one, and says whether it did.
+   *
+   * The song is found on the shelf by its file (or added to the end of it, like `play` does), so the
+   * shelf's own order carries on from wherever that song sits once the hand-made queue runs out.
+   */
+  const playUpNext = useCallback((): boolean => {
+    const [first, ...rest] = upNextRef.current;
+    if (first === undefined) return false;
+
+    upNextRef.current = rest;
+    setUpNext(rest);
+    pendingStart.current = null;
+    playedFrom.current = null;
+    setHeardFrom(null);
+    handedOver.current = false;
+    setOwnLoop(clipRepeats(first));
+
+    const found = queue.findIndex((entry) => entry.src === first.src);
+
+    if (found === -1) {
+      setQueue([...queue, first]);
+      setIndex(queue.length);
+    } else if (found === index) {
+      // The song queued is the one already on: nothing about the track changes, so no effect would
+      // start it again. It starts over from the top here instead of going quiet at its end.
+      const audio = audioRef.current;
+      if (audio !== null) {
+        audio.currentTime = 0;
+        void audio.play().catch(() => setPlaying(false));
+      }
+    } else {
+      setIndex(found);
+    }
+
+    return true;
+  }, [index, queue]);
+
+  const enqueue = useCallback((wanted: AudioTrack, where: 'end' | 'next') => {
+    const nextList = enqueueTrack(upNextRef.current, wanted, where);
+
+    upNextRef.current = nextList;
+    setUpNext(nextList);
+  }, []);
+
   // Ending: repeat this one, or walk on to the next. Looping is done here rather than
   // with the element's own `loop` attribute, because the switch means "repeat this
   // one" - with it off, the queue keeps going, which is what a shelf of demos wants.
@@ -534,14 +595,15 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
         return;
       }
 
-      // Whatever the browser did with `paused` on the way here, the next track plays.
-      setIndex((current) => nextIndex(current, queue.length));
+      // A song queued by hand goes first; otherwise the shelf walks on. Whatever the browser did with
+      // `paused` on the way here, the next track plays.
+      if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
       setPlaying(true);
     };
 
     audio.addEventListener('ended', onEnded);
     return () => audio.removeEventListener('ended', onEnded);
-  }, [loop, ownLoop, queue.length]);
+  }, [loop, ownLoop, playUpNext, queue.length]);
 
   useEffect(() => {
     if (audioRef.current !== null) audioRef.current.volume = volume;
@@ -627,13 +689,15 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     navigator.mediaSession.setActionHandler('pause', mine(() => setPlaying(false)));
     navigator.mediaSession.setActionHandler(
       'nexttrack',
-      mine(() => setIndex((current) => nextIndex(current, queue.length))),
+      mine(() => {
+        if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+      }),
     );
     navigator.mediaSession.setActionHandler(
       'previoustrack',
       mine(() => setIndex((current) => previousIndex(current, queue.length))),
     );
-  }, [playing, queue.length, track]);
+  }, [playUpNext, playing, queue.length, track]);
 
 
   const toggle = useCallback(() => {
@@ -668,8 +732,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     setError(null);
     pendingStart.current = null;
     stopFollowing('');
-    setIndex((current) => nextIndex(current, queue.length));
-  }, [queue.length]);
+    if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+  }, [playUpNext, queue.length]);
 
   const previous = useCallback(() => {
     setError(null);
@@ -878,6 +942,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setPlaybackRate,
       heardFrom: heardFrom !== null && heardFrom.src === track?.src ? heardFrom.origin : null,
       refresh,
+      upNext,
+      enqueue,
+      shelfSize,
     }),
     [
       queue,
@@ -910,6 +977,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setPlaybackRate,
       heardFrom,
       refresh,
+      upNext,
+      enqueue,
+      shelfSize,
     ],
   );
 

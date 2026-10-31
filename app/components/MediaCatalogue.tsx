@@ -22,12 +22,12 @@ import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import MediaUploadWindow from './MediaUploadWindow';
-import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
 import ProfileLink from './ProfileLink';
 import SheetImage from './SheetImage';
+import { SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
 
@@ -143,7 +143,6 @@ export default function MediaCatalogue() {
   const forum = useForum();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
-  const library = useMusicLibrary();
   const folders = useArchiveFolders();
 
   const kind = kindRequested(search.get('kind'));
@@ -216,16 +215,6 @@ export default function MediaCatalogue() {
 
   const share = Math.min(1, catalogue.bytesUsed / STORAGE_CEILING_BYTES);
 
-  /** Hearts or un-hearts a track, saying why when it cannot. */
-  async function toggleLike(track: AudioTrack) {
-    try {
-      const { liked } = await library.toggleLike(track.id);
-      setNotice(liked ? `LIKED :: ${track.title}` : `UNLIKED :: ${track.title}`);
-    } catch (caught) {
-      setNotice(caught instanceof Error ? caught.message : 'THAT COULD NOT BE LIKED.');
-    }
-  }
-
   /** Opens a fold that is shut, or shuts it. */
   const toggleShelf = (key: string) =>
     setOpenShelves((current) => {
@@ -252,8 +241,6 @@ export default function MediaCatalogue() {
           catalogue.reload();
         }}
         track={track}
-        liked={track === undefined ? false : library.likedIds.has(track.id)}
-        onLike={library.canWrite ? (candidate) => void toggleLike(candidate) : undefined}
         onPlay={(candidate) => player.play(candidate, { origin: 'shelf', href: MUSIC_HREF, where: 'THE MEDIA PAGE' })}
         folds={entry.item.kind === 'video' ? streamFolds[entry.item.id] : undefined}
       />
@@ -624,8 +611,6 @@ function CatalogueRow({
   viewerId,
   onChanged,
   track,
-  liked,
-  onLike,
   onPlay,
   folds,
 }: {
@@ -640,15 +625,13 @@ function CatalogueRow({
   onChanged: (message: string) => void;
   /** The player's own record of an audio row; undefined for a picture or a video. */
   track?: AudioTrack;
-  liked: boolean;
-  /** Hearts the track; undefined for a guest, who is offered the heart's state but not the press. */
-  onLike?: (track: AudioTrack) => void;
   onPlay: (track: AudioTrack) => void;
   /** A video's streams, for its STREAM CHAT folds; undefined for anything never streamed. */
   folds?: StreamFold[];
 }) {
   const { item, uses } = entry;
   const [editing, setEditing] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   const canEdit = viewerId !== null && item.uploadedBy === viewerId && item.source !== 'sheet';
 
   return (
@@ -705,20 +688,11 @@ function CatalogueRow({
           </span>
         ) : null}
 
-        {/* A track's two keys, the shelf's own: the heart, and play through the site's one player.
-            Writing about a track starts in the composer, which picks it there. */}
+        {/* A track's two keys: the song settings panel (`./SongMenu.tsx`: lists, like, queue, link,
+            post, folder), and play through the site's one player. */}
         {track === undefined ? null : (
           <span className="flex shrink-0 flex-wrap items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
-            <button
-              type="button"
-              onClick={onLike === undefined ? undefined : () => onLike(track)}
-              disabled={onLike === undefined}
-              aria-pressed={liked}
-              className={PLATE}
-              title={onLike === undefined ? 'Log in to like' : liked ? `Unlike ${track.title}` : `Like ${track.title}`}
-            >
-              {liked ? '♥' : '♡'}
-            </button>
+            <SongMenuKey open={menuOpen} onToggle={() => setMenuOpen((current) => !current)} title={track.title} />
             <button type="button" onClick={() => onPlay(track)} className={PLATE}>
               [ ▶ PLAY ]
             </button>
@@ -735,6 +709,12 @@ function CatalogueRow({
           </span>
         )}
       </div>
+
+      {track !== undefined && menuOpen ? (
+        <div className="pl-14 max-sm:pl-0">
+          <SongMenuPanel track={track} fromShelf onClose={() => setMenuOpen(false)} />
+        </div>
+      ) : null}
 
       {item.kind === 'video' ? <StreamChatFolds folds={folds} /> : null}
 
