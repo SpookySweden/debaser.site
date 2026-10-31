@@ -34,6 +34,7 @@ const TRACKS_TABLE = 'music_tracks';
 const FOLDERS_TABLE = 'music_folders';
 /** What one account liked - see supabase/migrations/20260930000025_music_library.sql. */
 const LIKES_TABLE = 'music_likes';
+const BARRS_TABLE = 'music_barrs';
 /** The lists one account made, and their items, in the same migration. */
 const PLAYLISTS_TABLE = 'music_playlists';
 
@@ -447,6 +448,45 @@ class SupabaseMusicRepository implements MusicRepository {
     if (error !== null) throw new Error(error.message.toUpperCase());
 
     return { liked: true };
+  }
+
+  async listBarrs(userId: string): Promise<LibraryRead<string>> {
+    const { data, error } = await this.client()
+      .from(BARRS_TABLE)
+      .select('track_src')
+      .eq('user_id', userId)
+      .order('barred_at', { ascending: false })
+      .limit(LIST_LIMIT);
+
+    if (error !== null) return { items: [], answered: false };
+
+    return { items: ((data ?? []) as { track_src: string }[]).map((row) => row.track_src), answered: true };
+  }
+
+  /** The same read-then-write-once shape `toggleLike` uses, for the same reason. */
+  async toggleBarr(userId: string, src: string): Promise<{ barred: boolean }> {
+    const client = this.client();
+
+    const existing = await client
+      .from(BARRS_TABLE)
+      .select('track_src')
+      .eq('user_id', userId)
+      .eq('track_src', src)
+      .maybeSingle();
+
+    if (existing.error !== null) throw new Error('THE BARR COULD NOT BE READ.');
+
+    if (existing.data !== null) {
+      const { error } = await client.from(BARRS_TABLE).delete().eq('user_id', userId).eq('track_src', src);
+      if (error !== null) throw new Error('THE BARR COULD NOT BE LIFTED.');
+
+      return { barred: false };
+    }
+
+    const { error } = await client.from(BARRS_TABLE).insert({ user_id: userId, track_src: src });
+    if (error !== null) throw new Error('THE BARR COULD NOT BE SAVED.');
+
+    return { barred: true };
   }
 
   async listPlaylists(userId: string): Promise<LibraryRead<Playlist>> {

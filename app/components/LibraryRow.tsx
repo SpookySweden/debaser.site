@@ -5,7 +5,8 @@ import { normaliseAudioTags } from '../lib/audio/tags';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
-import { SongMenuKey, SongMenuPanel } from './SongMenu';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 
 type LibraryRowProps = {
   track: AudioTrack;
@@ -28,6 +29,7 @@ type LibraryRowProps = {
 export default function LibraryRow({ track, index, playing, current, duration, onPlay }: LibraryRowProps) {
   const tags = normaliseAudioTags(track.tags);
   const [menuOpen, setMenuOpen] = useState(false);
+  const barred = useMusicLibrary().barredSrcs.has(track.src);
 
   return (
     <li className={`border-b border-dotted border-ink px-2 py-1 hover:bg-pointed ${current ? 'bg-sun-pale' : 'bg-paper'}`}>
@@ -36,7 +38,7 @@ export default function LibraryRow({ track, index, playing, current, duration, o
 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-key font-bold text-ink" title={track.title}>
-            {track.title}
+            {barred ? <BarredTitle>{track.title}</BarredTitle> : track.title}
           </span>
           <span className="block truncate text-label text-ink">
             {track.credit.length === 0 ? 'NO CREDIT' : track.credit}

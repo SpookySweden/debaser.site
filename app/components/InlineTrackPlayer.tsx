@@ -8,7 +8,8 @@ import type { ForumTrack } from '../lib/forum/types';
 import { PLATE } from '../lib/ui/controls';
 import AudioTagPill from './AudioTagPill';
 import { useMusicPlayer } from './MusicPlayerProvider';
-import { SongMenuKey, SongMenuPanel } from './SongMenu';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 
 type InlineTrackPlayerProps = {
   track: ForumTrack;
@@ -40,6 +41,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
   const tags = normaliseAudioTags(track.tags ?? []);
   /** The running time: the player's own when this is what is playing, else what was filed. */
   const [menuOpen, setMenuOpen] = useState(false);
+  const barred = useMusicLibrary().barredSrcs.has(track.src);
   const length = current && Number.isFinite(player.duration) ? formatClock(player.duration) : (track.length ?? '--:--');
 
   function press() {
@@ -67,7 +69,7 @@ export default function InlineTrackPlayer({ track, poster, origin, compact = fal
 
         <span className="min-w-0 flex-1 frame bg-hardware px-2 py-0.5">
           <span className={`block truncate font-bold text-acid ${compact ? 'text-label' : 'text-key'}`}>
-            {track.title}
+            {barred ? <BarredTitle>{track.title}</BarredTitle> : track.title}
           </span>
           {/* The byline sits on the `bg-hardware` screen above, which is Black in *both* themes - so it
               takes the bar ink rather than a field ink: `text-ena-deep` was Nigrosine on Black (1.18:1)

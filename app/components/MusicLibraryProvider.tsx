@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { LikedTrack, Playlist } from '../lib/audio/library';
+import { setBarredSrcs } from '../lib/audio/barrs';
 import { getMusicRepository } from '../lib/audio/repository';
 import { useAuth } from './AuthProvider';
 
@@ -48,6 +49,10 @@ type MusicLibraryValue = {
   removePlaylist: (playlistId: string) => Promise<void>;
   /** Reads everything again, after something outside this provider changed the shelf. */
   reload: () => void;
+  /** The files this reader barred (BARR, SPEC-vanity.md), by address. Only they ever see these. */
+  barredSrcs: ReadonlySet<string>;
+  /** Bars a song by its file address, or unbars it. Throws with a sentence fit to show. */
+  toggleBarr: (src: string) => Promise<{ barred: boolean }>;
 };
 
 const NO_ACCOUNT = 'LOG IN TO LIKE AND KEEP LISTS.';
@@ -72,6 +77,10 @@ const EMPTY: MusicLibraryValue = {
     throw new Error(NO_ACCOUNT);
   },
   reload: () => {},
+  barredSrcs: new Set(),
+  toggleBarr: async () => {
+    throw new Error(NO_ACCOUNT);
+  },
 };
 
 const MusicLibraryContext = createContext<MusicLibraryValue>(EMPTY);
@@ -87,6 +96,7 @@ export default function MusicLibraryProvider({ children }: { children: ReactNode
 
   const [likes, setLikes] = useState<LikedTrack[]>([]);
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [barrs, setBarrs] = useState<string[]>([]);
   const [answered, setAnswered] = useState(true);
   const [loading, setLoading] = useState(true);
   const [reloadToken, setReloadToken] = useState(0);
@@ -100,19 +110,24 @@ export default function MusicLibraryProvider({ children }: { children: ReactNode
     let alive = true;
 
     void (async () => {
-      const [readLikes, readPlaylists] = await Promise.all([
+      const [readLikes, readPlaylists, readBarrs] = await Promise.all([
         userId === null
           ? Promise.resolve({ items: [] as LikedTrack[], answered: true })
           : repository.listLikes(userId),
         userId === null
           ? Promise.resolve({ items: [] as Playlist[], answered: true })
           : repository.listPlaylists(userId),
+        userId === null
+          ? Promise.resolve({ items: [] as string[], answered: true })
+          : repository.listBarrs(userId),
       ]);
 
       if (!alive) return;
 
       setLikes(readLikes.items);
       setPlaylists(readPlaylists.items);
+      // Kept as they were when the read failed: an empty answer would let every barred song play unasked.
+      if (readBarrs.answered) setBarrs(readBarrs.items);
       setAnswered(readLikes.answered && readPlaylists.answered);
       setLoading(false);
     })();
@@ -176,6 +191,25 @@ export default function MusicLibraryProvider({ children }: { children: ReactNode
     [reload, repository, userId],
   );
 
+  const toggleBarr = useCallback(
+    async (src: string) => {
+      if (userId === null) throw new Error(NO_ACCOUNT);
+
+      const result = await repository.toggleBarr(userId, src);
+      reload();
+
+      return result;
+    },
+    [reload, repository, userId],
+  );
+
+  /** The barred files as a `Set`, handed to the player through `lib/audio/barrs.ts` as well. */
+  const barredSrcs = useMemo<ReadonlySet<string>>(() => new Set(barrs), [barrs]);
+
+  useEffect(() => {
+    setBarredSrcs(barredSrcs);
+  }, [barredSrcs]);
+
   /**
    * The `Set` of liked ids, built once per read rather than per row.
    *
@@ -198,9 +232,13 @@ export default function MusicLibraryProvider({ children }: { children: ReactNode
       savePlaylist,
       removePlaylist,
       reload,
+      barredSrcs,
+      toggleBarr,
     }),
     [
       answered,
+      barredSrcs,
+      toggleBarr,
       likedIds,
       likes,
       loading,

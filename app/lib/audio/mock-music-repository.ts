@@ -137,7 +137,8 @@ function ensureFolders(): MusicFolder[] {
 }
 
 /** One account's shelf: what they liked, and the lists they made. */
-type LibraryRecord = { likes: LikedTrack[]; playlists: Playlist[] };
+/** `barrs` is optional: records stored before BARR existed have none. */
+type LibraryRecord = { likes: LikedTrack[]; playlists: Playlist[]; barrs?: string[] };
 type LibraryState = Record<string, LibraryRecord>;
 
 let libraryState: LibraryState | null = null;
@@ -169,6 +170,7 @@ function loadLibrary(): LibraryState {
         playlists: Array.isArray(candidate.playlists)
           ? candidate.playlists.filter((list) => typeof (list as Playlist)?.id === 'string')
           : [],
+        barrs: Array.isArray(candidate.barrs) ? candidate.barrs.filter((src) => typeof src === 'string') : [],
       };
     }
 
@@ -192,7 +194,10 @@ function persistLibrary(next: LibraryState): void {
 
 /** This account's record, creating nothing until a write needs it. */
 function recordFor(userId: string): LibraryRecord {
-  return libraryState?.[userId] ?? EMPTY_LIBRARY;
+  // Read from storage on first use: a read that came before any write (a page just loaded) used to find
+  // nothing here and report an empty library until the first like.
+  const current = libraryState ?? (libraryState = loadLibrary());
+  return current[userId] ?? EMPTY_LIBRARY;
 }
 
 /**
@@ -416,6 +421,20 @@ class MockMusicRepository implements MusicRepository {
 
   async listPlaylists(userId: string): Promise<LibraryRead<Playlist>> {
     return { items: [...recordFor(userId).playlists], answered: true };
+  }
+
+  async listBarrs(userId: string): Promise<LibraryRead<string>> {
+    return { items: [...(recordFor(userId).barrs ?? [])], answered: true };
+  }
+
+  async toggleBarr(userId: string, src: string): Promise<{ barred: boolean }> {
+    const record = recordFor(userId);
+    const barrs = record.barrs ?? [];
+    const already = barrs.includes(src);
+
+    writeRecord(userId, { ...record, barrs: already ? barrs.filter((entry) => entry !== src) : [src, ...barrs] });
+
+    return { barred: !already };
   }
 
   async savePlaylist(input: { ownerId: string; name: string; items?: PlaylistItem[] }): Promise<Playlist> {

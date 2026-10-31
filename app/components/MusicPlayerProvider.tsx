@@ -1,10 +1,11 @@
 'use client';
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { barrGate, barredSrcs, skipIndex, subscribeToBarrs } from '../lib/audio/barrs';
 import { clipRepeats } from '../lib/audio/clip-loop';
 import { enqueueTrack } from '../lib/audio/up-next';
 import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
-import { isFollowing, stopFollowing } from '../lib/audio/follow';
+import { followState, isFollowing, stopFollowing, subscribeToFollow } from '../lib/audio/follow';
 import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
 import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
@@ -131,6 +132,18 @@ export type MusicPlayerValue = {
   enqueue: (track: AudioTrack, where: 'end' | 'next') => void;
   /** How much of the front of `queue` is the archive as read; songs after it were added by a press. */
   shelfSize: number;
+  /**
+   * BARR (SPEC-vanity.md): the barred song the player stopped before it started, waiting for the reader's
+   * PLAY ANYWAY or SKIP - or null. Every way a song reaches the player ends in the same element, so this
+   * one gate covers the archive, lists, the queue, post MP3s and profile songs alike.
+   */
+  barrAsk: AudioTrack | null;
+  /** True while a followed broadcast is playing a barred song: in step, but this speaker is silent. */
+  barrMuted: boolean;
+  /** PLAY ANYWAY / LISTEN ANYWAY: this song sounds this time. */
+  playAnyway: () => void;
+  /** SKIP: on to the queued song or the shelf's next file; at the end of the shelf, stop. */
+  skipBarred: () => void;
 };
 
 const MusicPlayerContext = createContext<MusicPlayerValue | null>(null);
@@ -321,6 +334,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
   const track = queue[index];
 
+  // BARR: what the player does with the track it is about to sound (`lib/audio/barrs.ts`). `held` is a
+  // barred song on the reader's own player that they have not said PLAY ANYWAY to: the bar shows it
+  // paused with the question, and the speaker stays silent. The allowance lasts until the track changes.
+  const barred = useSyncExternalStore(subscribeToBarrs, barredSrcs, barredSrcs);
+  const followingHost = useSyncExternalStore(subscribeToFollow, followState, followState).hostId !== null;
+  const [allowedSrc, setAllowedSrc] = useState<string | null>(null);
+  const gate = barrGate(track?.src, barred, allowedSrc, followingHost);
+  const held = playing && gate === 'ask';
+  /** The same, for the element's `pause` handler: a held song's pause must not clear the question. */
+  const holding = useRef(false);
+
   // The element itself: one per page load, created outside the render tree so nothing
   // a page does can remount it.
   useEffect(() => {
@@ -361,6 +385,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
      * excluded.
      */
     const onPause = () => {
+      // The player holding a barred song paused it itself, and is still waiting on the reader.
+      if (holding.current) return;
+
       if (intendsToPlay.current && !audio.ended && Date.now() - swappedAt.current > 2000) {
         stopFollowing('PAUSED');
       }
@@ -469,6 +496,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       window.removeEventListener('keydown', start);
       autoplayArmed.current = false;
       autoplayWanted.current = false;
+      // A barred song the player is holding waits for PLAY ANYWAY, not for any first click.
+      if (holding.current) return;
       // Inside the gesture, so this one is allowed.
       void audio.play().catch(() => setPlaying(false));
       setPlaying(true);
@@ -483,7 +512,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     const audio = audioRef.current;
     if (audio === null) return;
 
-    intendsToPlay.current = playing;
+    intendsToPlay.current = playing && !held;
+    holding.current = held;
 
     if (track !== undefined && loadedSrc.current !== track.src) {
       swappedAt.current = Date.now();
@@ -492,7 +522,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       audio.load();
     }
 
-    if (!playing) {
+    // A barred song in a followed broadcast: stay in step, silent on this speaker only.
+    audio.muted = gate === 'mute';
+
+    if (!playing || held) {
       audio.pause();
       return;
     }
@@ -521,7 +554,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
           : 'PRESS PLAY TO START.',
       );
     });
-  }, [armAutoplay, playing, track]);
+  }, [armAutoplay, gate, held, playing, track]);
 
   /**
    * Moves to the first song queued by hand, if there is one, and says whether it did.
@@ -548,11 +581,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setIndex(queue.length);
     } else if (found === index) {
       // The song queued is the one already on: nothing about the track changes, so no effect would
-      // start it again. It starts over from the top here instead of going quiet at its end.
+      // start it again. It starts over from the top here instead of going quiet at its end - unless it
+      // is barred, when the sounding effect holds it and asks (the allowance is spent by now).
       const audio = audioRef.current;
       if (audio !== null) {
         audio.currentTime = 0;
-        void audio.play().catch(() => setPlaying(false));
+        if (barrGate(first.src, barredSrcs(), null, isFollowing()) === 'play') void audio.play().catch(() => setPlaying(false));
       }
     } else {
       setIndex(found);
@@ -597,6 +631,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
 
       // A song queued by hand goes first; otherwise the shelf walks on. Whatever the browser did with
       // `paused` on the way here, the next track plays.
+      setAllowedSrc(null);
       if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
       setPlaying(true);
     };
@@ -709,8 +744,14 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       return;
     }
 
+    // The bar's play key while a barred song is held answers the question: PLAY ANYWAY.
+    if (held) {
+      setAllowedSrc(track.src);
+      return;
+    }
+
     setPlaying((current) => !current);
-  }, [track]);
+  }, [held, track]);
 
   /**
    * Stop: silence, and back to the start of the track.
@@ -732,6 +773,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     setError(null);
     pendingStart.current = null;
     stopFollowing('');
+    setAllowedSrc(null);
     if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
   }, [playUpNext, queue.length]);
 
@@ -739,6 +781,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     setError(null);
     pendingStart.current = null;
     stopFollowing('');
+    setAllowedSrc(null);
     setIndex((current) => previousIndex(current, queue.length));
   }, [queue.length]);
 
@@ -747,6 +790,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setError(null);
     pendingStart.current = null;
       stopFollowing('');
+      setAllowedSrc(null);
       setIndex(Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0)));
       setPlaying(true);
     },
@@ -764,6 +808,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => {
       if (start?.follow !== true) stopFollowing('');
 
+      // A song pressed again is asked about again, if it is barred: the allowance was for one play.
+      setAllowedSrc(null);
       playedFrom.current = origin ?? null;
       setHeardFrom(origin === undefined ? null : { src: wanted.src, origin });
       handedOver.current = false;
@@ -805,6 +851,24 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     },
     [queue],
   );
+
+  const playAnyway = useCallback(() => {
+    if (track !== undefined) setAllowedSrc(track.src);
+  }, [track]);
+
+  const skipBarred = useCallback(() => {
+    setAllowedSrc(null);
+    pendingStart.current = null;
+    if (playUpNext()) return;
+
+    const target = skipIndex(index, queue.length);
+    if (target === null) {
+      setPlaying(false);
+      return;
+    }
+
+    setIndex(target);
+  }, [index, playUpNext, queue.length]);
 
   const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
 
@@ -848,6 +912,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       // get to break a follow the reader chose. Nobody pressed anything.
       if (isFollowing()) return;
 
+      setAllowedSrc(null);
       setError(null);
       pendingStart.current = null;
       playedFrom.current = options?.origin ?? null;
@@ -912,7 +977,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       queue,
       track,
       index,
-      playing,
+      // A held barred song reads as paused: nothing is coming out of the speaker.
+      playing: playing && !held,
       loading,
       error,
       elapsed,
@@ -945,6 +1011,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       upNext,
       enqueue,
       shelfSize,
+      barrAsk: held ? (track ?? null) : null,
+      barrMuted: playing && gate === 'mute',
+      playAnyway,
+      skipBarred,
     }),
     [
       queue,
@@ -980,6 +1050,10 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       upNext,
       enqueue,
       shelfSize,
+      held,
+      gate,
+      playAnyway,
+      skipBarred,
     ],
   );
 

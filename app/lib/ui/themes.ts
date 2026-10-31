@@ -158,6 +158,12 @@ export type ThemeTokens = {
   'ice-pale': string;
   bubble: string;
   'bubble-pale': string;
+  /**
+   * A song this reader barred (SPEC-vanity.md: BARR): the strip its title sits on, wherever it is listed,
+   * with White words (`text-ink-bar`). Rose in both themes: White on Rose is 4.70:1, where Rose *words* on
+   * the window would fail (3.79:1 on Nigrosine), the same rule the fault chips follow.
+   */
+  barred: string;
   acid: string;
   'acid-pale': string;
   /**
@@ -248,6 +254,7 @@ export const DEFAULT_THEME: Theme = {
     'ice-pale': DYES.flavine,
     bubble: DYES.brilliantPink,
     'bubble-pale': DYES.rose,
+    barred: DYES.rose,
     acid: DYES.emerald,
     'acid-pale': DYES.flavine,
     // The desktop as it has always been: Brilliant Pink with Nigrosine dithered through it. These two
@@ -341,6 +348,7 @@ export const DARK_THEME: Theme = {
     'ice-pale': DYES.black,
     bubble: DYES.brilliantPink,
     'bubble-pale': DYES.rose,
+    barred: DYES.rose,
     acid: DYES.emerald,
     'acid-pale': DYES.nigrosine,
     // The night desktop: the tile's fill is the field's own Nigrosine and its dither is Black, so the

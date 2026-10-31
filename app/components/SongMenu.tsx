@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { type RefObject, useState } from 'react';
 import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
 import { validatePlaylistName } from '../lib/audio/library';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { shelfSong } from '../lib/audio/up-next';
 import { folderCategoryId } from '../lib/media/categories';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
+import AboveAnchor from './AboveAnchor';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewPostForm from './NewPostForm';
@@ -15,7 +16,7 @@ import NewPostForm from './NewPostForm';
 /**
  * The song settings panel (SPEC-vanity.md): one `[ ⋯ ]` key on a song row, and the short menu it opens.
  *
- * Every per-song action lives here, so the rows only keep their play key: ADD TO PLAYLIST, LIKE,
+ * Every per-song action lives here, so the rows only keep their play key: ADD TO PLAYLIST, LIKE, BARR,
  * ADD TO QUEUE / PLAY NEXT, COPY LINK / ATTACH TO POST and GO TO FOLDER. The row owns whether it is
  * open (`SongMenuKey` + `SongMenuPanel`), because the row decides where the panel goes: under the row
  * in a list, above the key on the player bar (`placement="above"`).
@@ -25,6 +26,19 @@ import NewPostForm from './NewPostForm';
  * from elsewhere) can still be queued, copied and posted, but not liked or listed: a list holds shelf
  * songs, and one it could not draw would only come back as UNAVAILABLE.
  */
+/**
+ * A barred song's title, wherever it is listed, for the reader who barred it: White words on the
+ * `barred` strip (Rose), plus a word for a screen reader, since colour alone says nothing to one.
+ */
+export function BarredTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="bg-barred px-1 text-ink-bar">
+      {children}
+      <span className="sr-only"> (barred)</span>
+    </span>
+  );
+}
+
 export function SongMenuKey({
   open,
   onToggle,
@@ -55,18 +69,23 @@ export function SongMenuKey({
 type SongMenuPanelProps = {
   track: AudioTrack;
   onClose: () => void;
-  /** `below`: drawn in the row's flow, under it. `above`: a small window over the key (the player bar). */
-  placement?: 'below' | 'above';
   /**
-   * Which edge of the positioned box an `above` panel lines up with: the wide player bar's keys sit at
-   * its right end, the phone card's on the left of a card that is itself at the screen's left edge.
+   * `below`: drawn in the row's flow, under it. `above`: a small window over `anchor` on the top layer
+   * (the player bar, which sits under the docked windows; see `./AboveAnchor.tsx`).
+   */
+  placement?: 'below' | 'above';
+  /** What an `above` panel sits over. */
+  anchor?: RefObject<HTMLElement | null>;
+  /**
+   * Which edge of the anchor an `above` panel lines up with: the wide player bar's keys sit at its right
+   * end, the phone card is itself at the screen's left edge.
    */
   side?: 'left' | 'right';
   /** True when the row is an archive song already (archive and MY MUSIC rows), so no lookup is needed. */
   fromShelf?: boolean;
 };
 
-export function SongMenuPanel({ track, onClose, placement = 'below', side = 'right', fromShelf = false }: SongMenuPanelProps) {
+export function SongMenuPanel({ track, onClose, placement = 'below', anchor, side = 'right', fromShelf = false }: SongMenuPanelProps) {
   const library = useMusicLibrary();
   const player = useMusicPlayer();
   const [notice, setNotice] = useState<string | null>(null);
@@ -80,6 +99,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', side = 'rig
   const song = shelved ?? track;
   const onShelf = shelved !== undefined;
   const liked = library.likedIds.has(song.id);
+  const barred = library.barredSrcs.has(song.src);
   const top = (song.folderPath ?? '').split('/')[0];
 
   async function run(action: () => Promise<string>) {
@@ -121,13 +141,10 @@ export function SongMenuPanel({ track, onClose, placement = 'below', side = 'rig
       return 'LINK COPIED.';
     });
 
-  const shell =
-    placement === 'above'
-      ? `absolute bottom-full ${side === 'right' ? 'right-0' : 'left-0'} z-menu mb-1 w-[min(22rem,calc(100vw-1rem))] frame bg-sun-pale p-2`
-      : 'mt-1 border-t border-dotted border-ink pt-1';
+  const above = placement === 'above' && anchor !== undefined;
+  const shell = above ? 'frame bg-sun-pale p-2' : 'mt-1 border-t border-dotted border-ink pt-1';
 
-  return (
-    <>
+  const menu = (
       <div
         role="menu"
         aria-label={`Options for ${song.title}`}
@@ -215,6 +232,24 @@ export function SongMenuPanel({ track, onClose, placement = 'below', side = 'rig
               {liked ? '[ ♥ UNLIKE ]' : '[ ♡ LIKE ]'}
             </button>
           ) : null}
+          {/* BARR: a personal mark, by file, so it holds wherever the song turns up. Nobody else sees it. */}
+          {library.canWrite ? (
+            <button
+              type="button"
+              role="menuitemcheckbox"
+              aria-checked={barred}
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const result = await library.toggleBarr(song.src);
+                  return result.barred ? 'BARRED. ONLY YOU SEE THIS.' : 'UNBARRED.';
+                })
+              }
+              className={barred ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+            >
+              {barred ? '[ UNBARR ]' : '[ BARR ]'}
+            </button>
+          ) : null}
           <button
             type="button"
             role="menuitem"
@@ -264,6 +299,17 @@ export function SongMenuPanel({ track, onClose, placement = 'below', side = 'rig
           </p>
         )}
       </div>
+  );
+
+  return (
+    <>
+      {above ? (
+        <AboveAnchor anchor={anchor} side={side} className="w-[min(22rem,calc(100vw-1rem))]">
+          {menu}
+        </AboveAnchor>
+      ) : (
+        menu
+      )}
 
       {/* The board's composer with this song already filed: the same seam the old COMMENT key used. */}
       {posting ? (

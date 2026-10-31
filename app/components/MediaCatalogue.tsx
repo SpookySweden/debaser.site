@@ -27,7 +27,8 @@ import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
 import ProfileLink from './ProfileLink';
 import SheetImage from './SheetImage';
-import { SongMenuKey, SongMenuPanel } from './SongMenu';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
 
@@ -632,6 +633,7 @@ function CatalogueRow({
   const { item, uses } = entry;
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const barred = useMusicLibrary().barredSrcs.has(item.src);
   const canEdit = viewerId !== null && item.uploadedBy === viewerId && item.source !== 'sheet';
 
   return (
@@ -655,7 +657,7 @@ function CatalogueRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
             <button type="button" onClick={onToggle} className="min-w-0 cursor-pointer text-left text-sm font-bold text-ink hover:underline">
-              {open ? '[-]' : '[+]'} {number === undefined ? null : <span className="mr-1">{number}</span>} {item.title}
+              {open ? '[-]' : '[+]'} {number === undefined ? null : <span className="mr-1">{number}</span>} {barred ? <BarredTitle>{item.title}</BarredTitle> : item.title}
             </button>
             <span className="text-label font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
             {item.length.length === 0 ? null : <span className="text-label text-ink">{item.length}</span>}

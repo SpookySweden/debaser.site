@@ -145,6 +145,13 @@ export type MusicRepository = {
   togglePlaylistTrack(input: { ownerId: string; playlistId: string; trackId: string }): Promise<Playlist>;
   /** Takes a list away. Only its owner may, which the policy enforces rather than this code. */
   removePlaylist(ownerId: string, playlistId: string): Promise<void>;
+  /**
+   * The songs this account barred (SPEC-vanity.md: BARR), as file addresses. Personal: nobody else can
+   * read them, which the policy on `music_barrs` enforces. Never throws, like `listLikes`.
+   */
+  listBarrs(userId: string): Promise<LibraryRead<string>>;
+  /** Bars a song by its file address, or unbars it if it is barred already. */
+  toggleBarr(userId: string, src: string): Promise<{ barred: boolean }>;
 
   /* ---------------------------------------------------------------------------------------------
    * Broadcast queues.

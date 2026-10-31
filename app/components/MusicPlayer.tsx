@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { type RefObject, useCallback, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
@@ -20,6 +20,7 @@ import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import AboveAnchor from './AboveAnchor';
 import MarqueeText from './MarqueeText';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
@@ -132,6 +133,8 @@ export default function MusicPlayer() {
   const setting = useSyncExternalStore(subscribeBar, getBarSnapshot, getBarServerSnapshot);
   const [shelfOpen, setShelfOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  /** The folded tile, which BARR's question sits over while the player is put away. */
+  const tile = useRef<HTMLSpanElement>(null);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -183,10 +186,12 @@ export default function MusicPlayer() {
 
   if (!open) {
     return (
+
       // Folded, the player is a window put away: a small framed tile on the desktop, its one key inside.
       // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
       // desktop is under 3:1.
-      <span className="fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5">
+      <span ref={tile} className="fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5">
+        <BarrNotice anchor={tile} />
         <button type="button" onClick={() => setBarOpen(true)} className={PLATE}>
           [ ♪ {player.playing ? 'PLAYING' : 'PLAYER'} ]
         </button>
@@ -288,10 +293,11 @@ function NowPlaying({ marquee = false, extra }: { marquee?: boolean; extra?: Rea
  * The heart is for a signed-in reader and a song the archive holds (matched by its file, as the panel
  * does); otherwise only the panel key is drawn.
  */
-function PlayerSongKeys({ plate, side }: { plate: string; side: 'left' | 'right' }) {
+function PlayerSongKeys({ plate, side, anchor }: { plate: string; side: 'left' | 'right'; anchor?: RefObject<HTMLElement | null> }) {
   const player = useMusicPlayer();
   const library = useMusicLibrary();
   const [open, setOpen] = useState(false);
+  const keys = useRef<HTMLSpanElement>(null);
   const { track } = player;
 
   if (track === undefined) return null;
@@ -300,9 +306,9 @@ function PlayerSongKeys({ plate, side }: { plate: string; side: 'left' | 'right'
   const liked = song !== undefined && library.likedIds.has(song.id);
 
   return (
-    // Not `relative`: the panel lines up with the whole bar or card (both are fixed, so positioned), which
-    // keeps it on screen wherever the keys happen to sit in the row.
-    <span className="flex items-center gap-1">
+    // The panel opens on the top layer over `anchor` (the phone card, which sits at the screen's left
+    // edge), or over these keys - so an open MUSIC window never covers it (`./AboveAnchor.tsx`).
+    <span ref={keys} className="flex items-center gap-1">
       {library.canWrite && song !== undefined ? (
         <button
           type="button"
@@ -318,9 +324,56 @@ function PlayerSongKeys({ plate, side }: { plate: string; side: 'left' | 'right'
 
       <SongMenuKey open={open} onToggle={() => setOpen((current) => !current)} title={track.title} plate={plate} />
 
-      {open ? <SongMenuPanel track={track} placement="above" side={side} onClose={() => setOpen(false)} /> : null}
+      {open ? <SongMenuPanel track={track} placement="above" anchor={anchor ?? keys} side={side} onClose={() => setOpen(false)} /> : null}
     </span>
   );
+}
+
+/**
+ * BARR's two notices (SPEC-vanity.md), drawn just above the player in every shape it takes (the wide bar,
+ * the phone card, the folded tile), so a song stopped for being barred is never stopped out of sight.
+ *
+ *   on your own player   `BARRED :: <title> - PLAY ANYWAY?` [ PLAY ] [ SKIP ]
+ *   following somebody   `BARRED SONG PLAYING :: [ LISTEN ANYWAY ]` - in step, this speaker silent
+ */
+function BarrNotice({ anchor }: { anchor: RefObject<HTMLElement | null> }) {
+  const player = useMusicPlayer();
+  const box = 'w-[min(26rem,calc(100vw-1rem))] frame bg-sun-pale p-2 text-label text-ink';
+
+  if (player.barrAsk !== null) {
+    return (
+      <AboveAnchor anchor={anchor} side="left" className={box}>
+      <div role="alert">
+        <p className="wrap-anywhere">
+          <span className="bg-barred px-1 text-ink-bar">BARRED</span> :: {player.barrAsk.title} - PLAY ANYWAY?
+        </p>
+        <div className="mt-1 flex flex-wrap items-center gap-1">
+          <button type="button" onClick={player.playAnyway} className={PLATE}>
+            [ PLAY ]
+          </button>
+          <button type="button" onClick={player.skipBarred} className={PLATE}>
+            [ SKIP ]
+          </button>
+        </div>
+      </div>
+      </AboveAnchor>
+    );
+  }
+
+  if (player.barrMuted) {
+    return (
+      <AboveAnchor anchor={anchor} side="left" className={box}>
+        <p role="status">
+          <span className="bg-barred px-1 text-ink-bar">BARRED SONG PLAYING</span> ::{' '}
+          <button type="button" onClick={player.playAnyway} className={PLATE}>
+            [ LISTEN ANYWAY ]
+          </button>
+        </p>
+      </AboveAnchor>
+    );
+  }
+
+  return null;
 }
 
 /**
@@ -386,6 +439,7 @@ function DockedBar({ onHide, onSettings }: BarControls) {
 
   return (
     <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink">
+      <BarrNotice anchor={strip} />
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
           {/* The player's own name, and its fold, together: they are the same thing said twice - what
               this strip is, and how to put it away. The fold used to sit at the far right, past the
@@ -651,13 +705,16 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  */
 function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
   const player = useMusicPlayer();
+  /** The card itself: BARR's question and the song panel open over it, lined up with its left edge. */
+  const card = useRef<HTMLElement>(null);
   const { track, playing, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;
   const seekable = lengthSeconds > 0;
 
   return (
-    <section className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink">
+    <section ref={card} className="fixed bottom-2 left-2 z-50 w-[min(19rem,calc(100vw-1rem))] frame bg-sun-pale font-mono text-ink">
+      <BarrNotice anchor={card} />
       {/* Every key on this row is a thumb's 44px, so the row is as tall as they are and the keys sit
           edge to edge: their own boxes are the spacing. Only the two glyph keys sit here: the music and
           queue keys became bracket keys (SPEC-efficiency.md), and as words in brackets they no longer fit
@@ -748,7 +805,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
             [ ↻ ]
           </button>
 
-          <PlayerSongKeys plate={PLATE} side="left" />
+          <PlayerSongKeys plate={PLATE} side="left" anchor={card} />
 
           <label className="ml-auto flex items-center gap-1 text-label font-bold text-ink">
             VOL
