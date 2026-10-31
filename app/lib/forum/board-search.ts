@@ -81,12 +81,24 @@ type Token = { start: number; end: number; key: SearchFilterKey | null; value: s
 
 function tokens(text: string): Token[] {
   const found: Token[] = [];
+  const pattern = new RegExp(TOKEN.source, 'g');
 
-  for (const match of text.matchAll(TOKEN)) {
-    const start = match.index ?? 0;
+  for (let match = pattern.exec(text); match !== null; match = pattern.exec(text)) {
+    const start = match.index;
+    const key = match[1]?.toLowerCase();
+
+    // A value that is itself a filter word (`from:from:`, `from:tag:x`) is not a value: the first filter
+    // stops at its colon, still unfinished, and what follows is read as a token of its own.
+    const swallowed = /^([A-Za-z]+):/.exec(match[3] ?? '');
+    if (key !== undefined && isFilterKey(key) && swallowed !== null && isFilterKey(swallowed[1].toLowerCase())) {
+      const raw = text.slice(start, start + key.length + 1);
+      found.push({ start, end: start + raw.length, key, value: '', raw });
+      pattern.lastIndex = start + raw.length;
+      continue;
+    }
+
     const raw = match[0];
     const end = start + raw.length;
-    const key = match[1]?.toLowerCase();
 
     if (key !== undefined && isFilterKey(key)) {
       found.push({ start, end, key, value: match[2] ?? match[3] ?? '', raw });

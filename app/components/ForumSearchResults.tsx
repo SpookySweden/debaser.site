@@ -39,11 +39,11 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
   return (
     <section aria-label="Search results" className="min-w-0 text-ink">
       <div className="flex items-center gap-2">
-        <button type="button" onClick={onClose} className={`${PLATE} lg:hidden`}>
+        <button type="button" onClick={onClose} className={`${PLATE} @min-[58.5rem]:hidden`}>
           [ ◂ BACK ]
         </button>
         <h2 className={`${TITLE_BAR} flex-1 text-title`}>{hits.length === 0 ? 'NO RESULTS' : `${hits.length} ${pluralise(hits.length, 'RESULT')}`}</h2>
-        <button type="button" onClick={onClose} aria-label="Close search results" className={`${PLATE} max-lg:hidden`}>
+        <button type="button" onClick={onClose} aria-label="Close search results" className={`${PLATE} @max-[58.5rem]:hidden`}>
           [ × ]
         </button>
       </div>

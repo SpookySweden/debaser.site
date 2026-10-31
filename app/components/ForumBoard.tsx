@@ -782,13 +782,16 @@ export default function ForumBoard() {
       )}
 
       {/* The board, and beside it the search's results while a search is showing (./ForumSearchResults.tsx):
-          a column on a wide screen; on a phone the results cover the board, and pressing a row folds them
-          away to show the thread, with [ ◂ RESULTS ] to come back. */}
-      <div className={search === null ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4'}>
-        <div className={`min-w-0 space-y-3 ${search !== null && !resultsFolded ? 'max-lg:hidden' : ''}`}>
+          a column when the board has room; otherwise the results cover the board, and pressing a row folds them
+          away to show the thread, with [ ◂ RESULTS ] to come back. "Room" is the board's own width, not the
+          screen's (the sidebar takes a share): 58.5rem keeps the board at least ~600px beside the 20rem panel,
+          what ForumThreadCard's wide (sm:) row needs before its title and extract collide. */}
+      <div className="@container">
+      <div className={search === null ? '' : '@min-[58.5rem]:grid @min-[58.5rem]:grid-cols-[minmax(0,1fr)_20rem] @min-[58.5rem]:items-start @min-[58.5rem]:gap-4'}>
+        <div className={`min-w-0 space-y-3 ${search !== null && !resultsFolded ? '@max-[58.5rem]:hidden' : ''}`}>
           {search !== null && resultsFolded ? (
             // Held at the top of the window while the thread is read, so the next result is one press away.
-            <div className="sticky top-0 z-10 bg-paper lg:hidden">
+            <div className="sticky top-0 z-10 bg-paper @min-[58.5rem]:hidden">
               <button type="button" onClick={() => setResultsFolded(false)} className={PLATE}>
                 {`[ ◂ RESULTS (${searchHits.length}) ]`}
               </button>
@@ -896,7 +899,7 @@ export default function ForumBoard() {
 
         {search === null ? null : (
           // Held in view while the board scrolls to a result, so the next row is still there to press.
-          <div className={`lg:sticky lg:top-0 lg:max-h-[80vh] lg:overflow-y-auto ${resultsFolded ? 'max-lg:hidden' : ''}`}>
+          <div className={`@min-[58.5rem]:sticky @min-[58.5rem]:top-0 @min-[58.5rem]:max-h-[80vh] @min-[58.5rem]:overflow-y-auto ${resultsFolded ? '@max-[58.5rem]:hidden' : ''}`}>
             <ForumSearchResults
               key={formatSearch(search)}
               hits={searchHits}
@@ -908,6 +911,7 @@ export default function ForumBoard() {
             />
           </div>
         )}
+      </div>
       </div>
 
       {/* Composer only appears when asked for */}

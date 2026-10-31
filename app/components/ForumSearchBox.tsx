@@ -172,8 +172,20 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
     [onClear, onRun, placeCaret],
   );
 
+  /**
+   * The words and caret as the box holds them right now. Keys pressed with no pause between them can
+   * arrive before React has drawn the last letter, and an edit worked out from the drawn copy writes into
+   * the wrong place (`from:` picked in front of a `from:` already typed made `from:from:`).
+   */
+  const live = () => {
+    const input = inputRef.current;
+    const liveText = input?.value ?? text;
+    return { text: liveText, token: activeToken(liveText, input?.selectionStart ?? caret) };
+  };
+
   /** Turns the token under the caret into a pill. */
   const pillFromActive = (key: SearchFilterKey, value: string) => {
+    const { text, token: active } = live();
     const rest = `${text.slice(0, active.start)}${text.slice(active.end)}`.replace(/\s+/g, ' ').trimStart();
     setPills((current) => [...current, { key, value }]);
     setText(rest);
@@ -183,6 +195,7 @@ export default function ForumSearchBox({ threads, directory, directoryIds, tagVo
 
   const pick = (item: Item) => {
     if (item.kind === 'filter') {
+      const { text, token: active } = live();
       const written = `${item.key}:`;
       const next = `${text.slice(0, active.start)}${written}${text.slice(active.end)}`;
       setText(next);
