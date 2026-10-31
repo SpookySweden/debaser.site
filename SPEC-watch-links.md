@@ -63,6 +63,9 @@ going quietly black.
 2. HLS (+ DASH).
 3. YouTube player behind the same play/pause/seek/ended wrapper the room's sync uses.
 4. Vimeo, Dailymotion, Twitch.
+   Dailymotion was skipped (Luke, 2026-10-31): its current player needs a Player ID made in a Dailymotion
+   account, and its old embed no longer takes commands, so the room can't sync it. Its links get
+   `NOT A VIDEO LINK`.
 
 ## Out of scope
 - Unsynced "paste any embed code" (CyTube's custom embed): it lets arbitrary third-party pages into the site.
