@@ -5,8 +5,6 @@
 - Gotchas found: no listen history, profile visits or listen-along are recorded anywhere yet (new
   tables, each needs Luke's typed OK); no MP3 is filed under a project (DEBASER), so projects need a
   folder mapping in code - Luke still has to name which top folders DEBASER owns before step 5.
-- Not mine, left alone: uncommitted stream-room work (MediaCatalogue, WatchRoom, lib/watch/*,
-  scripts/browser.cjs, lib/media/categories.ts) and SPEC-forum-search.md from other sessions.
 
 # Latest: watch together (SPEC-watch-together.md) - stream rooms, [ TV ] key, forum record, archive folds (2026-10-27)
 - STATUS: LIVE (5df486d data, 43fba4b screens), driven on https://debaser-site.vercel.app twice: dark theme
