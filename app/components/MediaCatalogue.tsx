@@ -273,7 +273,7 @@ export default function MediaCatalogue() {
     return (
       <section key={key} aria-label={title} className="mt-1">
         <div className={TITLE_BAR}>
-          <button type="button" onClick={() => toggleShelf(key)} aria-expanded={open} className="cursor-pointer text-left hover:underline">
+          <button type="button" onClick={() => toggleShelf(key)} aria-expanded={open} className="cursor-pointer text-left hover:underline max-sm:min-h-tap">
             {open ? '[-]' : '[+]'} {title}
           </button>
           <span className="text-label text-ink">
@@ -497,7 +497,7 @@ export default function MediaCatalogue() {
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Search everything..."
-          className={`${FIELD_TIGHT} min-w-0 flex-1`}
+          className={`${FIELD_TIGHT} min-w-0 flex-1 max-sm:basis-full`}
         />
         <label htmlFor="media-sort" className="text-label font-bold text-ink">
           SORT:
