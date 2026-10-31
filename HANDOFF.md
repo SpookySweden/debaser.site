@@ -1,3 +1,22 @@
+# Latest: VANITY build (SPEC-vanity.md) - step 1 LIVE, step 2 waiting for Luke's OK (2026-10-31)
+- STEP 1 LIVE (5a6c115): `[ ⋯ ]` song panel (app/components/SongMenu.tsx) on /media audio rows, MY MUSIC
+  rows, post MP3s and the player bar: ADD TO PLAYLIST (+ inline new list; existing togglePlaylistTrack, no
+  DB change), LIKE, ADD TO QUEUE / PLAY NEXT, COPY LINK, ATTACH TO POST, GO TO <top folder>. Rows lost
+  heart / COMMENT / ADD TO into it. Player: hand-made `upNext` list (NEXT, track end, headset NEXT take it
+  first; queueing the song already on restarts it) + one-click heart (the spec assumed one existed; it did
+  not). `shelfSize` on the player = how much of its queue came from the archive read; songs appended after
+  (post MP3s, profile songs) get no likes/lists (`app/lib/audio/up-next.ts`). Check: Temp/check-song-menu.cjs
+  (proven to fail twice). code-reviewer found 3 gaps, all fixed before the commit.
+- NOT VERIFIED: signed-in actions (adding to a list, liking) were not driven - `.env.test` (test account
+  password) is missing on this machine, and the mock data source has an empty shelf. Guest panel, PLAY
+  NEXT, restart, player panel and phone width (375px, no sideways scroll) were driven on a local build;
+  the guest panel was seen live.
+- STEP 2 (BARR) drafted, NOT pushed: supabase/migrations/20261031120000_music_barrs.sql (uncommitted).
+  Keyed by file address (`track_src`) so every playback route can match it. Waits for Luke's typed OK.
+- Gotchas: port 3210 is held by an older `next start` from this folder, and `npm run capture` reuses
+  whatever answers there; `npm run shot` treats `[+]`-style text as a CSS selector (use the built-in
+  browser). Deciding later: Luke still has to name which top folders DEBASER owns (step 5).
+
 # Latest: archive (/media) opens on categories, everything folded (2026-10-31)
 - STATUS: LIVE (fd274af categories, bf42b5a phone tap height + search on its own line). Verify passed,
   checks 7/7, shot at desktop + phone width on https://debaser-site.vercel.app/media, every key >= 44px
