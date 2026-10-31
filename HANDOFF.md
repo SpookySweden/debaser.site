@@ -1,3 +1,25 @@
+# Latest: archive (/media) opens on categories, everything folded (2026-10-31)
+- STATUS: LIVE (fd274af categories, bf42b5a phone tap height + search on its own line). Verify passed,
+  checks 7/7, shot at desktop + phone width on https://debaser-site.vercel.app/media, every key >= 44px
+  on a phone, no sideways scroll. No database changes; mock and Supabase repos untouched (it only
+  rearranges data already loaded).
+- How it works: `app/lib/media/categories.ts` (pure, no React) puts each file in categories by what it
+  is and where it is used (profile picture / concept sheet / post picture / other; one per top music
+  folder, profile music, unfiled; videos). Nobody files by hand. A file can sit in two; search and tag
+  results list it once, under its first. `app/components/MediaCatalogue.tsx`: front page of tiles +
+  TAGS row; `?cat=<id>` one category; `?kind=` a section's categories as folds; search/`?tag=` grouped
+  by category. Check: `Temp/check-media-categories.cjs` (proven to fail with a rule removed).
+- Decisions: a tag pill shows every kind of file wearing it (not just music) - Luke may want it
+  music-only; an empty music folder link shows an empty folder, never NOT FOUND.
+- Gotchas: the audit (`capture`/`audit`) does not cover /media, so tap sizes were measured by hand;
+  `npm run read` only sees the served shell (the page renders client-side), screenshots are the proof.
+  Only 1 file has a tag, so the TAGS row is near empty. The VANITY note below calls
+  MediaCatalogue/categories.ts "uncommitted stream-room work" - that was this archive work, now committed.
+  My first push also published the forum session's local "Forum sorts... step 1" commit (built fine).
+  core.md says "about 75" scratch checks; only 7 exist on this machine.
+- Next (nothing half-done): none required. Possible: tag pill music-only if Luke prefers; add /media to
+  the audit capture list.
+
 # Latest: VANITY spec written, nothing built (SPEC-vanity.md) (2026-10-31)
 - Interview only (two rounds + ideas). No code, no database changes. Build in a fresh session from
   SPEC-vanity.md, step 1 first (song settings panel with ADD TO PLAYLIST: no DB change, uses the
