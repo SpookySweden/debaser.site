@@ -23,7 +23,9 @@ the plain `SEARCH:` box in `[ SORT / SEARCH ]` (app/components/ForumBoard.tsx).
   `log10(max(1, otherReplies + 2*distinctRepliers)) + createdAtSeconds / 45000`, where `otherReplies` is
   every reply not written by the person the post is credited to (`postCredit`), `distinctRepliers` is how
   many different people wrote those, and the 45000s (12.5h) constant is Reddit's. "Recent" works through
-  the post's own age, as on Reddit, so no reply is timed separately. Replies by the post's own author don't
+  the post's own age, as on Reddit, so no reply is timed separately. Consequence: an old thread that gets
+  a burst of new replies does not climb back to the top (a month of age outweighs any amount of replies);
+  switching the age term to "the newest reply by somebody else" would make it revive, like a bump. Replies by the post's own author don't
   count, so nobody can bump their own post by talking to themselves. Ties: newest first.
 - `NEW`: newest post first (today's NEWEST FIRST).
 - `TOP`: most different people who replied inside the time frame (one long back-and-forth between two

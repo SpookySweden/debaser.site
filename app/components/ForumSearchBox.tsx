@@ -74,7 +74,7 @@ function saveRecent(recent: string[]) {
   }
 }
 
-export default function ForumSearchBox({ threads, directory, tagVocabulary, running, onRun, onClear, onFocus }: ForumSearchBoxProps) {
+export default function ForumSearchBox({ threads, directory, directoryIds, tagVocabulary, running, onRun, onClear, onFocus }: ForumSearchBoxProps) {
   const [pills, setPills] = useState<SearchFilter[]>([]);
   const [text, setText] = useState('');
   const [caret, setCaret] = useState(0);
@@ -105,7 +105,7 @@ export default function ForumSearchBox({ threads, directory, tagVocabulary, runn
   }, [open]);
 
   const active = activeToken(text, caret);
-  const context = useMemo(() => ({ threads, directory, tagVocabulary }), [threads, directory, tagVocabulary]);
+  const context = useMemo(() => ({ threads, directory, directoryIds, tagVocabulary }), [threads, directory, directoryIds, tagVocabulary]);
   const calendar = active.key !== null && isDateFilter(active.key);
 
   const items: Item[] = useMemo(() => {

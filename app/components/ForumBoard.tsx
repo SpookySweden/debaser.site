@@ -128,6 +128,7 @@ export default function ForumBoard() {
   /** The directory's names, for from: and mentions: (the board's own names are added to them). */
   const { accounts } = useComms();
   const directoryNames = useMemo(() => accounts.map((account) => account.displayName), [accounts]);
+  const directoryIds = useMemo(() => accounts.map((account) => account.id), [accounts]);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [tagMatchMode, setTagMatchMode] = useState<TagMatchMode>('any');
   /** The board's music half: the switch, the sounds, and whether the whole index is open. */
@@ -390,7 +391,12 @@ export default function ForumBoard() {
   useEffect(() => {
     if (pendingJump === null) return;
     const index = visibleThreads.findIndex((thread) => thread.id === pendingJump.threadId);
-    if (index === -1) return;
+    if (index === -1) {
+      // Not on the board even after the filters gave way (gone since the search ran): the jump is
+      // dropped, rather than waiting to fire by itself when some later change brings the thread back.
+      const timer = window.setTimeout(() => setPendingJump(null), 500);
+      return () => window.clearTimeout(timer);
+    }
 
     const frame = window.requestAnimationFrame(() => {
       const { threadId, commentId } = pendingJump;
@@ -715,6 +721,7 @@ export default function ForumBoard() {
           key={searchBoxKey}
           threads={forum.threads}
           directory={directoryNames}
+          directoryIds={directoryIds}
           tagVocabulary={forum.tagVocabulary}
           running={search !== null}
           onRun={(next) => {
@@ -780,9 +787,12 @@ export default function ForumBoard() {
       <div className={search === null ? '' : 'lg:grid lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start lg:gap-4'}>
         <div className={`min-w-0 space-y-3 ${search !== null && !resultsFolded ? 'max-lg:hidden' : ''}`}>
           {search !== null && resultsFolded ? (
-            <button type="button" onClick={() => setResultsFolded(false)} className={`${PLATE} lg:hidden`}>
-              {`[ ◂ RESULTS (${searchHits.length}) ]`}
-            </button>
+            // Held at the top of the window while the thread is read, so the next result is one press away.
+            <div className="sticky top-0 z-10 bg-paper lg:hidden">
+              <button type="button" onClick={() => setResultsFolded(false)} className={PLATE}>
+                {`[ ◂ RESULTS (${searchHits.length}) ]`}
+              </button>
+            </div>
           ) : null}
 
           {visibleThreads.length === 0 ? (

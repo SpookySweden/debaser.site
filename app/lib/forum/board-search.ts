@@ -256,7 +256,9 @@ function matchesFilter(unit: Unit, filter: SearchFilter, context: SearchContext)
       return filter.key === 'before' ? day < value : filter.key === 'after' ? day > value : day === value;
     }
     case 'in':
-      return value === 'streams' ? isStreamThread(unit.thread) : unit.thread.anchor.kind === value;
+      // A stream's record is filed on the board, but it is in:streams, not in:board.
+      if (value === 'streams') return isStreamThread(unit.thread);
+      return unit.thread.anchor.kind === value && !(value === 'board' && isStreamThread(unit.thread));
     case 'tag':
       return unit.tags.some((tag) => tagKey(tag.label) === tagKey(value));
     case 'pinned': {
@@ -413,6 +415,12 @@ export type SuggestContext = {
   threads: ForumThread[];
   /** Names from the account directory, beside those on the board. */
   directory: string[];
+  /**
+   * The directory's account ids. When given, a name on the board whose account is not among them is
+   * not offered: the directory already leaves out the hidden test accounts, and their replies on the
+   * board must not bring them back. A guest (no account) is still offered.
+   */
+  directoryIds?: string[];
   /** The tag vocabulary, with counts. */
   tagVocabulary: { key: string; label: string; count: number }[];
 };
@@ -437,7 +445,8 @@ function narrow(suggestions: Suggestion[], partial: string): Suggestion[] {
 }
 
 /** Every account name on the board (credits and repliers) and in the directory, once each, A-Z. */
-export function accountNames(threads: ForumThread[], directory: string[]): string[] {
+export function accountNames(threads: ForumThread[], directory: string[], directoryIds?: string[]): string[] {
+  const known = directoryIds === undefined ? null : new Set(directoryIds);
   const names = new Map<string, string>();
   const add = (name: string) => {
     const key = nameKey(name);
@@ -445,8 +454,9 @@ export function accountNames(threads: ForumThread[], directory: string[]): strin
   };
 
   for (const thread of threads) {
-    add(postCredit(thread).displayName);
-    for (const comment of thread.comments) add(comment.author.displayName);
+    for (const author of [postCredit(thread), ...thread.comments.map((comment) => comment.author)]) {
+      if (known === null || author.id === null || known.has(author.id)) add(author.displayName);
+    }
   }
   for (const name of directory) add(name);
 
@@ -458,7 +468,7 @@ export function suggestValues(key: SearchFilterKey, partial: string, context: Su
   switch (key) {
     case 'from':
     case 'mentions':
-      return narrow(accountNames(context.threads, context.directory).map((name) => ({ value: name, label: name })), partial);
+      return narrow(accountNames(context.threads, context.directory, context.directoryIds).map((name) => ({ value: name, label: name })), partial);
     case 'has':
       return narrow(HAS_VALUES.map((entry) => ({ value: entry.value, label: entry.value.toUpperCase(), note: entry.note })), partial);
     case 'in':
