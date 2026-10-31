@@ -25,6 +25,7 @@ export const LINK_PROBE_MS = 15000;
 export const LINK_REFUSALS = {
   notVideo: 'NOT A VIDEO LINK',
   notEmbeddable: "THIS VIDEO CAN'T BE EMBEDDED",
+  offline: 'THIS CHANNEL IS OFFLINE',
   notHttps: 'ONLY HTTPS LINKS',
   tooLong: 'THIS LINK IS TOO LONG',
   wouldNotLoad: "THIS LINK WOULDN'T LOAD",
@@ -54,6 +55,13 @@ export function recognizeLink(text: string): LinkVerdict {
   // starts as a placeholder; the room fills in the real one from YouTube (youtube-player.ts).
   const youtube = youtubeId(url);
   if (youtube !== null) return { ok: true, link: { url: youtubeWatchUrl(youtube), kind: 'youtube', title: `YOUTUBE ${youtube}` } };
+  // Vimeo and Twitch likewise (step 4). Vimeo's title comes from Vimeo; Twitch has no public title
+  // lookup, so a channel is titled by its name and a past broadcast by its number.
+  const vimeo = vimeoVideo(url);
+  if (vimeo !== null) return { ok: true, link: { url: vimeoUrl(vimeo), kind: 'vimeo', title: `VIMEO ${vimeo.id}` } };
+  const twitch = twitchTarget(url);
+  if (twitch !== null)
+    return { ok: true, link: { url: twitchUrl(twitch), kind: 'twitch', title: twitch.channel !== undefined ? `${twitch.channel.toUpperCase()} ON TWITCH` : `TWITCH VIDEO ${twitch.video}` } };
 
   const name = fileName(url);
   const extension = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
@@ -88,6 +96,73 @@ export function youtubeIdOf(link: WatchLink): string | null {
   if (link.kind !== 'youtube') return null;
   try {
     return youtubeId(new URL(link.url));
+  } catch {
+    return null;
+  }
+}
+
+/** A Vimeo video: its number, and the key an unlisted one needs (the `h` in its address). */
+export type VimeoVideo = { id: string; hash?: string };
+const VIMEO_HOSTS = ['vimeo.com', 'www.vimeo.com', 'player.vimeo.com'];
+
+export function vimeoVideo(url: URL): VimeoVideo | null {
+  if (!VIMEO_HOSTS.includes(url.hostname.toLowerCase())) return null;
+  const parts = url.pathname.split('/').filter((part) => part.length > 0);
+  // vimeo.com/123, vimeo.com/123/abcdef, player.vimeo.com/video/123?h=abcdef, and the same number at the
+  // end of channel, group and album pages (vimeo.com/channels/staffpicks/123).
+  // An album's own number comes first in vimeo.com/album/9/video/123: the video's follows `video`.
+  const afterVideo = parts.indexOf('video');
+  // An album or showcase page with no video in it is a list, not a video.
+  if (afterVideo === -1 && (parts[0] === 'album' || parts[0] === 'showcase')) return null;
+  const at = afterVideo !== -1 ? afterVideo + 1 : parts.findIndex((part) => /^\d{1,12}$/.test(part));
+  if (at === -1 || !/^\d{1,12}$/.test(parts[at] ?? '')) return null;
+  const hash = (url.searchParams.get('h') ?? parts[at + 1]) || undefined;
+  return { id: parts[at], hash: hash !== undefined && /^[0-9a-f]{6,20}$/i.test(hash) ? hash : undefined };
+}
+
+export function vimeoUrl(video: VimeoVideo): string {
+  return video.hash === undefined ? `https://vimeo.com/${video.id}` : `https://vimeo.com/${video.id}/${video.hash}`;
+}
+
+/** A Twitch channel (watched live) or one of its past broadcasts. */
+export type TwitchTarget = { channel: string; video?: undefined } | { video: string; channel?: undefined };
+const TWITCH_HOSTS = ['twitch.tv', 'www.twitch.tv', 'm.twitch.tv', 'player.twitch.tv'];
+/** Twitch's own pages, which look like channel names. */
+const TWITCH_PAGES = ['directory', 'videos', 'settings', 'search', 'subscriptions', 'inventory', 'wallet', 'drops', 'friends', 'messages', 'login', 'signup', 'downloads', 'jobs', 'turbo', 'prime', 'store', 'p', 'u', 'popout', 'embed', 'moderator', 'broadcast'];
+
+export function twitchTarget(url: URL): TwitchTarget | null {
+  const host = url.hostname.toLowerCase();
+  if (!TWITCH_HOSTS.includes(host)) return null;
+  // player.twitch.tv/?channel=name or ?video=v123
+  if (host === 'player.twitch.tv') {
+    const channel = url.searchParams.get('channel');
+    const video = url.searchParams.get('video')?.replace(/^v/, '');
+    if (video && /^\d{1,12}$/.test(video)) return { video };
+    return channel && /^[a-zA-Z0-9_]{3,25}$/.test(channel) ? { channel: channel.toLowerCase() } : null;
+  }
+  const parts = url.pathname.split('/').filter((part) => part.length > 0);
+  // twitch.tv/videos/123 and twitch.tv/name/video/123
+  if (parts[0] === 'videos' && /^\d{1,12}$/.test(parts[1] ?? '')) return { video: parts[1] };
+  if (parts.length >= 3 && parts[1] === 'video' && /^\d{1,12}$/.test(parts[2])) return { video: parts[2] };
+  // twitch.tv/name: the channel, live
+  if (parts.length === 1 && /^[a-zA-Z0-9_]{3,25}$/.test(parts[0]) && !TWITCH_PAGES.includes(parts[0].toLowerCase())) return { channel: parts[0].toLowerCase() };
+  return null;
+}
+
+export function twitchUrl(target: TwitchTarget): string {
+  return target.video !== undefined ? `https://www.twitch.tv/videos/${target.video}` : `https://www.twitch.tv/${target.channel}`;
+}
+
+/** What a stored link points at on its site, read back from its kept address; null for other kinds. */
+export function vimeoOf(link: WatchLink): VimeoVideo | null {
+  return link.kind === 'vimeo' ? parsed(link.url, vimeoVideo) : null;
+}
+export function twitchOf(link: WatchLink): TwitchTarget | null {
+  return link.kind === 'twitch' ? parsed(link.url, twitchTarget) : null;
+}
+function parsed<T>(address: string, read: (url: URL) => T | null): T | null {
+  try {
+    return read(new URL(address));
   } catch {
     return null;
   }

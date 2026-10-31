@@ -9,8 +9,9 @@ import type { MediaItem } from '../lib/media/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useNow } from '../lib/ui/use-now';
-import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink, youtubeIdOf } from '../lib/watch/links';
-import type { Playable } from '../lib/watch/playable';
+import { createEmbed, fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
+import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink } from '../lib/watch/links';
+import type { EmbedPlayable, Playable } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -34,7 +35,6 @@ import {
 import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
 import { attachStream, checkLink, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
-import { fetchYouTubeTitle, YouTubePlayable } from '../lib/watch/youtube-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -102,7 +102,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   /** Puts a live stream's player back at the live edge when it has fallen well behind (after a pause). */
   const toLiveEdge = useEffectEvent((video: Playable) => {
     if (!stageLive) return;
-    const edge = video instanceof YouTubePlayable ? video.liveEdge() : (streamRef.current?.liveEdge() ?? null);
+    const edge = 'liveEdge' in video ? (video as EmbedPlayable).liveEdge() : (streamRef.current?.liveEdge() ?? null);
     const jump = liveJump(edge, video.currentTime);
     if (jump !== undefined) video.currentTime = jump;
   });
@@ -456,10 +456,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           <div className="flex aspect-video w-full items-center justify-center text-label font-bold text-ink-bar">
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
-        ) : link?.kind === 'youtube' ? (
-          <YouTubeStage
-            key={`youtube-${entryId}`}
-            videoId={youtubeIdOf(link) ?? ''}
+        ) : link !== null && isEmbedKind(link.kind) ? (
+          <EmbedStage
+            key={`embed-${entryId}`}
+            link={link}
             autoPlay={amHost && live}
             onPlayer={attachVideo}
             onGone={(gone) => {
@@ -519,7 +519,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         <span className="min-w-0 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
         <span className="font-bold">{queueBadge(read)}</span>
         {stageLive ? (
-          <span className="bg-acid px-1 font-bold text-ink-plate">LIVE</span>
+          <span className="bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
+            LIVE
+          </span>
         ) : (
           <span data-watch-clock={clock.seconds.toFixed(1)}>
             {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
@@ -747,18 +749,20 @@ function QueuePanel({
     return () => window.clearTimeout(timer);
   }, [linkState]);
 
-  // A YouTube video's real title, from YouTube, unless the adder has typed their own.
-  const youtubeVideo = verdict?.ok ? youtubeIdOf(verdict.link) : null;
+  // A YouTube or Vimeo video's real title, from its site, unless the adder has typed their own.
+  const embedded = verdict?.ok && isEmbedKind(verdict.link.kind) ? verdict.link : null;
+  const embeddedUrl = embedded?.url ?? null;
+  const embeddedKind = embedded?.kind;
   useEffect(() => {
-    if (youtubeVideo === null || nameTyped) return;
+    if (embeddedUrl === null || embeddedKind === undefined || nameTyped) return;
     let stale = false;
-    void fetchYouTubeTitle(youtubeVideo).then((found) => {
+    void fetchEmbedTitle({ url: embeddedUrl, kind: embeddedKind, title: '' }).then((found) => {
       if (!stale && found !== null) setLinkName(found);
     });
     return () => {
       stale = true;
     };
-  }, [youtubeVideo, nameTyped]);
+  }, [embeddedUrl, embeddedKind, nameTyped]);
 
   function typeLink(next: string) {
     setLinkText(next);
@@ -782,9 +786,8 @@ function QueuePanel({
       setLinkState({ kind: 'refused', reason });
       return;
     }
-    // [ + ADD ] pressed before YouTube's title came back: ask once more rather than keep the placeholder.
-    const pastedId = youtubeIdOf(verdict.link);
-    const named = !nameTyped && pastedId !== null && linkName === verdict.link.title ? ((await fetchYouTubeTitle(pastedId)) ?? linkName) : linkName;
+    // [ + ADD ] pressed before the site's title came back: ask once more rather than keep the placeholder.
+    const named = !nameTyped && isEmbedKind(verdict.link.kind) && linkName === verdict.link.title ? ((await fetchEmbedTitle(verdict.link)) ?? linkName) : linkName;
     const link: WatchLink = { ...verdict.link, title: linkTitle(named, verdict.link.title) };
     try {
       const entry = await repository.addToQueue({ roomId: read.room.id, link, addedBy: userId, position: nextQueuePosition(read.queue) });
@@ -1097,11 +1100,12 @@ export function TimedMessage({ message, mine = false, roomId }: { message: Watch
 }
 
 /**
- * A YouTube video on the stage (SPEC-watch-links.md step 3): YouTube's own embed player in the stage's
- * box, handed to the room as its player (`onPlayer`), so the sync drives it like the `<video>`.
+ * A video from YouTube, Vimeo or Twitch on the stage (SPEC-watch-links.md steps 3-4): the site's own embed
+ * player in the stage's box, handed to the room as its player (`onPlayer`), so the sync drives it like
+ * the `<video>`.
  */
-function YouTubeStage({
-  videoId,
+function EmbedStage({
+  link,
   autoPlay,
   onPlayer,
   onGone,
@@ -1111,12 +1115,12 @@ function YouTubeStage({
   onBlocked,
   role,
 }: {
-  videoId: string;
+  link: WatchLink;
   autoPlay: boolean;
   onPlayer: (player: Playable) => void;
   onGone: (player: Playable) => void;
   onTime: () => void;
-  onPlaying: (player: YouTubePlayable) => void;
+  onPlaying: (player: EmbedPlayable) => void;
   onError: () => void;
   /** The browser would not start it without a press. */
   onBlocked: () => void;
@@ -1126,16 +1130,21 @@ function YouTubeStage({
   // Read when the player is made, not a reason to make it again.
   const startsPlaying = useEffectEvent(() => autoPlay);
   const time = useEffectEvent(() => onTime());
-  const playing = useEffectEvent((player: YouTubePlayable) => onPlaying(player));
+  const playing = useEffectEvent((player: EmbedPlayable) => onPlaying(player));
   const failed = useEffectEvent(() => onError());
   const blocked = useEffectEvent(() => onBlocked());
-  const give = useEffectEvent((player: YouTubePlayable) => onPlayer(player));
-  const take = useEffectEvent((player: YouTubePlayable) => onGone(player));
+  const give = useEffectEvent((player: EmbedPlayable) => onPlayer(player));
+  const take = useEffectEvent((player: EmbedPlayable) => onGone(player));
+  const { url, kind } = link;
 
   useEffect(() => {
     const box = boxRef.current;
     if (box === null) return;
-    const player = new YouTubePlayable(box, videoId, startsPlaying());
+    const player = createEmbed({ url, kind, title: '' }, box, startsPlaying());
+    if (player === null) {
+      failed();
+      return;
+    }
     const onTick = () => time();
     const onPlay = () => playing(player);
     const onFail = () => failed();
@@ -1150,7 +1159,7 @@ function YouTubeStage({
       player.destroy();
       box.replaceChildren();
     };
-  }, [videoId]);
+  }, [url, kind]);
 
-  return <div ref={boxRef} className="aspect-video w-full" data-watch-video={role} data-watch-youtube={videoId} />;
+  return <div ref={boxRef} className="aspect-video w-full" data-watch-video={role} data-watch-embed={kind} />;
 }

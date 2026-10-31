@@ -1,5 +1,5 @@
 import { LINK_PROBE_MS, LINK_REFUSALS, youtubeWatchUrl } from './links';
-import type { Playable } from './playable';
+import type { EmbedPlayable } from './playable';
 
 /**
  * YouTube videos in the stream room (SPEC-watch-links.md step 3), through YouTube's own embed player
@@ -85,7 +85,7 @@ function loadApi(): Promise<YTNamespace> {
   return api;
 }
 
-export class YouTubePlayable extends EventTarget implements Playable {
+export class YouTubePlayable extends EventTarget implements EmbedPlayable {
   private player: YTPlayer | null = null;
   private ready = false;
   private destroyed = false;

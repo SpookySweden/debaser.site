@@ -22,3 +22,12 @@ export interface Playable {
   addEventListener(type: string, listener: () => void): void;
   removeEventListener(type: string, listener: () => void): void;
 }
+
+/** An embedded site's player (YouTube, Vimeo, Twitch) wrapped as a `Playable`, with what only those have. */
+export interface EmbedPlayable extends Playable {
+  /** The site says this is a live broadcast. */
+  readonly isLive: boolean;
+  /** Where a live broadcast should be watched from now; null when not live or the site handles it. */
+  liveEdge(): number | null;
+  destroy(): void;
+}
