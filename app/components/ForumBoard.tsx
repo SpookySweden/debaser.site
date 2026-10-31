@@ -423,7 +423,15 @@ export default function ForumBoard() {
           if (!target.classList.contains(JUMP_FLASH[0])) target.classList.add(...JUMP_FLASH);
         });
         keep.observe(target, { attributes: true, attributeFilter: ['class'] });
+        // The opened post can still be taking its full height when the scroll runs (seen on a phone: the
+        // list 603px tall with the reply drawn 1188px down, so there was nowhere to scroll to and the reply
+        // ended up below the screen). While the flash lasts, a change in the list's size centres it again;
+        // the reader's own scrolling changes no size, so it is never fought.
+        const list = document.getElementById('forum-thread-list');
+        const settle = new ResizeObserver(() => target.scrollIntoView({ block: 'center' }));
+        if (list !== null) settle.observe(list);
         window.setTimeout(() => {
+          settle.disconnect();
           keep.disconnect();
           target.classList.remove(...JUMP_FLASH);
         }, 1200);
