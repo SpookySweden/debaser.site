@@ -471,3 +471,63 @@ export function suggestValues(key: SearchFilterKey, partial: string, context: Su
       return [];
   }
 }
+
+// --- the box: pills, recent searches, the calendar ------------------------------------------------------
+
+/**
+ * Lifts the finished filters out of the typed text, to become pills. A filter is finished when a space
+ * follows it (or, with `includeLast`, when the search is run); one still being typed - no value yet, or
+ * an open quote - stays text.
+ */
+export function takeFinishedFilters(text: string, includeLast: boolean): { filters: SearchFilter[]; rest: string } {
+  const filters: SearchFilter[] = [];
+  const kept: string[] = [];
+
+  for (const token of tokens(text)) {
+    const value = token.value.trim();
+    const quoted = token.raw.slice(token.raw.indexOf(':') + 1).startsWith('"');
+    const closed = !quoted || (token.raw.endsWith('"') && token.raw.length > token.raw.indexOf(':') + 2);
+    const followed = /\s/.test(text.charAt(token.end));
+
+    if (token.key !== null && value.length > 0 && closed && (followed || includeLast)) {
+      filters.push({ key: token.key, value: CLOSED_KEYS.has(token.key) ? value.toLowerCase() : value });
+    } else {
+      kept.push(token.raw);
+    }
+  }
+
+  return { filters, rest: kept.join(' ') };
+}
+
+/** Where this browser keeps its recent searches, and how many. */
+export const RECENT_STORAGE_KEY = 'debaser.forum.recent-searches';
+export const RECENT_MAX = 5;
+
+/** The recent searches with this one first: no duplicates (case ignored), the last five. */
+export function pushRecent(recent: string[], search: string): string[] {
+  const entry = search.trim();
+  if (entry.length === 0) return recent;
+
+  return [entry, ...recent.filter((item) => item.toLowerCase() !== entry.toLowerCase())].slice(0, RECENT_MAX);
+}
+
+export function parseRecent(raw: string | null): string[] {
+  if (raw === null) return [];
+
+  try {
+    const value: unknown = JSON.parse(raw);
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string').slice(0, RECENT_MAX) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** A month as weeks of seven days, Monday first; `null` pads the days outside it. `month` is 0-11. */
+export function monthGrid(year: number, month: number): (number | null)[][] {
+  const lead = (new Date(year, month, 1).getDay() + 6) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: (number | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: days }, (_unused, index) => index + 1)];
+  while (cells.length % 7 !== 0) cells.push(null);
+
+  return Array.from({ length: cells.length / 7 }, (_unused, week) => cells.slice(week * 7, week * 7 + 7));
+}

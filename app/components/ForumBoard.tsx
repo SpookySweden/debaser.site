@@ -17,6 +17,7 @@ import {
   type SortChoice,
   type TopFrame,
 } from '../lib/forum/board-sort';
+import { searchBoard, type ParsedSearch } from '../lib/forum/board-search';
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
@@ -27,6 +28,8 @@ import ForumPinPanel from './ForumPinPanel';
 import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
 import ForumGalleryView from './ForumGalleryView';
+import ForumSearchBox from './ForumSearchBox';
+import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { TagMark, tagMarkColour } from './TagBadge';
 import { PLATE,PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
@@ -115,7 +118,12 @@ export default function ForumBoard() {
    * parameter - a link to the board means the board.
    */
   const [view, setView] = useState<BoardView>('feed');
-  const [query, setQuery] = useState('');
+  /** The search that was run in the box (./ForumSearchBox.tsx), or null when none is showing. */
+  const [search, setSearch] = useState<ParsedSearch | null>(null);
+  const [searchBoxKey, setSearchBoxKey] = useState(0);
+  /** The directory's names, for from: and mentions: (the board's own names are added to them). */
+  const { accounts } = useComms();
+  const directoryNames = useMemo(() => accounts.map((account) => account.displayName), [accounts]);
   const [tagFilters, setTagFilters] = useState<string[]>([]);
   const [tagMatchMode, setTagMatchMode] = useState<TagMatchMode>('any');
   /** The board's music half: the switch, the sounds, and whether the whole index is open. */
@@ -134,14 +142,20 @@ export default function ForumBoard() {
   const [page, setPage] = useState(1);
   const [openThreadIds, setOpenThreadIds] = useState<string[]>([]);
 
+  /** The threads a running search found something in: the board narrows to them. */
+  const searchThreadIds = useMemo(
+    () => (search === null ? null : new Set(searchBoard(forum.threads, search, { pins: forum.pins }).map((hit) => hit.thread.id))),
+    [forum.threads, forum.pins, search],
+  );
+
   const visibleThreads = useMemo(
     () =>
       // A pinned post leads whatever the filters say: the point of a pin is that it is seen, and
       // a pin that vanished the moment somebody searched would not be one. It is lifted inside
       // the filtered list rather than added to it, so a search that excludes it still excludes it.
       sortThreadsPinnedFirst(
-        selectBoardThreads(forum.threads, {
-          query,
+        selectBoardThreads(searchThreadIds === null ? forum.threads : forum.threads.filter((thread) => searchThreadIds.has(thread.id)), {
+          query: '',
           sourceFilter,
           tagKeys: tagFilters,
           tagMatchMode,
@@ -155,7 +169,7 @@ export default function ForumBoard() {
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
+    [forum.threads, forum.pins, searchThreadIds, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
   );
 
   /** BY TAG with no tags picked reads as HOT (board-query does the same), so the key names what is shown. */
@@ -339,7 +353,9 @@ export default function ForumBoard() {
       if (typeof window !== 'undefined') writeSortToAddress({ sort: 'new', frame: topFrame });
       setSourceFilter('all');
       setTagFilters([]);
-      setQuery('');
+      setSearch(null);
+      // The box keeps its own pills and words: a new key empties it along with the search.
+      setSearchBoxKey((current) => current + 1);
 
       if (typeof window === 'undefined') return;
       window.requestAnimationFrame(() => {
@@ -526,7 +542,7 @@ export default function ForumBoard() {
           aria-controls="board-controls-panel"
           className={PLATE}
         >
-          {`[ SORT: ${sortKeyLabel} / SEARCH ${menu === 'controls' ? '▴' : '▾'} ]`}
+          {`[ SORT: ${sortKeyLabel} ${menu === 'controls' ? '▴' : '▾'} ]`}
         </button>
 
         {/* Sort / source / search, and how many posts a page holds: folded away by default, because
@@ -592,23 +608,6 @@ export default function ForumBoard() {
               </select>
             </div>
 
-            <div>
-              <label htmlFor="forum-search" className="block text-label font-bold text-ink">
-                SEARCH:
-              </label>
-              <input
-                id="forum-search"
-                type="text"
-                value={query}
-                onChange={(event) => {
-                  setQuery(event.target.value);
-                  setPage(1);
-                }}
-                placeholder="Title, body, tag or account"
-                className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none"
-              />
-            </div>
-
             {/* The mock store's housekeeping: never drawn on the live board. */}
             {forum.source === 'mock' ? (
               <div>
@@ -619,6 +618,25 @@ export default function ForumBoard() {
             ) : null}
           </div>
         ) : null}
+
+        {/* The search box (./ForumSearchBox.tsx), on the row itself as Discord's is: on a phone it takes a
+            line of its own. Its list hangs under it, over the posts. */}
+        <ForumSearchBox
+          key={searchBoxKey}
+          threads={forum.threads}
+          directory={directoryNames}
+          tagVocabulary={forum.tagVocabulary}
+          running={search !== null}
+          onRun={(next) => {
+            setSearch(next);
+            setPage(1);
+          }}
+          onClear={() => {
+            setSearch(null);
+            setPage(1);
+          }}
+          onFocus={() => setMenu(null)}
+        />
 
         {/* Said only while it is true: a board that has synced says nothing about it. */}
         {forum.ready ? null : <span>SYNCING...</span>}
