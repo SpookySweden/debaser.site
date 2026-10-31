@@ -2,6 +2,7 @@ import { tagKey } from './tag-vocabulary';
 import { displayTitle, postCredit } from './site-author';
 import type { ForumAnchorKind, ForumComment, ForumTag, ForumThread, ForumTrack } from './types';
 import { isStreamThread } from '../watch/rules';
+import { sortBoard, type BoardSort, type TopFrame } from './board-sort';
 
 /**
  * Board query: filtering and ordering of the thread list.
@@ -27,7 +28,8 @@ import { isStreamThread } from '../watch/rules';
  * to, and by anyone who replied.
  */
 
-export type SortMode = 'newest' | 'replies' | 'tags';
+/** The board's sorts live in ./board-sort.ts (HOT, NEW, TOP, MOST REPLIES, TITLE A-Z, BY TAG). */
+export type SortMode = BoardSort;
 /** `stream`: the records of watch-together streams (board posts whose anchor names a room). */
 export type SourceFilter = 'all' | ForumAnchorKind | 'stream';
 export type TagMatchMode = 'any' | 'all';
@@ -40,6 +42,10 @@ export type BoardQuery = {
   tagKeys: string[];
   tagMatchMode: TagMatchMode;
   sortMode: SortMode;
+  /** TOP's time frame (default THIS WEEK); every other sort ignores it. */
+  topFrame?: TopFrame;
+  /** The clock TOP's frame is measured from; now, unless a check passes one in. */
+  now?: number;
   /**
    * Keep only posts that carry music: a track filed with the post, or one filed with a reply to it.
    *
@@ -239,16 +245,11 @@ export function selectBoardThreads(threads: ForumThread[], options: BoardQuery):
     );
   });
 
-  return [...filtered].sort((a, b) => {
-    if (options.sortMode === 'tags' && options.tagKeys.length > 0) {
-      const hitDifference = countTagHits(b, options.tagKeys) - countTagHits(a, options.tagKeys);
-      if (hitDifference !== 0) return hitDifference;
-    }
-
-    if (options.sortMode === 'replies' && b.comments.length !== a.comments.length) {
-      return b.comments.length - a.comments.length;
-    }
-
-    return Date.parse(b.createdAt) - Date.parse(a.createdAt);
+  return sortBoard(filtered, {
+    // BY TAG means nothing with no tags picked: the board reads as HOT until some are.
+    sort: options.sortMode === 'tags' && options.tagKeys.length === 0 ? 'hot' : options.sortMode,
+    frame: options.topFrame,
+    now: options.now,
+    tagKeys: options.tagKeys,
   });
 }

@@ -3,6 +3,20 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
 import { selectBoardThreads, type SortMode, type SourceFilter, type TagMatchMode } from '../lib/forum/board-query';
+import {
+  BOARD_SORTS,
+  DEFAULT_SORT,
+  DEFAULT_TOP_FRAME,
+  SORT_STORAGE_KEY,
+  TOP_FRAMES,
+  frameLabel,
+  parseStoredSort,
+  readSortParams,
+  sortLabel,
+  writeSortParams,
+  type SortChoice,
+  type TopFrame,
+} from '../lib/forum/board-sort';
 import { paginate } from '../lib/forum/paging';
 import { sortThreadsPinnedFirst } from '../lib/forum/pins';
 import { makeUserTag } from '../lib/forum/tag-vocabulary';
@@ -63,6 +77,17 @@ type BoardMenu = 'tags' | 'controls';
 const MENU_PANEL = 'absolute top-full right-0 left-0 z-menu mt-1 frame bg-paper p-2';
 
 /**
+ * Puts the sort in the address (`?sort=top&t=week`) without a navigation, so a copied link opens with
+ * it. Every other param (`?arcade=1` ...) and the hash stay as they are, and Next's own history state
+ * is handed back untouched.
+ */
+function writeSortToAddress(choice: SortChoice) {
+  const url = new URL(window.location.href);
+  writeSortParams(url.searchParams, choice);
+  window.history.replaceState(window.history.state, '', url);
+}
+
+/**
  * The board itself: one row of controls, the collapsible thread list, the paging readout under it,
  * and the composer. All state lives in ForumProvider, so a comment filed from the home page or the
  * concepts archive lands here without a reload.
@@ -75,7 +100,12 @@ export default function ForumBoard() {
   // then share one dependency instead of depending on the whole context value.
   const markThreadRead = forum.markThreadRead;
 
-  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  /**
+   * The sort, and TOP's time frame (SPEC-forum-search.md). HOT until the effect below reads the
+   * address or this browser's memory: the address wins, so a shared link opens the way it was sent.
+   */
+  const [sortMode, setSortMode] = useState<SortMode>(DEFAULT_SORT);
+  const [topFrame, setTopFrame] = useState<TopFrame>(DEFAULT_TOP_FRAME);
   const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
   /**
    * How the board is read here, the feed or the gallery.
@@ -116,6 +146,7 @@ export default function ForumBoard() {
           tagKeys: tagFilters,
           tagMatchMode,
           sortMode,
+          topFrame,
           musicOnly,
           musicTagKeys,
           // The gallery is a *reading* of the board, not a second board: the same filter, sort and
@@ -124,8 +155,50 @@ export default function ForumBoard() {
         }),
         forum.pins,
       ),
-    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, musicOnly, musicTagKeys, view],
+    [forum.threads, forum.pins, query, sourceFilter, tagFilters, tagMatchMode, sortMode, topFrame, musicOnly, musicTagKeys, view],
   );
+
+  /** BY TAG with no tags picked reads as HOT (board-query does the same), so the key names what is shown. */
+  const shownSort: SortMode = sortMode === 'tags' && tagFilters.length === 0 ? DEFAULT_SORT : sortMode;
+  const sortKeyLabel = shownSort === 'top' ? `TOP ${frameLabel(topFrame)}` : sortLabel(shownSort);
+
+  // The sort a visitor arrives with: the address's, else the one this browser remembers (which is
+  // then written into the address, so the link in the bar is the board on screen), else HOT. Read
+  // in a frame, like the hash below, so nothing is set synchronously inside the effect body.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      let choice = readSortParams(new URLSearchParams(window.location.search));
+
+      if (choice === null) {
+        try {
+          choice = parseStoredSort(window.localStorage.getItem(SORT_STORAGE_KEY));
+        } catch {
+          choice = null;
+        }
+        if (choice !== null) writeSortToAddress(choice);
+      }
+
+      if (choice === null) return;
+      setSortMode(choice.sort);
+      setTopFrame(choice.frame);
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  /** A sort picked in the menu: shown, remembered in this browser, and written into the address. */
+  const chooseSort = useCallback((choice: SortChoice) => {
+    setSortMode(choice.sort);
+    setTopFrame(choice.frame);
+    setPage(1);
+
+    try {
+      window.localStorage.setItem(SORT_STORAGE_KEY, JSON.stringify(choice));
+    } catch {
+      // A browser that refuses storage still sorts; it just forgets on the next visit.
+    }
+    writeSortToAddress(choice);
+  }, []);
 
   // Paging: the page is clamped, so filtering a page away can never show a blank board.
   const slice = paginate(visibleThreads, perPage, page);
@@ -260,7 +333,10 @@ export default function ForumBoard() {
       // The reader has just written it, so it is read by definition.
       markThreadRead(thread.id);
       setOpenThreadIds((current) => (current.includes(thread.id) ? current : [...current, thread.id]));
-      setSortMode('newest');
+      // NEW, so the post just written is in view - shown and in the address, but not remembered: the
+      // reader's own choice is still there on the next visit.
+      setSortMode('new');
+      if (typeof window !== 'undefined') writeSortToAddress({ sort: 'new', frame: topFrame });
       setSourceFilter('all');
       setTagFilters([]);
       setQuery('');
@@ -270,7 +346,7 @@ export default function ForumBoard() {
         document.getElementById(threadDomId(thread.id))?.scrollIntoView({ block: 'center' });
       });
     },
-    [markThreadRead],
+    [markThreadRead, topFrame],
   );
 
   const handleReset = useCallback(() => {
@@ -450,55 +526,50 @@ export default function ForumBoard() {
           aria-controls="board-controls-panel"
           className={PLATE}
         >
-          {menu === 'controls' ? '[ SORT / SEARCH ▴ ]' : '[ SORT / SEARCH ▾ ]'}
+          {`[ SORT: ${sortKeyLabel} / SEARCH ${menu === 'controls' ? '▴' : '▾'} ]`}
         </button>
 
         {/* Sort / source / search, and how many posts a page holds: folded away by default, because
             the posts themselves are the practical information on this page. */}
         {menu === 'controls' ? (
           <div id="board-controls-panel" className={`${MENU_PANEL} grid gap-3 sm:grid-cols-2`}>
-            <fieldset>
-              <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
-              <label className="flex items-center gap-2 text-label font-bold text-ink">
-                <input
-                  type="radio"
-                  name="forum-sort"
-                  value="newest"
-                  checked={sortMode === 'newest'}
-                  onChange={() => {
-                    setSortMode('newest');
-                    setPage(1);
-                  }}
-                />
-                NEWEST FIRST
-              </label>
-              <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
-                <input
-                  type="radio"
-                  name="forum-sort"
-                  value="replies"
-                  checked={sortMode === 'replies'}
-                  onChange={() => {
-                    setSortMode('replies');
-                    setPage(1);
-                  }}
-                />
-                MOST REPLIES
-              </label>
-              <label className="mt-1 flex items-center gap-2 text-label font-bold text-ink">
-                <input
-                  type="radio"
-                  name="forum-sort"
-                  value="tags"
-                  checked={sortMode === 'tags'}
-                  onChange={() => {
-                    setSortMode('tags');
-                    setPage(1);
-                  }}
-                />
-                MOST SELECTED TAGS
-              </label>
-            </fieldset>
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              {/* The sorts (./board-sort.ts). BY TAG only while tags are picked: it ranks by them. */}
+              <fieldset>
+                <legend className="px-1 text-label font-bold text-ink">SORT THREADS</legend>
+                {BOARD_SORTS.filter((option) => option.value !== 'tags' || tagFilters.length > 0).map((option) => (
+                  <label key={option.value} className="mt-1 flex items-center gap-2 text-label font-bold text-ink max-sm:min-h-tap">
+                    <input
+                      type="radio"
+                      name="forum-sort"
+                      value={option.value}
+                      checked={shownSort === option.value}
+                      onChange={() => chooseSort({ sort: option.value, frame: topFrame })}
+                    />
+                    {option.label}
+                  </label>
+                ))}
+              </fieldset>
+
+              {/* TOP's time frame, Reddit's list; no other sort has one. */}
+              {shownSort === 'top' ? (
+                <fieldset>
+                  <legend className="px-1 text-label font-bold text-ink">TIME FRAME</legend>
+                  {TOP_FRAMES.map((option) => (
+                    <label key={option.value} className="mt-1 flex items-center gap-2 text-label font-bold text-ink max-sm:min-h-tap">
+                      <input
+                        type="radio"
+                        name="forum-top-frame"
+                        value={option.value}
+                        checked={topFrame === option.value}
+                        onChange={() => chooseSort({ sort: 'top', frame: option.value })}
+                      />
+                      {option.label}
+                    </label>
+                  ))}
+                </fieldset>
+              ) : null}
+            </div>
 
             <div>
               <label htmlFor="forum-source-filter" className="block text-label font-bold text-ink">

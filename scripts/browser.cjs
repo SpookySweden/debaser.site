@@ -432,14 +432,14 @@ async function open({
     context = browser.contexts()[0] ?? (await browser.newContext());
     page = context.pages().find((candidate) => !candidate.isClosed()) ?? (await context.newPage());
   } else {
-    findChrome(); // refuses with the paths it tried, rather than an exception from deep inside Playwright
+    const executablePath = findChrome(); // refuses with the paths it tried, rather than an exception from deep inside Playwright
 
     profileDir = path.resolve(profile ?? path.join(BROWSE, 'browser-profile'));
     if (!keepProfile) rmSync(profileDir, { recursive: true, force: true });
     mkdirSync(profileDir, { recursive: true });
 
     context = await chromium.launchPersistentContext(profileDir, {
-      channel: 'chrome',
+      executablePath, // the first browser found (Edge when Chrome is missing), not `channel: 'chrome'`, which ignored the list
       headless: true,
       viewport: { width, height },
       reducedMotion: reducedMotion ? 'reduce' : 'no-preference',
