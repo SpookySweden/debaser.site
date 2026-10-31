@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { usePathname, useSearchParams } from 'next/navigation';
+import { type ReactNode, useMemo, useState } from 'react';
 import { folderLabel, type FolderPath } from '../lib/audio/archive-tree';
 import { MUSIC_HREF } from '../lib/audio/music-window';
 import { audioTagKey } from '../lib/audio/tags';
@@ -11,7 +11,8 @@ import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { useStreamFolds } from '../lib/watch/use-stream-folds';
 import type { StreamFold } from '../lib/watch/types';
 import { watchHref } from '../lib/watch/watch-window';
-import { KIND_LABELS, MEDIA_KINDS, useCatalogue } from '../lib/media/catalogue';
+import { KIND_LABELS, useCatalogue } from '../lib/media/catalogue';
+import { type Category, SECTIONS, categorise, categoryWords, folderCategoryId, groupMatches, tagCounts } from '../lib/media/categories';
 import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
 import type { CatalogueEntry, MediaItem, MediaKind } from '../lib/media/types';
@@ -30,7 +31,6 @@ import SheetImage from './SheetImage';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
 
-type Tab = 'all' | MediaKind;
 type Sort = 'newest' | 'title' | 'used';
 
 const SORT_LABELS: Record<Sort, string> = { newest: 'NEWEST', title: 'TITLE', used: 'MOST USED' };
@@ -38,8 +38,9 @@ const SORT_LABELS: Record<Sort, string> = { newest: 'NEWEST', title: 'TITLE', us
 /** The glyph a row without a picture leads with. */
 const KIND_MARKS: Record<MediaKind, string> = { image: '▦', audio: '♪', video: '▶' };
 
-function tabRequested(value: string | null): Tab {
-  return value === 'image' || value === 'audio' || value === 'video' ? value : 'all';
+/** The section the address asks for (`/media?kind=audio`), or null for the front page. */
+function kindRequested(value: string | null): MediaKind | null {
+  return value === 'image' || value === 'audio' || value === 'video' ? value : null;
 }
 
 /** The tag keys the address asks for: `/media?kind=audio&tag=lo-fi`, or `&tag=lo-fi,ambient`. */
@@ -99,23 +100,45 @@ function trackFor(item: MediaItem, queue: AudioTrack[]): AudioTrack {
   };
 }
 
+/** Each person whose profile songs are on the shelf, A to Z, with their songs in the order they used them. */
+function profilePeople(entries: CatalogueEntry[]): { key: string; title: string; entries: CatalogueEntry[] }[] {
+  const byOwner = new Map<string, { name: string; songs: { version: number; entry: CatalogueEntry }[] }>();
+  for (const entry of entries) {
+    const profile = profileShelf(entry);
+    if (profile === null) continue;
+    const shelf = byOwner.get(profile.owner) ?? { name: profile.name, songs: [] };
+    shelf.songs.push({ version: profile.version, entry });
+    byOwner.set(profile.owner, shelf);
+  }
+
+  return [...byOwner.entries()]
+    .sort(([, a], [, b]) => a.name.localeCompare(b.name))
+    .map(([owner, shelf]) => ({
+      key: `profile:${owner}`,
+      title: shelf.name,
+      entries: shelf.songs.sort((a, b) => a.version - b.version).map((song) => song.entry),
+    }));
+}
+
+const fileCount = (count: number) => `${count} FILE${count === 1 ? '' : 'S'}`;
+
 /**
- * The media catalogue (SPEC-media-catalogue.md): every file the site holds, by kind, searchable,
- * each row opening onto the file itself and the places it is used.
+ * The media catalogue (SPEC-media-catalogue.md): every file the site holds, searchable, each row opening
+ * onto the file itself and the places it is used.
  *
- * The AUDIO tab is the music archive, in the same shape as the other tabs (Luke, 2026-10-24: the old
- * music window's browser had been dropped onto the page whole, with its own controls, pink folder
- * bands and a different row). The rows are the catalogue's, grouped under a title line per folder
- * with the unfiled files last, and each carries the shelf's two keys - the heart and PLAY (the
- * INJECT key went 2026-10-25, Luke: a track is picked in the composer instead). A signed-in reader files a new track or folder here with the windows the shelf had.
+ * It opens on categories, not files (Luke, 2026-10-31: "everything needs to be collapsed and organised").
+ * The front page is the categories as keys under PICTURES / MUSIC / VIDEO, then every tag in use;
+ * nothing is listed until one is pressed. The categories are worked out from each file
+ * (`lib/media/categories.ts`), so nobody has to file anything for this.
  *
- * The tab lives in the address (`/media?kind=audio`), so the music window's ARCHIVE link, a track's
- * key and a copied address all land on the right shelf; a tag pressed on a track adds `&tag=...`.
+ * Where the reader is lives in the address, so the back key works and a link lands in the right place:
+ * `?cat=<id>` is one category, `?kind=audio` one section with its categories folded (the music window's
+ * ARCHIVE link still lands on the music), `?tag=lo-fi` every file wearing the tag. A search covers
+ * everything and lists its matches under their categories, wherever the reader is standing.
  */
 export default function MediaCatalogue() {
   const search = useSearchParams();
   const pathname = usePathname();
-  const router = useRouter();
   const { user } = useAuth();
   const forum = useForum();
   const catalogue = useCatalogue();
@@ -123,32 +146,42 @@ export default function MediaCatalogue() {
   const library = useMusicLibrary();
   const folders = useArchiveFolders();
 
-  const tab = tabRequested(search.get('kind'));
+  const kind = kindRequested(search.get('kind'));
+  const categoryId = search.get('cat');
   const tagKeys = useMemo(() => parseTagKeys(search.get('tag')), [search]);
   const [query, setQuery] = useState('');
   const [sort, setSort] = useState<Sort>('newest');
   const [openId, setOpenId] = useState<string | null>(null);
-  /** The PROFILE MUSIC folder (`profile-music`) and the people in it (`profile:<user id>`) that are open. */
+  /** The folds that are open: categories (`cat:<id>`), sub-folders (`folder:<path>`), people (`profile:<id>`). */
   const [openShelves, setOpenShelves] = useState<ReadonlySet<string>>(new Set());
   const [uploading, setUploading] = useState(false);
   const [creating, setCreating] = useState<{ kind: 'file' | 'folder'; parent: FolderPath | null } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const show = useCallback(
-    (next: Tab) => {
-      router.replace(next === 'all' ? pathname : `${pathname}?kind=${next}`, { scroll: false });
-    },
-    [pathname, router],
+  const searching = query.trim().length > 0;
+
+  const sorted = useMemo(
+    () =>
+      [...catalogue.entries].sort((a, b) => {
+        if (sort === 'title') return a.item.title.localeCompare(b.item.title);
+        if (sort === 'used') return b.uses.length - a.uses.length || b.item.createdAt.localeCompare(a.item.createdAt);
+        return b.item.createdAt.localeCompare(a.item.createdAt);
+      }),
+    [catalogue.entries, sort],
   );
 
-  const filtering = query.trim().length > 0 || tagKeys.length > 0;
+  const folderPaths = useMemo(() => folders.folders.map((folder) => folder.path), [folders.folders]);
+  const categories = useMemo(() => categorise(sorted, folderPaths), [sorted, folderPaths]);
+  const tags = useMemo(() => tagCounts(catalogue.entries, audioTagKey), [catalogue.entries]);
 
-  const shown = useMemo(() => {
+  /** A search or a tag: the matches, grouped under their categories. Null when neither is asked for. */
+  const matches = useMemo(() => {
+    if (!searching && tagKeys.length === 0) return null;
+
     const needle = query.trim().toLowerCase();
     const needleKey = audioTagKey(query);
-
-    const matching = catalogue.entries.filter(({ item }) => {
-      if (tab !== 'all' && item.kind !== tab) return false;
+    const found = sorted.filter((entry) => {
+      const { item } = entry;
       if (tagKeys.length > 0 && !item.tags.some((tag) => tagKeys.includes(audioTagKey(tag)))) return false;
       if (needle.length === 0) return true;
 
@@ -157,76 +190,29 @@ export default function MediaCatalogue() {
         item.credit.toLowerCase().includes(needle) ||
         item.uploadedByLabel.toLowerCase().includes(needle) ||
         (item.folderPath ?? '').toLowerCase().includes(needle) ||
+        categoryWords(entry).includes(needle) ||
         item.tags.some((tag) => audioTagKey(tag) === needleKey || tag.toLowerCase().includes(needle))
       );
     });
 
-    return [...matching].sort((a, b) => {
-      if (sort === 'title') return a.item.title.localeCompare(b.item.title);
-      if (sort === 'used') return b.uses.length - a.uses.length || b.item.createdAt.localeCompare(a.item.createdAt);
-      return b.item.createdAt.localeCompare(a.item.createdAt);
-    });
-  }, [catalogue.entries, tab, query, tagKeys, sort]);
+    return { count: found.length, groups: groupMatches(found, categories) };
+  }, [searching, tagKeys, query, sorted, categories]);
 
   /** Every stream that played a video, for the STREAM CHAT folds under each (SPEC-watch-together.md). */
   const videoIds = useMemo(() => catalogue.entries.filter(({ item }) => item.kind === 'video').map(({ item }) => item.id), [catalogue.entries]);
   const streamFolds = useStreamFolds(videoIds);
 
-  const counts = useMemo(() => {
-    const byKind: Record<Tab, number> = { all: catalogue.entries.length, image: 0, audio: 0, video: 0 };
-    for (const { item } of catalogue.entries) byKind[item.kind] += 1;
-    return byKind;
-  }, [catalogue.entries]);
-
-  /**
-   * The AUDIO tab's shelves: one group per folder, A to Z, with the folders somebody made but has not
-   * filed anything into yet, then one shelf per profile for the tracks that are somebody's profile song
-   * (drawn inside the one PROFILE MUSIC folder, numbered 1, 2, 3 in the order the profile used them; one
-   * also filed in a folder shows there too), and the rest of the unfiled files last. A search or a tag flattens the list, as it does on every other
-   * tab, because a match is what the reader asked for and its folder is a detail.
-   */
-  const groups = useMemo(() => {
-    if (tab !== 'audio' || filtering) return null;
-
-    const byFolder = new Map<string, CatalogueEntry[]>();
-    const byProfile = new Map<string, { name: string; songs: { version: number; entry: CatalogueEntry }[] }>();
-    for (const folder of folders.folders) byFolder.set(folder.path, []);
-    for (const entry of shown) {
-      const profile = profileShelf(entry);
-      if (profile !== null) {
-        const shelf = byProfile.get(profile.owner) ?? { name: profile.name, songs: [] };
-        shelf.songs.push({ version: profile.version, entry });
-        byProfile.set(profile.owner, shelf);
-        if ((entry.item.folderPath ?? '').length === 0) continue;
-      }
-      const key = entry.item.folderPath ?? '';
-      byFolder.set(key, [...(byFolder.get(key) ?? []), entry]);
-    }
-
-    const unfiled = byFolder.get('') ?? [];
-    byFolder.delete('');
-
-    // A folder that only holds other folders is a path, not a shelf: `HEXHAM` with everything under
-    // `HEXHAM / GRIDLOCK` would be a line saying EMPTY over the shelf that is not. A folder somebody
-    // made and has put nothing in at all still shows, so they can find it and file into it.
-    const paths = [...byFolder.keys()];
-    const named = [...byFolder.entries()]
-      .filter(([path, entries]) => entries.length > 0 || !paths.some((other) => other.startsWith(`${path}/`)))
-      .sort(([a], [b]) => a.localeCompare(b));
-    const profiles = [...byProfile.entries()].sort(([, a], [, b]) => a.name.localeCompare(b.name));
-
-    return [
-      ...named.map(([path, entries]) => ({ key: path, title: shelfName(path), path: path as string | null, entries, numbered: false })),
-      ...profiles.map(([owner, shelf]) => ({
-        key: `profile:${owner}`,
-        title: shelf.name,
-        path: null,
-        entries: shelf.songs.sort((a, b) => a.version - b.version).map((song) => song.entry),
-        numbered: true,
-      })),
-      { key: '', title: 'UNFILED', path: null, entries: unfiled, numbered: false },
-    ];
-  }, [tab, filtering, shown, folders.folders]);
+  // A music folder's address is its own name, so one not found yet (the folder list still loading, or
+  // nothing filed in it) is shown empty rather than NOT FOUND.
+  const category: Category | undefined =
+    categoryId === null
+      ? undefined
+      : (categories.find((candidate) => candidate.id === categoryId) ??
+        (categoryId.startsWith(folderCategoryId('')) && categoryId.length > folderCategoryId('').length
+          ? { id: categoryId, kind: 'audio', label: categoryId.slice(folderCategoryId('').length), entries: [], folderPath: categoryId.slice(folderCategoryId('').length) }
+          : undefined));
+  /** The music is being looked at: the shelf's own keys (new folder, new file) take UPLOAD's place. */
+  const onMusic = kind === 'audio' || category?.kind === 'audio';
 
   const share = Math.min(1, catalogue.bytesUsed / STORAGE_CEILING_BYTES);
 
@@ -240,90 +226,13 @@ export default function MediaCatalogue() {
     }
   }
 
-  /** Opens a folder that is shut, or shuts it. */
+  /** Opens a fold that is shut, or shuts it. */
   const toggleShelf = (key: string) =>
     setOpenShelves((current) => {
       const next = new Set(current);
       if (!next.delete(key)) next.add(key);
       return next;
     });
-
-  /** A folder's shelf: its title line, then its files, or EMPTY. */
-  const shelfFor = (group: NonNullable<typeof groups>[number]) => (
-    <section key={group.key} aria-label={group.key.length === 0 ? 'Unfiled tracks' : group.title} className="mt-3">
-      {/* The folder, as a title line: the name between two rules, the count and the key at
-          the right end, the way every section inside a window is titled. */}
-      <div className={TITLE_BAR}>
-        <span>{group.title}</span>
-        <span className="text-label text-ink">
-          {group.entries.length} FILE{group.entries.length === 1 ? '' : 'S'}
-          {user === null || group.path === null ? null : (
-            <button
-              type="button"
-              onClick={() => setCreating({ kind: 'file', parent: group.path })}
-              className={`${PLATE} ml-2`}
-            >
-              [ + FILE ]
-            </button>
-          )}
-        </span>
-      </div>
-      {group.entries.length === 0 ? (
-        <p className="text-label text-ink-quiet">EMPTY.</p>
-      ) : (
-        <ul aria-label="Files">{group.entries.map((entry) => rowFor(entry, { key: group.key, source: false }))}</ul>
-      )}
-    </section>
-  );
-
-  /**
-   * The people whose profile songs are on the shelf, as one folder that opens onto a line per person,
-   * A to Z, each of which opens onto their songs, numbered (Luke, 2026-10-25). Both start shut.
-   */
-  const profileFolder = (people: NonNullable<typeof groups>) => {
-    if (people.length === 0) return null;
-    const open = openShelves.has('profile-music');
-
-    return (
-      <section key="profile-music" aria-label="Profile music" className="mt-3">
-        <div className={TITLE_BAR}>
-          <button type="button" onClick={() => toggleShelf('profile-music')} aria-expanded={open} className="cursor-pointer hover:underline">
-            {open ? '[-]' : '[+]'} PROFILE MUSIC
-          </button>
-          <span className="text-label text-ink">
-            {people.length} {people.length === 1 ? 'PERSON' : 'PEOPLE'}
-          </span>
-        </div>
-        {open
-          ? people.map((person) => {
-              const personOpen = openShelves.has(person.key);
-              return (
-                <section key={person.key} aria-label={`Profile music: ${person.title}`} className="mt-1 pl-4">
-                  <div className={TITLE_BAR}>
-                    <button
-                      type="button"
-                      onClick={() => toggleShelf(person.key)}
-                      aria-expanded={personOpen}
-                      className="cursor-pointer hover:underline"
-                    >
-                      {personOpen ? '[-]' : '[+]'} {person.title}
-                    </button>
-                    <span className="text-label text-ink">
-                      {person.entries.length} FILE{person.entries.length === 1 ? '' : 'S'}
-                    </span>
-                  </div>
-                  {personOpen ? (
-                    <ul aria-label="Files">
-                      {person.entries.map((entry, index) => rowFor(entry, { key: person.key, number: index + 1, source: hasSource(entry) }))}
-                    </ul>
-                  ) : null}
-                </section>
-              );
-            })
-          : null}
-      </section>
-    );
-  };
 
   const rowFor = (entry: CatalogueEntry, shelf?: { key: string; number?: number; source: boolean }) => {
     const rowId = `${shelf?.key ?? ''}|${entry.item.id}`;
@@ -351,66 +260,234 @@ export default function MediaCatalogue() {
     );
   };
 
+  const rows = (entries: CatalogueEntry[], key: string) =>
+    entries.length === 0 ? (
+      <p className="text-label text-ink-quiet">EMPTY.</p>
+    ) : (
+      <ul aria-label="Files">{entries.map((entry) => rowFor(entry, { key, source: false }))}</ul>
+    );
+
+  /** A fold: a title line whose name opens and shuts what is under it. Starts shut. */
+  const fold = (key: string, title: string, count: string, body: () => ReactNode, extra?: ReactNode) => {
+    const open = openShelves.has(key);
+    return (
+      <section key={key} aria-label={title} className="mt-1">
+        <div className={TITLE_BAR}>
+          <button type="button" onClick={() => toggleShelf(key)} aria-expanded={open} className="cursor-pointer text-left hover:underline">
+            {open ? '[-]' : '[+]'} {title}
+          </button>
+          <span className="text-label text-ink">
+            {count}
+            {extra}
+          </span>
+        </div>
+        {open ? <div className="pl-4 max-sm:pl-2">{body()}</div> : null}
+      </section>
+    );
+  };
+
+  /** `[ + FILE ]` into a music folder, for an account. */
+  const fileInto = (path: string) =>
+    user === null ? null : (
+      <button type="button" onClick={() => setCreating({ kind: 'file', parent: path })} className={`${PLATE} ml-2`}>
+        [ + FILE ]
+      </button>
+    );
+
+  /**
+   * What a category holds. A music folder: its own files, then each folder inside it folded. Profile
+   * music: a fold per person, their songs numbered in the order the profile used them. Anything else:
+   * its files.
+   */
+  const contents = (shown: Category) => {
+    if (shown.id === 'music-profile') {
+      return profilePeople(shown.entries).map((person) =>
+        fold(person.key, person.title, fileCount(person.entries.length), () => (
+          <ul aria-label="Files">
+            {person.entries.map((entry, index) => rowFor(entry, { key: person.key, number: index + 1, source: hasSource(entry) }))}
+          </ul>
+        )),
+      );
+    }
+
+    if (shown.folderPath !== undefined) {
+      const top = shown.folderPath;
+      const inner = new Set<string>();
+      for (const path of folderPaths) if (path.startsWith(`${top}/`)) inner.add(path);
+      for (const { item } of shown.entries) if ((item.folderPath ?? '').startsWith(`${top}/`)) inner.add(item.folderPath ?? '');
+      const own = shown.entries.filter(({ item }) => item.folderPath === top);
+
+      return (
+        <>
+          {own.length > 0 || inner.size === 0 ? rows(own, top) : null}
+          {[...inner]
+            .sort((a, b) => a.localeCompare(b))
+            .map((path) => {
+              const held = shown.entries.filter(({ item }) => item.folderPath === path);
+              // A folder that only holds other folders is a path, not a shelf: a line saying 0 FILES over
+              // the shelf that is not empty. One that holds nothing at all still shows, to file into.
+              if (held.length === 0 && [...inner].some((other) => other.startsWith(`${path}/`))) return null;
+              return fold(`folder:${path}`, shelfName(path.slice(top.length + 1)), fileCount(held.length), () => rows(held, path), fileInto(path));
+            })}
+        </>
+      );
+    }
+
+    return rows(shown.entries, shown.id);
+  };
+
+  /** The way back to the front page, and the title of what is open. */
+  const header = (title: string, count: string, extra?: ReactNode) => (
+    <>
+      <Link href={pathname} className={`${PLATE_LINK} mt-3 inline-block`}>
+        [ ← ALL CATEGORIES ]
+      </Link>
+      <div className={`${TITLE_BAR} mt-1`}>
+        <h2>{title}</h2>
+        <span className="text-label text-ink">
+          {count}
+          {extra}
+        </span>
+      </div>
+    </>
+  );
+
+  /** The front page: the categories as keys under their sections, then the tags. */
+  const frontPage = () => (
+    <>
+      {SECTIONS.map((section) => {
+        const inSection = categories.filter((candidate) => candidate.kind === section.kind);
+        if (inSection.length === 0) return null;
+        const total = catalogue.entries.filter(({ item }) => item.kind === section.kind).length;
+
+        return (
+          <section key={section.kind} aria-label={section.label} className="mt-3">
+            <div className={TITLE_BAR}>
+              <h2>{section.label}</h2>
+              <Link href={`${pathname}?kind=${section.kind}`} className={PLATE_LINK}>
+                [ ALL {total} ]
+              </Link>
+            </div>
+            <ul className="mt-1 grid grid-cols-2 gap-1 sm:grid-cols-3" aria-label={`${section.label} categories`}>
+              {inSection.map((candidate) => (
+                <li key={candidate.id} className="min-w-0">
+                  <Link
+                    href={`${pathname}?cat=${encodeURIComponent(candidate.id)}`}
+                    className={`${PLATE_LINK} block w-full text-left wrap-anywhere`}
+                  >
+                    [ {candidate.label} ({candidate.entries.length}) ]
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        );
+      })}
+
+      <section aria-label="Tags" className="mt-3">
+        <div className={TITLE_BAR}>
+          <h2>TAGS</h2>
+        </div>
+        {tags.length === 0 ? (
+          <p className="text-label text-ink-quiet">NO TAGS YET.</p>
+        ) : (
+          <p className="mt-1 flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <AudioTagPill key={tag.key} tag={tag.tag} count={tag.count} />
+            ))}
+          </p>
+        )}
+      </section>
+    </>
+  );
+
+  const body = () => {
+    if (catalogue.loading) return <p className="mt-3 text-label font-bold text-ink">READING THE CATALOGUE...</p>;
+
+    if (matches !== null) {
+      return (
+        <>
+          {tagKeys.length === 0 ? null : (
+            <p className="mt-2 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+              <span>TAGGED {tagKeys.map((key) => key.toUpperCase()).join(', ')}:</span>
+              <span>{fileCount(matches.count)}</span>
+              <Link href={pathname} className={PLATE}>
+                [ CLEAR ]
+              </Link>
+            </p>
+          )}
+          {matches.groups.length === 0 ? (
+            <p className="mt-3 text-label font-bold text-ink">NO FILE MATCHES.</p>
+          ) : (
+            matches.groups.map((group) => (
+              <section key={group.id} aria-label={group.label} className="mt-3">
+                <div className={TITLE_BAR}>
+                  <h2>{group.label}</h2>
+                  <span className="text-label text-ink">{fileCount(group.entries.length)}</span>
+                </div>
+                <ul aria-label="Files">{group.entries.map((entry) => rowFor(entry))}</ul>
+              </section>
+            ))
+          )}
+        </>
+      );
+    }
+
+    if (categoryId !== null) {
+      if (category === undefined) {
+        return (
+          <>
+            {header('NOT FOUND', '')}
+            <p className="text-label font-bold text-ink">NOTHING FILED HERE.</p>
+          </>
+        );
+      }
+
+      return (
+        <section aria-label={category.label}>
+          {header(category.label, fileCount(category.entries.length), category.folderPath === undefined ? null : fileInto(category.folderPath))}
+          {contents(category)}
+        </section>
+      );
+    }
+
+    if (kind !== null) {
+      const section = SECTIONS.find((candidate) => candidate.kind === kind);
+      const inSection = categories.filter((candidate) => candidate.kind === kind);
+      const total = catalogue.entries.filter(({ item }) => item.kind === kind).length;
+
+      return (
+        <section aria-label={section?.label}>
+          {header(section?.label ?? '', fileCount(total))}
+          {inSection.length === 0 ? (
+            <p className="text-label font-bold text-ink">NOTHING FILED HERE YET.</p>
+          ) : (
+            inSection.map((candidate) =>
+              fold(
+                `cat:${candidate.id}`,
+                candidate.label,
+                fileCount(candidate.entries.length),
+                () => contents(candidate),
+                candidate.folderPath === undefined ? null : fileInto(candidate.folderPath),
+              ),
+            )
+          )}
+        </section>
+      );
+    }
+
+    return catalogue.entries.length === 0 && categories.length === 0 ? (
+      <p className="mt-3 text-label font-bold text-ink">NOTHING FILED HERE YET.</p>
+    ) : (
+      frontPage()
+    );
+  };
+
   return (
     <section aria-label="Media catalogue">
-      {/* The tabs, and the one main key: filing. A guest sees why there is none. */}
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex flex-wrap items-center gap-1" role="tablist" aria-label="Kinds of file">
-          {(['all', ...MEDIA_KINDS] as Tab[]).map((option) => (
-            <button
-              key={option}
-              type="button"
-              role="tab"
-              aria-selected={tab === option}
-              onClick={() => show(option)}
-              className={tab === option ? PLATE_PRESSED : PLATE}
-            >
-              [ {option === 'all' ? 'ALL' : KIND_LABELS[option]} {counts[option]} ]
-            </button>
-          ))}
-        </div>
-
-        {user === null ? (
-          <span className="text-label font-bold text-ink-quiet">
-            <Link href="/account" className={PLATE_LINK}>
-              [ LOG IN ]
-            </Link>{' '}
-            TO FILE
-          </span>
-        ) : tab === 'audio' ? (
-          /* The shelf's own two ways of adding something, in the place the other tabs keep UPLOAD. */
-          <span className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={() => setCreating({ kind: 'folder', parent: null })} className={PLATE}>
-              [ + NEW FOLDER ]
-            </button>
-            <button type="button" onClick={() => setCreating({ kind: 'file', parent: null })} className={PLATE_MAIN}>
-              + NEW FILE
-            </button>
-          </span>
-        ) : (
-          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN}>
-            + UPLOAD
-          </button>
-        )}
-      </div>
-
-      {/* How full the catalogue is: the free tier's ceiling is the one number that decides whether
-          video can keep being filed (SPEC-media-catalogue.md, risks). Sheets ship with the site and
-          count nothing. */}
-      <p
-        className="mt-1 text-label font-bold text-ink-quiet"
-        title="Past 80%, video is refused."
-      >
-        CATALOGUE: {formatBytes(catalogue.bytesUsed)} OF {formatBytes(STORAGE_CEILING_BYTES)} ({Math.round(share * 100)}%)
-      </p>
-
-      {notice === null ? null : (
-        <p className="mt-1 w-fit text-label font-bold text-ink" role="status">
-          OK: {notice}
-        </p>
-      )}
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
+      {/* The search first: it covers everything, wherever the reader is. Then the one main key: filing.
+          A guest sees why there is none. */}
+      <div className="flex flex-wrap items-center gap-2">
         <label htmlFor="media-search" className="sr-only">
           Search the catalogue
         </label>
@@ -419,7 +496,7 @@ export default function MediaCatalogue() {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Title, credit, tag..."
+          placeholder="Search everything..."
           className={`${FIELD_TIGHT} min-w-0 flex-1`}
         />
         <label htmlFor="media-sort" className="text-label font-bold text-ink">
@@ -434,16 +511,41 @@ export default function MediaCatalogue() {
         </select>
       </div>
 
-      {/* A tag pressed on a track filters the list, and says so where the filter can be dropped. */}
-      {tagKeys.length === 0 ? null : (
-        <p className="mt-1 flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-          <span>TAGGED {tagKeys.map((key) => key.toUpperCase()).join(', ')}:</span>
-          <span>
-            {shown.length} FILE{shown.length === 1 ? '' : 'S'}
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
+        {/* How full the catalogue is: the free tier's ceiling is the one number that decides whether
+            video can keep being filed (SPEC-media-catalogue.md, risks). Sheets ship with the site and
+            count nothing. */}
+        <p className="text-label font-bold text-ink-quiet" title="Past 80%, video is refused.">
+          CATALOGUE: {formatBytes(catalogue.bytesUsed)} OF {formatBytes(STORAGE_CEILING_BYTES)} ({Math.round(share * 100)}%)
+        </p>
+
+        {user === null ? (
+          <span className="text-label font-bold text-ink-quiet">
+            <Link href="/account" className={PLATE_LINK}>
+              [ LOG IN ]
+            </Link>{' '}
+            TO FILE
           </span>
-          <Link href={`${pathname}?kind=${tab === 'all' ? 'audio' : tab}`} className={PLATE}>
-            [ CLEAR ]
-          </Link>
+        ) : onMusic ? (
+          /* The shelf's own two ways of adding something, in the place the other screens keep UPLOAD. */
+          <span className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={() => setCreating({ kind: 'folder', parent: null })} className={PLATE}>
+              [ + NEW FOLDER ]
+            </button>
+            <button type="button" onClick={() => setCreating({ kind: 'file', parent: category?.folderPath ?? null })} className={PLATE_MAIN}>
+              + NEW FILE
+            </button>
+          </span>
+        ) : (
+          <button type="button" onClick={() => setUploading(true)} className={PLATE_MAIN}>
+            + UPLOAD
+          </button>
+        )}
+      </div>
+
+      {notice === null ? null : (
+        <p className="mt-1 w-fit text-label font-bold text-ink" role="status">
+          OK: {notice}
         </p>
       )}
 
@@ -453,27 +555,7 @@ export default function MediaCatalogue() {
         </p>
       ) : null}
 
-      {catalogue.loading ? (
-        <p className="mt-3 text-label font-bold text-ink">READING THE CATALOGUE...</p>
-      ) : groups !== null ? (
-        groups.every((group) => group.entries.length === 0) ? (
-          <p className="mt-3 text-label font-bold text-ink">
-            NOTHING FILED HERE YET.
-          </p>
-        ) : (
-          <>
-            {groups.filter((group) => !group.numbered && group.key.length > 0).map(shelfFor)}
-            {profileFolder(groups.filter((group) => group.numbered))}
-            {groups.filter((group) => group.key.length === 0).map(shelfFor)}
-          </>
-        )
-      ) : shown.length === 0 ? (
-        <p className="mt-3 text-label font-bold text-ink">{filtering ? 'NO FILE MATCHES.' : 'NOTHING FILED HERE YET.'}</p>
-      ) : (
-        <ul className="mt-2" aria-label="Files">
-          {shown.map((entry) => rowFor(entry))}
-        </ul>
-      )}
+      {body()}
 
       {uploading ? (
         <MediaUploadWindow
@@ -484,13 +566,13 @@ export default function MediaCatalogue() {
           onFiled={(item, note) => {
             setUploading(false);
             setNotice(note);
-            setOpenId(`|${item.id}`);
             catalogue.reload();
-            if (tab !== 'all' && tab !== item.kind) show(item.kind);
+            // Find it for them: the new file is the newest, so the search for its title lists it first.
+            setQuery(item.title);
+            setOpenId(`|${item.id}`);
           }}
           onAudioWanted={() => {
             setUploading(false);
-            show('audio');
             if (user !== null) setCreating({ kind: 'file', parent: null });
           }}
         />
