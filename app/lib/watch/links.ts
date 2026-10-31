@@ -24,6 +24,7 @@ export const LINK_PROBE_MS = 15000;
 
 export const LINK_REFUSALS = {
   notVideo: 'NOT A VIDEO LINK',
+  notEmbeddable: "THIS VIDEO CAN'T BE EMBEDDED",
   notHttps: 'ONLY HTTPS LINKS',
   tooLong: 'THIS LINK IS TOO LONG',
   wouldNotLoad: "THIS LINK WOULDN'T LOAD",
@@ -49,6 +50,11 @@ export function recognizeLink(text: string): LinkVerdict {
   if (url.protocol !== 'https:' || url.hostname.length === 0) return { ok: false, reason: LINK_REFUSALS.notVideo };
   if (raw.length > LINK_URL_MAX) return { ok: false, reason: LINK_REFUSALS.tooLong };
 
+  // A YouTube video is kept as its plain watch address, whatever form it was pasted in. Its title
+  // starts as a placeholder; the room fills in the real one from YouTube (youtube-player.ts).
+  const youtube = youtubeId(url);
+  if (youtube !== null) return { ok: true, link: { url: youtubeWatchUrl(youtube), kind: 'youtube', title: `YOUTUBE ${youtube}` } };
+
   const name = fileName(url);
   const extension = name.includes('.') ? name.slice(name.lastIndexOf('.') + 1).toLowerCase() : '';
   if (FILE_EXTENSIONS.includes(extension)) return { ok: true, link: { url: raw, kind: 'file', title: clampTitle(name) || url.hostname } };
@@ -56,6 +62,35 @@ export function recognizeLink(text: string): LinkVerdict {
   if (stream !== undefined) return { ok: true, link: { url: raw, kind: stream, title: clampTitle(name) || url.hostname } };
 
   return { ok: false, reason: LINK_REFUSALS.notVideo };
+}
+
+/** Every form a YouTube video's address comes in: watch, youtu.be, shorts, live, embed. */
+const YOUTUBE_HOSTS = ['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtube-nocookie.com', 'www.youtube-nocookie.com'];
+const YOUTUBE_ID = /^[A-Za-z0-9_-]{11}$/;
+
+export function youtubeId(url: URL): string | null {
+  const host = url.hostname.toLowerCase();
+  let id: string | null = null;
+  if (host === 'youtu.be') id = url.pathname.split('/')[1] ?? null;
+  else if (YOUTUBE_HOSTS.includes(host)) {
+    if (url.pathname === '/watch') id = url.searchParams.get('v');
+    else id = /^\/(?:shorts|live|embed)\/([^/]+)/.exec(url.pathname)?.[1] ?? null;
+  }
+  return id !== null && YOUTUBE_ID.test(id) ? id : null;
+}
+
+export function youtubeWatchUrl(id: string): string {
+  return `https://www.youtube.com/watch?v=${id}`;
+}
+
+/** The YouTube video a stored link plays, or null. */
+export function youtubeIdOf(link: WatchLink): string | null {
+  if (link.kind !== 'youtube') return null;
+  try {
+    return youtubeId(new URL(link.url));
+  } catch {
+    return null;
+  }
 }
 
 /** The title the adder typed, or the one the link came with when the box is left empty. */

@@ -1,4 +1,4 @@
-import { LINK_PROBE_MS, LINK_REFUSALS, probeVideoLink } from './links';
+import { LINK_PROBE_MS, LINK_REFUSALS, probeVideoLink, youtubeIdOf } from './links';
 import type { WatchLink } from './types';
 
 /**
@@ -176,5 +176,12 @@ export function probeStream(link: WatchLink, timeoutMs: number): Promise<boolean
 /** The check a link gets in the adder's browser before it is queued: null when it plays, else the refusal. */
 export async function checkLink(link: WatchLink): Promise<string | null> {
   if (link.kind === 'file') return probeVideoLink(link.url);
+  if (link.kind === 'youtube') {
+    const videoId = youtubeIdOf(link);
+    if (videoId === null) return LINK_REFUSALS.notVideo;
+    // Loaded only when a YouTube link is checked.
+    const { probeYouTube } = await import('./youtube-player');
+    return probeYouTube(videoId);
+  }
   return (await probeStream(link, LINK_PROBE_MS)) ? null : LINK_REFUSALS.wouldNotLoad;
 }

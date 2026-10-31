@@ -9,7 +9,8 @@ import type { MediaItem } from '../lib/media/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useNow } from '../lib/ui/use-now';
-import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink } from '../lib/watch/links';
+import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink, youtubeIdOf } from '../lib/watch/links';
+import type { Playable } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -33,6 +34,7 @@ import {
 import type { WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
 import { attachStream, checkLink, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
+import { fetchYouTubeTitle, YouTubePlayable } from '../lib/watch/youtube-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -98,17 +100,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const stageLive = liveEntry !== null && liveEntry === entryId;
   const stageLiveNow = useEffectEvent(() => stageLive);
   /** Puts a live stream's player back at the live edge when it has fallen well behind (after a pause). */
-  const toLiveEdge = useEffectEvent((video: HTMLVideoElement) => {
+  const toLiveEdge = useEffectEvent((video: Playable) => {
     if (!stageLive) return;
-    const jump = liveJump(streamRef.current?.liveEdge() ?? null, video.currentTime);
+    const edge = video instanceof YouTubePlayable ? video.liveEdge() : (streamRef.current?.liveEdge() ?? null);
+    const jump = liveJump(edge, video.currentTime);
     if (jump !== undefined) video.currentTime = jump;
   });
   const waiting = upcoming(read.queue);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  /** The stage's player: a `<video>`, or an embedded site's player wrapped to act as one (lib/watch/playable.ts). */
+  const videoRef = useRef<Playable>(null);
   /** The element itself, as state: the host's listeners and the follower's clock re-attach to a new one. */
-  const [videoElement, setVideoElement] = useState<HTMLVideoElement | null>(null);
-  const attachVideo = useCallback((element: HTMLVideoElement | null) => {
+  const [videoElement, setVideoElement] = useState<Playable | null>(null);
+  const attachVideo = useCallback((element: Playable | null) => {
     videoRef.current = element;
     setVideoElement(element);
   }, []);
@@ -386,7 +390,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     if (video === null) return;
     video.volume = volume;
     video.muted = muted;
-  }, [volume, muted, src]);
+  }, [volume, muted, src, videoElement]);
 
   // A link that will not play in this browser (an address tied to somebody else's session, one that
   // expired in the queue): it says so on the stage, and chat goes on. A host's room moves on after a
@@ -410,7 +414,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const linkKind = link?.kind;
   const startsPlaying = useEffectEvent(() => amHost && live);
   useEffect(() => {
-    if (videoElement === null || linkUrl === undefined || linkKind === undefined) return;
+    if (!(videoElement instanceof HTMLVideoElement) || linkUrl === undefined || linkKind === undefined) return;
     // Right after a play changes, this can still be the element that was just taken away.
     if (videoRef.current !== videoElement) return;
     const streamed = { url: linkUrl, kind: linkKind, title: '' };
@@ -452,6 +456,24 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           <div className="flex aspect-video w-full items-center justify-center text-label font-bold text-ink-bar">
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
+        ) : link?.kind === 'youtube' ? (
+          <YouTubeStage
+            key={`youtube-${entryId}`}
+            videoId={youtubeIdOf(link) ?? ''}
+            autoPlay={amHost && live}
+            onPlayer={attachVideo}
+            onGone={(gone) => {
+              if (videoRef.current === gone) attachVideo(null);
+            }}
+            onTime={onTime}
+            onPlaying={(player) => {
+              setNeedsPress(false);
+              setLiveEntry(player.isLive ? entryId : null);
+            }}
+            onError={() => setDeadEntry(entryId)}
+            onBlocked={() => setNeedsPress(true)}
+            role={amHost ? 'host' : 'viewer'}
+          />
         ) : (
           <video
             // Files share one element (the next play may be the same file, nothing to reload); each stream
@@ -499,7 +521,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         {stageLive ? (
           <span className="bg-acid px-1 font-bold text-ink-plate">LIVE</span>
         ) : (
-          <span>
+          <span data-watch-clock={clock.seconds.toFixed(1)}>
             {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
           </span>
         )}
@@ -610,6 +632,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       canAdd={user !== null && live}
       userId={user?.id ?? null}
       compact={compact}
+      nowLive={stageLive}
       onFault={setFault}
     />
   );
@@ -668,6 +691,7 @@ function QueuePanel({
   canAdd,
   userId,
   compact,
+  nowLive,
   onFault,
 }: {
   read: WatchRoomRead;
@@ -677,6 +701,8 @@ function QueuePanel({
   userId: string | null;
   /** On a phone the list folds under its title line; the add key stays on that line, outside the fold. */
   compact: boolean;
+  /** What is on is a live stream: it never ends, so nothing loops. */
+  nowLive: boolean;
   onFault: (message: string) => void;
 }) {
   const repository = getWatchRepository();
@@ -721,6 +747,19 @@ function QueuePanel({
     return () => window.clearTimeout(timer);
   }, [linkState]);
 
+  // A YouTube video's real title, from YouTube, unless the adder has typed their own.
+  const youtubeVideo = verdict?.ok ? youtubeIdOf(verdict.link) : null;
+  useEffect(() => {
+    if (youtubeVideo === null || nameTyped) return;
+    let stale = false;
+    void fetchYouTubeTitle(youtubeVideo).then((found) => {
+      if (!stale && found !== null) setLinkName(found);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [youtubeVideo, nameTyped]);
+
   function typeLink(next: string) {
     setLinkText(next);
     if (linkState.kind === 'refused' || linkState.kind === 'queued') setLinkState({ kind: 'idle' });
@@ -743,7 +782,10 @@ function QueuePanel({
       setLinkState({ kind: 'refused', reason });
       return;
     }
-    const link: WatchLink = { ...verdict.link, title: linkTitle(linkName, verdict.link.title) };
+    // [ + ADD ] pressed before YouTube's title came back: ask once more rather than keep the placeholder.
+    const pastedId = youtubeIdOf(verdict.link);
+    const named = !nameTyped && pastedId !== null && linkName === verdict.link.title ? ((await fetchYouTubeTitle(pastedId)) ?? linkName) : linkName;
+    const link: WatchLink = { ...verdict.link, title: linkTitle(named, verdict.link.title) };
     try {
       const entry = await repository.addToQueue({ roomId: read.room.id, link, addedBy: userId, position: nextQueuePosition(read.queue) });
       applyLocalChange(read.room.id, { kind: 'entry', entry });
@@ -916,7 +958,7 @@ function QueuePanel({
               </li>
             ))}
           </ol>
-          {waiting.length === 0 && played.length > 0 ? <p className="text-label text-ink-quiet">LAST FILE LOOPS.</p> : null}
+          {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-label text-ink-quiet">LAST FILE LOOPS.</p> : null}
         </>
       ) : null}
     </div>
@@ -933,7 +975,7 @@ function ChatPanel({
 }: {
   read: WatchRoomRead;
   item: MediaItem | undefined;
-  videoRef: React.RefObject<HTMLVideoElement | null>;
+  videoRef: React.RefObject<Playable | null>;
   live: boolean;
 }) {
   const { user } = useAuth();
@@ -1052,4 +1094,63 @@ export function TimedMessage({ message, mine = false, roomId }: { message: Watch
       ) : null}
     </li>
   );
+}
+
+/**
+ * A YouTube video on the stage (SPEC-watch-links.md step 3): YouTube's own embed player in the stage's
+ * box, handed to the room as its player (`onPlayer`), so the sync drives it like the `<video>`.
+ */
+function YouTubeStage({
+  videoId,
+  autoPlay,
+  onPlayer,
+  onGone,
+  onTime,
+  onPlaying,
+  onError,
+  onBlocked,
+  role,
+}: {
+  videoId: string;
+  autoPlay: boolean;
+  onPlayer: (player: Playable) => void;
+  onGone: (player: Playable) => void;
+  onTime: () => void;
+  onPlaying: (player: YouTubePlayable) => void;
+  onError: () => void;
+  /** The browser would not start it without a press. */
+  onBlocked: () => void;
+  role: 'host' | 'viewer';
+}) {
+  const boxRef = useRef<HTMLDivElement>(null);
+  // Read when the player is made, not a reason to make it again.
+  const startsPlaying = useEffectEvent(() => autoPlay);
+  const time = useEffectEvent(() => onTime());
+  const playing = useEffectEvent((player: YouTubePlayable) => onPlaying(player));
+  const failed = useEffectEvent(() => onError());
+  const blocked = useEffectEvent(() => onBlocked());
+  const give = useEffectEvent((player: YouTubePlayable) => onPlayer(player));
+  const take = useEffectEvent((player: YouTubePlayable) => onGone(player));
+
+  useEffect(() => {
+    const box = boxRef.current;
+    if (box === null) return;
+    const player = new YouTubePlayable(box, videoId, startsPlaying());
+    const onTick = () => time();
+    const onPlay = () => playing(player);
+    const onFail = () => failed();
+    const onBlock = () => blocked();
+    player.addEventListener('blocked', onBlock);
+    for (const type of ['timeupdate', 'loadedmetadata', 'play', 'pause']) player.addEventListener(type, onTick);
+    player.addEventListener('playing', onPlay);
+    player.addEventListener('error', onFail);
+    give(player);
+    return () => {
+      take(player);
+      player.destroy();
+      box.replaceChildren();
+    };
+  }, [videoId]);
+
+  return <div ref={boxRef} className="aspect-video w-full" data-watch-video={role} data-watch-youtube={videoId} />;
 }
