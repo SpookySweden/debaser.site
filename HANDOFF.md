@@ -1,21 +1,28 @@
-# Latest: VANITY build (SPEC-vanity.md) - step 1 LIVE, step 2 waiting for Luke's OK (2026-10-31)
+# Latest: VANITY build (SPEC-vanity.md) - steps 1-2 LIVE, step 3 waiting for Luke's OK (2026-10-31)
 - STEP 1 LIVE (5a6c115): `[ ⋯ ]` song panel (app/components/SongMenu.tsx) on /media audio rows, MY MUSIC
-  rows, post MP3s and the player bar: ADD TO PLAYLIST (+ inline new list; existing togglePlaylistTrack, no
-  DB change), LIKE, ADD TO QUEUE / PLAY NEXT, COPY LINK, ATTACH TO POST, GO TO <top folder>. Rows lost
-  heart / COMMENT / ADD TO into it. Player: hand-made `upNext` list (NEXT, track end, headset NEXT take it
-  first; queueing the song already on restarts it) + one-click heart (the spec assumed one existed; it did
-  not). `shelfSize` on the player = how much of its queue came from the archive read; songs appended after
-  (post MP3s, profile songs) get no likes/lists (`app/lib/audio/up-next.ts`). Check: Temp/check-song-menu.cjs
-  (proven to fail twice). code-reviewer found 3 gaps, all fixed before the commit.
-- NOT VERIFIED: signed-in actions (adding to a list, liking) were not driven - `.env.test` (test account
-  password) is missing on this machine, and the mock data source has an empty shelf. Guest panel, PLAY
-  NEXT, restart, player panel and phone width (375px, no sideways scroll) were driven on a local build;
-  the guest panel was seen live.
-- STEP 2 (BARR) drafted, NOT pushed: supabase/migrations/20261031120000_music_barrs.sql (uncommitted).
-  Keyed by file address (`track_src`) so every playback route can match it. Waits for Luke's typed OK.
-- Gotchas: port 3210 is held by an older `next start` from this folder, and `npm run capture` reuses
-  whatever answers there; `npm run shot` treats `[+]`-style text as a CSS selector (use the built-in
-  browser). Deciding later: Luke still has to name which top folders DEBASER owns (step 5).
+  rows, post MP3s, the player bar: ADD TO PLAYLIST (+ inline new list), LIKE, BARR, ADD TO QUEUE / PLAY
+  NEXT, COPY LINK, ATTACH TO POST, GO TO <top folder>. Player: hand-made `upNext` (NEXT / track end /
+  headset take it first), one-click heart, `shelfSize` (songs appended after the archive read - post MP3s,
+  profile songs - get no likes/lists; app/lib/audio/up-next.ts). Check: Temp/check-song-menu.cjs.
+- STEP 2 LIVE (d64af6d table, pushed with Luke's OK; 56c185a code): `music_barrs` (owner-only RLS, keyed by
+  file address). Library provider publishes the set to app/lib/audio/barrs.ts (the player sits outside it).
+  The player derives a gate: `held` = barred and not allowed -> element paused, bar shows paused, prompt
+  `BARRED :: <title> - PLAY ANYWAY? [ PLAY ] [ SKIP ]` (the bar's own play key = PLAY ANYWAY); following a
+  broadcast -> `audio.muted` + `[ LISTEN ANYWAY ]`. Allowance cleared by play/assign/playAt/next/previous/
+  track end. SKIP: upNext, else next file, else stop. Red titles: token `barred` (Rose, White words 4.70:1)
+  via `BarredTitle`. The player's panel and prompt render through app/components/AboveAnchor.tsx (portal,
+  z-popout): inside the bar (z-50) they opened UNDER docked windows. Check: Temp/check-barr.cjs (proven).
+  Mock library fixed: reads loaded storage only after a first write; barrs dropped on load.
+- Driven signed in on the MOCK data source (dev server :3212 with NEXT_PUBLIC_*=mock, mock house account,
+  shelf seeded in localStorage with two real MP3 URLs): bar, prompt, SKIP, SKIP at end stops, ask again
+  after leaving, PLAY ANYWAY, new list + add, like, red row, phone 375px. NOT driven: the follow/mute case
+  (needs a second account broadcasting), post-MP3 red title (mock board empty), anything on the real
+  database signed in (`.env.test` missing on this machine). Stream rooms hold only videos: BARR n/a there.
+- STEP 3 drafted, NOT pushed: supabase/migrations/20261031130000_music_listens.sql (uncommitted):
+  music_listens (own insert/read/delete, 20s repeat guard), profiles.hide_listening, music_play_counts()
+  (capped 3/person/song/day, excludes hidden + opted-out). Waits for Luke's typed OK.
+- Gotchas: port 3210 held by an older `next start`; `npm run shot` reads `[+]` as CSS (use the built-in
+  browser). Luke still to name which top folders DEBASER owns (step 5).
 
 # Latest: archive (/media) opens on categories, everything folded (2026-10-31)
 - STATUS: LIVE (fd274af categories, bf42b5a phone tap height + search on its own line). Verify passed,
