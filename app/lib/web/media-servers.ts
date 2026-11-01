@@ -46,9 +46,8 @@ export type MediaServer = {
 // SERVERS markers, one server per line in exactly this shape. Edit by hand in the same shape, or use the program.
 export const MEDIA_SERVERS = [
   // SERVERS-START
-  { id: 'server_1', label: 'SERVER 1', base: 'https://placeholder-server1.xyz', listPath: '/debaser/list.json', play: { movie: '/debaser/play/movie/{tmdb}', tv: '/debaser/play/tv/{tmdb}/{season}/{episode}', series: '/debaser/play/tv/{tmdb}', other: '/debaser/play/item/{id}' } },
-  { id: 'server_2', label: 'SERVER 2', base: 'https://placeholder-server2.xyz', listPath: '/debaser/list.json', play: { movie: '/debaser/play/movie/{tmdb}', tv: '/debaser/play/tv/{tmdb}/{season}/{episode}', series: '/debaser/play/tv/{tmdb}', other: '/debaser/play/item/{id}' } },
-  // SERVERS-END
+  // (Placeholder slots)
+// SERVERS-END
 ] as const satisfies readonly MediaServer[];
 
 export type MediaServerId = (typeof MEDIA_SERVERS)[number]['id'];
