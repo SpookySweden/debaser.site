@@ -86,7 +86,14 @@ export function readSource(word: unknown): SourceValue | null {
   if (typeof word !== 'string') return null;
   const wanted = word.trim().toLowerCase().replace(/-/g, '_');
   const alias = Object.prototype.hasOwnProperty.call(SOURCE_ALIASES, wanted) ? SOURCE_ALIASES[wanted] : undefined;
-  return alias ?? SOURCE_OPTIONS.find((option) => option.value === wanted)?.value ?? null;
+  if (alias !== undefined) return alias;
+  // Without the hyphen is the same source: `in:server1` is `in:server-1` (Luke, 2026-11-01).
+  const squashed = wanted.replace(/_/g, '');
+  return (
+    SOURCE_OPTIONS.find((option) => option.value === wanted)?.value ??
+    SOURCE_OPTIONS.find((option) => option.value.replace(/_/g, '') === squashed)?.value ??
+    null
+  );
 }
 
 export function readType(word: unknown): TypeValue | null {

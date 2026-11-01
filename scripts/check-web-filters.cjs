@@ -35,6 +35,10 @@ same(f.parseWebSearch('night of the living dead in:youtube type:video'), { text:
 same(f.parseWebSearch('type:AUDIO piano IN:Internet-Archive'), { text: 'piano', source: 'internet_archive', type: 'audio' }, 'any case, any order, hyphenated names');
 same(f.parseWebSearch('in:archive x in:commons'), { text: 'x', source: 'wikimedia_commons', type: 'all' }, 'aliases; the last of a filter wins');
 same(f.parseWebSearch('in:"saved" y'), { text: 'y', source: 'saved', type: 'all' }, 'a quoted value');
+same(f.parseWebSearch('star wars in:server1'), { text: 'star wars', source: 'server_1', type: 'all' }, 'a media server without its hyphen');
+same(f.parseWebSearch('in:SERVER2 x'), { text: 'x', source: 'server_2', type: 'all' }, 'server 2 without its hyphen, any case');
+same(f.parseWebSearch('in:server-1 y'), { text: 'y', source: 'server_1', type: 'all' }, 'a media server with its hyphen');
+same(f.parseWebSearch('in:server3 z'), { text: 'z', source: 'all', type: 'all' }, 'a server that is not listed is still dropped');
 same(f.parseWebSearch('in:vidsrc type:movie z'), { text: 'z', source: 'all', type: 'all' }, 'unknown values are dropped, never passed on');
 same(f.parseWebSearch('in:__proto__ in:constructor q'), { text: 'q', source: 'all', type: 'all' }, 'object-key tricks are unknown values');
 same(f.parseWebSearch('within:youtube tin:x'), { text: 'within:youtube tin:x', source: 'all', type: 'all' }, 'only whole in: / type: words are filters');
