@@ -1,0 +1,337 @@
+'use client';
+
+import { useRef, useState } from 'react';
+import { SOURCE_LABEL } from '../lib/audio/archive-tree';
+import { trackFromLink, uploadPostTrack } from '../lib/audio/attach';
+import { MAX_TRACK_BYTES, MUSIC_ACCEPT } from '../lib/audio/catalogue';
+import { forumTrackFromArchive } from '../lib/audio/forum-tracks';
+import type { AudioTrack } from '../lib/audio/tracks';
+import type { ForumAuthor, ForumTrack } from '../lib/forum/types';
+import { FIELD, PLATE, PLATE_LARGE } from '../lib/ui/controls';
+import AudioTagChooser from './AudioTagChooser';
+import { useMusicPlayer } from './MusicPlayerProvider';
+
+type TrackAttachmentPickerProps = {
+  id: string;
+  /** The track that was picked. One track to a post, so there is no list to keep here. */
+  onChange: (track: ForumTrack) => void;
+  /** Who is posting: an account may file a file, a guest may only attach what the archive holds. */
+  author: ForumAuthor;
+};
+
+/**
+ * How much of the shelf the list draws at once.
+ *
+ * A screenful and a half of rows in a scroll region, not one page of them: the list used to stop at
+ * ten with the rest behind a search nobody knew to type. Fifty is more tracks than most archives
+ * hold of anything worth searching for, and the search is still there for the rest.
+ */
+const ARCHIVE_LIST_MAX = 50;
+
+/**
+ * The archive, browsed from inside the composer.
+ *
+ * A post can carry a track the shelf already holds - one of the archive's own releases, or
+ * anything uploaded to it - so a reply can be filed against a record instead of asking the
+ * poster to find the file again. The list is the player's own queue, so whatever the bar at
+ * the bottom of the window can play is exactly what can be attached, and a file that is
+ * attached this way is a reference: the archive keeps owning the audio.
+ */
+function ArchivePicker({ id, onPick }: { id: string; onPick: (track: AudioTrack) => void }) {
+  const player = useMusicPlayer();
+  const [query, setQuery] = useState('');
+
+  const words = query
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 0);
+
+  const found = player.queue.filter((track) => {
+    const text = `${track.title} ${track.credit}`.toLowerCase();
+    return words.every((word) => text.includes(word));
+  });
+  const shown = found.slice(0, ARCHIVE_LIST_MAX);
+
+  return (
+    <div className="mt-2">
+      <label htmlFor={`${id}-archive`} className="block text-label font-bold text-ink">
+        FIND A TRACK ({player.loading ? 'READING...' : `${found.length} OF ${player.queue.length}`})
+      </label>
+      <input
+        id={`${id}-archive`}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder="TRACK, RELEASE OR ARTIST"
+        className={FIELD}
+      />
+
+      {shown.length === 0 ? (
+        <p className="mt-1 text-label font-bold text-ink">
+          {player.loading ? 'READING THE SHELF...' : 'NO MATCHES.'}
+        </p>
+      ) : (
+        <ul className="mt-1 max-h-64 overflow-y-auto frame bg-paper">
+          {shown.map((track) => (
+            <li
+              key={track.src}
+              className="flex items-center gap-2 border-b border-dotted border-ink px-1 py-0.5"
+            >
+              <span className="min-w-0 flex-1 text-label font-bold text-ink" title={track.title}>
+                <span className="block truncate">{track.title}</span>
+                <span className="block truncate font-normal text-ink">
+                  {track.credit} :: {track.length} ::{' '}
+                  {track.shelf === 'bucket' ? SOURCE_LABEL.SHELF : SOURCE_LABEL.ARCHIVE}
+                </span>
+              </span>
+
+              <button
+                type="button"
+                onClick={() => onPick(track)}
+                className={PLATE}
+                title={`Attach ${track.title}`}
+              >
+                [ ATTACH ]
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {found.length > shown.length ? (
+        <p className="mt-1 text-label font-bold text-ink">
+          {shown.length} OF {found.length} - TYPE IN THE BOX ABOVE TO NARROW THE LIST
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The soundtrack picker: the body of the window `./TrackPickerWindow.tsx` draws.
+ *
+ * Three ways in, because three kinds of poster want it, and the archive leads:
+ *
+ *   - a track the archive already holds, browsed from the shelf itself, which is where a track a
+ *     reader already knows the name of lives. It is the tab that is open on arrival, and a file
+ *     attached this way is a reference: the archive keeps owning the audio, the post keeps the
+ *     file's own name, credit, tags and running time;
+ *   - a file from this machine, which is uploaded where every other track on the site lives and
+ *     then filed with the post. An upload is a write, so it takes an account - the same rule the
+ *     music shelf keeps;
+ *   - a link to an MP3 that is somewhere else, which nobody has to hold and anybody may paste,
+ *     guests included.
+ *
+ * Either way the post ends up with the same record and the same player appears under it, and the
+ * caller is told once: `onChange` is the end of the window's business.
+ */
+export default function TrackAttachmentPicker({ id, onChange, author }: TrackAttachmentPickerProps) {
+  const fileInput = useRef<HTMLInputElement | null>(null);
+  const signedIn = author.id !== null;
+
+  /**
+   * Which way in the window opens on.
+   *
+   * The archive, for everybody: a track a reader already knows the name of is almost always one the
+   * shelf already holds, and asking which *kind* of track they want before showing any names put the
+   * list behind a press it did not need. A signed-out reader is on the same tab, and the two other
+   * tabs say for themselves what they take.
+   */
+  const [mode, setMode] = useState<'file' | 'archive' | 'link'>('archive');
+  const [title, setTitle] = useState('');
+  const [credit, setCredit] = useState('');
+  const [tags, setTags] = useState<string[]>([]);
+  const [link, setLink] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  /** Everything the picker holds, back to how it opened. */
+  function forget() {
+    setTitle('');
+    setCredit('');
+    setTags([]);
+    setLink('');
+    setFile(null);
+    if (fileInput.current !== null) fileInput.current.value = '';
+  }
+
+  async function attachFile() {
+    if (author.id === null) {
+      setError('FILING A FILE TAKES AN ACCOUNT - LINK AN MP3 INSTEAD, OR SIGN IN ON THE ACCOUNT PAGE.');
+      return;
+    }
+
+    if (file === null) {
+      setError('CHOOSE AN AUDIO FILE FIRST.');
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+    setStatus(null);
+
+    try {
+      const track = await uploadPostTrack({
+        file,
+        title,
+        credit,
+        tags,
+        uploader: { id: author.id, displayName: author.displayName },
+      });
+
+      onChange(track);
+      forget();
+      setStatus(`ATTACHED :: ${track.title}`);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'THE TRACK COULD NOT BE FILED.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function attachLink() {
+    const result = trackFromLink({ src: link, title, credit, tags });
+
+    // `=== false` rather than `!result.ok`: the refusal is read back as words here, and a
+    // plain negation only narrows the union when the compiler is in strict mode.
+    if (result.ok === false) {
+      setError(result.error);
+      setStatus(null);
+      return;
+    }
+
+    onChange(result.track);
+    forget();
+    setError(null);
+    setStatus(`ATTACHED :: ${result.track.title}`);
+  }
+
+  /**
+   * A track the archive already holds, attached as a reference.
+   *
+   * Nothing is copied and nothing is re-titled: the post keeps the file's own name, credit,
+   * tags and running time, so a track pulled into a thread and the same row in the /music
+   * directory are one file with one name.
+   */
+  function attachArchive(track: AudioTrack) {
+    // One conversion for the whole site: `lib/audio/forum-tracks.ts` decides what a post's copy of an
+    // archive file looks like, so this and the directory's `[ ♪ TO A POST ]` cannot disagree.
+    onChange(forumTrackFromArchive(track));
+    setError(null);
+    setStatus(`ATTACHED :: ${track.title}`);
+  }
+
+  return (
+    <div id={id}>
+      <div className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+        <button
+          type="button"
+          onClick={() => setMode('file')}
+          disabled={!signedIn}
+          aria-pressed={mode === 'file'}
+          className={`${PLATE} disabled:cursor-not-allowed`}
+          title={signedIn ? 'File a track from this machine' : 'Filing a track takes an account'}
+        >
+          {mode === 'file' ? '[ ▣ FROM THIS MACHINE ]' : '[ FROM THIS MACHINE ]'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode('archive')}
+          aria-pressed={mode === 'archive'}
+          className={PLATE}
+          title="Attach a track the archive already holds"
+        >
+          {mode === 'archive' ? '[ ▣ FROM THE ARCHIVE ]' : '[ FROM THE ARCHIVE ]'}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setMode('link')}
+          aria-pressed={mode === 'link'}
+          className={PLATE}
+          title="Paste a link to an MP3 that is hosted somewhere else"
+        >
+          {mode === 'link' ? '[ ▣ LINK ONE ]' : '[ LINK ONE ]'}
+        </button>
+      </div>
+
+      {mode === 'archive' ? (
+        <ArchivePicker id={id} onPick={attachArchive} />
+      ) : (
+        <>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="block text-label font-bold text-ink">
+              TRACK TITLE
+              <input
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                placeholder="LEFT EMPTY, THE FILE NAME IS USED"
+                className={FIELD}
+              />
+            </label>
+
+            <label className="block text-label font-bold text-ink">
+              CREDITED TO
+              <input
+                value={credit}
+                onChange={(event) => setCredit(event.target.value)}
+                placeholder={author.displayName}
+                className={FIELD}
+              />
+            </label>
+          </div>
+
+          {mode === 'file' ? (
+            <div className="mt-2">
+              <label htmlFor={`${id}-file`} className="block text-label font-bold text-ink">
+                THE AUDIO FILE (MP3, M4A, OGG, WAV, FLAC - {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB MAX)
+              </label>
+              <input
+                id={`${id}-file`}
+                ref={fileInput}
+                type="file"
+                accept={MUSIC_ACCEPT}
+                onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+                className="mt-1 block w-full cursor-pointer rounded-none border border-ink bg-paper p-1 text-label font-bold text-ink"
+              />
+            </div>
+          ) : (
+            <div className="mt-2">
+              <label htmlFor={`${id}-link`} className="block text-label font-bold text-ink">
+                THE LINK
+              </label>
+              <input
+                id={`${id}-link`}
+                value={link}
+                onChange={(event) => setLink(event.target.value)}
+                placeholder="https://.../track.mp3"
+                className={FIELD}
+              />
+            </div>
+          )}
+
+      <AudioTagChooser id={id} value={tags} onChange={setTags} />
+        </>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        {mode === 'archive' ? null : (
+          <button
+            type="button"
+            onClick={() => (mode === 'file' ? void attachFile() : attachLink())}
+            disabled={busy}
+            className={PLATE_LARGE}
+          >
+            {busy ? '[ FILING... ]' : '[ ATTACH TRACK ]'}
+          </button>
+        )}
+
+        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+        {error === null && status !== null ? <p className="text-label font-bold text-ink-quiet">{status}</p> : null}
+      </div>
+    </div>
+  );
+}

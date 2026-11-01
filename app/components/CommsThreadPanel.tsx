@@ -1,0 +1,227 @@
+'use client';
+
+import { useEffect, useRef, useState } from 'react';
+import { insertAtCaret } from '../lib/comms/ascii-emoticons';
+import { otherParticipant, resolveAuthor, validateMessage } from '../lib/comms/threads';
+import { MAX_MESSAGE_LENGTH } from '../lib/comms/types';
+import type { CommsThread } from '../lib/comms/types';
+import { openArcade } from '../lib/games/arcade-window';
+import { EVENT_LABELS, gameTitle } from '../lib/games/events';
+import AsciiEmoticonPicker from './AsciiEmoticonPicker';
+import ProfileName from './ProfileName';
+import TimeStamp from './TimeStamp';
+import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
+
+type CommsThreadPanelProps = {
+  thread: CommsThread;
+  /** The signed-in account: its messages are marked as yours. */
+  userId: string;
+  /**
+   * The account on the other side of a direct conversation. A group has no single
+   * other side, so a group panel is given none and its box answers the whole group.
+   */
+  otherId?: string;
+  nameById: Map<string, string>;
+  onSend: (body: string) => Promise<void>;
+  /** Show only the tail of a long conversation (the pop-up window does). */
+  limit?: number;
+  /** Put the caret in the box as the panel opens. */
+  autoFocus?: boolean;
+  /** Unique prefix for the field ids. */
+  idPrefix: string;
+};
+
+/**
+ * One conversation: the messages, and the box to answer in.
+ *
+ * Shared by the comms page and the notification pop-up, which is what makes the
+ * pop-up a mini version of the page rather than a second implementation of it:
+ * both draw the same list and send through the same call.
+ */
+export default function CommsThreadPanel({
+  thread,
+  userId,
+  otherId,
+  nameById,
+  onSend,
+  limit,
+  autoFocus = false,
+  idPrefix,
+}: CommsThreadPanelProps) {
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const boxRef = useRef<HTMLTextAreaElement | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
+
+  const shown = limit === undefined ? thread.messages : thread.messages.slice(-limit);
+  const isGroup = thread.kind === 'group';
+  // A direct conversation has one other side; a group is answered as a whole. Who it is with is
+  // the title line's business (the page's `COMMS :: name`, the pop-up's `NEW MESSAGE FROM`), so the
+  // panel only says it inside the box, as the field's placeholder and its name for a screen reader.
+  const peerId = otherId ?? (isGroup ? '' : otherParticipant(thread, userId));
+  const peerName = nameById.get(peerId) ?? peerId;
+  const length = body.trim().length;
+  // The count is only worth reading near the limit: the last tenth before it.
+  const nearLimit = length >= MAX_MESSAGE_LENGTH * 0.9;
+
+  // Keep the newest message in view as the conversation grows.
+  useEffect(() => {
+    const list = listRef.current;
+    if (list === null) return;
+    list.scrollTop = list.scrollHeight;
+  }, [shown.length]);
+
+  useEffect(() => {
+    if (autoFocus) boxRef.current?.focus();
+  }, [autoFocus]);
+
+  async function handleSend() {
+    const problem = validateMessage(body);
+    if (problem !== undefined) {
+      setError(problem);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      await onSend(body.trim());
+      setBody('');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  /**
+   * Drop an emoticon in at the caret.
+   *
+   * The textarea is the only place that knows where the caret is, so this reads it
+   * there, writes the whole value back through state, and then puts the caret after
+   * what arrived - which is what makes picking two faces in a row feel like typing.
+   */
+  function insertEmoticon(text: string) {
+    const box = boxRef.current;
+
+    if (box === null) {
+      setBody((current) => `${current}${text}`);
+      return;
+    }
+
+    const start = box.selectionStart ?? box.value.length;
+    const end = box.selectionEnd ?? start;
+    const next = insertAtCaret(box.value, start, end, text);
+
+    setBody(next.value);
+    requestAnimationFrame(() => {
+      box.focus();
+      box.setSelectionRange(next.caret, next.caret);
+    });
+  }
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col">
+      <ul
+        ref={listRef}
+        className="min-h-32 flex-1 space-y-2 overflow-y-auto p-2"
+      >
+        {shown.length === 0 ? (
+          <li className="text-label font-bold text-ink">NO MESSAGES YET.</li>
+        ) : (
+          shown.map((message) => (
+            <li
+              key={message.id}
+              className={`rounded-none border p-2 ${
+                message.event === undefined ? 'border-ink bg-ice-pale' : 'border-ink bg-sun-pale'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold">
+                <span className="inline-flex items-center gap-1">
+                  <ProfileName author={resolveAuthor(message, nameById)} />
+                  {message.authorId === userId ? <span className="text-ink">[ YOU ]</span> : null}
+                </span>
+                <TimeStamp at={message.createdAt} />
+              </div>
+
+              {/*
+                A game challenge is drawn as a plate rather than as prose, and it is the one line in a
+                conversation that gets a link: the invite is still the arcade's, so pressing it opens
+                the arcade on that invitation rather than trying to re-send anything. Drawing it as a
+                sentence would read as something one of them typed - which it is not, and which matters
+                when the reader is scrolling back to work out who asked whom.
+              */}
+              {message.event === undefined ? (
+                <p className="mt-1 whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{message.body}</p>
+              ) : (
+                <p className="mt-1 flex flex-wrap items-center gap-2 text-key font-bold text-ink">
+                  <span
+                    className={`rounded-none border border-ink px-1 ${
+                      message.event.kind === 'invite' ? 'bg-ena text-ink-bar' : 'bg-paper text-ink'
+                    }`}
+                  >
+                    {EVENT_LABELS[message.event.kind]} {gameTitle(message.event.gameId)}
+                  </span>
+
+                  {message.event.kind === 'invite' ? (
+                    <button
+                      type="button"
+                      onClick={() => openArcade({ kind: 'invite', inviteId: message.event!.inviteId })}
+                      title="Open in the arcade"
+                      className={PLATE}
+                    >
+                      [ OPEN ]
+                    </button>
+                  ) : null}
+                </p>
+              )}
+            </li>
+          ))
+        )}
+      </ul>
+
+      <div className="mt-2 p-2">
+        <textarea
+          id={`${idPrefix}-body`}
+          ref={boxRef}
+          rows={2}
+          value={body}
+          onChange={(event) => setBody(event.target.value)}
+          onKeyDown={(event) => {
+            // Slack habit: Enter sends, Shift+Enter starts a new line.
+            if (event.key === 'Enter' && !event.shiftKey) {
+              event.preventDefault();
+              void handleSend();
+            }
+          }}
+          placeholder={isGroup ? 'Message the group...' : `Message ${peerName}...`}
+          aria-label={isGroup ? 'Message to the group' : `Message to ${peerName}`}
+          title="ENTER SENDS :: SHIFT+ENTER STARTS A NEW LINE"
+          className="mt-1 w-full frame bg-paper p-2 font-mono text-prose text-ink outline-none max-sm:p-3"
+        />
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => void handleSend()}
+            disabled={busy}
+            className={PLATE_MAIN}
+          >
+            {busy ? '[ SENDING... ]' : '[ SEND ]'}
+          </button>
+
+          <AsciiEmoticonPicker onPick={insertEmoticon} disabled={busy} />
+
+          {nearLimit ? (
+            <span className="text-label text-ink">
+              {length} / {MAX_MESSAGE_LENGTH}
+            </span>
+          ) : null}
+          {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+        </div>
+      </div>
+    </div>
+  );
+}

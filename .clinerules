@@ -1,0 +1,170 @@
+# Cline Rules for Windows PowerShell Environment
+
+## Environment & Shell Rules
+- **OS / Shell:** You are running exclusively in a **Windows PowerShell** environment.
+- **Banned Commands:** Never use Linux/Bash-style syntax, such as `dir /s /b` or brace expansion like `*.{ts,tsx,js,jsx}`. These will fail with ParserErrors.
+- **File Searching:** Always use native PowerShell cmdlets for file operations. For example, to find files recursively by multiple extensions, use:
+  `Get-ChildItem -Path "G:\debaser.site\app" -Recurse -Include *.tsx,*.ts,*.jsx,*.js -File | Select-Object FullName`
+- **Avoid Loops:** If a command fails due to syntax, do not repeatedly retry variations of it. Stop, analyze the PowerShell syntax error, and use the correct cmdlet immediately.
+
+## File Operations
+- Use absolute paths for all file operations (e.g., `g:\debaser.site\app\page.tsx`).
+- When reading files, prefer `Get-Content` or `Select-String` for PowerShell.
+- For editing files, use `Set-Content` or `Out-File` with proper encoding (UTF-8).
+
+## Codebase Navigation
+- Use `Get-ChildItem` for directory listings and file searches.
+- For recursive searches, combine with `-Recurse` and `-Include` filters.
+
+## Command Execution
+- Run commands sequentially unless they are independent and safe to parallelize.
+- Always quote paths and arguments in PowerShell (e.g., `"G:\path\file.txt"`).
+- Use `;` to sequence multiple commands in a single call.
+
+## Error Handling
+- If a command fails, analyze the error message and correct the PowerShell syntax.
+- Do not assume Linux/Bash commands will work in PowerShell.
+- **Two failures on one command means change approach, not wording.** Re-quoting a
+  regex a third time is wasted turns; write a script file instead (see below).
+
+## Verifying a Claim
+- **Never trust a missing grep.** React wraps dynamic text in HTML comments -
+  `[ ♪ MUSIC ]` is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]` - so a
+  pattern that does not match may be the wrong pattern, not an absent feature.
+  Strip comments first, or use `npm run read` (which does).
+- **When a value and a behaviour must agree, test the behaviour.** A check that
+  reads source cannot tell a *used* href from a decorative one; assert what the
+  code does, not what a string nearby says.
+- **Prove a new test fails before trusting it.** Revert the fix, watch the check
+  catch it, restore. A test that has never failed is a test you do not know works.
+- **Check a snapshot's age against its source's.** If a tool reads captured files
+  (`Temp/qa/*.html`) or a recorded history, a pass means nothing unless the
+  snapshot is newer than the code.
+- **Never delete a failing check to make a suite green.** Update it deliberately
+  when the rule it holds genuinely changed, and say why in the commit.
+
+## Shell Discipline (this shell mangles things)
+- **Write `Temp/*.cjs` for anything with regex, `]`, or Unicode.** Inline
+  `node -e "..."` gets its quoting destroyed by PowerShell. `Temp/` is gitignored
+  and is the established home for scratch scripts.
+- **Redirect noisy commands to a file, then filter it:**
+  `npm run checks *> Temp\out.txt` then `Select-String -Path Temp\out.txt`.
+  Piping a build to `Select-Object` buries the one line that matters.
+- **Prefer a repo script over a hand-written command** when one exists:
+  `npm run read` for the served HTML, `npm run capture` for the audit's
+  snapshots, `npm run audit` for the audit itself, `npm run art` for the artwork
+  registry against the files on disk, `npm run checks` for the check
+  suite, `npm run db` for SQL, `npm run db:sweep` to clear what the checks left
+  behind. They already handle the quoting and the comment-stripping, and they are
+  tracked in `scripts/` so they survive a clone.
+
+## Live Data and Honest Scope
+- **Review before any destructive pattern.** `supabase/cleanup/*-review.sql` runs
+  first and lists exactly what would go; read it and confirm the survivors before
+  sweeping. Never act on an assumption about what a `like` pattern matches.
+  `npm run db:sweep:review` is that list as a command; `npm run db:sweep` prints it
+  and then acts on it.
+- **Sweep the checks' accounts last, never first.** `npm run checks` signs throwaway
+  accounts up because a policy cannot be asked anything without a session, and it
+  cannot delete them - that takes the service role. So a session is not finished
+  until `npm run db:sweep` has run *after* the final check run; sweeping before it
+  leaves the directory on `/users` exactly as full as it started.
+- **State what you could not check, inside the answer itself** - not as a
+  disclaimer. No pixels, no clicking, no judging the aesthetic.
+- **A prerendered `0` is not proof of an empty list.** `READING...` and
+  `[ SYNCING... ]` are pre-hydration states; a count beside them is "not read yet".
+- **`.claude/rules/core.md` -> `## Safety` and `## How to work` hold the rest**: database
+  writes need the owner's explicit OK first (reads are free), and the ship-and-verify
+  loop. Read them before database or deployment work.
+
+## Self-Resolution & Assumptions
+- **Exhaust the codebase and the docs before asking anything.** `.claude/rules/`, the
+  module's own header comment, `README.md`, `Temp/check-*.cjs` - these answer most
+  questions already. A question that a search would have answered wastes a turn
+  and gets a worse answer.
+- **For a missing but non-fatal detail, assume and continue.** Make the assumption
+  consistent with the patterns already in the code, say it in one line in the
+  answer, and carry on. Only a destructive or irreversible choice needs a person.
+- **Halt only for**: a destructive or irreversible change (dropping a table,
+  deleting a tracked file, force-pushing, rewriting history), a schema change that
+  cannot be re-run, or two failed self-corrections on the same problem.
+- **A reviewed, scoped delete is still a database change**: `supabase/cleanup/*-review.sql`
+  first, read the list, confirm the survivors, then show the owner the list and wait for
+  their OK (`.claude/rules/core.md` -> `## Safety`). That is how 30 throwaway accounts went without
+  touching the 7 real ones.
+- **Do not ask what the repository already answers.** If the answer is inferable
+  from `package.json`, a migration, a check, or a comment, infer it.
+
+## Reading the Site (do this every time)
+- **`npm run read` is the eyes for served HTML, and there IS a browser for everything else.** The old version of
+  this line said "There is no browser here" and that was **false**, believed for a whole session on the strength of
+  Puppeteer reporting *"Could not find expected browser (chrome) locally"* - which only means Puppeteer's download
+  cache is empty. Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`, and the one
+  thing added to reach it is `playwright-core` - the *core* package, which bundles no browser and downloads none,
+  so a fresh clone runs these after `npm install` and nothing else:
+
+      npm run shot -- --url <address> --out Temp/browse/out.png     a capture, through the installed Chrome
+      npm run panes -- --png Temp/browse/out.png --box 0,0,300,200  the colours inside a box of it
+
+  **Start the browser once and every tool attaches to it.** `npm run browser -- --start --signin` opens one
+  Chrome, keeps its profile, and signs one throwaway account into it; `--attach` on `shot`, `look`, `panes` and
+  `stages` then costs seconds and **no account at all**. Because an attached session is stateful, those tools
+  print that they are attached, and `--fresh` reloads when the capture is meant to be a first visit.
+  `npm run browser` reports the session, `--stop` ends it and removes the profile.
+
+  **A capture is readable evidence - `npm run shot` writes it, `npm run panes` counts inside it, and the
+  file-reading tool opens it** - so *"the agent cannot see pixels"* is not true any more and must not be repeated.
+  A picture is evidence only if it is **newer than the code it is claimed to prove**, and `npm run shot` refuses to
+  write one at all when the address did not answer: `Temp/browse/account.png` was a picture of *"This site can't be
+  reached"* filed under the name of a page that worked, and two instruments then read it as `0 panes`, `no WebGL`.
+  `--use-angle=swiftshader` is load-bearing - without the software GL there is no WebGL and a blank canvas would
+  say nothing. Use it whenever a component is `ssr: false`, because server-side rendering cannot see such a
+  component at all: `CharacterEditorPanel` emits the literal string `LOADING THE WORKBENCH...` to every check that
+  renders markup, which is how three faults hid with the suite green. Templates are `npm run look` (the drawing
+  buffer, read in-frame, plus the DOM), `npm run panes` and `scripts/png-read.cjs` (pixels), `npm run stages`
+  (one stage at a time), and `npm run deployed` (the live site) - all tracked in `scripts/`, because a template
+  in gitignored `Temp/` is one a clone does not have.
+  **A press is a real press, and a control is found by its own label.** `--click`, `--type`, `--key`,
+  `--scroll` and `--drag` drive the browser's own input path, and a control whose text matches several others is
+  a *refusal* unless `--allow-ambiguous` says the ambiguity was meant: pressing the first of several matches is
+  how a press lands somewhere nobody named while the transcript says otherwise.
+  **Read pixels inside a `requestAnimationFrame`** - a WebGL buffer is cleared on present, so a zero read from
+  outside a frame is a statement about the probe, not the renderer.
+- **After *any* change that alters what a visitor sees, read the served HTML before calling the work done:**
+  `npm run read` for the deployed one, `npm run read:local` against a local build
+  to check before pushing. It is tracked in `scripts/`, so it exists on every
+  clone - and the same is true of `npm run capture` for the audit's snapshots.
+- **Never say "done" on a UI change without having read the served HTML.** This
+  does not rely on remembering: `.claude/rules/core.md` -> `## How to work` ends its loop
+  with the read, and the push is not the finish line - the read is.
+- **Say what the read proves, and what it does not.** It proves the served bytes
+  contain the text named. It does not prove the page looks right, and it cannot
+  judge an aesthetic or watch motion - a capture is one state, never a hover or a
+  wobble. A press can be issued at a control found by its text (`npm run shot --
+  --click "..."`), but nothing here picks the sequence for you, feels a drag or
+  types. Never upgrade one into the other in the answer.
+- **When the read passes but the change was visual, ask the owner a specific
+  question** ("is the picture beside the name the right size?"). That is the only
+  remaining check, and a vague question cannot be answered by anybody.
+- **Read the page *before* the change too.** A before/after pair is what makes a
+  change visible at all, and it catches the change that did nothing.
+
+## Best Practices
+- Prefer native PowerShell cmdlets over shell commands.
+- Use `Where-Object` for filtering instead of piping to `findstr`.
+- For large outputs, use `-NoTypeInformation` with `Get-Content` to avoid clutter.
+
+## Example Commands
+```powershell
+# List all .tsx files in a directory
+Get-ChildItem -Path "G:\debaser.site\app" -Recurse -Include *.tsx -File | Select-Object FullName
+
+# Read a file
+Get-Content -Path "G:\debaser.site\app\page.tsx"
+
+# Search for a pattern in files
+Select-String -Path "G:\debaser.site\app" -Pattern "use client" -Recurse
+
+# Edit a file
+Set-Content -Path "G:\debaser.site\app\page.tsx" -Value "New content"
+```

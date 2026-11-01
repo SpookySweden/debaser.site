@@ -1,0 +1,214 @@
+{
+ "batchcomplete": true,
+ "continue": {
+  "gsroffset": 20,
+  "continue": "gsroffset||"
+ },
+ "query": {
+  "pages": [
+   {
+    "pageid": 36110112,
+    "ns": 6,
+    "title": "File:Night of the Living Dead (1968).webm",
+    "index": 1,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "timestamp": "2025-02-14T16:40:10Z",
+      "user": "Jeff G.",
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/24/Night_of_the_Living_Dead_%281968%29.webm/330px--Night_of_the_Living_Dead_%281968%29.webm.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo",
+      "thumbwidth": 320,
+      "thumbheight": 240,
+      "thumbattribs": [],
+      "url": "https://upload.wikimedia.org/wikipedia/commons/2/24/Night_of_the_Living_Dead_%281968%29.webm?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_(1968).webm",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=36110112",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Night of the Living Dead (1968)",
+        "source": "mediawiki-metadata"
+       },
+       "ImageDescription": {
+        "value": "<i><a href=\"https://en.wikipedia.org/wiki/Night_of_the_Living_Dead\" class=\"extiw\" title=\"w:Night of the Living Dead\">Night of the Living Dead</a></i> is a 1968 American independent zombie horror film directed, photographed, and edited by <a href=\"https://en.wikipedia.org/wiki/George_A._Romero\" class=\"extiw\" title=\"w:George A. Romero\">George A. Romero</a>, written by <a href=\"https://en.wikipedia.org/wiki/George_A._Romero\" class=\"extiw\" title=\"w:George A. Romero\">George A. Romero</a> and <a href=\"https://en.wikipedia.org/wiki/John_A._Russo\" class=\"extiw\" title=\"w:John A. Russo\">John A. Russo</a>, and produced by <a href=\"https://en.wikipedia.org/wiki/Russell_Streiner\" class=\"extiw\" title=\"w:Russell Streiner\">Russell Streiner</a> and Karl Hardman.",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "<bdi><a href=\"https://en.wikipedia.org/wiki/en:George_A._Romero\" class=\"extiw\" title=\"w:en:George A. Romero\"><span title=\"Canadian-American filmmaker (1940–2017)\">George A. Romero</span></a></bdi>",
+        "source": "commons-desc-page"
+       }
+      },
+      "mediatype": "VIDEO"
+     }
+    ]
+   },
+   {
+    "pageid": 83464005,
+    "ns": 6,
+    "title": "File:Night Of The Living Dead trailer screenshot.jpg",
+    "index": 2,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "timestamp": "2019-10-28T16:16:05Z",
+      "user": "Mayimbú",
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Night_Of_The_Living_Dead_trailer_screenshot.jpg/330px-Night_Of_The_Living_Dead_trailer_screenshot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 320,
+      "thumbheight": 237,
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Night_Of_The_Living_Dead_trailer_screenshot.jpg/330px-Night_Of_The_Living_Dead_trailer_screenshot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 320,
+       "height": 237,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/ae/Night_Of_The_Living_Dead_trailer_screenshot.jpg/960px-Night_Of_The_Living_Dead_trailer_screenshot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/ae/Night_Of_The_Living_Dead_trailer_screenshot.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Night_Of_The_Living_Dead_trailer_screenshot.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=83464005",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Night Of The Living Dead trailer screenshot",
+        "source": "mediawiki-metadata"
+       },
+       "ImageDescription": {
+        "value": "Screenshot from the trailer for the film <i><a href=\"https://en.wikipedia.org/wiki/Night_of_the_Living_Dead\" class=\"extiw\" title=\"en:Night of the Living Dead\">Night of the Living Dead</a></i> (1968).",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Walter Reade Organization, Inc.",
+        "source": "commons-desc-page"
+       }
+      },
+      "mediatype": "BITMAP"
+     }
+    ]
+   },
+   {
+    "pageid": 196239005,
+    "ns": 6,
+    "title": "File:Night Of The Living Dead (1968) - Poster.jpg",
+    "index": 3,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "timestamp": "2026-07-26T15:20:16Z",
+      "user": "Popperhilton",
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg/330px-Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 320,
+      "thumbheight": 460,
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/a/a7/Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg/330px-Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 320,
+       "height": 460,
+       "srcset": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail_unscaled 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/a/a7/Night_Of_The_Living_Dead_%281968%29_-_Poster.jpg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Night_Of_The_Living_Dead_(1968)_-_Poster.jpg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=196239005",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Night Of The Living Dead (1968) - Poster",
+        "source": "mediawiki-metadata"
+       },
+       "ImageDescription": {
+        "value": "A poster for the 1968 George A. Romero film \"Night Of The Living Dead\"",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Unknown author<span style=\"display: none;\">Unknown author</span>",
+        "source": "commons-desc-page"
+       }
+      },
+      "mediatype": "BITMAP"
+     }
+    ]
+   },
+   {
+    "pageid": 107981690,
+    "ns": 6,
+    "title": "File:NightoftheLivingDeadCorpse.png",
+    "index": 4,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "timestamp": "2021-07-29T13:34:40Z",
+      "user": "HumanxAnthro",
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/NightoftheLivingDeadCorpse.png/330px-NightoftheLivingDeadCorpse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 320,
+      "thumbheight": 240,
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/NightoftheLivingDeadCorpse.png/330px-NightoftheLivingDeadCorpse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 320,
+       "height": 240,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/79/NightoftheLivingDeadCorpse.png/960px-NightoftheLivingDeadCorpse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/7/79/NightoftheLivingDeadCorpse.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:NightoftheLivingDeadCorpse.png",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=107981690",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "NightoftheLivingDeadCorpse",
+        "source": "mediawiki-metadata"
+       },
+       "ImageDescription": {
+        "value": "Headshot of the dead woman Barbara encounters in a farmhouse house, a jumpscare moment in <i>Night of the Living Dead</i>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Direction and cinematography both by George A. Romero",
+        "source": "commons-desc-page"
+       }
+      },
+      "mediatype": "BITMAP"
+     }
+    ]
+   },
+   {
+    "pageid": 172748085,
+    "ns": 6,
+    "title": "File:Night of the Living Dead Logo.svg",
+    "index": 10,
+    "imagerepository": "local",
+    "imageinfo": [
+     {
+      "timestamp": "2025-08-16T11:43:11Z",
+      "user": "Bird Person",
+      "thumburl": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Night_of_the_Living_Dead_Logo.svg/330px-Night_of_the_Living_Dead_Logo.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+      "thumbwidth": 320,
+      "thumbheight": 238,
+      "thumbattribs": {
+       "src": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Night_of_the_Living_Dead_Logo.svg/330px-Night_of_the_Living_Dead_Logo.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail",
+       "decoding": "async",
+       "loading": "lazy",
+       "width": 320,
+       "height": 238,
+       "srcset": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Night_of_the_Living_Dead_Logo.svg/960px-Night_of_the_Living_Dead_Logo.svg.png?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=thumbnail 2x"
+      },
+      "url": "https://upload.wikimedia.org/wikipedia/commons/3/3d/Night_of_the_Living_Dead_Logo.svg?utm_source=commons.wikimedia.org&utm_campaign=imageinfo&utm_content=original",
+      "descriptionurl": "https://commons.wikimedia.org/wiki/File:Night_of_the_Living_Dead_Logo.svg",
+      "descriptionshorturl": "https://commons.wikimedia.org/w/index.php?curid=172748085",
+      "extmetadata": {
+       "ObjectName": {
+        "value": "Night of the Living Dead Logo",
+        "source": "mediawiki-metadata"
+       },
+       "ImageDescription": {
+        "value": "Official logo of the movie <i>The Night of the Living Dead</i>",
+        "source": "commons-desc-page"
+       },
+       "Artist": {
+        "value": "Continental Distribution Inc.",
+        "source": "commons-desc-page"
+       }
+      },
+      "mediatype": "DRAWING"
+     }
+    ]
+   }
+  ]
+ }
+}

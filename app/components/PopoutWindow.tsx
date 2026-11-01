@@ -1,0 +1,145 @@
+'use client';
+
+import { useEffect, useId, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { createPortal } from 'react-dom';
+import { STATUS_BAR, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { useWindowDrag } from '../lib/ui/use-window-drag';
+
+type PopoutWindowProps = {
+  title: string;
+  /** Optional right-hand title bar text, e.g. `[ COMPOSE ]`. */
+  badge?: string;
+  onClose: () => void;
+  /**
+   * Whether a click on the desktop behind the window dismisses it.
+   *
+   * **`true` for everything except a window holding unsaved work.** A composer or a picker is a thing you either
+   * finish or abandon, and the backdrop click is the quick way out. The customiser is a *workbench*: a reader
+   * mid-edit aiming at a control that happens to sit near the edge of the window would lose everything to one
+   * stray click, and a mis-aimed press is not a decision to discard.
+   *
+   * The prop exists rather than the behaviour changing for every window, because a dialogue that *cannot* be
+   * dismissed by clicking away is a worse dialogue - the reader has to find the `×`. So this is opt-out, and only
+   * the window with something to lose opts out.
+   */
+  dismissOnBackdrop?: boolean;
+  /** How to handle the window: the hover tip of its title line (it was a status line across the foot). */
+  status?: string;
+  /** Controls for the window's foot. The foot is drawn only when there are some. */
+  actions?: ReactNode;
+  /** Tailwind max-width class for the window itself. */
+  maxWidth?: string;
+  /** Background class for the window body (white for reading windows). */
+  bodyClassName?: string;
+  children: ReactNode;
+};
+
+/**
+ * The shared Win95 pop-up window shell.
+ *
+ * It renders through a portal into `<body>`, so a pop-up is never part of the
+ * page that opened it: it cannot reflow the page, cannot be clipped by a panel,
+ * and cannot be scrolled by whatever container the trigger happened to sit in.
+ * The page underneath stays a read-only surface.
+ *
+ * ESC, a click on the desktop behind it, the `×` or `[ CLOSE ]` all dismiss it,
+ * and the title bar drags.
+ */
+export default function PopoutWindow({
+  title,
+  badge,
+  onClose,
+  status,
+  actions,
+  maxWidth = 'max-w-2xl',
+  bodyClassName = 'bg-sun-pale',
+  dismissOnBackdrop = true,
+  children,
+}: PopoutWindowProps) {
+  const titleId = useId();
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const windowRef = useRef<HTMLDivElement | null>(null);
+  const { offset, dragHandlers } = useWindowDrag();
+
+  // The portal target is only available in the browser. The window also takes focus as it opens: a
+  // dialogue nobody is standing in lets a keyboard user tab straight into the page behind it, which
+  // is the page the dialogue is covering.
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => {
+      setHost(document.body);
+      windowRef.current?.focus();
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
+
+  // ESC closes the window.
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  if (host === null) return null;
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-popout flex items-start justify-center overflow-y-auto bg-hardware/60 p-4 sm:p-8"
+      onMouseDown={dismissOnBackdrop ? onClose : undefined}
+    >
+      <div
+        ref={windowRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onMouseDown={(event) => event.stopPropagation()}
+        style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
+        className={`mt-6 w-full ${maxWidth} frame bg-sun-pale`}
+      >
+        {/* Draggable title bar */}
+        <div
+          {...dragHandlers}
+          className={`${TITLE_BAR} touch-none cursor-move select-none`}
+          title={status}
+        >
+          <span id={titleId} className="truncate">
+            {title}
+          </span>
+          <span className="flex items-center gap-2">
+            {badge === undefined ? null : <span>{badge}</span>}
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onClick={onClose}
+              aria-label="Close window"
+              className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap max-sm:min-w-tap`}
+            >
+              [ × ]
+            </button>
+          </span>
+        </div>
+
+        {/* Window body */}
+        <div
+          className={`max-h-[70vh] overflow-y-auto p-3 ${bodyClassName}`}
+        >
+          {children}
+        </div>
+
+        {/* The foot: the caller's own controls, when it has any. The how-to line it used to carry is the
+            title line's tip, and the close key is the `×` in the title. */}
+        {actions === undefined || actions === null ? null : (
+          <div className={STATUS_BAR}>
+            <span className="ml-auto flex items-center gap-2">{actions}</span>
+          </div>
+        )}
+      </div>
+    </div>,
+    host,
+  );
+}

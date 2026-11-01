@@ -1,0 +1,143 @@
+import type { MediaDetails } from './media-titles';
+import { buildUrl, SafeFetchError, safeFetchJson, type FetchLike } from './safe-fetch';
+import { sanitiseText } from './sanitise';
+
+/**
+ * TMDB's details for a media-server title (SPEC-media-servers.md decision 7). Server only: the hourly WEB update
+ * calls it, never the page.
+ *
+ * One GET per title to TMDB's official API (`/3/movie/{id}` or `/3/tv/{id}`), through `safe-fetch` on
+ * api.themoviedb.org only. The key is Luke's server-only `TMDB_READ_TOKEN` (the "API Read Access Token"), sent
+ * as a Bearer header by a wrapper around fetch; it is never put in an address, a log, an answer or an error.
+ * Without it, nothing is asked and titles show their list's own words.
+ *
+ * Kept: title, date, overview, poster file, runtime, genres, and a show's seasons with their episode counts.
+ * Never kept or shown: vote_average, vote_count, popularity, or anything else that rates a title.
+ */
+
+export const TMDB_API_HOST = 'api.themoviedb.org';
+
+/** Distinguishes "TMDB does not know this number" (null) from a failure (thrown). */
+export class TmdbError extends Error {}
+
+const GENRES_MAX = 6;
+const POSTER = /^\/[A-Za-z0-9]{8,64}\.(?:jpg|jpeg|png|webp)$/;
+const SEASONS_MAX = 100;
+
+/** The fetch the update uses: the token as a header on every request, and nothing else changed. */
+export function withTmdbToken(token: string, fetchImpl: FetchLike = fetch): FetchLike {
+  return (input, init) =>
+    fetchImpl(input, { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), Authorization: `Bearer ${token}` } });
+}
+
+function whole(value: unknown, min: number, max: number): number | undefined {
+  return typeof value === 'number' && Number.isInteger(value) && value >= min && value <= max ? value : undefined;
+}
+
+function dateOf(value: unknown): string | undefined {
+  return typeof value === 'string' && /^\d{4}(-\d{2}-\d{2})?$/.test(value) ? value : undefined;
+}
+
+/** TMDB's answer for one title, cut down to the fields we keep. Pure, so the check holds it. */
+export function toDetails(doc: unknown, type: 'movie' | 'tv'): MediaDetails | null {
+  if (typeof doc !== 'object' || doc === null) return null;
+  const d = doc as Record<string, unknown>;
+  const title = sanitiseText(type === 'movie' ? d.title : d.name, 300);
+  if (!title) return null;
+  const details: MediaDetails = {
+    title,
+    genres: (Array.isArray(d.genres) ? d.genres : [])
+      .map((genre) => sanitiseText((genre as Record<string, unknown> | null)?.name, 40))
+      .filter((name) => name.length > 0)
+      .slice(0, GENRES_MAX),
+  };
+  const date = dateOf(type === 'movie' ? d.release_date : d.first_air_date);
+  if (date) details.date = date;
+  const overview = sanitiseText(d.overview, 1000);
+  if (overview) details.overview = overview;
+  if (typeof d.poster_path === 'string' && POSTER.test(d.poster_path)) details.posterPath = d.poster_path;
+  const runtime = type === 'movie' ? whole(d.runtime, 1, 6000) : whole(Array.isArray(d.episode_run_time) ? d.episode_run_time[0] : undefined, 1, 6000);
+  if (runtime !== undefined) details.runtimeMinutes = runtime;
+  // A film's series (TMDB collection): its number, name and poster, so the servers' films of one series are one row.
+  const series = type === 'movie' && typeof d.belongs_to_collection === 'object' && d.belongs_to_collection !== null ? (d.belongs_to_collection as Record<string, unknown>) : null;
+  const seriesId = series ? whole(series.id, 1, 999_999_999) : undefined;
+  const seriesName = series ? sanitiseText(series.name, 300) : '';
+  if (seriesId !== undefined && seriesName) {
+    details.collection = { id: seriesId, name: seriesName };
+    if (typeof series?.poster_path === 'string' && POSTER.test(series.poster_path)) details.collection.posterPath = series.poster_path;
+  }
+  if (type === 'tv' && Array.isArray(d.seasons)) {
+    details.seasons = d.seasons
+      .flatMap((season) => {
+        const s = season as Record<string, unknown> | null;
+        const n = whole(s?.season_number, 0, 999);
+        const episodes = whole(s?.episode_count, 0, 9999);
+        return n === undefined || episodes === undefined ? [] : [{ season: n, episodes }];
+      })
+      .slice(0, SEASONS_MAX);
+  }
+  return details;
+}
+
+/** The address for one title: fixed path parts and a checked number only. */
+export function detailsUrl(type: 'movie' | 'tv', tmdbId: number): string {
+  if (!Number.isInteger(tmdbId) || tmdbId < 1 || tmdbId > 999_999_999) throw new TmdbError('bad number');
+  return buildUrl(TMDB_API_HOST, ['3', type, String(tmdbId)], [['language', 'en-US']]);
+}
+
+/** One film or show from TMDB's search: its number, title, year and poster only. */
+export type TmdbHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; date?: string; posterPath?: string };
+
+const SEARCH_HITS_MAX = 20;
+
+/** TMDB's search across films and shows for the words of a search (`searchText`: letters and digits only). */
+export function searchUrl(words: string): string {
+  return buildUrl(TMDB_API_HOST, ['3', 'search', 'multi'], [
+    ['query', words],
+    ['include_adult', 'false'],
+    ['language', 'en-US'],
+    ['page', '1'],
+  ]);
+}
+
+/** TMDB's search answer, cut down to films and shows and the fields we keep. Pure. */
+export function toHits(body: unknown): TmdbHit[] {
+  const results = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).results : undefined;
+  if (!Array.isArray(results)) return [];
+  return results
+    .flatMap((raw): TmdbHit[] => {
+      const d = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+      const type = d.media_type === 'movie' || d.media_type === 'tv' ? d.media_type : null;
+      const tmdbId = whole(d.id, 1, 999_999_999);
+      if (type === null || tmdbId === undefined) return [];
+      const title = sanitiseText(type === 'movie' ? d.title : d.name, 300);
+      if (!title) return [];
+      const hit: TmdbHit = { type, tmdbId, title };
+      const date = dateOf(type === 'movie' ? d.release_date : d.first_air_date);
+      if (date) hit.date = date;
+      if (typeof d.poster_path === 'string' && POSTER.test(d.poster_path)) hit.posterPath = d.poster_path;
+      return [hit];
+    })
+    .slice(0, SEARCH_HITS_MAX);
+}
+
+/** TMDB's films and shows for some words. Throws TmdbError on any failure, with nothing of TMDB's answer in it. */
+export async function searchTitles(words: string, fetchImpl: FetchLike): Promise<TmdbHit[]> {
+  try {
+    return toHits(await safeFetchJson(searchUrl(words), { allowedHosts: [TMDB_API_HOST], fetchImpl, timeoutMs: 8_000, maxBytes: 512 * 1024 }));
+  } catch (error) {
+    throw new TmdbError(error instanceof SafeFetchError && error.status !== undefined ? `HTTP ${error.status}` : 'no answer');
+  }
+}
+
+/** TMDB's details, or null when TMDB does not know the number (404). Throws TmdbError on any other failure. */
+export async function fetchDetails(type: 'movie' | 'tv', tmdbId: number, fetchImpl: FetchLike): Promise<MediaDetails | null> {
+  try {
+    const body = await safeFetchJson(detailsUrl(type, tmdbId), { allowedHosts: [TMDB_API_HOST], fetchImpl, timeoutMs: 8_000, maxBytes: 512 * 1024 });
+    return toDetails(body, type);
+  } catch (error) {
+    if (error instanceof SafeFetchError && error.status === 404) return null;
+    // Nothing of TMDB's answer (or of the request, which carries the key in a header) goes into the error.
+    throw new TmdbError(error instanceof SafeFetchError && error.status !== undefined ? `HTTP ${error.status}` : 'no answer');
+  }
+}

@@ -1,0 +1,111 @@
+'use client';
+
+import { useState, type ReactNode } from 'react';
+import { MAX_COMMENT_LENGTH } from '../lib/profile/types';
+import { validateProfileComment } from '../lib/profile/visibility';
+import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
+
+type ProfileCommentBoxProps = {
+  /** Unique id for the textarea, so the window can focus it on open. */
+  id: string;
+  /** A heading over the box; the profile's window has none, because its title bar says it. */
+  title?: string;
+  placeholder: string;
+  submitLabel: string;
+  onSubmit: (body: string) => Promise<void>;
+  /**
+   * What the comment is about, drawn where the version buttons used to sit.
+   *
+   * The caller supplies it rather than the box knowing about pictures and tracks: the
+   * profile's comment window passes a run of links - the three aspects, and the version
+   * being written about (see ./ProfileCommentWindow) - and the box stays the box.
+   */
+  chooser?: ReactNode;
+  /** A line under the fields, for anything the writer should know before they write. */
+  footer?: string | null;
+};
+
+/**
+ * The Win95 comment box, for everything a profile can be commented on.
+ *
+ * The caller supplies the write itself (so the box works on your own profile and on
+ * somebody else's) and the choices (so one box serves a drawing, a track and the profile
+ * without knowing which it is writing about). What is left here is the part that is always
+ * the same: the field, the button, the answer, and a count once the limit is near.
+ */
+export default function ProfileCommentBox({
+  id,
+  title,
+  placeholder,
+  submitLabel,
+  onSubmit,
+  chooser,
+  footer,
+}: ProfileCommentBoxProps) {
+  const [body, setBody] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<string | null>(null);
+
+  async function handleSubmit() {
+    const problem = validateProfileComment(body);
+    if (problem !== undefined) {
+      setError(problem);
+      setStatus(null);
+      return;
+    }
+
+    setBusy(true);
+    setError(null);
+
+    try {
+      await onSubmit(body);
+      setBody('');
+      setStatus('FILED.');
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 p-2">
+      {title === undefined ? null : (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-label font-bold text-ink">
+          <span>{title}</span>
+        </div>
+      )}
+
+      {chooser === undefined ? null : <div className={title === undefined ? undefined : 'mt-1'}>{chooser}</div>}
+
+      <textarea
+        id={id}
+        aria-label="Comment"
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        placeholder={placeholder}
+        rows={3}
+        className={FIELD}
+      />
+
+      {footer === undefined || footer === null ? null : (
+        <p className="mt-1 text-label font-bold text-ink">{footer}</p>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <button type="button" onClick={() => void handleSubmit()} disabled={busy} className={PLATE_MAIN}>
+          {busy ? '[ WORKING... ]' : submitLabel}
+        </button>
+        {/* The count is only worth reading in the last tenth before the limit. */}
+        {body.trim().length < MAX_COMMENT_LENGTH * 0.9 ? null : (
+          <span className="text-label text-ink">
+            {body.trim().length} / {MAX_COMMENT_LENGTH}
+          </span>
+        )}
+        {error === null ? null : <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{error}</p>}
+        {status === null ? null : <p className="text-label font-bold text-ink">{status}</p>}
+      </div>
+    </div>
+  );
+}

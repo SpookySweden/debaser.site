@@ -1,0 +1,129 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import {
+  TAG_MARK_PALETTE,
+  canonicalTagLabel,
+  makeUserTag,
+  normaliseTagLabel,
+} from '../lib/forum/tag-vocabulary';
+import PopoutWindow from './PopoutWindow';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
+
+type TagCreatorWindowProps = {
+  /** Labels already in use, so the editor can warn when a name folds onto one. */
+  knownLabels: string[];
+  onCancel: () => void;
+  onCreate: (label: string, colour: string) => void;
+};
+
+/**
+ * The tag editor pop-up.
+ *
+ * Opened from the subtle "+ NEW TAG..." control in any composer. Name the tag, pick one of the
+ * sixteen swatches, and it is created with that colour - the colour is remembered against the tag, so
+ * the same tag always comes back in the same colour. Each swatch is drawn the way a tag wears it (a
+ * small key on a neutral chip), so what is picked here is what a post will show.
+ */
+export default function TagCreatorWindow({ knownLabels, onCancel, onCreate }: TagCreatorWindowProps) {
+  const [name, setName] = useState('');
+  const [colour, setColour] = useState<string>(TAG_MARK_PALETTE[0]);
+  const [error, setError] = useState<string | null>(null);
+
+  const inputId = 'tag-creator-name';
+
+  useEffect(() => {
+    document.getElementById(inputId)?.focus();
+  }, []);
+
+  const typed = normaliseTagLabel(name);
+  const label = typed.length === 0 ? '' : canonicalTagLabel(typed, knownLabels);
+  const previewLabel = label.length === 0 ? 'NEW TAG' : label;
+  const foldsOnto = label.length > 0 && label !== typed ? label : null;
+
+  function handleCreate() {
+    if (label.length === 0) {
+      setError('GIVE IT A NAME FIRST.');
+      return;
+    }
+
+    onCreate(label, colour);
+  }
+
+  return (
+    <PopoutWindow
+      title="NEW TAG"
+      onClose={onCancel}
+      maxWidth="max-w-md"
+      bodyClassName="bg-paper"
+      // Empty on purpose: no "ESC CLOSES" title-bar tip (SPEC-less-text.md).
+      status=""
+      actions={
+        <button
+          type="button"
+          onClick={handleCreate}
+          className="cursor-pointer key px-1.5 py-1.5 text-key font-bold"
+        >
+          [ CREATE TAG ]
+        </button>
+      }
+    >
+        <div className="text-ink">
+          <label htmlFor={inputId} className="block text-label font-bold">
+            TAG NAME:
+          </label>
+          <input
+            id={inputId}
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key !== 'Enter') return;
+              event.preventDefault();
+              handleCreate();
+            }}
+            placeholder="e.g. world building"
+            className="mt-1 w-full frame bg-paper p-2 font-mono text-key text-ink outline-none"
+          />
+
+          <p className="mt-3 text-label font-bold">
+            COLOUR
+          </p>
+          <div className="mt-1 grid grid-cols-8 gap-1">
+            {TAG_MARK_PALETTE.map((swatch) => (
+              <button
+                key={swatch}
+                type="button"
+                onClick={() => setColour(swatch)}
+                title={swatch.toUpperCase()}
+                aria-label={`Use colour ${swatch}`}
+                aria-pressed={colour === swatch}
+                className={`flex cursor-pointer items-center justify-center rounded-none border border-bubble-pale bg-bubble-pale py-1 ${
+                  colour === swatch ? 'outline-2 outline-ink' : 'hover:bg-sun'
+                }`}
+              >
+                <TagMark colour={swatch} />
+              </button>
+            ))}
+          </div>
+
+          <div className="mt-3 p-2">
+            <p className="text-label font-bold">PREVIEW:</p>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <span className={tagChipClasses(makeUserTag(previewLabel))}>
+                <TagMark colour={tagMarkColourFromColour(colour)} />
+                {previewLabel}
+              </span>
+            </div>
+            {foldsOnto === null ? null : (
+              <p className="mt-1 text-label font-bold">WILL USE EXISTING TAG: {foldsOnto}</p>
+            )}
+          </div>
+
+          {error === null ? null : (
+            <p className="mt-2 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">ERROR: {error}</p>
+          )}
+        </div>
+    </PopoutWindow>
+  );
+}

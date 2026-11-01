@@ -1,0 +1,241 @@
+'use client';
+
+import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import {
+  characterBrowserState,
+  closeCharacterBrowser,
+  confirmCharacterRemoval,
+  subscribeToCharacterBrowser,
+} from '../lib/character/browser-window';
+import {
+  readLibrary,
+  removeCharacter,
+  persistLibrary,
+  saveCharacter,
+  type SavedCharacter,
+} from '../lib/character/library';
+import type { Figure } from '../lib/character/figure';
+import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
+import { useCharacterStore, type Placing } from '../lib/character/store';
+import { saveRefusal } from '../lib/character/structure';
+import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import InfoFold from './InfoFold';
+import PopoutWindow from './PopoutWindow';
+
+/** A placement half done is not a figure yet: ✓ or ✗ it first. */
+function placingRefusal(figure: Figure, placing: Placing | null): string | null {
+  if (placing === null) return null;
+  if (placing.stage === 'node') return `CAN'T SAVE: PICK A NODE FOR THE NEW ${placing.what === 'shape' ? 'SHAPE' : 'NODE'} FIRST, OR ESC`;
+  const what =
+    placing.what === 'shape'
+      ? (figure.shapes.find((shape) => shape.id === placing.id)?.name ?? 'THE NEW SHAPE')
+      : nodeName(placing.id);
+  return `CAN'T SAVE: FINISH PLACING ${what} FIRST (✓ OR ✗)`;
+}
+
+/** Spelled out for the note, so the limit is stated rather than paraphrased. */
+const MAX_SAVED_LABEL = 40;
+
+/**
+ * The saved characters, as a shelf.
+ *
+ * **The three verbs a shelf needs, and no fourth.** LOAD puts a figure on the bench, SAVE KEEPS THE ONE THAT IS
+ * THERE (so the shelf is also how a figure is kept in the first place, rather than a second control in the
+ * sidebar), and REMOVE forgets one. Anything else - renaming, duplicating, folders - is a file manager, and a
+ * character creator is not one.
+ *
+ * **It reads the store rather than being handed its figure**, because it is drawn in `layout.tsx` where there is no
+ * parent to hand it anything: the same reason every other window here reads its own state. That also means opening
+ * it cannot re-render the workbench behind it.
+ */
+export default function CharacterBrowserWindow() {
+  const state = useSyncExternalStore(subscribeToCharacterBrowser, characterBrowserState, characterBrowserState);
+  const figure = useCharacterStore((store) => store.figure);
+  const presetId = useCharacterStore((store) => store.presetId);
+  const loadFigure = useCharacterStore((store) => store.loadFigure);
+  const markKept = useCharacterStore((store) => store.markKept);
+  const placing = useCharacterStore((store) => store.placing);
+
+  /**
+   * The shelf, read **once, lazily, during the first render**.
+   *
+   * **Not an effect, which is what the lint rule caught and it was right.** The obvious shape is
+   * `useEffect(() => setShelf(readLibrary()), [])`, and it is wrong twice: an effect that sets state runs a second
+   * render for a value that was available before the first one, and it would flash "nothing saved yet" over a shelf
+   * that has figures on it. A lazy initializer reads storage exactly once, at the moment the component first needs
+   * the value, and never again - so there is no second render and no empty frame.
+   *
+   * Writes go through `persistLibrary`, so the state and storage cannot diverge: every mutation below computes the
+   * next shelf and hands the same array to both.
+   */
+  const [shelf, setShelf] = useState<SavedCharacter[]>(readLibrary);
+  const [name, setName] = useState('');
+  /**
+   * The bench as it was when SAVE was pressed and refused. The reason shows only while the bench is still exactly that
+   * - the next edit takes it away (it may no longer be true), and so does shutting the shelf - so it never comes back
+   * later about a figure nobody has tried to save.
+   */
+  const [refusedAt, setRefusedAt] = useState<{ figure: Figure; placing: Placing | null } | null>(null);
+  const refusal = placingRefusal(figure, placing) ?? saveRefusal(figure);
+  const refused = refusedAt !== null && refusedAt.figure === figure && refusedAt.placing === placing;
+  // Reset during render rather than in an effect, the way React recommends for state that follows a prop.
+  if (!state.open && refusedAt !== null) setRefusedAt(null);
+
+  /** A per-preset tally, which is what makes a full shelf scannable. Derived, never stored beside it. */
+  const counts = useMemo(() => {
+    const tally: Record<string, number> = {};
+    for (const character of shelf) tally[character.presetId] = (tally[character.presetId] ?? 0) + 1;
+    return tally;
+  }, [shelf]);
+
+  const update = useCallback((next: SavedCharacter[]) => {
+    setShelf(next);
+    persistLibrary(next);
+  }, []);
+
+  function keep() {
+    // Nothing broken is ever kept: a node with no shape round it, a shape touching nothing, a placement half done.
+    if (refusal !== null) {
+      setRefusedAt({ figure, placing });
+      return;
+    }
+    setRefusedAt(null);
+    update(saveCharacter(shelf, { name, presetId, figure }));
+    setName('');
+    // The figure on the bench is now the one just kept, so it stops being unsaved work.
+    markKept();
+  }
+
+  /**
+   * Nothing is drawn until the shelf is open.
+   *
+   * **The guard is here rather than around the whole component**, because the hooks above must run on every render:
+   * a `return null` before them would change the number of hooks between renders, which React reports as an error
+   * and which unmounts the tree. Reading the shelf while shut costs one `localStorage` read on mount and nothing
+   * afterwards.
+   */
+  if (!state.open) return null;
+
+  return (
+    <PopoutWindow
+      title="SAVED CHARACTERS"
+      badge={`[ ${shelf.length} ]`}
+      onClose={closeCharacterBrowser}
+      maxWidth="max-w-3xl"
+    >
+      <div className="space-y-2 text-label text-ink">
+        <div className="frame bg-sun-pale p-2">
+          <p className="font-bold">SAVE FIGURE</p>
+
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-1" htmlFor="character-save-name">
+              NAME
+              <input
+                id="character-save-name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="FIGURE"
+                maxLength={24}
+                className="w-40 frame bg-paper px-1 py-0.5 text-label text-ink"
+              />
+            </label>
+
+            <button type="button" onClick={keep} className={PLATE_LARGE}>
+              [ SAVE ]
+            </button>
+          </div>
+
+          {refused && refusal !== null ? (
+            <p role="alert" className="mt-1 bg-bubble-pale px-1 py-0.5 font-bold text-ink-bar">
+              {refusal}
+            </p>
+          ) : null}
+
+          {/* The one rule the controls do not show (SPEC-less-text.md): the shelf's limit. */}
+          <InfoFold topic="the shelf limit" className="mt-1">
+            UP TO {MAX_SAVED_LABEL} FIGURES; SAVING ONE MORE DROPS THE OLDEST. AN EMPTY NAME IS NUMBERED. FIGURES
+            LIVE IN THIS BROWSER, PER ACCOUNT.
+          </InfoFold>
+        </div>
+
+        {shelf.length === 0 ? (
+          <p className="frame bg-sun-pale p-3 font-bold">
+            NOTHING SAVED YET.
+          </p>
+        ) : (
+          <ul className="divide-y divide-ink frame bg-sun-pale">
+            {shelf.map((character) => {
+              const presetLabel = RIG_PRESETS[character.presetId as RigPresetId]?.label ?? 'UNKNOWN';
+              const shapes = character.figure.shapes.length;
+              const confirming = state.confirmingId === character.id;
+
+              return (
+                <li key={character.id} className="flex flex-wrap items-center gap-2 p-2">
+                  <span className="min-w-40 grow">
+                    <span className="font-bold">{character.name}</span>
+                    <span className="ml-2 text-ink-quiet">
+                      {presetLabel} :: {shapes} SHAPES :: {new Date(character.savedAt).toLocaleString()}
+                    </span>
+                  </span>
+
+                  <button
+                    type="button"
+                    className={PLATE}
+                    onClick={() => {
+                      loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'base');
+                      closeCharacterBrowser();
+                    }}
+                  >
+                    [ LOAD ]
+                  </button>
+
+                  {/*
+                   * **REMOVE is two presses, and the confirmation is in the row.** A shelf that forgets a figure on
+                   * one mis-aimed click is a shelf that loses work, and a modal for it would be a second window over
+                   * a window - so the row swaps its own button for YES/NO, which is the two-press rule the board's
+                   * own destructive verbs follow.
+                   */}
+                  {confirming ? (
+                    <>
+                      <button
+                        type="button"
+                        className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
+                        onClick={() => {
+                          update(removeCharacter(shelf, character.id));
+                          confirmCharacterRemoval(null);
+                        }}
+                      >
+                        [ YES ]
+                      </button>
+                      <button type="button" className={PLATE} onClick={() => confirmCharacterRemoval(null)}>
+                        [ NO ]
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      type="button"
+                      className={PLATE}
+                      onClick={() => confirmCharacterRemoval(character.id)}
+                      aria-label={`Forget ${character.name}`}
+                    >
+                      [ REMOVE ]
+                    </button>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+
+        <div className={TITLE_BAR_INACTIVE}>
+          <span>
+            BY PRESET:{' '}
+            {Object.entries(counts)
+              .map(([id, total]) => `${id.toUpperCase()} ${total}`)
+              .join(' :: ') || 'NONE'}
+          </span>
+        </div>
+      </div>
+    </PopoutWindow>
+  );
+}

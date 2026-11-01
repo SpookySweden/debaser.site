@@ -1,0 +1,1441 @@
+{
+ "responseContext": {},
+ "onResponseReceivedCommands": [
+  {
+   "appendContinuationItemsAction": {
+    "continuationItems": [
+     {
+      "itemSectionRenderer": {
+       "contents": [
+        {
+         "videoRenderer": {
+          "videoId": "wFgFGZW0PjY",
+          "thumbnail": {
+           "thumbnails": [
+            {
+             "url": "https://i.ytimg.com/vi/wFgFGZW0PjY/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvMY&rs=AOn4CLDj5OBp7tXKfk_U2ru-aC_TgR_l8g",
+             "width": 360,
+             "height": 202
+            },
+            {
+             "url": "https://i.ytimg.com/vi/wFgFGZW0PjY/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvMY&rs=AOn4CLAuwC8iSNkamn5ckTh4FAgliCk9TQ",
+             "width": 720,
+             "height": 404
+            }
+           ]
+          },
+          "title": {
+           "runs": [
+            {
+             "text": "Night of the Living Dead (1968) | Strangers Trapped As Terror Spreads | Horror Movie"
+            }
+           ]
+          },
+          "longBylineText": {
+           "runs": [
+            {
+             "text": "Mavericks of Thrillers & Mysteries",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MavericksThrillers",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCZrZcTfqL46ZyhteXMt8jdA",
+               "canonicalBaseUrl": "/@MavericksThrillers"
+              }
+             }
+            }
+           ]
+          },
+          "publishedTimeText": {
+           "simpleText": "9 months ago"
+          },
+          "lengthText": {
+           "simpleText": "1:35:47"
+          },
+          "viewCountText": {
+           "simpleText": "1,804 views"
+          },
+          "navigationEndpoint": {
+           "commandMetadata": {
+            "webCommandMetadata": {
+             "url": "/watch?v=wFgFGZW0PjY&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "webPageType": "WEB_PAGE_TYPE_WATCH",
+             "rootVe": 3832
+            }
+           },
+           "watchEndpoint": {
+            "videoId": "wFgFGZW0PjY",
+            "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMLCOPIiIi_19SkpAG6AwoI7tyfj438xYwYugMKCKykt5ib76KNELoDCwiBuMqOz5T-w6MBugMKCOb9_4_ej8nnIboDCwiMrYu7g8rAxroBugMLCMrzlsiG-I_q7QG6AwoI5ar9r7aU9PkxugMLCNTU9r7Vn4CtxQG6AwoI7czpqtvGprlmugMKCNyH4vyqtLHiF7oDCwjduZ7f8_Kmn5QBugMKCLyNsN67vKTwA7oDCwjjn_Sppvm74NkBugMLCNPXtYb54dLKyAG6AwsI3ev-urvliqfQAboDCwiPz5qM0v7Zz4kBugMKCO2_ppCZqIflNroDCwjs7_XasoGbipsB8gMFDVvxxj4%3D",
+            "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+            "watchEndpointSupportedOnesieConfig": {
+             "html5PlaybackOnesieConfig": {
+              "commonConfig": {
+               "url": "https://rr6---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=c058051995b43e36&ip=82.36.75.121&initcwndbps=4596625&mt=1793527500&oweuc="
+              }
+             }
+            }
+           }
+          },
+          "badges": [
+           {
+            "metadataBadgeRenderer": {
+             "style": "BADGE_STYLE_TYPE_SIMPLE",
+             "label": "CC",
+             "accessibilityData": {
+              "label": "Closed captions"
+             }
+            }
+           }
+          ],
+          "ownerText": {
+           "runs": [
+            {
+             "text": "Mavericks of Thrillers & Mysteries",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MavericksThrillers",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCZrZcTfqL46ZyhteXMt8jdA",
+               "canonicalBaseUrl": "/@MavericksThrillers"
+              }
+             }
+            }
+           ]
+          },
+          "shortBylineText": {
+           "runs": [
+            {
+             "text": "Mavericks of Thrillers & Mysteries",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MavericksThrillers",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCZrZcTfqL46ZyhteXMt8jdA",
+               "canonicalBaseUrl": "/@MavericksThrillers"
+              }
+             }
+            }
+           ]
+          },
+          "showActionMenu": false,
+          "shortViewCountText": {
+           "simpleText": "1.8K views"
+          },
+          "detailedMetadataSnippets": [
+           {
+            "snippetText": {
+             "runs": [
+              {
+               "text": "Night of the Living Dead",
+               "bold": true
+              },
+              {
+               "text": " is a landmark of late‑60s horror that still feels unnervingly real. Directed by: George A. Romero Written by: ..."
+              }
+             ]
+            },
+            "snippetHoverText": {
+             "runs": [
+              {
+               "text": "From the video description"
+              }
+             ]
+            },
+            "maxOneLine": false
+           }
+          ]
+         }
+        },
+        {
+         "videoRenderer": {
+          "videoId": "pElSu_ECJGM",
+          "thumbnail": {
+           "thumbnails": [
+            {
+             "url": "https://i.ytimg.com/vi/pElSu_ECJGM/hqdefault.jpg?sqp=-oaymwFBCOADEI4CSFryq4qpAzMIARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Ac4FgALgA4oCDAgAEAEYZSBlKGUwD7gC8xg=&rs=AOn4CLAGgDRfkmoT2BrGRAbVrQUn9U7zdw",
+             "width": 480,
+             "height": 270
+            }
+           ]
+          },
+          "title": {
+           "runs": [
+            {
+             "text": "Night Of The Living Dead 1968 Trailer"
+            }
+           ]
+          },
+          "longBylineText": {
+           "runs": [
+            {
+             "text": "SinanDC",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@SinanDC",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCwtnLWOqn-uD94o_HHmsKkQ",
+               "canonicalBaseUrl": "/@SinanDC"
+              }
+             }
+            }
+           ]
+          },
+          "publishedTimeText": {
+           "simpleText": "18 years ago"
+          },
+          "lengthText": {
+           "simpleText": "1:47"
+          },
+          "viewCountText": {
+           "simpleText": "351,781 views"
+          },
+          "navigationEndpoint": {
+           "commandMetadata": {
+            "webCommandMetadata": {
+             "url": "/watch?v=pElSu_ECJGM&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "webPageType": "WEB_PAGE_TYPE_WATCH",
+             "rootVe": 3832
+            }
+           },
+           "watchEndpoint": {
+            "videoId": "pElSu_ECJGM",
+            "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMLCLb80K2Zo4GswAG6AwoI7tyfj438xYwYugMKCKykt5ib76KNELoDCwiBuMqOz5T-w6MBugMKCOb9_4_ej8nnIboDCwiMrYu7g8rAxroBugMLCMrzlsiG-I_q7QG6AwoI5ar9r7aU9PkxugMLCNTU9r7Vn4CtxQG6AwoI7czpqtvGprlmugMKCNyH4vyqtLHiF7oDCwjduZ7f8_Kmn5QBugMKCLyNsN67vKTwA7oDCwjjn_Sppvm74NkBugMLCNPXtYb54dLKyAG6AwsI3ev-urvliqfQAboDCwiPz5qM0v7Zz4kBugMKCO2_ppCZqIflNroDCwjs7_XasoGbipsB8gMFDVvxxj4%3D",
+            "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+            "watchEndpointSupportedOnesieConfig": {
+             "html5PlaybackOnesieConfig": {
+              "commonConfig": {
+               "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=a44952bbf1022463&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+              }
+             }
+            }
+           }
+          },
+          "ownerText": {
+           "runs": [
+            {
+             "text": "SinanDC",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@SinanDC",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCwtnLWOqn-uD94o_HHmsKkQ",
+               "canonicalBaseUrl": "/@SinanDC"
+              }
+             }
+            }
+           ]
+          },
+          "shortBylineText": {
+           "runs": [
+            {
+             "text": "SinanDC",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@SinanDC",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCwtnLWOqn-uD94o_HHmsKkQ",
+               "canonicalBaseUrl": "/@SinanDC"
+              }
+             }
+            }
+           ]
+          },
+          "showActionMenu": false,
+          "shortViewCountText": {
+           "simpleText": "351K views"
+          },
+          "detailedMetadataSnippets": [
+           {
+            "snippetText": {
+             "runs": [
+              {
+               "text": "George A. Romero 's \""
+              },
+              {
+               "text": "Night Of The Living Dead",
+               "bold": true
+              },
+              {
+               "text": "\" "
+              },
+              {
+               "text": "Night of the Living Dead",
+               "bold": true
+              },
+              {
+               "text": " is a seminal 1968 black-and-white independent horror ..."
+              }
+             ]
+            },
+            "snippetHoverText": {
+             "runs": [
+              {
+               "text": "From the video description"
+              }
+             ]
+            },
+            "maxOneLine": false
+           }
+          ]
+         }
+        },
+        {
+         "videoRenderer": {
+          "videoId": "GBkX4NHn7m4",
+          "thumbnail": {
+           "thumbnails": [
+            {
+             "url": "https://i.ytimg.com/vi/GBkX4NHn7m4/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvMY&rs=AOn4CLCkM5_x_-BnU0SVluXJnUAPEtmlQA",
+             "width": 360,
+             "height": 202
+            },
+            {
+             "url": "https://i.ytimg.com/vi/GBkX4NHn7m4/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvMY&rs=AOn4CLA5mT_R3ZPaIAces3vGekxoDIffWQ",
+             "width": 720,
+             "height": 404
+            }
+           ]
+          },
+          "title": {
+           "runs": [
+            {
+             "text": "The Night of the Living Dead | HORROR | Full Movie in English"
+            }
+           ]
+          },
+          "longBylineText": {
+           "runs": [
+            {
+             "text": "Boxoffice | NEW Full Movies in English",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@Boxoffice-Full-Movies",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCGADft_i4N1U5nXlfr2424A",
+               "canonicalBaseUrl": "/@Boxoffice-Full-Movies"
+              }
+             }
+            }
+           ]
+          },
+          "publishedTimeText": {
+           "simpleText": "2 years ago"
+          },
+          "lengthText": {
+           "simpleText": "1:34:49"
+          },
+          "viewCountText": {
+           "simpleText": "102,109 views"
+          },
+          "navigationEndpoint": {
+           "commandMetadata": {
+            "webCommandMetadata": {
+             "url": "/watch?v=GBkX4NHn7m4&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "webPageType": "WEB_PAGE_TYPE_WATCH",
+             "rootVe": 3832
+            }
+           },
+           "watchEndpoint": {
+            "videoId": "GBkX4NHn7m4",
+            "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMLCLb80K2Zo4GswAG6AwsI48iIiL_X1KSkAboDCgispLeYm--ijRC6AwsIgbjKjs-U_sOjAboDCgjm_f-P3o_J5yG6AwsIjK2Lu4PKwMa6AboDCwjK85bIhviP6u0BugMKCOWq_a-2lPT5MboDCwjU1Pa-1Z-ArcUBugMKCO3M6arbxqa5ZroDCgjch-L8qrSx4he6AwsI3bme3_Pypp-UAboDCgi8jbDeu7yk8AO6AwsI45_0qab5u-DZAboDCwjT17WG-eHSysgBugMLCN3r_rq75Yqn0AG6AwsIj8-ajNL-2c-JAboDCgjtv6aQmaiH5Ta6AwsI7O_12rKBm4qbAfIDBQ1b8cY-",
+            "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+            "watchEndpointSupportedOnesieConfig": {
+             "html5PlaybackOnesieConfig": {
+              "commonConfig": {
+               "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=181917e0d1e7ee6e&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+              }
+             }
+            }
+           }
+          },
+          "badges": [
+           {
+            "metadataBadgeRenderer": {
+             "style": "BADGE_STYLE_TYPE_SIMPLE",
+             "label": "4K"
+            }
+           },
+           {
+            "metadataBadgeRenderer": {
+             "style": "BADGE_STYLE_TYPE_SIMPLE",
+             "label": "CC",
+             "accessibilityData": {
+              "label": "Closed captions"
+             }
+            }
+           }
+          ],
+          "ownerBadges": [
+           {
+            "metadataBadgeRenderer": {
+             "icon": {
+              "iconType": "CHECK_CIRCLE_THICK"
+             },
+             "style": "BADGE_STYLE_TYPE_VERIFIED",
+             "tooltip": "Verified",
+             "accessibilityData": {
+              "label": "Verified"
+             }
+            }
+           }
+          ],
+          "ownerText": {
+           "runs": [
+            {
+             "text": "Boxoffice | NEW Full Movies in English",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@Boxoffice-Full-Movies",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCGADft_i4N1U5nXlfr2424A",
+               "canonicalBaseUrl": "/@Boxoffice-Full-Movies"
+              }
+             }
+            }
+           ]
+          },
+          "shortBylineText": {
+           "runs": [
+            {
+             "text": "Boxoffice | NEW Full Movies in English",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@Boxoffice-Full-Movies",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCGADft_i4N1U5nXlfr2424A",
+               "canonicalBaseUrl": "/@Boxoffice-Full-Movies"
+              }
+             }
+            }
+           ]
+          },
+          "showActionMenu": false,
+          "shortViewCountText": {
+           "simpleText": "102K views"
+          },
+          "detailedMetadataSnippets": [
+           {
+            "snippetText": {
+             "runs": [
+              {
+               "text": "A group of people try to survive an attack of bloodthirsty zombies while trapped in a rural farmhouse. The best movies are here ..."
+              }
+             ]
+            },
+            "snippetHoverText": {
+             "runs": [
+              {
+               "text": "From the video description"
+              }
+             ]
+            },
+            "maxOneLine": false
+           }
+          ]
+         }
+        },
+        {
+         "videoRenderer": {
+          "videoId": "EBqLebMN0iw",
+          "thumbnail": {
+           "thumbnails": [
+            {
+             "url": "https://i.ytimg.com/vi/EBqLebMN0iw/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvMY&rs=AOn4CLAJiG4RoXl9J9rDgaY9iFR_HwGRlw",
+             "width": 360,
+             "height": 202
+            },
+            {
+             "url": "https://i.ytimg.com/vi/EBqLebMN0iw/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvMY&rs=AOn4CLCwnFPMJnucXIlmtIfp6eLwdowR2w",
+             "width": 720,
+             "height": 404
+            }
+           ]
+          },
+          "title": {
+           "runs": [
+            {
+             "text": "NIGHT OF THE LIVING DEAD 1990: Tom Savini’s Forgotten Remake is a Zombie Gem"
+            }
+           ]
+          },
+          "longBylineText": {
+           "runs": [
+            {
+             "text": "Matt Draper",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MattDraper",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCialJ2te1CSh8DLU8SK5D_w",
+               "canonicalBaseUrl": "/@MattDraper"
+              }
+             }
+            }
+           ]
+          },
+          "publishedTimeText": {
+           "simpleText": "3 years ago"
+          },
+          "lengthText": {
+           "simpleText": "22:55"
+          },
+          "viewCountText": {
+           "simpleText": "119,948 views"
+          },
+          "navigationEndpoint": {
+           "commandMetadata": {
+            "webCommandMetadata": {
+             "url": "/watch?v=EBqLebMN0iw&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "webPageType": "WEB_PAGE_TYPE_WATCH",
+             "rootVe": 3832
+            }
+           },
+           "watchEndpoint": {
+            "videoId": "EBqLebMN0iw",
+            "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMLCLb80K2Zo4GswAG6AwsI48iIiL_X1KSkAboDCgju3J-PjfzFjBi6AwsIgbjKjs-U_sOjAboDCgjm_f-P3o_J5yG6AwsIjK2Lu4PKwMa6AboDCwjK85bIhviP6u0BugMKCOWq_a-2lPT5MboDCwjU1Pa-1Z-ArcUBugMKCO3M6arbxqa5ZroDCgjch-L8qrSx4he6AwsI3bme3_Pypp-UAboDCgi8jbDeu7yk8AO6AwsI45_0qab5u-DZAboDCwjT17WG-eHSysgBugMLCN3r_rq75Yqn0AG6AwsIj8-ajNL-2c-JAboDCgjtv6aQmaiH5Ta6AwsI7O_12rKBm4qbAfIDBQ1b8cY-",
+            "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+            "watchEndpointSupportedOnesieConfig": {
+             "html5PlaybackOnesieConfig": {
+              "commonConfig": {
+               "url": "https://rr5---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=101a8b79b30dd22c&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+              }
+             }
+            }
+           }
+          },
+          "ownerBadges": [
+           {
+            "metadataBadgeRenderer": {
+             "icon": {
+              "iconType": "CHECK_CIRCLE_THICK"
+             },
+             "style": "BADGE_STYLE_TYPE_VERIFIED",
+             "tooltip": "Verified",
+             "accessibilityData": {
+              "label": "Verified"
+             }
+            }
+           }
+          ],
+          "ownerText": {
+           "runs": [
+            {
+             "text": "Matt Draper",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MattDraper",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCialJ2te1CSh8DLU8SK5D_w",
+               "canonicalBaseUrl": "/@MattDraper"
+              }
+             }
+            }
+           ]
+          },
+          "shortBylineText": {
+           "runs": [
+            {
+             "text": "Matt Draper",
+             "navigationEndpoint": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "/@MattDraper",
+                "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                "rootVe": 3611,
+                "apiUrl": "/youtubei/v1/browse"
+               }
+              },
+              "browseEndpoint": {
+               "browseId": "UCialJ2te1CSh8DLU8SK5D_w",
+               "canonicalBaseUrl": "/@MattDraper"
+              }
+             }
+            }
+           ]
+          },
+          "showActionMenu": false,
+          "shortViewCountText": {
+           "simpleText": "119K views"
+          },
+          "detailedMetadataSnippets": [
+           {
+            "snippetText": {
+             "runs": [
+              {
+               "text": "A look at Tom Savini and George Romero's 1990 remake of "
+              },
+              {
+               "text": "Night of the Living Dead",
+               "bold": true
+              },
+              {
+               "text": ", a horror gem that's been largely forgotten, ..."
+              }
+             ]
+            },
+            "snippetHoverText": {
+             "runs": [
+              {
+               "text": "From the video description"
+              }
+             ]
+            },
+            "maxOneLine": false
+           }
+          ],
+          "expandableMetadata": {
+           "expandableMetadataRenderer": {
+            "header": {
+             "collapsedTitle": {
+              "simpleText": "Tom Savini directs a remake aimed at correcting a crucial copyright flaw in the original film's release. Matt Draper explores how this version reinvents the main character, Barbara, and tackles the challenges of updating a horror classic for a new generation."
+             },
+             "collapsedLabel": {
+              "simpleText": "Summary"
+             },
+             "expandedTitle": {
+              "simpleText": "AI-generated video summary"
+             },
+             "expandedSubtitle": {
+              "simpleText": "AI can make mistakes, so double-check it."
+             },
+             "collapsedLabelIcon": {
+              "iconType": "SPARK"
+             },
+             "expandedTitleIcon": {
+              "iconType": "SPARK"
+             },
+             "expandedSubtitleTapCommand": {
+              "commandMetadata": {
+               "webCommandMetadata": {
+                "url": "https://support.google.com/youtube/answer/14089423",
+                "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                "rootVe": 83769
+               }
+              },
+              "urlEndpoint": {
+               "url": "https://support.google.com/youtube/answer/14089423",
+               "target": "TARGET_NEW_WINDOW"
+              }
+             },
+             "expandedSubtitleTrailingIcon": {
+              "iconType": "INFO"
+             },
+             "showLeadingCollapsedLabel": true
+            },
+            "expandedContent": {
+             "videoSummaryContentViewModel": {
+              "paragraphs": [
+               {
+                "videoSummaryParagraphViewModel": {
+                 "text": {
+                  "content": "Tom Savini directs a remake aimed at correcting a crucial copyright flaw in the original film's release. Matt Draper explores how this version reinvents the main character, Barbara, and tackles the challenges of updating a horror classic for a new generation."
+                 }
+                }
+               }
+              ],
+              "likeButtonViewModel": {
+               "likeButtonViewModel": {
+                "toggleButtonViewModel": {
+                 "toggleButtonViewModel": {
+                  "defaultButtonViewModel": {
+                   "buttonViewModel": {
+                    "iconName": "LIKE",
+                    "accessibilityText": "Like this summary",
+                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                    "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                   }
+                  },
+                  "toggledButtonViewModel": {
+                   "buttonViewModel": {
+                    "iconName": "LIKE_SELECTED",
+                    "accessibilityText": "Unlike this summary",
+                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                    "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                   }
+                  }
+                 }
+                },
+                "likeStatusEntityKey": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB",
+                "likeStatusEntity": {
+                 "key": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB",
+                 "likeStatus": "INDIFFERENT"
+                }
+               }
+              },
+              "dislikeButtonViewModel": {
+               "dislikeButtonViewModel": {
+                "toggleButtonViewModel": {
+                 "toggleButtonViewModel": {
+                  "defaultButtonViewModel": {
+                   "buttonViewModel": {
+                    "iconName": "DISLIKE",
+                    "onTap": {
+                     "innertubeCommand": {
+                      "openPopupAction": {
+                       "popup": {
+                        "genAiFeedbackFormViewModel": {
+                         "title": {
+                          "content": "Tell us more"
+                         },
+                         "feedbackChips": [
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Hard to read",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Hard to read",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          },
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Inaccurate",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Inaccurate",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          },
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Inappropriate",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Inappropriate",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          },
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Not enough detail",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Not enough detail",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          },
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Other",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Other",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          },
+                          {
+                           "toggleButtonViewModel": {
+                            "defaultButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Spoiler",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            },
+                            "toggledButtonViewModel": {
+                             "buttonViewModel": {
+                              "title": "Spoiler",
+                              "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                              "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                              "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                              "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                             }
+                            }
+                           }
+                          }
+                         ],
+                         "disclaimer": {
+                          "content": "YouTube may use this feature feedback, account, and system data to improve our services, subject to our Privacy Policy and Terms of Service. You can also report legal issues like privacy, copyright, and other laws.",
+                          "commandRuns": [
+                           {
+                            "startIndex": 67,
+                            "length": 20,
+                            "onTap": {
+                             "innertubeCommand": {
+                              "commandMetadata": {
+                               "webCommandMetadata": {
+                                "url": "https://support.google.com/youtube/answer/14110396#submitfeedback",
+                                "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                                "rootVe": 83769
+                               }
+                              },
+                              "urlEndpoint": {
+                               "url": "https://support.google.com/youtube/answer/14110396#submitfeedback",
+                               "target": "TARGET_NEW_WINDOW"
+                              }
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 104,
+                            "length": 14,
+                            "onTap": {
+                             "innertubeCommand": {
+                              "commandMetadata": {
+                               "webCommandMetadata": {
+                                "url": "https://policies.google.com/privacy",
+                                "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                                "rootVe": 83769
+                               }
+                              },
+                              "urlEndpoint": {
+                               "url": "https://policies.google.com/privacy",
+                               "target": "TARGET_NEW_WINDOW"
+                              }
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 123,
+                            "length": 16,
+                            "onTap": {
+                             "innertubeCommand": {
+                              "commandMetadata": {
+                               "webCommandMetadata": {
+                                "url": "https://www.youtube.com/static?template=terms",
+                                "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                                "rootVe": 83769
+                               }
+                              },
+                              "urlEndpoint": {
+                               "url": "https://www.youtube.com/static?template=terms",
+                               "target": "TARGET_NEW_WINDOW"
+                              }
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 154,
+                            "length": 19,
+                            "onTap": {
+                             "innertubeCommand": {
+                              "commandMetadata": {
+                               "webCommandMetadata": {
+                                "url": "https://support.google.com/youtube/contact/AI_Legal_Complaint",
+                                "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                                "rootVe": 83769
+                               }
+                              },
+                              "urlEndpoint": {
+                               "url": "https://support.google.com/youtube/contact/AI_Legal_Complaint",
+                               "target": "TARGET_NEW_WINDOW"
+                              }
+                             }
+                            }
+                           }
+                          ],
+                          "styleRuns": [
+                           {
+                            "startIndex": 0,
+                            "length": 67,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4279440147
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4294967295
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 67,
+                            "length": 20,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4278607828
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4282296063
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 87,
+                            "length": 17,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4279440147
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4294967295
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 104,
+                            "length": 14,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4278607828
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4282296063
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 118,
+                            "length": 5,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4279440147
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4294967295
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 123,
+                            "length": 16,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4282296063
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4278607828
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 139,
+                            "length": 15,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4279440147
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4294967295
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 154,
+                            "length": 19,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4278607828
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4282296063
+                               }
+                              ]
+                             }
+                            }
+                           },
+                           {
+                            "startIndex": 173,
+                            "length": 41,
+                            "styleRunExtensions": {
+                             "styleRunColorMapExtension": {
+                              "colorMap": [
+                               {
+                                "key": "USER_INTERFACE_THEME_LIGHT",
+                                "value": 4279440147
+                               },
+                               {
+                                "key": "USER_INTERFACE_THEME_DARK",
+                                "value": 4294967295
+                               }
+                              ]
+                             }
+                            }
+                           }
+                          ]
+                         },
+                         "submitButton": {
+                          "buttonViewModel": {
+                           "title": "Submit",
+                           "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                           "type": "BUTTON_VIEW_MODEL_TYPE_FILLED",
+                           "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                           "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                          }
+                         },
+                         "moreFeedbackButton": {
+                          "buttonViewModel": {
+                           "title": "Send more feedback",
+                           "onTap": {
+                            "innertubeCommand": {
+                             "commandMetadata": {
+                              "webCommandMetadata": {
+                               "ignoreNavigation": true
+                              }
+                             },
+                             "userFeedbackEndpoint": {
+                              "additionalDatas": [
+                               {
+                                "userFeedbackEndpointProductSpecificValueData": {
+                                 "key": "video_id",
+                                 "value": "EBqLebMN0iw"
+                                }
+                               },
+                               {
+                                "userFeedbackEndpointProductSpecificValueData": {
+                                 "key": "video_summary_source",
+                                 "value": "search_page"
+                                }
+                               },
+                               {
+                                "userFeedbackEndpointProductSpecificValueData": {
+                                 "key": "is_owner",
+                                 "value": "false"
+                                }
+                               }
+                              ],
+                              "bucketIdentifier": "video_summary"
+                             }
+                            }
+                           },
+                           "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                           "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                           "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                           "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                          }
+                         },
+                         "uniqueId": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB"
+                        }
+                       },
+                       "popupType": "DIALOG",
+                       "uniqueId": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB"
+                      }
+                     }
+                    },
+                    "accessibilityText": "Dislike this summary",
+                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                    "type": "BUTTON_VIEW_MODEL_TYPE_OUTLINE",
+                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                   }
+                  },
+                  "toggledButtonViewModel": {
+                   "buttonViewModel": {
+                    "iconName": "DISLIKE_SELECTED",
+                    "accessibilityText": "Dislike this summary",
+                    "style": "BUTTON_VIEW_MODEL_STYLE_MONO",
+                    "type": "BUTTON_VIEW_MODEL_TYPE_TONAL",
+                    "buttonSize": "BUTTON_VIEW_MODEL_SIZE_DEFAULT",
+                    "state": "BUTTON_VIEW_MODEL_STATE_ACTIVE"
+                   }
+                  }
+                 }
+                },
+                "dislikeEntityKey": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB",
+                "likeStatusEntity": {
+                 "key": "EhhFQnFMZWJNTjBpd19haV9zdW1tYXJpZXMgPigB",
+                 "likeStatus": "INDIFFERENT"
+                }
+               }
+              }
+             }
+            },
+            "expandButton": {
+             "buttonRenderer": {
+              "style": "STYLE_DEFAULT",
+              "size": "SIZE_DEFAULT",
+              "isDisabled": false,
+              "icon": {
+               "iconType": "EXPAND_MORE"
+              },
+              "accessibilityData": {
+               "accessibilityData": {
+                "label": "More"
+               }
+              }
+             }
+            },
+            "collapseButton": {
+             "buttonRenderer": {
+              "style": "STYLE_DEFAULT",
+              "size": "SIZE_DEFAULT",
+              "isDisabled": false,
+              "icon": {
+               "iconType": "EXPAND_LESS"
+              },
+              "accessibilityData": {
+               "accessibilityData": {
+                "label": "Less"
+               }
+              }
+             }
+            },
+            "colorData": {
+             "lightColorPalette": {
+              "section1Color": 4294966267,
+              "section2Color": 4294504945,
+              "section3Color": 4294109159,
+              "primaryTitleColor": 4279832592,
+              "secondaryTitleColor": 4286534228,
+              "iconActivatedColor": 4284027155,
+              "iconInactiveColor": 4288051321,
+              "section4Color": 4293647838,
+              "iconDisabledColor": 4072779438
+             },
+             "darkColorPalette": {
+              "section1Color": 4282321934,
+              "section2Color": 4281534987,
+              "section3Color": 4280682248,
+              "primaryTitleColor": 4294960614,
+              "secondaryTitleColor": 4291601316,
+              "iconActivatedColor": 4294960614,
+              "iconInactiveColor": 4287854199,
+              "section4Color": 4279829765,
+              "iconDisabledColor": 4065936196
+             },
+             "vibrantColorPalette": {
+              "section1Color": 4286519580,
+              "section2Color": 4285666841,
+              "section3Color": 4284879894,
+              "primaryTitleColor": 4294960614,
+              "secondaryTitleColor": 4293244856,
+              "iconActivatedColor": 4294960614,
+              "iconInactiveColor": 4288244588,
+              "section4Color": 4284027155,
+              "iconDisabledColor": 4065080630
+             },
+             "saturatedColorPalettes": {
+              "lightThemePalette": {
+               "baseBackground": 4294963440,
+               "raisedBackground": 4294963440,
+               "additiveBackground": 568405298,
+               "textPrimary": 4282188549,
+               "textSecondary": 4288025110,
+               "outline": 861538057,
+               "keyLight": 4294218903,
+               "collectionStack": 4293615716,
+               "invertedBackground": 4288025110,
+               "textPrimaryInverse": 4294963440,
+               "textDisabled": 2136606473,
+               "dropShadow": 434187570,
+               "cardOutline": 182529330,
+               "overlayBackground": 3426550533,
+               "overlayTextPrimary": 4294963440,
+               "solidWash": 4284090121,
+               "solidRim": 4282188549,
+               "overlaySolidWash": 4294827486,
+               "overlaySolidRim": 4294963440,
+               "tonalWash": 2583687408,
+               "tonalRim": 202309632,
+               "overlayTonalWash": 436203760,
+               "overlayTonalRim": 436203760,
+               "outlineRim": 1280968457,
+               "overlayOutlineRim": 872137154,
+               "solidWashInverse": 4294689218,
+               "solidRimInverse": 2147343838,
+               "tonalWashInverse": 654307568,
+               "tonalRimInverse": 654171614,
+               "outlineRimInverse": 654307568,
+               "solidBackground": 4284090121,
+               "solidBackgroundInverse": 4293615716,
+               "tonalBackground": 871063652,
+               "tonalBackgroundInverse": 435929538,
+               "outlineInverse": 872275422,
+               "directionalLightStopPrimary": 4294827486,
+               "directionalLightStopSecondary": 4294963440,
+               "primary": 4279173120,
+               "filledStateLayer": 4282188549,
+               "tonalTouchLight": 4294963440,
+               "tonalHoverLight": 3439189470,
+               "tonalStateLayer": 420413440,
+               "overlayDisabledContainer": 872137154,
+               "overlayTonalTouchLight": 1291705822,
+               "overlayTonalHoverLight": 1291705822,
+               "overlayTonalStateLayer": 436203760,
+               "disabledContainer": 420413440,
+               "filledTouchLight": 4288025110,
+               "filledHoverLight": 4286057487,
+               "onOverlayDisabledContainer": 2583687408,
+               "overlayTonalContainer": 2583551454,
+               "overlayOutline": 872411376,
+               "onFilledContainer": 4294963440,
+               "filledContainer": 4280156418,
+               "tonalContainer": 641532677,
+               "overlayPrimary": 4294963440,
+               "onOverlayFilledContainer": 4279173120,
+               "overlayFilledTouchLight": 4294963440,
+               "overlayFilledHoverLight": 4294827486,
+               "overlayFilledStateLayer": 4294218903,
+               "overlayFilledContainer": 4294689218,
+               "onDisabledContainer": 1712259072,
+               "temporaryOutline": 861538057
+              },
+              "darkThemePalette": {
+               "baseBackground": 4280156418,
+               "raisedBackground": 4282188549,
+               "additiveBackground": 736177458,
+               "textPrimary": 4294827486,
+               "textSecondary": 4294218903,
+               "outline": 1073463746,
+               "keyLight": 4286057487,
+               "collectionStack": 4288025110,
+               "invertedBackground": 4293751414,
+               "textPrimaryInverse": 4280156418,
+               "textDisabled": 2147205570,
+               "dropShadow": 434187570,
+               "cardOutline": 182529330,
+               "overlayBackground": 3426550533,
+               "overlayTextPrimary": 4294963440,
+               "solidWash": 4294827486,
+               "solidRim": 4294963440,
+               "overlaySolidWash": 4294827486,
+               "overlaySolidRim": 4294963440,
+               "tonalWash": 217825730,
+               "tonalRim": 218099952,
+               "overlayTonalWash": 436203760,
+               "overlayTonalRim": 436203760,
+               "outlineRim": 872137154,
+               "overlayOutlineRim": 872137154,
+               "solidWashInverse": 4288025110,
+               "solidRimInverse": 872137154,
+               "tonalWashInverse": 872411376,
+               "tonalRimInverse": 871666839,
+               "outlineRimInverse": 1291841776,
+               "solidBackground": 4293615716,
+               "solidBackgroundInverse": 4284090121,
+               "tonalBackground": 435929538,
+               "tonalBackgroundInverse": 871063652,
+               "outlineInverse": 861538057,
+               "directionalLightStopPrimary": 4282188549,
+               "directionalLightStopSecondary": 4280156418,
+               "primary": 4294963440,
+               "filledStateLayer": 4294218903,
+               "tonalTouchLight": 1073602014,
+               "tonalHoverLight": 654171614,
+               "tonalStateLayer": 436203760,
+               "overlayDisabledContainer": 872137154,
+               "overlayTonalTouchLight": 1291705822,
+               "overlayTonalHoverLight": 1291705822,
+               "overlayTonalStateLayer": 436203760,
+               "disabledContainer": 436203760,
+               "filledTouchLight": 4294963440,
+               "filledHoverLight": 4294827486,
+               "onOverlayDisabledContainer": 2583687408,
+               "overlayTonalContainer": 2583551454,
+               "overlayOutline": 872411376,
+               "onFilledContainer": 4279173120,
+               "filledContainer": 4294689218,
+               "tonalContainer": 435929538,
+               "overlayPrimary": 4294963440,
+               "onOverlayFilledContainer": 4279173120,
+               "overlayFilledTouchLight": 4294963440,
+               "overlayFilledHoverLight": 4294827486,
+               "overlayFilledStateLayer": 4294218903,
+               "overlayFilledContainer": 4294689218,
+               "onDisabledContainer": 1728049392,
+               "temporaryOutline": 872137154
+              }
+             }
+            },
+            "useCustomColors": true
+           }
+          }
+         }
+        }
+       ]
+      }
+     },
+     {
+      "continuationItemRenderer": {
+       "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+       "continuationEndpoint": {
+        "commandMetadata": {
+         "webCommandMetadata": {
+          "sendPost": true,
+          "apiUrl": "/youtubei/v1/search"
+         }
+        },
+        "continuationCommand": {
+         "token": "Eq0DEhhuaWdodCBvZiB0aGUgbGl2aW5nIGRlYWQakANFZ0lRQVVnb2dnRUxkMFpuUmtkYVZ6QlFhbG1DQVF0d1JXeFRkVjlGUTBwSFRZSUJDMGRDYTFnMFRraHVOMjAwZ2dFTFJVSnhUR1ZpVFU0d2FYZUNBUXR2TkdZMGNGQklVMjVCUllJQkMwbGpPR3RtWlVoZlgzVlpnZ0VMZFc4d1ExVkVaR2t4YjNlQ0FRczNaRkZmZDBkclJuVmpiNElCQzAxbVVGRnZNbGhmVmxkVmdnRUxlRlp2UVY5V1ptUnhiRkdDQVF0YWJrdGhUbUpXWVZwdE1JSUJDMFk0VkVadmNTMVpaemwzZ2dFTGJFUTJZbXg2ZG01dVRqQ0NBUXRCTFVOU05EZDJUVUp5ZDRJQkN6SmpSSFo1YlZVNVJDMU5nZ0VMZVVwV1RFUTFSRTVoT1UyQ0FRc3dSVFJ5U3pka1puUmtNSUlCQzJsYU9XNDVVMGRIY0RRNGdnRUxUbk52WkZGYVNVcHVMVENDQVF0dGVGSnpRM2wwWkdRdGQ3SUJCZ29FQ0NrUUF3JTNEJTNEGIHg6BgiC3NlYXJjaC1mZWVk",
+         "request": "CONTINUATION_REQUEST_TYPE_SEARCH"
+        }
+       }
+      }
+     }
+    ]
+   }
+  }
+ ]
+}

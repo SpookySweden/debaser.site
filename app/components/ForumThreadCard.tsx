@@ -1,0 +1,485 @@
+'use client';
+
+import { useState } from 'react';
+import { authorLabel } from '../lib/auth/author';
+import { commentDomId, threadDomId } from '../lib/forum/anchors';
+import { carriesImage, threadTagMatches } from '../lib/forum/board-query';
+import { countReplies } from '../lib/forum/format';
+import { collectThreadImages } from '../lib/forum/media';
+import { mentionsIn } from '../lib/forum/mentions';
+import { pinLabel, pinSummary } from '../lib/forum/pins';
+import { buildPostLayout, postLayoutInput } from '../lib/forum/post-layout';
+import { postIsRead } from '../lib/forum/read-state';
+import { postCredit } from '../lib/forum/site-author';
+import { displayTags } from '../lib/forum/tags';
+import { tagKey } from '../lib/forum/tag-vocabulary';
+import type { ForumThread, ForumTrack } from '../lib/forum/types';
+import { useCatalogue } from '../lib/media/catalogue';
+import { previewFor, recordUses, replyUse } from '../lib/media/uses';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
+import CommentComposer from './CommentComposer';
+import CommentThreadList from './CommentThreadList';
+import { useComms } from './CommsProvider';
+import { useForum } from './ForumProvider';
+import { ThreadPinControl } from './ForumPinPanel';
+import { ThreadModeration } from './ForumModerationControls';
+import StreamRecord, { StreamMarker } from './StreamRecord';
+import { streamRoomId } from '../lib/watch/rules';
+import InlineTrackPlayer from './InlineTrackPlayer';
+import MentionRow from './MentionRow';
+import { useNotifications } from './NotificationsProvider';
+import PostAuthorRow from './PostAuthorRow';
+import PostReplyReel from './PostReplyReel';
+import PostRowDetails from './PostRowDetails';
+import SheetImage from './SheetImage';
+import TagStrip from './TagStrip';
+import ThreadSubjectRow from './ThreadSubjectRow';
+import TimeStamp from './TimeStamp';
+
+type ForumThreadCardProps = {
+  thread: ForumThread;
+  isOpen: boolean;
+  onToggle: (threadId: string, open: boolean) => void;
+  /**
+   * The tag filter in force on the board, when there is one.
+   *
+   * A card is told rather than working it out because the filter is the board's state; what the card
+   * does with it is the part only a card can do - say where on the thread the tags were found, and
+   * open the post onto the reply when it was a reply that carried them.
+   */
+  tagFilter?: string[];
+};
+
+/**
+ * One collapsible post.
+ *
+ * The header is text, not a bar: collapsed, the title and the one-line credit strip
+ * under it - the poster's picture leading, then their name, the stamp and the
+ * post's tags - carry the row. The drawing a post was filed with is *not* drawn
+ * while the row is collapsed: the title says `[ IMG ]` and the picture waits for
+ * the click that opens the post. The band down the right of a collapsed row carries
+ * the post's own words, clipped to the row's height and faded out at the foot,
+ * with a wire of the thread's replies under them (./PostRowDetails.tsx) - in both
+ * states, so pointing at a row is only a highlight. Expanding puts the picture and
+ * the small tags in a left column with the body of the text beside them - the rules
+ * live in app/lib/forum/post-layout.ts.
+ *
+ * A thread an item's comment box opened is not a post, and its strip says so: it
+ * names what the comments are on (the page's owner, the track, the sheet), and that
+ * name is the link to the item (./ThreadSubjectRow.tsx). It never repeats the account
+ * that commented first; the comment below already carries that account's id.
+ *
+ * Native <details>/<summary> keeps the collapse behaviour (and the #thread-<id>
+ * jump links) without extra JS. The board offers no expand-all: a reader opens
+ * the post they want to read, and a row is one click either way.
+ *
+ * While the board has a tag filter on, the card also carries a `FILTER MATCH` line saying which of
+ * its tags the filter matched and whether they sit on the post or on a reply - and a `[ OPEN THE
+ * REPLY ]` button in the second case, because a post that does not wear the tag is only on screen
+ * because somebody's comment does (see app/lib/forum/board-query.ts).
+ */
+export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = [] }: ForumThreadCardProps) {
+  const forum = useForum();
+  // The header reads the *credit's* profile, not the thread author's: an item's own
+  // post is signed by the house account, so its dark blue name and its picture come
+  // from that account and never from whoever commented first. `postCredit` decides
+  // which of the two applies (app/lib/forum/site-author.ts).
+  const { profile } = usePublicProfile(postCredit(thread).id);
+  const { accounts } = useComms();
+  const notifications = useNotifications();
+  /** The moderator's pin on this post, if it has one: the card says so in its title row. */
+  const pin = forum.pinForThread(thread.id);
+  const [reply, setReply] = useState('');
+  const [replyBusy, setReplyBusy] = useState(false);
+  const [replyError, setReplyError] = useState<string | null>(null);
+  const [replyStatus, setReplyStatus] = useState<string | null>(null);
+  const [replyTags, setReplyTags] = useState<string[]>([]);
+  const [replyMediaId, setReplyMediaId] = useState('');
+  const [replyTrack, setReplyTrack] = useState<ForumTrack | null>(null);
+  const catalogue = useCatalogue();
+
+  async function handleReply() {
+    const body = reply.trim();
+
+    if (body.length < 2) {
+      setReplyError('REPLY IS TOO SHORT.');
+      setReplyStatus(null);
+      return;
+    }
+
+    setReplyBusy(true);
+    setReplyError(null);
+
+    try {
+      // A thread read off a profile is that page collecting its comments: the words belong in the
+      // profile store (where the owner's switch and a pinned remark live), so the reply is filed
+      // there and read back as this same thread. Everything else is a board reply as usual.
+      if (thread.anchor.kind === 'profile') {
+        await forum.addProfileComment(thread.anchor, body);
+      } else {
+        const media = previewFor(catalogue.items, replyMediaId);
+        const filed = await forum.addComment({
+          body,
+          threadId: thread.id,
+          userTags: replyTags,
+          media,
+          ...(replyTrack === null ? {} : { track: replyTrack }),
+        });
+        recordUses(catalogue.items, replyUse(filed.comment, thread, forum.author.id), {
+          mediaId: replyMediaId,
+          preview: media,
+          ...(replyTrack === null ? {} : { track: replyTrack }),
+        });
+      }
+
+      // A reply to the post tags whoever wrote it, plus anybody the words name.
+      await notifications.notifyTagged({
+        threadId: thread.id,
+        threadTitle: thread.title,
+        body,
+        mentions: mentionsIn(body, accounts),
+        autoTagId: thread.author.id,
+      });
+
+      setReply('');
+      setReplyTags([]);
+      setReplyMediaId('');
+      setReplyTrack(null);
+      setReplyStatus('REPLY FILED.');
+    } catch (caught) {
+      setReplyError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
+    } finally {
+      setReplyBusy(false);
+    }
+  }
+
+  const images = collectThreadImages(thread);
+
+  // What the board's tag filter matched here, and where: the post's own tags, or a reply's. The
+  // retired housekeeping badges are dropped from the line, so it names tags a reader can see, and
+  // two replies wearing SPOILER count as two replies to point at.
+  const tagMatches = threadTagMatches(thread, tagFilter);
+  const matchedReplies = tagMatches.flatMap((match) => (match.comment === undefined ? [] : [match.comment]));
+  const matchedIds = [...new Set(matchedReplies.map((match) => match.id))];
+  const matchedTags = displayTags([...new Map(tagMatches.map((match) => [tagKey(match.tag.label), match.tag])).values()]);
+  const matchedReplyAuthors = [...new Set(matchedReplies.map((match) => authorLabel(match.author)))];
+
+  /**
+   * Open this post and put the matched reply on screen.
+   *
+   * Two frames, for two reasons: the first lets the board re-render with the post open (the
+   * `<details>` is controlled by the board's state, not by this button), and by the second the reply
+   * is in the document to scroll to.
+   */
+  function revealReply(commentId: string) {
+    if (!isOpen) onToggle(thread.id, true);
+
+    if (typeof window === 'undefined') return;
+
+    window.requestAnimationFrame(() =>
+      window.requestAnimationFrame(() =>
+        document.getElementById(commentDomId(commentId))?.scrollIntoView({ block: 'center' }),
+      ),
+    );
+  }
+
+  const layout = buildPostLayout(postLayoutInput(thread, isOpen, profile));
+  /** Whether the post came with a picture of its own: the strip's badge, and the tile's subject. */
+  const hasImage = carriesImage(thread);
+  /**
+   * Whether this reader has opened this post before, and when.
+   *
+   * The fill follows it - quiet once read, white while there is something new - and the replies below
+   * are asked the same question about the instant, so a post read a week ago still shows the two
+   * replies filed since in white (app/lib/forum/read-state.ts). Opening a post is what marks it, and
+   * the board does that when a row opens rather than the row itself: a card is drawn for a post the
+   * reader may only be scrolling past.
+   */
+  const isRead = postIsRead(forum.seenByThread, thread.id);
+  /** A stream's record (SPEC-watch-together.md): its body is drawn from the room, not stored. */
+  const streamRoom = streamRoomId(thread.anchor);
+
+  return (
+    <article id={threadDomId(thread.id)} className={`rule-pixel px-2 py-2 ${isRead ? ROW_READ : ROW_UNREAD}`}>
+      <details
+        className="group"
+        open={isOpen}
+        onToggle={(event) => onToggle(thread.id, event.currentTarget.open)}
+      >
+        {/*
+          Collapsed, only the title, the stamp, the poster and the post's tags are
+          drawn. The poster's picture and the drawing are `group-hover` only, so
+          the list stays tight until somebody points at the title or the name.
+        */}
+        <summary
+          className={`cursor-pointer select-none list-none ${isRead ? 'hover:bg-pointed-quiet' : 'hover:bg-pointed'}`}
+        >
+          {/*
+            Two columns: the row itself on the left, and the band down the right carrying the post's
+            words and the wire of its replies - filled whether or not a pointer is on the row, because
+            it is the row's own detail rather than a reward for hovering. Hover is now only the
+            highlight `hover:bg-pointed` puts on the whole summary, so nothing about a row arrives, and
+            the column is held open in both states so nothing moves either. `pointed` rather than
+            `sun` because every ink on the row is a field ink: White on Daffodil was 1.19:1 in the
+            dark theme (see `pointed` in app/lib/ui/themes.ts). A read row asks for `pointed-quiet`,
+            because it already rests on the dark theme's Royal Blue.
+          */}
+          <div className="flex items-stretch gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline gap-2 font-bold text-ink">
+                <span className="shrink-0 text-label leading-none text-ink">{isOpen ? '[-]' : '[+]'}</span>
+                <span className="min-w-0 flex-1 text-sm leading-tight group-hover:underline">{layout.title}</span>
+                {/* Pinned posts say so before anything else about them, because being pinned is
+                    why this row is at the top of the list. */}
+                {pin === undefined ? null : (
+                  <span
+                    className="shrink-0 border border-ink-plate bg-bubble-pale px-1 text-label font-bold text-ink-bar"
+                    title={pinSummary(pin)}
+                  >
+                    {pinLabel(pin)}
+                  </span>
+                )}
+                {streamRoom === null ? null : <StreamMarker roomId={streamRoom} />}
+                <span className="shrink-0 text-label text-ink">{layout.repliesLabel}</span>
+                {/* A post filed with a picture says so before it is opened: the drawing itself now
+                    waits for the click (see the strip below), so this badge is what tells a reader
+                    there is one to see. `x2` counts a picture in a reply as well. */}
+                {hasImage ? (
+                  <span
+                    className="shrink-0 border border-ink-plate bg-acid px-1 text-label font-bold text-ink-plate"
+                  >
+                    [ IMG{images.count > 1 ? ` x${images.count}` : ''} ]
+                  </span>
+                ) : null}
+                {/* A post that came with a track says so before it is opened. */}
+                {thread.track === undefined ? null : (
+                  <span className="shrink-0 border border-ink-plate bg-ena px-1 text-label font-bold text-ink-bar">
+                    ♪ MP3
+                  </span>
+                )}
+              </div>
+
+              {/* The credit strip, and the whole of it when a row is collapsed: the poster's picture
+                  leading, then their name, the country flag, the stamp and the tags other people gave
+                  them - one line, because the title above it is what a reader is scanning.
+
+                  The picture leads now, which is why it is drawn rather than revealed:
+                  `avatar="hover"` put it off until a pointer arrived, and a pointer is not what a
+                  phone has. The post's own drawing is not here at all any more - it used to appear as
+                  a 72px thumbnail while the row was pointed at, which meant the picture a post was
+                  filed for was invisible until somebody hovered. It waits for the click that opens the
+                  post, and the title row wears `[ IMG ]` until then. */}
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
+                {layout.subject === undefined ? (
+                  <PostAuthorRow
+                    author={layout.author.credit}
+                    avatar={layout.avatar}
+                    avatarSize={28}
+                    nameColour={layout.author.nameColour}
+                    picture={layout.author.picture}
+                    country={layout.author.country}
+                    displayedTags={layout.author.displayedTags}
+                    stamp={
+                      /* The instant is the one blue thing in the strip: POSTED stays black. */
+                      <span className="font-bold">
+                        POSTED <TimeStamp at={thread.createdAt} />
+                      </span>
+                    }
+                  />
+                ) : (
+                  /* An item's own thread: nobody posted it, so the strip names what the comments
+                     are on and dates itself by the newest of them. */
+                  <ThreadSubjectRow
+                    subject={layout.subject}
+                    nameColour={layout.author.nameColour}
+                    country={layout.author.country}
+                    stamp={
+                      <span className="font-bold">
+                        {layout.lastActivityAt === undefined ? (
+                          'NO COMMENTS YET'
+                        ) : (
+                          <>
+                            LAST COMMENT <TimeStamp at={layout.lastActivityAt} />
+                          </>
+                        )}
+                      </span>
+                    }
+                  />
+                )}
+              </div>
+
+              {/* The replies, for a phone and for any window narrower than `sm`. Below that breakpoint
+                  the right-hand column - where the reel normally lives, on a pointed-at row - is
+                  `hidden`, and no reveal can reach a box that is not drawn: measured on a 600px
+                  window, `reel drawn 0/5` collapsed rows. So the narrow board draws the same reel
+                  (./PostReplyReel.tsx) under the credit strip, where it needs no pointer at all, and
+                  the unexpanded row carries the conversation at every width. `sm:hidden` is what keeps
+                  the two copies from ever both being on screen. It is not a reveal - it is always
+                  there on the width that gets it - so nothing about it appears from nothing. */}
+              {isOpen ? null : <PostReplyReel comments={thread.comments} className="mt-1 sm:hidden" />}
+
+              {/* The post's own tags, one line of `theme:design` tokens: the few that say what the
+                  post is about, with the rest behind `[+n]` (see ./TagStrip.tsx).
+
+                  Drawn in both states. It used to be `isOpen ? null : ...`, which took a line out of
+                  the row the moment it was opened - so the moderation and pin controls under it, and
+                  every post below, jumped up by that line. Keeping it means opening a post reveals
+                  the body without the list moving under the reader's finger (CLAUDE.md, "Reveals take
+                  their space in both states"). `collapsedTags` is the same list the open card's left
+                  column draws, so nothing is lost by it staying. */}
+              <TagStrip tags={layout.collapsedTags} limit={5} className="mt-1" />
+
+              {/* Why this post is on screen while a tag filter is on: the tags that matched, and
+                  where they were typed. A match on a reply is the case worth spelling out - the post
+                  does not wear the tag, somebody's comment does - so it is also the case that gets a
+                  button to open it.
+
+                  A match on nothing but a retired housekeeping badge - only reachable from a
+                  hand-written `#tag-board` - draws no line at all, because those badges are hidden on
+                  every other row on the board and a bar with no chips would say less than nothing. */}
+              {matchedTags.length === 0 ? null : (
+                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 border border-ink-plate bg-sun-pale px-1 py-0.5 text-label font-bold text-ink">
+                  <span>FILTER MATCH:</span>
+                  <TagStrip tags={matchedTags} />
+                  <span className="text-ink">
+                    {matchedReplies.length === 0
+                      ? 'ON THIS POST'
+                      : `IN ${countReplies(matchedReplies.length)} BY ${matchedReplyAuthors.join(', ')}`}
+                  </span>
+                  {matchedReplies.length === 0 || isOpen ? null : (
+                    <button
+                      type="button"
+                      onClick={() => revealReply(matchedReplies[0].id)}
+                      className={PLATE}
+                    >
+                      [ OPEN REPLY ]
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {/* Only drawn for the house account: rewrite the post, or take it down. */}
+              <ThreadModeration thread={thread} />
+
+              {/* ...and the moderator's pin, for the same account only. */}
+              <ThreadPinControl thread={thread} />
+            </div>
+
+            {/* The band fills the reserved right column of a collapsed row (./PostRowDetails.tsx). On
+                open its contents go, because the body they were carrying is on screen in full - but
+                the *box* does not, so opening a post never widens the row under the reader's finger,
+                and neither does pointing at one.
+
+                The slot is `relative` and what it holds is absolute, and that is deliberate: the row's
+                height is decided by the title, the credit strip and the tags in the column beside it,
+                and the band is *clipped* to that height rather than setting it. A band that made the
+                row taller would put the list under the pointer the moment a post was pointed at, and
+                the row below would never be the row the pointer was over.
+
+                Two fifths rather than half, since the credit strip became one line: the strip and the
+                title both live in the column beside this, and at half the row they were one long place
+                line away from wrapping under themselves. 360px is a comfortable reading measure. */}
+            <div className="relative hidden w-2/5 min-w-0 shrink-0 sm:flex">
+              {isOpen ? null : (
+                <PostRowDetails body={layout.right.body} comments={thread.comments} />
+              )}
+            </div>
+          </div>
+        </summary>
+
+        {/*
+          Expanded: the picture and the small tags down the left, the body of the
+          text and the replies to their right - the text gets the width.
+        */}
+        <div className="mt-2 flex flex-col gap-3 sm:flex-row">
+          <div className="sm:w-44 sm:shrink-0">
+            {layout.left.image === undefined ? null : (
+              <div className="rounded-none border border-ink-plate bg-paper" title={layout.left.imageSource}>
+                <SheetImage
+                  src={layout.left.image.src}
+                  alt={layout.left.image.alt}
+                  width={layout.left.image.width}
+                  height={layout.left.image.height}
+                  sizes="(max-width: 768px) 45vw, 176px"
+                />
+              </div>
+            )}
+
+            {/* The open post's left column: its tags, folded to one line of tokens like the
+                collapsed row's, with the rest behind the strip's own `[+n]`. The column is narrow and
+                a post with nine tags would otherwise be nine lines of reading before the text. */}
+            <TagStrip tags={layout.left.tags} limit={5} className="mt-2" emptyLabel="NO TAGS" />
+
+            {images.count > 1 ? (
+              <p className="mt-1 text-label font-bold text-ink">
+                +{images.count - 1} IN REPLIES
+              </p>
+            ) : null}
+
+            {/* `FILED UNDER ...` and `ORIGIN: USER/SEED` used to close this column: housekeeping a
+                reader does not act on, cut with the board id and the reply count below
+                (SPEC-efficiency.md). A thread an item opened still links back to it, in the body. */}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            {/* An item's own thread has no body: the strip above already names and links the item,
+                so nothing stands between the title and the comments (the `[ ↳ GO TO ... ]` key that
+                did was cut - Luke, 2026-10-24). */}
+            {streamRoom !== null ? (
+              isOpen ? <StreamRecord roomId={streamRoom} /> : null
+            ) : layout.right.isAnchorPost ? null : (
+              <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
+            )}
+
+            {/* The track the post came with: one display, one button, played by the site's player. */}
+            {thread.track === undefined ? null : (
+              <InlineTrackPlayer
+                track={thread.track}
+                poster={layout.author.name}
+                origin="POST"
+              />
+            )}
+
+            {/* The accounts this post names, said plainly, so a tag reads as a tag. */}
+            <MentionRow body={thread.body} accounts={accounts} />
+
+            <div className="mt-2 border-t border-ink pt-2">
+              {/* No count line over the replies: the title row already says how many there are. */}
+              <CommentThreadList
+                thread={thread}
+                avatarSize={48}
+                matchedIds={matchedIds}
+                seenByThread={forum.seenByThread}
+                emptyLabel="NO REPLIES YET."
+              />
+
+              <CommentComposer
+                id={`reply-${thread.id}`}
+                value={reply}
+                onChange={setReply}
+                onSubmit={handleReply}
+                variant="reply"
+                submitLabel="[ FILE REPLY ]"
+                placeholder="Reply..."
+                author={forum.author}
+                accounts={accounts}
+                autoTag={thread.author}
+                tags={replyTags}
+                onTagsChange={setReplyTags}
+                mediaId={replyMediaId}
+                onMediaIdChange={setReplyMediaId}
+                track={replyTrack}
+                onTrackChange={setReplyTrack}
+                busy={replyBusy}
+                error={replyError}
+                status={replyStatus}
+                rows={2}
+              />
+            </div>
+          </div>
+        </div>
+      </details>
+    </article>
+  );
+}

@@ -1,0 +1,430 @@
+{
+  "total": 480,
+  "data": [
+    {
+      "id": 437536,
+      "uuid": "75458950-1377-42fb-be1c-34a2c5b9f98c",
+      "shortUUID": "ftUKYjPizbkubiRLiYuxC9",
+      "url": "https://tilvids.com/videos/watch/75458950-1377-42fb-be1c-34a2c5b9f98c",
+      "name": "Proton goes A.I. crazy, Ubuntu goes all SNAP, Vibe-coded Linux compatible kernel - Linux Weekly News",
+      "category": {
+        "id": 15,
+        "label": "Science & Technology"
+      },
+      "licence": {
+        "id": 2,
+        "label": "Attribution - Share Alike"
+      },
+      "language": {
+        "id": "en",
+        "label": "English"
+      },
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "nsfw": false,
+      "nsfwFlags": 0,
+      "nsfwSummary": null,
+      "truncatedDescription": "Check out TuxCare's Endless LifeCycle Support for .net (and a lot Linux distros, frameworks, FOSS apps, and languages): https://tuxcare.com/endless-lifecycle-support/net-eol-support/?utm_source=youtube&utm_medium=paid_social&utm_campaign=The%20Lin...",
+      "description": "Check out TuxCare's Endless LifeCycle Support for .net (and a lot Linux distros, frameworks, FOSS apps, and languages): https://tuxcare.com/endless-lifecycle-support/net-eol-support/?utm_source=youtube&utm_medium=paid_social&utm_campaign=The%20Lin...",
+      "isLocal": true,
+      "duration": 1784,
+      "aspectRatio": 1.7778,
+      "thumbnailPath": "/lazy-static/thumbnails/b539f182-326e-4d77-986e-ab2b6abd8f2b.jpg",
+      "previewPath": "/lazy-static/thumbnails/711c8d5b-59b3-40c1-8ac7-e69f9cce6305.jpg",
+      "thumbnails": [
+        {
+          "height": 157,
+          "width": 280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/b539f182-326e-4d77-986e-ab2b6abd8f2b.jpg"
+        },
+        {
+          "height": 480,
+          "width": 850,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/eb47d923-493f-41be-b052-1cccc571ecda.jpg"
+        },
+        {
+          "height": 720,
+          "width": 1280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/154ec1fa-65be-4033-9ca7-638b51f6c6eb.jpg"
+        },
+        {
+          "height": 1400,
+          "width": 1400,
+          "aspectRatio": "1:1",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/95f7f556-379b-4586-86f0-e4383f037892.jpg"
+        },
+        {
+          "height": 1080,
+          "width": 1920,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/711c8d5b-59b3-40c1-8ac7-e69f9cce6305.jpg"
+        }
+      ],
+      "embedPath": "/videos/embed/ftUKYjPizbkubiRLiYuxC9",
+      "createdAt": "2026-10-30T14:15:39.202Z",
+      "updatedAt": "2026-10-31T13:28:01.087Z",
+      "publishedAt": "2026-10-30T14:18:10.230Z",
+      "originallyPublishedAt": null,
+      "isLive": false,
+      "account": {
+        "id": 252,
+        "displayName": "The Linux Experiment",
+        "name": "thelinuxexperiment",
+        "url": "https://tilvids.com/accounts/thelinuxexperiment",
+        "host": "tilvids.com"
+      },
+      "channel": {
+        "id": 47,
+        "name": "thelinuxexperiment_channel",
+        "displayName": "The Linux Experiment",
+        "url": "https://tilvids.com/video-channels/thelinuxexperiment_channel",
+        "host": "tilvids.com"
+      }
+    },
+    {
+      "id": 437376,
+      "uuid": "60ab47ba-51b7-4173-8d3c-847000b310ea",
+      "shortUUID": "cWmr2uUSvQ2cRT6tHMPaXG",
+      "url": "https://tilvids.com/videos/watch/60ab47ba-51b7-4173-8d3c-847000b310ea",
+      "name": "The end of proprietary software & user lock-in, and the biggest opportunity for Linux",
+      "category": {
+        "id": 15,
+        "label": "Science & Technology"
+      },
+      "licence": {
+        "id": 2,
+        "label": "Attribution - Share Alike"
+      },
+      "language": {
+        "id": "en",
+        "label": "English"
+      },
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "nsfw": false,
+      "nsfwFlags": 0,
+      "nsfwSummary": null,
+      "truncatedDescription": "Try out Joplin, one of the best Open Source Note taking apps, and use code LINUXEXPERIMENT for 25% off your first billing cycle for Joplin Cloud: https://joplinapp.org/?source=TheLinuxEXP\r\n\r\nGrab a brand new laptop or desktop running Linux: https:...",
+      "description": "Try out Joplin, one of the best Open Source Note taking apps, and use code LINUXEXPERIMENT for 25% off your first billing cycle for Joplin Cloud: https://joplinapp.org/?source=TheLinuxEXP\r\n\r\nGrab a brand new laptop or desktop running Linux: https:...",
+      "isLocal": true,
+      "duration": 1869,
+      "aspectRatio": 1.7778,
+      "thumbnailPath": "/lazy-static/thumbnails/cacdcaba-07e8-40b2-a6c2-da21bdf14b98.jpg",
+      "previewPath": "/lazy-static/thumbnails/6fb5f485-6d06-496c-bf6c-df520b58a7f6.jpg",
+      "thumbnails": [
+        {
+          "height": 157,
+          "width": 280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/cacdcaba-07e8-40b2-a6c2-da21bdf14b98.jpg"
+        },
+        {
+          "height": 480,
+          "width": 850,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/9afd1277-2c8f-4857-a2d2-f68c71217eb0.jpg"
+        },
+        {
+          "height": 720,
+          "width": 1280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/1ce0dd86-feaa-45e8-8d96-e313c8eb4b9a.jpg"
+        },
+        {
+          "height": 1400,
+          "width": 1400,
+          "aspectRatio": "1:1",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/a5a373f5-9556-4072-bbdc-5472c15c0049.jpg"
+        },
+        {
+          "height": 1080,
+          "width": 1920,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/6fb5f485-6d06-496c-bf6c-df520b58a7f6.jpg"
+        }
+      ],
+      "embedPath": "/videos/embed/cWmr2uUSvQ2cRT6tHMPaXG",
+      "createdAt": "2026-10-28T13:47:47.369Z",
+      "updatedAt": "2026-10-31T13:28:00.893Z",
+      "publishedAt": "2026-10-28T13:49:17.005Z",
+      "originallyPublishedAt": null,
+      "isLive": false,
+      "account": {
+        "id": 252,
+        "displayName": "The Linux Experiment",
+        "name": "thelinuxexperiment",
+        "url": "https://tilvids.com/accounts/thelinuxexperiment",
+        "host": "tilvids.com"
+      },
+      "channel": {
+        "id": 47,
+        "name": "thelinuxexperiment_channel",
+        "displayName": "The Linux Experiment",
+        "url": "https://tilvids.com/video-channels/thelinuxexperiment_channel",
+        "host": "tilvids.com"
+      }
+    },
+    {
+      "id": 430988,
+      "uuid": "d449c4c2-757b-4d7e-b49b-49a792cb2d38",
+      "shortUUID": "sdqJ8DAtgW7v7eQbw1nXFw",
+      "url": "https://tilvids.com/videos/watch/d449c4c2-757b-4d7e-b49b-49a792cb2d38",
+      "name": "What is happening to the Linux kernel, Bitwarden and Epic Games? - Linux Weekly News",
+      "category": {
+        "id": 15,
+        "label": "Science & Technology"
+      },
+      "licence": {
+        "id": 2,
+        "label": "Attribution - Share Alike"
+      },
+      "language": {
+        "id": "en",
+        "label": "English"
+      },
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "nsfw": false,
+      "nsfwFlags": 0,
+      "nsfwSummary": null,
+      "truncatedDescription": "Check out Internxt and get 85% off the fist month of your annual plan: https://internxt.com/thelinuxexp\r\n\r\nGrab a brand new laptop or desktop running Linux: https://www.tuxedocomputers.com/en#\r\n\r\n\r\n👏 SUPPORT THE CHANNEL:\r\nGet access to:\r\n- a Dail...",
+      "description": "Check out Internxt and get 85% off the fist month of your annual plan: https://internxt.com/thelinuxexp\r\n\r\nGrab a brand new laptop or desktop running Linux: https://www.tuxedocomputers.com/en#\r\n\r\n\r\n👏 SUPPORT THE CHANNEL:\r\nGet access to:\r\n- a Dail...",
+      "isLocal": true,
+      "duration": 1751,
+      "aspectRatio": 1.7778,
+      "thumbnailPath": "/lazy-static/thumbnails/4eda1f46-91fb-4def-b53d-2e60851e1413.jpg",
+      "previewPath": "/lazy-static/thumbnails/e7f16dee-8366-4271-8ee1-c9919ec29475.jpg",
+      "thumbnails": [
+        {
+          "height": 157,
+          "width": 280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/4eda1f46-91fb-4def-b53d-2e60851e1413.jpg"
+        },
+        {
+          "height": 480,
+          "width": 850,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/96dd0e02-ab17-4ac5-9d59-7060702a22a7.jpg"
+        },
+        {
+          "height": 720,
+          "width": 1280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/d104ea9a-3175-4085-a54d-d4f034f7f86e.jpg"
+        },
+        {
+          "height": 1400,
+          "width": 1400,
+          "aspectRatio": "1:1",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/43c77174-19d8-4a3f-b8ad-d1f846674ae1.jpg"
+        },
+        {
+          "height": 1080,
+          "width": 1920,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/e7f16dee-8366-4271-8ee1-c9919ec29475.jpg"
+        }
+      ],
+      "embedPath": "/videos/embed/sdqJ8DAtgW7v7eQbw1nXFw",
+      "createdAt": "2026-10-24T08:08:16.769Z",
+      "updatedAt": "2026-10-31T13:28:00.645Z",
+      "publishedAt": "2026-10-24T08:10:14.912Z",
+      "originallyPublishedAt": null,
+      "isLive": false,
+      "account": {
+        "id": 252,
+        "displayName": "The Linux Experiment",
+        "name": "thelinuxexperiment",
+        "url": "https://tilvids.com/accounts/thelinuxexperiment",
+        "host": "tilvids.com"
+      },
+      "channel": {
+        "id": 47,
+        "name": "thelinuxexperiment_channel",
+        "displayName": "The Linux Experiment",
+        "url": "https://tilvids.com/video-channels/thelinuxexperiment_channel",
+        "host": "tilvids.com"
+      }
+    },
+    {
+      "id": 429692,
+      "uuid": "5005c3d7-c95a-4c5d-906e-590c1c025b01",
+      "shortUUID": "aT8ruJvXZ1zqARE7ysLuex",
+      "url": "https://tilvids.com/videos/watch/5005c3d7-c95a-4c5d-906e-590c1c025b01",
+      "name": "GNOME OS Preview, Epic supports Linux, Linux kernel set to go all in on AI - Linux Weekly News",
+      "category": {
+        "id": 15,
+        "label": "Science & Technology"
+      },
+      "licence": {
+        "id": 2,
+        "label": "Attribution - Share Alike"
+      },
+      "language": {
+        "id": "en",
+        "label": "English"
+      },
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "nsfw": false,
+      "nsfwFlags": 0,
+      "nsfwSummary": null,
+      "truncatedDescription": "Get a Hostinger VPS for self-hosting, home lab projects, automations, running Docker containers, and hosting your own services! Use code LINUXEXPERIMENT for a special deal: https://hostinger.com/linuxexperiment\r\n\r\nGrab a brand new laptop or deskto...",
+      "description": "Get a Hostinger VPS for self-hosting, home lab projects, automations, running Docker containers, and hosting your own services! Use code LINUXEXPERIMENT for a special deal: https://hostinger.com/linuxexperiment\r\n\r\nGrab a brand new laptop or deskto...",
+      "isLocal": true,
+      "duration": 2039,
+      "aspectRatio": 1.7778,
+      "thumbnailPath": "/lazy-static/thumbnails/40c0c123-73b6-4982-8d46-678360829dfe.jpg",
+      "previewPath": "/lazy-static/thumbnails/787bbb84-7265-4634-a53f-4031a462f13e.jpg",
+      "thumbnails": [
+        {
+          "height": 157,
+          "width": 280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/40c0c123-73b6-4982-8d46-678360829dfe.jpg"
+        },
+        {
+          "height": 480,
+          "width": 850,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/a9ec78b6-1d91-4504-83c2-36c298cbaa91.jpg"
+        },
+        {
+          "height": 720,
+          "width": 1280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/be4dd0ed-6735-49fb-a56f-9dc08d3f83ff.jpg"
+        },
+        {
+          "height": 1400,
+          "width": 1400,
+          "aspectRatio": "1:1",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/00de0cf4-04b7-4a1e-8aa7-40aa3597567b.jpg"
+        },
+        {
+          "height": 1080,
+          "width": 1920,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/787bbb84-7265-4634-a53f-4031a462f13e.jpg"
+        }
+      ],
+      "embedPath": "/videos/embed/aT8ruJvXZ1zqARE7ysLuex",
+      "createdAt": "2026-10-17T08:13:40.839Z",
+      "updatedAt": "2026-10-31T12:28:00.072Z",
+      "publishedAt": "2026-10-17T08:25:41.968Z",
+      "originallyPublishedAt": null,
+      "isLive": false,
+      "account": {
+        "id": 252,
+        "displayName": "The Linux Experiment",
+        "name": "thelinuxexperiment",
+        "url": "https://tilvids.com/accounts/thelinuxexperiment",
+        "host": "tilvids.com"
+      },
+      "channel": {
+        "id": 47,
+        "name": "thelinuxexperiment_channel",
+        "displayName": "The Linux Experiment",
+        "url": "https://tilvids.com/video-channels/thelinuxexperiment_channel",
+        "host": "tilvids.com"
+      }
+    },
+    {
+      "id": 429423,
+      "uuid": "4130b69b-2e48-40e4-bfe6-1394a4b72ffe",
+      "shortUUID": "93U7BZR17sda5dg8pUuXwW",
+      "url": "https://tilvids.com/videos/watch/4130b69b-2e48-40e4-bfe6-1394a4b72ffe",
+      "name": "Ubuntu 26.10: small upgrade, but some interesting things!",
+      "category": {
+        "id": 15,
+        "label": "Science & Technology"
+      },
+      "licence": {
+        "id": 2,
+        "label": "Attribution - Share Alike"
+      },
+      "language": {
+        "id": "en",
+        "label": "English"
+      },
+      "privacy": {
+        "id": 1,
+        "label": "Public"
+      },
+      "nsfw": false,
+      "nsfwFlags": 0,
+      "nsfwSummary": null,
+      "truncatedDescription": "Grab a brand new laptop or desktop running Linux: https://www.tuxedocomputers.com/en#\r\n\r\n\r\n👏 SUPPORT THE CHANNEL:\r\nGet access to:\r\n- a Daily Linux News show\r\n- a weekly patroncast for more thoughts\r\n- your name in the credits\r\n\r\nYouTube: https://...",
+      "description": "Grab a brand new laptop or desktop running Linux: https://www.tuxedocomputers.com/en#\r\n\r\n\r\n👏 SUPPORT THE CHANNEL:\r\nGet access to:\r\n- a Daily Linux News show\r\n- a weekly patroncast for more thoughts\r\n- your name in the credits\r\n\r\nYouTube: https://...",
+      "isLocal": true,
+      "duration": 1421,
+      "aspectRatio": 1.7778,
+      "thumbnailPath": "/lazy-static/thumbnails/c165a5c1-9ad2-4d8b-a103-9778f4b09cb6.jpg",
+      "previewPath": "/lazy-static/thumbnails/44f526f7-418a-4c38-bcec-edde7e5c7dbe.jpg",
+      "thumbnails": [
+        {
+          "height": 157,
+          "width": 280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/c165a5c1-9ad2-4d8b-a103-9778f4b09cb6.jpg"
+        },
+        {
+          "height": 480,
+          "width": 850,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/0a4a7756-042a-4a20-910a-812c4e1065f7.jpg"
+        },
+        {
+          "height": 720,
+          "width": 1280,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/7414d0de-4677-40f2-be7c-fc47972d1b7d.jpg"
+        },
+        {
+          "height": 1400,
+          "width": 1400,
+          "aspectRatio": "1:1",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/6b2fccbe-8c27-4c36-b07e-4e74372112b3.jpg"
+        },
+        {
+          "height": 1080,
+          "width": 1920,
+          "aspectRatio": "16:9",
+          "fileUrl": "https://tilvids.com/lazy-static/thumbnails/44f526f7-418a-4c38-bcec-edde7e5c7dbe.jpg"
+        }
+      ],
+      "embedPath": "/videos/embed/93U7BZR17sda5dg8pUuXwW",
+      "createdAt": "2026-10-15T11:28:47.134Z",
+      "updatedAt": "2026-10-31T13:28:00.251Z",
+      "publishedAt": "2026-10-15T11:29:46.564Z",
+      "originallyPublishedAt": null,
+      "isLive": false,
+      "account": {
+        "id": 252,
+        "displayName": "The Linux Experiment",
+        "name": "thelinuxexperiment",
+        "url": "https://tilvids.com/accounts/thelinuxexperiment",
+        "host": "tilvids.com"
+      },
+      "channel": {
+        "id": 47,
+        "name": "thelinuxexperiment_channel",
+        "displayName": "The Linux Experiment",
+        "url": "https://tilvids.com/video-channels/thelinuxexperiment_channel",
+        "host": "tilvids.com"
+      }
+    }
+  ]
+}

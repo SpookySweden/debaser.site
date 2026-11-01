@@ -1,0 +1,3036 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0" xmlns:googleplay="http://www.google.com/schemas/play-podcasts/1.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:itunes="http://www.itunes.com/dtds/podcast-1.0.dtd" >
+<channel>
+  <title>Hacker Public Radio</title>
+  <link>https://hackerpublicradio.org/about.html</link>
+  <itunes:subtitle>A daily show hosted the community on topics that are of interest to hackers and hobbyists.</itunes:subtitle>
+  <description>Hacker Public Radio is an podcast that releases shows every weekday Monday through Friday. Our shows are produced by the community (you) and can be on any topic that are of interest to hackers and hobbyists.</description>
+  <language>en-us</language>
+  <itunes:category text="Technology">
+    <itunes:category text="Tech News"/>
+  </itunes:category>
+  <itunes:category text="Education">
+    <itunes:category text="Training"/>
+  </itunes:category>
+  <itunes:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+  <itunes:explicit>yes</itunes:explicit>
+  <itunes:author>Hacker Public Radio</itunes:author>
+  <itunes:keywords>Community Radio, Tech Interviews, Linux, Open, Hobby, Software Freedom</itunes:keywords>
+  <copyright>Creative Commons Attribution-ShareAlike 4.0 International (CC BY-SA 4.0) License</copyright>
+  <managingEditor>feedback@NOSPAM-hackerpublicradio.org (HPR Feedback)</managingEditor> 
+  <itunes:owner>    
+    <itunes:name>HPR Volunteer</itunes:name>
+    <itunes:email>admin@hackerpublicradio.org</itunes:email>
+  </itunes:owner>
+  <webMaster>admin@hackerpublicradio.org (HPR Volunteer)</webMaster> 
+  <generator>kate</generator> 
+  <docs>http://www.rssboard.org/rss-specification</docs>
+  <ttl>720</ttl>
+  <skipDays>
+    <day>Saturday</day>
+    <day>Sunday</day>
+  </skipDays>
+  <image>
+    <url>https://hackerpublicradio.org/images/hpr_feed_small.png</url>
+    <title>Hacker Public Radio</title>
+    <link>https://hackerpublicradio.org/about.html</link>
+    <description>The Hacker Public Radio Old Microphone Logo</description>
+    <height>164</height>
+    <width>144</width>
+  </image>
+  <googleplay:author>HPR Volunteer</googleplay:author>
+  <googleplay:description>Hacker Public Radio is an podcast that releases shows every weekday Monday through Friday. Our shows are produced by the community (you) and can be on any topic that are of interest to hackers and hobbyists.</googleplay:description>
+  <googleplay:email>admin@hackerpublicradio.org</googleplay:email>
+  <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+  <googleplay:category text="Technology"/>
+  <atom:link href="http://hackerpublicradio.org/hpr_ogg_rss.php" rel="self" type="application/rss+xml" />
+  <pubDate>Sat, 31 Oct 2026 00:00:00 +0000</pubDate>
+  <item>
+    <itunes:explicit>no</itunes:explicit>
+    <googleplay:explicit>No</googleplay:explicit>
+    <title>HPR4760: Robert A. Heinlein: Later Works</title>
+    <author>zwilnik.nospam@nospam.zwilnik.com (Ahuka)</author>
+    <googleplay:author>zwilnik.nospam@nospam.zwilnik.com (Ahuka)</googleplay:author>
+    <itunes:author>zwilnik.nospam@nospam.zwilnik.com (Ahuka)</itunes:author>
+    <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+    <link>https://hackerpublicradio.org/eps/hpr4760/index.html</link>
+    <description><![CDATA[<p>This show has been flagged as Clean by the host.</p>
+<p>Beginning in 1970 Heinlein started to have health issues whihc affected his writing. One novel was a bit of a mess because he was physically unable to fix and polish, and in otghers you can discern that he is revisiting his past as he comes to terms with his own mortality.</p>
+
+<h1 class="entry-title">Heinlein’s Later Works</h1>
+
+<p>1970 marked a turning point in some ways in Heinlein’s writing. First, health issues intruded, and not unexpectedly, intimations of his own mortality became more prominent. This is just my personal opinion, but I think his works became a little more uneven in this last stage of his career.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/I_Will_Fear_No_Evil" data-type="link" data-id="https://en.wikipedia.org/wiki/I_Will_Fear_No_Evil" target="_blank" rel="noreferrer noopener">I Will Fear No Evil (1970)</a></em></h2>
+
+<p>in 1970 Heinlein had the first of his major health issues with an attack of peritonitis. He did manage to publish one novel but it is a bit of a mess. <em>I Will Fear No Evil</em> tells the story of Johann Sebastian Bach Smith, a billionaire whose body is failing, so he decides on transplanting his brain into another body. He offers  $1 million for the donation of a brain dead body. Then his secretary is killed, and her body is used. When Bach wakes up after the surgery he discovers that the secretary is still there and he can talk to her. Or maybe it is all a hallucination on his part. Sex becomes a major part of the story, as would become a theme in Heinlein’s later works. The now female person takes the name Joan, and then decides to have child using sperm frozen by the billionaire. They then decide to marry the lawyer, then he dies, and his personality seems to join the other two. This is certainly consistent to the hallucination hypothesis, but who knows. Heinlein had only done one rough draft when the peritonitis hit, and that laid him up for two years. So this novel at the very least did not receive the polishing he usually gave to his novels. You can safely skip it, in my opinion.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/Time_Enough_for_Love" data-type="link" data-id="https://en.wikipedia.org/wiki/Time_Enough_for_Love" target="_blank" rel="noreferrer noopener">Time Enough For Love (1973)</a></em></h2>
+
+<p>This is a collection of shorter pieces with linking narration. It concerns the life of Lazarus Long, who we first encountered in <a href="https://en.wikipedia.org/wiki/Methuselah%27s_Children" data-type="link" data-id="https://en.wikipedia.org/wiki/Methuselah%27s_Children"><em>Methuselah’s Children</em></a>. He now becomes a kind of alter ego for Heinlein himself. Lazarus has lived thousands of years, and is tired of it. But he has an audience for his stories, so he will keep on as long they are listening. You can see the parallels, and maybe Heinlein, after a long illness, wondered how much longer he could tell stories. Part of the book is inclusion of extracts “From the Notebooks of Lazarus Long”, which consist of sayings and aphorisms. At the end, he travels back in time and has sex with his mother, before shipping off to France to fight in World War I. If you are a fan, you will want to read this. This book was nominated for the Hugo, Nebula, and Locus awards, but did not win. It did win a Prometheus award.</p>
+
+<p>Heinlein has a rare blood type, and had needed multiple transfusions to combat the peritonitis. As a result in the mid-1970s he got involved in organizing blood drives within the SF community. This reduced his writing. Then in 1977 he had a series of transient ischemic attacks, which were traced to a blocked carotid artery. This set him up to be one of the very early recipients of a carotid bypass operation.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)" data-type="link" data-id="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)" target="_blank" rel="noreferrer noopener">The Number of the Beast (1980)</a></em></h2>
+
+<p>This novel has 4 protagonists, and different chapters are narrated from each of their perspectives. The four are Zebediah John Carter, Dejah Thoris Burroughs Carter, her father the mathematician Jacob Burroughs, and Hilda Corners. And if you think there is a lot of Edgar Rice Burroughs clues in those names, you are correct. In this novel Heinlein creates his “World As Myth” idea, which basically states that fictional worlds also exist in the Multiverse. If you take the idea of infinite universes seriously, it follows that in infinite universes there must be one for every world written about in stories. In this novel they have a craft that can navigate between universes, and end up visiting Barsoom, Oz, the Lensman universe, etc. before finally joining up with Lazarus Long. This is a fun read in many respects, but he redid it later as <em><a href="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera" data-type="link" data-id="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera" target="_blank" rel="noreferrer noopener">The Pursuit of the Pankera</a></em>, which I prefer, though that may in part be because it has a much long stay in the Lensman universe. I am a big fan of that series as we shall see. This novel was nominated for a Locus award.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/Friday_(novel)" data-type="link" data-id="https://en.wikipedia.org/wiki/Friday_(novel)" target="_blank" rel="noreferrer noopener">Friday (1982)</a></em></h2>
+
+<p>In his later works Heinlein frequently depicted the world in a violent and chaotic state (for example, see <em>I Will Fear No Evil</em>). And that is certainly the case in this novel. This brings us back to the world of <em>Gulf</em> and Kettle Belly Baldwin. Friday is a genetically engineered person employed by  quasi-military organization (the same one we saw in Gulf) as a courier. She has adventures in the chaotic mess that is North America divided into many smaller countries. Sex is part of the story of course, but also we see Heinlein reaching back to his earlier works bring in people and settings from those works. Writing this in the time of Donald Trump I cannot really discount Heinlein’s pessimism, even though I am by nature more of an optimist. This novel was nominated for Locus, Hugo, Nebula, and Prometheus awards. This is a novel I will reread.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/Job:_A_Comedy_of_Justice" data-type="link" data-id="https://en.wikipedia.org/wiki/Job:_A_Comedy_of_Justice" target="_blank" rel="noreferrer noopener">Job: A Comedy of Justice (1984)</a></em></h2>
+
+<p>This is a fantasy novel about Alex, a Christian activist, and Margrethe, a Danish Norse cruise ship hostess. Alex is being corrupted by Margrethe, and quite loving it, when things start to go pear-shaped on them. Jehovah has given Loki permission to torment the couple, which he does through a series of world changes. This is the parallel to the Biblical Job. Along the way the couple spend some time with Satan while not knowing that, and then are separated by the Rapture, because Margrethe is a pagan who worships Odin, and thus ineligible for Heaven. After a bit of Heaven, Alex is tired of it and prefers to be with Margrethe. And of course the book makes the claim the Hell is a much nicer place than Heaven. This is a fun book I can recommend. It won the Locus award for best Fantasy novel, and was nominated for both Hugo and Nebula awards. This would be the last Heinlein novel to get Hugo and Nebula nominations.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/The_Cat_Who_Walks_Through_Walls" data-type="link" data-id="https://en.wikipedia.org/wiki/The_Cat_Who_Walks_Through_Walls" target="_blank" rel="noreferrer noopener">The Cat Who Walks Through Walls (1985)</a></em></h2>
+
+<p>At this point Heinlein is starting to dwell on his past, and he drags in all kinds of characters from his previous novels and stories, and starts to tie together all of those stories into one whole. Of course, early in his career he tied together stories into his Future History, so perhaps not such a departure. And Asimov did much the same with his Foundation and Robot stories. The story here is a type of thriller with the first killing in scene one, and the protagonist not knowing who is doing this or why. There is a certain charm to this novel but it has to do with how Heinlein uses his words in the writing. He does have a distinctive style. But the plot is bit of a mess. It was nominated for a Locus award.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/To_Sail_Beyond_the_Sunset" data-type="link" data-id="https://en.wikipedia.org/wiki/To_Sail_Beyond_the_Sunset" target="_blank" rel="noreferrer noopener">To Sail Beyond The Sunset (1987)</a></em></h2>
+
+<p>This last novel continues several themes from his later work: The World as Myth, Lazarus Long, sex (including voluntary incest), and is connected to his earlier works as in the previous novel. This time the protagonist is Lazarus’ mother, introduced at the end of <em>Time Enough For Love</em>. Partly it tells her story in the early days of the Howard Families, introduced in <em>Methusaleh’s Children</em>. Then it continues to the episode with Lazarus, but now seen from her perspective. This is a prime example of why some people refer to Heinlein’s last few works as his “dirty old man” period. It was nominated for the Locus and Prometheus awards.</p>
+
+<p>Heinlein passed away in 1988 from emphysema and heart failure. But a few things made an appearance that are Heinlein-related.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/For_Us,_the_Living" data-type="link" data-id="https://en.wikipedia.org/wiki/For_Us,_the_Living" target="_blank" rel="noreferrer noopener">For Us The Living (1938, 2003)</a></em></h2>
+
+<p>This novel, written in 1938, is Heinlein’s earliest. But he never submitted it for publication in his lifetime, which perhaps tells you what <em>he</em> thought of it. It is not up to the standard of his mature works, but you can discern the DNA of his style in it. It was lost for a long time, and then rediscovered and published in 2003, fifteen years after Heinlein’s death. It still managed to get nominated for a Locus award, but if the same novel were submitted by an unknown author I doubt it would have been nominated. It was all about Heinlein’s name and stature within the field. Only for completists. A man has an accident and wakes up in the future, and the novel describes this future world as the man experiences it.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/Variable_Star" data-type="link" data-id="https://en.wikipedia.org/wiki/Variable_Star" target="_blank" rel="noreferrer noopener">Variable Star (2006)</a></em></h2>
+
+<p>This novel was written by Spider Robinson from an 8-page outline written by Heinlein in 1955. So the plot is Heinlein’s, but the words are Robinson’s. But Robinson is a huge fan of Heinlein, one reason he was chosen, and it reads pretty much like a Heinlein novel. Heinlein had intended it to be one his Juvenile novels for Scribners, but clearly Robinson took it an a more adult direction. A young man with no money has a girlfriend whom he believes to be equally impecunious, only she was lying and is the heiress to the solar system’s largest fortune. She has their future all planned out, but the young man decides he wants no part of it, and signs up for a one-way trip of exploration to the stars. The telepathy angle from <em>Time For The Stars</em> reappears here.<br><br>I enjoyed it. It did not receive any nominations.</p>
+
+<h2><em><a href="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera" data-type="link" data-id="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera" target="_blank" rel="noreferrer noopener">The Pursuit of the Pankera (2020)</a></em></h2>
+
+<p>This manuscript was found in Heinlein’s papers, and the first third is identical to <em>The Number of the Beast</em>. But then it goes in a slightly different direction. There is still The World As Myth, they still visit Barsoom, and there is  longer section in the Lensman universe that I quite liked. I find I prefer this version to the original.</p>
+
+
+<h3 id="links">Links</h3>
+<ul>
+<li><a href="https://en.wikipedia.org/wiki/I_Will_Fear_No_Evil">https://en.wikipedia.org/wiki/I_Will_Fear_No_Evil</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Time_Enough_for_Love">https://en.wikipedia.org/wiki/Time_Enough_for_Love</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Methuselah%27s_Children">https://en.wikipedia.org/wiki/Methuselah%27s_Children</a></li>
+<li><a href="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)">https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Friday_(novel)">https://en.wikipedia.org/wiki/Friday_(novel)</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Job:_A_Comedy_of_Justice">https://en.wikipedia.org/wiki/Job:_A_Comedy_of_Justice</a></li>
+<li><a href="https://en.wikipedia.org/wiki/The_Cat_Who_Walks_Through_Walls">https://en.wikipedia.org/wiki/The_Cat_Who_Walks_Through_Walls</a></li>
+<li><a href="https://en.wikipedia.org/wiki/To_Sail_Beyond_the_Sunset">https://en.wikipedia.org/wiki/To_Sail_Beyond_the_Sunset</a></li>
+<li><a href="https://en.wikipedia.org/wiki/For_Us,_the_Living">https://en.wikipedia.org/wiki/For_Us,_the_Living</a></li>
+<li><a href="https://en.wikipedia.org/wiki/Variable_Star">https://en.wikipedia.org/wiki/Variable_Star</a></li>
+<li><a href="https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera">https://en.wikipedia.org/wiki/The_Number_of_the_Beast_(novel)#The_Pursuit_of_the_Pankera</a></li>
+<li><a href="https://www.palain.com/science-fiction/the-golden-age/robert-a-heinlein/heinleins-later-works/">https://www.palain.com/science-fiction/the-golden-age/robert-a-heinlein/heinleins-later-works/</a></li>
+</ul>
+
+<p><a href="https://hackerpublicradio.org/eps/hpr4760/index.html#comments">Provide <strong>feedback</strong> on this episode</a>.</p>]]>
+</description>
+    <itunes:summary><![CDATA[Beginning in 1970 Heinlein started to have health issues whihc affected his writing. One novel was a bit of a mess because he was physically unable to fix and polish, and in otghers you can discern that he is revisiting his past as he comes to terms with his own mortality.
+
+Heinlein’s Later Works
+
+1970 marked a turning point in some ways in Heinlein’s writing. First, health issues intruded, and not unexpectedly, intimations of his own mortality became more prominent. This is just my personal opinion, but I think his works became a little more uneven in this last stage of his career.
+
+I Will Fear No Evil (1970)
+
+in 1970 Heinlein had the first of his major health issues with an attack of peritonitis. He did manage to publish one novel but it is a bit of a mess. I Will Fear No Evil tells the story of Johann Sebastian Bach Smith, a billionaire whose body is failing, so he decides on transplanting his brain into another body. He offers  $1 million for the donation of a brain dead body. Then his secretary is killed, and her body is used. When Bach wakes up after the surgery he discovers that the secretary is still there and he can talk to her. Or maybe it is all a hallucination on his part. Sex becomes a major part of the story, as would become a theme in Heinlein’s later works. The now female person takes the name Joan, and then decides to have child using sperm frozen by the billionaire. They then decide to marry the lawyer, then he dies, and his personality seems to join the other two. This is certainly consistent to the hallucination hypothesis, but who knows. Heinlein had only done one rough draft when the peritonitis hit, and that laid him up for two years. So this novel at the very least did not receive the polishing he usually gave to his novels. You can safely skip it, in my opinion.
+
+Time Enough For Love (1973)
+
+This is a collection of shorter pieces with linking narration. It concerns the life of Lazarus Long, who we first encountered in Methuselah’s Children. He now becomes a kind of alter ego for Heinlein himself. Lazarus has lived thousands of years, and is tired of it. But he has an audience for his stories, so he will keep on as long they are listening. You can see the parallels, and maybe Heinlein, after a long illness, wondered how much longer he could tell stories. Part of the book is inclusion of extracts “From the Notebooks of Lazarus Long”, which consist of sayings and aphorisms. At the end, he travels back in time and has sex with his mother, before shipping off to France to fight in World War I. If you are a fan, you will want to read this. This book was nominated for the Hugo, Nebula, and Locus awards, but did not win. It did win a Prometheus award.
+
+Heinlein has a rare blood type, and had needed multiple transfusions to combat the peritonitis. As a result in the mid-1970s he got involved in organizing blood drives within the SF community. This reduced his writing. Then in 1977 he had a series of transient ischemic attacks, which were traced to a blocked carotid artery. This set him up to be one of the very early recipients of a carotid bypass operation.
+
+The Number ]]>
+</itunes:summary>
+    <pubDate>Fri, 30 Oct 2026 00:00:00 +0000</pubDate>
+    <enclosure url="https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4760/hpr4760.ogg" length="10309270" type="audio/ogg"/>
+    <guid>https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4760/hpr4760.ogg</guid>
+  </item>
+  <item>
+    <itunes:explicit>no</itunes:explicit>
+    <googleplay:explicit>No</googleplay:explicit>
+    <title>HPR4759: Quine and the Application of Logic to Science</title>
+    <author>benmcdonald1a.nospam@nospam.gmail.com (Trurl)</author>
+    <googleplay:author>benmcdonald1a.nospam@nospam.gmail.com (Trurl)</googleplay:author>
+    <itunes:author>benmcdonald1a.nospam@nospam.gmail.com (Trurl)</itunes:author>
+    <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+    <link>https://hackerpublicradio.org/eps/hpr4759/index.html</link>
+    <description><![CDATA[<p>This show has been flagged as Clean by the host.</p>
+
+<ul>
+
+<li>
+
+<strong>
+W.V.O. Quine and Analytical Philosophy:</strong>
+ The American logicians vision of applying rigorous logical structures to organise and elucidate fields of human understanding. Reference: Quine, W.V.O. (1951). Two Dogmas of Empiricism, The Philosophical Review, 60(1), 20-43; Stanford Encyclopedia of Philosophy: <a href="https://plato.stanford.edu/entries/quine/" rel="noopener noreferrer" target="_blank" style="color: black;">
+https://plato.stanford.edu/entries/quine/</a>
+
+</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Kurt Godel and Incompleteness Theorems:</strong>
+ Foundational limits in formal logic where consistent systems contain unprovable true statements. Reference: Godel, Kurt (1931). Uber formal unentscheidbare Satze der Principia Mathematica und verwandter Systeme, I; Stanford Encyclopedia of Philosophy: <a href="https://plato.stanford.edu/entries/goedel/" rel="noopener noreferrer" target="_blank" style="color: black;">
+https://plato.stanford.edu/entries/goedel/</a>
+
+</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Russells Paradox and Formal Logic:</strong>
+ The historical pursuit of logical foundations for mathematics and the contradictions exposed by paradoxes like the barber paradox. Reference: Russell, Bertrand, and Alfred North Whitehead (1910-1913). Principia Mathematica, Cambridge University Press; Stanford Encyclopedia of Philosophy: <a href="https://plato.stanford.edu/entries/russell-paradox/" rel="noopener noreferrer" target="_blank" style="color: black;">
+https://plato.stanford.edu/entries/russell-paradox/</a>
+
+</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Abstract Syntax Trees (ASTs):</strong>
+ Hierarchical tree data structures utilised by static analysis tools to break down, parse, and evaluate complex computer source code. Reference: Wikipedia Entry: <a href="https://en.wikipedia.org/wiki/Abstract_syntax_tree" rel="noopener noreferrer" target="_blank" style="color: black;">
+https://en.wikipedia.org/wiki/Abstract_syntax_tree</a>
+
+</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Formal Specifications and Software Verification:</strong>
+ Using mathematical proofs to verify program correctness from first principles without relying solely on empirical runtime testing. Reference: Woodcock, Jim, et al. (2009). Formal Methods: Practice and Experience, ACM Computing Surveys, 41(4).</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Deterministic Systems vs. Large Language Models:</strong>
+ The architectural divide between rule-based, deterministic logic engines and data-driven, non-deterministic neural networks.</li>
+
+</ul>
+
+<p>
+
+</p>
+
+<ul>
+
+<li>
+
+<strong>
+Steven Wolfram and Computational Irreducibility:</strong>
+ The limits of predictability in complex computational systems and efforts to map universal rules of knowledge. Reference: Wolfram, Stephen (2002). A New Kind of Science, Wolfram Media; Wolfram Language Resource: <a href="https://www.google.com/search?q=https://www.wolfram.com/language/anks/" rel="noopener noreferrer" target="_blank" style="color: black;">
+https://www.wolfram.com/language/anks/</a>
+
+</li>
+
+</ul>
+
+<p>
+
+</p>
+
+
+<p><a href="https://hackerpublicradio.org/eps/hpr4759/index.html#comments">Provide <strong>feedback</strong> on this episode</a>.</p>]]>
+</description>
+    <itunes:summary><![CDATA[
+
+
+
+
+
+W.V.O. Quine and Analytical Philosophy:
+ The American logicians vision of applying rigorous logical structures to organise and elucidate fields of human understanding. Reference: Quine, W.V.O. (1951). Two Dogmas of Empiricism, The Philosophical Review, 60(1), 20-43; Stanford Encyclopedia of Philosophy: 
+https://plato.stanford.edu/entries/quine/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Kurt Godel and Incompleteness Theorems:
+ Foundational limits in formal logic where consistent systems contain unprovable true statements. Reference: Godel, Kurt (1931). Uber formal unentscheidbare Satze der Principia Mathematica und verwandter Systeme, I; Stanford Encyclopedia of Philosophy: 
+https://plato.stanford.edu/entries/goedel/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Russells Paradox and Formal Logic:
+ The historical pursuit of logical foundations for mathematics and the contradictions exposed by paradoxes like the barber paradox. Reference: Russell, Bertrand, and Alfred North Whitehead (1910-1913). Principia Mathematica, Cambridge University Press; Stanford Encyclopedia of Philosophy: 
+https://plato.stanford.edu/entries/russell-paradox/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Abstract Syntax Trees (ASTs):
+ Hierarchical tree data structures utilised by static analysis tools to break down, parse, and evaluate complex computer source code. Reference: Wikipedia Entry: 
+https://en.wikipedia.org/wiki/Abstract_syntax_tree
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Formal Specifications and Software Verification:
+ Using mathematical proofs to verify program correctness from first principles without relying solely on empirical runtime testing. Reference: Woodcock, Jim, et al. (2009). Formal Methods: Practice and Experience, ACM Computing Surveys, 41(4).
+
+
+
+
+
+
+
+
+
+
+
+
+Deterministic Systems vs. Large Language Models:
+ The architectural divide between rule-based, deterministic logic engines and data-driven, non-deterministic neural networks.
+
+
+
+
+
+
+
+
+
+
+
+
+Steven Wolfram and Computational Irreducibility:
+ The limits of predictability in complex computational systems and efforts to map universal rules of knowledge. Reference: Wolfram, Stephen (2002). A New Kind of Science, Wolfram Media; Wolfram Language Resource: 
+https://www.wolfram.com/language/anks/
+
+
+
+
+
+
+
+
+
+
+]]>
+</itunes:summary>
+    <pubDate>Thu, 29 Oct 2026 00:00:00 +0000</pubDate>
+    <enclosure url="https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4759/hpr4759.ogg" length="27752339" type="audio/ogg"/>
+    <guid>https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4759/hpr4759.ogg</guid>
+  </item>
+  <item>
+    <itunes:explicit>no</itunes:explicit>
+    <googleplay:explicit>No</googleplay:explicit>
+    <title>HPR4758: Programmable Logic Controls - Episode 6 </title>
+    <author>kb432.nospam@nospam.gmx.com (Whiskeyjack)</author>
+    <googleplay:author>kb432.nospam@nospam.gmx.com (Whiskeyjack)</googleplay:author>
+    <itunes:author>kb432.nospam@nospam.gmx.com (Whiskeyjack)</itunes:author>
+    <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+    <link>https://hackerpublicradio.org/eps/hpr4758/index.html</link>
+    <description><![CDATA[<p>This show has been flagged as Clean by the host.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+01 Introduction</p>
+
+<p>
+
+</p>
+
+<p>
+This is the sixth episode in an 8 part series.</p>
+
+<p>
+
+</p>
+
+<p>
+02</p>
+
+<p>
+In the previous episode we looked at I/O modules, what they are, how they work, and the purpose that they serve in the system.</p>
+
+<p>
+
+</p>
+
+<p>
+We also discussed machine safety systems and also claims made by certain people about cyber security and industrial safety. </p>
+
+<p>
+
+</p>
+
+<p>
+In this episode we will look at PLC networking, together with a detailed look at one network protocol, Modbus.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+03 Types of Networks</p>
+
+<p>
+PLC networks fall into three broad categories, based on the purpose of the network.</p>
+
+<p>
+These categories are</p>
+
+<p>
+
+</p>
+
+<p>
+• PLC to IO</p>
+
+<p>
+• PLC to PLC</p>
+
+<p>
+• and PLC to PC or Personal computer.</p>
+
+<p>
+
+</p>
+
+<p>
+There is a great deal of overlap between these, so don't expect them to fall into nice discrete pigeonholes.</p>
+
+<p>
+
+</p>
+
+<p>
+04 A Multiplicity of Protocols</p>
+
+<p>
+Logically, you would think that the advantages of interoperability would be so great that there would be just a few networking protocols and everyone would use them.</p>
+
+<p>
+The reality is the opposite.</p>
+
+<p>
+There is such a multitude of protocols that I won't attempt to list them all.</p>
+
+<p>
+Industrial automation is a market that is firmly in the control of the vendors, not the customers, and the vendors value customer lock in over user benefits.</p>
+
+<p>
+
+</p>
+
+<p>
+05</p>
+
+<p>
+What I will focus on instead is the technological development over time so you can understand how we ended up where we are today.</p>
+
+<p>
+I will illustrate this with  a few protocols from a few vendors before going into detail on one specific family of networks.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+06 Basic Point to Point Serial</p>
+
+<p>
+The first and most basic networks were simple point to point serial links.</p>
+
+<p>
+You may argue that a point to point link is not a network, but in this case it is the start of networking with PLC, and one of the most important industrial network protocols today is a direct descendent of one of the early point to point protocols.</p>
+
+<p>
+
+</p>
+
+<p>
+07</p>
+
+<p>
+These point to point links initially addressed two main issues.</p>
+
+<p>
+One was that once computers were being used to run the software needed to program PLCs, some means of downloading the program to the PLC and to debug the PLC program was needed, and this took place over a point to point serial link.</p>
+
+<p>
+
+</p>
+
+<p>
+08</p>
+
+<p>
+The other was that there were various microprocessor driven instruments and devices where it was desirable to allow the PLC to communicate with them in order to obtain readings, adjust set points, and otherwise exchange data. </p>
+
+<p>
+A serial link was the obvious means of implementing this.</p>
+
+<p>
+
+</p>
+
+<p>
+The physical and electrical media were generally RS-232, RS-422, or serial current loop.</p>
+
+<p>
+
+</p>
+
+<p>
+09 RS-232</p>
+
+<p>
+RS-232 should be familiar to most listeners. </p>
+
+<p>
+The notable characteristic of RS-232 is that the data and control signals were referenced to ground, or "single ended" as this is also known.</p>
+
+<p>
+While this was simple, it placed limitations on length of cabling and it was somewhat problematic when the PLC and the other device were connected to different power sources and did not have a common ground. </p>
+
+<p>
+
+</p>
+
+<p>
+10 RS-422</p>
+
+<p>
+RS-422 differs from RS-232 in that the signals are differential rather than referenced to a common ground.</p>
+
+<p>
+Signal lines come as pairs, and it is the difference in voltage within the pair rather than compared to ground which defines the zeros and ones.</p>
+
+<p>
+This allows for higher data rates, up to 10 mbps at very short distances, and much longer cable runs, up to 1,200 metres, at the cost of lower data rates.</p>
+
+<p>
+
+</p>
+
+<p>
+11</p>
+
+<p>
+RS-422 also allowed for multiple receivers to be connected to the same wires, although only one driver was permitted.</p>
+
+<p>
+This allowed for multiple devices to "listen" on the same set of wires, although only one node could "talk".</p>
+
+<p>
+
+</p>
+
+<p>
+12 Serial Current Loop or TTY</p>
+
+<p>
+Some PLCs, particularly Siemens, used a serial current loop instead of RS-232 or RS-422.</p>
+
+<p>
+This is known as a TTY interface, as it originated with teletypes.</p>
+
+<p>
+You may be familiar with the term TTY being used to describe terminal windows in unix like operating systems.</p>
+
+<p>
+
+</p>
+
+<p>
+13</p>
+
+<p>
+This is due to early computers adopting off the shelf teletype equipment to provide operator terminals.</p>
+
+<p>
+This used differences in current rather than differences in voltage to carry signals.</p>
+
+<p>
+When 20 mA is flowing, this indicates a "1".</p>
+
+<p>
+When 0 mA is flowing, this indicates a "0".</p>
+
+<p>
+
+</p>
+
+<p>
+Serial current loops can operate reliably over greater distances than RS-232, up to a kilometre at lower data rates.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+14 Typical Protocols</p>
+
+<p>
+An electrical standard such as RS-232 allows for transmitting zeros and ones through a wire.</p>
+
+<p>
+It does not however define what those zeros and ones mean.</p>
+
+<p>
+That requires a data protocol.</p>
+
+<p>
+
+</p>
+
+<p>
+15</p>
+
+<p>
+Each manufacturer tended to come up with their own protocol.</p>
+
+<p>
+Modicon developed Modbus.</p>
+
+<p>
+Allen Bradley came up with DF1.</p>
+
+<p>
+Siemens created 3964R and RK512</p>
+
+<p>
+Other manufacturers generally each had their own.</p>
+
+<p>
+
+</p>
+
+<p>
+I will discuss Modbus in detail later, but  won't otherwise go into detail on these protocols here.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+16 Multi-drop Serial</p>
+
+<p>
+Point to point serial, even RS-422 which allowed for multiple receivers, worked, but it suffered from a number of limitations.</p>
+
+<p>
+The most obvious one is that if you wanted two way communication, you needed a separate cable between each point, and a dedicated communications port or a port multiplexer. </p>
+
+<p>
+As the system becomes larger and more complex, this becomes unwieldy.</p>
+
+<p>
+
+</p>
+
+<p>
+17 RS-485</p>
+
+<p>
+What would be desirable is a means of allowing multiple serial devices to share a serial communications link.</p>
+
+<p>
+The solution to this is RS-485.</p>
+
+<p>
+Like RS-422 this uses differential signalling.</p>
+
+<p>
+It also allows multiple receivers on the same wires.</p>
+
+<p>
+Unlike RS-422 however, RS-485 allows for multiple transmitters.</p>
+
+<p>
+Up to 32 nodes can be connected to the same RS-485 cable.</p>
+
+<p>
+This limit is determined by the electrical characteristics of the cable and transmitter and receiver chips.</p>
+
+<p>
+
+</p>
+
+<p>
+18 New Protocols</p>
+
+<p>
+PLC manufacturers adapted their existing protocols or came up with new ones.</p>
+
+<p>
+Allen Bradley adapted their serial DF1 protocol into Data Highway, Data Highway Plus, and Data Highway 485.</p>
+
+<p>
+Siemens came up with L1, Profibus and Profibus-DP. </p>
+
+<p>
+
+</p>
+
+<p>
+19 Master Slave Versus Multi-Master</p>
+
+<p>
+Many of these networks were strictly master-slave systems.</p>
+
+<p>
+One node would be designated the network master, and it would poll each of the other nodes, the slaves.</p>
+
+<p>
+This sort of configuration suited a lot of applications where what was generally wanted was to allow a PLC to act as the network master and poll various other devices located some distance away.</p>
+
+<p>
+
+</p>
+
+<p>
+20</p>
+
+<p>
+One early application of this was to allow IO racks to be located some distance from the PLC CPU.</p>
+
+<p>
+This in turn allowed for the IO racks on very large machines to be closer to the devices they are connected to, such as switches or valves or relays, and so reducing the amount of cabling and wiring required.</p>
+
+<p>
+
+</p>
+
+<p>
+21</p>
+
+<p>
+Further development of this produced IO in the form of blocks that could be mounted directly on the machine without requiring a separate electrical enclosure.</p>
+
+<p>
+These could even be directly integrated into valve banks, which are collections of valves sharing a common plenum.</p>
+
+<p>
+
+</p>
+
+<p>
+22</p>
+
+<p>
+However, this had limitations when the goal was to network multiple PLCs together so they can coordinate with each other.</p>
+
+<p>
+With a strictly master slave system, one of the PLCs would have to be designated as the master and the PLC program would have to handle forwarding of messages between the other PLCs.</p>
+
+<p>
+
+</p>
+
+<p>
+23</p>
+
+<p>
+The solution to this was a multi-master network.</p>
+
+<p>
+The physical wiring would still typically be RS-485 or some proprietary variation on it.</p>
+
+<p>
+The protocol however would have to be adapted to allow for multiple masters.</p>
+
+<p>
+This was usually some sort of token passing protocol, where the "token", which was a piece of data designating the master, would be passed from node to node so that each node had its turn to temporarily be master. </p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+24 Device Level Networks</p>
+
+<p>
+The reduction in cables and wires and the resulting cost savings in terms of installation labour meant that there was additional incentive to extend networks down to individual devices such as switches or single valves.</p>
+
+<p>
+
+</p>
+
+<p>
+I won't go into a lot of details on these, but instead just mention some common examples.</p>
+
+<p>
+
+</p>
+
+<p>
+There were some purely proprietary systems such as Siemens ASI.</p>
+
+<p>
+
+</p>
+
+<p>
+25</p>
+
+<p>
+There were also a number of systems based on CAN, which stands for Controller Area Network.</p>
+
+<p>
+CAN comes from the auto industry, and was meant for networking various parts of your car together.</p>
+
+<p>
+You probably have a CAN network in your car whether you realize it or not.</p>
+
+<p>
+
+</p>
+
+<p>
+26</p>
+
+<p>
+The industrial automation industry took the off the shelf CAN standards and chip sets and added their own protocols on top to create device level networks.</p>
+
+<p>
+Some typical examples of his are Canbus and Allen Bradley Devicenet.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+27 The Rise of Ethernet</p>
+
+<p>
+Networking appeared on the factory floor well before it was common in the factory's offices.</p>
+
+<p>
+This combined with the highly fragmented nature of the industrial automation industry meant that it was difficult to gain economies of scale in manufacturing the networking hardware.</p>
+
+<p>
+It also meant that each company had to dedicate R&amp;D efforts developing things which duplicated functionality already existing elsewhere.</p>
+
+<p>
+
+</p>
+
+<p>
+28</p>
+
+<p>
+Meanwhile networking technology was spreading in office environments, and gradually consolidating around Ethernet and TCP/IP.</p>
+
+<p>
+The huge scale of this market and the well developed standards meant that costs fell significantly due to economies of scale and competition between suppliers. </p>
+
+<p>
+
+</p>
+
+<p>
+29</p>
+
+<p>
+Seeing this development in the IT industry, automation companies decided to adopt IT networking standards wholesale, at least so far as the physical wiring and the low level protocols were concerned.</p>
+
+<p>
+They could still use their application level protocols, maintaining vendor lock in.</p>
+
+<p>
+
+</p>
+
+<p>
+30</p>
+
+<p>
+Some typical examples of these protocols are Siemens Profinet, Allen Bradley Ethernet/IP, and Modbus/TCP, all of which were adaptations of previously existing protocols to operate on Ethernet.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+31 Summary So Far</p>
+
+<p>
+
+</p>
+
+<p>
+What we have covered so far in this episode is the origins of networking in industrial automation beginning with</p>
+
+<p>
+point to point serial links,</p>
+
+<p>
+to multidrop serial master slave networks,</p>
+
+<p>
+to multidrop serial multi-master networks,</p>
+
+<p>
+to the adoption of Ethernet.</p>
+
+<p>
+
+</p>
+
+<p>
+You should have at this point some idea of the context within which networking operates in industry and what it is used for.</p>
+
+<p>
+
+</p>
+
+<p>
+Next we will discuss one specific protocol in some detail, Modbus.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+32 Modbus</p>
+
+<p>
+
+</p>
+
+<p>
+Background</p>
+
+<p>
+Modbus was created by Modicon in 1979.</p>
+
+<p>
+If you recall from previous episodes, Modicon, now part of Schneider Electric, were one of the first companies to develop a PLC.</p>
+
+<p>
+
+</p>
+
+<p>
+33</p>
+
+<p>
+Modicon published the specification to allow third parties to implement it, making it one of the few truly open royalty free industrial automation standards.</p>
+
+<p>
+I say "truly open", because the automation industry loves to put the word "open" in their brand names, although to them "open" means applying for a license, being accepted by them, paying royalties or membership fees, and  paying for certification as an accepted vendor.</p>
+
+<p>
+
+</p>
+
+<p>
+34</p>
+
+<p>
+Anyone however can download the Modbus specification, implement it, and do whatever they wish with it.</p>
+
+<p>
+There are multiple free software implementations of Modbus libraries.</p>
+
+<p>
+
+</p>
+
+<p>
+35 Versions or Variants of Modbus</p>
+
+<p>
+
+</p>
+
+<p>
+There are several variants of Modbus, differentiated by the physical media or application.</p>
+
+<p>
+These are</p>
+
+<p>
+
+</p>
+
+<p>
+• Modbus RTU</p>
+
+<p>
+• Modbus ASCII</p>
+
+<p>
+• Modbus Plus</p>
+
+<p>
+• and Modbus TCP</p>
+
+<p>
+
+</p>
+
+<p>
+36 Modbus RTU</p>
+
+<p>
+This is the original version of Modbus, and is a point to point serial communications protocol.</p>
+
+<p>
+The RTU part of the name stands for "Remote Terminal Unit", which is the name for an industrial device which has some sort of serial or network interface and acts as an interface to field instrumentation.</p>
+
+<p>
+A typical example may be say a flow meter on a pipeline.</p>
+
+<p>
+This protocol was very widely implemented by third parties.</p>
+
+<p>
+
+</p>
+
+<p>
+37</p>
+
+<p>
+The serial data format is</p>
+
+<p>
+• 8 bit binary</p>
+
+<p>
+• 1 start bit</p>
+
+<p>
+• 8 data bits, least significant bit first</p>
+
+<p>
+• 1 parity bit</p>
+
+<p>
+• 1 stop bit</p>
+
+<p>
+
+</p>
+
+<p>
+A 16 bit cyclic redundancy check field is included in the message. </p>
+
+<p>
+
+</p>
+
+<p>
+38 Modbus ASCII</p>
+
+<p>
+Modbus RTU is designed as a serial protocol and has very precise per bit timing specifications. </p>
+
+<p>
+This meant however that it would not work reliably over radio links servicing things such as water systems, oil fields, and other distributed applications.</p>
+
+<p>
+Furthermore, Modbus RTU is a binary protocol, and this meant that some values may be interpreted as control codes by the transmitting or receiving hardware.</p>
+
+<p>
+
+</p>
+
+<p>
+39</p>
+
+<p>
+The solution to this was Modbus ASCII. </p>
+
+<p>
+This sent data in ASCII format, with each byte converted to two bytes of hexadecimal.</p>
+
+<p>
+The serial timing restrictions were relaxed to effectively whatever the hardware would tolerate.</p>
+
+<p>
+
+</p>
+
+<p>
+40</p>
+
+<p>
+The serial format is</p>
+
+<p>
+• Hexadecimal, ASCII characters 0-9 and A-F</p>
+
+<p>
+• 1 start bit</p>
+
+<p>
+• 7 data bits, least significant bit sent first</p>
+
+<p>
+• 1 parity bit</p>
+
+<p>
+• 1 stop bit</p>
+
+<p>
+
+</p>
+
+<p>
+41</p>
+
+<p>
+A colon is used to signal the start of a new message, and a carriage return and line feed pair marked the end of a message.</p>
+
+<p>
+A longitudinal redundancy check was included as ASCII encoded data and placed just before the terminator characters.</p>
+
+<p>
+
+</p>
+
+<p>
+42</p>
+
+<p>
+Since Modbus ASCII messages took twice the number of bytes as Modbus RTU, it could only transmit data at half the speed. This meant that the use of Modbus ASCII was limited to just the applications it was meant for, which was radio communication links.</p>
+
+<p>
+
+</p>
+
+<p>
+43 Modbus Plus</p>
+
+<p>
+Modbus Plus is Modbus adapted to work on an RS-485 serial multidrop network.</p>
+
+<p>
+However, it was never part of the Modbus specification, and was proprietary to Modicon.</p>
+
+<p>
+I won't bother describing any more of it.</p>
+
+<p>
+
+</p>
+
+<p>
+44 Modbus TCP</p>
+
+<p>
+Modbus TCP is Modbus RTU slightly modified to be tunnelled over TCP/IP, particularly on Ethernet.</p>
+
+<p>
+This was very widely adopted, and even some of the big vendors who had their own protocols would offer it as an alternative to allow communication with devices they would otherwise not be able to talk to.</p>
+
+<p>
+
+</p>
+
+<p>
+45</p>
+
+<p>
+Modbus TCP uses port 502.</p>
+
+<p>
+This is an officially assigned port, and if you look up the official list of TCP ports you will find Modbus listed there as 502, just like HTTP is port 80 and SMTP email is port 25.</p>
+
+<p>
+
+</p>
+
+<p>
+46</p>
+
+<p>
+The standards committee for Modbus made the very conscious decision to adopt IT industry standards and conventions wholesale as much as possible and just reference those instead of maintaining a unique automation industry set of standards and conventions.</p>
+
+<p>
+This was for several very practical reasons.</p>
+
+<p>
+
+</p>
+
+<p>
+47</p>
+
+<p>
+One was that there were very few people involved in standards work and they were looking for ways to reduce the amount of work they needed to do.</p>
+
+<p>
+The other was that people working in industry found the duplication of vocabulary very confusing and difficult to keep straight as to what in IT terms translated to what in industrial automation speak.</p>
+
+<p>
+
+</p>
+
+<p>
+48</p>
+
+<p>
+One of the consequences of this is that the master - slave serial communications terms were dropped in favour of the IT networking terms client - server. </p>
+
+<p>
+As a result of this I will use the Modbus TCP terms in the rest of this episode, as this is the form of Modbus you are most likely to encounter these days.</p>
+
+<p>
+
+</p>
+
+<p>
+49 Modbus UDP</p>
+
+<p>
+This was an unofficial version of Modbus TCP which simply sent the data over UDP rather than TCP. </p>
+
+<p>
+There was no change to the actual Modbus data format sent. </p>
+
+<p>
+It was done mainly to show that it could be done.</p>
+
+<p>
+The supposed advantage was the lower overhead and latency of UDP compared to TCP, but it wasn't enough of an advantage for this to spark much interest.</p>
+
+<p>
+
+</p>
+
+<p>
+50 Proprietary Modbus Extensions</p>
+
+<p>
+Several companies created their own extensions to Modbus, particularly to extend Modbus RTU.</p>
+
+<p>
+These were only ever used in some niche applications.</p>
+
+<p>
+One of the most common was Enron Modbus, which was created by the Enron company in the US.</p>
+
+<p>
+This added a 32 bit data extension to the protocol.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+51 Modbus Data Model</p>
+
+<p>
+The Modbus data model is centred around a PLC style data table.</p>
+
+<p>
+This is an array of memory and a set of commands to read from and write to that memory.</p>
+
+<p>
+
+</p>
+
+<p>
+52</p>
+
+<p>
+There are four types of memory</p>
+
+<p>
+• Discrete Inputs</p>
+
+<p>
+• Coils</p>
+
+<p>
+• Input Registers</p>
+
+<p>
+• Holding Registers</p>
+
+<p>
+
+</p>
+
+<p>
+53</p>
+
+<p>
+There can be up to 65,536 memory addresses of each of the four types.</p>
+
+<p>
+Each memory type can have anywhere from zero to the maximum number of elements, it is up to the implementation as to how many addresses to have.</p>
+
+<p>
+Memory addresses start at 1, so that the number "1" refers to the first address.</p>
+
+<p>
+Addresses as actually sent over the wire however start at "0". </p>
+
+<p>
+
+</p>
+
+<p>
+54</p>
+
+<p>
+Discrete inputs and Input registers are read only memory, </p>
+
+<p>
+while coils and holding registers are read - write memory.</p>
+
+<p>
+
+</p>
+
+<p>
+Discrete inputs and coils are single bits.</p>
+
+<p>
+That is, each address represents one bit of memory.</p>
+
+<p>
+
+</p>
+
+<p>
+55</p>
+
+<p>
+Input and holding registers are 16 bit words.</p>
+
+<p>
+When transmitted over the network, words are "big endian".</p>
+
+<p>
+That means that the upper byte of a word is sent first and the lower byte is sent second.</p>
+
+<p>
+
+</p>
+
+<p>
+56</p>
+
+<p>
+It is permitted to overlay different types of memory.</p>
+
+<p>
+For example, the coils memory could be overlaid on the holding register memory, such that for example the first 16 coils are also the first holding register, etc.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+57 Modbus Functions</p>
+
+<p>
+Modbus TCP is a client server protocol.</p>
+
+<p>
+The client sends a command requesting to read or write memory, and the server responds with either an acknowledgement or with another message containing the requested data or an error code. </p>
+
+<p>
+
+</p>
+
+<p>
+Each command is known as a "function".</p>
+
+<p>
+Each function is referenced to by a number.</p>
+
+<p>
+
+</p>
+
+<p>
+58</p>
+
+<p>
+I won't list all of the functions, just the most commonly used ones.</p>
+
+<p>
+A Modbus instance does not need to implement all possible functions, only the ones that it uses.</p>
+
+<p>
+
+</p>
+
+<p>
+59</p>
+
+<p>
+• Function 1 is "read coils".</p>
+
+<p>
+• 2 is read discrete inputs.</p>
+
+<p>
+• 3 is read holding registers.</p>
+
+<p>
+• 4 is read input registers.</p>
+
+<p>
+• 5 is write single coil.</p>
+
+<p>
+• 6 is write single register.</p>
+
+<p>
+• 15 is write multiple coils.</p>
+
+<p>
+• 16 is write multiple registers.</p>
+
+<p>
+
+</p>
+
+<p>
+60</p>
+
+<p>
+The limits on the quantity of data elements which can be used in a single transaction for each command are as follows .</p>
+
+<p>
+• Function 1 is 1 to 2000</p>
+
+<p>
+• 2 - 1 to 2000</p>
+
+<p>
+• 3 - 1 to 125</p>
+
+<p>
+• 4 - 1 to 125</p>
+
+<p>
+• 5 - NA</p>
+
+<p>
+• 6 - NA</p>
+
+<p>
+• 15 - 1 to 1968</p>
+
+<p>
+• 16 - 1 to 123</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+61 Modbus Message Format</p>
+
+<p>
+The full Modbus message is called the ADU, or Application Data Unit.</p>
+
+<p>
+Within the ADU is the Protocol Data Unit, or PDU.</p>
+
+<p>
+The PDU contains the Modbus command and the associated data. </p>
+
+<p>
+The ADU contains additional information, and can vary depending on the type of Modbus.</p>
+
+<p>
+I will limit myself to talking about Modbus TCP here.</p>
+
+<p>
+
+</p>
+
+<p>
+62 MBAP Header</p>
+
+<p>
+On Modbus TCP, the PDU is preceded by the MBAP Header, which is the Modbus Application Protocol Header.</p>
+
+<p>
+It has the following format.</p>
+
+<p>
+• The first 2 bytes are the Transaction Identifier. </p>
+
+<p>
+• The second 2 bytes are the Protocol Identifier.</p>
+
+<p>
+• The third 2 bytes are the Length.</p>
+
+<p>
+• The next 1 byte is the Unit Identifier.</p>
+
+<p>
+
+</p>
+
+<p>
+63</p>
+
+<p>
+The Transaction Identifier is simply an integer that will be copied from the client request to the server response. </p>
+
+<p>
+The client can examine this to match up responses with requests.</p>
+
+<p>
+This is really only of use if there is a chance that responses may get out of order.</p>
+
+<p>
+
+</p>
+
+<p>
+64</p>
+
+<p>
+The Protocol Identifier is always zero and indicates the protocol is Modbus.</p>
+
+<p>
+
+</p>
+
+<p>
+The length is the number of following bytes, including the unit identifier and data fields.</p>
+
+<p>
+
+</p>
+
+<p>
+65</p>
+
+<p>
+The Unit Identifier is used for allowing messages to pass between Modbus TCP and serial Modbus, such as Modbus RTU. </p>
+
+<p>
+For example, a gateway on the Modbus TCP network may have multiple Modbus RTU devices connected to it.</p>
+
+<p>
+The Unit Identifier in this case would correspond to the serial line address or serial port number of the Modbus RTU unit the request is directed to.</p>
+
+<p>
+
+</p>
+
+<p>
+66</p>
+
+<p>
+The length field is set by the client in the case of a request, or the server in the case of a response.</p>
+
+<p>
+All of the other fields are simply copied from the request to the response by the server. </p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+67 Example - Function 1</p>
+
+<p>
+Here is an example of a Modbus PDU message for function 1, read coils.</p>
+
+<p>
+
+</p>
+
+<p>
+68</p>
+
+<p>
+The request has the following format.</p>
+
+<p>
+• The first byte is the function code, in this case it is "1".</p>
+
+<p>
+• The next two bytes contain the starting address in the range of 0 to 65535.</p>
+
+<p>
+• The next two bytes contain the quantity of coils, which may be in the range of 1 to 2000.</p>
+
+<p>
+
+</p>
+
+<p>
+69</p>
+
+<p>
+The response is in the following format.</p>
+
+<p>
+• The first byte is the function code, in this case it is "1".</p>
+
+<p>
+• The second byte is the number of bytes of data following.</p>
+
+<p>
+• Following next is a series of bytes containing the data, with 8 coils packed into each byte, for however many bytes are required.</p>
+
+<p>
+• Any unused bits in the final byte are padded with zeros.</p>
+
+<p>
+
+</p>
+
+<p>
+70</p>
+
+<p>
+If there was an error, the response would be in the following format.</p>
+
+<p>
+• The first byte would be the function code with 128, or 80 in hex, added to it. This effectively sets the high bit in the byte.</p>
+
+<p>
+• The second byte will contain an error code indicating what the error was. This will be 1, 2, 3, or 4.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+71 Exception Codes</p>
+
+<p>
+In the event of an error in the request, the function code is returned with 128 added to it, setting the high bit.</p>
+
+<p>
+Valid function codes are all below 128, so any response which begins with 128 or higher indicates an error.</p>
+
+<p>
+
+</p>
+
+<p>
+Following the error code will be the exception code.</p>
+
+<p>
+
+</p>
+
+<p>
+1 - Function code not supported.</p>
+
+<p>
+2 - Address out of range.</p>
+
+<p>
+3 - Quantity out of range, or invalid value (in the case of functions 5 and 6).</p>
+
+<p>
+4 - Other error.</p>
+
+<p>
+
+</p>
+
+<p>
+All possible word values are valid in the case of function 6 (which is write single register), so technically exception 3 cannot occur, but it is in the spec anyway. </p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+72</p>
+
+<p>
+As you can see, Modbus TCP is a very simple and well defined application protocol which is well suited to industrial control.</p>
+
+<p>
+These basic commands will do nearly all of what is required in most applications. </p>
+
+<p>
+Because this protocol is freely available and easy to implement, it has widespread support, particularly among smaller or specialized vendors. </p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+73 Conclusion</p>
+
+<p>
+
+</p>
+
+<p>
+In this episode we took a brief look at PLC networking, together with a detailed look at one network protocol, Modbus.</p>
+
+<p>
+
+</p>
+
+<p>
+In the next episode, we will look at</p>
+
+<p>
+• Personal computers in industry, including specialized hardware,</p>
+
+<p>
+• SCADA systems,</p>
+
+<p>
+• HMI systems,</p>
+
+<p>
+• Test and measurement systems,</p>
+
+<p>
+
+</p>
+
+<p>
+74</p>
+
+<p>
+This has been the sixth episode in an 8 part series.</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+</p>
+
+
+<p><a href="https://hackerpublicradio.org/eps/hpr4758/index.html#comments">Provide <strong>feedback</strong> on this episode</a>.</p>]]>
+</description>
+    <itunes:summary><![CDATA[
+
+
+
+
+
+
+
+
+
+01 Introduction
+
+
+
+
+
+
+This is the sixth episode in an 8 part series.
+
+
+
+
+
+
+02
+
+
+In the previous episode we looked at I/O modules, what they are, how they work, and the purpose that they serve in the system.
+
+
+
+
+
+
+We also discussed machine safety systems and also claims made by certain people about cyber security and industrial safety. 
+
+
+
+
+
+
+In this episode we will look at PLC networking, together with a detailed look at one network protocol, Modbus.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+03 Types of Networks
+
+
+PLC networks fall into three broad categories, based on the purpose of the network.
+
+
+These categories are
+
+
+
+
+
+
+• PLC to IO
+
+
+• PLC to PLC
+
+
+• and PLC to PC or Personal computer.
+
+
+
+
+
+
+There is a great deal of overlap between these, so don&#039;t expect them to fall into nice discrete pigeonholes.
+
+
+
+
+
+
+04 A Multiplicity of Protocols
+
+
+Logically, you would think that the advantages of interoperability would be so great that there would be just a few networking protocols and everyone would use them.
+
+
+The reality is the opposite.
+
+
+There is such a multitude of protocols that I won&#039;t attempt to list them all.
+
+
+Industrial automation is a market that is firmly in the control of the vendors, not the customers, and the vendors value customer lock in over user benefits.
+
+
+
+
+
+
+05
+
+
+What I will focus on instead is the technological development over time so you can understand how we ended up where we are today.
+
+
+I will illustrate this with  a few protocols from a few vendors before going into detail on one specific family of networks.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+06 Basic Point to Point Serial
+
+
+The first and most basic networks were simple point to point serial links.
+
+
+You may argue that a point to point link is not a network, but in this case it is the start of networking with PLC, and one of the most important industrial network protocols today is a direct descendent of one of the early point to point protocols.
+
+
+
+
+
+
+07
+
+
+These point to point links initially addressed two main issues.
+
+
+One was that once computers were being used to run the software needed to program PLCs, some means of downloading the program to the PLC and to debug the PLC program was needed, and this took place over a point to point serial link.
+
+
+
+
+
+
+08
+
+
+The other was that there were various microprocessor driven instruments and devices where it was desirable to allow the PLC to communicate with them in order to obtain readings, adjust set points, and otherwise exchange data. 
+
+
+A serial link was the obvious means of implementing this.
+
+
+
+
+
+
+The physical and electrical media were generally RS-232, RS-422, or serial current loop.
+
+
+
+
+
+
+09 RS-232
+
+
+RS-232 should be familiar to most listeners. 
+
+
+The notable characteristic of RS-232 is that the data and control signals were referenced to ground, or &quot;single ended&quot; as this is also known.
+
+
+While this was simple, it placed limitations on length of cabling and it was somewhat problematic when the PLC and the other device were connected to different power sources and did not have a common ground. 
+
+
+
+
+
+
+10 RS-422
+
+
+RS-422 differs from RS-232 in that the signals are differential rather than referenced to a common ground.
+
+
+Signal lines come as pairs, and it is the difference in voltage within the pair rather than compared to ground which defines the zeros and ones.
+
+
+This allows for higher data rates, up to 10 mbps at very short distances, and much longer cable runs, up to 1,200 metres, at the cost of lower data rates.
+
+
+
+
+
+
+11
+
+]]>
+</itunes:summary>
+    <pubDate>Wed, 28 Oct 2026 00:00:00 +0000</pubDate>
+    <enclosure url="https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4758/hpr4758.ogg" length="19778951" type="audio/ogg"/>
+    <guid>https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4758/hpr4758.ogg</guid>
+  </item>
+  <item>
+    <itunes:explicit>no</itunes:explicit>
+    <googleplay:explicit>No</googleplay:explicit>
+    <title>HPR4757: Follow-up on a local Ham visit for Kevie and Ken</title>
+    <author>archer72.nospam@nospam.protonmail.com (Archer72)</author>
+    <googleplay:author>archer72.nospam@nospam.protonmail.com (Archer72)</googleplay:author>
+    <itunes:author>archer72.nospam@nospam.protonmail.com (Archer72)</itunes:author>
+    <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+    <link>https://hackerpublicradio.org/eps/hpr4757/index.html</link>
+    <description><![CDATA[<p>This show has been flagged as Clean by the host.</p>
+
+<p>
+Hi, This is Archer72 for another episode of Hacker Public Radio!</p>
+
+<p>
+
+</p>
+
+<p>
+In this episode, I follow up on a question from Kevie and Ken on hpr4741 HPR Community News for September 2026.</p>
+
+<p>
+
+</p>
+
+<p>
+First, a disclaimer. This is not the real me, but a clone of my voice, which only took 30 second of my sample voice using Voicebox and Docker. More on this at a later date.</p>
+
+<p>
+
+</p>
+
+<p>
+Now, the question was brought up on whether the HF antenna was 15 metres above the roofline or 15 metres total.</p>
+
+<p>
+The TLDR is that the entire antenna reaches 15 metres from the ground, with approximately 6 metres being the whip antenna above the roofline.</p>
+
+<p>
+
+</p>
+
+<p>
+How did I come about this conclusion? I will not share the address of my Radio friend, but I search it on Google maps for the ground picture, and used this in Gemini AI to determine the parameters base on a 1940’s house.</p>
+
+<p>
+Now I will go on a tangent, and you the listener can stop here if you like, where I share some ideas from Gemini AI.</p>
+
+<p>
+So here is what what Gemini found about the house style of the 1940’s</p>
+
+<p>
+
+</p>
+
+<p>
+My query was:</p>
+
+<p>
+
+</p>
+
+<p>
+Average height of a two story house in meters of houses in Falmouth Kentucky from the 1940’s</p>
+
+<p>
+
+</p>
+
+<p>
+And the answer:</p>
+
+<p>
+
+</p>
+
+<p>
+A typical two-story home constructed in rural Kentucky during the 1940s stands 6.1 to 7.3 meters (20 to 24 feet) tall from the ground to the roof ridge.</p>
+
+<p>
+
+</p>
+
+<p>
+If measuring only to the eaves / gutter line, the height is approximately 4.5 to 5.2 meters (15 to 17 feet).</p>
+
+<p>
+
+</p>
+
+<p>
+Breakdown of standard 1940s residential construction specs:</p>
+
+<p>
+
+</p>
+
+<p>
+1st Floor Ceiling Height: ~2.44 m (8 ft standard full dimensional stud length)</p>
+
+<p>
+
+</p>
+
+<p>
+Inter-floor Framing (Joists &amp; Subfloor): ~0.30 to 0.38 m (1 to 1.25 ft)</p>
+
+<p>
+
+</p>
+
+<p>
+2nd Floor Ceiling Height: ~2.44 m (8 ft)</p>
+
+<p>
+
+</p>
+
+<p>
+Foundation / Crawlspace Clearance: ~0.30 to 0.61 m (1 to 2 ft above grade)</p>
+
+<p>
+
+</p>
+
+<p>
+Roof Ridge (Gable/Hip Pitch): ~1.22 to 1.83 m (4 to 6 ft above upper ceiling line)</p>
+
+<p>
+
+</p>
+
+<p>
+Note on Regional &amp; Era Variations: Mid-century wood-frame houses (such as Cape Cods, Minimal Traditional homes, or simple </p>
+
+<p>
+American Foursquares built post-WWII) prioritized material efficiency, utilizing standard 8-foot ceiling framing rather than the higher 9-to-10-foot ceilings common in pre-1920s Victorian or Colonial builds.</p>
+
+<p>
+
+</p>
+
+<p>
+Next query on antenna height:</p>
+
+<p>
+
+</p>
+
+<p>
+This is a picture of the antenna in Falmouth, Kentucky.</p>
+
+<p>
+The house was built in the 1940’s.</p>
+
+<p>
+Estimate the height of the house and the attached antenna.</p>
+
+<p>
+
+</p>
+
+<p>
+Answer:</p>
+
+<p>
+
+</p>
+
+<p>
+Based on visual scale estimates using standard architectural features:</p>
+
+<p>
+
+</p>
+
+<p>
+Estimated Heights</p>
+
+<p>
+
+</p>
+
+<p>
+House Height (Ground to Peak): ~22 – 25 feet (6.7 – 7.6 m)</p>
+
+<p>
+
+</p>
+
+<p>
+Typical standard 1.5-story or 2-story home construction: ~8-foot ceiling per story plus floor joists, foundation wall (~1–2 ft visible above grade), and roof pitch.</p>
+
+<p>
+
+</p>
+
+<p>
+Mast / Push-up Pole Height: ~30 – 35 feet (9.1 – 10.7 m) total length</p>
+
+<p>
+
+</p>
+
+<p>
+The mast extends from near ground level up past the lower roofline and above the main roof ridge, supported by guy wires near the top section.</p>
+
+<p>
+
+</p>
+
+<p>
+Top Antenna Whip / Element: ~18 – 20 feet (5.5 – 6.1 m)</p>
+
+<p>
+
+</p>
+
+<p>
+Looks like a standard 1/2 wave or 5/8 wave vertical antenna (or a 10/11-meter CB/ham vertical such as an A99/I-10K or similar base station vertical).</p>
+
+<p>
+
+</p>
+
+<p>
+Total Overall System Height (Ground to Tip): ~45 – 50 feet (13.7 – 15.2 m)</p>
+
+<p>
+
+</p>
+
+<p>
+Note: Visual estimates from single 2D perspective photos carry a margin of error of approximately ±10–15%.</p>
+
+<p>
+
+</p>
+
+<p>
+This sounds right.</p>
+
+<p>
+
+</p>
+
+<p>
+Top Antenna Whip / Element is intended for 20m, 40m and 80m HF Ham radio transmission.</p>
+
+<p>
+That makes sense—for HF bands like 20m, 40m, and 80m, getting that vertical element up around 45 to 50 feet total off the ground gives it a much better launch angle, especially for DXing or clearing nearby obstructions.</p>
+
+<p>
+
+</p>
+
+<p>
+If it’s set up with a base tuner or trap loading to cover those lower frequencies (especially 40m and 80m), having that sturdy push-up mast and guy wire support is crucial given the wind load at that height.</p>
+
+<p>
+
+</p>
+
+<p>
+Clone 'me':</p>
+
+<p>
+
+</p>
+
+<p>
+That’s all I have for now.</p>
+
+<p>
+
+</p>
+
+<p>
+This has been Archer72’s clone.</p>
+
+<p>
+
+</p>
+
+<p>
+Tune in tomorrow for another episode of Hacker Public Radio.</p>
+
+<p>
+
+</p>
+
+<p>
+Bye.</p>
+
+<p>
+
+</p>
+
+<h2>
+References:</h2>
+
+<p>
+
+</p>
+
+<p>
+
+<a href="https://www.zillow.com" rel="noopener noreferrer" target="_blank">
+Zillow home value estimator</a>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+<a href="https://gemini.google.com/app" rel="noopener noreferrer" target="_blank">
+Gemini AI</a>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+
+<a href="https://voicebox.sh" rel="noopener noreferrer" target="_blank">
+Voicebox : The open-source AI voice studio</a>
+
+</p>
+
+<p>
+
+</p>
+
+<p>
+Clone, dictate and create.</p>
+
+<p>
+
+</p>
+
+<p>
+Clone voices, generate speech across seven TTS engines, dictate into any app, and talk to agents in voices you own. A free and local alternative to ElevenLabs and WisprFlow, running entirely on your machine.</p>
+
+<h2>
+
+</h2>
+
+<h2>
+Ham bands used</h2>
+
+<p>
+20m, 40m and 80m HF</p>
+
+<p>
+
+</p>
+
+<h2>
+Preview of Voicebox </h2>
+
+<p>
+
+</p>
+
+<p>
+
+<a href="hpr4757_image_1.png">
+<img src="hpr4757_image_1_tn.png">
+</a>
+
+</p>
+
+<p>
+
+</p>
+
+
+<p><a href="https://hackerpublicradio.org/eps/hpr4757/index.html#comments">Provide <strong>feedback</strong> on this episode</a>.</p>]]>
+</description>
+    <itunes:summary><![CDATA[
+
+Hi, This is Archer72 for another episode of Hacker Public Radio!
+
+
+
+
+
+
+In this episode, I follow up on a question from Kevie and Ken on hpr4741 HPR Community News for September 2026.
+
+
+
+
+
+
+First, a disclaimer. This is not the real me, but a clone of my voice, which only took 30 second of my sample voice using Voicebox and Docker. More on this at a later date.
+
+
+
+
+
+
+Now, the question was brought up on whether the HF antenna was 15 metres above the roofline or 15 metres total.
+
+
+The TLDR is that the entire antenna reaches 15 metres from the ground, with approximately 6 metres being the whip antenna above the roofline.
+
+
+
+
+
+
+How did I come about this conclusion? I will not share the address of my Radio friend, but I search it on Google maps for the ground picture, and used this in Gemini AI to determine the parameters base on a 1940’s house.
+
+
+Now I will go on a tangent, and you the listener can stop here if you like, where I share some ideas from Gemini AI.
+
+
+So here is what what Gemini found about the house style of the 1940’s
+
+
+
+
+
+
+My query was:
+
+
+
+
+
+
+Average height of a two story house in meters of houses in Falmouth Kentucky from the 1940’s
+
+
+
+
+
+
+And the answer:
+
+
+
+
+
+
+A typical two-story home constructed in rural Kentucky during the 1940s stands 6.1 to 7.3 meters (20 to 24 feet) tall from the ground to the roof ridge.
+
+
+
+
+
+
+If measuring only to the eaves / gutter line, the height is approximately 4.5 to 5.2 meters (15 to 17 feet).
+
+
+
+
+
+
+Breakdown of standard 1940s residential construction specs:
+
+
+
+
+
+
+1st Floor Ceiling Height: ~2.44 m (8 ft standard full dimensional stud length)
+
+
+
+
+
+
+Inter-floor Framing (Joists &amp;amp; Subfloor): ~0.30 to 0.38 m (1 to 1.25 ft)
+
+
+
+
+
+
+2nd Floor Ceiling Height: ~2.44 m (8 ft)
+
+
+
+
+
+
+Foundation / Crawlspace Clearance: ~0.30 to 0.61 m (1 to 2 ft above grade)
+
+
+
+
+
+
+Roof Ridge (Gable/Hip Pitch): ~1.22 to 1.83 m (4 to 6 ft above upper ceiling line)
+
+
+
+
+
+
+Note on Regional &amp;amp; Era Variations: Mid-century wood-frame houses (such as Cape Cods, Minimal Traditional homes, or simple 
+
+
+American Foursquares built post-WWII) prioritized material efficiency, utilizing standard 8-foot ceiling framing rather than the higher 9-to-10-foot ceilings common in pre-1920s Victorian or Colonial builds.
+
+
+
+
+
+
+Next query on antenna height:
+
+
+
+
+
+
+This is a picture of the antenna in Falmouth, Kentucky.
+
+
+The house was built in the 1940’s.
+
+
+Estimate the height of the house and the attached antenna.
+
+
+
+
+
+
+Answer:
+
+
+
+
+
+
+Based on visual scale estimates using standard architectural features:
+
+
+
+
+
+
+Estimated Heights
+
+
+
+
+
+
+House Height (Ground to Peak): ~22 – 25 feet (6.7 – 7.6 m)
+
+
+
+
+
+
+Typical standard 1.5-story or 2-story home construction: ~8-foot ceiling per story plus floor joists, foundation wall (~1–2 ft visible above grade), and roof pitch.
+
+
+
+
+
+
+Mast / Push-up Pole Height: ~30 – 35 feet (9.1 – 10.7 m) total length
+
+
+
+
+
+
+The mast extends from near ground level up past the lower roofline and above the main roof ridge, supported by guy wires near the top section.
+
+
+
+
+
+
+Top Antenna Whip / Element: ~18 – 20 feet (5.5 – 6.1 m)
+
+
+
+
+
+
+Looks like a standard 1/2 wave or 5/8 wave vertical antenna (or a 10/11-meter CB/ham vertical such as an A99/I-10K or similar base station vertical).
+
+
+
+
+
+
+Total Overall System Height (Ground to Tip): ~45 – 50 feet (13.7 – 15.2 m)
+
+
+
+
+
+
+Note: Visual estimates from single 2D perspective photos carry a margin of error of approximately ±1]]>
+</itunes:summary>
+    <pubDate>Tue, 27 Oct 2026 00:00:00 +0000</pubDate>
+    <enclosure url="https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4757/hpr4757.ogg" length="3685691" type="audio/ogg"/>
+    <guid>https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4757/hpr4757.ogg</guid>
+  </item>
+  <item>
+    <itunes:explicit>yes</itunes:explicit>
+    <googleplay:explicit>Yes</googleplay:explicit>
+    <title>HPR4756: We are material beings</title>
+    <author>antoine.nospam@nospam.antoine.com.br (Antoine)</author>
+    <googleplay:author>antoine.nospam@nospam.antoine.com.br (Antoine)</googleplay:author>
+    <itunes:author>antoine.nospam@nospam.antoine.com.br (Antoine)</itunes:author>
+    <googleplay:image href="http://hackerpublicradio.org/images/hpr_feed_itunes.png"/>
+    <link>https://hackerpublicradio.org/eps/hpr4756/index.html</link>
+    <description><![CDATA[<p>This show has been flagged as Explicit by the host.</p>
+
+<p>
+#for_hpr</p>
+
+<p>
+
+<strong>
+We are material beings</strong>
+
+</p>
+
+<p>
+(00:40) <strong>
+FOR CONTEXT</strong>
+
+</p>
+
+<p>
+I was thinking about this subject as I felt great happinness for being able to go to the gym. The circumstances of having stopped exercising, and the timing of coming back, added to the joy of the exercise, so, although I had a tough week, “<em>
+gymming</em>
+” on Friday night was like a special gift.</p>
+
+<p>
+
+</p>
+
+<p>
+(1:05)  <strong>
+BEING MATERIAL</strong>
+
+</p>
+
+<p>
+I am a believer, and it does not matter the specific faith. It does matter that, although seeing above, I am <em>
+soo, sooo</em>
+ affected by the circumstances. By my body reactions, molecular and chemical interactions that occur naturally with a sunbath, a cup of coffee or, for the sake of this episode, exercising.</p>
+
+<p>
+
+<strong>
+It is natural</strong>
+, I am saying that and maybe you already knew it; so, “what’s the problem?” It is that I am so (and sooo) circumstantial, that I feel better doing something my body likes than doing something good to a stranger — and my faith, that I believe, puts <em>
+this</em>
+ in front, in terms of importance, of that.</p>
+
+<p>
+At the same time, I am a forgetter, a person that forgets. My feeling for someone or something now can move from A to Z, from alpha to omega, in an instant, moved by the impulse of a phrase listened to, the infusion of an aroma of the atmosphere, something I remembered, or by nothing at all.</p>
+
+<p>
+
+</p>
+
+<p>
+(2:39)  <strong>
+ARE <em>
+
+<u>
+WE</u>
+
+</em>
+ MATERIAL ?</strong>
+
+</p>
+
+<p>
+I think chemical and physical reactions affect everybody (everybody-ah!), and feelings vary. No?</p>
+
+<p>
+I think I am overreactive to circumstances, as a trace of character that it may be, or I am super reactive to external and internal occurrences. Very varying. So much an effect of causes, the perfect example of any cause-effect theory. Someone you can trust one day, that may be another person tomorrow. </p>
+
+<p>
+
+</p>
+
+<p>
+(3:20)  <strong>
+TETRAPLEGIA</strong>
+
+</p>
+
+<p>
+That may say something of the admiration more people tend to have about a quadriplegic person that lives well, than about a not disable person living equally well.</p>
+
+<p>
+As if the person with a visible problem is a miracle if she is happy, because we could expect her not to be efficient and up and going.</p>
+
+<p>
+Not a critic, it’s a way to understand why only Joni Eereckson Tada could do the radio shows she has been doing.</p>
+
+<p>
+Her phrases and perspectives are valid in their context, affects the listener that knows her limitations; it couldn’t be anyone.</p>
+
+<p>
+The power is transmitted by the full life in a disabled body. And by what is learnable by it, in benefit of people in different circumstances.</p>
+
+<p>
+
+</p>
+
+<p>
+Certainly, if we talk about feelings tied to the body, and having a body that one can barely move, only some members, there is a shock, an equation that is an inequation: feelings, and will, and living fully, in times like that, must come from another source, not only the body and the health and having days without pain.</p>
+
+<p>
+Me, by myself, if I have pain, body limitation, or have another people not accepting my ideas or work, I’m down. I may be, in one hour, in plain communion with the object of my faith; if, the moment after, happens one of those down things, <em>
+cruchê</em>
+ (onomatopoeia to things down, <em>
+kaput</em>
+).</p>
+
+<p>
+
+</p>
+
+<p>
+(5:24)  <strong>
+ANOTHER EXAMPLE OF SUFFERING IN BELIEF</strong>
+
+</p>
+
+<p>
+If I can add a topic to this discussion, it’s not a privilege of <u>
+one</u>
+ faith to “exalt” suffer. One example is José Arigó, a Brazilian guy that, in the 1950s, started to heal patients from around the country; without having studied medicine, he operated thousands of people that came to him, while saying he was taken by Doctor Fritz. He served from Monday to Monday, no rest, while still working as an employee of the social security — as he did before coming to this religion —, to nourish his house, his wife, his family. He received no money for the healings.</p>
+
+<p>
+
+</p>
+
+<p>
+As by me, I accomplish no mission, but, as a human and material (circumstantial) being, I feel well when coming to a difficult path where, with all help, I survive (while trying to obey the order of happiness, not only being alive). Be it a relational, a financial, any kind of hunger or apparent despair. Not necessarily, as I say, overcoming it, or not immediately, but passing by, passing though, helped greatly-greatly, as I need; and it’s fantastic.</p>
+
+<p>
+
+</p>
+
+<p class="ql-align-right">
+
+<em>
+Bye</em>
+.</p>
+
+
+<p><a href="https://hackerpublicradio.org/eps/hpr4756/index.html#comments">Provide <strong>feedback</strong> on this episode</a>.</p>]]>
+</description>
+    <itunes:summary><![CDATA[
+
+#for_hpr
+
+
+
+
+We are material beings
+
+
+
+
+(00:40) 
+FOR CONTEXT
+
+
+
+
+I was thinking about this subject as I felt great happinness for being able to go to the gym. The circumstances of having stopped exercising, and the timing of coming back, added to the joy of the exercise, so, although I had a tough week, “
+gymming
+” on Friday night was like a special gift.
+
+
+
+
+
+
+(1:05)  
+BEING MATERIAL
+
+
+
+
+I am a believer, and it does not matter the specific faith. It does matter that, although seeing above, I am 
+soo, sooo
+ affected by the circumstances. By my body reactions, molecular and chemical interactions that occur naturally with a sunbath, a cup of coffee or, for the sake of this episode, exercising.
+
+
+
+
+It is natural
+, I am saying that and maybe you already knew it; so, “what’s the problem?” It is that I am so (and sooo) circumstantial, that I feel better doing something my body likes than doing something good to a stranger — and my faith, that I believe, puts 
+this
+ in front, in terms of importance, of that.
+
+
+At the same time, I am a forgetter, a person that forgets. My feeling for someone or something now can move from A to Z, from alpha to omega, in an instant, moved by the impulse of a phrase listened to, the infusion of an aroma of the atmosphere, something I remembered, or by nothing at all.
+
+
+
+
+
+
+(2:39)  
+ARE 
+
+
+WE
+
+
+ MATERIAL ?
+
+
+
+
+I think chemical and physical reactions affect everybody (everybody-ah!), and feelings vary. No?
+
+
+I think I am overreactive to circumstances, as a trace of character that it may be, or I am super reactive to external and internal occurrences. Very varying. So much an effect of causes, the perfect example of any cause-effect theory. Someone you can trust one day, that may be another person tomorrow. 
+
+
+
+
+
+
+(3:20)  
+TETRAPLEGIA
+
+
+
+
+That may say something of the admiration more people tend to have about a quadriplegic person that lives well, than about a not disable person living equally well.
+
+
+As if the person with a visible problem is a miracle if she is happy, because we could expect her not to be efficient and up and going.
+
+
+Not a critic, it’s a way to understand why only Joni Eereckson Tada could do the radio shows she has been doing.
+
+
+Her phrases and perspectives are valid in their context, affects the listener that knows her limitations; it couldn’t be anyone.
+
+
+The power is transmitted by the full life in a disabled body. And by what is learnable by it, in benefit of people in different circumstances.
+
+
+
+
+
+
+Certainly, if we talk about feelings tied to the body, and having a body that one can barely move, only some members, there is a shock, an equation that is an inequation: feelings, and will, and living fully, in times like that, must come from another source, not only the body and the health and having days without pain.
+
+
+Me, by myself, if I have pain, body limitation, or have another people not accepting my ideas or work, I’m down. I may be, in one hour, in plain communion with the object of my faith; if, the moment after, happens one of those down things, 
+cruchê
+ (onomatopoeia to things down, 
+kaput
+).
+
+
+
+
+
+
+(5:24)  
+ANOTHER EXAMPLE OF SUFFERING IN BELIEF
+
+
+
+
+If I can add a topic to this discussion, it’s not a privilege of 
+one
+ faith to “exalt” suffer. One example is José Arigó, a Brazilian guy that, in the 1950s, started to heal patients from around the country; without having studied medicine, he operated thousands of people that came to him, while saying he was taken by Doctor Fritz. He served from Monday to Monday, no rest, while still working as an em]]>
+</itunes:summary>
+    <pubDate>Mon, 26 Oct 2026 00:00:00 +0000</pubDate>
+    <enclosure url="https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4756/hpr4756.ogg" length="5095401" type="audio/ogg"/>
+    <guid>https://hub.hackerpublicradio.org/ccdn.php?filename=/eps/hpr4756/hpr4756.ogg</guid>
+  </item>
+</channel>
+</rss>

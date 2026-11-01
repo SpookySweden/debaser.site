@@ -1,0 +1,1168 @@
+'use client';
+
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { barrGate, barredSrcs, skipIndex, subscribeToBarrs } from '../lib/audio/barrs';
+import { clipRepeats } from '../lib/audio/clip-loop';
+import { enqueueTrack } from '../lib/audio/up-next';
+import { clampVolume, nextIndex, previousIndex, startIndexFor } from '../lib/audio/format';
+import { followState, isFollowing, stopFollowing, subscribeToFollow } from '../lib/audio/follow';
+import { LOOP_SAMPLE_MS, rememberPlay, type LoopOrigin } from '../lib/audio/loops';
+import { heardStep, listenThreshold } from '../lib/audio/listens';
+import { getMusicRepository } from '../lib/audio/repository';
+import type { AudioTrack } from '../lib/audio/tracks';
+import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
+import { useAuth } from './AuthProvider';
+
+/**
+ * The site's one audio element, and the queue it plays.
+ *
+ * Mounted in `app/layout.tsx`, above every page, so the music is never a page's
+ * business: walking from the board to a profile to the music shelf does not interrupt
+ * the track, because the element is not part of any of those pages - the same reason
+ * the comms store and the presence store live up there. The bar that drives it is a
+ * separate component (`./MusicPlayer.tsx`); this file is the state and the audio.
+ *
+ * Where the queue comes from is `getMusicRepository()`: the `mp3` bucket when Supabase
+ * is configured (listed, so a track dropped in by hand is on the shelf at once), the
+ * archive's own hand-filed manifest always. The bucket's tracks come first and the
+ * player opens on one of them, which is what makes the file somebody just uploaded -
+ * or dropped into the bucket - the thing that plays, looping, until they say
+ * otherwise.
+ *
+ * Browsers refuse to start audio without a gesture, so this loads the first track and
+ * waits: the bar says `[ PLAY ]` rather than pretending to be playing.
+ */
+
+export type MusicPlayerValue = {
+  /** What is on the shelf, bucket first, with the archive's own tracks after it. */
+  queue: AudioTrack[];
+  track: AudioTrack | undefined;
+  index: number;
+  /** True while audio is running. */
+  playing: boolean;
+  /** False until the shelf has been read. */
+  loading: boolean;
+  /** The store's or the file's own words when something went wrong. */
+  error: string | null;
+  elapsed: number;
+  duration: number;
+  volume: number;
+  /**
+   * True when the track on the display repeats itself; false when the queue walks on at the end of
+   * it.
+   *
+   * **The effective answer, not the switch's.** Two things can say "repeat this one": the shelf's
+   * own switch, and a file that carries its own repeat because it is short enough to behave like a
+   * GIF (`app/lib/audio/clip-loop.ts`). The bar draws one symbol for what the player is *doing*, so
+   * this reports what will happen at the end of the track rather than which switch happened to
+   * decide it - a `↻` beside a file that is about to stop would be the bar lying about its own
+   * transport.
+   */
+  loop: boolean;
+  toggle: () => void;
+  next: () => void;
+  previous: () => void;
+  /**
+   * Stops and returns to the start of the track - which is not `toggle` twice.
+   *
+   * A player has three states, not two: playing, paused (which keeps the position) and stopped (which
+   * gives it up). The middle cell of the D-pad shows the first two, and this is the third - the square
+   * key. Without it a reader who wants to start a track over has to pause, then seek to zero, which is
+   * a stereo that has been made worse rather than simpler.
+   */
+  stop: () => void;
+  /**
+   * Plays a track, queueing it if the shelf does not hold it (a profile's song).
+   *
+   * `origin` is where the reader pressed play *from*, and it is what RADI-OH's globe opens later. It is
+   * passed in rather than worked out here because this is the only place that cannot know it: `play` is
+   * handed a track, and a track played off a profile's page and the same file played off your own screen
+   * are the same `src`. The caller knows which door was used, so the caller says.
+   *
+   * A file whose filed running time is twenty seconds or shorter repeats itself from here (`clipRepeats`),
+   * which is the GIF rule rather than a second loop switch: it is written to the *track's* own repeat, so
+   * the shelf's switch - and what it is persisted as - is untouched.
+   */
+  play: (track: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => void;
+  /** Plays the first of these and queues the rest straight after it, in order (a WEB audiobook's chapters). */
+  playList: (tracks: AudioTrack[], origin?: PlayOrigin) => void;
+  /**
+   * Plays or pauses *for the queue follower*, without counting as the reader taking the controls.
+   *
+   * Every other transport key ends a follow (`stopFollowing`), because a press is the reader saying
+   * "my turn". The follower has to pause when the host pauses and resume when they resume, and doing
+   * that through `toggle` would end the very follow it is carrying out.
+   */
+  steer: (playing: boolean) => void;
+  /**
+   * Hands over one track and leaves it there: the account page's own song, queued, set to
+   * repeat, and - with `autoplay` - started at the first opportunity the browser allows.
+   */
+  assign: (track: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => void;
+  playAt: (index: number) => void;
+  setVolume: (value: number) => void;
+  setLoop: (value: boolean) => void;
+  /** Whether a profile's track starts on its own (the options pop-up's switch). */
+  playByDefault: boolean;
+  setPlayByDefault: (value: boolean) => void;
+  /** True once the visitor has dismissed the options pop-up. */
+  promptDismissed: boolean;
+  dismissPrompt: () => void;
+  /**
+   * Moves the playhead. A drag on the scrubber is the reader taking the controls, so it ends a follow;
+   * the follower's own corrections pass `follow: true` and do not.
+   */
+  seek: (seconds: number, options?: { follow?: boolean }) => void;
+  /**
+   * How fast audio is played, so a listener can catch up to a queue they followed.
+   *
+   * Exposed as a pair rather than kept inside the queue screen because it is a property of *the player*,
+   * not of the queue: the element is shared with every profile's song and the shelf's own playback, and
+   * a screen that reached past the provider to set it would keep it set after it closed. `1` is normal
+   * speed and is what everything but a catch-up writes.
+   */
+  playbackRate: number;
+  /** Where the track on the display was started from, or null when nobody said (the shelf walking on). */
+  heardFrom: PlayOrigin | null;
+  setPlaybackRate: (rate: number) => void;
+  /** Reads the shelf again, after an upload or a track dropped into the bucket. */
+  refresh: () => void;
+  /**
+   * What plays before the shelf walks on: songs put there by a song panel's ADD TO QUEUE or PLAY NEXT.
+   * NEXT and the end of a track take the first of these, if there is one, before the shelf's next file.
+   */
+  upNext: AudioTrack[];
+  /** Puts a song at the end of `upNext` (`'end'`) or at its front (`'next'`). */
+  enqueue: (track: AudioTrack, where: 'end' | 'next') => void;
+  /** How much of the front of `queue` is the archive as read; songs after it were added by a press. */
+  shelfSize: number;
+  /**
+   * BARR (SPEC-vanity.md): the barred song the player stopped before it started, waiting for the reader's
+   * PLAY ANYWAY or SKIP - or null. Every way a song reaches the player ends in the same element, so this
+   * one gate covers the archive, lists, the queue, post MP3s and profile songs alike.
+   */
+  barrAsk: AudioTrack | null;
+  /** True while a followed broadcast is playing a barred song: in step, but this speaker is silent. */
+  barrMuted: boolean;
+  /** PLAY ANYWAY / LISTEN ANYWAY: this song sounds this time. */
+  playAnyway: () => void;
+  /** SKIP: on to the queued song or the shelf's next file; at the end of the shelf, stop. */
+  skipBarred: () => void;
+};
+
+const MusicPlayerContext = createContext<MusicPlayerValue | null>(null);
+
+/**
+ * Where a press on play came from - the two facts RADI-OH cannot work out afterwards.
+ *
+ * `href` is the address the globe will open, and `where` is what the caption calls it. Both are recorded
+ * at the moment of playing, because that is the only moment the answer exists: `play` receives a track and
+ * nothing else, and the same file can be reached through several doors.
+ *
+ * `origin` is the *kind*, matching `LoopOrigin`, so the icon's mark and the recorded link come from one
+ * decision rather than two that can disagree.
+ */
+export type PlayOrigin = {
+  origin?: LoopOrigin;
+  href?: string;
+  where?: string;
+  /** What larger thing it is being heard as part of - a queue, a playlist, a profile (`track-context.ts`). */
+  context?: string;
+};
+
+/**
+ * Where and how a `play` should start, applied once the file has loaded.
+ *
+ * **Applied on `loadedmetadata`, not straight after the call - and that is a fix.** `play` only picks
+ * the track; the element swaps its source in an effect afterwards. A seek made right after `play` landed
+ * on the *old* file, and the new one then loaded from 0:00 - so RADI-OH's GO BACK and the queue card's
+ * SKIP AHEAD both started at the beginning while looking as though they worked. The rate has the same
+ * trap: a browser resets `playbackRate` when a new file loads.
+ *
+ * `follow` marks a play made by the queue follower, which must not end the follow it is carrying out.
+ */
+export type PlayStart = {
+  at?: number;
+  rate?: number;
+  follow?: boolean;
+};
+
+/** Where the listener's own settings live, so the bar sounds the same next visit. */
+const SETTINGS_KEY = 'debaser.audio.player.v1';
+
+type StoredSettings = {
+  volume: number;
+  loop: boolean;
+  /** The track that was on the display, so coming back lands on the same one. */
+  src: string | null;
+  /** Whether a profile's track starts on its own. */
+  playByDefault: boolean;
+  /** True once the visitor has dismissed the options pop-up. */
+  promptDismissed: boolean;
+};
+
+function loadSettings(): StoredSettings {
+  const fallback: StoredSettings = { volume: 0.8, loop: true, src: null, playByDefault: false, promptDismissed: false };
+
+  if (typeof window === 'undefined') return fallback;
+
+  try {
+    const raw = window.localStorage.getItem(SETTINGS_KEY);
+    if (raw === null) return fallback;
+
+    const parsed = JSON.parse(raw) as Partial<StoredSettings>;
+
+    return {
+      volume: clampVolume(typeof parsed.volume === 'number' ? parsed.volume : fallback.volume),
+      loop: typeof parsed.loop === 'boolean' ? parsed.loop : fallback.loop,
+      src: typeof parsed.src === 'string' ? parsed.src : null,
+      playByDefault: typeof parsed.playByDefault === 'boolean' ? parsed.playByDefault : fallback.playByDefault,
+      promptDismissed: typeof parsed.promptDismissed === 'boolean' ? parsed.promptDismissed : fallback.promptDismissed,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
+function persistSettings(settings: StoredSettings): void {
+  try {
+    window.localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Storage blocked: the settings hold for this visit only.
+  }
+}
+
+/**
+ * What happens when a track ends: repeat it, or walk on.
+ *
+ * A pure function rather than a line inside the effect, and it is written out for one reason: this is
+ * the rule two *different* loop switches feed, and a rule that lives in a `useEffect` cannot be tested
+ * without a browser. Extracting it makes the separation checkable - `Temp/check-audio.cjs` drives this
+ * with both switches and asserts they do not touch each other.
+ *
+ * `ownLoop` is the handed-over track's repeat (a profile's own song, `null` when nothing was handed
+ * over); `shelfLoop` is the switch on the bar. The handed-over one wins while it is set, because it is
+ * the more specific statement - and the two are never written to each other, which is the fault this
+ * shape exists to prevent.
+ */
+export function repeatOnEnd(ownLoop: boolean | null, shelfLoop: boolean): 'repeat' | 'advance' {
+  return (ownLoop ?? shelfLoop) ? 'repeat' : 'advance';
+}
+
+/**
+ * The track's own repeat as it starts. A WEB track (an audiobook's chapter, a podcast episode) never
+ * repeats itself, whatever the shelf's switch says: the next chapter follows it. The repeat key still
+ * overrules it, as it overrules a short clip's repeat (`setLoop` clears the track's own answer).
+ */
+export function ownRepeatFor(track: AudioTrack): boolean | null {
+  return track.shelf === 'web' ? false : clipRepeats(track);
+}
+
+export default function MusicPlayerProvider({ children }: { children: React.ReactNode }) {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  /** The src the element is already carrying, so it is only reloaded when it changes. */
+  const loadedSrc = useRef<string | null>(null);
+  /** The track on screen, for the shelf read: see the note beside that effect. */
+  const playingSrc = useRef<string | undefined>(undefined);
+  /** The track the last visit ended on, so this one opens there. */
+  const storedSrc = useRef<string | null>(null);
+  /**
+   * True while a track was handed over with `autoplay` and the browser has not let it start
+   * yet, so the first gesture can be spent on it (see `armAutoplay`).
+   */
+  const autoplayWanted = useRef(false);
+  /** True once that first-gesture listener is in place, so there is only ever one. */
+  const autoplayArmed = useRef(false);
+
+  const [queue, setQueue] = useState<AudioTrack[]>(LOCAL_TRACKS);
+  /** How much of the front of `queue` came from reading the archive; the rest was added by a press. */
+  const [shelfSize, setShelfSize] = useState(LOCAL_TRACKS.length);
+  const [index, setIndex] = useState(0);
+  const [playing, setPlaying] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [duration, setDuration] = useState(Number.NaN);
+  const [volume, setVolumeState] = useState(() => loadSettings().volume);
+  const [loop, setLoopState] = useState(() => loadSettings().loop);
+  const [playbackRate, setPlaybackRateState] = useState(1);
+  /** The songs queued by hand (`enqueue`), and the same list as a ref for the `ended` handler. */
+  const [upNext, setUpNext] = useState<AudioTrack[]>([]);
+  const upNextRef = useRef<AudioTrack[]>([]);
+
+  /**
+   * Where the track now playing was pressed from.
+   *
+   * A ref rather than state, because nothing renders from it: it is a note the sampling effect reads when
+   * it writes to RADI-OH, and re-rendering the whole provider to record which link was used would be a
+   * render for a fact no component displays. It is set by `play` and `assign`, which are the two doors a
+   * track can come through, and it holds for as long as that track is the one on the display.
+   */
+  const playedFrom = useRef<PlayOrigin | null>(null);
+
+  /**
+   * The same door, as state and pinned to the file it was recorded for, so the bar can draw it. Pinned to
+   * the src because the ref above outlives its track: after NEXT the ref still holds the last press's
+   * origin, and a bar that read it would call the shelf's next file part of somebody's queue.
+   */
+  const [heardFrom, setHeardFrom] = useState<{ src: string; origin: PlayOrigin } | null>(null);
+
+  /** Where the next file to load should start, and how fast (see `PlayStart`). Spent on `loadedmetadata`. */
+  const pendingStart = useRef<(PlayStart & { src: string }) | null>(null);
+
+  /**
+   * Whether the player *means* to be playing, as the element was last told - and when it last swapped
+   * file. Together they let `onPause` tell a pause this provider asked for from one that came from
+   * outside (headphones pulled, a phone call), which is the one a follow has to respect.
+   */
+  const intendsToPlay = useRef(false);
+  const swappedAt = useRef(0);
+
+  /**
+   * True while the track on the display came through `assign` - handed over by a screen rather than
+   * pressed off the shelf.
+   *
+   * It exists because RADI-OH has to label an entry that nobody labelled (`origin` is optional), and
+   * the label used to be inferred from `ownLoop !== null`. That inference stopped being true the day
+   * a short file started carrying its own repeat: a seven-second clip played from a thread is handed
+   * over by nobody and would have been filed in the grid as somebody's profile song. The door is
+   * recorded instead of guessed at.
+   */
+  const handedOver = useRef(false);
+
+  /**
+   * The repeat of a track that was *handed over* rather than chosen from the shelf - a profile's own
+   * song. `null` means "nothing was handed over, so the shelf's switch decides".
+   *
+   * It exists so the two cannot be confused, which they were: `assign({ loop: true })` used to write
+   * `loop` itself, and `loop` is persisted, so opening a profile with a song on it turned looping on
+   * for the whole board and left it on there. A handed-over track now repeats on its own without the
+   * shelf's switch being touched, and the reader who never asked for it keeps the setting they had.
+   */
+  const [ownLoop, setOwnLoop] = useState<boolean | null>(null);
+  const [playByDefault, setPlayByDefaultState] = useState(() => loadSettings().playByDefault);
+  const [promptDismissed, setPromptDismissedState] = useState(() => loadSettings().promptDismissed);
+  /** Bumped by `refresh()`: the shelf is read again when it changes. */
+  const [attempt, setAttempt] = useState(0);
+
+  const track = queue[index];
+
+  // BARR: what the player does with the track it is about to sound (`lib/audio/barrs.ts`). `held` is a
+  // barred song on the reader's own player that they have not said PLAY ANYWAY to: the bar shows it
+  // paused with the question, and the speaker stays silent. The allowance lasts until the track changes.
+  const barred = useSyncExternalStore(subscribeToBarrs, barredSrcs, barredSrcs);
+  const followingHost = useSyncExternalStore(subscribeToFollow, followState, followState).hostId !== null;
+  const [allowedSrc, setAllowedSrc] = useState<string | null>(null);
+  const gate = barrGate(track?.src, barred, allowedSrc, followingHost);
+  const held = playing && gate === 'ask';
+  /** The same, for the element's `pause` handler: a held song's pause must not clear the question. */
+  const holding = useRef(false);
+
+  // The element itself: one per page load, created outside the render tree so nothing
+  // a page does can remount it.
+  useEffect(() => {
+    const audio = new Audio();
+    audio.preload = 'metadata';
+    audioRef.current = audio;
+
+    const onTime = () => setElapsed(audio.currentTime);
+    const onDuration = () => setDuration(audio.duration);
+    // The start a `play` asked for, now that the file is the right one (see `PlayStart`).
+    const onMetadata = () => {
+      const start = pendingStart.current;
+      pendingStart.current = null;
+
+      // Only for the file it was asked for: a start left over from a press whose file never loaded must
+      // not land on whatever loads next (a profile song starting at 2:13 for no visible reason).
+      if (start !== null && start.src === loadedSrc.current) {
+        if (start.at !== undefined && Number.isFinite(start.at)) {
+          const end = Number.isFinite(audio.duration) ? Math.max(0, audio.duration - 0.5) : start.at;
+          audio.currentTime = Math.max(0, Math.min(start.at, end));
+          setElapsed(audio.currentTime);
+        }
+
+        if (start.rate !== undefined) audio.playbackRate = start.rate;
+      }
+
+      // A load resets the element's rate on its own, so the state is read back from the element here:
+      // the follower compares against the state, and a state left at 2.9x over an element at 1x is a
+      // catch-up that believes it is running and never closes the gap.
+      setPlaybackRateState(audio.playbackRate);
+    };
+    const onRateChange = () => setPlaybackRateState(audio.playbackRate);
+    const onPlay = () => setPlaying(true);
+    /**
+     * A pause the provider did not ask for - headphones pulled, a call, the OS - lets go of a follow.
+     * Without this the follower would see "host playing, me paused" and start the music again a second
+     * later, out of the speaker. The end of a file and the swap to a new one are not that, so both are
+     * excluded.
+     */
+    const onPause = () => {
+      // The player holding a barred song paused it itself, and is still waiting on the reader.
+      if (holding.current) return;
+
+      if (intendsToPlay.current && !audio.ended && Date.now() - swappedAt.current > 2000) {
+        stopFollowing('PAUSED');
+      }
+
+      setPlaying(false);
+    };
+    // A new file: the readout goes back to zero here rather than in the effect that
+    // assigns the source, so nothing writes state while React is rendering.
+    const onLoadStart = () => {
+      setElapsed(0);
+      setDuration(Number.NaN);
+      setError(null);
+    };
+    const onError = () =>
+      setError("CAN'T PLAY THIS FILE.");
+
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('loadedmetadata', onDuration);
+    audio.addEventListener('loadedmetadata', onMetadata);
+    audio.addEventListener('ratechange', onRateChange);
+    audio.addEventListener('durationchange', onDuration);
+    audio.addEventListener('play', onPlay);
+    audio.addEventListener('pause', onPause);
+    audio.addEventListener('loadstart', onLoadStart);
+    audio.addEventListener('error', onError);
+
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('loadedmetadata', onDuration);
+      audio.removeEventListener('loadedmetadata', onMetadata);
+      audio.removeEventListener('ratechange', onRateChange);
+      audio.removeEventListener('durationchange', onDuration);
+      audio.removeEventListener('play', onPlay);
+      audio.removeEventListener('pause', onPause);
+      audio.removeEventListener('loadstart', onLoadStart);
+      audio.removeEventListener('error', onError);
+      audio.pause();
+      audio.src = '';
+      audioRef.current = null;
+      loadedSrc.current = null;
+    };
+  }, []);
+
+  /**
+   * The listen log (SPEC-vanity.md step 3): a play is logged once this file has really been heard for
+   * `listenThreshold` seconds - 30, or half a file shorter than a minute. Only the clock's forward ticks
+   * count (`heardStep`), so a seek is not listening; a muted barred song in a followed broadcast is not
+   * heard either. A repeat starts a new play. Guests are not logged.
+   */
+  const listenerId = useAuth().user?.id ?? null;
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio === null || listenerId === null) return;
+
+    const repository = getMusicRepository();
+    let src: string | null = null;
+    let heard = 0;
+    let last = 0;
+    let logged = false;
+
+    const onTime = () => {
+      const now = audio.currentTime;
+
+      if (loadedSrc.current !== src) {
+        src = loadedSrc.current;
+        heard = 0;
+        logged = false;
+        last = now;
+        return;
+      }
+
+      // Back to the very start without a new file (stop then play, the same song picked again, a seek to
+      // 0:00): a new play, and nothing heard of it yet.
+      if (now < last && now < 1) {
+        heard = 0;
+        logged = false;
+      }
+
+      if (!audio.muted) heard += heardStep(last, now);
+      last = now;
+
+      if (!logged && src !== null && heard >= listenThreshold(audio.duration)) {
+        logged = true;
+        void repository.logListen(listenerId, src);
+      }
+    };
+    const onEnded = () => {
+      heard = 0;
+      logged = false;
+      last = 0;
+    };
+
+    audio.addEventListener('timeupdate', onTime);
+    audio.addEventListener('ended', onEnded);
+    return () => {
+      audio.removeEventListener('timeupdate', onTime);
+      audio.removeEventListener('ended', onEnded);
+    };
+  }, [listenerId]);
+
+  // The shelf: the bucket's tracks first, then the archive's own.
+  useEffect(() => {
+    let cancelled = false;
+
+    // Resolved once, on the client: the settings are read after hydration so the server
+    // and the first render agree.
+    if (storedSrc.current === null) storedSrc.current = loadSettings().src;
+
+    getMusicRepository()
+      .listTracks()
+      .then((bucket) => {
+        if (cancelled) return;
+        const next = buildQueue(bucket);
+        // What is playing is kept playing: the shelf is read again after an upload (and
+        // on [ RELOAD SHELF ]), and a reload must not quietly switch the track underneath
+        // the listener. Only when the track they were on is gone does the opening rule
+        // apply - the bucket's own first, or the archive's theme.
+        const wanted = playingSrc.current ?? storedSrc.current ?? undefined;
+
+        setQueue(next);
+        setShelfSize(next.length);
+        setIndex((current) => {
+          const found = wanted === undefined ? -1 : next.findIndex((entry) => entry.src === wanted);
+          if (found !== -1) return found;
+
+          return current === 0 ? startIndexFor(next) : Math.min(current, next.length - 1);
+        });
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
+
+  // The track that is playing, as a ref: the shelf read above needs it to keep the same
+  // track playing across a reload, but reading it through the deps would re-read the
+  // shelf every time the track changed.
+  useEffect(() => {
+    playingSrc.current = track?.src;
+  }, [track]);
+
+  /**
+   * Spends the first gesture on a track that asked to start by itself.
+   *
+   * A page may not make a sound until the listener has touched it, which is why nothing here
+   * plays on its own. A track handed over with `autoplay` - the account page's own song, on a
+   * phone whose player is folded away - is the one case where waiting for a button press
+   * loses the point of it, so the first touch or keypress anywhere starts it instead. The
+   * listeners are one-shot and put in place at most once.
+   */
+  const armAutoplay = useCallback(() => {
+    const audio = audioRef.current;
+    if (autoplayArmed.current || audio === null) return;
+
+    autoplayArmed.current = true;
+
+    const start = () => {
+      window.removeEventListener('pointerdown', start);
+      window.removeEventListener('keydown', start);
+      autoplayArmed.current = false;
+      autoplayWanted.current = false;
+      // A barred song the player is holding waits for PLAY ANYWAY, not for any first click.
+      if (holding.current) return;
+      // Inside the gesture, so this one is allowed.
+      void audio.play().catch(() => setPlaying(false));
+      setPlaying(true);
+    };
+
+    window.addEventListener('pointerdown', start, { once: true });
+    window.addEventListener('keydown', start, { once: true });
+  }, []);
+
+  // Loading a track, and keeping the element in step with what the bar says.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio === null) return;
+
+    intendsToPlay.current = playing && !held;
+    holding.current = held;
+
+    if (track !== undefined && loadedSrc.current !== track.src) {
+      swappedAt.current = Date.now();
+      loadedSrc.current = track.src;
+      audio.src = track.src;
+      audio.load();
+    } else if (track !== undefined && playing && audio.error !== null) {
+      // The last load failed (the Internet Archive's file servers answer 500 now and then): an element in
+      // that state never tries again by itself, so PLAY pressed again loads the file afresh.
+      audio.load();
+    }
+
+    // A barred song in a followed broadcast: stay in step, silent on this speaker only.
+    audio.muted = gate === 'mute';
+
+    if (!playing || held) {
+      audio.pause();
+      return;
+    }
+
+    audio.play().catch(() => {
+      intendsToPlay.current = false;
+      // A follow cannot carry on through a browser that will not play: the follower would ask again
+      // every second and the error would flash for ever.
+      stopFollowing("CAN'T PLAY");
+
+      // A track that was handed over to be started by itself is the one case where a
+      // refusal is not the end of it: browsers allow sound after the listener has touched
+      // the page, so the first touch or keypress is spent starting it (see `armAutoplay`).
+      if (autoplayWanted.current) {
+        setPlaying(false);
+        armAutoplay();
+        return;
+      }
+
+      // Otherwise: autoplay refused, or the file is not playable. Say so instead of showing
+      // a pause button over silence.
+      setPlaying(false);
+      setError(
+        track === undefined
+          ? 'SHELF EMPTY.'
+          : 'PRESS PLAY TO START.',
+      );
+    });
+  }, [armAutoplay, gate, held, playing, track]);
+
+  /**
+   * Moves to the first song queued by hand, if there is one, and says whether it did.
+   *
+   * The song is found on the shelf by its file (or added to the end of it, like `play` does), so the
+   * shelf's own order carries on from wherever that song sits once the hand-made queue runs out.
+   */
+  const playUpNext = useCallback((): boolean => {
+    const [first, ...rest] = upNextRef.current;
+    if (first === undefined) return false;
+
+    upNextRef.current = rest;
+    setUpNext(rest);
+    pendingStart.current = null;
+    playedFrom.current = null;
+    setHeardFrom(null);
+    handedOver.current = false;
+    setOwnLoop(ownRepeatFor(first));
+
+    const found = queue.findIndex((entry) => entry.src === first.src);
+
+    if (found === -1) {
+      setQueue([...queue, first]);
+      setIndex(queue.length);
+    } else if (found === index) {
+      // The song queued is the one already on: nothing about the track changes, so no effect would
+      // start it again. It starts over from the top here instead of going quiet at its end - unless it
+      // is barred, when the sounding effect holds it and asks (the allowance is spent by now).
+      const audio = audioRef.current;
+      if (audio !== null) {
+        audio.currentTime = 0;
+        if (barrGate(first.src, barredSrcs(), null, isFollowing()) === 'play') void audio.play().catch(() => setPlaying(false));
+      }
+    } else {
+      setIndex(found);
+    }
+
+    return true;
+  }, [index, queue]);
+
+  const enqueue = useCallback((wanted: AudioTrack, where: 'end' | 'next') => {
+    const nextList = enqueueTrack(upNextRef.current, wanted, where);
+
+    upNextRef.current = nextList;
+    setUpNext(nextList);
+  }, []);
+
+  // Ending: repeat this one, or walk on to the next. Looping is done here rather than
+  // with the element's own `loop` attribute, because the switch means "repeat this
+  // one" - with it off, the queue keeps going, which is what a shelf of demos wants.
+  //
+  // Which switch decides is `repeatOnEnd` (above), which is pure so that the separation between the
+  // handed-over track's repeat and the shelf's can be tested. The two are deliberately independent: a
+  // profile's song repeating says nothing about whether the shelf's tracks repeat, and before this it
+  // said everything - `assign({ loop: true })` wrote the shelf's switch, which is persisted.
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (audio === null) return;
+
+    const onEnded = () => {
+      if (repeatOnEnd(ownLoop, loop) === 'repeat') {
+        audio.currentTime = 0;
+        void audio.play().catch(() => setPlaying(false));
+        return;
+      }
+
+      // Following somebody: their next track is the one to play, not the shelf's, and the follower
+      // loads it the moment their row says what it is. Walking on to the shelf's next file here would
+      // play a few seconds of something unrelated first.
+      if (isFollowing()) {
+        setPlaying(false);
+        return;
+      }
+
+      // A song queued by hand goes first; otherwise the shelf walks on. Whatever the browser did with
+      // `paused` on the way here, the next track plays.
+      setAllowedSrc(null);
+      if (!playUpNext()) {
+        // Nothing to walk on to (a lone WEB track, which never repeats itself, on a shelf that did not
+        // load): stop, rather than show PAUSE over a track that has ended.
+        if (queue.length <= 1) {
+          setPlaying(false);
+          return;
+        }
+        setIndex((current) => nextIndex(current, queue.length));
+      }
+      setPlaying(true);
+    };
+
+    audio.addEventListener('ended', onEnded);
+    return () => audio.removeEventListener('ended', onEnded);
+  }, [loop, ownLoop, playUpNext, queue.length]);
+
+  useEffect(() => {
+    if (audioRef.current !== null) audioRef.current.volume = volume;
+    persistSettings({ volume, loop, src: track?.src ?? null, playByDefault, promptDismissed });
+  }, [loop, track, volume, playByDefault, promptDismissed]);
+
+  /**
+   * RADI-OH's quick access: write what is playing into the grid, now and then.
+   *
+   * On an interval rather than on `timeupdate`, for the reason `LOOP_SAMPLE_MS` gives - a store write per
+   * tick is a page that stutters while it plays, and waking every listener several times a second to say
+   * "still 1:07" is work nobody asked for.
+   *
+   * The interval is set up from *which track* and reads the clock when it fires, which is the same shape
+   * as `BroadcastHeartbeat`'s and for the same reason: `elapsed` in the dependencies would rebuild the
+   * timer on every tick and it would never fire. `origin` is decided once per track here, from the door
+   * it came through (`handedOver`).
+   */
+  useEffect(() => {
+    if (track === undefined || !playing) return;
+
+    // Which door the track came through, for a track that arrived without an origin: a handed-over
+    // track is somebody's profile song (that is what `assign` is for), anything else was pressed off
+    // the shelf. `ownLoop` used to answer this and no longer can - a short file carries its own
+    // repeat whether or not anybody handed it over.
+    const fallback = handedOver.current ? 'profile' : 'shelf';
+    const source = track;
+    // Only the origin recorded *for this file*: after NEXT or a natural end the last press's origin is
+    // still in `playedFrom`, and reading it would file a shelf track under somebody's playlist or queue.
+    const recorded = heardFrom !== null && heardFrom.src === source.src ? heardFrom.origin : null;
+
+    const write = () => {
+      const audio = audioRef.current;
+      if (audio === null) return;
+
+      rememberPlay({
+        label: source.title,
+        trackId: source.src,
+        positionSeconds: audio.currentTime,
+        // What the caller said, or the best guess left over. `rememberPlay` keeps the *first* recorded
+        // source, so a track already in the grid does not have its globe rewritten by a later play.
+        origin: recorded?.origin ?? fallback,
+        originHref: recorded?.href,
+        originWhere: recorded?.where,
+        originContext: recorded?.context,
+        lengthSeconds: Number.isFinite(audio.duration) ? audio.duration : undefined,
+      });
+    };
+
+    write();
+
+    const timer = window.setInterval(write, LOOP_SAMPLE_MS);
+    return () => window.clearInterval(timer);
+  }, [heardFrom, playing, track]);
+
+  /**
+   * The system's own controls: media keys, a headset's buttons, and whatever a phone
+   * puts on its lock screen.
+   *
+   * Not every browser has the Media Session API and none of this is required, so it is
+   * all behind one check: with it, the site behaves like a music player rather than like
+   * a page with a sound in it; without it, the bar is the only transport - which is where
+   * this started.
+   */
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !('mediaSession' in navigator) || track === undefined) return;
+
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title,
+      artist: track.credit.length === 0 ? 'DEBASER.SITE' : track.credit,
+      album: track.kind,
+    });
+
+    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+
+    // A headset's buttons are the reader's hands as much as the bar's are, so they end a follow too.
+    const mine = (action: () => void) => () => {
+      stopFollowing('');
+      action();
+    };
+
+    navigator.mediaSession.setActionHandler('play', mine(() => setPlaying(true)));
+    navigator.mediaSession.setActionHandler('pause', mine(() => setPlaying(false)));
+    navigator.mediaSession.setActionHandler(
+      'nexttrack',
+      mine(() => {
+        if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+      }),
+    );
+    navigator.mediaSession.setActionHandler(
+      'previoustrack',
+      mine(() => setIndex((current) => previousIndex(current, queue.length))),
+    );
+  }, [playUpNext, playing, queue.length, track]);
+
+
+  const toggle = useCallback(() => {
+    setError(null);
+    stopFollowing('');
+
+    if (track === undefined) {
+      setError('SHELF EMPTY.');
+      return;
+    }
+
+    // The bar's play key while a barred song is held answers the question: PLAY ANYWAY.
+    if (held) {
+      setAllowedSrc(track.src);
+      return;
+    }
+
+    setPlaying((current) => !current);
+  }, [held, track]);
+
+  /**
+   * Stop: silence, and back to the start of the track.
+   *
+   * The element is rewound rather than unloaded, so pressing play afterwards starts this track again
+   * from the top without a fresh network read. `setPlaying(false)` rather than a pause call, because
+   * the playing state is what drives the element (see the effect that follows it) and setting it is
+   * how every other control here asks for silence.
+   */
+  const stop = useCallback(() => {
+    stopFollowing('');
+    const audio = audioRef.current;
+    if (audio !== null) audio.currentTime = 0;
+
+    setPlaying(false);
+  }, []);
+
+  const next = useCallback(() => {
+    setError(null);
+    pendingStart.current = null;
+    stopFollowing('');
+    setAllowedSrc(null);
+    if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
+  }, [playUpNext, queue.length]);
+
+  const previous = useCallback(() => {
+    setError(null);
+    pendingStart.current = null;
+    stopFollowing('');
+    setAllowedSrc(null);
+    setIndex((current) => previousIndex(current, queue.length));
+  }, [queue.length]);
+
+  const playAt = useCallback(
+    (target: number) => {
+      setError(null);
+    pendingStart.current = null;
+      stopFollowing('');
+      setAllowedSrc(null);
+      setIndex(Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0)));
+      setPlaying(true);
+    },
+    [queue.length],
+  );
+
+  /**
+   * Plays one particular track.
+   *
+   * A track the shelf holds is simply selected; one it does not (a profile's own song,
+   * handed over by the button beside it) is queued first, so pressing play on a profile
+   * plays that song rather than the shelf's next track.
+   *
+   * `rest` (`playList`) are queued straight after it, in order, when the shelf does not hold them: a WEB
+   * audiobook's later chapters, so the shelf walks on through the book.
+   */
+  const startTracks = useCallback(
+    (wanted: AudioTrack, rest: AudioTrack[], origin?: PlayOrigin, start?: PlayStart) => {
+      if (start?.follow !== true) stopFollowing('');
+
+      // A song pressed again is asked about again, if it is barred: the allowance was for one play.
+      setAllowedSrc(null);
+      playedFrom.current = origin ?? null;
+      setHeardFrom(origin === undefined ? null : { src: wanted.src, origin });
+      handedOver.current = false;
+
+      // The same file already loaded will not fire `loadedmetadata` again, so its start is applied
+      // here; a new file's waits for the load (see `PlayStart`).
+      const audio = audioRef.current;
+
+      if (start !== undefined && audio !== null && loadedSrc.current === wanted.src) {
+        pendingStart.current = null;
+        if (start.at !== undefined && Number.isFinite(start.at)) {
+          audio.currentTime = Math.max(0, start.at);
+          setElapsed(audio.currentTime);
+        }
+        if (start.rate !== undefined) audio.playbackRate = start.rate;
+      } else {
+        pendingStart.current = start === undefined ? null : { ...start, src: wanted.src };
+      }
+
+      // The GIF rule: a file short enough to behave like an animation keeps playing instead of
+      // handing the player on. It is the track's own repeat, not the shelf's switch, because the
+      // shelf's switch is persisted - and a file repeating itself says nothing about the next one.
+      // A file with no filed running time (a profile's song, a row nobody measured) answers `null`
+      // here, which leaves the shelf's switch to decide as it always did.
+      setOwnLoop(ownRepeatFor(wanted));
+
+      const missing: AudioTrack[] = [];
+      for (const entry of [wanted, ...rest]) {
+        if (!queue.some((held) => held.src === entry.src) && !missing.some((held) => held.src === entry.src)) missing.push(entry);
+      }
+      const nextQueue = missing.length === 0 ? queue : [...queue, ...missing];
+      if (missing.length > 0) setQueue(nextQueue);
+      setIndex(nextQueue.findIndex((entry) => entry.src === wanted.src));
+
+      setError(null);
+      setPlaying(true);
+    },
+    [queue],
+  );
+
+  const play = useCallback(
+    (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => startTracks(wanted, [], origin, start),
+    [startTracks],
+  );
+
+  const playList = useCallback(
+    (tracks: AudioTrack[], origin?: PlayOrigin) => {
+      const [first, ...rest] = tracks;
+      if (first !== undefined) startTracks(first, rest, origin);
+    },
+    [startTracks],
+  );
+
+  const playAnyway = useCallback(() => {
+    if (track !== undefined) setAllowedSrc(track.src);
+  }, [track]);
+
+  const skipBarred = useCallback(() => {
+    setAllowedSrc(null);
+    pendingStart.current = null;
+    if (playUpNext()) return;
+
+    const target = skipIndex(index, queue.length);
+    if (target === null) {
+      setPlaying(false);
+      return;
+    }
+
+    setIndex(target);
+  }, [index, playUpNext, queue.length]);
+
+  const setVolume = useCallback((value: number) => setVolumeState(clampVolume(value)), []);
+
+  /**
+   * The shelf's repeat switch, and an explicit statement about the *shelf*.
+   *
+   * It clears any handed-over track's own repeat first (`ownLoop`), because a press on the loop key is
+   * the reader saying what they want to hear - and if a profile's song had claimed the repeat, a press
+   * that appeared to do nothing would be worse than one that overrules it. After this the shelf's
+   * switch governs, which is what its own key promises.
+   */
+  const setLoop = useCallback((value: boolean) => {
+    setOwnLoop(null);
+    setLoopState(value);
+  }, []);
+  const setPlayByDefault = useCallback((value: boolean) => setPlayByDefaultState(value), []);
+  const dismissPrompt = useCallback(() => setPromptDismissedState(true), []);
+
+  /**
+   * Hands the player one track and leaves it there: the account page's own song, on a phone
+   * that has the bar folded away.
+   *
+   * **`loop` here is the *track's* repeat, not the shelf's.** Those were one switch once, and that
+   * was a fault: a profile's song arrives wanting to repeat itself, `assign` wrote the global `loop`
+   * - and the global one is *persisted to localStorage* (`persistSettings`) - so visiting a profile
+   * with a song on it turned looping on for the whole board and left it on. A reader who never
+   * touched the loop key found the shelf repeating a track and had no idea why.
+   *
+   * So a handed-over track carries its own repeat (`ownLoop`), which is read only by the `ended`
+   * handler while that track is the one loaded, and which is *not* written to storage. The shelf's
+   * switch is untouched, which is what makes the two independent: looping a song filed into the bar
+   * cannot affect any other playlist's loop.
+   *
+   * `autoplay` asks for it to start on its own. A browser will not make a sound before the listener
+   * has touched the page, so a refusal is not reported as an error here: it is remembered, and the
+   * first touch or keypress anywhere starts it (see `armAutoplay`).
+   */
+  const assign = useCallback(
+    (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => {
+      // A hand-over is automatic - a profile's song arriving because a page was opened - so it does not
+      // get to break a follow the reader chose. Nobody pressed anything.
+      if (isFollowing()) return;
+
+      setAllowedSrc(null);
+      setError(null);
+      pendingStart.current = null;
+      playedFrom.current = options?.origin ?? null;
+      setHeardFrom(options?.origin === undefined ? null : { src: wanted.src, origin: options.origin });
+      handedOver.current = true;
+
+      // The track's own repeat, or null for "no opinion" - which leaves whatever is set alone. It is
+      // deliberately *not* `setLoopState`: that is the shelf's switch, and it persists.
+      if (options?.loop !== undefined) setOwnLoop(options.loop);
+
+      const found = queue.findIndex((entry) => entry.src === wanted.src);
+
+      if (found === -1) {
+        const nextQueue = [...queue, wanted];
+        setQueue(nextQueue);
+        setIndex(nextQueue.length - 1);
+      } else {
+        setIndex(found);
+      }
+
+      if (options?.autoplay === true) {
+        autoplayWanted.current = true;
+        setPlaying(true);
+      }
+    },
+    [queue],
+  );
+
+  const steer = useCallback((wanted: boolean) => setPlaying(wanted), []);
+
+  const seek = useCallback((seconds: number, options?: { follow?: boolean }) => {
+    if (options?.follow !== true) stopFollowing('');
+
+    const audio = audioRef.current;
+    if (audio === null || !Number.isFinite(seconds)) return;
+
+    audio.currentTime = seconds;
+    setElapsed(seconds);
+  }, []);
+
+  /**
+   * How fast to play.
+   *
+   * Clamped rather than trusted, and clamped *to the element's own range*: the browser throws when a rate
+   * falls outside what it will accept, and a catch-up rate computed from a queue that is hours stale would
+   * be exactly that. `broadcast.ts` caps its own arithmetic at `MAX_CATCH_UP_RATE`, so this is the second
+   * of two guards - the one that stops a slip in that arithmetic from reaching the audio element.
+   */
+  const setPlaybackRate = useCallback((rate: number) => {
+    const audio = audioRef.current;
+    const safe = Number.isFinite(rate) ? Math.min(4, Math.max(0.25, rate)) : 1;
+
+    if (audio !== null) audio.playbackRate = safe;
+
+    setPlaybackRateState(safe);
+  }, []);
+
+  const refresh = useCallback(() => setAttempt((current) => current + 1), []);
+
+  const value = useMemo<MusicPlayerValue>(
+    () => ({
+      queue,
+      track,
+      index,
+      // A held barred song reads as paused: nothing is coming out of the speaker.
+      playing: playing && !held,
+      loading,
+      error,
+      elapsed,
+      duration,
+      volume,
+      // What happens at the end of the track on the display: the file's own repeat beats the shelf's
+      // switch, exactly as the `ended` handler reads them (see `repeatOnEnd`). The bar draws one symbol
+      // for what the player is *doing*, so it is handed the answer rather than the switch that decided
+      // it - a `↻` beside a file that is about to stop would be the bar lying about its own transport.
+      loop: ownLoop ?? loop,
+      toggle,
+      stop,
+      next,
+      previous,
+      play,
+      playList,
+      steer,
+      assign,
+      playAt,
+      setVolume,
+      setLoop,
+      playByDefault,
+      setPlayByDefault,
+      promptDismissed,
+      dismissPrompt,
+      seek,
+      playbackRate,
+      setPlaybackRate,
+      heardFrom: heardFrom !== null && heardFrom.src === track?.src ? heardFrom.origin : null,
+      refresh,
+      upNext,
+      enqueue,
+      shelfSize,
+      barrAsk: held ? (track ?? null) : null,
+      barrMuted: playing && gate === 'mute',
+      playAnyway,
+      skipBarred,
+    }),
+    [
+      queue,
+      track,
+      index,
+      playing,
+      loading,
+      error,
+      elapsed,
+      duration,
+      volume,
+      loop,
+      ownLoop,
+      toggle,
+      stop,
+      next,
+      previous,
+      play,
+      playList,
+      steer,
+      assign,
+      playAt,
+      setVolume,
+      setLoop,
+      playByDefault,
+      setPlayByDefault,
+      promptDismissed,
+      dismissPrompt,
+      seek,
+      playbackRate,
+      setPlaybackRate,
+      heardFrom,
+      refresh,
+      upNext,
+      enqueue,
+      shelfSize,
+      held,
+      gate,
+      playAnyway,
+      skipBarred,
+    ],
+  );
+
+  return <MusicPlayerContext.Provider value={value}>{children}</MusicPlayerContext.Provider>;
+}
+
+/** The player, for the bar and for anything that hands it a song. */
+export function useMusicPlayer(): MusicPlayerValue {
+  const value = useContext(MusicPlayerContext);
+  if (value === null) throw new Error('useMusicPlayer must be used inside <MusicPlayerProvider>.');
+
+  return value;
+}

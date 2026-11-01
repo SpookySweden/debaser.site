@@ -1,0 +1,2683 @@
+{
+ "responseContext": {},
+ "estimatedResults": "16316885",
+ "contents": {
+  "twoColumnSearchResultsRenderer": {
+   "primaryContents": {
+    "sectionListRenderer": {
+     "contents": [
+      {
+       "itemSectionRenderer": {
+        "contents": [
+         {
+          "shelfRenderer": {
+           "title": {
+            "runs": [
+             {
+              "text": "YouTube Primetime movies"
+             }
+            ]
+           },
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://www.gstatic.com/youtube/img/tvfilm/clapperboard_profile_v2.png",
+              "width": 100,
+              "height": 100
+             }
+            ]
+           },
+           "endpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/feed/storefront?bp=ogUCKAU%3D",
+              "webPageType": "WEB_PAGE_TYPE_BROWSE",
+              "rootVe": 6827,
+              "apiUrl": "/youtubei/v1/browse"
+             }
+            },
+            "browseEndpoint": {
+             "browseId": "FEstorefront",
+             "params": "ogUCKAU%3D"
+            }
+           },
+           "content": {
+            "horizontalMovieListRenderer": {
+             "items": [
+              {
+               "gridMovieRenderer": {
+                "videoId": "KXb4NZlqaLI",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/KXb4NZlqaLI/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Land of the Dead"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:32:50"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=KXb4NZlqaLI&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "KXb4NZlqaLI",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=2976f835996a68b2&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "15"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 2005"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "5IJN5aubfaI",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/5IJN5aubfaI/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Survival Of The Dead"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:30:07"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=5IJN5aubfaI&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "5IJN5aubfaI",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr2---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=e4824de5ab9b7da2&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "15"
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 2010"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "YZeheSdw4yk",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/YZeheSdw4yk/movieposter_en.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Night of the Animated Dead"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:10:39"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=YZeheSdw4yk&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "YZeheSdw4yk",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr1---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=6197a1792770e329&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "4K"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Action & adventure • 2021"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "Q5to4dT8w0k",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/Q5to4dT8w0k/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Night Of The Living Dead (1990)"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:28:16"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=Q5to4dT8w0k&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "Q5to4dT8w0k",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr2---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=439b68e1d4fcc349&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "18"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 1990"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "QLRi6sBpMyc",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/QLRi6sBpMyc/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Night of the Living Dead (In Color & Restored)"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:35:30"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=QLRi6sBpMyc&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "QLRi6sBpMyc",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr1---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=40b462eac0693327&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Classics • 1968"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "CILnjx-5sZ8",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/CILnjx-5sZ8/movieposter_en.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Flight Of The Living Dead: Outbreak On A Plane"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:33:57"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=CILnjx-5sZ8&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "CILnjx-5sZ8",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr2---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=0882e78f1fb9b19f&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 2007"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "Ek9QP0TKFO4",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/Ek9QP0TKFO4/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Return Of The Living Dead 2"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:29:20"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=Ek9QP0TKFO4&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "Ek9QP0TKFO4",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=124f503f44ca14ee&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "15"
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 1988"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "hKR11sjVqx8",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/hKR11sjVqx8/movieposter.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Birth of the Living Dead"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:16:13"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=hKR11sjVqx8&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "hKR11sjVqx8",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=84a475d6c8d5ab1f&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "Unrated"
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Independent • 2014"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "TCEA5mwOulw",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/TCEA5mwOulw/movieposter_en.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "City of the Living Dead"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:32:42"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=TCEA5mwOulw&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "TCEA5mwOulw",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=4c2100e66c0eba5c&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "18"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "CC",
+                   "accessibilityData": {
+                    "label": "Closed captions"
+                   }
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 1980"
+                }
+               }
+              },
+              {
+               "gridMovieRenderer": {
+                "videoId": "sUWkiwzL1AU",
+                "thumbnail": {
+                 "thumbnails": [
+                  {
+                   "url": "https://i.ytimg.com/vi/sUWkiwzL1AU/movieposter_en.jpg",
+                   "width": 279,
+                   "height": 402
+                  }
+                 ]
+                },
+                "title": {
+                 "runs": [
+                  {
+                   "text": "Zombie Creeping Flesh"
+                  }
+                 ]
+                },
+                "lengthText": {
+                 "simpleText": "1:34:53"
+                },
+                "navigationEndpoint": {
+                 "commandMetadata": {
+                  "webCommandMetadata": {
+                   "url": "/watch?v=sUWkiwzL1AU&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                   "webPageType": "WEB_PAGE_TYPE_WATCH",
+                   "rootVe": 3832
+                  }
+                 },
+                 "watchEndpoint": {
+                  "videoId": "sUWkiwzL1AU",
+                  "params": "8gMFDVvxxj4%3D",
+                  "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+                  "watchEndpointSupportedOnesieConfig": {
+                   "html5PlaybackOnesieConfig": {
+                    "commonConfig": {
+                     "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=b145a48b0ccbd405&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+                    }
+                   }
+                  }
+                 }
+                },
+                "badges": [
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_YPC",
+                   "label": "Buy or rent"
+                  }
+                 },
+                 {
+                  "metadataBadgeRenderer": {
+                   "style": "BADGE_STYLE_TYPE_SIMPLE",
+                   "label": "15"
+                  }
+                 }
+                ],
+                "metadata": {
+                 "simpleText": "Horror • 2021"
+                }
+               }
+              }
+             ],
+             "nextButton": {
+              "buttonRenderer": {
+               "style": "STYLE_DEFAULT",
+               "size": "SIZE_DEFAULT",
+               "isDisabled": false,
+               "icon": {
+                "iconType": "CHEVRON_RIGHT"
+               }
+              }
+             },
+             "previousButton": {
+              "buttonRenderer": {
+               "style": "STYLE_DEFAULT",
+               "size": "SIZE_DEFAULT",
+               "isDisabled": false,
+               "icon": {
+                "iconType": "CHEVRON_LEFT"
+               }
+              }
+             }
+            }
+           }
+          }
+         },
+         {
+          "movieRenderer": {
+           "videoId": "QLRi6sBpMyc",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/QLRi6sBpMyc/movieposter.jpg",
+              "width": 279,
+              "height": 402
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night of the Living Dead (In Color & Restored)"
+             }
+            ]
+           },
+           "descriptionSnippet": {
+            "runs": [
+             {
+              "text": "This is one of the true cult classics and one of the scariest movies of all time. The "
+             },
+             {
+              "text": "dead",
+              "bold": true
+             },
+             {
+              "text": " are "
+             },
+             {
+              "text": "walking",
+              "bold": true
+             },
+             {
+              "text": " and hunger for human flesh."
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "YouTube Movies & TV"
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "YouTube Movies & TV"
+             }
+            ]
+           },
+           "lengthText": {
+            "simpleText": "1:35:30"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=QLRi6sBpMyc&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "QLRi6sBpMyc",
+             "params": "8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr1---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=40b462eac0693327&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "badges": [
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "CC",
+              "accessibilityData": {
+               "label": "Closed captions"
+              }
+             }
+            }
+           ],
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "topMetadataItems": [
+            {
+             "simpleText": "Classics • 1968"
+            }
+           ],
+           "bottomMetadataItems": [
+            {
+             "simpleText": "Actors: Karl Hardman, Duane Jones, Judith O'Dea"
+            },
+            {
+             "simpleText": "Director: George Romero"
+            }
+           ],
+           "useVerticalPoster": true,
+           "showActionMenu": false,
+           "offerButtons": [
+            {
+             "buttonRenderer": {
+              "style": "STYLE_PRIMARY",
+              "size": "SIZE_LARGE",
+              "text": {
+               "runs": [
+                {
+                 "text": "Buy or rent"
+                }
+               ]
+              },
+              "command": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "ignoreNavigation": true
+                }
+               },
+               "modalEndpoint": {
+                "modal": {
+                 "modalWithTitleAndButtonRenderer": {
+                  "title": {
+                   "runs": [
+                    {
+                     "text": "Sign in to YouTube"
+                    }
+                   ]
+                  },
+                  "content": {
+                   "runs": [
+                    {
+                     "text": "To purchase this content, first sign in to YouTube"
+                    }
+                   ]
+                  },
+                  "button": {
+                   "buttonRenderer": {
+                    "style": "STYLE_MONO_FILLED",
+                    "size": "SIZE_DEFAULT",
+                    "isDisabled": false,
+                    "text": {
+                     "simpleText": "Sign in"
+                    },
+                    "navigationEndpoint": {
+                     "commandMetadata": {
+                      "webCommandMetadata": {
+                       "url": "https://accounts.google.com/ServiceLogin?service=youtube&uilel=3&passive=true&continue=https%3A%2F%2Fwww.youtube.com%2Fsignin%3Faction_handle_signin%3Dtrue%26app%3Ddesktop%26hl%3Den%26next%3D%252Fresults%253Fsearch_query%253Dnight%252Bof%252Bthe%252Bliving%252Bdead%2526sp%253DEgIQAQ%2525253D%2525253D&hl=en",
+                       "webPageType": "WEB_PAGE_TYPE_UNKNOWN",
+                       "rootVe": 83769
+                      }
+                     },
+                     "signInEndpoint": {
+                      "nextEndpoint": {
+                       "commandMetadata": {
+                        "webCommandMetadata": {
+                         "url": "/results?search_query=night+of+the+living+dead&sp=EgIQAQ%253D%253D",
+                         "webPageType": "WEB_PAGE_TYPE_SEARCH",
+                         "rootVe": 4724
+                        }
+                       },
+                       "searchEndpoint": {
+                        "query": "night of the living dead",
+                        "params": "EgIQAQ%3D%3D"
+                       }
+                      }
+                     }
+                    }
+                   }
+                  }
+                 }
+                }
+               }
+              }
+             }
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "YcixZ89-9Ac",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/YcixZ89-9Ac/hq720.jpg?sqp=-oaymwFBCOgCEMoBSFryq4qpAzMIARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBlKGUwD7gC9xg=&rs=AOn4CLCSZg7OGJt4L_JMlDWW79m5vQkXyA",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/YcixZ89-9Ac/hq720.jpg?sqp=-oaymwE1CNAFEJQDSFryq4qpAycIARUAAIhCGAHwAQH4Af4JgALQBYoCDAgAEAEYZSBlKGUwD7gC9xg=&rs=AOn4CLCncRxauYXZUymr0nsY-taKcDXbVQ",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "The Night of the Living Dead Full Film 4K Remaster"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "1 year ago"
+           },
+           "lengthText": {
+            "simpleText": "1:35:52"
+           },
+           "viewCountText": {
+            "simpleText": "133,382 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=YcixZ89-9Ac&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "YcixZ89-9Ac",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgjdp9na-djrhGu6AwkIp9rSkt6-wDW6AwoInNu_itGV_MpXugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr2---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=61c8b167cf7ef407&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "badges": [
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "4K"
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "133K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "The "
+               },
+               {
+                "text": "Night of the Living Dead",
+                "bold": true
+               },
+               {
+                "text": " Full Film 4K Remaster."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "awmux5tWU90",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/awmux5tWU90/hq720.jpg?sqp=-oaymwFBCOgCEMoBSFryq4qpAzMIARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgAK2BYoCDAgAEAEYRiBUKGUwD7gC9xg=&rs=AOn4CLAftgQFkQAoG-Qo-mR_pE28fGSwcw",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/awmux5tWU90/hq720.jpg?sqp=-oaymwE1CNAFEJQDSFryq4qpAycIARUAAIhCGAHwAQH4Af4JgAK2BYoCDAgAEAEYRiBUKGUwD7gC9xg=&rs=AOn4CLAe77cswFcr2nBTeJo1_j88Hke6cA",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night Of The Living Dead 1990 1080p BluRay"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "1 year ago"
+           },
+           "lengthText": {
+            "simpleText": "1:28:16"
+           },
+           "viewCountText": {
+            "simpleText": "109,456 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=awmux5tWU90&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "awmux5tWU90",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwkIp9rSkt6-wDW6AwoInNu_itGV_MpXugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr1---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=6b09aec79b5653dd&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "109K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "NightOfTheLivingDead #NightOfTheLivingDead1990 #HorrorMovies #ZombieMovie #ClassicHorror #CultClassic ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "AGsB9eJUrSc",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/AGsB9eJUrSc/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLCAp1yF5HDdkQk8UXQQno8yKH6Uow",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/AGsB9eJUrSc/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLAzp_-5DMjf32fiA-LU4e6WuD1J5w",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "It’s a Wonderful Night of the Living Dead"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "3 days ago"
+           },
+           "lengthText": {
+            "simpleText": "8:25"
+           },
+           "viewCountText": {
+            "simpleText": "52,690 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=AGsB9eJUrSc&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "AGsB9eJUrSc",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMKCJzbv4rRlfzKV7oDCgjcr7X3rf32ugS6AwsI4KOgxNzfk96jAboDCgiVjvjOw67o13q6AwsIw_Tot4SCptaVAboDCwjt1viipeuD86EBugMKCJeroLD2r4HmH7oDCwjG7oHjxabCrvMBugMLCIqVpuGwnpaDpQG6AwsIsqTjmrKSr-_9AboDCwivooyl4ezL36EBugMKCIy7j8Wa5qzOVroDCgi4meHoh9jA1Xe6AwsIi8-zmOvTxM-QAboDCgj58LrD-Z_J7X26AwsI_fzMpenHtfOOAfIDBQ1b8cY-",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=006b01f5e254ad27&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "badges": [
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "New"
+             }
+            },
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "CC",
+              "accessibilityData": {
+               "label": "Closed captions"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "52K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "It's a not-so-wonderful life for George Bailey when a horde of flesh-eating ghouls come to town on Christmas Eve. Using traditional ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "V5XwrRFP7Zw",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/V5XwrRFP7Zw/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLBrr9HTiiXVO8pXaAEyFsuyO2Nutw",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/V5XwrRFP7Zw/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLBgp4DeOsLm15vPhN-48U4-s7__Jg",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "NIGHT OF THE LIVING DEAD Trailer"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "7 years ago"
+           },
+           "lengthText": {
+            "simpleText": "1:14"
+           },
+           "viewCountText": {
+            "simpleText": "199,041 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=V5XwrRFP7Zw&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "V5XwrRFP7Zw",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMJCKfa0pLevsA1ugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=5795f0ad114fed9c&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "199K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "A deceptively simple tale of a group of strangers trapped in a farmhouse who find themselves fending off a horde of recently "
+               },
+               {
+                "text": "dead",
+                "bold": true
+               },
+               {
+                "text": ", ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "BHXb6t7tV9w",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/BHXb6t7tV9w/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLD90cpjRHp6qFE9TYcBUMlgQWJ5dQ",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/BHXb6t7tV9w/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLBj-gMJIBdSlN2152UCgV-ZY5KUDQ",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night of the Living Dead (1990) Original Trailer [HD]"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "3 years ago"
+           },
+           "lengthText": {
+            "simpleText": "1:06"
+           },
+           "viewCountText": {
+            "simpleText": "153,377 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=BHXb6t7tV9w&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "BHXb6t7tV9w",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMJCKfa0pLevsA1ugMKCJzbv4rRlfzKV7oDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr1---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=0475dbeadeed57dc&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "153K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "Directed by Tom Savini. Starring Tony Todd, Patricia Tallman and Tom Towles. "
+               },
+               {
+                "text": "Night of the Living Dead",
+                "bold": true
+               },
+               {
+                "text": " Blu-ray ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "o7xO_ciIEeA",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/o7xO_ciIEeA/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLDGkOZUyZt6Eez-xXYsYvWaqM4drg",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/o7xO_ciIEeA/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLCWrSkw0_0Tp_p7QFOd_g4TWLIMgg",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night of the Living Dead (1968) ORIGINAL TRAILER [HD 1080p]"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "8 years ago"
+           },
+           "lengthText": {
+            "simpleText": "1:50"
+           },
+           "viewCountText": {
+            "simpleText": "33,293 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=o7xO_ciIEeA&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "o7xO_ciIEeA",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMJCKfa0pLevsA1ugMKCJzbv4rRlfzKV7oDCgjcr7X3rf32ugS6AwoIlY74zsOu6Nd6ugMLCMP06LeEgqbWlQG6AwsI7db4oqXrg_OhAboDCgiXq6Cw9q-B5h-6AwsIxu6B48Wmwq7zAboDCwiKlabhsJ6Wg6UBugMLCLKk45qykq_v_QG6AwsIr6KMpeHsy9-hAboDCgiMu4_Fmuaszla6AwoIuJnh6IfYwNV3ugMLCIvPs5jr08TPkAG6AwoI-fC6w_mfye19ugMLCP38zKXpx7XzjgHyAwUNW_HGPg%3D%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=a3bc4efdc88811e0&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "33K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "Directed by George A. Romero. With Duane Jones, Judith O'Dea, Karl Hardman. "
+               },
+               {
+                "text": "Night of the Living Dead",
+                "bold": true
+               },
+               {
+                "text": " Blu-ray (Amazon) ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "LiVeNoW0001",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/YcixZ89-9Ac/hq720.jpg?sqp=-oaymwFBCOgCEMoBSFryq4qpAzMIARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgALQBYoCDAgAEAEYZSBlKGUwD7gC9xg=&rs=AOn4CLCSZg7OGJt4L_JMlDWW79m5vQkXyA",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/YcixZ89-9Ac/hq720.jpg?sqp=-oaymwE1CNAFEJQDSFryq4qpAycIARUAAIhCGAHwAQH4Af4JgALQBYoCDAgAEAEYZSBlKGUwD7gC9xg=&rs=AOn4CLCncRxauYXZUymr0nsY-taKcDXbVQ",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "The Night of the Living Dead Full Film 4K Remaster"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "lengthText": {
+            "simpleText": "1:35:52"
+           },
+           "viewCountText": {
+            "simpleText": "133,382 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=YcixZ89-9Ac&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "YcixZ89-9Ac",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgjdp9na-djrhGu6AwkIp9rSkt6-wDW6AwoInNu_itGV_MpXugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr2---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=61c8b167cf7ef407&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "badges": [
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_LIVE_NOW",
+              "label": "LIVE"
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "Mortons Movie Reviews",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@MortonsReviews",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCBCLEJc-xclZuaSnZ2zEyWw",
+                "canonicalBaseUrl": "/@MortonsReviews"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "133K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "The "
+               },
+               {
+                "text": "Night of the Living Dead",
+                "bold": true
+               },
+               {
+                "text": " Full Film 4K Remaster."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "x\"><script>",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/awmux5tWU90/hq720.jpg?sqp=-oaymwFBCOgCEMoBSFryq4qpAzMIARUAAAAAGAElAADIQj0AgKJDeAHwAQH4Af4JgAK2BYoCDAgAEAEYRiBUKGUwD7gC9xg=&rs=AOn4CLAftgQFkQAoG-Qo-mR_pE28fGSwcw",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/awmux5tWU90/hq720.jpg?sqp=-oaymwE1CNAFEJQDSFryq4qpAycIARUAAIhCGAHwAQH4Af4JgAK2BYoCDAgAEAEYRiBUKGUwD7gC9xg=&rs=AOn4CLAe77cswFcr2nBTeJo1_j88Hke6cA",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night Of The Living Dead 1990 1080p BluRay"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "1 year ago"
+           },
+           "lengthText": {
+            "simpleText": "1:28:16"
+           },
+           "viewCountText": {
+            "simpleText": "109,456 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=awmux5tWU90&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "awmux5tWU90",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwkIp9rSkt6-wDW6AwoInNu_itGV_MpXugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr1---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=6b09aec79b5653dd&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "scene of secrets",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@sceneofsecrets",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCKFvTf3zBi4e_11eYaMt8BQ",
+                "canonicalBaseUrl": "/@sceneofsecrets"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "109K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "NightOfTheLivingDead #NightOfTheLivingDead1990 #HorrorMovies #ZombieMovie #ClassicHorror #CultClassic ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "-dashStart1",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/AGsB9eJUrSc/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLCAp1yF5HDdkQk8UXQQno8yKH6Uow",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/AGsB9eJUrSc/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLAzp_-5DMjf32fiA-LU4e6WuD1J5w",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "It’s a Wonderful Night of the Living Dead"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "3 days ago"
+           },
+           "lengthText": {
+            "simpleText": "8:25"
+           },
+           "viewCountText": {
+            "simpleText": "52,690 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=AGsB9eJUrSc&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "AGsB9eJUrSc",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMKCJzbv4rRlfzKV7oDCgjcr7X3rf32ugS6AwsI4KOgxNzfk96jAboDCgiVjvjOw67o13q6AwsIw_Tot4SCptaVAboDCwjt1viipeuD86EBugMKCJeroLD2r4HmH7oDCwjG7oHjxabCrvMBugMLCIqVpuGwnpaDpQG6AwsIsqTjmrKSr-_9AboDCwivooyl4ezL36EBugMKCIy7j8Wa5qzOVroDCgi4meHoh9jA1Xe6AwsIi8-zmOvTxM-QAboDCgj58LrD-Z_J7X26AwsI_fzMpenHtfOOAfIDBQ1b8cY-",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr7---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=006b01f5e254ad27&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "badges": [
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "New"
+             }
+            },
+            {
+             "metadataBadgeRenderer": {
+              "style": "BADGE_STYLE_TYPE_SIMPLE",
+              "label": "CC",
+              "accessibilityData": {
+               "label": "Closed captions"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "Bell Brothers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@hellobellbros",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCyA_2h6YF9uEjgbFI7auIYg",
+                "canonicalBaseUrl": "/@hellobellbros"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "52K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "It's a not-so-wonderful life for George Bailey when a horde of flesh-eating ghouls come to town on Christmas Eve. Using traditional ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "MarkUp00001",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/V5XwrRFP7Zw/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLBrr9HTiiXVO8pXaAEyFsuyO2Nutw",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/V5XwrRFP7Zw/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLBgp4DeOsLm15vPhN-48U4-s7__Jg",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "<b>Bold</b> &amp; plain"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "7 years ago"
+           },
+           "lengthText": {
+            "simpleText": "1:14"
+           },
+           "viewCountText": {
+            "simpleText": "199,041 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=V5XwrRFP7Zw&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "V5XwrRFP7Zw",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMJCKfa0pLevsA1ugMKCNyvtfet_fa6BLoDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk0gcJCSsMAYcqIYzv",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr8---sn-8pgbpohxqp5-aigk.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=5795f0ad114fed9c&ip=82.36.75.121&initcwndbps=4642625&mt=1793527251&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "CRITERION",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@criterioncollection",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UCAP57cF-FSjJKzzXg7ntPlQ",
+                "canonicalBaseUrl": "/@criterioncollection"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "199K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "A deceptively simple tale of a group of strangers trapped in a farmhouse who find themselves fending off a horde of recently "
+               },
+               {
+                "text": "dead",
+                "bold": true
+               },
+               {
+                "text": ", ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         },
+         {
+          "videoRenderer": {
+           "videoId": "BHXb6t7tV9w",
+           "thumbnail": {
+            "thumbnails": [
+             {
+              "url": "https://i.ytimg.com/vi/BHXb6t7tV9w/hq720.jpg?sqp=-oaymwEnCOgCEMoBSFryq4qpAxkIARUAAAAAGAElAADIQj0AgKJDeAG4AvcY&rs=AOn4CLD90cpjRHp6qFE9TYcBUMlgQWJ5dQ",
+              "width": 360,
+              "height": 202
+             },
+             {
+              "url": "https://i.ytimg.com/vi/BHXb6t7tV9w/hq720.jpg?sqp=-oaymwEbCNAFEJQDSFryq4qpAw0IARUAAIhCGAG4AvcY&rs=AOn4CLBj-gMJIBdSlN2152UCgV-ZY5KUDQ",
+              "width": 720,
+              "height": 404
+             }
+            ]
+           },
+           "title": {
+            "runs": [
+             {
+              "text": "Night of the Living Dead (1990) Original Trailer [HD]"
+             }
+            ]
+           },
+           "longBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "publishedTimeText": {
+            "simpleText": "3 years ago"
+           },
+           "lengthText": {
+            "simpleText": "1:06"
+           },
+           "viewCountText": {
+            "simpleText": "153,377 views"
+           },
+           "navigationEndpoint": {
+            "commandMetadata": {
+             "webCommandMetadata": {
+              "url": "/watch?v=BHXb6t7tV9w&pp=ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+              "webPageType": "WEB_PAGE_TYPE_WATCH",
+              "rootVe": 3832
+             }
+            },
+            "watchEndpoint": {
+             "videoId": "BHXb6t7tV9w",
+             "params": "qgMYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFkugMKCKfmpIOs3ZjaQLoDCgiH6Pv7_Kys5GG6AwoI3afZ2vnY64RrugMJCKfa0pLevsA1ugMKCJzbv4rRlfzKV7oDCwjgo6DE3N-T3qMBugMKCJWO-M7DrujXeroDCwjD9Oi3hIKm1pUBugMLCO3W-KKl64PzoQG6AwoIl6ugsPavgeYfugMLCMbugePFpsKu8wG6AwsIipWm4bCeloOlAboDCwiypOOaspKv7_0BugMLCK-ijKXh7MvfoQG6AwoIjLuPxZrmrM5WugMKCLiZ4eiH2MDVd7oDCwiLz7OY69PEz5ABugMKCPnwusP5n8ntfboDCwj9_Myl6ce1844B8gMFDVvxxj4%3D",
+             "playerParams": "ygUYbmlnaHQgb2YgdGhlIGxpdmluZyBkZWFk",
+             "watchEndpointSupportedOnesieConfig": {
+              "html5PlaybackOnesieConfig": {
+               "commonConfig": {
+                "url": "https://rr1---sn-8pgbpohxqp5-aige7.googlevideo.com/initplayback?source=youtube&oeis=1&c=WEB&oad=3200&ovd=3200&oaad=11000&oavd=11000&ocs=700&oewis=1&oputc=1&epbp=1&msp=1&odepv=1&id=0475dbeadeed57dc&ip=82.36.75.121&initcwndbps=4642625&mt=1793527269&oweuc="
+               }
+              }
+             }
+            }
+           },
+           "ownerBadges": [
+            {
+             "metadataBadgeRenderer": {
+              "icon": {
+               "iconType": "CHECK_CIRCLE_THICK"
+              },
+              "style": "BADGE_STYLE_TYPE_VERIFIED",
+              "tooltip": "Verified",
+              "accessibilityData": {
+               "label": "Verified"
+              }
+             }
+            }
+           ],
+           "ownerText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "shortBylineText": {
+            "runs": [
+             {
+              "text": "HD Retro Trailers",
+              "navigationEndpoint": {
+               "commandMetadata": {
+                "webCommandMetadata": {
+                 "url": "/@HDRT",
+                 "webPageType": "WEB_PAGE_TYPE_CHANNEL",
+                 "rootVe": 3611,
+                 "apiUrl": "/youtubei/v1/browse"
+                }
+               },
+               "browseEndpoint": {
+                "browseId": "UC3cs9UJtR6GXwoGcMHhSFYA",
+                "canonicalBaseUrl": "/@HDRT"
+               }
+              }
+             }
+            ]
+           },
+           "showActionMenu": false,
+           "shortViewCountText": {
+            "simpleText": "153K views"
+           },
+           "detailedMetadataSnippets": [
+            {
+             "snippetText": {
+              "runs": [
+               {
+                "text": "Directed by Tom Savini. Starring Tony Todd, Patricia Tallman and Tom Towles. "
+               },
+               {
+                "text": "Night of the Living Dead",
+                "bold": true
+               },
+               {
+                "text": " Blu-ray ..."
+               }
+              ]
+             },
+             "snippetHoverText": {
+              "runs": [
+               {
+                "text": "From the video description"
+               }
+              ]
+             },
+             "maxOneLine": false
+            }
+           ]
+          }
+         }
+        ]
+       }
+      },
+      {
+       "continuationItemRenderer": {
+        "trigger": "CONTINUATION_TRIGGER_ON_ITEM_SHOWN",
+        "continuationEndpoint": {
+         "commandMetadata": {
+          "webCommandMetadata": {
+           "sendPost": true,
+           "apiUrl": "/youtubei/v1/search"
+          }
+         },
+         "continuationCommand": {
+          "token": "Eq0DEhhuaWdodCBvZiB0aGUgbGl2aW5nIGRlYWQakANFZ0lRQVVnVWdnRUxVVXhTYVRaelFuQk5lV09DQVF0WlkybDRXamc1TFRsQlk0SUJDMkYzYlhWNE5YUlhWVGt3Z2dFTFFVZHpRamxsU2xWeVUyT0NBUXRXTlZoM2NsSkdVRGRhZDRJQkMwSklXR0kyZERkMFZqbDNnZ0VMYnpkNFQxOWphVWxGWlVHQ0FRdGxjUzFvWkVSdVpVSjRWWUlCQzJ4aGVWbEZSV0kyVDJ0TmdnRUxiMlZaVUZkc1VtVkxNakNDQVF0SU9IZEdaakpaU1VaYVk0SUJDemd4TUVwT1JuaG5aREJaZ2dFTGNGRmFXVGgzZDNCcGIyLUNBUXRmWkRZNGEzbE9XVEJxU1lJQkMyOWlPSFphYUZOcVJWTTRnZ0VMVm5CNWVrMWhhV296V1hlQ0FRdGtObk5EZDBnd1dWUk1aNElCQzJ0S09GTnVjazFOTlRSemdnRUxabVJ6YTE4MWFIVjFTR3VDQVF0cWRXSlhVSEJUZWxCdU1MSUJCZ29FQ0JVUUFnJTNEJTNEGIHg6BgiC3NlYXJjaC1mZWVk",
+          "request": "CONTINUATION_REQUEST_TYPE_SEARCH"
+         }
+        }
+       }
+      }
+     ]
+    }
+   }
+  }
+ }
+}

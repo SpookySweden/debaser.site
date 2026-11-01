@@ -1,0 +1,421 @@
+'use client';
+
+import { profileContext } from '../lib/audio/track-context';
+import { getMusicRepository } from '../lib/audio/repository';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { authorFromAccount } from '../lib/auth/author';
+import { elementAsTrack } from '../lib/audio/profile-track';
+import {
+  canCommentOnElement,
+  currentProfileElement,
+  profileElementById,
+} from '../lib/profile/elements';
+import { profileNameColour } from '../lib/profile/name-colours';
+import { countryName } from '../lib/profile/countries';
+import { getProfileRepository } from '../lib/profile/repository';
+import type { ProfileCommentKind, ProfileVisibility } from '../lib/profile/types';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PROFILE_COMMENTS_ANCHOR, PROFILE_PIN_LABEL } from '../lib/profile/feed';
+import { canCommentOnProfile, hiddenProfileCommentCount, profileComments, visibleFeedComments, visibleProfileComments } from '../lib/profile/visibility';
+import { HYPER_ARROW } from '../lib/ui/hypertext';
+import { PLATE } from '../lib/ui/controls';
+import { useAuth } from './AuthProvider';
+import CommentRow, { commentRowData } from './CommentRow';
+import CountryFlag from './CountryFlag';
+import ElementComments from './ElementComments';
+import { useForum } from './ForumProvider';
+import ProfileAvatar from './ProfileAvatar';
+import ProfileBoardActivity from './ProfileBoardActivity';
+import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentMenu';
+import ProfileCommentPin from './ProfileCommentPin';
+import ProfileCommentWindow from './ProfileCommentWindow';
+import ProfileCustomiserWindow from './ProfileCustomiserWindow';
+import ProfileStatusBar from './ProfileStatusBar';
+import ProfileTrackPanel from './ProfileTrackPanel';
+import ProfileTagList from './ProfileTagList';
+import ProfileWire from './ProfileWire';
+import { useMusicPlayer } from './MusicPlayerProvider';
+import { versionCrop } from '../lib/profile/avatar-crop';
+
+type PublicProfileWindowProps = {
+  userId: string;
+  /** Hides the "open your account page" ribbon when mounted on the account page. */
+  compact?: boolean;
+};
+
+/**
+ * What everybody else sees when they click a username or a picture.
+ *
+ * Reachable at `/profile/<id>` from the board, a thread, a comment or the account page.
+ * Everything the owner switched off stays off: tags given by other users and comments left
+ * on the profile are hidden by default, and the boxes that would add to them are withheld
+ * while they are hidden.
+ *
+ * The page is laid out as two columns, and each column is a thing with its own
+ * conversation under it: the drawing (`P1`, `P2`, ...) with its remarks, and the track
+ * (`M1`, `M2`, ...) with its remarks. Both columns use the same comment panel, because a
+ * drawing and a track are the same shape of thing here - an append-only history, a version
+ * being read, and a thread belonging to that version. That is what keeps the page packed
+ * rather than pooled: nothing about a drawing is ever found at the foot of the window.
+ */
+export default function PublicProfileWindow({ userId, compact = false }: PublicProfileWindowProps) {
+  const { user } = useAuth();
+  const forum = useForum();
+  const player = useMusicPlayer();
+  const { profile, repository } = usePublicProfile(userId);
+
+  const owner = user !== null && user.id === userId;
+  const visitorId = user?.id ?? null;
+
+  // A visit feeds VANITY's FOR YOU and nothing else: never shown, counted once per pair per half hour
+  // (`record_profile_visit`). Your own profile is not a visit.
+  useEffect(() => {
+    if (visitorId === null || visitorId === userId) return;
+    void getMusicRepository().recordProfileVisit(visitorId, userId);
+  }, [visitorId, userId]);
+
+  const viewer = authorFromAccount(user);
+  const theirThreads = forum.threads.filter((thread) => thread.author.id === userId);
+  const forumName =
+    theirThreads[0]?.author.displayName ??
+    forum.threads
+      .flatMap((thread) => thread.comments)
+      .find((comment) => comment.author.id === userId)?.author.displayName;
+
+  // The name the page is headed with. A profile row that has never been named - an account
+  // made by hand, or one created while the sign-up trigger was missing - says 'Anonymous',
+  // which is not a name anybody chose: the account's own name is, and so is the byline on
+  // anything they have posted.
+  const accountName = owner && user !== null ? user.displayName : undefined;
+  const displayName =
+    profile.displayName !== 'Anonymous' ? profile.displayName : (accountName ?? forumName ?? 'Anonymous');
+  const nameColour = profileNameColour(profile);
+  const hasCountry = profile.country.length > 0;
+
+  // Which version of each element is being read. Each one carries its own selection, so
+  // reading the second drawing does not move the track, and the thread follows the version
+  // it belongs to.
+  const [pictureId, setPictureId] = useState('');
+  const [trackId, setTrackId] = useState('');
+  const picture = profileElementById(profile, 'picture', pictureId) ?? currentProfileElement(profile, 'picture');
+  const track = profileElementById(profile, 'track', trackId) ?? currentProfileElement(profile, 'track');
+
+  // One window, whichever aspect of the profile was asked about: the drawing, the track,
+  // or the profile itself. The menu above both columns is the only way in (see
+  // ./ProfileCommentMenu), so these three options are what it offers.
+  const [commentingOn, setCommentingOn] = useState<ProfileCommentKind | null>(null);
+  const [customising, setCustomising] = useState(false);
+  const comments = owner ? profileComments(profile) : visibleProfileComments(profile);
+  // The feed carries the whole page rather than one list of it - the profile's own remarks, the
+  // picture's and the track's - so it is read through its own selector: each kind gated by the
+  // owner's switch for that thread, and the owner's own view unfiltered.
+  const feedComments = owner ? profile.comments : visibleFeedComments(profile);
+  const commentOptions: ProfileCommentOption[] = [
+    {
+      kind: 'avatar',
+      ...(picture === undefined ? {} : { tag: picture.tag }),
+      available: picture !== undefined && canCommentOnElement(owner, profile.visibility, 'picture'),
+      reason: picture === undefined ? 'nothing filed' : 'switched off',
+    },
+    {
+      kind: 'song',
+      ...(track === undefined ? {} : { tag: track.tag }),
+      available: track !== undefined && canCommentOnElement(owner, profile.visibility, 'track'),
+      reason: track === undefined ? 'nothing filed' : 'switched off',
+    },
+    {
+      kind: 'profile',
+      available: canCommentOnProfile(owner, profile.visibility),
+      reason: 'switched off',
+    },
+  ];
+
+
+  return (
+    <div className="space-y-3">
+      <section>
+        <div className="title-line text-accent-ink">
+          {/* The name and nothing else: the window already says it is a profile. In its own
+              colour, or the title line's ink when the account has not chosen one: no plate
+              behind it, so a name is never drawn the same colour as the thing it sits on. */}
+          <span style={nameColour === undefined ? undefined : { color: nameColour }}>
+            {displayName.toUpperCase()}
+          </span>
+          {/* The owner's way into the customiser: clicking your own name lands here, so this page must
+              not be a dead end for somebody who came to change it (a test run, 2026-10-30). */}
+          {owner ? (
+            <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
+              [ EDIT PROFILE ]
+            </button>
+          ) : null}
+        </div>
+
+        {/* One comment control for the whole profile, above both columns, drawn whether or
+            not anything is filed and whether or not the owner has a thread switched off: the
+            menu is what says which of the three is open. */}
+        <div className="border-b border-ink px-3 py-1">
+          <ProfileCommentMenu options={commentOptions} onChoose={(kind) => setCommentingOn(kind)} />
+        </div>
+
+        {/* The picture and the track side by side, each with its own thread tucked
+            underneath: the drawing in the narrow column, the track in the wide one. */}
+        <div className="flex flex-col gap-3 p-3 lg:flex-row lg:items-start">
+          <div className="w-full space-y-1 lg:w-[212px] lg:shrink-0">
+            <ProfileAvatar
+              version={
+                picture === undefined
+                  ? undefined
+                  : {
+                      id: picture.id,
+                      version: picture.version,
+                      src: picture.src,
+                      alt: picture.credit,
+                      note: picture.note,
+                      createdAt: picture.createdAt,
+                    }
+              }
+              displayName={displayName}
+              size={176}
+              hideVersionLabel
+              crop={versionCrop(profile, picture?.id)}
+            />
+
+            {/* No caption under the drawing: its version tag was a console readout, and an empty
+                frame already shows there is no picture. */}
+            {picture === undefined ? null : (
+              <ElementComments
+                profile={profile}
+                element={picture}
+                owner={owner}
+                repository={repository}
+                onSelect={setPictureId}
+              />
+            )}
+          </div>
+
+          <div className="min-w-0 flex-1 space-y-2">
+            <ProfileTrackPanel profile={profile} element={track} owner={owner} />
+
+            {track === undefined ? null : (
+              <ElementComments
+                profile={profile}
+                element={track}
+                owner={owner}
+                repository={repository}
+                onSelect={setTrackId}
+                onPlay={(element) =>
+                  player.play(elementAsTrack(profile, element), {
+                    origin: 'profile',
+                    href: `/profile/${encodeURIComponent(profile.userId)}`,
+                    where: `THE PROFILE OF ${profile.displayName.toUpperCase()}`,
+                    context: profileContext(profile.displayName),
+                  })
+                }
+                playing={(element) => player.track?.src === element.src && player.playing}
+              />
+            )}
+          </div>
+        </div>
+
+        {/* The page's one crawling line: every remark it carries - on the profile itself, on the
+            picture, on the track - in the full width of the window under both columns, in the
+            band the old `NEWSWIRE :: COMMENTS ON THIS PROFILE` caption used to sit in. It began
+            as the crawl under the picture, which could only show the drawing's own remarks in
+            212px of column; the space beside it and under the track was empty, and the page's
+            conversation is not one drawing's conversation. A pinned comment leads a run of three
+            (see ../lib/profile/feed). It draws nothing at all until somebody has commented - the
+            panel at the foot of the page is where a reader goes to say something, and this line
+            is where it is read back. */}
+        <ProfileWire userId={userId} comments={feedComments} />
+
+
+        {/* What is left of the account's own details now that the console furniture is gone: the
+            country they wear as a flag, and the tags other users have given them. The counts left, and
+            so did the row of switches: how many versions of a drawing exist and which of the four
+            threads is open are the customiser's business, and reading them back at somebody is a
+            console rather than a profile. Presence left too - it is the window's status bar now. The
+            owner's way to the page that changes any of it is one link on the line that names the thing
+            it changes. A country nobody gave is not drawn at all (SPEC-efficiency.md): an empty row is
+            furniture too. */}
+        <div className="min-w-0 border-t border-ink p-3 text-label font-bold text-ink">
+          {hasCountry ? (
+            <p className="flex flex-wrap items-center gap-1">
+              COUNTRY:
+              <CountryFlag code={profile.country} />
+              {countryName(profile.country)}
+              {owner && !compact ? (
+                <>
+                  {' [ '}
+                  <Link href="/account" className="underline hover:bg-ice">
+                    CHANGE IT
+                  </Link>
+                  {' ]'}
+                </>
+              ) : null}
+            </p>
+          ) : null}
+
+          <div className={hasCountry ? 'mt-1 border-t border-ink pt-1' : ''}>
+            <ProfileTagList profile={profile} repository={repository} viewer={viewer} owner={owner} />
+          </div>
+        </div>
+
+        {/* The biography, as a small part of the same window rather than a section of its own: the
+            person's own words, with no heading or count over them, and nothing at all when there are none. */}
+        {profile.bio.length === 0 ? null : (
+          <div className="border-t border-ink p-3">
+            <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{profile.bio}</p>
+          </div>
+        )}
+
+        {/* The window's own status bar: the one line of state that belongs to the whole page, under
+            everything the profile carries, which is where a desktop of this era put it. It is the only
+            place the "when were they last here" question is answered now, and it answers it in words
+            that age on their own. */}
+        <ProfileStatusBar userId={userId} />
+      </section>
+
+      {customising ? <ProfileCustomiserWindow userId={userId} onClose={() => setCustomising(false)} /> : null}
+
+      {commentingOn === null ? null : (
+        <ProfileCommentWindow
+          profile={profile}
+          repository={repository}
+          viewer={viewer}
+          viewerId={user?.id ?? null}
+          owner={owner}
+          initial={commentingOn}
+          picture={picture}
+          track={track}
+          onSelect={(kind, versionId) => {
+            // Whichever version was chosen in the window becomes the one on screen behind it.
+            if (kind === 'avatar') setPictureId(versionId);
+            else setTrackId(versionId);
+          }}
+          onClose={() => setCommentingOn(null)}
+        />
+      )}
+
+      {/* Board activity first, then the comments on the profile itself: what the account
+          has filed reads better before the discussion of it. */}
+      <ProfileBoardActivity
+        userId={userId}
+        displayName={displayName}
+        nameColour={nameColour}
+        threads={theirThreads}
+      />
+
+      <CommentsSection
+        owner={owner}
+        visibility={profile.visibility}
+        comments={comments}
+        hiddenCount={owner ? hiddenProfileCommentCount(profile) : 0}
+        userId={userId}
+        repository={repository}
+      />
+    </div>
+  );
+}
+
+
+type CommentsSectionProps = {
+  owner: boolean;
+  visibility: ProfileVisibility;
+  comments: ReturnType<typeof profileComments>;
+  hiddenCount: number;
+  /** The account whose page this is, and the store the pin is taken on. */
+  userId: string;
+  repository: ReturnType<typeof getProfileRepository>;
+};
+
+/**
+ * Comments left directly on the profile - not on the picture, and not on the track.
+ *
+ * The same row the element threads use, and the same fold: a small arrow carrying the count,
+ * which unfolds the list underneath. There is no box to write in here any more: the profile
+ * has one comment control, above both columns, and `general` is one of its three options, so
+ * this section only reads. Folded is the default, because a profile reads as a picture and a
+ * track rather than as a comment page.
+ *
+ * It is also where a pin is taken, and only the owner is handed the control: a small blue
+ * pushpin beside each comment, which pins it to the wire's every-third row and unpins it again
+ * (see ./ProfileCommentPin, and ../lib/profile/feed on the run of threes). A comment that is
+ * already pinned wears the same `PINNED` plate the wire draws, so the list and the strip agree
+ * about which remarks have been lifted.
+ */
+function CommentsSection({
+  owner,
+  visibility,
+  comments,
+  hiddenCount,
+  userId,
+  repository,
+}: CommentsSectionProps) {
+  const [open, setOpen] = useState(false);
+
+  // No readout on the title line: how many are visible and pinned is counted back at a visitor,
+  // and the fold's own arrow already carries the count. No `general` label either - the comment
+  // menu above the columns is where the three threads are named.
+  return (
+    <section
+      id={PROFILE_COMMENTS_ANCHOR}
+    >
+      <div className="title-line text-accent-ink">
+        <span>COMMENTS</span>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-2 px-2 py-1 text-label font-bold text-ink">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className={HYPER_ARROW}
+          aria-expanded={open}
+          title={open ? 'Fold the comments away' : 'Show the comments'}
+        >
+          {open ? '▾' : '▸'}
+          {comments.length === 0 ? '' : ` ${comments.length}`}
+        </button>
+      </div>
+
+      {!open ? null : (
+        <div className="border-t border-ink p-2 text-ink">
+          {/* One line for the owner: how many visitors cannot see, or just that they cannot once there are none. */}
+          {owner && !visibility.showProfileComments ? (
+            <p className="text-label font-bold text-ink">
+              {hiddenCount > 0 ? `${hiddenCount} ` : ''}HIDDEN FROM VISITORS.
+            </p>
+          ) : null}
+
+          {comments.length === 0 ? (
+            <p className="text-label font-bold text-ink">
+              {owner || visibility.showProfileComments ? 'NONE YET.' : 'COMMENTS OFF.'}
+            </p>
+          ) : (
+            <ul className="space-y-1">
+              {comments.map((comment) => (
+                <CommentRow
+                  key={comment.id}
+                  data={commentRowData(comment)}
+                  {...(comment.pinned === true ? { pinnedLabel: PROFILE_PIN_LABEL } : {})}
+                  {...(owner
+                    ? {
+                        action: (
+                          <ProfileCommentPin
+                            userId={userId}
+                            commentId={comment.id}
+                            pinned={comment.pinned === true}
+                            repository={repository}
+                          />
+                        ),
+                      }
+                    : {})}
+                />
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}

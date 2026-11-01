@@ -1,0 +1,67 @@
+# Character workbench: simple figures
+
+Read this before touching how shapes connect, sag or get placed (`app/lib/character/touch.ts`, `structure.ts`,
+`sag.ts`, the placing flow in `store.ts`). The spec it was built from is `SPEC-simple-figures.md`.
+
+## The rules
+- A figure is at most 7 shapes (`MAX_SHAPES`) on at most 7 nodes (`MAX_NODES`). Every preset is 5 shapes, valid, with no sag.
+- **Touching** = the gap between two outlines is at most `TOUCH_GAP` (0.03 units). The gap is measured on each primitive's
+  real outline (GJK distance on exact support functions), so a sphere off a box's corner is not touching. A node touches
+  a shape the same way.
+- **Levels**: a shape touching a node is level 0; touching a level-0 shape, level 1; and so on, by the shortest path.
+- **Broken** (blocks saving): a node with no shape round it, a shape touching nothing, a shape cut off from every node,
+  and a shape pinned to no node. Hidden shapes are left out of everything.
+- **Sag** starts at level 2, doubles per level, adds 25% per sibling sagger, scales with the shape's front-view pixel
+  count and with how sideways it sticks out from where it touches. A sagger drags its support a little; anything hanging
+  off a tipped shape tips with it. All the numbers are `SAG` in `sag.ts`.
+- **SAG %** is the most-turned shape's whole drawn turn (its own tip and everything it is carried by) as a share of a
+  quarter turn (100% = something that stuck straight out now hangs straight down). Each tip is capped at hanging as
+  the shape points *after* being carried, so a chain of tips never swings a shape back under the figure. Not "share of
+  its own way to hanging": a shape built almost hanging would then read 20% for a one-degree droop, and swinging an arm
+  out would make the number drop while the droop you can see grows.
+- Levels, validity and sag are **worked out from the figure** (memoised per figure object), never stored, so undo, redo
+  and loading bring them back for free. Sag is applied when drawing only.
+
+## Placing (ADD and +NODE)
+- +NODE: click a node, drag from anywhere in either view, then ✓ or ✗.
+- ADD: pick a shape, click a node (skipped when a node is already selected, e.g. from POSE). A dotted pink ring is
+  drawn round the node in both views (`place.ts`) and the new shape starts on it, pointing away from the root, never
+  buried at the node. With a mouse the shape's centre follows the pointer in whichever view it is over, held inside
+  the ring (outside, it stops on the edge; the view's hidden direction is kept); a click inside the ring keeps it,
+  pinned to that node, as one undo step; a click outside does nothing. On a touch screen a finger drags it the same
+  way, and ✓ / ✗ show by the shape once it has moved (`placing.touch`). A spot where it touches nothing is refused
+  like ✓, and the bar says TOUCHES NOTHING HERE.
+- **The ring's radius**: the farthest outline already pinned to the node (sampled in 26 directions from the node),
+  plus half a new shape, never less than one new shape (`RING_MIN`, 0.24). Fixed when the node is picked. The hips
+  ring is big (about 1.0 on BASE) because the legs hang from the hips. Proven by `Temp/check-character-place.cjs`.
+- ESC is ✗ - unless the ADD
+  menu or the light pad is open (ESC shuts that first), or the key was pressed in another window such as the shelf.
+  A press in a view leaves focus on the customiser window, which is *around* the workbench, so that ESC still counts.
+- The figure from before is `placing.base`; drags while placing file nothing; ✓ files `base` once (one undo step); ✗
+  puts `base` back as the same object.
+- While placing, an invisible sheet in front of everything takes every press (`PlacingSheet`), and the side panels are
+  `inert`. Any other tool, NEW, throwing changes away, or leaving the workbench abandons the placement.
+- ✓ is refused while a new shape touches nothing valid. A new node can always be kept; it is marked until a shape is
+  put round it.
+
+## Gotchas
+- **Adding or removing a node can turn its parent's frame** (a node's bone points at its *first* child). On a posed
+  figure that would swing every shape pinned there. `addNode` / `removeNode` re-express every shape in the new frames
+  (`keepShapesInPlace`) so nothing moves. `check-character-simple` proves it with a deliberate break.
+- **The views' canvas is `flat` (no tone mapping).** The skeleton, wires, transform box and marks are drawn with three's
+  own materials, which R3F tone-maps by default: they drew a little off their palette values (rose #E6004C as 236,0,75,
+  pink #FF00A0 as 248,25,174, green #28C745 as 96,204,89). With `flat` they are exact, and the pixel figure is unchanged
+  (its passes are shaders that never had tone mapping; before/after pictures under every LAYERS switch were identical).
+  The grid was always exact: three's grid helper turns tone mapping off for itself. `Temp/char-drive.cjs` counts the
+  exact values, so it fails if tone mapping comes back. The ✗ button over the view is the same rose, so its box is left
+  out of the rose count.
+- **The PIXELS stat** is read back from the FRONT view's tiny colour target every 200 ms (`countFigurePixels`). With
+  PIXELATE off it draws one extra tiny colour pass for the count. A shape's sag *weight* is estimated from its outline
+  instead (`outlinePixels`), because counting each shape separately would need a pass per shape.
+
+## How it is checked
+- `Temp/check-character-simple.cjs`: touching, validity, the save messages, sag levels and siblings, hanging vs
+  sideways, the caps, the presets, the placing flows, node add/delete. `node Temp/prove-simple-breaks.cjs` applies 18
+  deliberate breaks to the source and confirms each is caught.
+- `Temp/char-drive.cjs [url] [--mobile]`: the flows in Chrome, PIXELS against a real front render, the folded list,
+  the SKELETON switch, and (on a phone) every workbench control at least 44px tall.

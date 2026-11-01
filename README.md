@@ -1,0 +1,158 @@
+DEBASER.SITE
+============
+
+An archive of comic-book lore and concept art, run like a Web 1.0 desktop. A message board, an
+account directory, direct messages, a music shelf, a set of hand-drawn concept sheets and a set of
+lore pages written live by whoever is looking at one share a single window frame, one palette and
+one set of stores.
+
+Every drawing is hand-drawn on a Kamvas tablet and filed by hand: nothing here generates artwork,
+and no character, icon or cursor is drawn in CSS or in SVG. `.claude/rules/core.md` holds the look to that rule
+and to the rest of the aesthetic; `assets/README.txt` says where each kind of drawing goes.
+
+What is where
+-------------
+    app/                  the site: one folder per route, plus the chrome, the stores and the rules
+      page.tsx            the landing map, and the project it lists
+      forum/              the board: posts, replies, tags, pins and moderation
+      users/ comms/       the account directory, and the conversations between accounts
+      account/            signing in, and the public-profile customiser
+      profile/[userId]/   one account's public page, with the comment wire that runs over it
+      concepts/           the hand-drawn sheets, each in a window of its own with its own thread
+      music/              the archive as a file browser: folders, files, tags, and the player
+      lore/[slug]/        lore pages, edited together in real time
+      notes/ links/       how the archive is built, and everywhere else worth going
+      api/                the routes a browser posts files to on the mock stores
+      lib/                every store and every rule, one folder per subject
+      components/         the chrome, the windows and the panels
+    assets/               every hand-drawn file, streamed by app/assets/[...path]/route.ts
+    supabase/             schema.sql (the whole database, safe to re-run) plus the newer sections
+                          as migrations, and README.md - the order to run everything in
+    Temp/                 local scratch: the check scripts, their logs and the commit messages
+                          (gitignored, and never needed to run or to build the site)
+    scripts/              the tools that read the site and capture its HTML - tracked, because a
+                          viewer a fresh clone does not have is not a guarantee
+
+Running it
+----------
+    npm install
+    npm run dev           # http://localhost:3000
+
+The site runs with no backend at all. Every store falls back to a localStorage mock when the
+environment says nothing, so the board, the profiles, the conversations, the shelf and the lore
+pages all work on a fresh clone - and each part can be moved onto Supabase on its own.
+
+The switches
+------------
+Copy `.env.example` to `.env.local`, then fill in the project's url and publishable key:
+
+    NEXT_PUBLIC_SUPABASE_URL=...              the project, and the key the browser reads with
+    NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+    NEXT_PUBLIC_AUTH_BACKEND=supabase         accounts
+    NEXT_PUBLIC_FORUM_DATA_SOURCE=supabase    the board
+    NEXT_PUBLIC_PROFILE_DATA_SOURCE=supabase  profiles, pictures, tags
+    NEXT_PUBLIC_COMMS_DATA_SOURCE=supabase    direct messages
+    NEXT_PUBLIC_MUSIC_DATA_SOURCE=supabase    the shelf's files and folders
+
+`.env.production` is committed with the same names, because every one of them is a `NEXT_PUBLIC_*`
+value that reaches the browser in the bundle anyway: Row Level Security in `supabase/schema.sql` is
+what protects the data. `supabase/README.md` is the order to run, the house account to make, the
+Google sign-in seam to open - and what each part of the site does until its script has been run.
+
+Checks
+------
+    npm run lint          # eslint
+    npm run typecheck     # tsc --noEmit
+    npm run build         # next build, which typechecks and prerenders every route
+    npm run verify        # the three above, in that order
+
+    npm run checks
+
+The last one runs the scratch checks: the assertions behind each feature, from the pin durations to
+the wire's rows to the Yjs handshake between two editors. Each compiles the modules it needs with
+`npx tsc` first, from the command written in its own header comment, so that one command is the
+whole run. The live probes beside them need a Supabase project and credentials, and are run by hand
+against the deployed one. **Run `npm run db:sweep` after the last one, never before it**: the checks
+that talk to the project sign accounts up, and cannot delete them - see `scripts/README.txt`.
+
+Reading the site
+----------------
+**There is a browser here, and it is Chrome.** Reading the served HTML is `scripts/read-site.cjs`,
+which is what stands in for looking at the bytes - it reads the HTML a visitor's browser gets and
+reports whether the text you name is present or absent:
+
+    npm run read                     # the deployed site, checking the player's keys
+    npm run read:local               # a local `next start` on :3210, before pushing
+    npm run read -- "[ ♪ MUSIC ]"    # expect this text to be there
+    npm run read -- --absent "x"     # expect this text to be gone
+    npm run read -- --url <route>    # read any page
+
+It strips React's text-node comments first, which is the whole reason it is a script rather than a
+grep: the player's music key is served as `[ <!-- -->♪<!-- --> <!-- -->MUSIC<!-- --> ]`, so searching
+the raw HTML for `[ ♪ MUSIC ]` finds nothing and reports a present change as missing.
+
+Its limits are real and worth stating: it proves the served bytes contain the text named, and it
+cannot judge an aesthetic or watch motion. **A picture, though, is readable now.** `npm run shot`
+writes a PNG of the installed Chrome's own rendering (`scripts/screenshot.cjs`, via `playwright-core`,
+which bundles no browser and downloads none), `npm run panes` counts
+the colours inside a box of it, `npm run stages` does that per render stage, and the file-reading
+tool opens the file itself. Chrome is installed at
+`C:\Program Files\Google\Chrome\Application\chrome.exe`:
+
+    npm run browser -- --start --signin                                      one browser, one session
+    npm run shot -- --url http://localhost:3210/forum --out Temp/browse/forum.png
+    npm run panes -- --png Temp/browse/forum.png --box 0,0,300,200
+
+`--use-angle=swiftshader` (carried by every one of those tools) is load-bearing: without the software
+GL a headless build has no WebGL, and a blank canvas would say nothing. **A capture is refused when
+the address did not answer**, so a picture of *"This site can't be reached"* cannot be filed under a
+page's name - which is exactly how `Temp/browse/account.png` came to exist under `account`.
+`.claude/rules/core.md` has the instruments and the faults they found.
+
+    npm run capture                  # writes Temp/qa/<route>.html for the audit below
+    npm run audit                    # reads those captures and reports
+
+`npm run audit` reads the pre-JavaScript HTML of every route - which is also what a screen reader and
+a crawler see - and reports unnamed fields, controls too small for a thumb, text too small to read,
+and colour pairs below the contrast floor. It also lists the handful of things no script can answer
+and somebody should walk through by hand; `Temp/check-ux.cjs` is the part of that pass the ordinary
+suite can hold, so a regression is caught without a server. **Capture first**: a snapshot older than
+the components makes the pass meaningless. `scripts/README.txt` has the whole of it.
+
+Asking the database, and changing it
+------------------------------------
+Everything above talks to the project the way the *site* does: the publishable (anon) key over
+PostgREST, which reads the tables RLS allows and calls the functions the schema defines. That key
+cannot run SQL, so no check above can ask the database *why*. `scripts/db.cjs` can, through the
+Supabase CLI, which is a devDependency:
+
+    npm run db -- "select count(*) from public.profiles;"
+    npm run db -- --file supabase/cleanup/verify-live-schema.sql
+    npm run db -- --write "..."        # a statement that is not a read is refused without this
+
+And the schema itself is a CLI migration chain now, so a change reaches the project with a command
+rather than a paste into the SQL editor:
+
+    npm run db:list          # local and remote, side by side
+    npm run db:push:dry      # what a push would apply
+    npm run db:push          # apply it
+    npm run db:new -- name   # a new, empty migration
+
+    npm run db:sweep:review  # the throwaway accounts a check run left, listed - changes nothing
+    npm run db:sweep         # the same list, then the removal
+
+All of them need a personal access token (`sbp_...`, from
+https://supabase.com/dashboard/account/tokens) as `SUPABASE_ACCESS_TOKEN` in `.env.local` or in the
+environment, and `scripts/db-cli.cjs` supplies `--linked --project-ref <ref>` itself, reading the ref
+out of `NEXT_PUBLIC_SUPABASE_URL` - because `supabase link` writes per-machine state that a fresh
+clone does not have. It is the only secret this repository ever asks for, it is never read by `app/`
+and never needed to build or run the site, and a statement that is not a read is refused without
+`--write`. `supabase/README.md` has the whole of it, including how the migration history was
+reconciled.
+
+Deploying
+---------
+Vercel, straight from this repository. `next build` is what runs there, `.env.production` is what
+points it at Supabase, and nothing else has to be configured in a dashboard - except the schema,
+which is run once in the Supabase SQL editor (step 1 of `supabase/README.md`).
+

@@ -1,0 +1,1295 @@
+@import "tailwindcss";
+/* Every value the look is drawn with: sizes, lines, colours, faces, layers, motion. docs/theming.md. */
+@import "./theme/tokens.css";
+
+/* The fallback theme is dark (`FALLBACK_THEME` in app/lib/ui/themes.ts; its colours are the generated block
+   in app/theme/tokens.css), so the browser's own parts - a select's popup, the caret - are drawn dark before
+   the boot script runs; the script writes the chosen theme's scheme over this. */
+:root {
+  color-scheme: dark;
+}
+
+html {
+  /* IBM Plex Mono is a smooth vector face, so it wants the browser's antialiasing (it was switched off
+     for DotGothic16, a pixel face, where smoothing blurred the blocks). Only macOS reads this. */
+  -webkit-font-smoothing: antialiased;
+  /* The face has one weight. With synthesis off, a `font-bold` still in a component draws the
+     regular face instead of a smeared fake bold: emphasis on this site is colour or size. */
+  font-synthesis: none;
+}
+
+body {
+  background: var(--color-desktop);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+/* The desktop surface --------------------------------------------------------
+   The surface behind the window: one dye with a second dithered through it in 4px squares, the way a
+   Web 1.0 desktop was tiled. It is the site's background - a repeating tile pattern in the sense
+   CLAUDE.md asks for - and not an illustration: nothing here draws a character, an icon or a scene,
+   which is what the artwork rule is about.
+
+   Both halves are tokens, and that is the whole point of the pair: the tile is the largest surface on
+   the site, so a dark theme that could not reach it produced a dark page on a Brilliant Pink desktop.
+   A theme sets `desktop` and `desktop-dither` together - a dither equal to the fill is a tile with no
+   texture, which is a mistake the eye cannot see and the check can. */
+.desktop-tile {
+  background-color: var(--color-desktop);
+  /* `--art-desktop-tile` replaces the two diagonals when a file is filed for it. A tile is the one
+     face whose fallback is a *pattern* rather than a fill, so the hook wraps the pattern and not the
+     colour: `background-repeat` and the size stay the element's business. */
+  background-image: var(
+    --art-desktop-tile,
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%)
+  );
+  background-position:
+    0 0,
+    2px 2px;
+  background-size: 4px 4px;
+}
+
+
+/* Cursors ---------------------------------------------------------------------
+   The retro pointer is a hand-drawn file, like every other mark on this site: nothing draws an
+   arrow in CSS or in SVG (see CLAUDE.md, and assets/cursors/README.txt for the three files and
+   their sizes). Until they are drawn the URLs 404 and the browser falls back to the next entry
+   in each list, which is the ordinary cursor - so the site reads normally either way, and a
+   cursor that lands appears without another line of code.
+
+   Declared in `base` rather than loose, so a utility still wins: `cursor-pointer`,
+   `cursor-wait` and `cursor-move` are deliberate statements about one control and are left
+   alone.
+
+   The reader picks the set in PREFERENCES (`app/lib/ui/cursor-slot.ts` writes `data-cursor` on
+   <html>). Each set is three custom properties; the element rules below only ever read them.
+   CONTRAST - the default, and what a missing attribute means - is the white set on the dark theme
+   (the fallback, so it is the bare `:root`) and the black set on the light one. The explicit
+   choices come after it, so they win at the same specificity. */
+@layer base {
+  :root,
+  :root[data-cursor='white'] {
+    --cursor-arrow: url('/assets/cursors/arrow-white.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-white.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-white.png') 0 0, text;
+  }
+
+  :root[data-scheme='light'],
+  :root[data-cursor='black'] {
+    --cursor-arrow: url('/assets/cursors/arrow-black.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-black.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-black.png') 0 0, text;
+  }
+
+  :root[data-scheme='light'][data-cursor='white'] {
+    --cursor-arrow: url('/assets/cursors/arrow-white.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-white.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-white.png') 0 0, text;
+  }
+
+  :root[data-cursor='pink'] {
+    --cursor-arrow: url('/assets/cursors/arrow-pink.png') 0 0, auto;
+    --cursor-pointer: url('/assets/cursors/pointer-pink.png') 0 0, pointer;
+    --cursor-text: url('/assets/cursors/text-pink.png') 0 0, text;
+  }
+
+  :root[data-cursor='system'] {
+    --cursor-arrow: auto;
+    --cursor-pointer: pointer;
+    --cursor-text: text;
+  }
+
+  :root {
+    cursor: var(--cursor-arrow);
+  }
+
+  a,
+  button,
+  label,
+  summary,
+  [role='button'],
+  [role='menuitem'],
+  input[type='checkbox'],
+  input[type='radio'],
+  input[type='range'] {
+    cursor: var(--cursor-pointer);
+  }
+
+  input[type='text'],
+  input[type='email'],
+  input[type='password'],
+  input[type='search'],
+  textarea {
+    cursor: var(--cursor-text);
+  }
+}
+
+/* The CAT cursor (`app/components/CatCursor.tsx`) draws the pointer itself, so the browser's is hidden -
+   but only once the component has said it is running (`data-cat-cursor`), so a page whose script never
+   ran still has a pointer. Unlayered and important, because a component's own `cursor-pointer` must not
+   bring the hand back over the cat. A field keeps the browser's I-beam, and the cat steps aside there. */
+:root[data-cat-cursor],
+:root[data-cat-cursor] * {
+  cursor: none !important;
+}
+
+:root[data-cat-cursor]
+  :is(
+    input:not([type='checkbox'], [type='radio'], [type='range'], [type='button'], [type='submit'], [type='reset'], [type='color'], [type='file'], [type='image']),
+    textarea,
+    [contenteditable='true'],
+    [contenteditable='true'] *
+  ) {
+  cursor: text !important;
+}
+
+/* A lore page's writing --------------------------------------------------------
+   The editor draws ProseMirror's own markup rather than this site's, so the class the editor puts
+   on it (`lore-document`, see app/components/LoreEditor.tsx) is the only hook our CSS has. What is
+   styled here is a document's furniture: block spacing, the two headings the toolbar offers, the
+   two lists, a quote, inline code and a rule - all in the pixel face the rest of the site wears. */
+.lore-document {
+  min-height: 14rem;
+  outline: none;
+  font-size: var(--text-prose);
+  line-height: 1.5;
+  color: var(--color-ink);
+  word-break: break-word;
+}
+
+.lore-document > * + * {
+  margin-top: --spacing(2.8);
+}
+
+/* The face has one weight, so a heading is set apart by size, and the first one by the accent ink. */
+.lore-document h1 {
+  font-size: var(--text-headline);
+  line-height: 1.25;
+  color: var(--color-accent-ink);
+}
+
+.lore-document h2 {
+  font-size: var(--text-display);
+  line-height: 1.3;
+}
+
+.lore-document ul {
+  list-style: square inside;
+  padding-left: --spacing(4);
+}
+
+.lore-document ol {
+  list-style: decimal inside;
+  padding-left: --spacing(4);
+}
+
+.lore-document blockquote {
+  border-left: var(--border-width-thick) solid var(--color-ink);
+  background: var(--color-ice-pale);
+  padding: --spacing(1.6) --spacing(2.4);
+}
+
+.lore-document code {
+  border: var(--default-border-width) solid var(--color-ink);
+  background: var(--color-ice-pale);
+  padding: 0 --spacing(0.8);
+}
+
+.lore-document hr {
+  border: 0;
+  border-top: var(--border-width-line) solid var(--color-ink);
+}
+
+/* The other editors' carets, as the collaboration extension draws them: a bar in the colour that
+   account's name wears, with the name above it and whatever they have selected behind it. */
+.lore-document .collaboration-carets__caret {
+  position: relative;
+  border-left: var(--border-width-line) solid transparent;
+  margin-right: -1px;
+  pointer-events: none;
+}
+
+.lore-document .collaboration-carets__label {
+  position: absolute;
+  top: -1.1rem;
+  left: -2px;
+  padding: 0 --spacing(0.75);
+  /* The site's smallest label; absolute, so the size moves nothing. */
+  font-size: var(--text-label);
+  white-space: nowrap;
+  color: var(--color-ink-bar);
+}
+
+.lore-document .collaboration-carets__selection {
+  background: var(--color-pointed);
+}
+
+/* Retro OS primitives -------------------------------------------------------
+   Collapsible forum threads use native <details>/<summary>; the stock marker
+   is replaced with the Win95 [+]/[-] text indicator rendered in JSX. */
+summary {
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A line of text that crawls past, the way the information bar along the foot of a news
+   channel does. The track holds the same run twice and slides by exactly half its width,
+   so the second copy lands where the first began and the loop has no seam. The duration is
+   set inline from the number of rows, which keeps the speed steady instead of making a
+   long run crawl faster than a short one.
+
+   Two things stop it, both deliberate: the pointer resting on the strip (so a row can be
+   read, and the link in it aimed at), and a system that has asked for less motion - in
+   which case the strip becomes a line that can be scrolled by hand. */
+@keyframes crawl {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.crawl {
+  animation: var(--animate-crawl);
+}
+
+.crawl:hover {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crawl {
+    animation: none;
+  }
+}
+
+/* The pin-duration selector's tick: a quick pop when the number cycles. */
+@keyframes pin-tick {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.2);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.pin-tick {
+  animation: var(--animate-pin-tick);
+}
+
+/* Mobile form controls -------------------------------------------------------
+   Browsers zoom a page in when a text field uses type smaller than 16px. The
+   site's monospace fields are below that, so on a phone every input, select and
+   textarea is lifted to 16px - the page stops jumping, and the field is large
+   enough to read and aim at while typing. */
+@media (max-width: 639px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']):not([type='file']),
+  textarea,
+  select {
+    font-size: var(--text-field-phone) !important;
+  }
+}
+
+/* The artless surface --------------------------------------------------------
+   Three rules that hold the whole GUI to one look, and none of them draws anything: a scrollbar is
+   a tiled trough with a flat grip, a selection is two flat colours, and artwork is scaled in whole pixels
+   rather than resampled into a blur. Nothing here is an illustration - see CLAUDE.md, Asset Rules. */
+
+/* A 16px trough with a bevelled grip, and it inverts while it is dragged. The standard property is
+   what Firefox reads; the `::-webkit-` rules are what Chromium and Safari read. Both are given the
+   same values, so a scrollbar is the same scrollbar wherever the site is opened.
+
+   The trough is the desktop tile - the same dye with the same dither - because that is what a
+   scrollbar is a window onto, and because it is the only surface on the site wide enough to show that
+   the tile is a tile. Every value here is a token, and none of them was: a scrollbar painted from
+   literals kept its Brilliant Pink dither in a dark theme, which is a pink stripe down the side of a
+   night desktop. The grip is a flat bar in the field ink - the colour every outline on the site is
+   drawn in - set 3px into the trough, and it flashes Brilliant Pink while it is dragged, like a key
+   being pressed. (It was a Daffodil plate with the Win95 bevel until SPEC-readability.md.) */
+html {
+  scrollbar-color: var(--color-ink) var(--color-desktop);
+}
+
+::-webkit-scrollbar {
+  width: 16px;
+  height: 16px;
+  background: var(--color-desktop);
+}
+
+::-webkit-scrollbar-track {
+  background-image: linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%),
+    linear-gradient(45deg, var(--color-desktop-dither) 25%, transparent 25%, transparent 75%, var(--color-desktop-dither) 75%);
+  background-position: 0 0, 2px 2px;
+  background-size: 4px 4px;
+  background-color: var(--color-desktop);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink);
+  background-clip: padding-box;
+  border: --spacing(0.75) solid transparent;
+}
+
+/* Held down, the grip flashes the press colour like every other control on this site. */
+::-webkit-scrollbar-thumb:active {
+  background-color: var(--color-bubble);
+}
+
+::-webkit-scrollbar-corner {
+  background: var(--color-desktop);
+}
+
+/* Selected text is a flat block with dark letters on it, the way a text-mode editor marked it.
+   Daffodil and the plate ink rather than Brilliant Pink and the field ink, which is what it was: the
+   field ink *flips*, so the dark theme selected Black on pink at 3.65:1 - a third of the site's
+   selected text, unreadable. Daffodil is the same yellow in both themes and Black on it is 17.72:1 in
+   both, and it is the colour of every plate on the site, so a selection now looks like the site's own
+   furniture rather than like an accent. */
+::selection {
+  background: var(--color-sun);
+  color: var(--color-ink-plate);
+}
+
+/* Artwork is hand-drawn at its own size and scaled in whole pixels, never resampled. */
+img {
+  image-rendering: pixelated;
+}
+/* The colours ---------------------------------------------------------------------------------------
+   Declared in app/theme/tokens.css, generated from app/lib/ui/themes.ts: the nine dyes ("Dyacid Dyes",
+   docs/design.md) are named once there, and each theme says which dye plays which part. What each colour
+   *token* is for is documented on `ThemeTokens` in themes.ts. The motion tokens (`--animate-*`) are in
+   tokens.css too; their keyframes are below. */
+
+
+
+/* The reactivity: four verbs, and every one of them is steps() ---------------------------------
+   A pixel face moves in whole frames, so a wobble is two frames of one pixel and a ticker travels in
+   the same chunky way a Web 1.0 marquee did. The durations are short on purpose: the point is that
+   the page answers the pointer, not that it performs. */
+@keyframes wobble {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  50% {
+    transform: translate(-1px, 1px);
+  }
+}
+
+/* A RADI-OH face perking up under the pointer: a two-frame hop, the size of the text's own pixels. */
+@keyframes hop {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+/* A label leaning towards wherever the pointer came from. */
+@keyframes bump {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  50% {
+    transform: translateX(1px);
+  }
+}
+
+/* The press: two pixels, fast, while the plate is held down. */
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+
+  25% {
+    transform: translate(-2px, 0);
+  }
+
+  75% {
+    transform: translate(2px, 0);
+  }
+}
+
+/* The detach cue: whole frames on and off, ending off - no fade, per the design guide. */
+@keyframes detach {
+  0%,
+  33%,
+  66% {
+    opacity: 1;
+  }
+
+  16%,
+  50%,
+  83%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* The click: a plate flashes a colour it is not before it settles into being pressed. CSS cannot
+   delay the action a press runs - and would be lying about responsiveness if it did - so the flash is
+   the pressed state itself, bright enough to read as a hit (see `PLATE` in lib/ui/controls.ts). */
+@keyframes flash {
+  from {
+    background-color: var(--color-sun);
+  }
+
+  to {
+    background-color: var(--color-bubble);
+  }
+}
+
+/* A ticker travelling one full copy of its own text, so the loop has no seam. */
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+/* Slow, low-frame-rate blinking: for the one glyph that says something is alive. */
+@keyframes blip {
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* The alarm: Emerald to Rose and back, in two whole frames.
+   For the one banner on the site that is a *fault* rather than an offer. The ink on it is Black,
+   because the background alternates and Black is the only ink that reads on *both* dyes: 9.35:1 on
+   Emerald and 4.47:1 on Rose, against Pure White's 2.25:1 on Emerald, which would have been unreadable
+   for half of every second. The switch is a step rather than a fade, because a warning that eases into
+   itself reads as an animation instead of an error. */
+@keyframes alarm {
+  0%,
+  100% {
+    background-color: var(--color-acid);
+  }
+
+  50% {
+    background-color: var(--color-bubble-pale);
+  }
+}
+
+
+/* The control vocabulary --------------------------------------------------
+   Every plate, field, bar and chip on this site, written once, as real CSS classes rather than as a
+   string of utilities each component pastes (`app/lib/ui/controls.ts` is the registry of names; this
+   is what those names mean).
+
+   Three things are deliberate:
+
+   1. **`@layer components`, not loose rules.** Several of these classes write a property a component's
+      own utilities write too (the plate's Daffodil face against a caller's `bg-bubble`, the desktop
+      padding against a caller's `max-sm:` one). A component's utility has to win - asking for another
+      plate colour is not a bug - and the utilities layer is emitted after this one, so they do.
+   2. **Every face is a `--art-` hook.** The names come from the artwork registry
+      (`app/lib/ui/art/slots.ts`), which also holds the size each drawing is shown at. A hook is
+      consumed here with the *current* rendering as its fallback, so `npm run art` can hand an artist
+      the brief while the CSS keeps drawing what it draws today; dropping a file in later is one
+      declaration with no class touched. `none` is a real fallback and not a placeholder: it is what
+      the browser draws for a face nobody has filed artwork for.
+   3. **One frame, one place.** The Win95 bevel is gone (SPEC-readability.md): every window, panel,
+      field and key wears the same notched outline below, `--art-frame` stays its hook, and
+      `--art-frame-inset` still names the drawing for a well.
+   --------------------------------------------------------------------------------------------- */
+@layer components {
+  /* The frame: a 2px outline whose four corners step in one pixel, the way the windows in
+     *(the) Gnorp Apologue* are drawn (SPEC-readability.md). It is a frame *shape*, not artwork, and it is
+     drawn with four background stripes rather than with `clip-path`: a clipped box would also clip its
+     own focus ring, a menu that opens out of it and a window's resize grips. The 2px border is
+     transparent and holds the stripes; the corner squares are left unpainted, which is the notch; the
+     fill (`background-color`) is kept inside the border by the last layer's `padding-box` clip.
+     `--frame-line` is the outline's colour (the field ink, so White on the dark theme and Black on the
+     bright one) and `--frame-art` is the face a drawing can be filed for. A component's own `border-*`
+     colour utility would repaint the border solid and square the corners again, so a framed element
+     takes its colours from these two properties and `bg-*`, never from a border utility. */
+  .frame,
+  .key,
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .plate-pressed,
+  .title-bar-button,
+  .glyph-button,
+  .shelf-chip,
+  .bevel-out,
+  .bevel-in,
+  .panel,
+  .panel-inset,
+  .field,
+  .field-tight {
+    --frame-line: var(--color-ink);
+    --frame-art: none;
+    border-radius: 0;
+    border-style: solid;
+    border-width: var(--border-width-line);
+    border-color: transparent;
+    border-image-source: var(--art-frame, none);
+    border-image-repeat: stretch;
+    background-image:
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      linear-gradient(var(--frame-line), var(--frame-line)),
+      var(--frame-art);
+    background-origin: border-box;
+    background-clip: border-box, border-box, border-box, border-box, padding-box;
+    background-position: var(--border-width-line) 0, var(--border-width-line) 100%, 0 var(--border-width-line), 100% var(--border-width-line), 0 0;
+    background-size:
+      calc(100% - 2 * var(--border-width-line)) var(--border-width-line),
+      calc(100% - 2 * var(--border-width-line)) var(--border-width-line),
+      var(--border-width-line) calc(100% - 2 * var(--border-width-line)),
+      var(--border-width-line) calc(100% - 2 * var(--border-width-line)),
+      100% 100%;
+    background-repeat: no-repeat;
+  }
+
+  /* A well (a field, an inset) is the same outline; only its drawing hook differs. */
+  .bevel-in,
+  .panel-inset,
+  .field,
+  .field-tight {
+    border-image-source: var(--art-frame-inset, none);
+  }
+
+  /* The legacy plate classes are outlined in their own ink, so the hover that swaps the ink swaps the
+     outline with it in the same frame. (`.key` itself has no outline now unless it is filled - below.) */
+  .key,
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .plate-pressed,
+  .title-bar-button,
+  .glyph-button,
+  .shelf-chip {
+    --frame-line: currentColor;
+  }
+
+  /* A filled key: the main action, a pressed tab, the one magenta plate. The outline is the fill, so the
+     notched shape reads as one solid pill; a state changes `--key-fill` and both move together. */
+  .key-fill {
+    --frame-line: var(--key-fill);
+    background-color: var(--key-fill);
+  }
+
+  /* A bracket key (SPEC-efficiency.md, 2026-10-23): at rest a key is its label and nothing else -
+     `[ LOG IN ]` in the accent ink, no outline, on whatever it sits on. The brackets in the words are the
+     frame, so after this, accent-ink brackets mean "press me". Under the pointer it fills with that ink
+     and the words take the window's own colour (`paper`: Nigrosine on Daffodil 15.9:1, White on Royal
+     Blue 9.3:1 - the plate ink, Black, would be 2.2:1 on the bright theme's Royal Blue). No border at
+     all, so the box the outline used to take is given back to the line. `--key-ink` is the one dial: a
+     key on a Black strip (the guest banner) asks for Daffodil, which reads on Black in both themes; a
+     Rose surface sets White for its keys (`--key-ink`, `--key-hover-ink`, `--key-quiet-ink` inherit, so the
+     surface sets them once and every key inside follows).
+     The filled keys (`.key-fill`: the main action, a key that is on, the pink inject) keep their pill. */
+  .key:not(.key-fill) {
+    --frame-line: transparent;
+    border-width: 0;
+    background-image: none;
+    background-color: transparent;
+    color: var(--key-ink, var(--color-accent-ink));
+  }
+
+  .key:not(.key-fill):hover:not(:disabled) {
+    background-color: var(--key-ink, var(--color-accent-ink));
+    color: var(--key-hover-ink, var(--color-paper));
+  }
+
+  /* A bracket key that cannot be pressed goes quiet: the quiet ink (16:1 in both themes, never a dimmed
+     field ink under 4.5:1), no fill under the pointer, and the pointer says so. */
+  .key:not(.key-fill):disabled {
+    background-image: none;
+    background-color: transparent;
+    color: var(--key-quiet-ink, var(--color-ink-quiet));
+    cursor: not-allowed;
+    /* A dotted rule under the words (2026-10-24): on the dark theme the quiet ink is Flavine beside the
+       keys' Daffodil, close enough that colour alone did not say "not now". The rule is a shape, so it
+       reads in any theme and on Rose, and it costs no contrast - it is drawn in the key's own ink. */
+    text-decoration-line: underline;
+    text-decoration-style: dotted;
+    text-decoration-thickness: var(--border-width-line);
+    text-underline-offset: --spacing(0.75);
+  }
+
+  /* A filled key that cannot be pressed: the outline breaks into 2px dots, and no hover answers it. A key
+     that is *on* (`.key-on`, `PLATE_PRESSED`) and disabled because it is already chosen - `[ PICKED ]` -
+     stays a solid pill: it is a state, not a refusal. */
+  .key-fill:disabled:not(.key-on),
+  .plate:disabled,
+  .plate-large:disabled,
+  .plate-medium:disabled,
+  .plate-tap:disabled,
+  .plate-link:disabled,
+  .plate-hardware:disabled,
+  .plate-accent:disabled {
+    background-image:
+      repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to right, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to bottom, var(--frame-line) 0 2px, transparent 2px 4px),
+      repeating-linear-gradient(to bottom, var(--frame-line) 0 2px, transparent 2px 4px),
+      var(--frame-art);
+  }
+
+  /* A title line: the window's or panel's name set into a rule, `——— SLAM CLUB ———`, the way Gnorp
+     titles its windows. No bar behind it - the colour of the words says which window is the one being
+     worked in (`text-accent-ink`) and which is furniture (`text-ink`), and the two rules are drawn in
+     that same colour. The rules are the line's own `::before` and `::after`; the first child is the
+     title and sits between them, and anything after it (a count, a close key) sits at the right end. */
+  .title-line,
+  .title-bar,
+  .title-bar-inactive,
+  .window-title-bar,
+  .window-title-bar-inactive {
+    display: flex;
+    align-items: center;
+    gap: --spacing(2);
+    padding: --spacing(1) --spacing(2);
+    font-size: var(--text-title);
+    line-height: 1;
+    background-image: var(--art-title-bar, none);
+  }
+
+  .title-line::before,
+  .title-line::after,
+  :is(.title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::before,
+  :is(.title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::after {
+    content: '';
+    flex: 1 1 0;
+    min-width: --spacing(3);
+    height: var(--border-width-line);
+    background-color: currentColor;
+  }
+
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive)::after {
+    order: 1;
+  }
+
+  /* What follows the title - a count, a link, a close key - keeps its words on one line and never
+     shrinks, so in a narrow panel it is the title that wraps, never `[ 0 :: ALL ]` broken in half. */
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive) > * + * {
+    order: 2;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+
+  :is(.title-line, .title-bar, .title-bar-inactive, .window-title-bar, .window-title-bar-inactive) > :first-child {
+    min-width: 0;
+    text-align: center;
+  }
+
+  /* On a phone a title with extras gets two rows: `——— TITLE ———` across the top, the count or the
+     keys on their own row under it, at the right. One row squeezed the title to `FOR…` beside its
+     keys. A grid rather than wrapping, because a wrapped flex row drops the *title* to the second row
+     and leaves the first rule on its own. A window's own title line (`.title-window`) keeps one row:
+     its close key belongs in the top corner, and the title truncates beside it instead. */
+  @media (width < 640px) {
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) {
+      display: grid;
+      grid-template-columns: minmax(--spacing(3), 1fr) minmax(0, auto) minmax(--spacing(3), 1fr);
+      row-gap: --spacing(1);
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *)::before {
+      grid-area: 1 / 1;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) > :first-child {
+      grid-area: 1 / 2;
+    }
+
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *)::after {
+      grid-area: 1 / 3;
+    }
+
+    /* On their own row the extras have the full width, so a long one (the lore editor's status) may
+       wrap there rather than run off the side of the phone. */
+    :is(.title-line, .title-bar, .title-bar-inactive):not(.title-window):has(> * + *) > * + * {
+      grid-column: 1 / -1;
+      justify-self: end;
+      max-width: 100%;
+      white-space: normal;
+      text-align: right;
+    }
+  }
+
+  /* The same two rows at any width, for a line too narrow for its title and its extras side by side
+     even on a desktop: the side panel's ACCOUNT DIRECTORY, whose title and `[ 9 :: ALL ]` need about
+     280px of a 250px line, and wrapped the title onto two lines between two stub rules. */
+  .title-stack:has(> * + *) {
+    display: grid;
+    grid-template-columns: minmax(--spacing(3), 1fr) minmax(0, auto) minmax(--spacing(3), 1fr);
+    row-gap: --spacing(1);
+  }
+
+  .title-stack:has(> * + *)::before {
+    grid-area: 1 / 1;
+  }
+
+  .title-stack:has(> * + *) > :first-child {
+    grid-area: 1 / 2;
+  }
+
+  .title-stack:has(> * + *)::after {
+    grid-area: 1 / 3;
+  }
+
+  .title-stack:has(> * + *) > * + * {
+    grid-column: 1 / -1;
+    justify-self: end;
+  }
+
+  /* The plate's face: the window's own fill inside the key's outline, with the drawing over it when
+     there is one. The drawing is `--frame-art`, the layer under the four outline stripes. */
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent {
+    --frame-art: var(--art-plate-rest, var(--art-plate, none));
+    cursor: pointer;
+    background-color: var(--color-sun-pale);
+    color: var(--color-ink);
+  }
+
+  /* A plate with a pointer over it: an instant colour swap - the words and the outline turn the accent
+     ink. Nothing moves: the wobble that used to answer here put the label on a moving surface. */
+  .plate:hover,
+  .plate-large:hover,
+  .plate-medium:hover,
+  .plate-tap:hover,
+  .plate-link:hover,
+  .plate-hardware:hover,
+  .plate-accent:hover {
+    --frame-art: var(--art-plate-hover, var(--art-plate, none));
+    color: var(--color-accent-ink);
+  }
+
+  /* The press. Every one of the six rules is the same binary move: the plate turns Brilliant Pink for
+     one flash and the label drops a pixel into the page. Nothing fades. */
+  .plate:active,
+  .plate-large:active,
+  .plate-medium:active,
+  .plate-tap:active,
+  .plate-link:active,
+  .plate-hardware:active,
+  .plate-accent:active {
+    --frame-art: var(--art-plate-pressed, var(--art-plate, none));
+    animation: var(--animate-flash);
+    translate: 0 var(--translate-press);
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  /* The keyboard's ring. The browser's own outline is cancelled on a field, so this is the site's, and
+     it is drawn on `:focus-visible` rather than on `:focus` - a mouse click does not summon it. */
+  .plate:focus-visible,
+  .plate-large:focus-visible,
+  .plate-medium:focus-visible,
+  .plate-tap:focus-visible,
+  .plate-link:focus-visible,
+  .plate-hardware:focus-visible,
+  .plate-accent:focus-visible {
+    outline: 2px dotted var(--color-bubble);
+    outline-offset: 1px;
+  }
+
+  /* The accent plate rings in Emerald, because a magenta ring on a magenta plate is not a ring. */
+  .plate-accent:focus-visible {
+    outline-color: var(--color-acid);
+  }
+
+  /* A control that cannot be pressed: its outline breaks into dots (`.key:disabled`), its words go
+     quiet, and the pointer says so. Written after the hover rule on purpose - both are two-class states, so the later one
+     decides, and a disabled plate under a pointer has to stay disabled. */
+  .plate:disabled,
+  .plate-large:disabled,
+  .plate-medium:disabled,
+  .plate-tap:disabled,
+  .plate-hardware:disabled,
+  .plate-accent:disabled {
+    --frame-art: var(--art-plate-disabled, none);
+    cursor: not-allowed;
+    color: var(--color-ink-quiet);
+  }
+
+  /* The sizes. Named for the job rather than the numbers (`controls.ts`), because the choice has to be
+     readable off the page: a plate in a row of text, one that has its line to itself, a label-sized one
+     on a panel, and the thumb-sized pair a phone gets. Every `max-sm:` branch is a phone's, and the
+     `line-height` moves with the font size exactly as `text-sm`/`text-base` do - a font that grows
+     inside a line-height that does not is a control that changes height in the wrong direction. */
+  .plate,
+  .plate-accent {
+    padding: --spacing(0.5) --spacing(2);
+    font-size: var(--text-label);
+  }
+
+  .plate-large {
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-key);
+    line-height: 1.25rem;
+  }
+
+  .plate-medium {
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-label);
+  }
+
+  .plate-tap {
+    padding: --spacing(2) --spacing(3);
+    font-size: var(--text-sm);
+    line-height: 1.25rem;
+  }
+
+  .plate-link {
+    padding: --spacing(1) --spacing(3);
+    font-size: var(--text-label);
+  }
+
+  /* The deck's own keys: bigger, always spelled out, and the one black face the site allows - a
+     transport key on a physical deck is not the same surface as the panel it is bolted to. */
+  .plate-hardware {
+    padding: --spacing(2) --spacing(3);
+    font-size: var(--text-key);
+    background-color: var(--color-hardware);
+    color: var(--color-acid);
+  }
+
+  @media (width < 640px) {
+    .plate,
+    .plate-accent {
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+
+    .plate-large {
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(4);
+      font-size: var(--text-base);
+      line-height: 1.5rem;
+    }
+
+    .plate-medium {
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+
+    .plate-link {
+      min-height: var(--spacing-tap);
+      padding: --spacing(2) --spacing(3);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+
+    .plate-hardware {
+      min-height: var(--spacing-tap);
+      padding-inline: --spacing(4);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+  }
+
+  /* The accent plate's press is Emerald rather than pink, so the one magenta plate does not flash the
+     same colour it already is. Written after the shared press rule, because that is what decides. */
+  .plate-accent:active {
+    --frame-line: var(--color-acid);
+    background-color: var(--color-acid);
+  }
+
+  /* The accent plate is filled, so its outline is its fill and its words are the plate ink. */
+  .plate-accent {
+    --frame-line: var(--color-bubble);
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .plate-accent:hover {
+    --frame-line: var(--color-sun);
+    background-color: var(--color-sun);
+    color: var(--color-ink-plate);
+  }
+
+  /* A plate that is already down: the tab you are standing on, the switch that is on. It has no
+     pointer and no press of its own - it is the state a press arrives at, not a control. */
+  .plate-pressed {
+    --frame-line: var(--color-ink);
+    --frame-art: var(--art-plate-pressed, none);
+    background-color: var(--color-ink);
+    padding: --spacing(0.5) --spacing(2);
+    font-size: var(--text-label);
+    color: var(--color-paper);
+  }
+
+  /* The small key at the end of a title line, and the glyph-shaped control beside it. */
+  .title-bar-button,
+  .glyph-button {
+    --frame-art: var(--art-title-bar-button, none);
+    cursor: pointer;
+    background-color: var(--color-sun-pale);
+    color: var(--color-ink);
+  }
+
+  .title-bar-button:hover,
+  .glyph-button:hover {
+    color: var(--color-accent-ink);
+  }
+
+  .title-bar-button:active {
+    animation: var(--animate-flash);
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .glyph-button:active {
+    background-color: var(--color-bubble);
+    color: var(--color-ink-plate);
+  }
+
+  .title-bar-button {
+    padding: --spacing(0.25) --spacing(2);
+    font-size: var(--text-label);
+    line-height: 1;
+  }
+
+  .glyph-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  @media (width < 640px) {
+    .title-bar-button {
+      padding: --spacing(1) --spacing(3);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+
+    /* `-mx-1`: the box grows to a thumb, so the gap between two of them has to shrink or a row of them
+       stops fitting across a phone. The margin is what gives, never the tap area. */
+    .glyph-button {
+      margin-inline: --spacing(-1);
+      min-height: var(--spacing-tap);
+      min-width: var(--spacing-tap);
+      padding-inline: --spacing(2);
+      font-size: var(--text-base);
+      line-height: 1.5rem;
+    }
+  }
+
+  /* A field: the paper you write on, sunken into the page. The browser's outline is cancelled because
+     the site draws its own - a dotted magenta ring, offset one pixel, so the keyboard's position is
+     never a guess. */
+  .field,
+  .field-tight {
+    --frame-art: var(--art-field, none);
+    background-color: var(--color-paper);
+    font-size: var(--text-prose);
+    line-height: 1.4;
+    color: var(--color-ink);
+    outline-style: none;
+  }
+
+  .field:focus,
+  .field-tight:focus {
+    background-color: var(--color-sun-pale);
+    outline: 2px dotted var(--color-bubble);
+    outline-offset: 1px;
+  }
+
+  .field {
+    margin-top: --spacing(1);
+    width: 100%;
+    padding: --spacing(1.5);
+    font-family: var(--font-mono);
+  }
+
+  /* The same field where the row already carries its own spacing - the tag input. */
+  .field-tight {
+    padding: --spacing(1);
+  }
+
+  @media (width < 640px) {
+    .field {
+      padding: --spacing(3);
+    }
+
+    .field-tight {
+      padding: --spacing(2);
+    }
+  }
+
+  /* A panel: a group of controls on the window's own fill, inside the frame. */
+  .panel {
+    --frame-art: var(--art-panel, none);
+    background-color: var(--color-sun-pale);
+  }
+
+  /* A chip: a small outlined key - a shelf, a track, a label. */
+  .shelf-chip {
+    --frame-art: var(--art-chip, none);
+    cursor: pointer;
+    background-color: var(--color-sun-pale);
+    padding: --spacing(0.5) --spacing(2);
+    color: var(--color-ink);
+  }
+
+  .shelf-chip:hover {
+    color: var(--color-accent-ink);
+  }
+
+  @media (width < 640px) {
+    .shelf-chip {
+      display: inline-flex;
+      min-height: var(--spacing-tap);
+      align-items: center;
+      padding-inline: --spacing(3);
+      font-size: var(--text-sm);
+      line-height: 1.25rem;
+    }
+  }
+
+  /* The bars. A title bar is a title line now (`.title-line` above): the active window's name in the
+     accent ink, a furniture panel's in the field ink, and no bar colour behind either. The status bar
+     and the taskbar are a rule across the foot of the window with quiet words under it. */
+  .title-bar,
+  .window-title-bar {
+    color: var(--color-accent-ink);
+  }
+
+  .title-bar-inactive,
+  .window-title-bar-inactive {
+    background-image: var(--art-title-bar-inactive, none);
+    color: var(--color-ink);
+  }
+
+  .window-title-bar,
+  .window-title-bar-inactive {
+    padding: --spacing(1.5) --spacing(3);
+  }
+
+  .status-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: --spacing(2);
+    border-top: var(--border-width-line) solid var(--color-ink);
+    background-image: var(--art-status-bar, none);
+    padding: --spacing(1) --spacing(2);
+    font-size: var(--text-label);
+    line-height: 1;
+    color: var(--color-ink-quiet);
+  }
+
+  /* The strip along the foot of the screen: a rule in the field ink, and the one place the woven art
+     goes. `relative order-last` stays on the element - that is where the tray sits in the window, not
+     what the tray looks like. */
+  .taskbar {
+    border-top: var(--border-width-line) solid var(--color-ink);
+    background-image: var(--art-taskbar, none);
+    padding: --spacing(0.75) --spacing(1);
+    font-size: var(--text-label);
+    color: var(--color-ink);
+  }
+}
+
+/* The dotted link -------------------------------------------------------------
+   Text links wear a 3px bar of 2-on/2-off dashes rather than a hairline, drawn with a repeating
+   gradient so the dashes are pixels and not a smooth rule. Hovering turns the dashes magenta and
+   flips the text to blue on yellow - the same inversion a plate does, because on this site a link is
+   a control, and a control answers the pointer. */
+.link-pixel {
+  padding-bottom: --spacing(0.75);
+  background-image: repeating-linear-gradient(to right, var(--color-ena) 0 2px, transparent 2px 4px);
+  background-repeat: repeat-x;
+  background-position: 0 100%;
+  background-size: 4px 3px;
+  text-decoration: none;
+}
+
+.link-pixel:hover,
+.link-pixel:focus-visible {
+  background-color: var(--color-sun);
+  background-image: repeating-linear-gradient(to right, var(--color-bubble) 0 2px, transparent 2px 4px);
+  color: var(--color-ena);
+}
+
+/* The pixel rule between rows -------------------------------------------------
+   The same 2-on/2-off dash as `.link-pixel`, laid on the bottom edge of a row instead of under a
+   word. A list of threads, links or files is a list of things, and a hairline in the ink colour says
+   "these are separate" quietly; which is what a rule between rows is for. Drawn as a gradient rather
+   than a `border-dashed`, because a browser's dash is a smooth rounded stroke at whatever width the
+   zoom happens to be, and this is pixels.
+
+   It sits on `::after` rather than on the row's own border so a row that already has a border - the
+   bevel on a thread card - keeps it. `last:after:hidden` closes the list, because the rule is a
+   separator and there is nothing under the final row to separate it from. */
+.rule-pixel {
+  position: relative;
+}
+
+.rule-pixel::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: var(--border-width-line);
+  background-image: repeating-linear-gradient(to right, var(--color-ink) 0 2px, transparent 2px 4px);
+  background-repeat: repeat-x;
+  background-size: 4px var(--border-width-line);
+}
+
+.rule-pixel:last-child::after {
+  display: none;
+}
+
+
+/* The space left for a hand-drawn, looping GIF or a little walking avatar: a dark dithered field, the
+   same tile language as the desktop, so the space reads as *waiting for artwork* rather than as a
+   hole. Nothing is drawn in it - see CLAUDE.md, Asset Rules, and assets/sprites/README.txt for the
+   files that go in.
+
+   **This comment had lost its opening `/*` and the rule had never been drawn.** The paragraph was
+   served as a selector rather than as prose, so a browser read the text and `.sprite-slot` together as
+   one invalid selector and dropped the whole rule - the slot rendered as a transparent hole, which is
+   the exact opposite of what the registry's brief for it asks for, and `Temp/check-surreal.cjs` passed
+   all the while because it reads this file's *text* and the text said `.sprite-slot {`. Found on
+   2026-10-04 by looking in the built stylesheet rather than at the source: `sprite-slot` was not in it
+   at all. */
+.sprite-slot {
+  background-color: var(--dye-black);
+  /* `--art-sprite-slot` is the drawing; until there is one, the slot is this dithered floor, which is
+     what a visitor sees today. The hook goes over the whole face - a slot's art is a tiled plate, not
+     an `<img>` - and `SpriteSlot.tsx` draws whatever file is filed *inside* it. */
+  background-image: var(
+    --art-sprite-slot,
+    repeating-linear-gradient(45deg, var(--dye-nigrosine) 0 2px, var(--dye-black) 2px 4px)
+  );
+}
+
+/* A username drawn in the colour its account chose.
+   This is the one place the theme is branched on *in CSS*, and `data-theme` is what makes it possible -
+   `theme-slot.ts` writes it for exactly this, and its own comment says so. The colour cannot be a token,
+   because every account picks a different one; what it can be is a pair of custom properties set on the
+   element, with the stylesheet choosing between them. See `app/lib/profile/name-colours.ts`: a name is
+   the one ink a reader chooses and everybody else reads, so a swatch is stored as a *choice* and drawn as
+   the value that reads on the field it lands on - Black on White becomes White on Nigrosine (21:1), and
+   Royal Blue becomes Daffodil (15.04:1), where the dye alone was 1.91:1 and unreadable.
+   `--name-ink-dark` is absent for a colour that is not on the swatch, and then the light value stands.
+   The dark reading is the one used unless a light theme is on (`data-scheme`, which the boot script writes beside `data-theme`), because the dark theme
+   is what a page is drawn in before - or without - the boot script that writes them. */
+.name-ink {
+  color: var(--name-ink);
+}
+
+:root:not([data-scheme='light']) .name-ink {
+  color: var(--name-ink-dark, var(--name-ink));
+}
+
+/* A directory row under the pointer lights up in its account's name colour, and its words flip to the
+   ink that reads on that colour (`inkOnNameColour`). Same pair as `.name-ink`: `--glow` / `--glow-ink`
+   for a light theme, the `-dark` pair everywhere else. A name with no colour lights up in the page's
+   own ink with the paper on it. An instant fill, no soft edge (docs/design.md), and only where there is
+   a real pointer, so a tap on a phone does not leave a row lit. The marks keep their own boxed faces; the
+   bracket keys take the row's ink through `--key-ink` (a Daffodil key on a Daffodil row would vanish), and
+   the name's own link drops its Ice fill so the name is not a pale box on a lit row. */
+@media (hover: hover) {
+  .name-glow:hover {
+    --lit: var(--glow, var(--color-ink));
+    --lit-ink: var(--glow-ink, var(--color-paper));
+  }
+
+  :root:not([data-scheme='light']) .name-glow:hover {
+    --lit: var(--glow-dark, var(--glow, var(--color-ink)));
+    --lit-ink: var(--glow-ink-dark, var(--glow-ink, var(--color-paper)));
+  }
+
+  .name-glow:hover {
+    background-color: var(--lit);
+    color: var(--lit-ink);
+    --key-ink: var(--lit-ink);
+    --key-hover-ink: var(--lit);
+    --key-quiet-ink: var(--lit-ink);
+    /* A touch heavier, drawn in each letter's own ink. The letters keep their width, so nothing moves. */
+    -webkit-text-stroke: var(--stroke-lit) currentColor;
+  }
+
+  .name-glow:hover .name-ink,
+  :root:not([data-scheme='light']) .name-glow:hover .name-ink,
+  .name-glow:hover .glow-text {
+    color: inherit;
+  }
+
+  .name-glow:hover .glow-link:hover {
+    background-color: transparent;
+  }
+}
+
+/* The diagonal stripe a title bar or a badge can be filled with: for surfaces that need to look like
+   they came off a 1998 "under construction" page without saying so. */
+.sun-stripe {
+  background-image: repeating-linear-gradient(45deg, var(--color-sun) 0 4px, var(--color-bubble) 4px 8px);
+}
+
+/* Everything above, off for anybody who has asked for less motion - the wobble, the ticker, the
+   blinking glyph. The colours, the presses and the dotted links stay: they are how the site looks,
+   not how it moves. */
+@media (prefers-reduced-motion: reduce) {
+  [class*='animate-'],
+  /* The vocabulary above carries its own animations, so the class attribute no longer names one -
+     the `animate-wobble`/`animate-flash`/`animate-bump` a plate, a bar key and a chip used to wear are
+     inside `.plate`, `.title-bar-button` and `.shelf-chip` now. This list is what keeps the promise. */
+  .plate,
+  .plate-large,
+  .plate-medium,
+  .plate-tap,
+  .plate-link,
+  .plate-hardware,
+  .plate-accent,
+  .title-bar-button,
+  .shelf-chip {
+    animation: none !important;
+  }
+}
+
+

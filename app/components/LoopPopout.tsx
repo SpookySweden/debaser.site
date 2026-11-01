@@ -1,0 +1,139 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { formatClock } from '../lib/audio/format';
+import type { LoopSource } from '../lib/audio/loops';
+import { originLabel } from '../lib/audio/loops';
+import { useWebTrack } from '../lib/web/web-track-lookup';
+import { useMusicPlayer } from './MusicPlayerProvider';
+
+/**
+ * A loop, opened: what it is, and the two things you can do with it.
+ *
+ * A small dialogue rather than this site's usual `PopoutWindow`, and the difference is deliberate. A
+ * `PopoutWindow` takes the screen because the things it holds are *decisions* - the composer, the
+ * pickers - and they deserve the room. This is one loop: two lines and two keys, so it is a card that
+ * sits where the plate was, and it leaves the RADI-OH grid visible behind it so the reader can see what
+ * they are choosing between.
+ *
+ * **Two ways out, as the brief asked.** The red X in the corner, and a press anywhere off the card. Both
+ * are wired here rather than in a wrapper because a dialogue that only closes one way is a dialogue a
+ * reader can get stuck in - and the off-press has to stop at the card itself, or pressing a button
+ * inside it would close it before the press landed.
+ *
+ * ESC is wired too. It is not in the brief, but this is the one shape on the site that *is* a dialogue
+ * and ESC is what a dialogue owes a keyboard: `DockWindow` deliberately does not take ESC, because two
+ * of those can be open at once and one key closing both is worse than a `[ CLOSE ]`. One card at a time
+ * has no such problem.
+ */
+export default function LoopPopout({
+  loop,
+  label,
+  onRemove,
+  onClose,
+}: {
+  loop: LoopSource;
+  label: string;
+  /** Takes the entry out of RADI-OH - the prompt's other answer, beside going back to it. */
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const player = useMusicPlayer();
+  const card = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose();
+    };
+
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  /**
+   * Back to where the loop points.
+   *
+   * The position travels *with* the play (`PlayStart`) rather than as a seek after it. It used to be a
+   * seek, on the belief that `play` swapped the source synchronously - it does not, the element loads in
+   * an effect afterwards, so the seek landed on the track that was playing before and the loop's own
+   * track then started from 0:00. A track the shelf no longer holds has nothing to go back to, and the
+   * button says so instead of pressing into nothing.
+   */
+  // A WEB track is on no shelf: it is put back together from its address (web-track-lookup.ts).
+  const web = useWebTrack(loop.trackId);
+  const track = player.queue.find((entry) => entry.src === loop.trackId) ?? web;
+
+  const goBack = () => {
+    if (track === undefined) return;
+
+    player.play(track, undefined, { at: loop.positionSeconds });
+    onClose();
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-overlay flex items-center justify-center bg-hardware/40 p-4"
+      onPointerDown={(event) => {
+        // A press on the backdrop closes; a press that started inside the card does not, which is why
+        // the card stops the event rather than this testing where the pointer landed.
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <div
+        ref={card}
+        role="dialog"
+        aria-label={`Loop at ${label}`}
+        onPointerDown={(event) => event.stopPropagation()}
+        className="relative w-full max-w-sm frame bg-sun-pale"
+      >
+        <div className={TITLE_BAR}>
+          <span className="truncate">LOOP</span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close"
+            title="Close"
+            className="flex h-5 w-5 cursor-pointer items-center justify-center rounded-none border border-ink-plate bg-bubble-pale text-key font-bold leading-none text-ink-bar hover:bg-bubble hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-2 p-3">
+          <p className="flex items-center gap-2 text-key font-bold text-ink">
+            <span aria-hidden="true" className="text-heading leading-none">
+              ↻
+            </span>
+            <span className="min-w-0 break-words">{label}</span>
+          </p>
+
+          <p className="text-label text-ink-quiet">
+            {loop.kind === 'taken-over'
+              ? `TAKEN OVER BY ${(loop.displacedBy ?? 'SOMEONE').toUpperCase()}`
+              : `${originLabel(loop)}${loop.plays > 1 ? ` :: PLAYED ${loop.plays} TIMES` : ''}`}
+          </p>
+
+          <p className="text-label font-bold text-ink">
+            AT {formatClock(loop.positionSeconds)}
+          </p>
+
+          <p className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={goBack}
+              disabled={track === undefined}
+              title={track === undefined ? 'Not on the shelf' : undefined}
+              className={PLATE}
+            >
+              [ RESUME ]
+            </button>
+            <button type="button" onClick={onRemove} className={PLATE}>
+              [ REMOVE ]
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}

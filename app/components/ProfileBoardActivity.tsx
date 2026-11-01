@@ -1,0 +1,49 @@
+'use client';
+
+import Link from 'next/link';
+import { threadDomId } from '../lib/forum/anchors';
+import { displayTitle } from '../lib/forum/site-author';
+import { countReplies } from '../lib/forum/format';
+import type { ForumThread } from '../lib/forum/types';
+import TimeStamp from './TimeStamp';
+
+type ProfileBoardActivityProps = {
+  userId: string;
+  displayName: string;
+  /** The swatch the account picked, so its name reads the same here as on the board. */
+  nameColour?: string;
+  threads: ForumThread[];
+};
+
+/**
+ * Public board activity: the threads this account filed, newest first.
+ *
+ * The name props are no longer drawn (the empty state is `NOTHING YET.`, SPEC-less-text.md); they are
+ * kept so the caller is unchanged.
+ */
+export default function ProfileBoardActivity({ threads }: ProfileBoardActivityProps) {
+  return (
+    <section>
+      <div className="title-line text-accent-ink">
+        <span>BOARD ACTIVITY</span>
+      </div>
+
+      <div className="p-3 text-ink">
+        {threads.length === 0 ? (
+          <p className="text-label font-bold text-ink">NOTHING YET.</p>
+        ) : (
+          <ul className="space-y-1">
+            {threads.slice(0, 8).map((thread) => (
+              <li key={thread.id} className="text-label font-bold">
+                <Link href={`/forum#${threadDomId(thread.id)}`} className="underline hover:bg-ice">
+                  [<TimeStamp at={thread.createdAt} />] {displayTitle(thread)}
+                </Link>
+                <span className="ml-1 text-ink">:: {countReplies(thread.comments.length)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </section>
+  );
+}

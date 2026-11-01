@@ -1,0 +1,431 @@
+{
+  "result_count": 240,
+  "page_count": 48,
+  "page_size": 5,
+  "page": 1,
+  "results": [
+    {
+      "id": "2c51e4eb-dbe7-468c-ba6c-d1c85a1b71ae",
+      "title": "Piano Melody",
+      "indexed_on": "2024-05-21T15:00:07.873258Z",
+      "foreign_landing_url": "https://freesound.org/people/benpm/sounds/186942",
+      "url": "https://cdn.freesound.org/previews/186/186942_2594536-hq.mp3",
+      "creator": "benpm",
+      "creator_url": "https://freesound.org/people/benpm",
+      "license": "by",
+      "license_version": "4.0",
+      "license_url": "https://creativecommons.org/licenses/by/4.0/",
+      "provider": "freesound",
+      "source": "freesound",
+      "category": null,
+      "genres": null,
+      "filesize": 227209,
+      "filetype": "mp3",
+      "tags": [
+        {
+          "name": "Melody",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "Piano",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "chord",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "chords",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "melody",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "music",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "musical",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "piano",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "piano-chords",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        },
+        {
+          "name": "piano-melody",
+          "accuracy": null,
+          "unstable__provider": "freesound"
+        }
+      ],
+      "alt_files": [
+        {
+          "url": "https://freesound.org/apiv2/sounds/186942/download/",
+          "bit_rate": 0,
+          "filesize": 1798222,
+          "filetype": "wav",
+          "sample_rate": 44100
+        }
+      ],
+      "attribution": "\"Piano Melody\" by benpm is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+      "fields_matched": [
+        "description",
+        "title",
+        "tags.name"
+      ],
+      "mature": false,
+      "audio_set": null,
+      "duration": 10193,
+      "bit_rate": 128000,
+      "sample_rate": null,
+      "thumbnail": null,
+      "detail_url": "https://api.openverse.org/v1/audio/2c51e4eb-dbe7-468c-ba6c-d1c85a1b71ae/",
+      "related_url": "https://api.openverse.org/v1/audio/2c51e4eb-dbe7-468c-ba6c-d1c85a1b71ae/related/",
+      "waveform": "https://api.openverse.org/v1/audio/2c51e4eb-dbe7-468c-ba6c-d1c85a1b71ae/waveform/",
+      "unstable__sensitivity": []
+    },
+    {
+      "id": "5d08a8ad-73b2-45e8-a26d-e1363add3c85",
+      "title": "Old Movie Ragtime Piano",
+      "indexed_on": "2022-08-01T21:56:38.264750Z",
+      "foreign_landing_url": "https://www.jamendo.com/track/923463",
+      "url": "https://prod-1.storage.jamendo.com/?trackid=923463&format=mp32",
+      "creator": "Akashic Records",
+      "creator_url": "https://www.jamendo.com/artist/375935/AkashicRecords",
+      "license": "by-nc-nd",
+      "license_version": "3.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-nd/3.0/",
+      "provider": "jamendo",
+      "source": "jamendo",
+      "category": "music",
+      "genres": [
+        "jazz",
+        "ragtime"
+      ],
+      "filesize": null,
+      "filetype": "mp32",
+      "tags": [
+        {
+          "name": "film",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "happy",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "instrumental",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "neutral",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "piano",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "speed_medium",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        }
+      ],
+      "alt_files": null,
+      "attribution": "\"Old Movie Ragtime Piano\" by Akashic Records is licensed under CC BY-NC-ND 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/3.0/.",
+      "fields_matched": [
+        "title",
+        "tags.name"
+      ],
+      "mature": false,
+      "audio_set": {
+        "title": "Silent Movie Ragtime Piano",
+        "foreign_landing_url": "https://www.jamendo.com/album/109404/silent-movie-ragtime-piano",
+        "creator": "Akashic Records",
+        "creator_url": "https://www.jamendo.com/artist/375935/AkashicRecords",
+        "url": null,
+        "filesize": null,
+        "filetype": null
+      },
+      "duration": 72000,
+      "bit_rate": null,
+      "sample_rate": null,
+      "thumbnail": "https://api.openverse.org/v1/audio/5d08a8ad-73b2-45e8-a26d-e1363add3c85/thumb/",
+      "detail_url": "https://api.openverse.org/v1/audio/5d08a8ad-73b2-45e8-a26d-e1363add3c85/",
+      "related_url": "https://api.openverse.org/v1/audio/5d08a8ad-73b2-45e8-a26d-e1363add3c85/related/",
+      "waveform": "https://api.openverse.org/v1/audio/5d08a8ad-73b2-45e8-a26d-e1363add3c85/waveform/",
+      "unstable__sensitivity": []
+    },
+    {
+      "id": "43ec5e30-581f-4022-87b7-6fd1645e23c3",
+      "title": "Ludwig Thuille: Piano Sextet in B-flat major, Op. 6 - III.Gavotte",
+      "indexed_on": "2022-02-24T01:34:42.275707Z",
+      "foreign_landing_url": "https://www.jamendo.com/track/146588",
+      "url": "https://prod-1.storage.jamendo.com/?trackid=146588&format=mp32",
+      "creator": "OnClassical",
+      "creator_url": "https://www.jamendo.com/artist/338649/OnClassical",
+      "license": "by-nc-sa",
+      "license_version": "3.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "provider": "jamendo",
+      "source": "jamendo",
+      "category": "music",
+      "genres": [
+        "classical"
+      ],
+      "filesize": null,
+      "filetype": "mp32",
+      "tags": [
+        {
+          "name": "happy",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "horn",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "instrumental",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "neutral",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "piano",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "speed_medium",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "winds",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        }
+      ],
+      "alt_files": null,
+      "attribution": "\"Ludwig Thuille: Piano Sextet in B-flat major, Op. 6 - III.Gavotte\" by OnClassical is licensed under CC BY-NC-SA 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/3.0/.",
+      "fields_matched": [
+        "title",
+        "tags.name"
+      ],
+      "mature": false,
+      "audio_set": {
+        "title": "The OnClassical compilation - Classical music",
+        "foreign_landing_url": "https://www.jamendo.com/album/20858/the-onclassical-compilation-classical-music",
+        "creator": "OnClassical",
+        "creator_url": "https://www.jamendo.com/artist/338649/OnClassical",
+        "url": null,
+        "filesize": null,
+        "filetype": null
+      },
+      "duration": 239000,
+      "bit_rate": null,
+      "sample_rate": null,
+      "thumbnail": "https://api.openverse.org/v1/audio/43ec5e30-581f-4022-87b7-6fd1645e23c3/thumb/",
+      "detail_url": "https://api.openverse.org/v1/audio/43ec5e30-581f-4022-87b7-6fd1645e23c3/",
+      "related_url": "https://api.openverse.org/v1/audio/43ec5e30-581f-4022-87b7-6fd1645e23c3/related/",
+      "waveform": "https://api.openverse.org/v1/audio/43ec5e30-581f-4022-87b7-6fd1645e23c3/waveform/",
+      "unstable__sensitivity": []
+    },
+    {
+      "id": "184166dd-da49-4204-90f7-636c4c6df25c",
+      "title": "Inspiring Cinematic Piano (Version 1)",
+      "indexed_on": "2022-08-01T21:56:38.264750Z",
+      "foreign_landing_url": "https://www.jamendo.com/track/1875141",
+      "url": "https://prod-1.storage.jamendo.com/?trackid=1875141&format=mp32",
+      "creator": "makesound",
+      "creator_url": "https://www.jamendo.com/artist/500457/makesound_(2)",
+      "license": "by-nc-nd",
+      "license_version": "3.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-nd/3.0/",
+      "provider": "jamendo",
+      "source": "jamendo",
+      "category": "music",
+      "genres": [
+        "classical",
+        "filmscore",
+        "neoclassical"
+      ],
+      "filesize": null,
+      "filetype": "mp32",
+      "tags": [
+        {
+          "name": "drama",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "instrumental",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "neutral",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "piano",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "sentimental",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "speed_medium",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "strings",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        }
+      ],
+      "alt_files": null,
+      "attribution": "\"Inspiring Cinematic Piano (Version 1)\" by makesound is licensed under CC BY-NC-ND 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-nd/3.0/.",
+      "fields_matched": [
+        "title",
+        "tags.name"
+      ],
+      "mature": false,
+      "audio_set": {
+        "title": "Hopeful Uplifting Inspirational Cinematic",
+        "foreign_landing_url": "https://www.jamendo.com/album/450383/hopeful-uplifting-inspirational-cinematic",
+        "creator": "makesound",
+        "creator_url": "https://www.jamendo.com/artist/500457/makesound_(2)",
+        "url": null,
+        "filesize": null,
+        "filetype": null
+      },
+      "duration": 96000,
+      "bit_rate": null,
+      "sample_rate": null,
+      "thumbnail": "https://api.openverse.org/v1/audio/184166dd-da49-4204-90f7-636c4c6df25c/thumb/",
+      "detail_url": "https://api.openverse.org/v1/audio/184166dd-da49-4204-90f7-636c4c6df25c/",
+      "related_url": "https://api.openverse.org/v1/audio/184166dd-da49-4204-90f7-636c4c6df25c/related/",
+      "waveform": "https://api.openverse.org/v1/audio/184166dd-da49-4204-90f7-636c4c6df25c/waveform/",
+      "unstable__sensitivity": []
+    },
+    {
+      "id": "fb49d069-d794-4fc0-8551-e100a4b23b4f",
+      "title": "Falling Stars (Piano et orchestre)",
+      "indexed_on": "2022-08-01T21:56:38.264750Z",
+      "foreign_landing_url": "https://www.jamendo.com/track/1396500",
+      "url": "https://prod-1.storage.jamendo.com/?trackid=1396500&format=mp32",
+      "creator": "Oursvince",
+      "creator_url": "https://www.jamendo.com/artist/361044/Oursvince",
+      "license": "by-nc-sa",
+      "license_version": "3.0",
+      "license_url": "https://creativecommons.org/licenses/by-nc-sa/3.0/",
+      "provider": "jamendo",
+      "source": "jamendo",
+      "category": "music",
+      "genres": [
+        "classical",
+        "newage"
+      ],
+      "filesize": null,
+      "filetype": "mp32",
+      "tags": [
+        {
+          "name": "instrumental",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "peaceful",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "piano",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "romantique",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "sad",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "soft",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "speed_medium",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        },
+        {
+          "name": "strings",
+          "accuracy": null,
+          "unstable__provider": "jamendo"
+        }
+      ],
+      "alt_files": null,
+      "attribution": "\"Falling Stars (Piano et orchestre)\" by Oursvince is licensed under CC BY-NC-SA 3.0. To view a copy of this license, visit https://creativecommons.org/licenses/by-nc-sa/3.0/.",
+      "fields_matched": [
+        "title",
+        "tags.name"
+      ],
+      "mature": false,
+      "audio_set": {
+        "title": "Dragon Flight",
+        "foreign_landing_url": "https://www.jamendo.com/album/163566/dragon-flight",
+        "creator": "Oursvince",
+        "creator_url": "https://www.jamendo.com/artist/361044/Oursvince",
+        "url": null,
+        "filesize": null,
+        "filetype": null
+      },
+      "duration": 210000,
+      "bit_rate": null,
+      "sample_rate": null,
+      "thumbnail": "https://api.openverse.org/v1/audio/fb49d069-d794-4fc0-8551-e100a4b23b4f/thumb/",
+      "detail_url": "https://api.openverse.org/v1/audio/fb49d069-d794-4fc0-8551-e100a4b23b4f/",
+      "related_url": "https://api.openverse.org/v1/audio/fb49d069-d794-4fc0-8551-e100a4b23b4f/related/",
+      "waveform": "https://api.openverse.org/v1/audio/fb49d069-d794-4fc0-8551-e100a4b23b4f/waveform/",
+      "unstable__sensitivity": []
+    }
+  ]
+}

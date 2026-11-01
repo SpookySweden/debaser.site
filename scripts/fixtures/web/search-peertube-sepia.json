@@ -1,0 +1,593 @@
+{
+ "total": 10868,
+ "data": [
+  {
+   "id": 7915,
+   "uuid": "b1c02111-fd2b-4b60-8889-b08263c2567a",
+   "shortUUID": "nX4Kph15tzoWqsUAb43goA",
+   "createdAt": "2023-03-26T00:34:41.901Z",
+   "updatedAt": "2026-03-07T16:48:34.928Z",
+   "publishedAt": "2023-03-26T14:42:04.111Z",
+   "originallyPublishedAt": null,
+   "category": {
+    "id": 10,
+    "label": "Entertainment"
+   },
+   "licence": {
+    "id": 7,
+    "label": "Public Domain Dedication"
+   },
+   "language": {
+    "id": "en",
+    "label": "English"
+   },
+   "privacy": {
+    "id": 1,
+    "label": "Public"
+   },
+   "name": "Night of the Living Dead",
+   "description": "Night of the Living Dead is a classic horror film that will send chills down your spine. The film takes place in a remote farmhouse in rural Pennsylvania, where a group of strangers are holed up as they try to fend off hordes of flesh-eating zombi...",
+   "truncatedDescription": "Night of the Living Dead is a classic horror film that will send chills down your spine. The film takes place in a remote farmhouse in rural Pennsylvania, where a group of strangers are holed up as they try to fend off hordes of flesh-eating zombi...",
+   "duration": 5753,
+   "tags": [
+    "Horror",
+    "zombie"
+   ],
+   "thumbnailPath": "/lazy-static/thumbnails/37da0445-6d2a-400f-a9aa-0245b06c8b21.jpg",
+   "thumbnailUrl": "https://vod.newellijay.tv/lazy-static/thumbnails/37da0445-6d2a-400f-a9aa-0245b06c8b21.jpg",
+   "previewPath": "/lazy-static/previews/fd752905-ea2c-4d3c-b8b4-e23c59689183.jpg",
+   "previewUrl": "https://vod.newellijay.tv/lazy-static/previews/fd752905-ea2c-4d3c-b8b4-e23c59689183.jpg",
+   "thumbnails": [
+    {
+     "aspectRatio": "16:9",
+     "width": 280,
+     "height": 157,
+     "fileUrl": "https://vod.newellijay.tv/lazy-static/thumbnails/37da0445-6d2a-400f-a9aa-0245b06c8b21.jpg"
+    },
+    {
+     "aspectRatio": "16:9",
+     "width": 850,
+     "height": 480,
+     "fileUrl": "https://vod.newellijay.tv/lazy-static/previews/fd752905-ea2c-4d3c-b8b4-e23c59689183.jpg"
+    }
+   ],
+   "embedPath": "/videos/embed/b1c02111-fd2b-4b60-8889-b08263c2567a",
+   "embedUrl": "https://vod.newellijay.tv/videos/embed/b1c02111-fd2b-4b60-8889-b08263c2567a",
+   "url": "https://vod.newellijay.tv/videos/watch/b1c02111-fd2b-4b60-8889-b08263c2567a",
+   "isLocal": false,
+   "isLive": false,
+   "nsfw": false,
+   "nsfwFlags": 0,
+   "aspectRatio": null,
+   "account": {
+    "id": 3,
+    "name": "video",
+    "displayName": "Videos from New Ellijay Television",
+    "url": "https://vod.newellijay.tv/accounts/video",
+    "host": "vod.newellijay.tv",
+    "avatars": [
+     {
+      "url": "https://vod.newellijay.tv/lazy-static/avatars/bf7dcf7b-1a01-403d-8a63-0bb4f45a0d34.png",
+      "path": "/lazy-static/avatars/bf7dcf7b-1a01-403d-8a63-0bb4f45a0d34.png",
+      "width": 48,
+      "createdAt": "2022-12-10T17:05:06.854Z",
+      "updatedAt": "2022-12-10T17:05:06.854Z"
+     },
+     {
+      "url": "https://vod.newellijay.tv/lazy-static/avatars/74771839-b871-4b94-a325-a0b6bf2533b5.png",
+      "path": "/lazy-static/avatars/74771839-b871-4b94-a325-a0b6bf2533b5.png",
+      "width": 120,
+      "createdAt": "2022-12-10T17:05:06.828Z",
+      "updatedAt": "2022-12-10T17:05:06.828Z"
+     }
+    ]
+   },
+   "channel": {
+    "id": 3,
+    "name": "archives",
+    "displayName": "Archives",
+    "url": "https://vod.newellijay.tv/video-channels/archives",
+    "host": "vod.newellijay.tv",
+    "avatars": [
+     {
+      "url": "https://vod.newellijay.tv/lazy-static/avatars/eb37c0ac-f162-4fb8-8a7f-e0807af152e5.png",
+      "path": "/lazy-static/avatars/eb37c0ac-f162-4fb8-8a7f-e0807af152e5.png",
+      "width": 48,
+      "createdAt": "2022-09-14T14:32:23.187Z",
+      "updatedAt": "2022-09-14T14:32:23.187Z"
+     },
+     {
+      "url": "https://vod.newellijay.tv/lazy-static/avatars/1881928d-cb91-407c-af86-37db3e8122b2.png",
+      "path": "/lazy-static/avatars/1881928d-cb91-407c-af86-37db3e8122b2.png",
+      "width": 120,
+      "createdAt": "2022-09-14T14:32:23.174Z",
+      "updatedAt": "2022-09-14T14:32:23.174Z"
+     }
+    ]
+   },
+   "hotScore": 2.630052058612135e-112,
+   "rawHotScore": 5010.390624598818
+  },
+  {
+   "id": 49321,
+   "uuid": "1b0c8725-cc08-4b79-9e06-9950cfd3e8bd",
+   "shortUUID": "4kJa7TGvPtg8r3UmvgPBHx",
+   "createdAt": "2024-08-16T14:37:22.554Z",
+   "updatedAt": "2026-10-29T03:32:54.409Z",
+   "publishedAt": "2024-08-16T22:19:56.917Z",
+   "originallyPublishedAt": "1968-10-01T11:00:00.000Z",
+   "category": {
+    "id": 2,
+    "label": "Films"
+   },
+   "licence": {
+    "id": 7,
+    "label": "Public Domain Dedication"
+   },
+   "language": {
+    "id": "en",
+    "label": "English"
+   },
+   "privacy": {
+    "id": 1,
+    "label": "Public"
+   },
+   "name": "Night of the Living Dead (1968) (first modern zombie film)",
+   "description": "Classic indie horror film which laid the foundations for most modern zombie fiction.\r\n\r\nThis upload includes subtitles in English, French, Italian, Spanish, Portuguese, Basque and Persian. Click CC to activate the captions in your interface's lang...",
+   "truncatedDescription": "Classic indie horror film which laid the foundations for most modern zombie fiction.\r\n\r\nThis upload includes subtitles in English, French, Italian, Spanish, Portuguese, Basque and Persian. Click CC to activate the captions in your interface's lang...",
+   "duration": 5753,
+   "tags": [
+    "Films",
+    "Horror",
+    "Movies",
+    "Public Domain",
+    "Zombies"
+   ],
+   "thumbnailPath": "/lazy-static/thumbnails/7e4f0e9c-7d01-49a1-a568-b7d6fe0acd7d.jpg",
+   "thumbnailUrl": "https://fedi.video/lazy-static/thumbnails/7e4f0e9c-7d01-49a1-a568-b7d6fe0acd7d.jpg",
+   "previewPath": "/lazy-static/thumbnails/24805ace-1208-4af7-baa9-7fa82836a39d.jpg",
+   "previewUrl": "https://fedi.video/lazy-static/thumbnails/24805ace-1208-4af7-baa9-7fa82836a39d.jpg",
+   "thumbnails": [
+    {
+     "height": 157,
+     "width": 280,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://fedi.video/lazy-static/thumbnails/7e4f0e9c-7d01-49a1-a568-b7d6fe0acd7d.jpg"
+    },
+    {
+     "height": 480,
+     "width": 850,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://fedi.video/lazy-static/thumbnails/24805ace-1208-4af7-baa9-7fa82836a39d.jpg"
+    }
+   ],
+   "embedPath": "/videos/embed/4kJa7TGvPtg8r3UmvgPBHx",
+   "embedUrl": "https://fedi.video/videos/embed/4kJa7TGvPtg8r3UmvgPBHx",
+   "url": "https://fedi.video/videos/watch/1b0c8725-cc08-4b79-9e06-9950cfd3e8bd",
+   "isLocal": false,
+   "isLive": false,
+   "nsfw": false,
+   "nsfwFlags": 0,
+   "nsfwSummary": null,
+   "aspectRatio": 1.3333,
+   "account": {
+    "id": 3959,
+    "name": "fedivideo",
+    "displayName": "Fedi.Video on PeerTube",
+    "url": "https://fedi.video/accounts/fedivideo",
+    "host": "fedi.video",
+    "avatars": [
+     {
+      "url": "https://fedi.video/lazy-static/avatars/e747a06a-b941-4466-bbf0-67aa0ad238b1.png",
+      "path": "/lazy-static/avatars/e747a06a-b941-4466-bbf0-67aa0ad238b1.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/e747a06a-b941-4466-bbf0-67aa0ad238b1.png",
+      "width": 48,
+      "createdAt": "2026-05-23T14:55:05.431Z",
+      "updatedAt": "2026-05-23T14:55:05.431Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/706e0f24-d8ff-4994-8d7d-cf1e990a5879.png",
+      "path": "/lazy-static/avatars/706e0f24-d8ff-4994-8d7d-cf1e990a5879.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/706e0f24-d8ff-4994-8d7d-cf1e990a5879.png",
+      "width": 120,
+      "createdAt": "2026-05-23T14:55:05.422Z",
+      "updatedAt": "2026-05-23T14:55:05.422Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/0a629ec8-7f83-4a43-9d98-d94a93cdb849.png",
+      "path": "/lazy-static/avatars/0a629ec8-7f83-4a43-9d98-d94a93cdb849.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/0a629ec8-7f83-4a43-9d98-d94a93cdb849.png",
+      "width": 600,
+      "createdAt": "2026-05-23T14:55:05.415Z",
+      "updatedAt": "2026-05-23T14:55:05.415Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/759118cf-66cb-4e76-8eb4-122f9a2a5533.png",
+      "path": "/lazy-static/avatars/759118cf-66cb-4e76-8eb4-122f9a2a5533.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/759118cf-66cb-4e76-8eb4-122f9a2a5533.png",
+      "width": 1500,
+      "createdAt": "2026-05-23T14:55:05.404Z",
+      "updatedAt": "2026-05-23T14:55:05.404Z"
+     }
+    ]
+   },
+   "channel": {
+    "id": 1421,
+    "name": "films",
+    "displayName": "Films",
+    "url": "https://fedi.video/video-channels/films",
+    "host": "fedi.video",
+    "avatars": [
+     {
+      "url": "https://fedi.video/lazy-static/avatars/b197f2af-f15e-4cf8-863a-e708138c8fe0.png",
+      "path": "/lazy-static/avatars/b197f2af-f15e-4cf8-863a-e708138c8fe0.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/b197f2af-f15e-4cf8-863a-e708138c8fe0.png",
+      "width": 48,
+      "createdAt": "2026-05-24T05:39:53.920Z",
+      "updatedAt": "2026-05-24T05:39:53.920Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/df971034-8150-4c76-9151-12036ddac6ec.png",
+      "path": "/lazy-static/avatars/df971034-8150-4c76-9151-12036ddac6ec.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/df971034-8150-4c76-9151-12036ddac6ec.png",
+      "width": 120,
+      "createdAt": "2026-05-24T05:39:53.913Z",
+      "updatedAt": "2026-05-24T05:39:53.913Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/43799914-15a0-4997-a358-0e137e61d5ce.png",
+      "path": "/lazy-static/avatars/43799914-15a0-4997-a358-0e137e61d5ce.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/43799914-15a0-4997-a358-0e137e61d5ce.png",
+      "width": 600,
+      "createdAt": "2026-05-24T05:39:53.907Z",
+      "updatedAt": "2026-05-24T05:39:53.907Z"
+     },
+     {
+      "url": "https://fedi.video/lazy-static/avatars/b0cd36e6-3d62-4746-95a7-a9e742982603.png",
+      "path": "/lazy-static/avatars/b0cd36e6-3d62-4746-95a7-a9e742982603.png",
+      "fileUrl": "https://fedi.video/lazy-static/avatars/b0cd36e6-3d62-4746-95a7-a9e742982603.png",
+      "width": 1500,
+      "createdAt": "2026-05-24T05:39:53.900Z",
+      "updatedAt": "2026-05-24T05:39:53.900Z"
+     }
+    ]
+   },
+   "hotScore": 4.476766347521906e-10,
+   "rawHotScore": 6273.2858079234475
+  },
+  {
+   "id": 6967,
+   "uuid": "8803375b-36d2-42d4-bbb8-30b22ce1951c",
+   "shortUUID": "hN8LgtQrCSqjkyAnqX2qUu",
+   "createdAt": "2018-07-20T15:01:30.660Z",
+   "updatedAt": "2026-10-09T06:01:50.223Z",
+   "publishedAt": "2018-07-20T15:09:28.223Z",
+   "originallyPublishedAt": null,
+   "category": {
+    "id": 10,
+    "label": "Entertainment"
+   },
+   "licence": {
+    "id": 7,
+    "label": "CC0 1.0"
+   },
+   "language": {
+    "id": "en",
+    "label": "English"
+   },
+   "privacy": {
+    "id": 1,
+    "label": "Public"
+   },
+   "name": "Night_of_the_Living_Dead_1968",
+   "description": "Night of the Living Dead is a 1968 American independent horror film written, directed, photographed and edited by George A. Romero, co-written by John Russo, and starring Duane Jones and Judith O'Dea. The story follows seven people who are trapped...",
+   "truncatedDescription": "Night of the Living Dead is a 1968 American independent horror film written, directed, photographed and edited by George A. Romero, co-written by John Russo, and starring Duane Jones and Judith O'Dea. The story follows seven people who are trapped...",
+   "duration": 5717,
+   "tags": [
+    "Gorge A Romero",
+    "horror",
+    "movie",
+    "public domain",
+    "zombie"
+   ],
+   "thumbnailPath": "/lazy-static/thumbnails/db16bdbd-8625-405d-9b59-3df0532502a6.jpg",
+   "thumbnailUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/db16bdbd-8625-405d-9b59-3df0532502a6.jpg",
+   "previewPath": "/lazy-static/thumbnails/f3f285b1-6a64-48f1-be70-f801154a19a5.jpg",
+   "previewUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/f3f285b1-6a64-48f1-be70-f801154a19a5.jpg",
+   "thumbnails": [
+    {
+     "height": 480,
+     "width": 850,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/8b17f0a0-ecd5-4e10-9476-ade8f47b306a.jpg"
+    },
+    {
+     "height": 157,
+     "width": 280,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/db16bdbd-8625-405d-9b59-3df0532502a6.jpg"
+    },
+    {
+     "height": 1400,
+     "width": 1400,
+     "aspectRatio": "1:1",
+     "fileUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/2200e4e3-cc45-4929-8d44-34dbbab9e0a1.jpg"
+    },
+    {
+     "height": 720,
+     "width": 1280,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/c3694d52-b259-408b-b26e-6f8e1bd7a6a5.jpg"
+    },
+    {
+     "height": 1080,
+     "width": 1920,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://peertube.linuxrocks.online/lazy-static/thumbnails/f3f285b1-6a64-48f1-be70-f801154a19a5.jpg"
+    }
+   ],
+   "embedPath": "/videos/embed/hN8LgtQrCSqjkyAnqX2qUu",
+   "embedUrl": "https://peertube.linuxrocks.online/videos/embed/hN8LgtQrCSqjkyAnqX2qUu",
+   "url": "https://peertube.linuxrocks.online/videos/watch/8803375b-36d2-42d4-bbb8-30b22ce1951c",
+   "isLocal": false,
+   "isLive": false,
+   "nsfw": false,
+   "nsfwFlags": 0,
+   "nsfwSummary": null,
+   "aspectRatio": null,
+   "account": {
+    "id": 2046,
+    "name": "orcrist",
+    "displayName": "orcrist",
+    "url": "https://peertube.linuxrocks.online/accounts/orcrist",
+    "host": "peertube.linuxrocks.online",
+    "avatars": []
+   },
+   "channel": {
+    "id": 1197,
+    "name": "1c380c2b-cd56-4fc6-a8c8-db7114359d47",
+    "displayName": "Default orcrist channel",
+    "url": "https://peertube.linuxrocks.online/video-channels/1c380c2b-cd56-4fc6-a8c8-db7114359d47",
+    "host": "peertube.linuxrocks.online",
+    "avatars": []
+   },
+   "hotScore": 1893.8105187407905,
+   "rawHotScore": 1893.8105187407905
+  },
+  {
+   "id": 243,
+   "uuid": "05501ded-e249-43de-862c-014bd104ea68",
+   "shortUUID": "1E41soTpLrF1LsdN5H6icN",
+   "createdAt": "2021-04-07T01:57:54.083Z",
+   "updatedAt": "2026-05-16T02:40:01.094Z",
+   "publishedAt": "2021-04-07T05:06:57.573Z",
+   "originallyPublishedAt": "2020-10-29T00:00:00.000Z",
+   "category": {
+    "id": null,
+    "label": "Unknown"
+   },
+   "licence": {
+    "id": null,
+    "label": "Unknown"
+   },
+   "language": {
+    "id": null,
+    "label": "Unknown"
+   },
+   "privacy": {
+    "id": 1,
+    "label": "Public"
+   },
+   "name": "Night of the Living Dead (1968)",
+   "description": null,
+   "truncatedDescription": null,
+   "duration": 13150,
+   "tags": [],
+   "thumbnailPath": "/lazy-static/thumbnails/7968a64f-9323-4bd2-93d9-d183353f2627.jpg",
+   "thumbnailUrl": "https://vid.amat.us/lazy-static/thumbnails/7968a64f-9323-4bd2-93d9-d183353f2627.jpg",
+   "previewPath": "/lazy-static/thumbnails/18d1f4ac-f888-4f41-af29-9806981f7483.jpg",
+   "previewUrl": "https://vid.amat.us/lazy-static/thumbnails/18d1f4ac-f888-4f41-af29-9806981f7483.jpg",
+   "thumbnails": [
+    {
+     "height": 157,
+     "width": 280,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://vid.amat.us:10443/lazy-static/thumbnails/7968a64f-9323-4bd2-93d9-d183353f2627.jpg"
+    },
+    {
+     "height": 480,
+     "width": 850,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://vid.amat.us:10443/lazy-static/thumbnails/6eabdfc4-81cf-49a0-9f9f-66a4d2609f8c.jpg"
+    },
+    {
+     "height": 720,
+     "width": 1280,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://vid.amat.us:10443/lazy-static/thumbnails/865104d1-e1eb-4cca-9b2a-d66c32dffe1e.jpg"
+    },
+    {
+     "height": 1400,
+     "width": 1400,
+     "aspectRatio": "1:1",
+     "fileUrl": "https://vid.amat.us:10443/lazy-static/thumbnails/e7d1f86a-aa7c-4d3b-b736-dbf78c4cf0c4.jpg"
+    },
+    {
+     "height": 1080,
+     "width": 1920,
+     "aspectRatio": "16:9",
+     "fileUrl": "https://vid.amat.us:10443/lazy-static/thumbnails/18d1f4ac-f888-4f41-af29-9806981f7483.jpg"
+    }
+   ],
+   "embedPath": "/videos/embed/1E41soTpLrF1LsdN5H6icN",
+   "embedUrl": "https://vid.amat.us/videos/embed/1E41soTpLrF1LsdN5H6icN",
+   "url": "https://vid.amat.us/videos/watch/05501ded-e249-43de-862c-014bd104ea68",
+   "isLocal": false,
+   "isLive": false,
+   "nsfw": false,
+   "nsfwFlags": 0,
+   "nsfwSummary": null,
+   "aspectRatio": null,
+   "account": {
+    "id": 5,
+    "name": "amatus",
+    "displayName": "amatus",
+    "url": "https://vid.amat.us:10443/accounts/amatus",
+    "host": "vid.amat.us:10443",
+    "avatars": []
+   },
+   "channel": {
+    "id": 7,
+    "name": "masterpancaketwitch",
+    "displayName": "Master Pancake twitch",
+    "url": "https://vid.amat.us:10443/video-channels/masterpancaketwitch",
+    "host": "vid.amat.us:10443",
+    "avatars": [
+     {
+      "url": "https://vid.amat.us:10443/lazy-static/avatars/bca0a0eb-523b-4aea-b422-720ea881e307.png",
+      "path": "/lazy-static/avatars/bca0a0eb-523b-4aea-b422-720ea881e307.png",
+      "fileUrl": "https://vid.amat.us:10443/lazy-static/avatars/bca0a0eb-523b-4aea-b422-720ea881e307.png",
+      "width": 1500,
+      "createdAt": "2026-06-12T01:46:36.775Z",
+      "updatedAt": "2026-06-12T01:46:36.775Z"
+     },
+     {
+      "url": "https://vid.amat.us:10443/lazy-static/avatars/79214cc9-d630-4086-b6a2-77263c0415d1.png",
+      "path": "/lazy-static/avatars/79214cc9-d630-4086-b6a2-77263c0415d1.png",
+      "fileUrl": "https://vid.amat.us:10443/lazy-static/avatars/79214cc9-d630-4086-b6a2-77263c0415d1.png",
+      "width": 600,
+      "createdAt": "2026-06-12T01:46:36.928Z",
+      "updatedAt": "2026-06-12T01:46:36.928Z"
+     },
+     {
+      "url": "https://vid.amat.us:10443/lazy-static/avatars/f0d39954-a9fe-495e-b240-e6806303e288.png",
+      "path": "/lazy-static/avatars/f0d39954-a9fe-495e-b240-e6806303e288.png",
+      "fileUrl": "https://vid.amat.us:10443/lazy-static/avatars/f0d39954-a9fe-495e-b240-e6806303e288.png",
+      "width": 120,
+      "createdAt": "2026-06-12T01:46:36.931Z",
+      "updatedAt": "2026-06-12T01:46:36.931Z"
+     },
+     {
+      "url": "https://vid.amat.us:10443/lazy-static/avatars/a77bd472-d664-4338-9696-2eac228a0253.png",
+      "path": "/lazy-static/avatars/a77bd472-d664-4338-9696-2eac228a0253.png",
+      "fileUrl": "https://vid.amat.us:10443/lazy-static/avatars/a77bd472-d664-4338-9696-2eac228a0253.png",
+      "width": 48,
+      "createdAt": "2026-06-12T01:46:36.933Z",
+      "updatedAt": "2026-06-12T01:46:36.933Z"
+     }
+    ]
+   },
+   "hotScore": 3.7162507316977e-268,
+   "rawHotScore": 3695.753665789878
+  },
+  {
+   "id": 173,
+   "uuid": "844b9d25-13d9-43fc-ba0e-3a61faa81d27",
+   "shortUUID": "hkvCSxgYE765Pdyq28uksF",
+   "createdAt": "2023-11-15T00:02:17.660Z",
+   "updatedAt": "2026-10-16T23:17:12.707Z",
+   "publishedAt": "2023-11-15T00:57:19.459Z",
+   "originallyPublishedAt": null,
+   "category": {
+    "id": 2,
+    "label": "Films"
+   },
+   "licence": {
+    "id": 7,
+    "label": "Public Domain Dedication"
+   },
+   "language": {
+    "id": "en",
+    "label": "English"
+   },
+   "privacy": {
+    "id": 1,
+    "label": "Public"
+   },
+   "name": "Night of the Living Dead (1968)",
+   "description": "Night of the Living Dead is a 1968 American independent horror film that introduced the flesh-eating ghouls that would become synonymous with the term \"zombie\". The story follows seven people trapped in a farmhouse in rural Pennsylvania, under ass...",
+   "truncatedDescription": "Night of the Living Dead is a 1968 American independent horror film that introduced the flesh-eating ghouls that would become synonymous with the term \"zombie\". The story follows seven people trapped in a farmhouse in rural Pennsylvania, under ass...",
+   "duration": 5740,
+   "tags": [
+    "Horror",
+    "Public Domain",
+    "Public-Domain",
+    "Zombies"
+   ],
+   "thumbnailPath": "/static/thumbnails/eaf5960b-143a-470d-90c1-77d1b8673039.jpg",
+   "thumbnailUrl": "https://video.caruso.one/static/thumbnails/eaf5960b-143a-470d-90c1-77d1b8673039.jpg",
+   "previewPath": "/lazy-static/previews/aa58d14e-96f5-4135-9e9e-fae8fd618ca1.jpg",
+   "previewUrl": "https://video.caruso.one/lazy-static/previews/aa58d14e-96f5-4135-9e9e-fae8fd618ca1.jpg",
+   "thumbnails": [
+    {
+     "aspectRatio": "16:9",
+     "width": 280,
+     "height": 157,
+     "fileUrl": "https://video.caruso.one/static/thumbnails/eaf5960b-143a-470d-90c1-77d1b8673039.jpg"
+    },
+    {
+     "aspectRatio": "16:9",
+     "width": 850,
+     "height": 480,
+     "fileUrl": "https://video.caruso.one/lazy-static/previews/aa58d14e-96f5-4135-9e9e-fae8fd618ca1.jpg"
+    }
+   ],
+   "embedPath": "/videos/embed/844b9d25-13d9-43fc-ba0e-3a61faa81d27",
+   "embedUrl": "https://video.caruso.one/videos/embed/844b9d25-13d9-43fc-ba0e-3a61faa81d27",
+   "url": "https://video.caruso.one/videos/watch/844b9d25-13d9-43fc-ba0e-3a61faa81d27",
+   "isLocal": false,
+   "isLive": false,
+   "nsfw": false,
+   "nsfwFlags": 0,
+   "nsfwSummary": null,
+   "account": {
+    "id": 3,
+    "name": "argh",
+    "displayName": "The Academy of Resurected Games & Holdings (ARGH)",
+    "url": "https://video.arghacademy.org/accounts/argh",
+    "host": "video.arghacademy.org",
+    "avatars": [
+     {
+      "url": "https://video.arghacademy.org/lazy-static/avatars/82b07d84-db56-48e3-8ca6-f48cb8178fcc.png",
+      "path": "/lazy-static/avatars/82b07d84-db56-48e3-8ca6-f48cb8178fcc.png",
+      "width": 48,
+      "createdAt": "2023-09-24T00:18:22.891Z",
+      "updatedAt": "2023-09-24T00:18:22.891Z"
+     },
+     {
+      "url": "https://video.arghacademy.org/lazy-static/avatars/8ec6c9e1-1680-4ee6-b702-e83675ce267f.png",
+      "path": "/lazy-static/avatars/8ec6c9e1-1680-4ee6-b702-e83675ce267f.png",
+      "width": 120,
+      "createdAt": "2023-09-24T00:18:22.890Z",
+      "updatedAt": "2023-09-24T00:18:22.890Z"
+     }
+    ]
+   },
+   "channel": {
+    "id": 9,
+    "name": "public_domain",
+    "displayName": "Public Domain Archives",
+    "url": "https://video.arghacademy.org/video-channels/public_domain",
+    "host": "video.arghacademy.org",
+    "avatars": [
+     {
+      "url": "https://video.arghacademy.org/lazy-static/avatars/98cdb9d7-2990-4ba8-8742-0b94445d1059.png",
+      "path": "/lazy-static/avatars/98cdb9d7-2990-4ba8-8742-0b94445d1059.png",
+      "width": 48,
+      "createdAt": "2023-10-15T01:15:09.516Z",
+      "updatedAt": "2023-10-15T01:15:09.516Z"
+     },
+     {
+      "url": "https://video.arghacademy.org/lazy-static/avatars/56787ddd-2299-4a14-bb5a-a08cdfc5a233.png",
+      "path": "/lazy-static/avatars/56787ddd-2299-4a14-bb5a-a08cdfc5a233.png",
+      "width": 120,
+      "createdAt": "2023-10-15T01:15:09.513Z",
+      "updatedAt": "2023-10-15T01:15:09.513Z"
+     }
+    ]
+   },
+   "hotScore": 2228.01897954931,
+   "rawHotScore": 5439.4994617903085
+  }
+ ]
+}

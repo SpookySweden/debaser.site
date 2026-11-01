@@ -1,0 +1,72 @@
+import type { Metadata } from 'next';
+import Link from 'next/link';
+import ProjectSectionNav from '../components/ProjectSectionNav';
+import SiteWindow from '../components/SiteWindow';
+import { formatStamp } from '../lib/forum/format';
+import { projectSection } from '../lib/projects/debaser';
+import { PROJECT_NOTES } from '../lib/projects/notes';
+
+export const metadata: Metadata = {
+  title: 'DEBASER.SITE - Notes',
+  description: 'Working notes and house rules: how the debaser archive is built and kept.',
+};
+
+export default function NotesPage() {
+  const section = projectSection('notes');
+
+  return (
+    <SiteWindow title="DEBASER_OS - v1.0 [PROJECTS / DEBASER / NOTES]" tip={section?.note}>
+    <h1 className="sr-only">DEBASER.SITE // NOTES</h1>
+
+    <ProjectSectionNav current="notes" />
+
+    <div className="space-y-4">
+      {PROJECT_NOTES.map((note) => (
+        <section
+          key={note.id}
+          id={note.id}
+        >
+          {/* Each note folds shut under its title (Luke, 2026-10-25, SPEC-less-text.md): the page is a
+              list of titles, and a reader opens the one they want. Native <details>, like a thread. */}
+          <details className="group">
+          <summary className="title-line flex-wrap cursor-pointer select-none text-accent-ink hover:underline max-sm:min-h-tap">
+            <span>
+              <span aria-hidden="true" className="group-open:hidden">[+] </span>
+              <span aria-hidden="true" className="hidden group-open:inline">[-] </span>
+              {note.title}
+            </span>
+            {/* The stamp is the board's blue on light panels; on the navy bar it
+                stays plain white so it can be read. */}
+            <span>FILED {formatStamp(note.filed)}</span>
+          </summary>
+
+          <div className="space-y-2 p-3">
+            <p className="flex flex-wrap items-center gap-1 text-label font-bold">
+              {note.kinds.map((kind) => (
+                <span key={kind} className="border border-ink-plate bg-paper px-1">
+                  {kind}
+                </span>
+              ))}
+            </p>
+
+            {note.body.map((paragraph) => (
+              <p key={paragraph.slice(0, 24)} className="text-prose leading-normal text-ink">
+                {paragraph}
+              </p>
+            ))}
+
+            {note.href === undefined || note.hrefLabel === undefined ? null : (
+              <p className="text-label font-bold">
+                <Link href={note.href} className="underline hover:bg-pointed">
+                  {note.hrefLabel}
+                </Link>
+              </p>
+            )}
+          </div>
+          </details>
+        </section>
+      ))}
+    </div>
+    </SiteWindow>
+  );
+}

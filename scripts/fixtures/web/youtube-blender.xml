@@ -1,0 +1,203 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns:yt="http://www.youtube.com/xml/schemas/2015" xmlns:media="http://search.yahoo.com/mrss/" xmlns="http://www.w3.org/2005/Atom">
+ <link rel="self" href="http://www.youtube.com/feeds/videos.xml?channel_id=UCSMOQeBJ2RAnuFungnQOxLg"/>
+ <id>yt:channel:SMOQeBJ2RAnuFungnQOxLg</id>
+ <yt:channelId>SMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+ <title>Blender</title>
+ <link rel="alternate" href="https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg"/>
+ <author>
+  <name>Blender</name>
+  <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+ </author>
+ <published>2008-05-29T10:18:59+00:00</published>
+ <entry>
+  <id>yt:video:H5TGt-susIY</id>
+  <yt:videoId>H5TGt-susIY</yt:videoId>
+  <yt:channelId>UCSMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+  <title>TOUCH your Blender 👀 Blender Today LIVE #292</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=H5TGt-susIY"/>
+  <author>
+   <name>Blender</name>
+   <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+  </author>
+  <published>2026-10-28T20:22:59+00:00</published>
+  <updated>2026-10-29T07:12:16+00:00</updated>
+  <media:group>
+   <media:title>TOUCH your Blender 👀 Blender Today LIVE #292</media:title>
+   <media:content url="https://www.youtube.com/v/H5TGt-susIY?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/H5TGt-susIY/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Hola Community! Pablo here. Let's see what's new in Blender.
+
+This is all possible thanks to your donations. If you like what you see, keep it going at fund.blender.org 🧡
+
+What's New Changelog and Q&amp;A: https://devtalk.blender.org/t/touch-your-blender-blender-today-live-292/46170?sort=old
+
+--
+
+BlenderToday is a live show highlighting the latest news in Blender development, the community, and Q&amp;A. Streaming from the Blender HQ in Amsterdam since 2018, hosted by Pablo Vazquez (Senior Product Designer at Blender).
+
+Streaming at 17:00 CEST (UTC+2) every other week. Amsterdam: 17:00, Buenos Aires: 12:00, Dubai: 19:00, London: 16:00, Los Angeles: 08:00, New York: 11:00, São Paulo: 12:00, Shanghai: 23:00, Sydney: 01:00, Tokyo: 00:00. See other time: https://www.timeanddate.com/worldclock/fixedtime.html?msg=Blender+Today+LIVE&amp;iso=20260825T17&amp;p1=16
+
+#b3d #blendertoday
+
+
+---
+
+0:00:00 Intro
+0:00:25 Hola!
+0:03:30 Animation
+0:05:19 Compositor
+0:09:52 Core
+0:13:44 Cycles
+0:18:30 EEVEE
+0:20:38 Extensions
+0:21:59 I/O
+0:23:43 macOS
+0:29:01 Modeling
+0:29:49 Nodes
+0:31:41 Projects
+0:35:41 Python
+0:36:33 Render
+0:38:36 Sculpt
+0:41:01 Subdiv
+0:43:50 User Interface
+0:50:49 Video Sequencer
+0:54:07 Q&amp;A
+1:04:27 Outro</media:description>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:YsKxkP_kGbE</id>
+  <yt:videoId>YsKxkP_kGbE</yt:videoId>
+  <yt:channelId>UCSMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+  <title>Default Cube: the Interview</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/YsKxkP_kGbE"/>
+  <author>
+   <name>Blender</name>
+   <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+  </author>
+  <published>2026-10-23T13:30:07+00:00</published>
+  <updated>2026-10-27T03:42:00+00:00</updated>
+  <media:group>
+   <media:title>Default Cube: the Interview</media:title>
+   <media:content url="https://www.youtube.com/v/YsKxkP_kGbE?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/YsKxkP_kGbE/hqdefault.jpg" width="480" height="360"/>
+   <media:description>The default cube wants to remind you that the Blender Survey ends on October 31st. Participate today: your answers will help define the future direction of Blender development!
+
+#b3d #blender3d</media:description>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:dVrELpmfcEQ</id>
+  <yt:videoId>dVrELpmfcEQ</yt:videoId>
+  <yt:channelId>UCSMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+  <title>Blender Education Community Meeting — BCON26</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=dVrELpmfcEQ"/>
+  <author>
+   <name>Blender</name>
+   <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+  </author>
+  <published>2026-10-23T09:37:25+00:00</published>
+  <updated>2026-10-31T04:53:09+00:00</updated>
+  <media:group>
+   <media:title>Blender Education Community Meeting — BCON26</media:title>
+   <media:content url="https://www.youtube.com/v/dVrELpmfcEQ?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i1.ytimg.com/vi/dVrELpmfcEQ/hqdefault.jpg" width="480" height="360"/>
+   <media:description>The recording of the Blender Education SIG Community Meeting, a gathering for pre-university, university and professional teachers.
+
+The program:
+
+00:00:00 Opening
+00:00:59 YAY! by Tom Box
+00:26:49 Why great tutorials still fail by Cole James
+00:49:16 Rethinking Industry-Academia collaboration by Ole Goethe
+1:11:25 From Hands-On Field Trips to IABE Accreditation by Catina Yiu &amp; Timothy Tan
+1:31:37 From Maya to Blender by Wobbe F. Koning
+1:45:48 Blender Badges project by Edouard Simon, Wobbe F. Koning, Raul Alfredo Gonzalez, Federico Fiore, Catina Yiu &amp; Monique Dewanchand
+
+–
+
+Learn more about Blender Conference 2026 at https://conference.blender.org/2026/
+
+
+#b3d #BCON26</media:description>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:EycY6jDFK74</id>
+  <yt:videoId>EycY6jDFK74</yt:videoId>
+  <yt:channelId>UCSMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+  <title>Blender on Android - #BCON26 Demo</title>
+  <link rel="alternate" href="https://www.youtube.com/shorts/EycY6jDFK74"/>
+  <author>
+   <name>Blender</name>
+   <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+  </author>
+  <published>2026-10-21T12:14:18+00:00</published>
+  <updated>2026-10-24T22:10:11+00:00</updated>
+  <media:group>
+   <media:title>Blender on Android - #BCON26 Demo</media:title>
+   <media:content url="https://www.youtube.com/v/EycY6jDFK74?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i2.ytimg.com/vi/EycY6jDFK74/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Jonas Holzman showcases the progress of the Blender on Android project. Use the link in the comments to download the demo APK and try it on your device. #b3d</media:description>
+  </media:group>
+ </entry>
+ <entry>
+  <id>yt:video:oMeecNng9TM</id>
+  <yt:videoId>oMeecNng9TM</yt:videoId>
+  <yt:channelId>UCSMOQeBJ2RAnuFungnQOxLg</yt:channelId>
+  <title>Huge SEQUENCER improvements, PROJECTS in Blender 5.3! - Blender Today LIVE #291</title>
+  <link rel="alternate" href="https://www.youtube.com/watch?v=oMeecNng9TM"/>
+  <author>
+   <name>Blender</name>
+   <uri>https://www.youtube.com/channel/UCSMOQeBJ2RAnuFungnQOxLg</uri>
+  </author>
+  <published>2026-10-13T17:38:21+00:00</published>
+  <updated>2026-10-14T17:31:57+00:00</updated>
+  <media:group>
+   <media:title>Huge SEQUENCER improvements, PROJECTS in Blender 5.3! - Blender Today LIVE #291</media:title>
+   <media:content url="https://www.youtube.com/v/oMeecNng9TM?version=3" type="application/x-shockwave-flash" width="640" height="390"/>
+   <media:thumbnail url="https://i4.ytimg.com/vi/oMeecNng9TM/hqdefault.jpg" width="480" height="360"/>
+   <media:description>Hola Community! Pablo here. Let's see what's new in Blender.
+
+This is all possible thanks to your donations. If you like what you see, keep it going at fund.blender.org 🧡
+
+What's New Changelog and Q&amp;A: https://devtalk.blender.org/t/blender-today-291-huge-sequencer-improvements-projects-in-blender-5-3/45975?sort=old
+
+--
+
+BlenderToday is a live show highlighting the latest news in Blender development, the community, and Q&amp;A. Streaming from the Blender HQ in Amsterdam since 2018, hosted by Pablo Vazquez (Senior Product Designer at Blender).
+
+Streaming at 17:00 CEST (UTC+2) every other week. Amsterdam: 17:00, Buenos Aires: 12:00, Dubai: 19:00, London: 16:00, Los Angeles: 08:00, New York: 11:00, São Paulo: 12:00, Shanghai: 23:00, Sydney: 01:00, Tokyo: 00:00. See other time: https://www.timeanddate.com/worldclock/fixedtime.html?msg=Blender+Today+LIVE&amp;iso=20260825T17&amp;p1=16
+
+#b3d #blendertoday
+
+
+--
+
+0:00:00 Intro
+0:00:25 Hola!
+0:09:33 Animation
+0:09:58 Assets
+0:13:13 Camera
+0:14:36 Compositor
+0:18:15 Core
+0:19:32 Extensions
+0:24:04 Geometry Nodes
+0:29:04 GHOST
+0:31:02 I/O
+0:36:02 Modeling
+0:40:10 Nodes
+0:44:10 Outliner
+0:44:53 Paint
+0:47:00 Projects
+0:55:06 Python
+0:55:26 Sculpt
+0:56:40 User Interface
+1:08:03 UV
+1:11:43 Video Sequencer
+1:29:20 Q&amp;A
+1:45:29 Outro</media:description>
+  </media:group>
+ </entry>
+</feed>

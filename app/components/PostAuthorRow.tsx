@@ -1,0 +1,159 @@
+'use client';
+
+import type { ReactNode } from 'react';
+import { authorLabel } from '../lib/auth/author';
+import type { ForumAuthor } from '../lib/forum/types';
+import { tagColour } from '../lib/forum/tag-vocabulary';
+import { countryName } from '../lib/profile/countries';
+import type { GivenTag } from '../lib/profile/types';
+import { REVEAL_CONTENTS, REVEAL_SLOT } from '../lib/ui/controls';
+import CountryFlag from './CountryFlag';
+import ProfileAvatarLink from './ProfileAvatarLink';
+import ProfileAvatar from './ProfileAvatar';
+import ProfileLink from './ProfileLink';
+import ProfileName from './ProfileName';
+import { TagMark, tagChipClasses, tagMarkColourFromColour } from './TagBadge';
+
+type PostAuthorRowProps = {
+  author: ForumAuthor;
+  /**
+   * 'hover' keeps the picture out of the way until the enclosing `.group` (the
+   * post's header row) is pointed at; 'shown' always draws it; 'hidden' is for
+   * guests, who have no picture to show.
+   */
+  avatar?: 'shown' | 'hover' | 'hidden';
+  avatarSize?: number;
+  /**
+   * The colour the account chose for its username (`app/lib/profile/name-colours.ts`).
+   * Left out, the name is drawn in the page's own black.
+   */
+  nameColour?: string;
+  /**
+   * Picture slot for a row that is not a person: a post owned by the item itself
+   * is credited to the site, which has no profile to open but does have a default
+   * pfp (`app/lib/forum/site-author.ts`).
+   */
+  picture?: string;
+  /** The author's country flag, as a code (`app/lib/profile/countries.ts`). */
+  country?: string;
+  /**
+   * The posting instant, drawn between the name and the given tags.
+   *
+   * A slot rather than a `stamp` string so the caller keeps owning the drawing of it: on the board it
+   * is `<TimeStamp />`, which prints the minute in the retro link blue, and this row has no business
+   * knowing that. It sits *after* the name because the strip reads as a credit - who wrote this, and
+   * when - and the picture leads the whole line (`avatarSize` is small here for the same reason).
+   */
+  stamp?: ReactNode;
+  /** Tags other users gave the author, filtered to the ones they display. */
+  displayedTags?: GivenTag[];
+  /**
+   * A word in front of the picture - `ON`, for the strip that names whose page a thread is about
+   * rather than who posted it (./ThreadSubjectRow.tsx). Inside the row rather than beside it, so
+   * only the stamp wraps on a narrow row and never the whole byline.
+   */
+  lead?: ReactNode;
+  /**
+   * Room for a verb about this account - a `[ CHALLENGE ]` on a post, say.
+   *
+   * The same slot `UserDirectoryRow` carries, and for the same reason: a screen with its own
+   * question to ask an account adds it here rather than writing the row again.
+   */
+  actions?: ReactNode;
+};
+
+/**
+ * The "posted ... by ..." line that opens every post.
+ *
+ * Order matches the board's reading order: the poster's picture, their name, the
+ * country flag, the stamp (`stamp`), then the tags the author chose to display.
+ * Guests fall back to a plain name with no picture, and a row that wants the
+ * picture out of the way until it is pointed at can still ask for `avatar="hover"`
+ * - the board no longer does, because the picture leads its one-line strip.
+ *
+ * `picture` is for rows that are not a person at all: a post owned by the item
+ * itself is credited to the site, so it draws the house default pfp instead of
+ * an account's profile picture. `nameColour` is the swatch the account picked in
+ * the customiser, so a username looks the same here as it does everywhere else.
+ */
+export default function PostAuthorRow({
+  author,
+  avatar = 'shown',
+  avatarSize = 56,
+  nameColour,
+  picture,
+  country = '',
+  displayedTags = [],
+  stamp,
+  actions,
+  lead,
+}: PostAuthorRowProps) {
+  const label = authorLabel(author);
+
+  return (
+    <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      {lead}
+      {avatar === 'hidden' ? null : (
+        /*
+          The space the picture will take is reserved in both states, so pointing at a post reveals
+          the picture without shifting the name beside it (CLAUDE.md, "Reveals take their space in
+          both states"). The outer span is the slot and is laid out either way; the inner one is what
+          is hidden until the pointer or the keyboard arrives.
+        */
+        <span className={REVEAL_SLOT} style={avatar === 'hover' ? { width: avatarSize } : undefined}>
+          <span className={avatar === 'hover' ? REVEAL_CONTENTS : 'inline-flex'}>
+            {picture === undefined ? (
+              <ProfileAvatarLink author={author} size={avatarSize} showName={false} variant="plain" />
+            ) : (
+              /* The item's own picture, drawn in the *same* anon-facing component as a person who
+                 has not chosen one: both are "a picture that is not there yet", and both have to
+                 read as deliberate rather than as a fault (see ./ProfileAvatar.tsx). */
+              <ProfileAvatar
+                src={picture}
+                displayName={label}
+                size={avatarSize}
+                variant="plain"
+                hideVersionLabel
+              />
+            )}
+          </span>
+        </span>
+      )}
+
+      <ProfileLink author={author} className="text-key font-bold">
+        <ProfileName author={author} colour={nameColour}>
+          {label}
+        </ProfileName>
+      </ProfileLink>
+
+      {/* The country, drawn and named. Both, because the flag alone asks a reader to know 249
+          drawings by sight, and the name alone was what the place line already was. */}
+      {country.length === 0 ? null : (
+        <span className="inline-flex items-center gap-1 text-label text-ink">
+          ::
+          <CountryFlag code={country} />
+          {countryName(country)}
+        </span>
+      )}
+
+      {stamp}
+
+      {displayedTags.length === 0 ? null : (
+        <span className="inline-flex flex-wrap items-center gap-1">
+          {displayedTags.slice(0, 3).map((tag) => (
+            <span
+              key={tag.id}
+              title={`Tag given by ${authorLabel(tag.givenBy)}`}
+              className={tagChipClasses({ id: tag.id, kind: 'user', label: tag.label }, true)}
+            >
+              <TagMark colour={tagMarkColourFromColour(tag.colour ?? tagColour(tag.label))} compact />
+              {tag.label}
+            </span>
+          ))}
+        </span>
+      )}
+
+      {actions}
+    </span>
+  );
+}
