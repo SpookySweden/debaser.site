@@ -271,6 +271,27 @@ ok(fakeFilters.SOURCE_OPTIONS.some((option) => option.value === 'fake_server' &&
 same(fakeFilters.parseWebSearch('in:fake-server x').source, 'fake_server', 'and `in:fake-server` finds it');
 ok(fakeFilters.suggestFilterValues('in', 'fake').some((option) => option.word === 'fake-server'), 'and the suggestion list offers it');
 
+/* ---------------------------------------------------------------- the player sandbox (Luke, 2026-11-01) */
+// Every server's player is sandboxed unless its line says `unsandboxed: true`: a copy with one such server is
+// compiled and asked, so "only the marked server loses it" is what the code does.
+const OPEN_LINE = "  { id: 'open_server', label: 'OPEN SERVER', base: 'https://open.example', listPath: '/l.json', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' }, unsandboxed: true },";
+const openServers = require(join(compileWithTestServers('out-web-media-open', ['lib/web/media-servers.ts'], [FAKE_LINE, OPEN_LINE]), 'lib', 'web', 'media-servers.js'));
+for (const id of ['server_1', 'server_2', 'fake_server']) {
+  same(openServers.playerSandbox(openServers.mediaServer(id)), 'allow-scripts allow-same-origin', `${id}: its player stays sandboxed (no switch)`);
+}
+same(openServers.playerSandbox(openServers.mediaServer('open_server')), undefined, 'the server marked unsandboxed: its player has no sandbox');
+same(openServers.playerSandbox({ unsandboxed: 'yes' }), 'allow-scripts allow-same-origin', 'anything but true keeps the sandbox');
+same(
+  openServers.serverListText(openServers.MEDIA_SERVERS.filter((s) => s.id === 'server_1')),
+  'server_1|SERVER 1|https://placeholder-server1.xyz|/debaser/list.json|/debaser/play/movie/{tmdb}|/debaser/play/tv/{tmdb}/{season}/{episode}|/debaser/play/item/{id}|/debaser/play/tv/{tmdb}\n',
+  'a server without the switch keeps the fingerprint text it always had (the Debaser Servers program matches it)',
+);
+ok(openServers.serverListText(openServers.MEDIA_SERVERS.filter((s) => s.id === 'open_server')).endsWith('|unsandboxed\n'), 'the switch is part of the fingerprint, so publishing it is waited for');
+const row = require('node:fs').readFileSync(join(ROOT, 'app', 'components', 'WebMediaRow.tsx'), 'utf8');
+const frame = row.match(/<iframe\b[\s\S]*?\/>/);
+ok(frame && /sandbox=\{playerSandbox\(mediaServer\(server\)\)\}/.test(frame[0]), 'the media player frame takes its sandbox from playerSandbox for the server playing');
+ok(frame && /referrerPolicy="no-referrer"/.test(frame[0]) && /\ballowFullScreen\b/.test(frame[0]), 'the media player frame sends no referrer and may go fullscreen, sandboxed or not');
+
 /* ---------------------------------------------------------------- Luke's real list */
 // What the Debaser Servers program (or a hand edit) saved: a mistake here stops `npm run verify`, so it never
 // reaches the site.
@@ -288,6 +309,7 @@ for (const s of list) {
   try { url = new URL(s.base); } catch { /* reported below */ }
   ok(url !== null && url.protocol === 'https:' && url.origin === s.base && url.port === '', `${s.id}: address "${s.base}" is https and nothing after the host`);
   ok(/^\/(?!.*\.\.)[A-Za-z0-9._~/-]{1,200}$/.test(s.listPath), `${s.id}: list file path "${s.listPath}" is a plain path`);
+  ok(s.unsandboxed === undefined || s.unsandboxed === true, `${s.id}: unsandboxed is true or left out`);
   const film = realTitles.mediaPlayUrl(s, { type: 'movie', tmdbId: 157336, copies: [{ server: s.id }] });
   ok(film !== null, `${s.id}: its film pattern makes an address on its own host`);
   const episode = realTitles.mediaPlayUrl(s, { type: 'tv', tmdbId: 1399, copies: [{ server: s.id, episodes: [[1, 2]] }] }, { season: 1, episode: 2 });

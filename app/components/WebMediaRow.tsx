@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
-import { mediaServer, type MediaServerId } from '../lib/web/media-servers';
+import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../lib/web/media-titles';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
@@ -312,8 +312,9 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
           title={`${label(server)} player: ${item.title}`}
           // No referrer: the friend's server is never sent which page of ours asked.
           referrerPolicy="no-referrer"
-          // The server's own player page: its scripts on its own origin, never ours. No popups, forms or top navigation.
-          sandbox="allow-scripts allow-same-origin"
+          // The server's own player page: its scripts on its own origin, never ours. No popups, forms or top navigation,
+          // unless the server is marked `unsandboxed` in media-servers.ts (a player that refuses to start sandboxed).
+          sandbox={playerSandbox(mediaServer(server))}
           allow="autoplay; fullscreen"
           allowFullScreen
           className="mt-2 block aspect-video w-full border border-ink-plate bg-paper"

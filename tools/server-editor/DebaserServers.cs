@@ -27,6 +27,7 @@ namespace DebaserServers
     class Server
     {
         public string Id, Label, Base, ListPath, Movie, Tv, Series, Other;
+        public bool Unsandboxed; // its player loads with no sandbox (media-servers.ts `unsandboxed: true`)
         public Server Copy() { return (Server)MemberwiseClone(); }
         public override string ToString() { return Label + "    " + Base; }
     }
@@ -40,7 +41,7 @@ namespace DebaserServers
 
         const string Start = "// SERVERS-START";
         const string End = "// SERVERS-END";
-        static readonly Regex Line = new Regex(@"^\s*\{ id: '([^']*)', label: '([^']*)', base: '([^']*)', listPath: '([^']*)', play: \{ movie: '([^']*)', tv: '([^']*)'(?:, series: '([^']*)')?(?:, other: '([^']*)')? \} \},\s*$");
+        static readonly Regex Line = new Regex(@"^\s*\{ id: '([^']*)', label: '([^']*)', base: '([^']*)', listPath: '([^']*)', play: \{ movie: '([^']*)', tv: '([^']*)'(?:, series: '([^']*)')?(?:, other: '([^']*)')? \}(, unsandboxed: true)? \},\s*$");
 
         public static List<Server> Parse(string text, out string error)
         {
@@ -59,7 +60,8 @@ namespace DebaserServers
                 {
                     Id = m.Groups[1].Value, Label = m.Groups[2].Value, Base = m.Groups[3].Value, ListPath = m.Groups[4].Value,
                     Movie = m.Groups[5].Value, Tv = m.Groups[6].Value,
-                    Series = m.Groups[7].Success ? m.Groups[7].Value : null, Other = m.Groups[8].Success ? m.Groups[8].Value : null
+                    Series = m.Groups[7].Success ? m.Groups[7].Value : null, Other = m.Groups[8].Success ? m.Groups[8].Value : null,
+                    Unsandboxed = m.Groups[9].Success
                 });
             }
             return list;
@@ -73,7 +75,7 @@ namespace DebaserServers
             int e = lines.FindIndex(l => l.Trim() == End);
             var fresh = servers.Select(x => "  { id: '" + x.Id + "', label: '" + x.Label + "', base: '" + x.Base + "', listPath: '" + x.ListPath +
                 "', play: { movie: '" + x.Movie + "', tv: '" + x.Tv + "'" + (x.Series != null ? ", series: '" + x.Series + "'" : "") +
-                (x.Other != null ? ", other: '" + x.Other + "'" : "") + " } },");
+                (x.Other != null ? ", other: '" + x.Other + "'" : "") + " }" + (x.Unsandboxed ? ", unsandboxed: true" : "") + " },");
             lines.RemoveRange(s + 1, e - s - 1);
             lines.InsertRange(s + 1, fresh);
             return string.Join(nl, lines);
@@ -84,7 +86,11 @@ namespace DebaserServers
         {
             var sb = new StringBuilder();
             foreach (var x in servers)
-                sb.Append(string.Join("|", new[] { x.Id, x.Label, x.Base, x.ListPath, x.Movie, x.Tv, x.Other ?? "", x.Series ?? "" })).Append('\n');
+            {
+                var parts = new List<string> { x.Id, x.Label, x.Base, x.ListPath, x.Movie, x.Tv, x.Other ?? "", x.Series ?? "" };
+                if (x.Unsandboxed) parts.Add("unsandboxed"); // only when on, as on the site
+                sb.Append(string.Join("|", parts)).Append('\n');
+            }
             return sb.ToString();
         }
 
@@ -235,6 +241,7 @@ namespace DebaserServers
     class EditForm : Form
     {
         readonly TextBox name = new TextBox(), address = new TextBox(), list = new TextBox(), movie = new TextBox(), tv = new TextBox(), series = new TextBox(), other = new TextBox();
+        readonly CheckBox unsandboxed = new CheckBox();
         readonly Label problem = new Label();
         public Server Result;
         readonly Server editing;
@@ -261,6 +268,11 @@ namespace DebaserServers
             Field(flow, "EPISODE PLAYER pattern ({tmdb}, {season}, {episode}):", tv, existing == null ? "/debaser/play/tv/{tmdb}/{season}/{episode}" : existing.Tv);
             Heading(flow, "OWN VIDEOS (no TMDB number)");
             Field(flow, "OWN-VIDEO PLAYER pattern ({id}; may be empty):", other, existing == null ? "/debaser/play/item/{id}" : (existing.Other ?? ""));
+            Heading(flow, "PLAYER SANDBOX");
+            Note(flow, "Only for a player that refuses to start in a sandbox. Ticked, this server's player can open pop-ups and send the whole debaser.site tab to another page. It still gets no referrer.");
+            unsandboxed.Text = "NO SANDBOX for this server's player"; unsandboxed.AutoSize = true; unsandboxed.Margin = new Padding(0, 6, 0, 2);
+            unsandboxed.Checked = existing != null && existing.Unsandboxed;
+            flow.Controls.Add(unsandboxed);
             // The message and the two keys sit in a strip pinned to the bottom, so they are always in view.
             var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Padding = new Padding(20, 6, 20, 14), BackColor = Look.Paper };
             problem.AutoSize = true; problem.MaximumSize = new Size(920, 0); problem.ForeColor = Look.Alarm; problem.Margin = new Padding(0, 4, 0, 4);
@@ -296,7 +308,7 @@ namespace DebaserServers
             var x = new Server
             {
                 Id = editing == null ? null : editing.Id, // a server's id never changes: saved rows carry it
-                Label = name.Text, Base = address.Text, ListPath = list.Text, Movie = movie.Text, Tv = tv.Text, Series = series.Text, Other = other.Text
+                Label = name.Text, Base = address.Text, ListPath = list.Text, Movie = movie.Text, Tv = tv.Text, Series = series.Text, Other = other.Text, Unsandboxed = unsandboxed.Checked
             };
             string wrong = Store.Check(x, others);
             if (wrong != null) { problem.Text = wrong; return; }

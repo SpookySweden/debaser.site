@@ -42,7 +42,9 @@ plays anything you give it a TMDB number for (a "streaming source" that finds fi
    ```
 
    and don't send `X-Frame-Options: DENY` or `SAMEORIGIN` on them. The site loads your player sandboxed (scripts
-   on your own origin only, no pop-ups, no forms, no navigating the page) and sends no referrer.
+   on your own origin only, no pop-ups, no forms, no navigating the page) and sends no referrer. If your player
+   refuses to start in a sandbox, tell Luke: he can turn the sandbox off for your server alone (it still sends
+   no referrer).
 5. **Your front page answers.** Before playing, the site asks your server's front page (`https://your-host/`)
    whether it's up. Any answer counts, even a login page or a 404; no answer within 6 seconds reads as
    "NOT ANSWERING", and the reader is offered the next server.

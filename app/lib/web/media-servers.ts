@@ -17,6 +17,9 @@
  * - `play`: the server's player page for a film, an episode of a show, (optional) a whole show, and (optional)
  *   one of its own videos with no TMDB number. `{tmdb}`, `{season}`, `{episode}` and `{id}` are filled in with
  *   checked values only.
+ * - `unsandboxed: true` (optional, after `play`): its player loads with no sandbox, for a player page that refuses
+ *   to start in one (Luke, 2026-11-01). It still gets no referrer. Leave it out unless a server needs it: without
+ *   the sandbox, that server's page can open pop-ups and send the whole debaser.site tab to another page.
  *
  * Adding a server here adds its SOURCE choice in the /web search by itself (web-filters.ts) and has the next
  * hourly update read its list. The friend's side of it is in docs/media-server-setup.md.
@@ -34,6 +37,8 @@ export type MediaServer = {
     readonly series?: string;
     readonly other?: string;
   };
+  /** Its player loads with no sandbox (`playerSandbox`). Absent: sandboxed, like every other player. */
+  readonly unsandboxed?: true;
 };
 
 // The two placeholders stand in until a real server exists: nothing answers there, so their titles say NOT ANSWERING.
@@ -65,7 +70,13 @@ export function mediaServer(id: MediaServerId): MediaServer {
  * Change this and DebaserServers.cs `ListText` together.
  */
 export function serverListText(servers: readonly MediaServer[] = MEDIA_SERVERS): string {
-  return servers.map((s) => [s.id, s.label, s.base, s.listPath, s.play.movie, s.play.tv, s.play.other ?? '', s.play.series ?? ''].join('|') + '\n').join('');
+  // The switch is added only when on, so a list without it keeps the fingerprint it always had.
+  return servers.map((s) => [s.id, s.label, s.base, s.listPath, s.play.movie, s.play.tv, s.play.other ?? '', s.play.series ?? '', ...(s.unsandboxed === true ? ['unsandboxed'] : [])].join('|') + '\n').join('');
+}
+
+/** The sandbox a server's player frame gets: scripts on its own origin only, or none for an `unsandboxed` server. */
+export function playerSandbox(server: Pick<MediaServer, 'unsandboxed'>): string | undefined {
+  return server.unsandboxed === true ? undefined : 'allow-scripts allow-same-origin';
 }
 
 /** `listPath` for a server with no list file: it plays any title by its TMDB number. */
