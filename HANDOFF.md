@@ -1,3 +1,30 @@
+# Latest: stream room rework, stages 1-3 LIVE; stage 4 specced (SPEC-stream-queue.md) (2026-11-02)
+- LIVE: 6176ff1 (bar under the video, speaker + QUALITY, YouTube strips cut off, fold away to a TV box) and
+  43b6a82 (watcher strip, queue as a pop-up with WEB search, send arrow in the box, no :) key, no delete x).
+  No database or repository changes. Next: stage 4 (people's additions, crowns, drag) in a fresh session
+  from SPEC-stream-queue.md; it needs Luke's typed OK for the migration described there.
+- YouTube (app/lib/watch/youtube-player.ts): the iframe is drawn taller than a 16:9 box and clipped
+  (`BLEED_SHARE`), so its title strip, link key, More videos and logo sit outside; a cover div over the
+  picture takes every click (black before the first play and after the end). YouTube's half-second play/pause
+  flash mid-picture still shows (can't be clipped). QUALITY for YouTube = the size its player is told
+  (setPlaybackQuality is a no-op since 2019): measured 1920/2560 wide -> 1080p, real 585 -> 480p (floor).
+- GOTCHA: the app's Browser pane screenshots draw YouTube's cross-origin frame ON TOP of everything (ignores
+  the cover, and the clip under viewport emulation). Prove iframe overlap in real Edge via Playwright
+  (scratch scripts like room-proof.cjs; Chrome is NOT installed here, only Edge, despite core.md).
+- Fold away: DockWindow `onMinimize`/`minimized` (invisible + inert, stays mounted, keeps playing);
+  watch-window.ts `collapsed`; folding spends `?watch=` so any link to the room unfolds it. TV box in
+  WatchWindow.tsx sits at `--music-top` (published by MusicPlayer's bar/card/tile) and publishes
+  `--stream-box`, which SiteWindow's foot clears. Wiggle = token `--animate-wiggle` (bends design.md's
+  no-wobble rule at Luke's ask; still under the pointer and for reduced motion).
+- Strip order: app/lib/watch/crawl.ts, check Temp/check-stream-crawl.cjs (proven to fail first).
+- Icons are slots with font stand-ins (art/slots.ts): mark-tv `[ TV ]`, mark-speaker(-muted) speaker
+  glyphs, mark-send `➤`; crowns for stage 4 = mark-crown / mark-crown-filled (♕ ♛), not added yet.
+- Pushing while two other sessions share this folder: commit only your files, then a detached worktree
+  (.claude/worktrees/stream-ui-verify) with its OWN `npm ci` (a node_modules junction breaks Turbopack:
+  "Symlink points out of the filesystem root"), `npx next typegen` and `mkdir Temp` before `npm run verify`.
+- NOT driven: anything signed in on the live site (`.env.test` missing); a real two-account room.
+  Locally (mock, :3001) host + follower views, handover, fold/unfold, queue search/paste/add were driven.
+
 # Latest: VANITY build (SPEC-vanity.md) - ALL 7 STEPS LIVE (2026-11-01)
 - Steps 1-2 (song panel, BARR): see git 5a6c115, 56c185a. Red titles = token `barred`; panel/prompt via
   AboveAnchor (portal) or they open under docked windows. Checks: Temp/check-song-menu.cjs, check-barr.cjs.
