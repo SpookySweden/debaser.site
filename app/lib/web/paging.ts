@@ -60,8 +60,20 @@ export function compareItems(a: WebItem, b: WebItem): number {
   return a.id < b.id ? 1 : -1;
 }
 
-/** True when `item` comes after the cursor in stream order. */
-function isAfter(item: WebItem, cursor: WebCursor): boolean {
+/**
+ * Which way a saved-stream search reads (SPEC-web-sort.md, DATE and its flip key): newest first, as the stream
+ * always has, or oldest first, `publishedAt` then `id` ascending. The cursor is the same last row either way.
+ */
+export type StreamDirection = 'desc' | 'asc';
+
+/** The stream order for a direction: `compareItems`, or its exact reverse. */
+export function compareFor(direction: StreamDirection): (a: WebItem, b: WebItem) => number {
+  return direction === 'desc' ? compareItems : (a, b) => compareItems(b, a);
+}
+
+/** True when `item` comes after the cursor in stream order (that direction's). */
+function isAfter(item: WebItem, cursor: WebCursor, direction: StreamDirection = 'desc'): boolean {
+  if (direction === 'asc') return item.publishedAt > cursor.publishedAt || (item.publishedAt === cursor.publishedAt && item.id > cursor.id);
   return item.publishedAt < cursor.publishedAt || (item.publishedAt === cursor.publishedAt && item.id < cursor.id);
 }
 
@@ -86,13 +98,13 @@ export function assemblePage(sameMoment: readonly WebItem[], older: readonly Web
 }
 
 /** One page of an in-memory list (the mock repository). An unreadable cursor yields an empty page. */
-export function pageOf(all: readonly WebItem[], cursor: string | null | undefined, limit: unknown): WebPage {
+export function pageOf(all: readonly WebItem[], cursor: string | null | undefined, limit: unknown, direction: StreamDirection = 'desc'): WebPage {
   const size = clampLimit(limit);
-  let rest = [...all].sort(compareItems);
+  let rest = [...all].sort(compareFor(direction));
   if (cursor != null) {
     const at = decodeCursor(cursor);
     if (!at) return { items: [], nextCursor: null };
-    rest = rest.filter((item) => isAfter(item, at));
+    rest = rest.filter((item) => isAfter(item, at, direction));
   }
   const items = rest.slice(0, size);
   const last = items[items.length - 1];

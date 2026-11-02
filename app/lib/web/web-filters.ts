@@ -1,6 +1,7 @@
 import { authorList, authorWords, matchesAuthor, MAX_AUTHORS } from './search';
 import { isMediaServerId } from './media-servers';
 import { PLATFORM_LABELS, STREAM_PLATFORMS, type WebItem, type WebItemKind, type WebPlatform } from './types';
+import { readSort, type SortChoice } from './web-sort';
 
 // A media server's titles are saved rows too (SPEC-media-servers.md): read with the stream, never asked live.
 const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly string[]).includes(platform) || isMediaServerId(platform);
@@ -21,9 +22,16 @@ const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly strin
  * feature in the forum"): `from:prelinger` or `from:"rick prelinger"` keeps one creator's items (search.ts
  * `matchesAuthor`). Two are either creator, as on the forum; the saved stream reads them all, and a live source,
  * asked about one creator at a time, the first. A creator's name on a row writes it into the box (`withAuthor`).
+ *
+ * A fourth, `sort:` (SPEC-web-sort.md): `sort:best`, `sort:popular`, `sort:oldest` (`sort:newest`, the default, is
+ * no word at all). The SORT keys and the flip key write it; the address carries `?sort=popular` or
+ * `?sort=date&dir=asc`. web-sort.ts says what each order means.
  */
 
-export type FilterKey = 'in' | 'type' | 'from' | 'vibe';
+export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort';
+
+/** A sort as typed after `sort:`; DATE newest first, the default, has no word. */
+export type SortWord = 'best' | 'popular' | 'oldest';
 
 /** `saved`: the hourly stream (rows read from the database rather than found live). */
 export type SourceValue = 'all' | 'saved' | WebPlatform;
@@ -116,9 +124,45 @@ export type WebSearch = {
   authors?: readonly string[];
   /** `vibe:on` (the VIBE key): mood and tag words (search-intent.ts). Absent: off. */
   vibe?: true;
+  /** `sort:` (the SORT keys and the flip key). Absent: DATE, newest first. */
+  sort?: SortWord;
 };
 
-const FILTER = /(^|\s)(in|type|from|vibe):("[^"]*"?|\S*)/gi;
+const FILTER = /(^|\s)(in|type|from|vibe|sort):("[^"]*"?|\S*)/gi;
+
+/** Words people will type after `sort:`; the default's words (`newest`, `date`) clear it. Anything else: no change. */
+const SORT_WORDS: Readonly<Record<string, SortWord | 'newest'>> = {
+  best: 'best',
+  match: 'best',
+  relevance: 'best',
+  popular: 'popular',
+  popularity: 'popular',
+  top: 'popular',
+  newest: 'newest',
+  new: 'newest',
+  latest: 'newest',
+  date: 'newest',
+  oldest: 'oldest',
+  old: 'oldest',
+};
+
+function readSortWord(word: string): SortWord | 'newest' | null {
+  const wanted = word.trim().toLowerCase();
+  return Object.prototype.hasOwnProperty.call(SORT_WORDS, wanted) ? SORT_WORDS[wanted] : null;
+}
+
+/** The order a search is shown in (web-sort.ts). */
+export function sortOf(search: Pick<WebSearch, 'sort'>): SortChoice {
+  if (search.sort === 'best') return { sort: 'best', dir: 'desc' };
+  if (search.sort === 'popular') return { sort: 'popular', dir: 'desc' };
+  return { sort: 'date', dir: search.sort === 'oldest' ? 'asc' : 'desc' };
+}
+
+/** The word for an order (the reverse of `sortOf`); undefined for the default. */
+function sortWordOf(choice: SortChoice): SortWord | undefined {
+  if (choice.sort === 'best' || choice.sort === 'popular') return choice.sort;
+  return choice.dir === 'asc' ? 'oldest' : undefined;
+}
 
 /** `vibe:on` / `vibe:off` as typed; anything else is no change. */
 function readVibe(word: string): boolean | null {
@@ -140,6 +184,7 @@ export function parseWebSearch(box: string): WebSearch {
   let source: SourceValue = 'all';
   let type: TypeValue = 'all';
   let vibe = false;
+  let sort: SortWord | 'newest' = 'newest';
   const authors: string[] = [];
   const text = box
     .replace(FILTER, (_whole, space: string, key: string, raw: string) => {
@@ -148,6 +193,7 @@ export function parseWebSearch(box: string): WebSearch {
       if (filter === 'in') source = readSource(value) ?? source;
       else if (filter === 'type') type = readType(value) ?? type;
       else if (filter === 'vibe') vibe = readVibe(value) ?? vibe;
+      else if (filter === 'sort') sort = readSortWord(value) ?? sort;
       else if (authorWords(value) !== null) authors.push(value.trim());
       return space;
     })
@@ -156,6 +202,7 @@ export function parseWebSearch(box: string): WebSearch {
   const kept = keptAuthors(authors);
   const search: WebSearch = kept.length > 0 ? { text, source, type, authors: kept } : { text, source, type };
   if (vibe) search.vibe = true;
+  if (sort !== 'newest') search.sort = sort;
   return search;
 }
 
@@ -186,6 +233,7 @@ export function formatWebSearch(search: WebSearch): string {
     search.type === 'all' ? '' : `type:${search.type}`,
     ...authorsOf(search).map((name) => `from:${authorWord(name)}`),
     search.vibe ? 'vibe:on' : '',
+    search.sort ? `sort:${search.sort}` : '',
   ]
     .filter((part) => part.length > 0)
     .join(' ');
@@ -194,7 +242,7 @@ export function formatWebSearch(search: WebSearch): string {
 /** A creator's name pressed on a row: everything from them, under the same SOURCE and TYPE, words dropped. */
 export function withAuthor(box: string, name: string): string {
   const search = parseWebSearch(box);
-  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}) });
+  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}), ...(search.sort ? { sort: search.sort } : {}) });
 }
 
 /** A SOURCE or TYPE key pressed: the box with that filter set (or taken out, for ALL), words untouched. */
@@ -204,6 +252,10 @@ export function withFilter(box: string, key: FilterKey, value: string): string {
   else if (key === 'vibe') {
     if (readVibe(value) === true) search.vibe = true;
     else delete search.vibe;
+  } else if (key === 'sort') {
+    const word = readSortWord(value);
+    if (word === null || word === 'newest') delete search.sort;
+    else search.sort = word;
   } else search.type = readType(value) ?? 'all';
   return formatWebSearch(search);
 }
@@ -216,6 +268,12 @@ export function searchAddress(search: WebSearch): string {
   if (search.type !== 'all') params.set('type', search.type);
   for (const name of authorsOf(search)) params.append('from', name);
   if (search.vibe) params.set('vibe', 'on');
+  const choice = sortOf(search);
+  if (choice.sort !== 'date') params.set('sort', choice.sort);
+  else if (choice.dir === 'asc') {
+    params.set('sort', 'date');
+    params.set('dir', 'asc');
+  }
   const query = params.toString();
   return query.length > 0 ? `/web?${query}` : '/web';
 }
@@ -228,7 +286,13 @@ export function boxFromAddress(params: { get(name: string): string | null; getAl
     type: readType(params.get('type')) ?? 'all',
     authors: keptAuthors((params.getAll?.('from') ?? []).map((name) => name.slice(0, 100))),
     ...(readVibe(params.get('vibe') ?? '') === true ? { vibe: true as const } : {}),
+    ...withSortWord(readSort(params.get('sort'), params.get('dir'))),
   });
+}
+
+function withSortWord(choice: SortChoice): { sort?: SortWord } {
+  const word = sortWordOf(choice);
+  return word === undefined ? {} : { sort: word };
 }
 
 /**
@@ -282,6 +346,14 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
       .slice(0, MAX_CREATOR_SUGGESTIONS)
       .map((name) => ({ word: authorWord(name), label: 'CREATOR' }));
   }
+  if (key === 'sort') {
+    return [
+      { word: 'best', label: 'BEST MATCH' },
+      { word: 'popular', label: 'POPULAR' },
+      { word: 'newest', label: 'NEWEST FIRST' },
+      { word: 'oldest', label: 'OLDEST FIRST' },
+    ].filter((option) => wanted.length === 0 || option.word.startsWith(wanted));
+  }
   if (key === 'vibe') {
     return [
       { word: 'on', label: 'MOOD AND TAG WORDS' },
@@ -298,7 +370,7 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
 /** The filter whose value the caret is in (`in:you|`), with where that value sits, or null. */
 export function activeFilter(box: string, caret: number): { key: FilterKey; partial: string; start: number; end: number } | null {
   // A creator may be quoted with spaces in it (`from:"rick pre|`); the other values are one word.
-  const pattern = /(?:^|\s)(in|type|from|vibe):("[^"]*"?|\S*)/gi;
+  const pattern = /(?:^|\s)(in|type|from|vibe|sort):("[^"]*"?|\S*)/gi;
   for (let match = pattern.exec(box); match !== null; match = pattern.exec(box)) {
     const start = match.index + match[0].indexOf(':') + 1;
     const end = start + match[2].length;

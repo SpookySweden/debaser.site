@@ -5,10 +5,10 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
-import { compareItems, DEFAULT_PAGE_SIZE } from '../lib/web/paging';
+import { DEFAULT_PAGE_SIZE } from '../lib/web/paging';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
-import { arrive, EMPTY_LIVE, freeze, release, type LiveList } from '../lib/web/live-merge';
+import { arrive, compareIn, EMPTY_LIVE, emptyLive, freeze, heldBack, lanesToAsk, release, type ListOrder, type LiveList } from '../lib/web/live-merge';
 import { getWebRepository } from '../lib/web/repository';
 import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-addresses';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
@@ -22,6 +22,7 @@ import {
   matchesFilters,
   parseWebSearch,
   searchAddress,
+  sortOf,
   sourcesToAsk,
   SOURCE_OPTIONS,
   suggestFilterValues,
@@ -32,6 +33,7 @@ import {
   type WebSearch,
 } from '../lib/web/web-filters';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
+import { canSort, searchOrder, SORT_OPTIONS, type SortChoice } from '../lib/web/web-sort';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -59,6 +61,12 @@ import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridge
  * SOURCE and TYPE filters (Luke, 2026-10-31), the forum's way: typed in the box (`in:youtube`, `type:audio`,
  * with a suggestion list) or pressed as keys, which write the same words into the box; the address carries
  * them (`?q=&in=&type=`). They decide which sources are asked at all (web-filters.ts `sourcesToAsk`).
+ *
+ * SORT (SPEC-web-sort.md): BEST MATCH, POPULAR or DATE, and a flip key that turns DATE oldest first; typed `sort:`,
+ * carried as `?sort=`. Each source is asked for that order; one that has none is not asked and says so in one line.
+ * By date the rows are held back until no source's next page could beat them (live-merge.ts), and LOAD MORE asks
+ * the source holding them back; BEST MATCH and POPULAR take one row from each source in turn. Searches only: the
+ * plain stream stays newest first.
  */
 
 const KIND_LABELS: Record<WebItem['kind'], string> = {
@@ -71,8 +79,8 @@ const KIND_LABELS: Record<WebItem['kind'], string> = {
 
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
-/** The SOURCE, TYPE, `from:` and VIBE filters a list is shown under (web-filters.ts). */
-type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe'>;
+/** The SOURCE, TYPE, `from:`, VIBE and SORT filters a list is shown under (web-filters.ts). */
+type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort'>;
 
 /**
  * What the list shows: the stream (no words; filtered when filters are set), one search (the saved stream and
@@ -97,7 +105,13 @@ const sourceLabel = (source: Source) => (source === 'stream' ? 'THE STREAM' : PL
 function requestFor(box: string): Shown {
   const parsed = parseWebSearch(box);
   if (looksLikeLink(parsed.text)) return { kind: 'link', link: parsed.text };
-  const filters: Filters = { source: parsed.source, type: parsed.type, ...(parsed.authors ? { authors: parsed.authors } : {}), ...(parsed.vibe ? { vibe: true as const } : {}) };
+  const filters: Filters = {
+    source: parsed.source,
+    type: parsed.type,
+    ...(parsed.authors ? { authors: parsed.authors } : {}),
+    ...(parsed.vibe ? { vibe: true as const } : {}),
+    ...(parsed.sort ? { sort: parsed.sort } : {}),
+  };
   const query = searchText(parsed.text);
   // A creator alone is a search too: every source is asked for their items.
   if (query === null && authorsOf(filters).length === 0) return { kind: 'stream', filters };
@@ -112,23 +126,56 @@ function searchWordsShown(query: string, filters: Filters): string {
   return `FROM ${authors.join(' OR ')}${words === '' ? '' : `: ${words}`}`.toUpperCase();
 }
 
-/** The sources a request asks: a link is one live answer; otherwise whatever the filters allow. */
+/** The sources a request asks: a link is one live answer; otherwise whatever the filters allow, in the order chosen. */
 function sourcesFor(shown: Shown): Source[] {
   if (shown.kind === 'link') return ['youtube'];
   const plan = sourcesToAsk(shown.filters);
   const stream: Source[] = plan.stream ? ['stream'] : [];
   // Live sources need words to search for; with none, the list is the stream alone.
-  return shown.kind === 'stream' ? stream : [...stream, ...plan.live];
+  if (shown.kind === 'stream') return stream;
+  return [...stream, ...plan.live].filter((source) => canSort(source, sortOf(shown.filters)) || swapsOnly(source, shown));
+}
+
+/** The sources a search leaves out because they have no such order: one plain line each (SPEC-web-sort.md). */
+function unsortedFor(shown: Shown): Source[] {
+  if (shown.kind !== 'search') return [];
+  const plan = sourcesToAsk(shown.filters);
+  return [...(plan.stream ? (['stream'] as Source[]) : []), ...plan.live].filter((source) => !canSort(source, sortOf(shown.filters)) && !swapsOnly(source, shown));
+}
+
+/**
+ * Under POPULAR with KINO the saved stream is still read, for the media servers' copies only: a server's row takes
+ * its KINO row's place (so it sits where TMDB's rating put it) and never shows on its own.
+ */
+function swapsOnly(source: Source, shown: Shown): boolean {
+  return source === 'stream' && shown.kind === 'search' && sortOf(shown.filters).sort === 'popular' && shown.filters.source === 'kino';
+}
+
+/** The order a list is in: a search's SORT; the plain stream and a link, newest first. */
+function orderFor(shown: Shown): ListOrder {
+  const choice: SortChoice = shown.kind === 'search' ? sortOf(shown.filters) : { sort: 'date', dir: 'desc' };
+  return choice.sort === 'date' ? { kind: 'date', dir: choice.dir } : { kind: 'turns' };
 }
 
 type SourcePage = { items: WebStreamItem[]; nextCursor: string | null; problems?: ProviderLine[]; link?: LinkOutcome | null };
 
-/** One page from one source for a search, a link or the stream (the main list and each related section ask the same way). */
-function readSource(source: Source, what: Shown, after: string | null, keyword?: number): Promise<SourcePage> {
+/**
+ * One page from one source for a search, a link or the stream (the main list and each related section ask the same
+ * way). `sorted`: in the search's SORT order (the main list); a related section asks for each site's best match.
+ */
+function readSource(source: Source, what: Shown, after: string | null, keyword?: number, sorted = false): Promise<SourcePage> {
   const repository = getWebRepository();
+  const order = sorted && what.kind === 'search' ? searchOrder(sortOf(what.filters)) : undefined;
   if (source === 'stream') {
     return what.kind === 'search'
-      ? repository.searchItems({ query: what.query, from: authorsOf(what.filters), cursor: after, limit: DEFAULT_PAGE_SIZE, ...(what.filters.vibe ? { anyWord: true } : {}) })
+      ? repository.searchItems({
+          query: what.query,
+          from: authorsOf(what.filters),
+          cursor: after,
+          limit: DEFAULT_PAGE_SIZE,
+          ...(what.filters.vibe ? { anyWord: true } : {}),
+          ...(order === 'oldest' ? { oldestFirst: true } : {}),
+        })
       : repository.listItems({ cursor: after, limit: DEFAULT_PAGE_SIZE });
   }
   if (what.kind === 'link') return searchEverywhere(what.link, after);
@@ -136,8 +183,14 @@ function readSource(source: Source, what: Shown, after: string | null, keyword?:
   return searchEverywhere(what.kind === 'search' ? what.query : '', after, source, authorsOf(what.filters)[0] ?? null, what.filters.type, {
     vibe: what.filters.vibe === true,
     ...(keyword !== undefined ? { keyword } : {}),
+    ...(order !== undefined ? { order } : {}),
   });
 }
+
+/** How many rows LOAD MORE adds by date before it stops asking (one page's worth). */
+const MORE_ROWS = 20;
+/** How many single-source pages one LOAD MORE may ask by date, so a source with nothing new cannot spin. */
+const MAX_PULLS = 8;
 
 /** The box with its words replaced (a DID YOU MEAN), every filter kept. */
 function withWords(box: string, words: string): string {
@@ -150,7 +203,16 @@ export default function WebStream() {
   const [draft, setDraft] = useState(() => boxFromAddress(params));
   const [shown, setShown] = useState<Shown>(() => requestFor(boxFromAddress(params)));
   /** The rows, as they arrive from each source (live-merge.ts: once each, nothing moving under the reader). */
-  const [list, setList] = useState<LiveList>(EMPTY_LIVE);
+  const [list, setList] = useState<LiveList>(() => emptyLive(orderFor(requestFor(boxFromAddress(params)))));
+  /** By date, LOAD MORE keeps asking the source holding rows back until this many rows show (null: not loading). */
+  const [target, setTarget] = useState<number | null>(null);
+  /** Pages asked by date for this search (`MAX_PULLS` per LOAD MORE); `null` once the first top-up is spent. */
+  const [pulls, setPulls] = useState(0);
+  const [toppedUp, setToppedUp] = useState(false);
+  /** The sources a by-date top-up has just asked (the effect below sends the requests). */
+  const [pulled, setPulled] = useState<{ sources: Source[] } | null>(null);
+  /** The pages being asked for are the reader's own LOAD MORE (focus moves to the first new row), not a top-up. */
+  const readerAsked = useRef(false);
   /** Results found live rather than read from the stream: opening one asks for it to be saved. */
   const [liveIds, setLiveIds] = useState<ReadonlySet<string>>(() => new Set());
   /** Bumped by every new search, so a slow answer to an old one is dropped rather than shown. */
@@ -199,12 +261,29 @@ export default function WebStream() {
     ) => {
       if (asked !== generation.current) return;
       setAsking((current) => current.filter((waiting) => waiting !== source));
-      if (page === null) return;
+      if (page === null) {
+        // A source that failed holds nothing back any more.
+        if (what.kind === 'search') setList((current) => arrive(current, [], end, { lane: source, more: false }));
+        return;
+      }
       const items = what.kind === 'link' ? page.items : page.items.filter((item) => matchesFilters(item, what.filters, source === 'stream'));
       if (source !== 'stream') setLiveIds((current) => new Set([...current, ...items.map((item) => item.id)]));
       setList((current) => {
-        const next = arrive(current, items, end);
-        if (end && next.shown.length > current.shown.length) setFocusId(next.shown[current.shown.length].id);
+        let next: LiveList;
+        if (what.kind !== 'search') next = arrive(current, items, end);
+        else {
+          // The media servers' titles that come with the first live answer (wildcard-search.ts) are a source of their
+          // own, with no more pages, so they never stand in for that platform's place by date.
+          const own = items.filter((item) => source === 'stream' || item.platform === source);
+          const servers = items.filter((item) => source !== 'stream' && item.platform !== source);
+          const sent = page.items.filter((item) => source === 'stream' || item.platform === source);
+          next = arrive(current, own, end, { lane: source, more: page.nextCursor !== null, swapOnly: swapsOnly(source, what), page: sent });
+          if (servers.length > 0) next = arrive(next, servers, end, { lane: 'servers', more: false });
+        }
+        if (end && readerAsked.current && next.shown.length > current.shown.length) {
+          readerAsked.current = false;
+          setFocusId(next.shown[current.shown.length].id);
+        }
         return next;
       });
       setCursors((current) => {
@@ -223,7 +302,7 @@ export default function WebStream() {
   /** Asks one source (a page of it), and settles it whatever happens. */
   const ask = useCallback(
     (asked: number, source: Source, what: Shown, after: string | null, end: boolean) => {
-      void readSource(source, what, after)
+      void readSource(source, what, after, undefined, true)
         .then((page) => settle(asked, source, what, page, end))
         .catch((failure: unknown) => {
           if (asked !== generation.current) return;
@@ -244,7 +323,11 @@ export default function WebStream() {
       const asked = generation.current;
       setShown(next);
       setLiveIds(new Set());
-      setList(EMPTY_LIVE);
+      setList(emptyLive(orderFor(next)));
+      setTarget(null);
+      setPulls(0);
+      setToppedUp(false);
+      readerAsked.current = false;
       setCursors({});
       setProblems([]);
       setLinkOutcome(null);
@@ -358,22 +441,69 @@ export default function WebStream() {
     if (focusId !== null) document.getElementById(rowTitleId(focusId))?.focus();
   }, [focusId]);
 
-  const loadMore = () => {
-    const sources = Object.keys(cursors) as Source[];
-    setAsking(sources);
-    for (const source of sources) ask(generation.current, source, shown, cursors[source] ?? null, true);
+  /** Asks the next page of each source given (those that have one). */
+  const askNext = (sources: Source[]) => {
+    const asking = sources.filter((source) => cursors[source] !== undefined);
+    setAsking(asking);
+    for (const source of asking) ask(generation.current, source, shown, cursors[source] ?? null, true);
   };
 
+  const loadMore = () => {
+    readerAsked.current = true;
+    // By date: page by page from whichever source holds the rest back, until a page's worth more shows.
+    if (list.order.kind === 'date' && shown.kind === 'search') {
+      setPulls(0);
+      setTarget(list.shown.length + list.held.length + MORE_ROWS);
+      return;
+    }
+    askNext(Object.keys(cursors) as Source[]);
+  };
+
+  // By date: once the first answers are in, rows held back by a source with more are fetched (up to a page's worth),
+  // and a LOAD MORE goes on asking until its rows show. One source at a time (live-merge.ts `lanesToAsk`). The
+  // decisions are made while drawing (as `firstRoundDone` is); the effect below only asks.
+  const sortedByDate = shown.kind === 'search' && list.order.kind === 'date';
+  const settledRound = asking.length === 0;
+  const rows = list.shown.length + list.held.length;
+  const pullable = (lanesToAsk(list) as Source[]).filter((source) => cursors[source] !== undefined);
+  // Once, when the first answers are all in (before the related sections may start: they wait on `firstRoundDone`).
+  if (sortedByDate && settledRound && !toppedUp) {
+    setToppedUp(true);
+    if (target === null && rows < MORE_ROWS && heldBack(list) > 0) setTarget(MORE_ROWS);
+  }
+  if (target !== null && settledRound && (!sortedByDate || rows >= target || pulls >= MAX_PULLS || pullable.length === 0)) setTarget(null);
+  if (target !== null && settledRound && sortedByDate && rows < target && pulls < MAX_PULLS && pullable.length > 0) {
+    // Marked as asking now, so this runs once per settled round; the requests go out from the effect.
+    setAsking(pullable);
+    setPulls(pulls + 1);
+    setPulled({ sources: pullable });
+  }
+  useEffect(() => {
+    if (pulled === null) return;
+    for (const source of pulled.sources) ask(generation.current, source, shown, cursors[source] ?? null, true);
+    // Only when a top-up was decided: `shown` and `cursors` are this render's, unchanged until those pages settle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pulled]);
+
   const showMore = () => {
-    if (list.held.length > 0) setFocusId([...list.held].sort(compareItems)[0].id);
+    if (list.held.length > 0) setFocusId([...list.held].sort(compareIn(list))[0].id);
     setList(release);
   };
 
+  /** A SORT key or the flip key: the order written into the box (`sort:`), and the search runs again. */
+  const pickSort = (choice: SortChoice) => {
+    const word = choice.sort === 'date' ? (choice.dir === 'asc' ? 'oldest' : 'newest') : choice.sort;
+    pickFilter('sort', word);
+  };
+
   const boxFilters = parseWebSearch(draft);
+  const boxSort = sortOf(boxFilters);
   const filtered = shown.kind !== 'stream' || shown.filters.source !== 'all' || shown.filters.type !== 'all';
-  const busy = asking.length > 0;
+  const busy = asking.length > 0 || target !== null;
+  const unsorted = unsortedFor(shown);
   const empty = list.shown.length === 0 && list.held.length === 0;
-  if (!busy && !firstRoundDone) setFirstRoundDone(true);
+  // By date, only once the first top-up has been decided, so the related sections start below a settled list.
+  if (!busy && !firstRoundDone && (!sortedByDate || toppedUp)) setFirstRoundDone(true);
 
   const emptyWords = (): string | null => {
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
@@ -511,6 +641,40 @@ export default function WebStream() {
           </button>
           <span className="text-label text-ink-quiet">MOODS, TAGS, GENRES, DECADES</span>
         </div>
+        {/* SORT (SPEC-web-sort.md): the order a search is shown in, and the flip key, which only DATE uses. */}
+        <div role="group" aria-label="Sort" className="flex flex-wrap items-center gap-1">
+          <span className="text-label font-bold text-ink-quiet">SORT:</span>
+          {SORT_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => pickSort({ sort: option.value, dir: option.value === 'date' ? boxSort.dir : 'desc' })}
+              aria-pressed={boxSort.sort === option.value}
+              aria-label={`Sort: ${option.label}`}
+              className={boxSort.sort === option.value ? PLATE_PRESSED : PLATE}
+            >
+              {`[ ${option.label} ]`}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => pickSort({ sort: 'date', dir: boxSort.dir === 'asc' ? 'desc' : 'asc' })}
+            disabled={boxSort.sort !== 'date'}
+            aria-label={
+              boxSort.sort !== 'date'
+                ? `Flip the order: only for DATE (${boxSort.sort === 'popular' ? 'no site gives a least popular order' : 'a best match backwards is no use'})`
+                : boxSort.dir === 'asc'
+                  ? 'Oldest first: flip to newest first'
+                  : 'Newest first: flip to oldest first'
+            }
+            className={PLATE}
+          >
+            {boxSort.dir === 'asc' && boxSort.sort === 'date' ? '[ ↑ ]' : '[ ↓ ]'}
+          </button>
+          <span className="text-label text-ink-quiet">
+            {boxSort.sort === 'date' ? (boxSort.dir === 'asc' ? 'OLDEST FIRST' : 'NEWEST FIRST') : boxSort.sort === 'popular' ? 'EACH SITE TAKES TURNS' : 'EACH SITE TAKES TURNS'}
+          </span>
+        </div>
       </div>
 
       {emptyLine !== null ? (
@@ -548,10 +712,18 @@ export default function WebStream() {
           {busy ? `ASKING: ${asking.map(sourceLabel).join(', ')}...` : 'EVERY SOURCE HAS ANSWERED.'}
         </p>
       ) : null}
-      {problems.length > 0 ? (
+      {shown.kind === 'stream' && boxFilters.sort !== undefined && boxFilters.text === '' ? (
+        <p className="text-label text-ink-quiet wrap-anywhere">SORT IS FOR SEARCHES: THE STREAM STAYS NEWEST FIRST.</p>
+      ) : null}
+      {problems.length > 0 || unsorted.length > 0 ? (
         <ul aria-label="Sources that did not answer" className="mb-1">
-          {problems.map((line) => (
-            <li key={line.platform} className="text-label font-bold text-ink-quiet">
+          {unsorted.map((source) => (
+            <li key={`unsorted-${source}`} className="text-label font-bold text-ink-quiet">
+              {`${source === 'stream' ? 'SAVED' : PLATFORM_LABELS[source]}: NO POPULARITY ORDER`}
+            </li>
+          ))}
+          {problems.map((line, index) => (
+            <li key={`${line.platform}-${index}`} className="text-label font-bold text-ink-quiet">
               {`${line.label}: ${line.problem}`}
             </li>
           ))}
@@ -570,7 +742,7 @@ export default function WebStream() {
       ) : null}
 
       {list.shown.length === 0 ? null : (
-        <ul aria-label={shown.kind === 'stream' ? 'Items, newest first' : 'Results, newest first'}>
+        <ul aria-label={shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
           {list.shown.map(renderRow)}
         </ul>
       )}
@@ -626,7 +798,8 @@ function RelatedSection({
   /** The search's own results have all answered once, so this section starts below them, not among them. */
   ready: boolean;
 }) {
-  const what: Shown = { kind: 'search', query: topic.query, filters };
+  // Each site's best match, newest first, as before the SORT row: the order chosen is the search's own.
+  const what: Shown = { kind: 'search', query: topic.query, filters: { ...filters, sort: undefined } };
   const sources: Source[] = topic.keyword !== undefined ? ['kino'] : sourcesFor(what);
   const [started, setStarted] = useState(false);
   const [list, setList] = useState<LiveList>(EMPTY_LIVE);

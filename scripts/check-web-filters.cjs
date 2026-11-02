@@ -99,6 +99,13 @@ same(f.suggestFilterValues('type', '').map((s) => s.word), ['video', 'audio', 'i
 same(f.activeFilter('night in:you', 12), { key: 'in', partial: 'you', start: 9, end: 12 }, 'the caret in a filter value');
 same(f.activeFilter('night in:you', 3), null, 'the caret in a word');
 
+/* ---------------------------------------------------------------- sort: (SPEC-web-sort.md, 2026-11-02, on purpose) */
+same(f.parseWebSearch('night sort:popular in:youtube').sort, 'popular', 'sort: is a fourth filter word');
+same(f.formatWebSearch(f.parseWebSearch('sort:oldest night')), 'night sort:oldest', '... written after the others');
+same(f.suggestFilterValues('sort', 'o').map((s) => s.word), ['oldest'], 'sort:o suggests oldest');
+same(f.activeFilter('night sort:pop', 14), { key: 'sort', partial: 'pop', start: 11, end: 14 }, 'the caret in a sort value');
+same(f.withAuthor('night sort:popular', 'Rick'), 'from:Rick sort:popular', 'a creator search keeps the sort');
+
 /* ---------------------------------------------------------------- the page */
 const page = readFileSync(join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
 ok(/SOURCE_OPTIONS\.map/.test(page) && /TYPE_OPTIONS\.map/.test(page), 'the keys are drawn from the choices');
@@ -119,5 +126,7 @@ ok(/window\.history\.replaceState\(/.test(page) && /searchAddress\(/.test(page),
 ok(/useState\(\(\) => boxFromAddress\(params\)\)/.test(page), 'the page opens on the address search');
 ok(/matchesFilters\(item, what\.filters, source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
 ok(!/transition|animate-/.test(page.slice(page.indexOf('role="group" aria-label="Source"'), page.indexOf('emptyLine !== null'))), 'no transitions on the filter keys');
+ok(/role="group" aria-label="Sort"/.test(page) && /SORT_OPTIONS\.map/.test(page) && /aria-pressed=\{boxSort\.sort === option\.value\}/.test(page), 'the SORT keys are drawn from the choices and say which is on');
+ok(/disabled=\{boxSort\.sort !== 'date'\}/.test(page), 'the flip key works on DATE only, and is disabled (with its reason in its name) otherwise');
 
 asserts.done();

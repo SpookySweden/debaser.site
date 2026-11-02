@@ -30,6 +30,8 @@ export type SearchWebItemsInput = ListWebItemsInput & {
   from?: readonly string[];
   /** VIBE (search-intent.ts): an item matches with ANY of the words rather than all of them. */
   anyWord?: boolean;
+  /** DATE oldest first (SPEC-web-sort.md): `published_at` then `id` ascending. Absent: newest first, as ever. */
+  oldestFirst?: boolean;
 };
 
 /**

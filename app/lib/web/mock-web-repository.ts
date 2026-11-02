@@ -2,7 +2,7 @@ import { dedupeKey, readStreamPage } from './dedupe';
 import { collectionOf, readMediaPage, withSeriesName } from './media-collections';
 import { mergeStreamPages } from './media-merge';
 import { MOCK_MEDIA_ITEMS } from './mock-media-titles';
-import { pageOf } from './paging';
+import { pageOf, type StreamDirection } from './paging';
 import type { WebRepository } from './repository';
 import { authorList, matchesAuthor, matchesSearch, searchWords } from './search';
 import type { WebItem, WebSource } from './types';
@@ -211,9 +211,9 @@ function mockGroup(matches: ((item: WebItem) => boolean) | null) {
 }
 
 /** The media titles' page, film series collapsed to one row each (media-collections.ts), as the Supabase repository does. */
-function mockMedia(all: readonly WebItem[], cursor: string | null | undefined, limit: unknown) {
+function mockMedia(all: readonly WebItem[], cursor: string | null | undefined, limit: unknown, direction: StreamDirection = 'desc') {
   return readMediaPage(
-    async (at) => pageOf(all, at, limit),
+    async (at) => pageOf(all, at, limit, direction),
     async (collections) => all.filter((item) => collections.includes(collectionOf(item)?.id ?? -1)),
     cursor ?? null,
   );
@@ -229,15 +229,16 @@ export function getMockWebRepository(): WebRepository {
       const stream = await readStreamPage(async (at) => pageOf(MOCK_WEB_ITEMS, at, limit), mockGroup(null), cursor ?? null);
       return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS, cursor, limit), limit);
     },
-    async searchItems({ query, from, cursor, limit, anyWord }) {
+    async searchItems({ query, from, cursor, limit, anyWord, oldestFirst }) {
+      const direction: StreamDirection = oldestFirst ? 'asc' : 'desc';
       const wanted = searchWords(query);
       const authors = authorList(from);
       if (!wanted && !authors) return { items: [], nextCursor: null };
       // A film's series name counts as part of its title (as the Supabase repository searches it).
       const matches = (item: WebItem) => (!wanted || (anyWord ? wanted.some((word) => matchesSearch(withSeriesName(item), [word])) : matchesSearch(withSeriesName(item), wanted))) && (!authors || matchesAuthor(item, authors));
       const found = MOCK_WEB_ITEMS.filter(matches);
-      const stream = await readStreamPage(async (at) => pageOf(found, at, limit), mockGroup(matches), cursor ?? null);
-      return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS.filter(matches), cursor, limit), limit);
+      const stream = await readStreamPage(async (at) => pageOf(found, at, limit, direction), mockGroup(matches), cursor ?? null);
+      return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS.filter(matches), cursor, limit, direction), limit, direction);
     },
     async listSources() {
       return MOCK_WEB_SOURCES.map((source) => ({ ...source }));

@@ -7,14 +7,16 @@
  * Archive can show (movies, audio, texts, images, concerts). Live-checked 2026-10-31: a whole-text search
  * for "night of the living dead" returned sermons first; the title search returned the film and its copies.
  * Restricted items are left out by the query as well as skipped by `toWebItem`. The platform's own
- * ranking picks each page; the route sorts the merged list newest first.
+ * ranking picks each page, unless an order is asked (SPEC-web-sort.md, live-checked 2026-11-02): POPULAR is
+ * the Archive's `downloads desc` (the count decides the order and is never read), DATE its `publicdate`, the
+ * date every Archive item is shown with, so the order and the dates agree.
  */
 import { IA_FIELDS, toWebItem } from '../../adapters/internet-archive';
 import { safeFetchJson } from '../../safe-fetch';
 import { splitYear } from '../../search-intent';
 import { buildUrl, isSafeIdentifier } from '../../urls';
 import type { WebItem } from '../../types';
-import type { ProviderPage, SearchDeps, SearchKind, SearchPage, SearchProvider } from '../types';
+import type { ProviderPage, SearchDeps, SearchKind, SearchOrder, SearchPage, SearchProvider } from '../types';
 
 const HOST = 'archive.org';
 export const IA_SEARCH_HOSTS = [HOST] as const;
@@ -51,10 +53,15 @@ export function iaSearchQuery(words: string, author = '', kind?: SearchKind, how
   return [...match, ...all('creator', author), kind === undefined ? MEDIA : KIND_MEDIA[kind]].join(' AND ');
 }
 
-export function iaSearchUrl(query: string, page: number): string {
+/** The Archive's own sort for an order; best match sends none. */
+const IA_SORTS: Record<SearchOrder, string | null> = { relevance: null, popular: 'downloads desc', newest: 'publicdate desc', oldest: 'publicdate asc' };
+
+export function iaSearchUrl(query: string, page: number, order: SearchOrder = 'relevance'): string {
+  const sort = IA_SORTS[order];
   return buildUrl(HOST, ['advancedsearch.php'], [
     ['q', query],
     ...IA_FIELDS.map((field) => ['fl[]', field] as const),
+    ...(sort === null ? [] : [['sort[]', sort] as const]),
     ['rows', String(IA_SEARCH_ROWS)],
     ['page', String(page)],
     ['output', 'json'],
@@ -82,10 +89,11 @@ export const internetArchiveSearch: SearchProvider = {
   platform: 'internet_archive',
   allowedHosts: IA_SEARCH_HOSTS,
   timeoutMs: IA_SEARCH_TIMEOUT_MS,
+  orders: ['popular', 'newest', 'oldest'],
   byAuthor: true,
   async search(words: string, page: ProviderPage | null, deps: SearchDeps, author?: string, kind?: SearchKind): Promise<SearchPage> {
     const at = pageNumber(page);
-    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind, { vibe: deps.vibe, now: deps.now?.() }), at), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
+    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind, { vibe: deps.vibe, now: deps.now?.() }), at, deps.order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
     return parseIaSearch(body, at, (deps.now?.() ?? new Date()).toISOString());
   },
   async fetchOne(externalId: string, deps: SearchDeps): Promise<WebItem | null> {

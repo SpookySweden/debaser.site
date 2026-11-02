@@ -5,7 +5,7 @@ import { authorList, authorPattern, searchText } from './search';
 import { readMediaPage } from './media-collections';
 import { mergeStreamPages } from './media-merge';
 import { mediaRowToItem, WEB_MEDIA_COLUMNS, WEB_MEDIA_TITLES_TABLE, type WebMediaRow } from './media-rows';
-import { assemblePage, clampLimit, decodeCursor, type WebPage } from './paging';
+import { assemblePage, clampLimit, decodeCursor, type StreamDirection, type WebPage } from './paging';
 import type { WebRepository } from './repository';
 import type { WebItem } from './types';
 import {
@@ -27,6 +27,8 @@ import {
  * built with supabase-js's own filters (never by pasting the cursor into an `.or()` string): the rows at
  * the cursor's moment with a smaller id, then the rows before that moment. Both are ranges on
  * `web_items_stream_idx`, and `id` has collation "C", so ties order like the mock's string comparison.
+ * A search read oldest first (SPEC-web-sort.md) is the mirror image: a larger id, then the rows after that moment,
+ * both ascending (the same index, read the other way).
  */
 
 const MAX_SOURCES = 200;
@@ -48,7 +50,7 @@ const itemsQuery = (client: SupabaseClient) => client.from(WEB_ITEMS_TABLE).sele
 type ItemsQuery = ReturnType<typeof itemsQuery>;
 
 /** What a search reads: its words (`searchText`) and its `from:` creators (`authorPattern`); either may be absent. */
-type Search = { text: string | null; author: string | null; anyWord?: boolean };
+type Search = { text: string | null; author: string | null; anyWord?: boolean; direction?: StreamDirection };
 const NO_SEARCH: Search = { text: null, author: null };
 /** VIBE: the words joined by `|` for to_tsquery. Each is letters and digits only (`searchText`), so none is syntax. */
 const ANY_WORD_CONFIG = { config: 'simple' } as const;
@@ -76,7 +78,7 @@ async function listRows(getClient: GetClient, cursor: string | null | undefined,
   const client = getClient();
   if (!client) throw new Error(READ_FAILED);
   const [stream, media] = await Promise.all([listStreamRows(client, cursor, limit, search), listMedia(client, cursor, limit, search)]);
-  return mergeStreamPages(stream, media, limit);
+  return mergeStreamPages(stream, media, limit, search.direction ?? 'desc');
 }
 
 const mediaQuery = (client: SupabaseClient) => client.from(WEB_MEDIA_TITLES_TABLE).select(WEB_MEDIA_COLUMNS);
@@ -108,20 +110,21 @@ async function listMedia(client: SupabaseClient, cursor: string | null | undefin
     const item = mediaRowToItem(row);
     return item === null ? [] : [item];
   });
+  const ascending = search.direction === 'asc';
   const readRaw = async (after: string | null): Promise<WebPage> => {
     if (after == null) {
-      const { data, error } = await base().order('published_at', { ascending: false }).order('id', { ascending: false }).limit(size + 1);
+      const { data, error } = await base().order('published_at', { ascending }).order('id', { ascending }).limit(size + 1);
       if (error) return { items: [], nextCursor: null };
       return assemblePage([], toItems(data), size);
     }
     const at = decodeCursor(after);
     if (!at) return { items: [], nextCursor: null };
-    const [same, older] = await Promise.all([
-      base().eq('published_at', at.publishedAt).lt('id', at.id).order('id', { ascending: false }).limit(size + 1),
-      base().lt('published_at', at.publishedAt).order('published_at', { ascending: false }).order('id', { ascending: false }).limit(size + 1),
+    const [same, beyond] = await Promise.all([
+      (ascending ? base().eq('published_at', at.publishedAt).gt('id', at.id) : base().eq('published_at', at.publishedAt).lt('id', at.id)).order('id', { ascending }).limit(size + 1),
+      (ascending ? base().gt('published_at', at.publishedAt) : base().lt('published_at', at.publishedAt)).order('published_at', { ascending }).order('id', { ascending }).limit(size + 1),
     ]);
-    if (same.error || older.error) return { items: [], nextCursor: null };
-    return assemblePage(toItems(same.data), toItems(older.data), size);
+    if (same.error || beyond.error) return { items: [], nextCursor: null };
+    return assemblePage(toItems(same.data), toItems(beyond.data), size);
   };
   // A film series' other films (media-collections.ts), under the same search: whole numbers only reach the filter.
   // Usually one read; a read that fills its limit (a long series crowding the others out) is redone one series at a
@@ -154,7 +157,7 @@ const MAX_FILMS_IN_SERIES = 500;
 
 function listStreamRows(client: SupabaseClient, cursor: string | null | undefined, limit: unknown, search: Search): Promise<WebStreamPage> {
   return readStreamPage(
-    (at) => listItems(stream(client, search), at, limit),
+    (at) => listItems(stream(client, search), at, limit, search.direction ?? 'desc'),
     async (keys) => {
       const safeKeys = keys.filter((key) => DEDUPE_KEY_SHAPE.test(key));
       if (safeKeys.length === 0) return { siblings: [], rivals: [] };
@@ -189,13 +192,14 @@ async function readCopies(base: () => ItemsQuery, keys: string[]): Promise<WebIt
   return each.flatMap((result) => toItems(result.data));
 }
 
-async function listItems(base: () => ItemsQuery, cursor: string | null | undefined, limit: unknown): Promise<WebPage> {
+async function listItems(base: () => ItemsQuery, cursor: string | null | undefined, limit: unknown, direction: StreamDirection = 'desc'): Promise<WebPage> {
   const size = clampLimit(limit);
+  const ascending = direction === 'asc';
 
   if (cursor == null) {
     const { data, error } = await base()
-      .order('published_at', { ascending: false })
-      .order('id', { ascending: false })
+      .order('published_at', { ascending })
+      .order('id', { ascending })
       .limit(size + 1);
     if (error) throw new Error(READ_FAILED);
     return assemblePage([], ((data ?? []) as unknown as WebItemRow[]).map(rowToItem), size);
@@ -204,16 +208,14 @@ async function listItems(base: () => ItemsQuery, cursor: string | null | undefin
   const at = decodeCursor(cursor);
   if (!at) return { items: [], nextCursor: null };
 
+  // Newest first: the rest of the cursor's moment (smaller ids), then older moments. Oldest first: the mirror image.
   const [same, older] = await Promise.all([
-    base()
-      .eq('published_at', at.publishedAt)
-      .lt('id', at.id)
-      .order('id', { ascending: false })
+    (ascending ? base().eq('published_at', at.publishedAt).gt('id', at.id) : base().eq('published_at', at.publishedAt).lt('id', at.id))
+      .order('id', { ascending })
       .limit(size + 1),
-    base()
-      .lt('published_at', at.publishedAt)
-      .order('published_at', { ascending: false })
-      .order('id', { ascending: false })
+    (ascending ? base().gt('published_at', at.publishedAt) : base().lt('published_at', at.publishedAt))
+      .order('published_at', { ascending })
+      .order('id', { ascending })
       .limit(size + 1),
   ]);
   if (same.error || older.error) throw new Error(READ_FAILED);
@@ -230,11 +232,11 @@ export function createSupabaseWebRepository(getClient: GetClient): WebRepository
     listItems({ cursor, limit }) {
       return listRows(getClient, cursor, limit, NO_SEARCH);
     },
-    async searchItems({ query, from, cursor, limit, anyWord }) {
+    async searchItems({ query, from, cursor, limit, anyWord, oldestFirst }) {
       const text = searchText(query);
       const authors = authorList(from);
       if (text === null && authors === null) return { items: [], nextCursor: null };
-      return listRows(getClient, cursor, limit, { text, author: authors === null ? null : authorPattern(authors), ...(anyWord ? { anyWord: true } : {}) });
+      return listRows(getClient, cursor, limit, { text, author: authors === null ? null : authorPattern(authors), ...(anyWord ? { anyWord: true } : {}), ...(oldestFirst ? { direction: 'asc' as const } : {}) });
     },
     async listSources() {
       const client = getClient();

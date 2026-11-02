@@ -77,4 +77,12 @@ ok(/\['wheel', 'touchmove', 'pointerdown', 'keydown'\]/.test(page) && /freeze\(c
 ok(/MORE RESULTS/.test(page) && /setList\(release\)/.test(page), 'the held results are one press away');
 ok(!/Promise\.all\(/.test(page), 'the page never waits for every source together');
 
+/* ---------------------------------------------------------------- the chosen order (SPEC-web-sort.md, 2026-11-02, on purpose) */
+const { emptyLive } = require(join(OUT, 'live-merge.js'));
+let oldest = arrive(emptyLive({ kind: 'date', dir: 'asc' }), [row('youtube:n', '2026-01-01T00:00:00.000Z'), row('youtube:o', '2001-01-01T00:00:00.000Z')]);
+same(ids(oldest.shown), ['youtube:o', 'youtube:n'], 'arrivals slot in in the chosen order (oldest first here)');
+oldest = release(arrive(freeze(oldest), [row('peertube:z', '2030-01-01T00:00:00.000Z'), row('peertube:a', '1990-01-01T00:00:00.000Z')]));
+same(ids(oldest.shown), ['peertube:a', 'peertube:z', 'youtube:o', 'youtube:n'], 'MORE RESULTS still puts them at the top, in the chosen order among themselves');
+ok(/arrive\(current, own, end, \{ lane: source, more: page\.nextCursor !== null, swapOnly: swapsOnly\(source, what\), page: sent \}/.test(page), 'a search tells the merge which source each page came from and whether it has more');
+
 asserts.done();

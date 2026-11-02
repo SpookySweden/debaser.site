@@ -30,15 +30,21 @@ export const INNERTUBE_TIMEOUT_MS = 6_000;
 export const INNERTUBE_TOKEN = /^[A-Za-z0-9_%=-]{20,800}$/;
 /** YouTube's own filter for "Type: Video", as its search page sends it. */
 const VIDEOS_ONLY = 'EgIQAQ==';
+/**
+ * "Sort by: View count" with "Type: Video", as its search page sends them (SPEC-web-sort.md, POPULAR; live-checked
+ * 2026-11-02). YouTube's own order: no view count is ever read. Its "Upload date" sort now answers in relevance
+ * order, so DATE does not use it (youtube-dates.ts).
+ */
+export const VIDEOS_BY_VIEWS = 'CAMSAhAB';
 /** The WEB client YouTube's site sends; YouTube accepts older versions, so this is not kept current. */
 const CLIENT = { clientName: 'WEB', clientVersion: '2.20250101.00.00', hl: 'en', gl: 'US' } as const;
 
 export const INNERTUBE_URL = buildUrl(HOST, ['youtubei', 'v1', 'search'], [['prettyPrint', 'false']]);
 
 /** The request body: words for a first page, or the token for the next one. Nothing else is sent. */
-export function innertubeBody(words: string, continuation: string | null): Record<string, unknown> {
+export function innertubeBody(words: string, continuation: string | null, params: string = VIDEOS_ONLY): Record<string, unknown> {
   return continuation === null
-    ? { context: { client: CLIENT }, query: words, params: VIDEOS_ONLY }
+    ? { context: { client: CLIENT }, query: words, params }
     : { context: { client: CLIENT }, continuation };
 }
 
@@ -71,9 +77,17 @@ const UNIT_MS: Record<string, number> = {
 
 /** "3 years ago" or "Streamed 2 weeks ago" as a date that far before `fetchedAt`; undefined for anything else. */
 export function relativeDate(value: string | undefined, fetchedAt: string): string | undefined {
+  return relativeAge(value, fetchedAt)?.date;
+}
+
+/**
+ * The same, with how coarse it is: "3 years ago" is at most `date` and more than a year before it (YouTube rounds
+ * down). youtube-dates.ts uses the width to check a date window was honoured, and keeps hour-exact ages.
+ */
+export function relativeAge(value: string | undefined, fetchedAt: string): { date: string; unitMs: number } | undefined {
   const match = /^(?:Streamed |Premiered )?(\d{1,4}) (second|minute|hour|day|week|month|year)s? ago$/.exec(value?.trim() ?? '');
   if (!match) return undefined;
-  return new Date(Date.parse(fetchedAt) - Number(match[1]) * UNIT_MS[match[2]]).toISOString();
+  return { date: new Date(Date.parse(fetchedAt) - Number(match[1]) * UNIT_MS[match[2]]).toISOString(), unitMs: UNIT_MS[match[2]] };
 }
 
 /** One `videoRenderer` as a WebItem, or null. Only the id, title, channel, snippet and age are read. */
@@ -95,6 +109,12 @@ export function toWebItem(renderer: unknown, fetchedAt: string): WebItem | null 
  * not plain `videoRenderer`s and are passed over. A thrown error when neither shape is there.
  */
 export function parseInnertube(body: unknown, fetchedAt: string): SearchPage {
+  const { items, next } = parseInnertubeAged(body, fetchedAt);
+  return { items, next };
+}
+
+/** `parseInnertube`, with each video's age width (`relativeAge`) by id, for the date windows (youtube-dates.ts). */
+export function parseInnertubeAged(body: unknown, fetchedAt: string): SearchPage & { units: Map<string, number> } {
   const root = record(body);
   const first = record(record(record(record(root?.contents)?.twoColumnSearchResultsRenderer)?.primaryContents)?.sectionListRenderer)?.contents;
   const more = list(root?.onResponseReceivedCommands).flatMap((command) => list(record(record(command)?.appendContinuationItemsAction)?.continuationItems));
@@ -102,6 +122,7 @@ export function parseInnertube(body: unknown, fetchedAt: string): SearchPage {
   const sections = Array.isArray(first) ? first : more;
 
   const items: WebItem[] = [];
+  const units = new Map<string, number>();
   let next: string | null = null;
   let videos = 0;
   let noResults = false;
@@ -113,24 +134,37 @@ export function parseInnertube(body: unknown, fetchedAt: string): SearchPage {
       // YouTube's own "No results found" notice.
       if (record(entry)?.backgroundPromoRenderer !== undefined) noResults = true;
       const item = toWebItem(renderer, fetchedAt);
-      if (item && !items.some((seen) => seen.id === item.id)) items.push(item);
+      if (item && !items.some((seen) => seen.id === item.id)) {
+        items.push(item);
+        units.set(item.externalId, relativeAge(text(record(renderer)?.publishedTimeText), fetchedAt)?.unitMs ?? UNIT_MS.year);
+      }
     }
     const token = record(record(record(node?.continuationItemRenderer)?.continuationEndpoint)?.continuationCommand)?.token;
     if (typeof token === 'string' && INNERTUBE_TOKEN.test(token)) next = token;
   }
   // Videos none of which could be read (YouTube changed its wording, say), or neither videos nor the notice:
-  // a failure, so youtube.ts falls back to the Data API instead of showing YouTube with nothing found.
+  // a failure, so youtube.ts falls back to the Data API instead of showing YouTube with nothing found. A next page
+  // with no videos and no further page is simply the end (live-checked 2026-11-02: the last page of a short search).
+  if (!Array.isArray(first) && videos === 0 && next === null) return { items, next, units };
   if ((videos > 0 && items.length === 0) || (videos === 0 && !noResults && next === null)) throw new Error('unreadable answer');
+  return { items, next, units };
+}
+
+type FetchImpl = Parameters<typeof safeFetchJson>[1]['fetchImpl'];
+
+/** One page of InnerTube results. Throws (any error) when YouTube does not answer in the known shape. */
+export async function innertubeSearch(words: string, continuation: string | null, fetchImpl: FetchImpl, fetchedAt: string, params?: string): Promise<SearchPage> {
+  const { items, next } = await innertubeSearchAged(words, continuation, fetchImpl, fetchedAt, params);
   return { items, next };
 }
 
-/** One page of InnerTube results. Throws (any error) when YouTube does not answer in the known shape. */
-export async function innertubeSearch(words: string, continuation: string | null, fetchImpl: Parameters<typeof safeFetchJson>[1]['fetchImpl'], fetchedAt: string): Promise<SearchPage> {
+/** `innertubeSearch` with each video's age width (`parseInnertubeAged`). */
+export async function innertubeSearchAged(words: string, continuation: string | null, fetchImpl: FetchImpl, fetchedAt: string, params?: string): Promise<SearchPage & { units: Map<string, number> }> {
   const body = await safeFetchJson(INNERTUBE_URL, {
     allowedHosts: INNERTUBE_HOSTS,
     fetchImpl,
     timeoutMs: INNERTUBE_TIMEOUT_MS,
-    postJson: innertubeBody(words, continuation),
+    postJson: innertubeBody(words, continuation, params),
   });
-  return parseInnertube(body, fetchedAt);
+  return parseInnertubeAged(body, fetchedAt);
 }

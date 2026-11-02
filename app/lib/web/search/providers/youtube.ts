@@ -21,13 +21,18 @@
  *
  * Addresses are the stream adapter's (`../../adapters/youtube.ts`): youtu.be page, i.ytimg.com thumbnail,
  * the youtube-nocookie player. Ids starting with `-` or `_` are skipped, as there.
+ *
+ * Orders (SPEC-web-sort.md): POPULAR is YouTube's own "view count" sort (InnerTube's `CAMSAhAB`, the Data API's
+ * `order=viewCount`); no count is read. DATE is youtube-dates.ts (date windows), falling back for newest-first only
+ * to the Data API's `order=date` with the key. Oldest-first has no official fallback.
  */
 import { SafeFetchError, safeFetchJson } from '../../safe-fetch';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../../sanitise';
 import { buildUrl } from '../../urls';
 import type { WebItem } from '../../types';
-import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchPage, type SearchProvider } from '../types';
-import { INNERTUBE_TOKEN, innertubeSearch } from './youtube-innertube';
+import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchOrder, type SearchPage, type SearchProvider } from '../types';
+import { datedSearch, YT_DATED_CURSOR } from './youtube-dates';
+import { INNERTUBE_TOKEN, innertubeSearch, VIDEOS_BY_VIEWS } from './youtube-innertube';
 
 const API_HOST = 'www.googleapis.com';
 const OEMBED_HOST = 'www.youtube.com';
@@ -45,8 +50,13 @@ export function youtubeKey(deps: SearchDeps): string | null {
   return key && KEY_SHAPE.test(key) ? key : null;
 }
 
-export function ytSearchUrl(words: string, pageToken: string | null, key: string): string {
+/** The Data API's own order for an order it has; best match (and oldest-first, which it lacks) sends none. */
+const API_ORDERS: Record<SearchOrder, string | null> = { relevance: null, popular: 'viewCount', newest: 'date', oldest: null };
+
+export function ytSearchUrl(words: string, pageToken: string | null, key: string, order: SearchOrder = 'relevance'): string {
+  const sort = API_ORDERS[order];
   return buildUrl(API_HOST, ['youtube', 'v3', 'search'], [
+    ...(sort === null ? [] : [['order', sort] as const]),
     ['part', 'snippet'],
     ['type', 'video'],
     ['videoEmbeddable', 'true'],
@@ -180,7 +190,7 @@ export const youtubeApiSearch: SearchProvider = {
     const token = typeof page === 'string' && PAGE_TOKEN.test(page) ? page : null;
     let body: unknown;
     try {
-      body = await safeFetchJson(ytSearchUrl(words, token, key), { allowedHosts: [API_HOST], fetchImpl: deps.fetch });
+      body = await safeFetchJson(ytSearchUrl(words, token, key, deps.order), { allowedHosts: [API_HOST], fetchImpl: deps.fetch });
     } catch (error) {
       youtubeProblem(error);
     }
@@ -199,16 +209,35 @@ export const youtubeSearch: SearchProvider = {
   allowedHosts: YT_SEARCH_HOSTS,
   // InnerTube's 6s (INNERTUBE_TIMEOUT_MS), then the Data API's 10s.
   timeoutMs: 16_000,
+  // The date windows ask many small questions, mostly at once (youtube-dates.ts).
+  sortedTimeoutMs: 25_000,
+  orders: ['popular', 'newest', 'oldest'],
   // The Data API's budget, spent here only when the fallback is used (run.ts does not spend it up front).
   dailyBudget: youtubeApiSearch.dailyBudget,
   spendsOwnBudget: true,
   async search(words: string, page: ProviderPage | null, deps: SearchDeps): Promise<SearchPage> {
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
+    const order = deps.order ?? 'relevance';
+    if (order === 'newest' || order === 'oldest') {
+      const windowed = typeof page === 'string' && YT_DATED_CURSOR.test(page);
+      if (page === null || windowed) {
+        try {
+          return await datedSearch(words, order, page === null ? null : String(page), deps);
+        } catch (error) {
+          // YouTube no longer honours the windows: no wrong order is shown. Any other failure may still try the
+          // Data API's newest-first, but only from the start (a window's cursor means nothing to it).
+          if (error instanceof SearchProblemError || order === 'oldest' || page !== null) throw new SearchProblemError(error instanceof SearchProblemError ? error.problem : 'NO ANSWER');
+        }
+      } else if (order === 'oldest') return { items: [], next: null };
+      if (!youtubeKey(deps)) throw new SearchProblemError('NO ANSWER');
+      if (deps.spendBudget && !deps.spendBudget('youtube')) throw new SearchProblemError('DAILY LIMIT REACHED');
+      return youtubeApiSearch.search(words, page, deps);
+    }
     const continuation = typeof page === 'string' && page.startsWith(INNERTUBE_PAGE) ? page.slice(INNERTUBE_PAGE.length) : null;
     if (page === null || continuation !== null) {
       if (continuation !== null && !INNERTUBE_TOKEN.test(continuation)) return { items: [], next: null };
       try {
-        const found = await innertubeSearch(words, continuation, deps.fetch, fetchedAt);
+        const found = await innertubeSearch(words, continuation, deps.fetch, fetchedAt, order === 'popular' ? VIDEOS_BY_VIEWS : undefined);
         return { items: found.items, next: found.next === null ? null : `${INNERTUBE_PAGE}${found.next}` };
       } catch {
         // InnerTube failed (changed, blocked or slow). A next page of it cannot be asked of the Data API.

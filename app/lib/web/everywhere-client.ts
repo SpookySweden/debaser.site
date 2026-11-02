@@ -24,7 +24,7 @@ export type EverywherePage = {
 /** The route's refusal, in its own plain words (too many searches, too long). */
 export class EverywhereError extends Error {}
 
-const PROBLEMS = new Set(['NOT SET UP', 'DAILY LIMIT REACHED', 'KEY REFUSED', 'NO ANSWER', 'COULD NOT READ']);
+const PROBLEMS = new Set(['NOT SET UP', 'DAILY LIMIT REACHED', 'KEY REFUSED', 'NO ANSWER', 'COULD NOT READ', 'NO POPULARITY ORDER', "CAN'T SORT BY DATE", 'SORTED THE FIRST 500 MATCHES']);
 const LINKS = new Set<LinkOutcome>(['found', 'unknown', 'not-found', 'no-answer']);
 
 function isPlatform(value: unknown): value is WebPlatform {
@@ -50,10 +50,12 @@ export async function searchEverywhere(
   provider?: WebPlatform,
   from: string | null = null,
   type = 'all',
-  extra: { vibe?: boolean; keyword?: number } = {},
+  extra: { vibe?: boolean; keyword?: number; order?: 'relevance' | 'popular' | 'newest' | 'oldest' } = {},
 ): Promise<EverywherePage> {
   const params = new URLSearchParams({ q: query });
   if (provider !== undefined) params.set('provider', provider);
+  // The SORT row's order (web-sort.ts `searchOrder`); only the order travels, never a count.
+  if (extra.order !== undefined) params.set('order', extra.order);
   // VIBE (search-intent.ts) and, for KINO, a related TMDB keyword (related.ts).
   if (extra.vibe) params.set('vibe', 'on');
   if (extra.keyword !== undefined && Number.isInteger(extra.keyword) && extra.keyword > 0) params.set('keyword', String(extra.keyword));

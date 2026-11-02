@@ -10,13 +10,18 @@
  *   embed      https://commons.wikimedia.org/wiki/File:{name}?embedplayer=yes      (Commons' own player page;
  *              200, no X-Frame-Options, no frame-ancestors). Audio and video only, and never the raw file on
  *              upload.wikimedia.org: Commons plays it through its own player.
+ *
+ * DATE (SPEC-web-sort.md, live-checked 2026-11-02) is Commons' own `create_timestamp` order, which is the file's
+ * first upload. So a sorted search asks for every upload of each file (`iilimit`) and dates the file by its oldest,
+ * so the date shown agrees with the order; the picture, words and licence are still the newest upload's. No
+ * popularity order exists here, so POPULAR never asks Commons (Luke).
  */
 import { PLATFORM_HOSTS } from '../../hosts';
 import { safeFetchJson } from '../../safe-fetch';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../../sanitise';
 import { buildUrl, isAllowedUrl } from '../../urls';
 import type { WebItem, WebItemKind } from '../../types';
-import type { ProviderPage, SearchDeps, SearchKind, SearchPage, SearchProvider } from '../types';
+import type { ProviderPage, SearchDeps, SearchKind, SearchOrder, SearchPage, SearchProvider } from '../types';
 
 const API_HOST = 'commons.wikimedia.org';
 const THUMB_HOST = 'thumb.wikimedia.org';
@@ -50,7 +55,11 @@ const COMMON_PARAMS: readonly (readonly [string, string])[] = [
 /** A `type:` filter as Commons' own search keyword (checked live 2026-11-01: each returns only that kind). */
 const KIND_FILETYPE: Record<SearchKind, string> = { video: 'video', audio: 'audio', image: 'bitmap|drawing', text: 'office' };
 
-export function commonsSearchUrl(words: string, offset: number, kind?: SearchKind): string {
+/** Every upload of a file, newest first, so a sorted search can date it by its first; files rarely have more. */
+const WC_UPLOADS = 50;
+
+export function commonsSearchUrl(words: string, offset: number, kind?: SearchKind, order: SearchOrder = 'relevance'): string {
+  const dated = order === 'newest' || order === 'oldest';
   return buildUrl(API_HOST, ['w', 'api.php'], [
     ...COMMON_PARAMS,
     ['generator', 'search'],
@@ -58,6 +67,7 @@ export function commonsSearchUrl(words: string, offset: number, kind?: SearchKin
     ['gsrsearch', kind === undefined ? words : `${words} filetype:${KIND_FILETYPE[kind]}`],
     ['gsrlimit', String(WC_SEARCH_LIMIT)],
     ['gsroffset', String(offset)],
+    ...(dated ? ([['gsrsort', order === 'newest' ? 'create_timestamp_desc' : 'create_timestamp_asc'], ['iilimit', String(WC_UPLOADS)]] as const) : []),
   ]);
 }
 
@@ -114,7 +124,9 @@ export function toWebItem(doc: unknown, fetchedAt: string): WebItem | null {
   const info = record(Array.isArray(page.imageinfo) ? page.imageinfo[0] : undefined);
   if (!info) return null;
 
-  const publishedAt = plausibleIsoDate(info.timestamp, fetchedAt);
+  // The first upload (the last entry when every upload was asked for; the only one otherwise).
+  const uploads = Array.isArray(page.imageinfo) ? page.imageinfo : [];
+  const publishedAt = plausibleIsoDate(record(uploads[uploads.length - 1])?.timestamp, fetchedAt);
   if (!publishedAt) return null;
 
   const kind = MEDIATYPE_KINDS[str(info.mediatype) ?? ''] ?? 'other';
@@ -175,8 +187,9 @@ export const wikimediaCommonsSearch: SearchProvider = {
   platform: 'wikimedia_commons',
   allowedHosts: WC_SEARCH_HOSTS,
   timeoutMs: 10_000,
+  orders: ['newest', 'oldest'],
   async search(words: string, page: ProviderPage | null, deps: SearchDeps, _author?: string, kind?: SearchKind): Promise<SearchPage> {
-    const body = await safeFetchJson(commonsSearchUrl(words, offsetOf(page), kind), { allowedHosts: WC_SEARCH_HOSTS, fetchImpl: deps.fetch });
+    const body = await safeFetchJson(commonsSearchUrl(words, offsetOf(page), kind, deps.order), { allowedHosts: WC_SEARCH_HOSTS, fetchImpl: deps.fetch });
     return parseCommons(body, (deps.now?.() ?? new Date()).toISOString());
   },
   async fetchOne(externalId: string, deps: SearchDeps): Promise<WebItem | null> {

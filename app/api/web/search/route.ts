@@ -7,7 +7,7 @@ import { parseLink, resolveLink } from '../../../lib/web/search/link';
 import { peertubeHosts } from '../../../lib/web/search/peertube-index';
 import { clientAddress, makeDailyBudgets, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { searchEverywhere } from '../../../lib/web/search/run';
-import { SEARCH_KINDS } from '../../../lib/web/search/types';
+import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
 import { PLATFORM_LABELS } from '../../../lib/web/types';
 import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
@@ -15,8 +15,12 @@ import { wildcardSearch } from '../../../lib/web/wildcard-search';
 /**
  * WEB search everywhere (SPEC-web-search.md):
  *
- *   GET /api/web/search?q=<words>[&from=<a creator>][&provider=<one platform>][&cursor=<from the last answer>]
+ *   GET /api/web/search?q=<words>[&from=<a creator>][&provider=<one platform>][&order=<relevance|popular|newest|oldest>][&cursor=<from the last answer>]
  *     -> { items, statuses: [{ platform, label, problem }], nextCursor }
+ *
+ * `order` (SPEC-web-sort.md): each provider's own order for it, or "NO POPULARITY ORDER" / "CAN'T SORT BY DATE"
+ * for one that has none. Without it, each platform's best match, the list newest first (as before sorting existed).
+ * A count or rating may decide the order on the server; none is ever part of an answer.
  *
  * The page asks each provider on its own (`provider=youtube`, ...), all at once, so each one's results show
  * the moment they arrive instead of waiting for the slowest. Without `provider` every provider is asked.
@@ -80,11 +84,13 @@ export async function GET(request: Request): Promise<Response> {
   const vibe = params.get('vibe') === 'on';
   const keywordParam = params.get('keyword');
   const keyword = keywordParam !== null && /^[1-9][0-9]{0,8}$/.test(keywordParam) ? Number(keywordParam) : undefined;
+  const order = SEARCH_ORDERS.find((value) => value === params.get('order'));
   const deps = {
     fetch: cachedFetch,
     env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN },
     ...(vibe ? { vibe } : {}),
     ...(keyword !== undefined && only === 'kino' ? { keyword } : {}),
+    ...(order !== undefined ? { order } : {}),
   };
 
   if (looksLikeLink(q)) {
@@ -121,7 +127,8 @@ export async function GET(request: Request): Promise<Response> {
   // Media servers with no list file (`listPath: '*'`): TMDB's films and shows for the words, one row each with a
   // button per such server (wildcard-search.ts). Only on a first page of plain words, video or any kind, and only
   // with the first provider's answer: the page asks each provider on its own, so this goes out once per search.
-  const withWildcard = words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && providers.includes(SEARCH_PROVIDERS[0]);
+  // Not under POPULAR: those titles have no popularity to be ordered by (SPEC-web-sort.md).
+  const withWildcard = words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && order !== 'popular' && providers.includes(SEARCH_PROVIDERS[0]);
   const everywhere = searchEverywhere(words ?? '', cursor, providers, { ...deps, spendBudget: dailyBudgets(address) }, author, kind);
   const [result, wildcard] = await Promise.all([
     everywhere,
@@ -129,5 +136,7 @@ export async function GET(request: Request): Promise<Response> {
   ]);
   const statuses = result.statuses.map((status) => ({ ...status, label: PLATFORM_LABELS[status.platform] }));
   const complete = statuses.every((status) => status.problem === null);
-  return json({ items: [...result.items, ...wildcard].sort(compareItems), statuses, nextCursor: result.nextCursor }, 200, complete);
+  // In an order, the provider's own order is kept and the media servers' titles follow it (the page places them).
+  const items = order === undefined ? [...result.items, ...wildcard].sort(compareItems) : [...result.items, ...wildcard];
+  return json({ items, statuses, nextCursor: result.nextCursor }, 200, complete);
 }

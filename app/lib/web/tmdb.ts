@@ -12,7 +12,9 @@ import { sanitiseText } from './sanitise';
  * Without it, nothing is asked and titles show their list's own words.
  *
  * Kept: title, date, overview, poster file, runtime, genres, and a show's seasons with their episode counts.
- * Never kept or shown: vote_average, vote_count, popularity, or anything else that rates a title.
+ * Never kept or shown: vote_average, vote_count, popularity, or anything else that rates a title. The one use of a
+ * rating (Luke, 2026-11-02, SPEC-web-sort.md): KINO's POPULAR order reads `vote_average` and `vote_count` from a
+ * search answer (`toRatedHits`) to order titles on the server; they never leave search/providers/kino.ts.
  */
 
 export const TMDB_API_HOST = 'api.themoviedb.org';
@@ -103,10 +105,10 @@ export function searchUrl(words: string, page = 1): string {
 /** The deepest page KINO asks for (20 titles a page). */
 export const TMDB_MAX_PAGE = 10;
 
-/** How many pages TMDB says an answer has, within `TMDB_MAX_PAGE`. Pure. */
-export function totalPages(body: unknown): number {
+/** How many pages TMDB says an answer has, within `TMDB_MAX_PAGE` (or `cap`). Pure. */
+export function totalPages(body: unknown, cap = TMDB_MAX_PAGE): number {
   const total = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).total_pages : undefined;
-  return typeof total === 'number' && Number.isInteger(total) && total >= 0 ? Math.min(total, TMDB_MAX_PAGE) : 0;
+  return typeof total === 'number' && Number.isInteger(total) && total >= 0 ? Math.min(total, cap) : 0;
 }
 
 /** What a discover list is narrowed by: TMDB keyword and genre numbers, and a first and last date. */
@@ -168,11 +170,21 @@ export async function tmdbJson(url: string, fetchImpl: FetchLike): Promise<unkno
  * (a discover list, whose results carry no `media_type`).
  */
 export function toHits(body: unknown, type?: 'movie' | 'tv'): TmdbHit[] {
+  return toRatedHits(body, type).map((rated) => rated.hit);
+}
+
+/**
+ * A hit with TMDB's average rating and how many votes it rests on: for KINO's POPULAR order only, on the server
+ * (search/providers/kino.ts). Never put on an item, kept, logged or sent anywhere. Pure.
+ */
+export type RatedHit = { hit: TmdbHit; rating: number; votes: number };
+
+export function toRatedHits(body: unknown, type?: 'movie' | 'tv'): RatedHit[] {
   const results = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).results : undefined;
   if (!Array.isArray(results)) return [];
   const forced = type;
   return results
-    .flatMap((raw): TmdbHit[] => {
+    .flatMap((raw): RatedHit[] => {
       const d = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
       const type = forced ?? (d.media_type === 'movie' || d.media_type === 'tv' ? d.media_type : null);
       const tmdbId = whole(d.id, 1, 999_999_999);
@@ -183,7 +195,8 @@ export function toHits(body: unknown, type?: 'movie' | 'tv'): TmdbHit[] {
       const date = dateOf(type === 'movie' ? d.release_date : d.first_air_date);
       if (date) hit.date = date;
       if (typeof d.poster_path === 'string' && POSTER.test(d.poster_path)) hit.posterPath = d.poster_path;
-      return [hit];
+      const rating = typeof d.vote_average === 'number' && Number.isFinite(d.vote_average) ? d.vote_average : 0;
+      return [{ hit, rating, votes: whole(d.vote_count, 0, 1_000_000_000) ?? 0 }];
     })
     .slice(0, SEARCH_HITS_MAX);
 }

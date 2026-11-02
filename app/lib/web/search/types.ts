@@ -24,7 +24,19 @@ export type SearchDeps = {
   vibe?: boolean;
   /** KINO only: a TMDB keyword number from /api/web/related, for the titles tagged with it. */
   keyword?: number;
+  /**
+   * The order asked for (SPEC-web-sort.md). Absent is the platform's own best match. A provider is only handed
+   * an order it lists in `orders`; run.ts answers for the rest with "NO POPULARITY ORDER" or "CAN'T SORT BY DATE".
+   */
+  order?: SearchOrder;
 };
+
+/**
+ * How a search is ordered (SPEC-web-sort.md): the platform's own best match, its own popularity order, or by date.
+ * A count or rating may decide the order on the server; it is never part of an item, an answer or a log.
+ */
+export type SearchOrder = 'relevance' | 'popular' | 'newest' | 'oldest';
+export const SEARCH_ORDERS: readonly SearchOrder[] = ['relevance', 'popular', 'newest', 'oldest'];
 
 /**
  * A provider's place in its own results: a page number, an offset or the platform's own page token. It
@@ -40,13 +52,25 @@ export type SearchPage = {
   items: WebItem[];
   /** The next page, or null when the platform has no more. */
   next: ProviderPage | null;
+  /** A plain note beside a good answer (KINO: "SORTED THE FIRST 500 MATCHES"); shown like a problem line. */
+  note?: SearchProblem;
 };
 
 /**
  * Why a provider gave nothing, in the words the page shows after its name ("YOUTUBE: NOT SET UP").
  * Fixed sentences only: never a platform's message, a URL or a stack trace.
  */
-export type SearchProblem = 'NOT SET UP' | 'DAILY LIMIT REACHED' | 'KEY REFUSED' | 'NO ANSWER' | 'COULD NOT READ';
+export type SearchProblem =
+  | 'NOT SET UP'
+  | 'DAILY LIMIT REACHED'
+  | 'KEY REFUSED'
+  | 'NO ANSWER'
+  | 'COULD NOT READ'
+  // SPEC-web-sort.md: a site that cannot give the order asked for is not asked, and says so.
+  | 'NO POPULARITY ORDER'
+  | "CAN'T SORT BY DATE"
+  // KINO read its first 500 matches to order them; a search with more says so (it answered all the same).
+  | 'SORTED THE FIRST 500 MATCHES';
 
 export class SearchProblemError extends Error {
   constructor(readonly problem: SearchProblem) {
@@ -61,6 +85,10 @@ export type SearchProvider = {
   allowedHosts: readonly string[];
   /** How long one search may take before the route stops waiting (Openverse is slow: 20s). */
   timeoutMs: number;
+  /** The orders beyond best match this platform can really give (SPEC-web-sort.md); absent: best match only. */
+  orders?: readonly Exclude<SearchOrder, 'relevance'>[];
+  /** A longer wait for a sorted search that reads many pages (KINO's 25, YouTube's date windows). */
+  sortedTimeoutMs?: number;
   /**
    * For a platform whose quota is small (YouTube ~100 searches a day, Openverse 200 requests a day shared with
    * the stream): at most this many searches a day per visitor address and per server instance.

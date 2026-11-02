@@ -1,5 +1,5 @@
 import type { WebStreamItem, WebStreamPage } from './dedupe';
-import { clampLimit, compareItems, decodeCursor, encodeCursor } from './paging';
+import { clampLimit, compareFor, decodeCursor, encodeCursor, type StreamDirection } from './paging';
 import type { WebItem } from './types';
 
 /**
@@ -16,12 +16,16 @@ import type { WebItem } from './types';
  * Re-reading from there is safe: a row riding on an earlier one is left off again.
  *
  * A media title is never deduped against the stream's items (it has its own SERVER buttons, not ALSO ON).
+ * Oldest first (`direction` 'asc', SPEC-web-sort.md) is the same with the order reversed: the "newest frontier" is
+ * then the frontier that comes first in that order.
  */
 export function mergeStreamPages(
   stream: WebStreamPage,
   media: { items: readonly WebItem[]; nextCursor: string | null },
   limit: unknown,
+  direction: StreamDirection = 'desc',
 ): WebStreamPage {
+  const compareItems = compareFor(direction);
   const size = clampLimit(limit);
   const all: WebStreamItem[] = [...stream.items, ...media.items.map((item) => ({ ...item, alsoOn: [] }))].sort(compareItems);
   const frontiers = [stream.nextCursor, media.nextCursor].flatMap((cursor) => {

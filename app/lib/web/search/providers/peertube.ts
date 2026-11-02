@@ -6,7 +6,8 @@
  * instance is in the public instances index (`../peertube-index.ts`) and the video's account, channel and
  * page all name that one instance; every address is then built from that host and the validated uuid, as
  * the stream's adapter does. The search result alone never decides a host. Sepia sends views, likes and
- * comment counts too; they are never read. Public, safe-for-work, finished videos only.
+ * comment counts too; they are never read. Public, safe-for-work, finished videos only. POPULAR asks Sepia's own
+ * `-views` order and DATE its `publishedAt` (SPEC-web-sort.md, live-checked 2026-11-02); no count is read either way.
  *
  * Live-checked 2026-10-31 ("night of the living dead": 10,868 hits): see the commit message for the
  * status codes. Sepia refuses `start` of 9000 or more; WEB stops paging at 1000.
@@ -20,7 +21,7 @@ import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../../sanitise'
 import { buildUrl } from '../../urls';
 import type { WebItem } from '../../types';
 import { peertubeHosts } from '../peertube-index';
-import type { ProviderPage, SearchDeps, SearchPage, SearchProvider } from '../types';
+import type { ProviderPage, SearchDeps, SearchOrder, SearchPage, SearchProvider } from '../types';
 
 const SEPIA = 'sepiasearch.org';
 export const PT_SEARCH_HOSTS = [SEPIA] as const;
@@ -31,12 +32,17 @@ const THUMB_PATH = /^\/(lazy-static|static)\/thumbnails\/([0-9a-f]{8}-[0-9a-f]{4
 const PUBLIC = 1;
 const MAX_DURATION_SECONDS = 7 * 24 * 60 * 60;
 
-export function sepiaSearchUrl(words: string, start: number): string {
+/** Sepia's own sort for an order; best match sends none. */
+const PT_SORTS: Record<SearchOrder, string | null> = { relevance: null, popular: '-views', newest: '-publishedAt', oldest: 'publishedAt' };
+
+export function sepiaSearchUrl(words: string, start: number, order: SearchOrder = 'relevance'): string {
+  const sort = PT_SORTS[order];
   return buildUrl(SEPIA, ['api', 'v1', 'search', 'videos'], [
     ['search', words],
     ['start', String(start)],
     ['count', String(PT_SEARCH_COUNT)],
     ['nsfw', 'false'],
+    ...(sort === null ? [] : [['sort', sort] as const]),
   ]);
 }
 
@@ -142,10 +148,11 @@ export const peertubeSearch: SearchProvider = {
   platform: 'peertube',
   allowedHosts: PT_SEARCH_HOSTS,
   timeoutMs: 10_000,
+  orders: ['popular', 'newest', 'oldest'],
   async search(words: string, page: ProviderPage | null, deps: SearchDeps): Promise<SearchPage> {
     const start = startOf(page);
     const [body, allowed] = await Promise.all([
-      safeFetchJson(sepiaSearchUrl(words, start), { allowedHosts: PT_SEARCH_HOSTS, fetchImpl: deps.fetch }),
+      safeFetchJson(sepiaSearchUrl(words, start, deps.order), { allowedHosts: PT_SEARCH_HOSTS, fetchImpl: deps.fetch }),
       allowedHosts(deps),
     ]);
     return parseSepia(body, start, allowed, (deps.now?.() ?? new Date()).toISOString());
