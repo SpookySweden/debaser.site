@@ -45,6 +45,8 @@ export type WindowSpec = {
   size: WindowSize;
   /** Which corner it starts in: the upper right, or the lower right over the player bar. */
   dock: 'top' | 'bottom';
+  /** Opens filling the usable screen (the stream room, whose video wants all of it), rather than 78% of it. */
+  fill?: boolean;
 };
 
 /** One window, as stored: enough to put it back. */
@@ -436,6 +438,10 @@ export function fitWindows(
 export function defaultRect(spec: WindowSpec, viewport: WindowSize, top: number): WindowRect {
   const w = Math.min(spec.size.w, viewport.w - 24);
   const areaH = viewport.h - top;
+  if (spec.fill === true) {
+    const y = top + 8;
+    return { x: Math.max(0, viewport.w - 8 - w), y, w, h: Math.max(Math.min(spec.min.h, areaH), viewport.h - y - 8) };
+  }
   const h = Math.max(Math.min(spec.min.h, areaH), Math.min(spec.size.h, Math.round(areaH * 0.78)));
   const x = viewport.w - 8 - w;
   // The upper corner sits 64px down, as the docked windows always have; the lower one sits clear of the

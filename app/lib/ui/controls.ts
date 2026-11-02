@@ -24,7 +24,7 @@
 import { DYES } from './themes';
 
 /** The focus ring every key draws for the keyboard: dotted Brilliant Pink, one pixel off the outline. */
-const KEY_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble';
+export const KEY_FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble';
 /** The press: the key drops a pixel and flashes Brilliant Pink, with the plate ink on it. */
 const KEY_PRESS = 'active:animate-flash active:translate-y-press active:bg-bubble active:text-ink-plate';
 /** A key that cannot be pressed: the words go quiet and nothing answers the pointer (`.key:disabled` in globals.css). */

@@ -24,7 +24,8 @@ import { useForum } from './ForumProvider';
 import WatchRoom from './WatchRoom';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
-const ROOM_SIZE = { w: 1120, h: 700 };
+/** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
+const ROOM_SIZE = { w: 2560, h: 1440 };
 const ROOM_MIN = { w: 560, h: 420 };
 
 /**
@@ -102,7 +103,7 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
   }
 
   return (
-    <DockWindow id="watch" title={`STREAM :: ${name}`} badge="NOT LIVE" onClose={onClose} dock="top" defaultSize={ROOM_SIZE} minSize={ROOM_MIN}>
+    <DockWindow id="stream" fill title={`STREAM :: ${name}`} badge="NOT LIVE" onClose={onClose} dock="top" defaultSize={ROOM_SIZE} minSize={ROOM_MIN}>
       {catalogue.loading ? (
         <p className="text-label font-bold text-ink">READING THE CATALOGUE...</p>
       ) : item === undefined ? (
@@ -149,7 +150,9 @@ function RoomWindow({ roomId, onLeft }: { roomId: string; onLeft: () => void }) 
 
   return (
     <DockWindow
-      id="watch"
+      // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
+      id="stream"
+      fill
       title={read ? `STREAM :: ${hostName.toUpperCase()}` : 'STREAM'}
       badge={read ? (live ? 'LIVE' : 'ENDED') : undefined}
       onClose={() => (read && live ? setClosing(true) : onLeft())}

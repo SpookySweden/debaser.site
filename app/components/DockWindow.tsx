@@ -41,6 +41,8 @@ type DockWindowProps = {
   defaultSize: WindowSize;
   /** The least it can be resized to before its contents break. */
   minSize: WindowSize;
+  /** Opens filling the screen on a desktop (`WindowSpec.fill`). */
+  fill?: boolean;
   children: ReactNode;
 };
 
@@ -104,6 +106,7 @@ export default function DockWindow({
   dock = 'top',
   defaultSize,
   minSize,
+  fill,
   children,
 }: DockWindowProps) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
@@ -113,7 +116,7 @@ export default function DockWindow({
   // Mounting is opening and unmounting is closing: every docked window draws nothing while it is shut.
   useEffect(() => {
     if (!desktop) return;
-    registerWindow(id, { min: minSize, size: defaultSize, dock });
+    registerWindow(id, { min: minSize, size: defaultSize, dock, fill });
     windowOpened(id);
     return () => windowClosed(id);
     // The sizes are per-window constants; re-registering on every render would only churn.

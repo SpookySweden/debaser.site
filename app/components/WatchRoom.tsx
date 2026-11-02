@@ -6,9 +6,10 @@ import { stopFollowing } from '../lib/audio/follow';
 import { threadDomId } from '../lib/forum/anchors';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
-import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
-import { useCompactViewport } from '../lib/ui/use-compact-viewport';
+import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
+import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
+import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { createEmbed, fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink } from '../lib/watch/links';
 import type { EmbedPlayable, Playable } from '../lib/watch/playable';
@@ -37,8 +38,10 @@ import { steadyInterval } from '../lib/watch/steady-timer';
 import { attachStream, checkLink, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
+import { webSessionHeaders } from '../lib/web/web-session';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 
 /** One per tab: two tabs of one account are two members of a room. */
@@ -52,6 +55,13 @@ const FOLLOW_TICK_MS = 500;
 const HANDOVER_NOTICE_MS = 15000;
 /** How long a host's player waits on a link that will not play before the room moves on. */
 const DEAD_LINK_SKIP_MS = 5000;
+/** How long the player bar stays up after the pointer or a finger last moved over the picture. */
+const BAR_LINGER_MS = 2500;
+/** How often the chat says what plays next, and how many of those lines it keeps. */
+const UP_NEXT_EVERY_MS = 60_000;
+const UP_NEXT_KEPT = 20;
+/** A face beside each chat line and each name under WATCHING, in pixels. */
+const CHAT_AVATAR = 28;
 
 type WatchRoomProps = {
   read: WatchRoomRead;
@@ -77,7 +87,6 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
-  const compact = useCompactViewport();
   const repository = getWatchRepository();
   const { room } = read;
   const roomId = room.id;
@@ -460,23 +469,167 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     );
   }
 
+  /* --- the player bar -------------------------------------------------------------------------- */
+
+  // The bar over the foot of the picture shows under the pointer, while keyboard focus is inside it, for a
+  // moment after a tap or a move, and all the time while the picture is paused.
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [poked, setPoked] = useState(false);
+  const pokeTimer = useRef<number | undefined>(undefined);
+  function poke() {
+    setPoked(true);
+    window.clearTimeout(pokeTimer.current);
+    pokeTimer.current = window.setTimeout(() => setPoked(false), BAR_LINGER_MS);
+  }
+  useEffect(() => () => window.clearTimeout(pokeTimer.current), []);
+
+  const [fullscreen, setFullscreen] = useState(false);
+  useEffect(() => {
+    const changed = () => setFullscreen(document.fullscreenElement !== null && document.fullscreenElement === stageRef.current);
+    document.addEventListener('fullscreenchange', changed);
+    return () => document.removeEventListener('fullscreenchange', changed);
+  }, []);
+  function toggleFullscreen() {
+    const box = stageRef.current;
+    if (box === null) return;
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => undefined);
+      return;
+    }
+    if (typeof box.requestFullscreen === 'function') {
+      void box.requestFullscreen().catch(() => undefined);
+      return;
+    }
+    // An iPhone fullscreens only a <video>, in its own player.
+    const video = videoRef.current as (Playable & { webkitEnterFullscreen?: () => void }) | null;
+    video?.webkitEnterFullscreen?.();
+  }
+
+  // Picture-in-picture is a <video>'s alone: an embedded site's player cannot be lifted out from here.
+  const canPip = videoElement instanceof HTMLVideoElement && typeof document !== 'undefined' && document.pictureInPictureEnabled;
+  function togglePip() {
+    if (!(videoElement instanceof HTMLVideoElement)) return;
+    if (document.pictureInPictureElement) void document.exitPictureInPicture().catch(() => undefined);
+    else void videoElement.requestPictureInPicture().catch(() => undefined);
+  }
+
+  const [showViewers, setShowViewers] = useState(false);
+
   /* --- the layout ------------------------------------------------------------------------------ */
 
   const ended = !live;
+  /** A WEB platform's own player carries its own controls; the bar would only cover them. */
+  const hasBar = src !== undefined && !officialOn;
+  const barShown = poked || clock.paused;
+  const duration = Number.isFinite(clock.duration) ? clock.duration : 0;
+  const progress = duration > 0 ? Math.min(100, (clock.seconds / duration) * 100) : 0;
+
+  const playerBar = hasBar ? (
+    <div
+      className={`absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate max-sm:gap-x-1 px-2 py-1 text-label text-sun transition-opacity motion-reduce:transition-none ${
+        barShown
+          ? 'opacity-100'
+          : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100'
+      }`}
+      data-watch-bar={barShown ? 'shown' : 'hidden'}
+    >
+      {amHost && live ? (
+        <button
+          type="button"
+          className={`${PLATE_ON_BLACK} shrink-0`}
+          aria-label={clock.paused ? 'Play' : 'Pause'}
+          onClick={() => {
+            const video = videoRef.current;
+            if (video === null) return;
+            if (video.paused) void video.play().catch(() => setNeedsPress(true));
+            else video.pause();
+          }}
+        >
+          {clock.paused ? '[ ▶ ]' : '[ ❚❚ ]'}
+        </button>
+      ) : null}
+      {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. */}
+      <span className="flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full">
+      {/* A live stream has no position to show; the space is kept so the keys beside it stay put. */}
+      {stageLive ? (
+        <span className="min-w-12 flex-1" />
+      ) : amHost && live ? (
+        <input
+          type="range"
+          aria-label="Seek"
+          min={0}
+          max={duration}
+          step={0.1}
+          value={Math.min(clock.seconds, duration)}
+          onChange={(event) => {
+            const video = videoRef.current;
+            if (video !== null) video.currentTime = Number(event.target.value);
+          }}
+          className="min-w-12 flex-1 accent-sun"
+        />
+      ) : (
+        // Only the host moves the room's position, so everybody else sees where it is without a handle.
+        <span className="h-1 min-w-12 flex-1 bg-chrome-dark" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+          <span className="block h-full bg-sun" style={{ width: `${progress}%` }} />
+        </span>
+      )}
+      {stageLive ? (
+        <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
+          LIVE
+        </span>
+      ) : (
+        <span className="shrink-0 tabular-nums" data-watch-clock={clock.seconds.toFixed(1)}>
+          {formatMediaTime(clock.seconds)} / {duration > 0 ? formatMediaTime(duration) : '--:--'}
+        </span>
+      )}
+      </span>
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted((value) => !value)}>
+        {muted ? '[ UNMUTE ]' : '[ MUTE ]'}
+      </button>
+      {/* A phone has its own volume keys. */}
+      <input
+        type="range"
+        aria-label="Volume"
+        min={0}
+        max={1}
+        step={0.05}
+        value={volume}
+        onChange={(event) => setVolume(Number(event.target.value))}
+        className="w-20 shrink-0 accent-sun max-sm:hidden"
+      />
+      {canPip ? (
+        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
+          [ PIP ]
+        </button>
+      ) : null}
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
+        {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
+      </button>
+    </div>
+  ) : null;
+
+  /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
+  const pictureFit = fullscreen ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
 
   const stage = (
-    <div className="flex min-w-0 flex-col gap-1">
-      <div className="relative bg-ink-plate">
+    <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
+      <div
+        ref={stageRef}
+        className="group relative flex items-center justify-center bg-ink-plate sm:min-h-0 sm:flex-1"
+        onPointerMove={poke}
+        onPointerDown={poke}
+      >
         {src === undefined ? (
-          <div className="flex aspect-video w-full items-center justify-center text-label font-bold text-ink-bar">
+          <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
         ) : link !== null && link.kind === 'embed' ? (
-          <OfficialEmbedStage key={`official-${entryId}`} link={link} />
+          <OfficialEmbedStage key={`official-${entryId}`} link={link} fit={pictureFit} />
         ) : link !== null && isEmbedKind(link.kind) ? (
           <EmbedStage
             key={`embed-${entryId}`}
             link={link}
+            fit={pictureFit}
             autoPlay={amHost && live}
             onPlayer={attachVideo}
             onGone={(gone) => {
@@ -510,7 +663,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             onError={() => {
               if (link !== null) setDeadEntry(entryId);
             }}
-            className="aspect-video w-full object-contain"
+            className={`object-contain ${pictureFit}`}
             data-watch-video={amHost ? 'host' : 'viewer'}
           >
             <track kind="captions" />
@@ -524,99 +677,49 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           </div>
         ) : null}
         {needsPress && live && !linkDead ? (
-          <div className="absolute inset-0 flex items-center justify-center">
+          <div className="absolute inset-0 z-20 flex items-center justify-center">
             <button type="button" onClick={joinPlayback} className={PLATE_MAIN}>
               [ ▶ JOIN PLAYBACK ]
             </button>
           </div>
         ) : null}
+        {/* A tap inside an embedded site's player never reaches this page, so on a phone the bar could not be
+            called up over one: a clear strip along the foot catches the tap instead. */}
+        {hasBar && link !== null && isEmbedKind(link.kind) && !barShown ? (
+          <div className="absolute inset-x-0 bottom-0 z-10 h-10 sm:hidden" aria-hidden="true" onPointerDown={poke} />
+        ) : null}
+        {playerBar}
       </div>
 
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
-        <span className="min-w-0 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
+        <span className="min-w-24 flex-1 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
         <span className="font-bold">{queueBadge(read)}</span>
-        {stageLive ? (
-          <span className="bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
-            LIVE
-          </span>
-        ) : (
-          <span data-watch-clock={clock.seconds.toFixed(1)}>
-            {formatMediaTime(clock.seconds)} / {Number.isFinite(clock.duration) ? formatMediaTime(clock.duration) : '--:--'}
-          </span>
-        )}
-      </div>
-
-      {amHost && live ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={PLATE}
-            onClick={() => {
-              const video = videoRef.current;
-              if (video === null) return;
-              if (video.paused) void video.play().catch(() => setNeedsPress(true));
-              else video.pause();
-            }}
-          >
-            {clock.paused ? '[ ▶ PLAY ]' : '[ ❚❚ PAUSE ]'}
-          </button>
-          {/* A live stream has no seek bar; its space is kept so the keys beside it stay put. */}
-          {stageLive ? (
-            <span className="min-w-24 flex-1" />
-          ) : (
-          <input
-            type="range"
-            aria-label="Seek"
-            min={0}
-            max={Number.isFinite(clock.duration) ? clock.duration : 0}
-            step={0.1}
-            value={Math.min(clock.seconds, Number.isFinite(clock.duration) ? clock.duration : 0)}
-            onChange={(event) => {
-              const video = videoRef.current;
-              if (video !== null) video.currentTime = Number(event.target.value);
-            }}
-            className="min-w-24 flex-1 accent-accent"
-          />
-          )}
-          <button type="button" className={PLATE} disabled={waiting.length === 0} onClick={() => moveOn(true)} title={waiting.length === 0 ? 'Nothing queued' : undefined}>
-            [ SKIP ▶▶ ]
-          </button>
-          {/* Ending it for everybody takes a second press, like starting it did. */}
-          <button
-            type="button"
-            className={confirmEnd ? PLATE_PRESSED : PLATE}
-            onClick={() => {
-              if (!confirmEnd) {
-                setConfirmEnd(true);
-                return;
-              }
-              void repository
-                .endRoom(roomId)
-                .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
-                .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
-            }}
-            onBlur={() => setConfirmEnd(false)}
-          >
-            {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
-          </button>
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-2 text-label text-ink">
-        <button type="button" className={muted ? PLATE_PRESSED : PLATE} aria-pressed={muted} onClick={() => setMuted((value) => !value)}>
-          [ MUTE ]
-        </button>
-        <input
-          type="range"
-          aria-label="Volume"
-          min={0}
-          max={1}
-          step={0.05}
-          value={volume}
-          onChange={(event) => setVolume(Number(event.target.value))}
-          className="w-28 accent-accent"
-        />
         {amHost ? <span className="font-bold">YOU ARE HOSTING</span> : null}
+        {amHost && live ? (
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            <button type="button" className={PLATE} disabled={waiting.length === 0} onClick={() => moveOn(true)} title={waiting.length === 0 ? 'Nothing queued' : undefined}>
+              [ SKIP ▶▶ ]
+            </button>
+            {/* Ending it for everybody takes a second press, like starting it did. */}
+            <button
+              type="button"
+              className={confirmEnd ? PLATE_PRESSED : PLATE}
+              onClick={() => {
+                if (!confirmEnd) {
+                  setConfirmEnd(true);
+                  return;
+                }
+                void repository
+                  .endRoom(roomId)
+                  .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+                  .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
+              }}
+              onBlur={() => setConfirmEnd(false)}
+            >
+              {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
+            </button>
+          </span>
+        ) : null}
       </div>
 
       {notice === null ? null : <p className="w-fit bg-acid px-1 text-label font-bold text-ink-plate" role="status">{notice}</p>}
@@ -628,37 +731,38 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       {room.forumThreadId === null && live ? (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">NOT ON THE BOARD</p>
       ) : null}
-
-      <p className="text-label text-ink" data-watch-members={accounts.length}>
-        <span className="font-bold">WATCHING ({accounts.length + guests})</span>{' '}
-        {accounts.map((member, index) => (
-          <span key={member.key}>
-            {index === 0 ? '' : ', '}
-            {member.userId === null ? member.name : <ProfileName author={{ id: member.userId, displayName: member.name }} />}
-            {member.userId === hostId ? ' (HOST)' : ''}
-          </span>
-        ))}
-        {guests > 0 ? `${accounts.length > 0 ? ' + ' : ''}${guests} GUEST${guests === 1 ? '' : 'S'}` : ''}
-      </p>
     </div>
   );
 
-  const queue = (
-    <QueuePanel
-      read={read}
-      itemsById={itemsById}
-      amHost={amHost && live}
-      canAdd={user !== null && live}
-      userId={user?.id ?? null}
-      compact={compact}
-      nowLive={stageLive}
-      onFault={setFault}
-    />
+  const nextEntry = waiting[0];
+  const nextTitle =
+    nextEntry === undefined ? null : nextEntry.link !== null ? nextEntry.link.title : nextEntry.mediaItemId ? (itemsById.get(nextEntry.mediaItemId)?.title ?? null) : null;
+
+  const side = (
+    <div className="flex flex-col gap-1 sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96">
+      <div className={TITLE_BAR}>
+        <span className="min-w-0 truncate" title={entryTitle}>
+          ▶ {entryTitle ?? '...'}
+        </span>
+        <button
+          type="button"
+          className={showViewers ? `${TITLE_BAR_BUTTON} key-fill key-on [--key-fill:var(--color-ink)] text-paper` : TITLE_BAR_BUTTON}
+          aria-pressed={showViewers}
+          onClick={() => setShowViewers((value) => !value)}
+          data-watch-members={accounts.length}
+        >
+          WATCHING {accounts.length + guests}
+        </button>
+      </div>
+      <QueuePanel read={read} itemsById={itemsById} amHost={amHost && live} canAdd={user !== null && live} userId={user?.id ?? null} nowLive={stageLive} onFault={setFault} />
+      {showViewers ? <ViewerList accounts={accounts} guests={guests} hostId={hostId} /> : null}
+      {/* Hidden, not removed, while the list is up: a half-typed line and the UP NEXT lines survive a look at who is in. */}
+      <ChatPanel read={read} item={item} videoRef={videoRef} live={live} nextTitle={live ? nextTitle : null} shown={!showViewers} />
+    </div>
   );
-  const chat = <ChatPanel read={read} item={item} videoRef={videoRef} live={live} />;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
       {ended ? (
         <p className="text-label font-bold text-ink" role="status">
           {room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
@@ -690,14 +794,41 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       {/* One tree at every width, so the video element is never rebuilt when the layout changes (a phone
           turned, a window resized): the host's listeners are on that element, and a rebuilt one played on
           without them - no loop, no pause written. Only the side column changes. */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-        <div className="min-w-0 flex-1">{stage}</div>
-        <div className="flex flex-col gap-2 sm:w-80 sm:shrink-0">
-          {queue}
-          {chat}
-        </div>
+      <div className="flex flex-col gap-2 sm:min-h-0 sm:flex-1 sm:flex-row sm:gap-3">
+        {stage}
+        {side}
       </div>
     </div>
+  );
+}
+
+/* --- who is watching ----------------------------------------------------------------------------- */
+
+/** The room's people, in place of the chat while WATCHING is pressed: picture, name in its colour, the host marked. */
+function ViewerList({ accounts, guests, hostId }: { accounts: WatchMember[]; guests: number; hostId: string }) {
+  return (
+    <ul className="max-h-72 min-h-24 overflow-y-auto text-label text-ink sm:max-h-none sm:min-h-0 sm:flex-1" aria-label="Watching">
+      {accounts.map((member) => (
+        <li key={member.key} className="rule-pixel flex items-center gap-2 py-1">
+          {member.userId === null ? (
+            <span className="font-bold">{member.name}</span>
+          ) : (
+            <>
+              <ProfileAvatarLink author={{ id: member.userId, displayName: member.name }} size={CHAT_AVATAR} showName={false} variant="plain" />
+              <span className="min-w-0 flex-1 truncate font-bold">
+                <ProfileName author={{ id: member.userId, displayName: member.name }} />
+              </span>
+            </>
+          )}
+          {member.userId === hostId ? <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">HOST</span> : null}
+        </li>
+      ))}
+      {guests > 0 ? (
+        <li className="py-1 font-bold text-ink-quiet">
+          {guests} GUEST{guests === 1 ? '' : 'S'}
+        </li>
+      ) : null}
+    </ul>
   );
 }
 
@@ -709,7 +840,6 @@ function QueuePanel({
   amHost,
   canAdd,
   userId,
-  compact,
   nowLive,
   onFault,
 }: {
@@ -718,8 +848,6 @@ function QueuePanel({
   amHost: boolean;
   canAdd: boolean;
   userId: string | null;
-  /** On a phone the list folds under its title line; the add key stays on that line, outside the fold. */
-  compact: boolean;
   /** What is on is a live stream: it never ends, so nothing loops. */
   nowLive: boolean;
   onFault: (message: string) => void;
@@ -818,7 +946,8 @@ function QueuePanel({
     }
   }
 
-  const showList = !compact || unfolded;
+  // Folded under its title line at every width, to leave the chat its room; the add key stays outside the fold.
+  const showList = unfolded;
   // Labelled and ruled off, so its rows never read as the queue's own.
   const picker = picking ? (
     <div className="rule-pixel pb-1">
@@ -905,13 +1034,9 @@ function QueuePanel({
   return (
     <div className="flex flex-col gap-1">
       <div className={TITLE_BAR}>
-        {compact ? (
-          <button type="button" className="cursor-pointer max-sm:min-h-tap" aria-expanded={unfolded} onClick={() => setUnfolded((value) => !value)}>
-            QUEUE ({played.length + waiting.length}) {unfolded ? '▴' : '▾'}
-          </button>
-        ) : (
-          <span>QUEUE</span>
-        )}
+        <button type="button" className="cursor-pointer max-sm:min-h-tap" aria-expanded={unfolded} onClick={() => setUnfolded((value) => !value)}>
+          QUEUE ({played.length + waiting.length}) {unfolded ? '▴' : '▾'}
+        </button>
         {canAdd ? (
           <button
             type="button"
@@ -926,7 +1051,7 @@ function QueuePanel({
       {picker}
       {showList ? (
         <>
-          <ol className="text-label text-ink" aria-label="Queue">
+          <ol className="max-h-60 overflow-y-auto text-label text-ink" aria-label="Queue">
             {played.map((entry) => {
               const now = entry.id === read.room.currentEntryId;
               return (
@@ -992,28 +1117,54 @@ function ChatPanel({
   item,
   videoRef,
   live,
+  nextTitle,
+  shown,
 }: {
   read: WatchRoomRead;
   item: MediaItem | undefined;
   videoRef: React.RefObject<Playable | null>;
   live: boolean;
+  /** What plays next, announced in this chat once a minute; null says nothing. */
+  nextTitle: string | null;
+  shown: boolean;
 }) {
   const { user } = useAuth();
   const repository = getWatchRepository();
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [shelf, setShelf] = useState<ShelfTab | null>(null);
   const listRef = useRef<HTMLOListElement>(null);
-  const count = read.messages.length;
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // The newest line stays in view as lines arrive.
+  // UP NEXT, once a minute, in this browser only: never sent, never on the board or in the record.
+  const [notes, setNotes] = useState<UpNextNote[]>([]);
+  const upNext = useEffectEvent(() => nextTitle);
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      const title = upNext();
+      if (title === null) return;
+      const at = new Date().toISOString();
+      setNotes((kept) => [...kept, { id: `up-next-${at}`, at, title }].slice(-UP_NEXT_KEPT));
+    }, UP_NEXT_EVERY_MS);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const lines = useMemo(() => {
+    const said = read.messages.map((message) => ({ at: message.createdAt, message, note: null }));
+    const told = notes.map((note) => ({ at: note.at, message: null, note }));
+    return [...said, ...told].sort((a, b) => a.at.localeCompare(b.at));
+  }, [read.messages, notes]);
+  const count = lines.length;
+
+  // The newest line stays in view as lines arrive, and when the chat comes back from behind the WATCHING list.
   useEffect(() => {
     const list = listRef.current;
     if (list !== null) list.scrollTop = list.scrollHeight;
-  }, [count]);
+  }, [count, shown]);
 
-  async function send() {
-    if (user === null || draft.trim().length === 0) return;
+  async function send(body: string) {
+    if (user === null || body.trim().length === 0) return false;
     setBusy(true);
     setError(null);
     try {
@@ -1022,26 +1173,32 @@ function ChatPanel({
         queueEntryId: read.room.currentEntryId,
         mediaItemId: item?.id ?? null,
         author: { id: user.id, label: user.displayName },
-        body: draft,
+        body,
         mediaSeconds: videoRef.current?.currentTime ?? 0,
       });
       applyLocalChange(read.room.id, { kind: 'message', message });
-      setDraft('');
+      return true;
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'THE MESSAGE WAS NOT SENT.');
+      return false;
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="flex min-h-0 flex-col gap-1">
-      <p className={TITLE_BAR}>CHAT</p>
-      <ol ref={listRef} className="max-h-72 min-h-24 overflow-y-auto text-prose text-ink" aria-label="Chat" aria-live="polite">
+    <div className={`${shown ? 'flex' : 'hidden'} flex-col gap-1 sm:min-h-0 sm:flex-1`}>
+      <ol ref={listRef} className="max-h-72 min-h-24 overflow-y-auto text-prose text-ink sm:max-h-none sm:min-h-0 sm:flex-1" aria-label="Chat" aria-live="polite">
         {count === 0 ? <li className="text-label text-ink-quiet">NOTHING SAID YET.</li> : null}
-        {read.messages.map((message) => (
-          <TimedMessage key={message.id} message={message} mine={user !== null && message.authorId === user.id} roomId={read.room.id} />
-        ))}
+        {lines.map((line) =>
+          line.message !== null ? (
+            <ChatLine key={line.message.id} message={line.message} mine={user !== null && line.message.authorId === user.id} roomId={read.room.id} />
+          ) : (
+            <li key={line.note.id} className="rule-pixel py-1 text-label font-bold text-ink-quiet" data-watch-up-next>
+              UP NEXT :: {line.note.title}
+            </li>
+          ),
+        )}
       </ol>
       {!live ? null : user === null ? (
         <p className="text-label font-bold text-ink">
@@ -1051,29 +1208,73 @@ function ChatPanel({
           TO TALK
         </p>
       ) : (
-        <form
-          className="flex items-center gap-1"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void send();
-          }}
-        >
-          <label htmlFor="watch-chat" className="sr-only">
-            Message
-          </label>
-          <input
-            id="watch-chat"
-            value={draft}
-            maxLength={MESSAGE_MAX_LENGTH}
-            onChange={(event) => setDraft(event.target.value)}
-            placeholder="Say something..."
-            autoComplete="off"
-            className={`${FIELD_TIGHT} min-w-0 flex-1`}
-          />
-          <button type="submit" disabled={busy || draft.trim().length === 0} className={PLATE_MAIN}>
-            [ SEND ]
-          </button>
-        </form>
+        <div className="relative">
+          {shelf === null ? null : (
+            <ChatShelf
+              tab={shelf}
+              onTab={setShelf}
+              onEmote={(text) => {
+                setDraft((current) => `${current}${current.length === 0 || current.endsWith(' ') ? '' : ' '}${text}`.slice(0, MESSAGE_MAX_LENGTH));
+                inputRef.current?.focus();
+              }}
+              onPicture={(url) => {
+                void send(url).then((sent) => {
+                  if (sent) setShelf(null);
+                });
+              }}
+              busy={busy}
+            />
+          )}
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void send(draft).then((sent) => {
+                if (sent) setDraft('');
+              });
+            }}
+          >
+            <label htmlFor="watch-chat" className="sr-only">
+              Message
+            </label>
+            {/* The two shelf keys sit at the end of the box, inside its edge. */}
+            <span className="relative flex min-w-0 flex-1 items-stretch">
+              <input
+                id="watch-chat"
+                ref={inputRef}
+                value={draft}
+                maxLength={MESSAGE_MAX_LENGTH}
+                onChange={(event) => setDraft(event.target.value)}
+                placeholder="Say something..."
+                autoComplete="off"
+                className={`${FIELD_TIGHT} min-w-0 flex-1 pr-24`}
+              />
+              <span className="absolute inset-y-0 right-0.5 flex items-center gap-0.5">
+                <button
+                  type="button"
+                  className={shelf === 'emote' ? PLATE_PRESSED : PLATE}
+                  aria-pressed={shelf === 'emote'}
+                  aria-label="Emoticons"
+                  onClick={() => setShelf((open) => (open === 'emote' ? null : 'emote'))}
+                >
+                  :)
+                </button>
+                <button
+                  type="button"
+                  className={shelf !== null && shelf !== 'emote' ? PLATE_PRESSED : PLATE}
+                  aria-pressed={shelf !== null && shelf !== 'emote'}
+                  aria-label="Search GIFs and images"
+                  onClick={() => setShelf((open) => (open !== null && open !== 'emote' ? null : 'gif'))}
+                >
+                  GIF
+                </button>
+              </span>
+            </span>
+            <button type="submit" disabled={busy || draft.trim().length === 0} className={PLATE_MAIN}>
+              [ SEND ]
+            </button>
+          </form>
+        </div>
       )}
       {error === null ? null : (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
@@ -1084,10 +1285,212 @@ function ChatPanel({
   );
 }
 
+type ShelfTab = 'emote' | ImageSearchKind;
+type UpNextNote = { id: string; at: string; title: string };
+
+const SHELF_TABS: { tab: ShelfTab; label: string }[] = [
+  { tab: 'emote', label: 'EMOTES' },
+  { tab: 'gif', label: 'GIFS' },
+  { tab: 'sticker', label: 'STICKERS' },
+  { tab: 'image', label: 'IMAGES' },
+];
+
+/**
+ * The shelf over the chat box: the site's ASCII emoticons, or a search of GIPHY (GIFs, stickers) or Imgur
+ * (images) through the server (`/api/watch/images`). A picked picture is sent at once as its link, which every
+ * chat line that is one picture link draws as the picture (lib/watch/chat-images.ts).
+ */
+function ChatShelf({
+  tab,
+  onTab,
+  onEmote,
+  onPicture,
+  busy,
+}: {
+  tab: ShelfTab;
+  onTab: (tab: ShelfTab) => void;
+  onEmote: (text: string) => void;
+  onPicture: (url: string) => void;
+  busy: boolean;
+}) {
+  const [words, setWords] = useState('');
+  const [state, setState] = useState<{ kind: 'idle' } | { kind: 'searching' } | { kind: 'found'; results: ImageResult[] } | { kind: 'failed'; reason: string }>({
+    kind: 'idle',
+  });
+
+  async function search(kind: ImageSearchKind, query: string) {
+    if (query.trim().length === 0) return;
+    setState({ kind: 'searching' });
+    try {
+      const headers = await webSessionHeaders();
+      if (headers === null) {
+        setState({ kind: 'failed', reason: 'LOG IN TO SEARCH.' });
+        return;
+      }
+      const response = await fetch(`/api/watch/images?kind=${kind}&q=${encodeURIComponent(query.trim())}`, { headers });
+      const answer = (await response.json().catch(() => null)) as { results?: ImageResult[]; error?: string } | null;
+      if (!response.ok || answer === null || !Array.isArray(answer.results)) {
+        setState({ kind: 'failed', reason: answer?.error ?? 'THE SEARCH DID NOT ANSWER. TRY AGAIN.' });
+        return;
+      }
+      // Only links the chat would draw are offered, whatever the server said.
+      setState({ kind: 'found', results: answer.results.filter((result) => chatImageUrl(result.url) !== null && chatImageUrl(result.thumb) !== null) });
+    } catch {
+      setState({ kind: 'failed', reason: 'THE SEARCH DID NOT ANSWER. TRY AGAIN.' });
+    }
+  }
+
+  return (
+    <div className="absolute inset-x-0 bottom-full z-20 mb-1 flex max-h-96 flex-col gap-1 frame bg-sun-pale p-2" role="dialog" aria-label="Emoticons and pictures">
+      <div className="flex flex-wrap gap-1">
+        {SHELF_TABS.map((entry) => (
+          <button
+            key={entry.tab}
+            type="button"
+            className={entry.tab === tab ? PLATE_PRESSED : PLATE}
+            aria-pressed={entry.tab === tab}
+            onClick={() => {
+              onTab(entry.tab);
+              if (entry.tab !== 'emote' && words.trim().length > 0) void search(entry.tab, words);
+              else setState({ kind: 'idle' });
+            }}
+          >
+            {entry.label}
+          </button>
+        ))}
+      </div>
+      {tab === 'emote' ? (
+        <div className="min-h-0 overflow-y-auto">
+          {ASCII_EMOTICONS.map((group, index) => (
+            <div key={group.id} className={index === 0 ? undefined : 'mt-2'}>
+              <p className="text-label font-bold text-ink">{group.label}</p>
+              <ul className="mt-1 flex flex-wrap gap-1">
+                {group.emoticons.map((emoticon) => (
+                  <li key={emoticon.text}>
+                    <button type="button" onClick={() => onEmote(emoticon.text)} className={`${PLATE} font-mono`} title={emoticon.about}>
+                      {emoticon.text}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <>
+          <form
+            className="flex items-center gap-1"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void search(tab, words);
+            }}
+          >
+            <label htmlFor="watch-picture-search" className="sr-only">
+              Search
+            </label>
+            <input
+              id="watch-picture-search"
+              value={words}
+              maxLength={80}
+              onChange={(event) => setWords(event.target.value)}
+              placeholder={tab === 'image' ? 'SEARCH IMGUR' : 'SEARCH GIPHY'}
+              autoComplete="off"
+              autoFocus
+              className={`${FIELD_TIGHT} min-w-0 flex-1`}
+            />
+            <button type="submit" className={PLATE} disabled={words.trim().length === 0 || state.kind === 'searching'}>
+              [ FIND ]
+            </button>
+          </form>
+          <div className="min-h-0 overflow-y-auto" role="status">
+            {state.kind === 'searching' ? (
+              <p className="text-label font-bold text-ink">SEARCHING...</p>
+            ) : state.kind === 'failed' ? (
+              <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{state.reason}</p>
+            ) : state.kind === 'found' ? (
+              state.results.length === 0 ? (
+                <p className="text-label font-bold text-ink">NOTHING FOUND.</p>
+              ) : (
+                <ul className="grid grid-cols-3 gap-1" aria-label="Pictures">
+                  {state.results.map((result) => (
+                    <li key={result.id}>
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => onPicture(result.url)}
+                        className={`block aspect-square w-full cursor-pointer overflow-hidden border border-ink bg-paper ${KEY_FOCUS}`}
+                        title={result.title}
+                        aria-label={`Send ${result.title || 'this picture'}`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Imgur, never proxied or copied */}
+                        <img src={result.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )
+            ) : null}
+          </div>
+          <p className="text-label text-ink-quiet">{tab === 'image' ? 'FROM IMGUR' : 'POWERED BY GIPHY'}</p>
+        </>
+      )}
+    </div>
+  );
+}
+
+/** What a chat line says: its words, or the one GIPHY / Imgur picture it links to, hotlinked from there. */
+function MessageBody({ body }: { body: string }) {
+  const picture = chatImageUrl(body);
+  // A picture the host has taken down reads as its link rather than a blank.
+  const [gone, setGone] = useState(false);
+  if (picture === null || gone) return <>{body}</>;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Imgur, never proxied or copied
+    <img src={picture} alt="A picture" loading="lazy" referrerPolicy="no-referrer" onError={() => setGone(true)} className="mt-0.5 block max-h-40 max-w-full border border-ink" />
+  );
+}
+
+/** One line of the room's chat, laid out like a chat: the person's picture, their name in its colour, when, what. */
+function ChatLine({ message, mine, roomId }: { message: WatchMessage; mine: boolean; roomId: string }) {
+  const author = { id: message.authorId, displayName: message.authorLabel };
+  return (
+    <li className="flex gap-2 py-1" data-watch-message={message.id}>
+      <ProfileAvatarLink author={author} size={CHAT_AVATAR} showName={false} variant="plain" className="shrink-0 self-start" />
+      <span className="min-w-0 flex-1 wrap-anywhere">
+        <span className="flex items-baseline gap-2">
+          <span className="min-w-0 flex-1 truncate text-label font-bold">
+            <ProfileName author={author} />
+          </span>
+          <span className="shrink-0 text-label text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
+          {mine ? <DeleteMessage message={message} roomId={roomId} /> : null}
+        </span>
+        <MessageBody body={message.body} />
+      </span>
+    </li>
+  );
+}
+
+function DeleteMessage({ message, roomId }: { message: WatchMessage; roomId: string }) {
+  const repository = getWatchRepository();
+  return (
+    <button
+      type="button"
+      className={`${PLATE} shrink-0`}
+      aria-label="Delete this message"
+      onClick={() =>
+        void repository
+          .deleteMessage(message.id)
+          .then(() => applyLocalChange(roomId, { kind: 'removed', table: 'messages', id: message.id }))
+          .catch(() => undefined)
+      }
+    >
+      [ × ]
+    </button>
+  );
+}
+
 /** One line of chat: where in the video it was said, who said it, what. The room, the record and the archive draw it the same. */
 export function TimedMessage({ message, mine = false, roomId }: { message: WatchMessage; mine?: boolean; roomId?: string }) {
-  const repository = getWatchRepository();
-
   return (
     <li className="flex items-baseline gap-2 py-0.5" data-watch-message={message.id}>
       <span className="shrink-0 text-label font-bold text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
@@ -1095,23 +1498,9 @@ export function TimedMessage({ message, mine = false, roomId }: { message: Watch
         <span className="text-label font-bold">
           <ProfileName author={{ id: message.authorId, displayName: message.authorLabel }} />
         </span>{' '}
-        {message.body}
+        <MessageBody body={message.body} />
       </span>
-      {mine && roomId !== undefined ? (
-        <button
-          type="button"
-          className={`${PLATE} shrink-0`}
-          aria-label="Delete this message"
-          onClick={() =>
-            void repository
-              .deleteMessage(message.id)
-              .then(() => applyLocalChange(roomId, { kind: 'removed', table: 'messages', id: message.id }))
-              .catch(() => undefined)
-          }
-        >
-          [ × ]
-        </button>
-      ) : null}
+      {mine && roomId !== undefined ? <DeleteMessage message={message} roomId={roomId} /> : null}
     </li>
   );
 }
@@ -1122,26 +1511,26 @@ export function TimedMessage({ message, mine = false, roomId }: { message: Watch
  * (`officialEmbedUrl`). The platform's player cannot be driven from here, so the room does not keep it in
  * step: everybody presses play on it themselves, and the host moves the room on with NEXT.
  */
-function OfficialEmbedStage({ link }: { link: WatchLink }) {
+function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
   const url = officialEmbedUrl(link.url);
 
   if (url === null) {
     return (
-      <div className="flex aspect-video w-full items-center justify-center text-label font-bold text-ink-bar">
+      <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${fit}`}>
         THIS LINK WON&apos;T PLAY HERE
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col">
+    <div className={`flex flex-col ${fit}`}>
       <iframe
         src={url}
         title={`Player: ${link.title}`}
         referrerPolicy="no-referrer"
         sandbox={WEB_EMBED_SANDBOX}
         allow="fullscreen"
-        className="aspect-video w-full bg-paper"
+        className="min-h-0 w-full flex-1 bg-paper"
         data-watch-embed="embed"
       />
       <p className="bg-paper px-1 text-label font-bold text-ink">NOT IN STEP: EVERYONE PRESSES PLAY ON THIS ONE.</p>
@@ -1156,6 +1545,7 @@ function OfficialEmbedStage({ link }: { link: WatchLink }) {
  */
 function EmbedStage({
   link,
+  fit,
   autoPlay,
   onPlayer,
   onGone,
@@ -1166,6 +1556,8 @@ function EmbedStage({
   role,
 }: {
   link: WatchLink;
+  /** The box's shape, from the room: its own 16:9 on a phone, the stage's height on a desktop. */
+  fit: string;
   autoPlay: boolean;
   onPlayer: (player: Playable) => void;
   onGone: (player: Playable) => void;
@@ -1211,5 +1603,5 @@ function EmbedStage({
     };
   }, [url, kind]);
 
-  return <div ref={boxRef} className="aspect-video w-full" data-watch-video={role} data-watch-embed={kind} />;
+  return <div ref={boxRef} className={fit} data-watch-video={role} data-watch-embed={kind} />;
 }
