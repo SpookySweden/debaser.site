@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
 import BroadcastHeartbeat from './components/BroadcastHeartbeat';
@@ -29,6 +29,16 @@ export const metadata: Metadata = {
   title: 'DEBASER.SITE',
   description:
     "An archive of comic book lore and concept art, run like a Web 1.0 desktop: a board, an account directory, comms and the debaser project's shelves.",
+};
+
+/**
+ * Phones get the desktop, zoomed out, like "Request desktop site" (Luke's decision,
+ * 2026-11-02): a fixed 1280px layout width means every breakpoint sees a desktop screen.
+ * The narrow layout stays in the code for the real phone design later; going back to it is
+ * `width: 'device-width', initialScale: 1`.
+ */
+export const viewport: Viewport = {
+  width: 1280,
 };
 
 /**

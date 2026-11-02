@@ -22,6 +22,6 @@ Guidelines that came from real bugs. Bend them if there's a good reason, but tel
 - **A profile shows a person, not a console**: no ids, counts or settings read back at visitors.
 
 ## Also
-- Every screen works at phone width with no sideways scroll. Prove visual changes with `npm run shot` at desktop and phone width.
+- Phones currently get the desktop zoomed out (a fixed 1280px viewport in `app/layout.tsx`, Luke's decision 2026-11-02) until a real phone design exists. Keep the narrow layout from breaking anyway: every screen works at phone width with no sideways scroll. Prove visual changes with `npm run shot` at desktop and phone width.
 - No colour values, fixed Tailwind palette colours (`text-red-500`, `border-black`, `bg-[#...]`) or bracketed sizes (`text-[13px]`, `py-[2px]`) in new code: `npm run tokens` fails on them.
 - `'use client'` only on components that need state, effects or browser APIs.
