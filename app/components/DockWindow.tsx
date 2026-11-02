@@ -43,6 +43,16 @@ type DockWindowProps = {
   minSize: WindowSize;
   /** Opens filling the screen on a desktop (`WindowSpec.fill`). */
   fill?: boolean;
+  /**
+   * Draws a `[ _ ]` key beside the close key that folds the window away. Only for a window whose contents
+   * must keep running out of sight (the stream room keeps playing); the caller draws the way back.
+   */
+  onMinimize?: () => void;
+  /**
+   * Folded away: still drawn, so what is inside keeps running (a video keeps playing), but invisible and out
+   * of reach - the board behind it is usable and nothing in it can be tabbed to.
+   */
+  minimized?: boolean;
   children: ReactNode;
 };
 
@@ -107,6 +117,8 @@ export default function DockWindow({
   defaultSize,
   minSize,
   fill,
+  onMinimize,
+  minimized = false,
   children,
 }: DockWindowProps) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
@@ -166,10 +178,14 @@ export default function DockWindow({
     <aside
       aria-label={title}
       style={style}
-      className={placement}
+      // `invisible` rather than unmounted: taken out of the page, the video would stop and the room would be
+      // left. Invisible keeps its box, its sound and its timers, and lets the pointer through to the board.
+      className={`${placement}${minimized ? ' invisible' : ''}`}
+      inert={minimized}
       onPointerDownCapture={managed ? () => bringToFront(id) : undefined}
       data-dock-window={id}
       data-grouped={grouped ? 'true' : undefined}
+      data-minimized={minimized ? 'true' : undefined}
     >
       <div className={`frame bg-sun-pale flex ${managed ? 'h-full' : 'max-h-full'} flex-col`}>
         <div
@@ -195,6 +211,19 @@ export default function DockWindow({
                 ⇲
               </button>
             ) : null}
+            {onMinimize === undefined ? null : (
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
+                onClick={onMinimize}
+                aria-label={`Fold ${title} away`}
+                title="Fold away (keeps playing)"
+                className="cursor-pointer key px-1 py-0.75 text-label font-bold leading-none max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm"
+              >
+                [ _ ]
+              </button>
+            )}
             <button
               type="button"
               onPointerDown={(event) => event.stopPropagation()}

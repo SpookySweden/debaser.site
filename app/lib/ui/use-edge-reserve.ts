@@ -14,10 +14,14 @@ import { useLayoutEffect, type RefObject } from 'react';
  * Measured rather than written down, because both strips wrap at narrow widths and follow the type dial.
  * The observer catches the strip changing size; the resize listener catches the screen changing under a
  * strip that did not (a bottom strip's top moves when the screen gets shorter).
+ *
+ * `--music-top` is the third: how far up the screen the music player reaches in whichever shape it is in
+ * (the bar, the phone card or the folded tile), so the stream's TV box can sit just above its ♪. And
+ * `--stream-box` is how far up that TV box reaches, so the page window's foot clears it too.
  */
 export function useEdgeReserve(
   strip: RefObject<HTMLElement | null>,
-  name: '--top-bar' | '--bottom-bar',
+  name: '--top-bar' | '--bottom-bar' | '--music-top' | '--stream-box',
   drawn: boolean,
 ): void {
   useLayoutEffect(() => {

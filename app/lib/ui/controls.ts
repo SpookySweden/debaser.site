@@ -46,6 +46,9 @@ export const PLATE =
  */
 export const PLATE_ON_BLACK = `${PLATE} [--key-ink:var(--color-sun)] [--key-hover-ink:var(--color-ink-plate)]`;
 
+/** `PLATE_PRESSED` on a strip that is Black in both themes (the stream player's bar): Daffodil fill, Black words. */
+export const PLATE_ON_BLACK_PRESSED = `key key-fill key-on [--key-fill:var(--color-sun)] px-0.5 py-0.5 text-label text-ink-plate max-sm:min-h-tap max-sm:px-0.5 max-sm:py-1.5 max-sm:text-sm`;
+
 /** The largest: a control that has its line to itself. */
 export const PLATE_LARGE =
   `key cursor-pointer px-1.5 py-1.5 text-key ${KEY_FOCUS} ${KEY_PRESS} ${KEY_DISABLED} max-sm:min-h-tap max-sm:px-1.5 max-sm:py-2.5 max-sm:text-base`;

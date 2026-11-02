@@ -102,7 +102,11 @@ export default function SiteWindow({ title, active, tip, children }: SiteWindowP
         </div>
 
       </div>
-      <div aria-hidden="true" className="h-[var(--bottom-bar,3.5rem)] shrink-0 sm:h-[var(--bottom-bar,3rem)]" />
+      {/* ...and above the stream's TV box while a room is folded away (`--stream-box`, ./WatchWindow.tsx). */}
+      <div
+        aria-hidden="true"
+        className="h-[max(var(--bottom-bar,3.5rem),var(--stream-box,0px))] shrink-0 sm:h-[max(var(--bottom-bar,3rem),var(--stream-box,0px))]"
+      />
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { EmbedPlayer, loadScript } from './embed-player';
 import type { TwitchTarget } from './links';
+import { AUTO_QUALITY, type QualityChoice, type QualityControl } from './playable';
 
 /**
  * Twitch in the stream room (SPEC-watch-links.md step 4): a channel, watched live, or one of its past
@@ -7,6 +8,9 @@ import type { TwitchTarget } from './links';
  * `<video>`. Twitch asks to be told which site it is embedded on (`parent`), which is this page's own
  * address. A channel that is not broadcasting is refused (`offline`).
  */
+
+/** One of a broadcast's qualities as Twitch lists them: `name` to show, `group` to ask for. */
+type TwitchQuality = { name?: unknown; group?: unknown };
 
 type TwitchPlayer = {
   play(): void;
@@ -16,6 +20,9 @@ type TwitchPlayer = {
   getDuration(): number;
   setVolume(volume: number): void;
   setMuted(muted: boolean): void;
+  /** Read defensively: known only once it plays, and an embed that does not have them simply offers none. */
+  getQualities?: () => TwitchQuality[];
+  setQuality?: (group: string) => void;
   addEventListener(event: string, listener: () => void): void;
   destroy?: () => void;
 };
@@ -44,11 +51,14 @@ const SDK = 'https://player.twitch.tv/js/embed/v1.js';
 const NO_ANSWER_MS = 15000;
 let mounts = 0;
 
-export class TwitchPlayable extends EmbedPlayer {
+export class TwitchPlayable extends EmbedPlayer implements QualityControl {
   private player: TwitchPlayer | null = null;
   private readonly live: boolean;
   private mount: HTMLElement;
   private silence = 0;
+  /** What the QUALITY key offers, from Twitch once it plays, and what was picked. */
+  private qualityList: QualityChoice[] = [];
+  private qualityNow: string = AUTO_QUALITY;
   /** Twitch said the channel is broadcasting (a past broadcast never says). */
   online = false;
 
@@ -82,7 +92,10 @@ export class TwitchPlayable extends EmbedPlayer {
           this.online = true;
           this.emit('online');
         });
-        player.addEventListener(Player.PLAYING, () => this.becamePlaying());
+        player.addEventListener(Player.PLAYING, () => {
+          this.becamePlaying();
+          this.readQualities();
+        });
         player.addEventListener(Player.PAUSE, () => {
           this.bufferingNow = false;
           this.becamePaused();
@@ -134,5 +147,39 @@ export class TwitchPlayable extends EmbedPlayer {
 
   get isLive(): boolean {
     return this.live;
+  }
+
+  /* --- the QUALITY key --------------------------------------------------------------------------- */
+
+  /** Twitch's list, read when it plays (it has none before): `auto` is the key's own AUTO. */
+  private readQualities() {
+    const found = this.player?.getQualities?.() ?? [];
+    const listed = found.flatMap((entry): QualityChoice[] =>
+      typeof entry.group === 'string' && typeof entry.name === 'string' && entry.group !== 'auto' ? [{ id: entry.group, label: entry.name.toUpperCase() }] : [],
+    );
+    const next = listed.length === 0 ? [] : [{ id: AUTO_QUALITY, label: 'AUTO' }, ...listed];
+    if (next.map((choice) => choice.id).join() === this.qualityList.map((choice) => choice.id).join()) return;
+    this.qualityList = next;
+    this.emit('qualities');
+  }
+
+  qualities(): QualityChoice[] {
+    return this.qualityList;
+  }
+
+  get quality(): string {
+    return this.qualityNow;
+  }
+
+  setQuality(id: string): void {
+    if (id === this.qualityNow || !this.qualityList.some((choice) => choice.id === id)) return;
+    this.qualityNow = id;
+    this.player?.setQuality?.(id === AUTO_QUALITY ? 'auto' : id);
+    this.emit('qualities');
+  }
+
+  onQualities(listener: () => void): () => void {
+    this.addEventListener('qualities', listener);
+    return () => this.removeEventListener('qualities', listener);
   }
 }

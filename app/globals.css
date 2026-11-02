@@ -400,6 +400,26 @@ img {
   }
 }
 
+/* The stream folded away to its TV box (Luke's ask, 2026-11-02): four frames of shaking side to side
+   and then still for the rest of the beat, so the box says "still on" without twitching all the time. It holds
+   still under the pointer, so it never moves while somebody aims at it (design.md, Feel). */
+@keyframes wiggle {
+  0%,
+  16%,
+  100% {
+    transform: translateX(0);
+  }
+
+  4%,
+  12% {
+    transform: translateX(-2px);
+  }
+
+  8% {
+    transform: translateX(2px);
+  }
+}
+
 /* A label leaning towards wherever the pointer came from. */
 @keyframes bump {
   0%,

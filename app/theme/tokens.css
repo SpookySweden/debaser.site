@@ -213,6 +213,8 @@
   --animate-alarm: alarm 400ms steps(1, jump-none) infinite;
   /* A docked window shaken out of its group: its frame blinks Brilliant Pink three times, then is gone. */
   --animate-detach: detach 360ms steps(1, end) 1 forwards;
+  /* The stream's TV box while the room is folded away: a quick wiggle, then still, every few seconds. */
+  --animate-wiggle: wiggle 3s steps(1, end) infinite;
   /* The news crawl (its duration is set per strip, from the number of rows) and the pin tick. */
   --animate-crawl: crawl 40s linear infinite;
   --animate-pin-tick: pin-tick 150ms ease-out;

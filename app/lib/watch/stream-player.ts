@@ -1,4 +1,5 @@
 import { LINK_PROBE_MS, LINK_REFUSALS, probeVideoLink } from './links';
+import { AUTO_QUALITY, heightLabel, type QualityChoice, type QualityControl } from './playable';
 import type { WatchLink } from './types';
 
 /**
@@ -16,13 +17,28 @@ export type StreamEvents = {
   onLive: (live: boolean) => void;
   /** It will not play in this browser. */
   onFatal: () => void;
+  /** The stream said which qualities it carries, or the choice changed (the QUALITY key). */
+  onQualities?: () => void;
 };
 
-export type StreamHandle = {
+/** The library's player, with the QUALITY key's choices once the stream has said what it carries. */
+export type StreamHandle = QualityControl & {
   /** Where a live stream should be watched from now; null when not live or not known yet. */
   liveEdge: () => number | null;
   detach: () => void;
 };
+
+/** The key's list from a stream's picture heights (best first, each height once): nothing to choose under two. */
+function heightChoices(levels: { id: string; height: number }[]): QualityChoice[] {
+  const seen = new Set<number>();
+  const listed: QualityChoice[] = [];
+  for (const level of levels.filter((each) => each.height > 0).sort((a, b) => b.height - a.height)) {
+    if (seen.has(level.height)) continue;
+    seen.add(level.height);
+    listed.push({ id: level.id, label: heightLabel(level.height) });
+  }
+  return listed.length < 2 ? [] : [{ id: AUTO_QUALITY, label: 'AUTO' }, ...listed];
+}
 
 /** Links the stage plays by setting `src` itself, with no library. */
 export function playsDirectly(link: WatchLink | null): boolean {
@@ -65,6 +81,17 @@ export function attachStream(video: HTMLVideoElement, link: WatchLink, events: S
   video.addEventListener('playing', recovered);
   let undo: () => void = () => undefined;
   let edge: () => number | null = () => null;
+  // The QUALITY key: what the library says the stream carries, what was picked, and how to ask for it.
+  let qualityList: QualityChoice[] = [];
+  let qualityNow: string = AUTO_QUALITY;
+  let choose: (id: string) => void = () => undefined;
+  const qualityListeners = new Set<() => void>();
+  const listed = (next: QualityChoice[]) => {
+    if (detached) return;
+    qualityList = next;
+    for (const listener of qualityListeners) listener();
+    events.onQualities?.();
+  };
 
   const native = () => {
     const durationChanged = () => events.onLive(video.duration === Infinity);
@@ -98,6 +125,10 @@ export function attachStream(video: HTMLVideoElement, link: WatchLink, events: S
         live = data.details.live;
         events.onLive(live);
       });
+      hls.on(Hls.Events.MANIFEST_PARSED, () => listed(heightChoices(hls.levels.map((level, index) => ({ id: String(index), height: level.height })))));
+      choose = (id) => {
+        hls.currentLevel = id === AUTO_QUALITY ? -1 : Number(id);
+      };
       hls.on(Hls.Events.ERROR, (_event, data) => {
         if (!data.fatal) return;
         if (giveUp()) events.onFatal();
@@ -121,7 +152,13 @@ export function attachStream(video: HTMLVideoElement, link: WatchLink, events: S
       player.on(MediaPlayer.events.STREAM_INITIALIZED, () => {
         live = player.isDynamic();
         events.onLive(live);
+        listed(heightChoices(player.getRepresentationsByType('video').map((representation) => ({ id: representation.id, height: representation.height }))));
       });
+      choose = (id) => {
+        // AUTO hands the choice back to dash.js; anything else holds it on that one.
+        player.updateSettings({ streaming: { abr: { autoSwitchBitrate: { video: id === AUTO_QUALITY } } } });
+        if (id !== AUTO_QUALITY) player.setRepresentationForTypeById('video', id, true);
+      };
       // dash.js has already retried a download by the time it reports it.
       player.on(MediaPlayer.events.ERROR, () => {
         if (giveUp()) events.onFatal();
@@ -139,7 +176,22 @@ export function attachStream(video: HTMLVideoElement, link: WatchLink, events: S
     detach: () => {
       detached = true;
       video.removeEventListener('playing', recovered);
+      qualityListeners.clear();
       undo();
+    },
+    qualities: () => qualityList,
+    get quality() {
+      return qualityNow;
+    },
+    setQuality: (id) => {
+      if (detached || id === qualityNow || !qualityList.some((choice) => choice.id === id)) return;
+      qualityNow = id;
+      choose(id);
+      listed(qualityList);
+    },
+    onQualities: (listener) => {
+      qualityListeners.add(listener);
+      return () => qualityListeners.delete(listener);
     },
   };
 }

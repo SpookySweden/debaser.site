@@ -1,5 +1,5 @@
 import { LINK_PROBE_MS, LINK_REFUSALS, youtubeWatchUrl } from './links';
-import type { EmbedPlayable } from './playable';
+import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityControl } from './playable';
 
 /**
  * YouTube videos in the stream room (SPEC-watch-links.md step 3), through YouTube's own embed player
@@ -10,7 +10,42 @@ import type { EmbedPlayable } from './playable';
  * What YouTube does not do as a `<video>` does: it plays at a few fixed speeds, so a follower's small
  * speed nudge has no effect and only the jump (two seconds off) corrects it; ads play at different
  * moments for different people, and the jump catches them up afterwards.
+ *
+ * **YouTube's own furniture is kept out of the room** (Luke, 2026-11-02): its title strip and buttons along
+ * the top, the More videos shelf and its logo along the foot. No setting turns those off any more, so the
+ * player is made taller than the picture - the picture sits in the middle of YouTube's player, its strips in
+ * the margins above and below - and a box exactly the picture's size clips the margins away. A clear cover
+ * over the picture means nothing left inside YouTube's player can be clicked (nothing leaves the site), and it
+ * turns black before the picture first plays and after it ends, over YouTube's big play key and its wall of
+ * suggestions. YouTube's embedding rules ask sites not to cover its player; if YouTube moves its strips,
+ * `BLEED_SHARE` is the number to change, and the cover still keeps every click on the site.
+ *
+ * **Quality.** YouTube stopped letting other sites choose quality in 2019 (`setPlaybackQuality` does
+ * nothing); it picks by the size of its player on screen and the connection. So the QUALITY key changes the
+ * size YouTube is told its player is - drawn that size and scaled to fit the picture's box - which nudges
+ * what it picks rather than forcing it.
  */
+
+/** How far YouTube's player reaches past the picture, above and below, as a share of the picture's height. */
+const BLEED_SHARE = 0.3;
+/** ...and never less than this many of YouTube's own pixels, so a small player's strips are clipped too. */
+const BLEED_FLOOR = 160;
+
+/**
+ * The QUALITY key's choices: the picture height each asks YouTube for (0: the player's real size). Measured
+ * 2026-11-02 (Big Buck Bunny, pixel ratio 1.25): a player told it is 1920 or 2560 wide got 1080p; one at its
+ * real 585 wide, or 640, or 426, got 480p - YouTube's floor for an embed, so LOW asks for 480.
+ */
+const YOUTUBE_QUALITIES: (QualityChoice & { height: number })[] = [
+  { id: AUTO_QUALITY, label: 'AUTO', height: 0 },
+  { id: 'high', label: 'HIGH', height: 1080 },
+  { id: 'medium', label: 'MEDIUM', height: 720 },
+  { id: 'low', label: 'LOW', height: 480 },
+];
+
+/** The cover over the picture: black before the first play and after the end, clear (but still in the way of clicks) between. */
+const COVER_SHUT = 'absolute inset-0 bg-ink-plate';
+const COVER_OPEN = 'absolute inset-0';
 
 type YTPlayer = {
   playVideo(): void;
@@ -85,11 +120,17 @@ function loadApi(): Promise<YTNamespace> {
   return api;
 }
 
-export class YouTubePlayable extends EventTarget implements EmbedPlayable {
+export class YouTubePlayable extends EventTarget implements EmbedPlayable, QualityControl {
   private player: YTPlayer | null = null;
   private ready = false;
   private destroyed = false;
   private state: number = STATE.unstarted;
+  /** The stage's box, the picture's box inside it that clips YouTube's strips, and the cover over the picture. */
+  private readonly container: HTMLElement;
+  private readonly frame: HTMLDivElement;
+  private readonly cover: HTMLDivElement;
+  private readonly resizing: ResizeObserver;
+  private qualityNow: string = AUTO_QUALITY;
   /** play() was asked for and pause() was not since: what `paused` reports, as a `<video>` does. */
   private wanted = false;
   /** `play` has been said for the current run of playing (YouTube may pass through buffering first). */
@@ -106,8 +147,21 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
   constructor(container: HTMLElement, videoId: string, autoPlay: boolean) {
     super();
     this.wanted = autoPlay;
+    this.container = container;
+    if (window.getComputedStyle(container).position === 'static') container.style.position = 'relative';
+    this.frame = document.createElement('div');
+    this.frame.style.cssText = 'position:absolute;overflow:hidden;';
     const mount = document.createElement('div');
-    container.appendChild(mount);
+    this.frame.appendChild(mount);
+    this.cover = document.createElement('div');
+    this.cover.className = COVER_SHUT;
+    this.cover.setAttribute('aria-hidden', 'true');
+    this.cover.dataset.youtubeCover = 'shut';
+    this.frame.appendChild(this.cover);
+    container.appendChild(this.frame);
+    this.resizing = new ResizeObserver(() => this.layout());
+    this.resizing.observe(container);
+    this.layout();
     loadApi().then(
       (YT) => {
         if (this.destroyed) return;
@@ -123,6 +177,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
             onError: (event) => this.onError(event.data),
           },
         });
+        this.layout();
       },
       () => this.onError(-1),
     );
@@ -132,9 +187,51 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
     this.dispatchEvent(new Event(type));
   }
 
+  /**
+   * Fits the picture's box to the stage (16:9, as large as fits, in the middle) and YouTube's player into it:
+   * the size YouTube is told (the box's own, or the one a chosen quality asks for), taller by the margins its
+   * strips sit in, scaled so the picture lands exactly on the box.
+   */
+  private layout() {
+    const width = this.container.clientWidth;
+    const height = this.container.clientHeight;
+    if (width === 0 || height === 0) return;
+    const w = Math.min(width, (height * 16) / 9);
+    const h = (w * 9) / 16;
+    Object.assign(this.frame.style, { left: `${(width - w) / 2}px`, top: `${(height - h) / 2}px`, width: `${w}px`, height: `${h}px` });
+
+    const iframe = this.frame.querySelector('iframe');
+    if (iframe === null) return;
+    const asked = YOUTUBE_QUALITIES.find((choice) => choice.id === this.qualityNow)?.height ?? 0;
+    const shownHeight = asked > 0 ? asked / (window.devicePixelRatio || 1) : h;
+    const shownWidth = (shownHeight * 16) / 9;
+    const scale = w / shownWidth;
+    const bleed = Math.max(BLEED_FLOOR, shownHeight * BLEED_SHARE);
+    Object.assign(iframe.style, {
+      position: 'absolute',
+      left: '0',
+      top: `${-bleed * scale}px`,
+      width: `${shownWidth}px`,
+      height: `${shownHeight + 2 * bleed}px`,
+      maxWidth: 'none',
+      border: '0',
+      transform: Math.abs(scale - 1) < 0.001 ? '' : `scale(${scale})`,
+      transformOrigin: '0 0',
+    });
+    // The room's own bar is the way to work it: YouTube's player is not a stop for the keyboard.
+    iframe.tabIndex = -1;
+  }
+
+  /** Black over the picture (before the first play, after the end), or clear. */
+  private shut(closed: boolean) {
+    this.cover.className = closed ? COVER_SHUT : COVER_OPEN;
+    this.cover.dataset.youtubeCover = closed ? 'shut' : 'open';
+  }
+
   private onReady() {
     if (this.destroyed || this.player === null) return;
     this.ready = true;
+    this.layout();
     this.player.setVolume(Math.round(this.vol * 100));
     if (this.mutedNow) this.player.mute();
     if (this.pendingSeek !== null) this.player.seekTo(this.pendingSeek, true);
@@ -155,6 +252,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
     const before = this.state;
     this.state = next;
     if (next === STATE.playing) {
+      this.shut(false);
       this.wanted = true;
       if (!this.saidPlay) this.emit('play');
       this.saidPlay = true;
@@ -165,11 +263,34 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
       this.saidPlay = false;
       this.emit('pause');
     } else if (next === STATE.ended) {
+      this.shut(true);
       this.wanted = false;
       this.saidPlay = false;
       this.emit('pause');
       this.emit('ended');
     }
+  }
+
+  /* --- the QUALITY key --------------------------------------------------------------------------- */
+
+  qualities(): QualityChoice[] {
+    return YOUTUBE_QUALITIES.map(({ id, label }) => ({ id, label }));
+  }
+
+  get quality(): string {
+    return this.qualityNow;
+  }
+
+  setQuality(id: string): void {
+    if (id === this.qualityNow || !YOUTUBE_QUALITIES.some((choice) => choice.id === id)) return;
+    this.qualityNow = id;
+    this.layout();
+    this.emit('qualities');
+  }
+
+  onQualities(listener: () => void): () => void {
+    this.addEventListener('qualities', listener);
+    return () => this.removeEventListener('qualities', listener);
   }
 
   private onError(code: number) {
@@ -296,6 +417,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
   destroy(): void {
     this.destroyed = true;
     window.clearInterval(this.ticker);
+    this.resizing.disconnect();
     // Quietly: a play() still waiting when the player goes is not a refusal to show anybody.
     this.settle(null);
     try {
@@ -304,6 +426,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable {
       // Already gone with its page.
     }
     this.player = null;
+    this.frame.remove();
   }
 }
 

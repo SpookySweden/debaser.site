@@ -141,6 +141,8 @@ export default function MusicPlayer() {
   // What the listener chose, or - if they have never touched it - what this window wants:
   // showing in a wide one, folded away on a phone.
   const open = setting === null ? !compact : setting === 'open';
+  // The folded tile's top, for the stream's TV box above it (the bar and the card say their own).
+  useEdgeReserve(tile, '--music-top', !open);
 
   /**
    * The music key on the phone card.
@@ -396,6 +398,7 @@ function DockedBar({ onHide, onSettings }: BarControls) {
   // The page window keeps clear of this strip (`--bottom-bar`, read by ./SiteWindow.tsx).
   const strip = useRef<HTMLDivElement>(null);
   useEdgeReserve(strip, '--bottom-bar', true);
+  useEdgeReserve(strip, '--music-top', true);
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
@@ -707,6 +710,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
   const player = useMusicPlayer();
   /** The card itself: BARR's question and the song panel open over it, lined up with its left edge. */
   const card = useRef<HTMLElement>(null);
+  useEdgeReserve(card, '--music-top', true);
   const { track, playing, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
   const lengthSeconds = Number.isFinite(duration) ? Math.floor(duration) : 0;

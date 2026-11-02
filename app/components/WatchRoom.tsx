@@ -7,12 +7,12 @@ import { threadDomId } from '../lib/forum/anchors';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
-import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
+import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { createEmbed, fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, liveJump, recognizeLink } from '../lib/watch/links';
-import type { EmbedPlayable, Playable } from '../lib/watch/playable';
+import { hasQualityControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -27,7 +27,6 @@ import {
   nextPlayIndex,
   nextQueuePosition,
   playOrder,
-  queueBadge,
   roomIsLive,
   shouldTakeOver,
   upcoming,
@@ -43,6 +42,7 @@ import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
+import { QualityKey, SpeakerKey } from './StreamBarKeys';
 
 /** One per tab: two tabs of one account are two members of a room. */
 function newTabKey(): string {
@@ -55,8 +55,6 @@ const FOLLOW_TICK_MS = 500;
 const HANDOVER_NOTICE_MS = 15000;
 /** How long a host's player waits on a link that will not play before the room moves on. */
 const DEAD_LINK_SKIP_MS = 5000;
-/** How long the player bar stays up after the pointer or a finger last moved over the picture. */
-const BAR_LINGER_MS = 2500;
 /** How often the chat says what plays next, and how many of those lines it keeps. */
 const UP_NEXT_EVERY_MS = 60_000;
 const UP_NEXT_KEPT = 20;
@@ -437,15 +435,18 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const linkUrl = link?.url;
   const linkKind = link?.kind;
   const startsPlaying = useEffectEvent(() => amHost && live);
+  /** A streaming link's library, as the QUALITY key's player once it has said what the stream carries. */
+  const [streamQuality, setStreamQuality] = useState<{ entryId: string | null; control: QualityControl } | null>(null);
   useEffect(() => {
     if (!(videoElement instanceof HTMLVideoElement) || linkUrl === undefined || linkKind === undefined) return;
     // Right after a play changes, this can still be the element that was just taken away.
     if (videoRef.current !== videoElement) return;
     const streamed = { url: linkUrl, kind: linkKind, title: '' };
     if (playsDirectly(streamed)) return;
-    const handle = attachStream(videoElement, streamed, {
+    const handle: StreamHandle = attachStream(videoElement, streamed, {
       onLive: (isLive) => setLiveEntry(isLive ? entryId : null),
       onFatal: () => setDeadEntry(entryId),
+      onQualities: () => setStreamQuality({ entryId, control: handle }),
     }, startsPlaying());
     streamRef.current = handle;
     return () => {
@@ -453,6 +454,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       if (streamRef.current === handle) streamRef.current = null;
     };
   }, [videoElement, linkUrl, linkKind, entryId]);
+  /** What QUALITY asks: an embedded site's player (YouTube, Twitch, Vimeo), else this play's streaming library. */
+  const qualitySource = hasQualityControl(videoElement) ? videoElement : streamQuality !== null && streamQuality.entryId === entryId ? streamQuality.control : null;
 
   function onTime() {
     const video = videoRef.current;
@@ -471,17 +474,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   /* --- the player bar -------------------------------------------------------------------------- */
 
-  // The bar over the foot of the picture shows under the pointer, while keyboard focus is inside it, for a
-  // moment after a tap or a move, and all the time while the picture is paused.
+  // The bar sits under the picture and always shows: nothing covers the video (Luke, 2026-11-02). The
+  // picture and the bar go fullscreen together, so the bar stays along the foot of the screen there too.
   const stageRef = useRef<HTMLDivElement>(null);
-  const [poked, setPoked] = useState(false);
-  const pokeTimer = useRef<number | undefined>(undefined);
-  function poke() {
-    setPoked(true);
-    window.clearTimeout(pokeTimer.current);
-    pokeTimer.current = window.setTimeout(() => setPoked(false), BAR_LINGER_MS);
-  }
-  useEffect(() => () => window.clearTimeout(pokeTimer.current), []);
 
   const [fullscreen, setFullscreen] = useState(false);
   useEffect(() => {
@@ -518,22 +513,18 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   /* --- the layout ------------------------------------------------------------------------------ */
 
   const ended = !live;
-  /** A WEB platform's own player carries its own controls; the bar would only cover them. */
-  const hasBar = src !== undefined && !officialOn;
-  const barShown = poked || clock.paused;
+  /** A WEB platform's own player carries its own transport; the bar then holds only the host's keys. */
+  const hasTransport = src !== undefined && !officialOn;
+  const hostKeys = amHost && live;
   const duration = Number.isFinite(clock.duration) ? clock.duration : 0;
   const progress = duration > 0 ? Math.min(100, (clock.seconds / duration) * 100) : 0;
 
-  const playerBar = hasBar ? (
-    <div
-      className={`absolute inset-x-0 bottom-0 z-10 flex flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate max-sm:gap-x-1 px-2 py-1 text-label text-sun transition-opacity motion-reduce:transition-none ${
-        barShown
-          ? 'opacity-100'
-          : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-has-[:focus-visible]:pointer-events-auto group-has-[:focus-visible]:opacity-100'
-      }`}
-      data-watch-bar={barShown ? 'shown' : 'hidden'}
-    >
-      {amHost && live ? (
+  // Left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY, PIP, FULL,
+  // END STREAM (host). The line that sat under the picture (its title, `1 OF 3`, YOU ARE HOSTING) is gone:
+  // the chat column's strip names the video, and skip and end live here.
+  const playerBar = hasTransport || hostKeys ? (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
+      {hasTransport && hostKeys ? (
         <button
           type="button"
           className={`${PLATE_ON_BLACK} shrink-0`}
@@ -548,7 +539,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           {clock.paused ? '[ ▶ ]' : '[ ❚❚ ]'}
         </button>
       ) : null}
-      {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. */}
+      {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. With no
+          transport (a WEB platform's own player) the space only pushes the host's keys to the right. */}
+      {!hasTransport ? (
+        <span className="flex-1" />
+      ) : (
       <span className="flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full">
       {/* A live stream has no position to show; the space is kept so the keys beside it stay put. */}
       {stageLive ? (
@@ -583,28 +578,53 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         </span>
       )}
       </span>
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-pressed={muted} aria-label={muted ? 'Unmute' : 'Mute'} onClick={() => setMuted((value) => !value)}>
-        {muted ? '[ UNMUTE ]' : '[ MUTE ]'}
-      </button>
-      {/* A phone has its own volume keys. */}
-      <input
-        type="range"
-        aria-label="Volume"
-        min={0}
-        max={1}
-        step={0.05}
-        value={volume}
-        onChange={(event) => setVolume(Number(event.target.value))}
-        className="w-20 shrink-0 accent-sun max-sm:hidden"
-      />
-      {canPip ? (
-        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
-          [ PIP ]
+      )}
+      {hostKeys ? (
+        <button
+          type="button"
+          className={`${PLATE_ON_BLACK} shrink-0`}
+          disabled={waiting.length === 0}
+          aria-label="Skip to the next video"
+          title={waiting.length === 0 ? 'Nothing queued' : 'Skip'}
+          onClick={() => moveOn(true)}
+        >
+          [ ▶▶ ]
         </button>
       ) : null}
-      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
-        {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
-      </button>
+      {hasTransport ? (
+        <>
+          <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
+          <QualityKey source={qualitySource} />
+          {canPip ? (
+            <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
+              [ PIP ]
+            </button>
+          ) : null}
+          <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
+            {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
+          </button>
+        </>
+      ) : null}
+      {hostKeys ? (
+        // Ending it for everybody takes a second press, like starting it did.
+        <button
+          type="button"
+          className={`${confirmEnd ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
+          onClick={() => {
+            if (!confirmEnd) {
+              setConfirmEnd(true);
+              return;
+            }
+            void repository
+              .endRoom(roomId)
+              .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+              .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
+          }}
+          onBlur={() => setConfirmEnd(false)}
+        >
+          {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
+        </button>
+      ) : null}
     </div>
   ) : null;
 
@@ -613,12 +633,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   const stage = (
     <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
-      <div
-        ref={stageRef}
-        className="group relative flex items-center justify-center bg-ink-plate sm:min-h-0 sm:flex-1"
-        onPointerMove={poke}
-        onPointerDown={poke}
-      >
+      {/* The picture with its bar under it: the two go fullscreen together. */}
+      <div ref={stageRef} className="flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1">
+      <div className="relative flex min-h-0 flex-1 items-center justify-center">
         {src === undefined ? (
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
@@ -683,43 +700,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             </button>
           </div>
         ) : null}
-        {/* A tap inside an embedded site's player never reaches this page, so on a phone the bar could not be
-            called up over one: a clear strip along the foot catches the tap instead. */}
-        {hasBar && link !== null && isEmbedKind(link.kind) && !barShown ? (
-          <div className="absolute inset-x-0 bottom-0 z-10 h-10 sm:hidden" aria-hidden="true" onPointerDown={poke} />
-        ) : null}
-        {playerBar}
       </div>
-
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">
-        <span className="min-w-24 flex-1 truncate text-sm font-bold">{entryTitle ?? '...'}</span>
-        <span className="font-bold">{queueBadge(read)}</span>
-        {amHost ? <span className="font-bold">YOU ARE HOSTING</span> : null}
-        {amHost && live ? (
-          <span className="ml-auto flex flex-wrap items-center gap-2">
-            <button type="button" className={PLATE} disabled={waiting.length === 0} onClick={() => moveOn(true)} title={waiting.length === 0 ? 'Nothing queued' : undefined}>
-              [ SKIP ▶▶ ]
-            </button>
-            {/* Ending it for everybody takes a second press, like starting it did. */}
-            <button
-              type="button"
-              className={confirmEnd ? PLATE_PRESSED : PLATE}
-              onClick={() => {
-                if (!confirmEnd) {
-                  setConfirmEnd(true);
-                  return;
-                }
-                void repository
-                  .endRoom(roomId)
-                  .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
-                  .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
-              }}
-              onBlur={() => setConfirmEnd(false)}
-            >
-              {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
-            </button>
-          </span>
-        ) : null}
+      {playerBar}
       </div>
 
       {notice === null ? null : <p className="w-fit bg-acid px-1 text-label font-bold text-ink-plate" role="status">{notice}</p>}

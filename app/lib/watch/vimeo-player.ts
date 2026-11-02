@@ -1,5 +1,6 @@
 import { EmbedPlayer, loadScript } from './embed-player';
 import { vimeoUrl, type VimeoVideo } from './links';
+import { AUTO_QUALITY, type QualityChoice, type QualityControl } from './playable';
 
 /**
  * Vimeo videos in the stream room (SPEC-watch-links.md step 4), through Vimeo's own embed player and its
@@ -17,7 +18,10 @@ type VimeoPlayer = {
   setVolume(volume: number): Promise<number>;
   setMuted(muted: boolean): Promise<boolean>;
   setPlaybackRate(rate: number): Promise<number>;
-  on(event: string, listener: (data: { seconds?: number; duration?: number; name?: string }) => void): void;
+  getQualities(): Promise<{ id?: unknown; label?: unknown; active?: unknown }[]>;
+  /** Refused unless the video's owner has a paid Vimeo account. */
+  setQuality(id: string): Promise<string>;
+  on(event: string, listener: (data: { seconds?: number; duration?: number; name?: string; quality?: string }) => void): void;
   destroy(): Promise<void>;
 };
 
@@ -29,10 +33,13 @@ declare global {
 
 const SDK = 'https://player.vimeo.com/api/player.js';
 
-export class VimeoPlayable extends EmbedPlayer {
+export class VimeoPlayable extends EmbedPlayer implements QualityControl {
   private player: VimeoPlayer | null = null;
   private time = 0;
   private length = 0;
+  /** What the QUALITY key offers, from Vimeo once ready; emptied if Vimeo refuses a change (its owner's plan). */
+  private qualityList: QualityChoice[] = [];
+  private qualityNow: string = AUTO_QUALITY;
 
   constructor(container: HTMLElement, video: VimeoVideo, autoPlay: boolean) {
     super(autoPlay);
@@ -62,12 +69,18 @@ export class VimeoPlayable extends EmbedPlayer {
           this.becameSeeked();
         });
         player.on('error', (data) => this.refused(data.name === 'PrivacyError' ? 'embed' : 'missing'));
+        player.on('qualitychange', (data) => {
+          if (typeof data.quality !== 'string' || this.qualityList.length === 0) return;
+          this.qualityNow = data.quality === 'auto' ? AUTO_QUALITY : data.quality;
+          this.emit('qualities');
+        });
         player.ready().then(
           () => {
             void player.getDuration().then((seconds) => {
               this.length = seconds;
               this.becameReady();
             }, () => this.becameReady());
+            void player.getQualities().then((found) => this.listQualities(found), () => undefined);
           },
           (error: { name?: string }) => this.refused(error?.name === 'PrivacyError' ? 'embed' : 'missing'),
         );
@@ -115,6 +128,45 @@ export class VimeoPlayable extends EmbedPlayer {
 
   get isLive(): boolean {
     return false;
+  }
+
+  /* --- the QUALITY key --------------------------------------------------------------------------- */
+
+  private listQualities(found: { id?: unknown; label?: unknown; active?: unknown }[]) {
+    const listed = found.flatMap((entry): QualityChoice[] =>
+      typeof entry.id === 'string' && typeof entry.label === 'string' && entry.id !== 'auto' ? [{ id: entry.id, label: entry.label.toUpperCase() }] : [],
+    );
+    if (listed.length === 0) return;
+    this.qualityList = [{ id: AUTO_QUALITY, label: 'AUTO' }, ...listed];
+    const active = found.find((entry) => entry.active === true);
+    this.qualityNow = typeof active?.id === 'string' && active.id !== 'auto' ? active.id : AUTO_QUALITY;
+    this.emit('qualities');
+  }
+
+  qualities(): QualityChoice[] {
+    return this.qualityList;
+  }
+
+  get quality(): string {
+    return this.qualityNow;
+  }
+
+  setQuality(id: string): void {
+    if (id === this.qualityNow || !this.qualityList.some((choice) => choice.id === id)) return;
+    const before = this.qualityNow;
+    this.qualityNow = id;
+    this.emit('qualities');
+    void this.player?.setQuality(id === AUTO_QUALITY ? 'auto' : id).catch(() => {
+      // Only a paid owner's videos may be changed: this one cannot, so the key goes rather than lie.
+      this.qualityNow = before;
+      this.qualityList = [];
+      this.emit('qualities');
+    });
+  }
+
+  onQualities(listener: () => void): () => void {
+    this.addEventListener('qualities', listener);
+    return () => this.removeEventListener('qualities', listener);
   }
 }
 
