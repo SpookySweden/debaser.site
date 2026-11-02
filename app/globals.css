@@ -1227,25 +1227,6 @@ img {
   );
 }
 
-/* The stream queue's three states (Luke, 2026-11-02): played in red, playing in green, queued in blue - in
-   every theme, so the dyes themselves rather than the role tokens (the Sherbet themes give Rose and Royal
-   Blue's jobs the same Orchid). Each chip carries the ink that reads on it in any theme: White on Rose
-   4.70:1, Black on Emerald 9.35:1, White on Royal Blue 9.3:1. */
-.queue-played {
-  background-color: var(--dye-rose);
-  color: var(--dye-white);
-}
-
-.queue-now {
-  background-color: var(--dye-emerald);
-  color: var(--dye-black);
-}
-
-.queue-next {
-  background-color: var(--dye-royal-blue);
-  color: var(--dye-white);
-}
-
 /* A username drawn in the colour its account chose.
    This is the one place the theme is branched on *in CSS*, and `data-theme` is what makes it possible -
    `theme-slot.ts` writes it for exactly this, and its own comment says so. The colour cannot be a token,

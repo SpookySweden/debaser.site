@@ -40,6 +40,17 @@ in a fresh session.
 Also decided while building: somebody holding a crown stays in the host's list after leaving, so the host can
 still take it off.
 
+## Changed after it went live (Luke, 2026-11-02)
+- ADD is now two keys for a crown: `[ + ADD ]` always puts a video on your own list (ADDED); beside it a
+  plus with a crown above it (`mark-add-queue`, the font's ♛ over `+` until drawn) puts it straight into the
+  queue (QUEUED). Without a crown there is only `[ + ADD ]`. Same for a pasted link. (The /web page's
+  add-to-the-room-I-host panel is unchanged: it still follows the host's crown.)
+- The room's QUEUE line and `[ + ADD VIDEO ]` are one key, `[ QUEUE ]`.
+- No red, green and blue chips in the queue window: the titles themselves are those colours, each a shade
+  that reads on its theme's window (Luke chose readable shades over the exact dyes, which fail as words:
+  Royal Blue 1.9:1 and Rose 3.8:1 on the dark window, Emerald 2:1 on the bright one).
+- Every title in the window is one line, cut with `...`; the whole title is its hover tip.
+
 ## Data (needs Luke's typed OK before anything is run)
 In plain English:
 - Every row in `watch_queue` gets a yes/no mark, **in the queue**. Every existing row reads yes, so past

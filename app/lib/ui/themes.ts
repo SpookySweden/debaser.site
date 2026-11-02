@@ -45,6 +45,13 @@ export const DYES = {
   mint: '#67dca9',
   orchid: '#b149aa',
   lime: '#c5ff3f',
+  // The stream queue's titles (Luke, 2026-11-02): red, green and blue as words, each a shade that reads on
+  // its theme's window. The dyes themselves fail as words somewhere (Royal Blue 1.9:1 and Rose 3.8:1 on
+  // Nigrosine, Emerald 2:1 on Flavine), so the light windows take the deep pair and the dark ones the light pair.
+  deepRed: '#8c0027',
+  deepGreen: '#0b521b',
+  lightRed: '#ff5c7a',
+  lightBlue: '#7ea6ff',
 } as const;
 
 export type ThemeId = 'default' | 'dark' | 'sherbet-pink' | 'sherbet-night' | 'sherbet-mint';
@@ -175,6 +182,14 @@ export type ThemeTokens = {
    * the window would fail (3.79:1 on Nigrosine), the same rule the fault chips follow.
    */
   barred: string;
+  /**
+   * The stream queue window's titles, as words on the window (no chip): what played in red, what is on in
+   * green, what is queued in blue. Deep shades on the light windows, light ones on the dark (the lowest is
+   * Royal Blue on Carnation, 4.96:1).
+   */
+  'queue-played-ink': string;
+  'queue-now-ink': string;
+  'queue-next-ink': string;
   acid: string;
   'acid-pale': string;
   /**
@@ -278,6 +293,9 @@ export const DEFAULT_THEME: Theme = {
     bubble: DYES.brilliantPink,
     'bubble-pale': DYES.rose,
     barred: DYES.rose,
+    'queue-played-ink': DYES.deepRed,
+    'queue-now-ink': DYES.deepGreen,
+    'queue-next-ink': DYES.royalBlue,
     acid: DYES.emerald,
     'acid-pale': DYES.flavine,
     // The desktop as it has always been: Brilliant Pink with Nigrosine dithered through it. These two
@@ -372,6 +390,9 @@ export const DARK_THEME: Theme = {
     bubble: DYES.brilliantPink,
     'bubble-pale': DYES.rose,
     barred: DYES.rose,
+    'queue-played-ink': DYES.lightRed,
+    'queue-now-ink': DYES.emerald,
+    'queue-next-ink': DYES.lightBlue,
     acid: DYES.emerald,
     'acid-pale': DYES.nigrosine,
     // The night desktop: the tile's fill is the field's own Nigrosine and its dither is Black, so the
@@ -423,6 +444,9 @@ export const SHERBET_PINK_THEME: Theme = {
     bubble: DYES.mint,
     'bubble-pale': DYES.orchid,
     barred: DYES.rose,
+    'queue-played-ink': DYES.deepRed,
+    'queue-now-ink': DYES.deepGreen,
+    'queue-next-ink': DYES.royalBlue,
     acid: DYES.lime,
     'acid-pale': DYES.carnation,
     desktop: DYES.orchid,
@@ -460,6 +484,9 @@ export const SHERBET_NIGHT_THEME: Theme = {
     bubble: DYES.coral,
     'bubble-pale': DYES.orchid,
     barred: DYES.rose,
+    'queue-played-ink': DYES.lightRed,
+    'queue-now-ink': DYES.emerald,
+    'queue-next-ink': DYES.lightBlue,
     acid: DYES.lime,
     'acid-pale': DYES.nigrosine,
     desktop: DYES.orchid,
@@ -497,6 +524,9 @@ export const SHERBET_MINT_THEME: Theme = {
     bubble: DYES.tangerine,
     'bubble-pale': DYES.orchid,
     barred: DYES.rose,
+    'queue-played-ink': DYES.deepRed,
+    'queue-now-ink': DYES.deepGreen,
+    'queue-next-ink': DYES.royalBlue,
     acid: DYES.lime,
     'acid-pale': DYES.lime,
     desktop: DYES.tangerine,

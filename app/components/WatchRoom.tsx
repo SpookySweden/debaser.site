@@ -23,7 +23,6 @@ import {
   formatMediaTime,
   handoverTo,
   nextPlayIndex,
-  playOrder,
   roomIsLive,
   shouldTakeOver,
   upcoming,
@@ -732,15 +731,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   // who is watching with what is on and what is next, newswire-style, the width of the chat; then the chat.
   const side = (
     <div className="flex flex-col gap-1 sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96">
+      {/* One key for the queue window, where everything is added and seen (Luke, 2026-11-02). */}
       <div className={TITLE_BAR}>
-        <button type="button" className="cursor-pointer max-sm:min-h-tap" aria-haspopup="dialog" onClick={() => setQueueOpen(true)} data-watch-queue-key>
-          QUEUE ({playOrder(read.queue).length + waiting.length})
+        <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => setQueueOpen(true)} data-watch-queue-key>
+          [ QUEUE ]
         </button>
-        {user !== null && live ? (
-          <button type="button" className={TITLE_BAR_BUTTON} aria-haspopup="dialog" onClick={() => setQueueOpen(true)}>
-            [ + ADD VIDEO ]
-          </button>
-        ) : null}
       </div>
       <StreamCrawl accounts={accounts} hostId={hostId} currentTitle={entryTitle ?? '...'} nextTitle={nextTitle} />
       <ChatPanel read={read} item={item} videoRef={videoRef} live={live} nextTitle={live ? nextTitle : null} />

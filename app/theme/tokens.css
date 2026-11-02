@@ -52,6 +52,10 @@
   --dye-mint: #67dca9;
   --dye-orchid: #b149aa;
   --dye-lime: #c5ff3f;
+  --dye-deep-red: #8c0027;
+  --dye-deep-green: #0b521b;
+  --dye-light-red: #ff5c7a;
+  --dye-light-blue: #7ea6ff;
 }
 
 /* The colours by job, as the fallback theme (dark) sets them. The theme switcher writes the
@@ -78,6 +82,9 @@
   --color-bubble: #ff00a0;
   --color-bubble-pale: #e6004c;
   --color-barred: #e6004c;
+  --color-queue-played-ink: #ff5c7a;
+  --color-queue-now-ink: #28c745;
+  --color-queue-next-ink: #7ea6ff;
   --color-acid: #28c745;
   --color-acid-pale: #1a1525;
   --color-desktop: #1a1525;

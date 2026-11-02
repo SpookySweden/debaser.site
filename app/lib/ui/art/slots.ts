@@ -559,6 +559,17 @@ export const ART_SLOTS = [
     fallback: 'the filled chess queen `♛` from the system font (`StreamQueueWindow`)',
     brief: 'The same name holding a crown: they can pull additions into the queue. The host presses it to take it.',
   },
+  {
+    id: 'mark-add-queue',
+    label: 'STREAM: ADD STRAIGHT TO THE QUEUE',
+    kind: 'mark',
+    path: 'assets/icons/add-queue.png',
+    shown: [[16, 16]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'the filled chess queen `♛` stacked over a `+` from the system font (`StreamQueueWindow`)',
+    brief: 'A plus with a crown above it: a crowned person adds a video straight into the queue (plain ADD goes to their own list).',
+  },
 
   /* ----------------------------------------------------------------- the moving */
   {

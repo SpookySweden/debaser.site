@@ -44,6 +44,8 @@ const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/
 const CROWN_SRC = `/${artSlot('mark-crown')?.path ?? 'assets/icons/crown.png'}`;
 const CROWN_HELD_SRC = `/${artSlot('mark-crown-filled')?.path ?? 'assets/icons/crown-filled.png'}`;
 const CROWN_SIZE = 16;
+/** Straight into the queue (`mark-add-queue`): a plus with a crown above it, shown at 16px. */
+const ADD_QUEUE_SRC = `/${artSlot('mark-add-queue')?.path ?? 'assets/icons/add-queue.png'}`;
 /** Until the drawings land: the font's chess queens, hollow and filled, asked for as symbols. */
 const CROWN_GLYPH = '♕︎';
 const CROWN_HELD_GLYPH = '♛︎';
@@ -103,9 +105,9 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * column rather than unfolding there. Split down the middle (SPEC-stream-queue.md): the real queue on the
  * left, the additions waiting for it on the right; in a narrow window the two stack, the queue first.
  *
- * The queue: what played in red, what is on in green, what is queued in blue, each as its chip, in every
- * theme (`.queue-played` and its pair in globals.css hold the dyes themselves; a Sherbet theme would turn
- * the role tokens into one Orchid). Everybody sees it; a crown reorders it and takes out what has not played.
+ * The queue: what played in red, what is on in green, what is queued in blue - the titles themselves in
+ * those colours (Luke, 2026-11-02), each a shade that reads on its theme's window (`queue-*-ink` in
+ * themes.ts), one line each. Everybody sees it; a crown reorders it and takes out what has not played.
  *
  * The additions: an add from somebody without a crown waits on their own list (YOUR ADDITIONS, each with
  * `[ × ]` to take it back). The host and anybody they crown see one fold per person instead - the crown, the
@@ -117,7 +119,8 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * site's own videos first; the results take the additions' place until `[ ◀ ADDITIONS ]`. An address in the
  * bar is a pasted link instead (SPEC-watch-links.md): recognised as it is typed, its title filled in for
  * editing, and loaded once in this browser before it is added, so a link that won't play is refused here.
- * An empty search lists the site's own videos. ADD goes where the adder's crown says: QUEUED or ADDED.
+ * An empty search lists the site's own videos. `[ + ADD ]` puts a video on your own list (ADDED); with a
+ * crown a second key beside it, a plus under a crown, puts it straight into the queue (QUEUED).
  */
 export default function StreamQueueWindow({ read, itemsById, live, userId, members, nowLive, onClose }: StreamQueueWindowProps) {
   const repository = getWatchRepository();
@@ -142,26 +145,26 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     return () => window.clearTimeout(timer);
   }, [justAdded]);
 
-  /** One add, where the adder's crown says; drawn at once, before the store's echo. Null when signed out. */
-  async function put(what: { mediaItemId: string } | { link: WatchLink }): Promise<AddedWords | null> {
+  /** One add: onto your own list, or (`straight`, a crown's key) into the queue. Drawn at once; null signed out. */
+  async function put(what: { mediaItemId: string } | { link: WatchLink }, straight: boolean): Promise<AddedWords | null> {
     if (userId === null) return null;
-    const inQueue = rights.addsTo === 'queue';
+    const inQueue = straight && rights.arrange;
     const entry = await repository.addToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, ...what });
     applyLocalChange(roomId, { kind: 'entry', entry });
     return inQueue ? 'QUEUED' : 'ADDED';
   }
 
-  async function addFile(mediaItemId: string) {
+  async function addFile(mediaItemId: string, straight: boolean) {
     setProblem(null);
     try {
-      const words = await put({ mediaItemId });
+      const words = await put({ mediaItemId }, straight);
       if (words !== null) setJustAdded({ key: `ours:${mediaItemId}`, words });
     } catch (failure) {
       fail('THE FILE COULD NOT BE ADDED.')(failure);
     }
   }
 
-  async function addWeb(item: WebItem) {
+  async function addWeb(item: WebItem, straight: boolean) {
     setProblem(null);
     const link = watchLinkForItem(item);
     if (link === null || !isQueueableWebLink(link)) {
@@ -169,7 +172,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       return;
     }
     try {
-      const words = await put({ link });
+      const words = await put({ link }, straight);
       if (words !== null) setJustAdded({ key: `web:${item.id}`, words });
     } catch (failure) {
       fail('IT COULD NOT BE ADDED.')(failure);
@@ -217,7 +220,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setLinkName(recognised?.ok ? recognised.link.title : '');
   }
 
-  async function addLink() {
+  async function addLink(straight: boolean) {
     if (userId === null || verdict === null || linkState.kind === 'checking') return;
     if (!verdict.ok) {
       setLinkState({ kind: 'refused', reason: verdict.reason });
@@ -233,7 +236,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     const named = !nameTyped && isEmbedKind(verdict.link.kind) && linkName === verdict.link.title ? ((await fetchEmbedTitle(verdict.link)) ?? linkName) : linkName;
     const link: WatchLink = { ...verdict.link, title: linkTitle(named, verdict.link.title) };
     try {
-      const words = await put({ link });
+      const words = await put({ link }, straight);
       if (words === null) return;
       setText('');
       setLinkName('');
@@ -478,7 +481,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
             className="flex flex-col gap-1"
             onSubmit={(event) => {
               event.preventDefault();
-              if (address) void addLink();
+              if (address) void addLink(false);
               else void find(text);
             }}
           >
@@ -500,6 +503,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
               <button type="submit" className={PLATE} disabled={search.kind === 'searching' || linkState.kind === 'checking'}>
                 {address ? '[ + ADD ]' : '[ SEARCH ]'}
               </button>
+              {address && rights.arrange ? (
+                <QueueKey label="the link" disabled={linkState.kind === 'checking'} onAdd={() => void addLink(true)} />
+              ) : null}
             </div>
             {/* Kept on screen with nothing in it, so nothing under it moves when a link is pasted. */}
             <label htmlFor="stream-queue-link-title" className="sr-only">
@@ -556,20 +562,20 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 const now = entry.id === read.room.currentEntryId;
                 return (
                   <li key={entry.id} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state={now ? 'now' : 'played'}>
-                    {now ? (
-                      <span className="queue-now w-16 shrink-0 px-1 text-center font-bold">▶ NOW</span>
-                    ) : (
-                      <span className="queue-played w-16 shrink-0 px-1 text-center font-bold">PLAYED</span>
-                    )}
-                    <span className={`min-w-0 flex-1 wrap-anywhere ${now ? 'font-bold' : ''}`}>{titleOf(entry)}</span>
+                    <span className={`min-w-0 flex-1 truncate ${now ? 'text-queue-now-ink' : 'text-queue-played-ink'}`} title={titleOf(entry)}>
+                      <span className="sr-only">{now ? 'Now playing: ' : 'Played: '}</span>
+                      {titleOf(entry)}
+                    </span>
                     {line(entry.id)}
                   </li>
                 );
               })}
               {waiting.map((entry, index) => (
                 <li key={entry.id} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state="queued">
-                  <span className="queue-next w-16 shrink-0 px-1 text-center font-bold">{index + 1}</span>
-                  <span className="min-w-0 flex-1 wrap-anywhere">{titleOf(entry)}</span>
+                  <span className="min-w-0 flex-1 truncate text-queue-next-ink" title={titleOf(entry)}>
+                    <span className="sr-only">{`Next ${index + 1}: `}</span>
+                    {titleOf(entry)}
+                  </span>
                   {rights.arrange ? (
                     <span className="flex shrink-0 items-center">
                       <button type="button" className={PLATE} disabled={index === 0} aria-label={`Move ${titleOf(entry)} up`} onClick={() => reorder(entry.id, -1)}>
@@ -603,9 +609,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 <Results
                   search={search}
                   justAdded={justAdded}
-                  addsTo={rights.addsTo}
-                  onAddFile={(id) => void addFile(id)}
-                  onAddWeb={(item) => void addWeb(item)}
+                  crowned={rights.arrange}
+                  onAddFile={(id, straight) => void addFile(id, straight)}
+                  onAddWeb={(item, straight) => void addWeb(item, straight)}
                   onMore={(words, cursor) => void find(words, cursor)}
                   onBack={backToAdditions}
                 />
@@ -656,7 +662,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       {/* What is being dragged, under the pointer; out of the window's flow, so nothing in it moves. */}
       {drag !== null && typeof document !== 'undefined'
         ? createPortal(
-            <div aria-hidden="true" className="queue-next pointer-events-none fixed z-overlay max-w-64 truncate px-1 text-label font-bold" style={{ left: drag.x + 12, top: drag.y + 12 }}>
+            <div aria-hidden="true" className="frame pointer-events-none fixed z-overlay max-w-64 truncate bg-sun-pale px-1 text-label text-queue-next-ink" style={{ left: drag.x + 12, top: drag.y + 12 }}>
               {drag.title}
             </div>,
             document.body,
@@ -702,7 +708,9 @@ function AdditionRow({
       className={`rule-pixel flex items-center gap-2 py-1 ${handlers === undefined ? '' : 'cursor-grab touch-pan-y select-none'} ${picked ? 'opacity-50' : ''}`}
       data-addition={entry.id}
     >
-      <span className="min-w-0 flex-1 wrap-anywhere">{title}</span>
+      <span className="min-w-0 flex-1 truncate" title={title}>
+        {title}
+      </span>
       {onPull === null ? null : (
         <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull}>
           [ ← ]
@@ -748,7 +756,7 @@ function PersonFold({
     <li className="rule-pixel py-1" data-person={person.userId} data-crowned={person.crowned ? 'yes' : 'no'}>
       <div className="flex items-center gap-1">
         <Crown held={person.crowned} name={name} mine={mine} canPress={canCrown} onPress={onCrown} />
-        <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 cursor-pointer text-left wrap-anywhere hover:underline max-sm:min-h-tap">
+        <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
           {open ? '[-]' : '[+]'} <ProfileName author={{ id: person.userId, displayName: name }} lamp={false} /> ({person.additions.length})
         </button>
         {person.host ? <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">HOST</span> : null}
@@ -795,7 +803,7 @@ function Crown({ held, name, mine, canPress, onPress }: { held: boolean; name: s
 function Results({
   search,
   justAdded,
-  addsTo,
+  crowned,
   onAddFile,
   onAddWeb,
   onMore,
@@ -803,9 +811,9 @@ function Results({
 }: {
   search: Exclude<Search, { kind: 'none' }>;
   justAdded: { key: string; words: AddedWords } | null;
-  addsTo: 'queue' | 'list';
-  onAddFile: (mediaItemId: string) => void;
-  onAddWeb: (item: WebItem) => void;
+  crowned: boolean;
+  onAddFile: (mediaItemId: string, straight: boolean) => void;
+  onAddWeb: (item: WebItem, straight: boolean) => void;
   onMore: (words: string, cursor: string) => void;
   onBack: () => void;
 }) {
@@ -814,7 +822,7 @@ function Results({
   return (
     <div className="flex flex-col gap-1" data-watch-results={search.kind}>
       <div className="flex flex-wrap items-center gap-2">
-        <span className="min-w-0 flex-1 font-bold wrap-anywhere">{search.words.length === 0 ? 'OUR VIDEOS' : `RESULTS :: ${search.words.toUpperCase()}`}</span>
+        <span className="min-w-0 flex-1 truncate font-bold">{search.words.length === 0 ? 'OUR VIDEOS' : `RESULTS :: ${search.words.toUpperCase()}`}</span>
         <button type="button" className={PLATE} onClick={onBack}>
           [ ◀ ADDITIONS ]
         </button>
@@ -831,13 +839,15 @@ function Results({
           {search.ours.map((video) => (
             <li key={video.id} className="rule-pixel flex items-center gap-2 py-1">
               <span className="w-24 shrink-0 bg-ice-pale px-1 text-center font-bold text-ink">OUR VIDEO</span>
-              <span className="min-w-0 flex-1 wrap-anywhere">{video.title}</span>
+              <span className="min-w-0 flex-1 truncate" title={video.title}>
+                {video.title}
+              </span>
               {video.length.length === 0 ? null : <span className="shrink-0">{video.length}</span>}
-              <AddKey addsTo={addsTo} added={added(`ours:${video.id}`)} onAdd={() => onAddFile(video.id)} label={video.title} />
+              <AddKey crowned={crowned} added={added(`ours:${video.id}`)} onAdd={(straight) => onAddFile(video.id, straight)} label={video.title} />
             </li>
           ))}
           {search.web.map((item) => (
-            <WebResult key={item.id} item={item} addsTo={addsTo} added={added(`web:${item.id}`)} onAdd={() => onAddWeb(item)} />
+            <WebResult key={item.id} item={item} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(straight) => onAddWeb(item, straight)} />
           ))}
         </ul>
       )}
@@ -860,7 +870,7 @@ function Results({
 }
 
 /** One WEB result: its picture (hotlinked, re-checked like every /web row), title, maker, where from, length. */
-function WebResult({ item, addsTo, added, onAdd }: { item: WebItem; addsTo: 'queue' | 'list'; added: AddedWords | null; onAdd: () => void }) {
+function WebResult({ item, crowned, added, onAdd }: { item: WebItem; crowned: boolean; added: AddedWords | null; onAdd: (straight: boolean) => void }) {
   const [thumbFailed, setThumbFailed] = useState(false);
   const thumb = thumbFailed ? null : rowAddresses(item).thumb;
 
@@ -883,31 +893,60 @@ function WebResult({ item, addsTo, added, onAdd }: { item: WebItem; addsTo: 'que
         )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block font-bold wrap-anywhere">{item.title}</span>
+        <span className="block truncate font-bold" title={item.title}>
+          {item.title}
+        </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2">
           <span className="bg-ice-pale px-1 font-bold">{PLATFORM_LABELS[item.platform]}</span>
-          {item.creator ? <span className="wrap-anywhere">{item.creator}</span> : null}
+          {item.creator ? <span className="min-w-0 truncate">{item.creator}</span> : null}
           {item.durationSeconds !== undefined && item.durationSeconds > 0 ? <span>{formatMediaTime(item.durationSeconds)}</span> : null}
         </span>
       </span>
-      <AddKey addsTo={addsTo} added={added} onAdd={onAdd} label={item.title} />
+      <AddKey crowned={crowned} added={added} onAdd={onAdd} label={item.title} />
     </li>
   );
 }
 
-/** ADD, or QUEUED / ADDED for a moment after it worked; its box is kept so the row never moves. */
-function AddKey({ addsTo, added, onAdd, label }: { addsTo: 'queue' | 'list'; added: AddedWords | null; onAdd: () => void; label: string }) {
+/**
+ * `[ + ADD ]` onto your own list, and for a crown the crown-plus key beside it, straight into the queue; QUEUED or
+ * ADDED for a moment after. The box is as wide as both keys either way, so the row never moves.
+ */
+function AddKey({ crowned, added, onAdd, label }: { crowned: boolean; added: AddedWords | null; onAdd: (straight: boolean) => void; label: string }) {
   return (
-    <span className="w-24 shrink-0 text-right">
+    <span className={`flex shrink-0 items-center justify-end ${crowned ? 'w-36' : 'w-24'}`}>
       {added !== null ? (
         <span className="font-bold" role="status">
           {added}
         </span>
       ) : (
-        <button type="button" className={PLATE} onClick={onAdd} aria-label={addsTo === 'queue' ? `Add ${label} to the queue` : `Add ${label} to your list`}>
-          [ + ADD ]
-        </button>
+        <>
+          <button type="button" className={PLATE} onClick={() => onAdd(false)} aria-label={`Add ${label} to your list`}>
+            [ + ADD ]
+          </button>
+          {crowned ? <QueueKey label={label} onAdd={() => onAdd(true)} /> : null}
+        </>
       )}
     </span>
+  );
+}
+
+/**
+ * A crown's add, straight into the queue: a plus under a crown (`mark-add-queue`, the asset rules: a slot), and
+ * until it is drawn the font's filled queen stacked over a plus.
+ */
+function QueueKey({ label, disabled = false, onAdd }: { label: string; disabled?: boolean; onAdd: () => void }) {
+  return (
+    <button type="button" className={`${PLATE} shrink-0`} disabled={disabled} onClick={onAdd} aria-label={`Add ${label} straight to the queue`} title="Straight into the queue" data-add-queue>
+      <ArtMark
+        src={ADD_QUEUE_SRC}
+        size={CROWN_SIZE}
+        fallback={
+          <span className="flex flex-col items-center leading-none">
+            <span>{CROWN_HELD_GLYPH}</span>
+            <span>+</span>
+          </span>
+        }
+      />
+    </button>
   );
 }
