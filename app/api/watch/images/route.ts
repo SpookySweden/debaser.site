@@ -1,5 +1,5 @@
-import { IMAGE_SEARCH_KINDS, readGiphy, readImgur, type ImageSearchKind } from '../../../lib/watch/chat-images';
-import { buildUrl, safeFetchJson, type FetchLike } from '../../../lib/web/safe-fetch';
+import { IMAGE_SEARCH_KINDS, readCommons, readGiphy, type ImageSearchKind } from '../../../lib/watch/chat-images';
+import { buildUrl, safeFetchJson } from '../../../lib/web/safe-fetch';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { webSignedIn } from '../../../lib/web/web-session';
 
@@ -9,9 +9,10 @@ import { webSignedIn } from '../../../lib/web/web-session';
  *   GET /api/watch/images?q=<words>&kind=gif|sticker|image  ->  { results: [{ id, title, thumb, url }] }
  *
  * Signed-in people only (guests cannot talk in a room). GIF and sticker search GIPHY (server-only
- * `GIPHY_API_KEY`, results rated PG-13 or milder); image searches Imgur's gallery (server-only
- * `IMGUR_CLIENT_ID`, NSFW posts dropped). Without its key a kind answers 503 and the panel says it is not set
- * up. Only the search words leave the site; the pictures are hotlinked by the browser, never copied.
+ * `GIPHY_API_KEY`, results rated PG-13 or milder; without the key they answer 503 and the panel says it is not
+ * set up). Image searches Wikimedia Commons with no key (Imgur is blocked in the UK; Openverse hung on every
+ * fresh search, 2026-11-02): only files Commons' structured data marks CC0 or public domain, and of those only
+ * the ones it says need no credit line. Commons has no mature-content filter. Only the search words leave the site; the pictures are hotlinked by the browser, never copied.
  */
 
 export const runtime = 'nodejs';
@@ -38,15 +39,24 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     if (kind === 'image') {
-      const clientId = process.env.IMGUR_CLIENT_ID ?? '';
-      if (clientId === '') return json({ error: 'IMAGE SEARCH IS NOT SET UP.' }, 503);
-      const withId: FetchLike = (input, init) =>
-        fetch(input, { ...init, headers: { ...(init?.headers as Record<string, string> | undefined), Authorization: `Client-ID ${clientId}` } });
-      const answer = await safeFetchJson(buildUrl('api.imgur.com', ['3', 'gallery', 'search', 'top', 'all', '0'], [['q', words]]), {
-        allowedHosts: ['api.imgur.com'],
-        fetchImpl: withId,
-      });
-      return json({ results: readImgur(answer).slice(0, LIMIT) }, 200);
+      // P275 licence = CC0, or P6216 copyright status = public domain (checked live 2026-11-02: 30 of 30 matched).
+      const answer = await safeFetchJson(
+        buildUrl('commons.wikimedia.org', ['w', 'api.php'], [
+          ['action', 'query'],
+          ['format', 'json'],
+          ['formatversion', '2'],
+          ['generator', 'search'],
+          ['gsrnamespace', '6'],
+          ['gsrsearch', `${words} filetype:bitmap|drawing haswbstatement:P275=Q6938433|P6216=Q19652`],
+          ['gsrlimit', String(LIMIT)],
+          ['prop', 'imageinfo'],
+          ['iiprop', 'url|extmetadata'],
+          ['iiextmetadatafilter', 'AttributionRequired'],
+          ['iiurlwidth', '320'],
+        ]),
+        { allowedHosts: ['commons.wikimedia.org'] },
+      );
+      return json({ results: readCommons(answer) }, 200);
     }
     const key = process.env.GIPHY_API_KEY ?? '';
     if (key === '') return json({ error: 'GIF SEARCH IS NOT SET UP.' }, 503);

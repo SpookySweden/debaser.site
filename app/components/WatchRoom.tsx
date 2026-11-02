@@ -1296,7 +1296,7 @@ const SHELF_TABS: { tab: ShelfTab; label: string }[] = [
 ];
 
 /**
- * The shelf over the chat box: the site's ASCII emoticons, or a search of GIPHY (GIFs, stickers) or Imgur
+ * The shelf over the chat box: the site's ASCII emoticons, or a search of GIPHY (GIFs, stickers) or Wikimedia Commons
  * (images) through the server (`/api/watch/images`). A picked picture is sent at once as its link, which every
  * chat line that is one picture link draws as the picture (lib/watch/chat-images.ts).
  */
@@ -1393,7 +1393,7 @@ function ChatShelf({
               value={words}
               maxLength={80}
               onChange={(event) => setWords(event.target.value)}
-              placeholder={tab === 'image' ? 'SEARCH IMGUR' : 'SEARCH GIPHY'}
+              placeholder={tab === 'image' ? 'SEARCH WIKIMEDIA COMMONS' : 'SEARCH GIPHY'}
               autoComplete="off"
               autoFocus
               className={`${FIELD_TIGHT} min-w-0 flex-1`}
@@ -1422,7 +1422,7 @@ function ChatShelf({
                         title={result.title}
                         aria-label={`Send ${result.title || 'this picture'}`}
                       >
-                        {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Imgur, never proxied or copied */}
+                        {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Commons, never proxied or copied */}
                         <img src={result.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                       </button>
                     </li>
@@ -1431,21 +1431,21 @@ function ChatShelf({
               )
             ) : null}
           </div>
-          <p className="text-label text-ink-quiet">{tab === 'image' ? 'FROM IMGUR' : 'POWERED BY GIPHY'}</p>
+          <p className="text-label text-ink-quiet">{tab === 'image' ? 'FREE IMAGES FROM WIKIMEDIA COMMONS' : 'POWERED BY GIPHY'}</p>
         </>
       )}
     </div>
   );
 }
 
-/** What a chat line says: its words, or the one GIPHY / Imgur picture it links to, hotlinked from there. */
+/** What a chat line says: its words, or the one GIPHY / Commons picture it links to, hotlinked from there. */
 function MessageBody({ body }: { body: string }) {
   const picture = chatImageUrl(body);
   // A picture the host has taken down reads as its link rather than a blank.
   const [gone, setGone] = useState(false);
   if (picture === null || gone) return <>{body}</>;
   return (
-    // eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Imgur, never proxied or copied
+    // eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Commons, never proxied or copied
     <img src={picture} alt="A picture" loading="lazy" referrerPolicy="no-referrer" onError={() => setGone(true)} className="mt-0.5 block max-h-40 max-w-full border border-ink" />
   );
 }
