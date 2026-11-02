@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useSyncExternalStore, type ReactNode } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
 import { useWindowDrag } from '../lib/ui/use-window-drag';
@@ -137,6 +137,13 @@ export default function DockWindow({
 
   const managed = desktop && live !== undefined && live.open;
   const grouped = managed && live.grouped;
+
+  // Unfolded, it comes back on top: a window opened while it was folded away would otherwise cover it.
+  const wasMinimized = useRef(minimized);
+  useEffect(() => {
+    if (wasMinimized.current && !minimized && managed) bringToFront(id);
+    wasMinimized.current = minimized;
+  }, [minimized, managed, id]);
 
   // A phone keeps the sheet's own drag, exactly as it was before windows had layouts.
   const { offset, dragHandlers: sheetDrag } = useWindowDrag();

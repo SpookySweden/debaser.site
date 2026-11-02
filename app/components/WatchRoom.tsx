@@ -696,8 +696,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           </div>
         ) : null}
         {needsPress && live && !linkDead ? (
-          <div className="absolute inset-0 z-20 flex items-center justify-center">
-            <button type="button" onClick={joinPlayback} className={PLATE_MAIN}>
+          // Only the key takes the press. Over an embedded site's player it sits at the foot, so the site's own
+          // play key in the middle stays in view and in reach: a phone may only start YouTube from there.
+          <div
+            className={`pointer-events-none absolute inset-0 z-20 flex justify-center ${
+              link !== null && isEmbedKind(link.kind) ? 'items-end pb-3' : 'items-center'
+            }`}
+          >
+            <button type="button" onClick={joinPlayback} className={`${PLATE_MAIN} pointer-events-auto`}>
               [ ▶ JOIN PLAYBACK ]
             </button>
           </div>
@@ -746,7 +752,6 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           canAdd={user !== null && live}
           userId={user?.id ?? null}
           nowLive={stageLive}
-          onFault={setFault}
           onClose={() => setQueueOpen(false)}
         />
       ) : null}

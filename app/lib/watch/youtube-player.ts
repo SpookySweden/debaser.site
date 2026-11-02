@@ -43,9 +43,18 @@ const YOUTUBE_QUALITIES: (QualityChoice & { height: number })[] = [
   { id: 'low', label: 'LOW', height: 480 },
 ];
 
-/** The cover over the picture: black before the first play and after the end, clear (but still in the way of clicks) between. */
-const COVER_SHUT = 'absolute inset-0 bg-ink-plate';
-const COVER_OPEN = 'absolute inset-0';
+/**
+ * The cover over the picture: black before the first play and after the end, clear but in the way of every
+ * click between. When the browser refused to start the video it steps aside, clear and out of the way, so a
+ * tap reaches YouTube's own play key: a phone may only start a YouTube video from a tap inside YouTube's
+ * player (YouTube says so of `playVideo` on mobile), and before the first play that key is all there is.
+ */
+const COVERS = {
+  shut: 'absolute inset-0 bg-ink-plate',
+  open: 'absolute inset-0',
+  aside: 'pointer-events-none absolute inset-0',
+} as const;
+type Cover = keyof typeof COVERS;
 
 type YTPlayer = {
   playVideo(): void;
@@ -154,9 +163,8 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const mount = document.createElement('div');
     this.frame.appendChild(mount);
     this.cover = document.createElement('div');
-    this.cover.className = COVER_SHUT;
     this.cover.setAttribute('aria-hidden', 'true');
-    this.cover.dataset.youtubeCover = 'shut';
+    this.setCover('shut');
     this.frame.appendChild(this.cover);
     container.appendChild(this.frame);
     this.resizing = new ResizeObserver(() => this.layout());
@@ -222,10 +230,10 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     iframe.tabIndex = -1;
   }
 
-  /** Black over the picture (before the first play, after the end), or clear. */
-  private shut(closed: boolean) {
-    this.cover.className = closed ? COVER_SHUT : COVER_OPEN;
-    this.cover.dataset.youtubeCover = closed ? 'shut' : 'open';
+  /** Black over the picture, clear over it, or out of the way of a tap (`COVERS`). */
+  private setCover(cover: Cover) {
+    this.cover.className = COVERS[cover];
+    this.cover.dataset.youtubeCover = cover;
   }
 
   private onReady() {
@@ -252,7 +260,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
     const before = this.state;
     this.state = next;
     if (next === STATE.playing) {
-      this.shut(false);
+      this.setCover('open');
       this.wanted = true;
       if (!this.saidPlay) this.emit('play');
       this.saidPlay = true;
@@ -263,7 +271,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
       this.saidPlay = false;
       this.emit('pause');
     } else if (next === STATE.ended) {
-      this.shut(true);
+      this.setCover('shut');
       this.wanted = false;
       this.saidPlay = false;
       this.emit('pause');
@@ -400,8 +408,10 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
             resolve();
             return;
           }
-          // Still not started: the browser would not start it without a press (autoplay rules).
+          // Still not started: the browser would not start it without a press (autoplay rules). The press
+          // may have to land on YouTube's own play key, so the cover steps aside until it plays.
           this.wanted = false;
+          if (this.state !== STATE.ended) this.setCover('aside');
           reject(new Error('YouTube did not start.'));
         }, PLAY_WAIT_MS),
       };

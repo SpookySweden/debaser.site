@@ -48,8 +48,12 @@ export function SpeakerKey({ muted, volume, onMuted, onVolume }: { muted: boolea
   );
 }
 
-/** What this viewer last picked, offered to each new video whose player has the same choice. */
-let preferredQuality = AUTO_QUALITY;
+/**
+ * What this viewer last picked, by what the key says (`720P`, `HIGH`), offered to each new video whose
+ * player has a choice of the same name. By name, not id: a stream's ids are its own level numbers, so the
+ * same id on the next stream can be a different height. Null is AUTO, which every player starts on.
+ */
+let preferredLabel: string | null = null;
 
 /**
  * QUALITY: what the player on the stage can be asked for (playable.ts), in a little list over the key. Not
@@ -72,8 +76,9 @@ export function QualityKey({ source }: { source: QualityControl | null }) {
 
   // A new video whose player has what was picked last time starts on it.
   useEffect(() => {
-    if (source === null || preferredQuality === AUTO_QUALITY) return;
-    if (source.quality !== preferredQuality && source.qualities().some((choice) => choice.id === preferredQuality)) source.setQuality(preferredQuality);
+    if (source === null || preferredLabel === null) return;
+    const same = source.qualities().find((choice) => choice.label === preferredLabel);
+    if (same !== undefined && source.quality !== same.id) source.setQuality(same.id);
   }, [source, offered]);
 
   // The list closes on a press anywhere else, or ESC.
@@ -112,7 +117,7 @@ export function QualityKey({ source }: { source: QualityControl | null }) {
               aria-checked={choice.id === current}
               className={`${PLATE_ON_BLACK} text-left`}
               onClick={() => {
-                preferredQuality = choice.id;
+                preferredLabel = choice.id === AUTO_QUALITY ? null : choice.label;
                 source.setQuality(choice.id);
                 setOpen(false);
               }}

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { artSlot } from '../lib/ui/art/slots';
@@ -35,7 +35,6 @@ type StreamQueueWindowProps = {
   userId: string | null;
   /** What is on is a live stream: it never ends, so nothing loops. */
   nowLive: boolean;
-  onFault: (message: string) => void;
   onClose: () => void;
 };
 
@@ -62,9 +61,9 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * The stream room's queue as its own window (Luke, 2026-11-02), opened from the QUEUE line in the chat
  * column rather than unfolding there.
  *
- * The list: what played in Rose, what is on in Emerald, what is queued in Royal Blue, each as its chip (the
- * colours stay on their chips, where their words read in every theme). The host reorders and takes out what
- * has not played.
+ * The list: what played in red, what is on in green, what is queued in blue, each as its chip, in every
+ * theme (`.queue-played` and its pair in globals.css hold the dyes themselves; a Sherbet theme would turn
+ * the role tokens into one Orchid). The host reorders and takes out what has not played.
  *
  * The bar across the top searches WEB the way /web does (`searchEverywhere`, signed-in people only), with the
  * site's own videos first; the results take the list's place in this window until the search is cleared.
@@ -72,14 +71,16 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * filled in for editing, and loaded once in this browser before it is added, so a link that won't play is
  * refused here. An empty search lists the site's own videos.
  */
-export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, userId, nowLive, onFault, onClose }: StreamQueueWindowProps) {
+export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, userId, nowLive, onClose }: StreamQueueWindowProps) {
   const repository = getWatchRepository();
   const catalogue = useCatalogue();
   const played = playOrder(read.queue);
   const waiting = upcoming(read.queue);
   const titleOf = (entry: WatchQueueEntry) =>
     entry.link !== null ? entry.link.title : entry.mediaItemId ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD') : 'A FILE NO LONGER HELD';
-  const fail = (fallback: string) => (failure: unknown) => onFault(failure instanceof Error ? failure.message : fallback);
+  // Said in this window, over the dimmed room, not under the video where nobody would see it.
+  const [problem, setProblem] = useState<string | null>(null);
+  const fail = (fallback: string) => (failure: unknown) => setProblem(failure instanceof Error ? failure.message : fallback);
 
   /* --- adding ---------------------------------------------------------------------------------- */
 
@@ -93,6 +94,7 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
 
   async function addFile(mediaItemId: string) {
     if (userId === null) return;
+    setProblem(null);
     try {
       const entry = await repository.addToQueue({ roomId: read.room.id, mediaItemId, addedBy: userId, position: nextQueuePosition(read.queue) });
       applyLocalChange(read.room.id, { kind: 'entry', entry });
@@ -104,9 +106,10 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
 
   async function addWeb(item: WebItem) {
     if (userId === null) return;
+    setProblem(null);
     const link = watchLinkForItem(item);
     if (link === null || !isQueueableWebLink(link)) {
-      onFault("THIS ONE CAN'T PLAY IN A ROOM.");
+      setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
       return;
     }
     try {
@@ -188,8 +191,16 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
 
   const videos = catalogue.items.filter((item) => item.kind === 'video');
 
+  /**
+   * Which search is the newest. Only its answer is drawn: one overtaken by another search, or left behind
+   * with `[ ◀ QUEUE ]`, would otherwise land seconds later over the queue or under the wrong words.
+   */
+  const searchRun = useRef(0);
+
   async function find(words: string, cursor: string | null = null) {
     const trimmed = words.trim();
+    const run = cursor === null ? ++searchRun.current : searchRun.current;
+    setProblem(null);
     if (cursor === null) setSearch({ kind: 'searching', words: trimmed });
     else setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: true } : current));
     const ours = ourMatches(videos, trimmed);
@@ -200,6 +211,7 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
     }
     try {
       const page = await searchEverywhere(trimmed, cursor);
+      if (run !== searchRun.current) return;
       const web = page.items.filter((item) => {
         const link = watchLinkForItem(item);
         return link !== null && isQueueableWebLink(link);
@@ -210,8 +222,21 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
           : { kind: 'found', words: trimmed, ours, web, problems: page.problems, next: page.nextCursor, loadingMore: false },
       );
     } catch (failure) {
-      setSearch({ kind: 'failed', words: trimmed, reason: failure instanceof Error ? failure.message : 'COULD NOT SEARCH.' });
+      if (run !== searchRun.current) return;
+      const reason = failure instanceof Error ? failure.message : 'COULD NOT SEARCH.';
+      // A later page that fails keeps what was already found.
+      if (cursor !== null) {
+        setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: false } : current));
+        setProblem(reason);
+        return;
+      }
+      setSearch({ kind: 'failed', words: trimmed, reason });
     }
+  }
+
+  function backToQueue() {
+    searchRun.current += 1;
+    setSearch({ kind: 'none' });
   }
 
   /* --- the window ------------------------------------------------------------------------------ */
@@ -282,12 +307,19 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
           </form>
         ) : read.room.endedAt === null && userId === null ? (
           <p className="font-bold">
-            <Link href="/account" className="key px-1 py-1 text-label">
+            {/* The room stays drawn on every page, and this window with it: going to log in closes it. */}
+            <Link href="/account" className="key px-1 py-1 text-label" onClick={onClose}>
               [ LOG IN ]
             </Link>{' '}
             TO ADD VIDEOS
           </p>
         ) : null}
+
+        {problem === null ? null : (
+          <p className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">
+            {problem}
+          </p>
+        )}
 
         {searching ? (
           <Results
@@ -297,7 +329,7 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
             onAddFile={(id) => void addFile(id)}
             onAddWeb={(item) => void addWeb(item)}
             onMore={(words, cursor) => void find(words, cursor)}
-            onBack={() => setSearch({ kind: 'none' })}
+            onBack={backToQueue}
           />
         ) : (
           <>
@@ -308,9 +340,9 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
                 return (
                   <li key={entry.id} className="rule-pixel flex items-center gap-2 py-1" data-queue-state={now ? 'now' : 'played'}>
                     {now ? (
-                      <span className="w-16 shrink-0 bg-acid px-1 text-center font-bold text-ink-plate">▶ NOW</span>
+                      <span className="queue-now w-16 shrink-0 px-1 text-center font-bold">▶ NOW</span>
                     ) : (
-                      <span className="w-16 shrink-0 bg-bubble-pale px-1 text-center font-bold text-ink-bar">PLAYED</span>
+                      <span className="queue-played w-16 shrink-0 px-1 text-center font-bold">PLAYED</span>
                     )}
                     <span className={`min-w-0 flex-1 wrap-anywhere ${now ? 'font-bold' : ''}`}>{titleOf(entry)}</span>
                   </li>
@@ -318,7 +350,7 @@ export default function StreamQueueWindow({ read, itemsById, amHost, canAdd, use
               })}
               {waiting.map((entry, index) => (
                 <li key={entry.id} className="rule-pixel flex items-center gap-2 py-1" data-queue-state="queued">
-                  <span className="w-16 shrink-0 bg-ena px-1 text-center font-bold text-ink-bar">{index + 1}</span>
+                  <span className="queue-next w-16 shrink-0 px-1 text-center font-bold">{index + 1}</span>
                   <span className="min-w-0 flex-1 wrap-anywhere">{titleOf(entry)}</span>
                   {amHost ? (
                     <span className="flex shrink-0 items-center">
