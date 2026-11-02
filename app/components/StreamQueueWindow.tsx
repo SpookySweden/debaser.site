@@ -335,7 +335,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setProblem(null);
     try {
       const given = await repository.setCrown(roomId, person.userId, !person.crowned, userId);
-      applyLocalChange(roomId, given === null ? { kind: 'uncrowned', userId: person.userId } : { kind: 'crown', crown: given });
+      // A crown given comes back as its row. One taken off is read again rather than assumed gone: the
+      // database leaves a crown it will not let you take (the host changed a moment ago) without a word.
+      applyLocalChange(roomId, given === null ? { kind: 'refresh' } : { kind: 'crown', crown: given });
     } catch (failure) {
       fail('THE CROWN COULD NOT BE CHANGED.')(failure);
     }
@@ -355,7 +357,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setDrag(next);
   }
 
-  /** The queue slot under the pointer: anywhere over the queue's half counts, and above its first queued row is 0. */
+  /** The queue slot under the pointer: anywhere over the queue's half (stretched to the window's row) counts; above its first queued row is 0. */
   function slotAt(x: number, y: number): number | null {
     const zone = queueZone.current?.getBoundingClientRect();
     if (zone === undefined || x < zone.left || x > zone.right || y < zone.top || y > zone.bottom) return null;
@@ -405,6 +407,12 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       onPointerMove(event: ReactPointerEvent<HTMLElement>) {
         const pressed = press.current;
         if (pressed === null || pressed.pointerId !== event.pointerId) return;
+        // No button down: the release went somewhere else (Alt-Tab, the row went). Forget the press.
+        if (event.buttons === 0) {
+          press.current = null;
+          if (dragNow.current !== null) follow(null);
+          return;
+        }
         if (dragNow.current === null && Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < PICK_UP_PX) return;
         follow({ entryId: pressed.entryId, title: pressed.title, x: event.clientX, y: event.clientY, slot: slotAt(event.clientX, event.clientY) });
       },
@@ -541,7 +549,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
         {/* Side by side each half scrolls on its own; stacked, the window's body is the one thing that scrolls. */}
         <div className="flex flex-col gap-3 md:flex-row md:items-start">
           {/* The queue: everybody reads it; a crown moves it, and drops an addition into it. */}
-          <section ref={queueZone} aria-label="Queue" className="min-w-0 md:flex-1">
+          <section ref={queueZone} aria-label="Queue" className="min-w-0 md:flex-1 md:self-stretch">
             <ol ref={queueList} className="md:max-h-[60vh] md:overflow-y-auto" aria-label="Queue" data-watch-queue>
               {played.length + waiting.length === 0 ? <li className="font-bold text-ink-quiet">NOTHING QUEUED.</li> : null}
               {played.map((entry) => {
