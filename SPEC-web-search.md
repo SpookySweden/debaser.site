@@ -124,8 +124,16 @@ to google ... allow the inclusion of the year ... without any appended parameter
   ("Blade Runner 2049"). The page says so in one quiet line.
 - **Did you mean** (related.ts, `/api/web/related`): Wikipedia's own spelling suggestion, keyless; a DID YOU MEAN key
   puts the words in the box (filters kept) and searches.
-- **Related topics:** Wikidata (keyless open data): the words' entry, then the series / fictional universe / franchise
-  / larger work it belongs to, at most two (Dalek -> DOCTOR WHO), worked out from the corrected words. KINO adds TMDB's
+- **Related topics:** Wikidata (keyless open data), at most two, worked out from the corrected words (or the typed ones
+  when those lead nowhere). Candidates: Wikipedia's top three pages for the words (same request as the suggestion; they
+  know the famous meaning: Batman the hero, Dracula the novel) plus Wikidata's own search, as typed and in the singular
+  ("daleks"). Ranked: exact name, Wikipedia rank, story-world descriptions before surnames, bands, places and
+  disambiguation pages; an entry must sound story-world or be Wikipedia's top page ("cosy" never reaches a hormone).
+  The first that links anywhere gives one of each: series, franchise, work, universe, source, prequel, sequel,
+  spin-off, derivative, author, creator, part of (a novel: author first, no "next book"). Reference pages (lists,
+  registries, bibliographies) are never topics. Checked live 2026-11-02 on ~35 words (dalek/daleks/dalak -> DOCTOR WHO,
+  batman -> DETECTIVE COMICS, alien -> ALIENS, doctor who -> TORCHWOOD, frankenstein -> MARY SHELLEY); some plain words
+  rightly get none, a few get odd ones (klingons -> VECTORS), always under a heading saying why. KINO adds TMDB's
   exact keyword ("TAGGED: DALEK"). Each is its own section below the results ("RELATED: DOCTOR WHO"), loaded when the
   reader scrolls to it, with its own MORE key; rows already listed above are not repeated. The search's own LOAD MORE
   is now "MORE FOR "DALEK"".
