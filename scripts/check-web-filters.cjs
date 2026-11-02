@@ -23,10 +23,10 @@ const { ok, same } = asserts;
 /* ---------------------------------------------------------------- the choices */
 same(
   f.SOURCE_OPTIONS.map((option) => option.label),
-  // Updated on purpose 2026-11-01 (SPEC-media-servers.md): each media server in media-servers.ts is a choice too,
-  // whichever servers the Debaser Servers program has listed.
-  ['ALL', 'SAVED', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', ...require(join(OUT, 'media-servers.js')).MEDIA_SERVERS.map((server) => server.label)],
-  'SOURCE: ALL, SAVED, every platform the stream reads or a search asks (Vimeo, link-only, is not one), every media server',
+  // Updated on purpose 2026-11-02 (Luke): KINO (TMDB alone) after SAVED, and no media server is a choice any more
+  // ("remove the 'server 1 server 2' search parameters").
+  ['ALL', 'SAVED', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS'],
+  'SOURCE: ALL, SAVED, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one); no media server',
 );
 same(f.TYPE_OPTIONS.map((option) => option.label), ['ALL', 'VIDEO', 'AUDIO', 'IMAGE', 'TEXT'], 'TYPE choices');
 
@@ -35,10 +35,22 @@ same(f.parseWebSearch('night of the living dead in:youtube type:video'), { text:
 same(f.parseWebSearch('type:AUDIO piano IN:Internet-Archive'), { text: 'piano', source: 'internet_archive', type: 'audio' }, 'any case, any order, hyphenated names');
 same(f.parseWebSearch('in:archive x in:commons'), { text: 'x', source: 'wikimedia_commons', type: 'all' }, 'aliases; the last of a filter wins');
 same(f.parseWebSearch('in:"saved" y'), { text: 'y', source: 'saved', type: 'all' }, 'a quoted value');
-same(f.parseWebSearch('star wars in:server1'), { text: 'star wars', source: 'server_1', type: 'all' }, 'a media server without its hyphen');
-same(f.parseWebSearch('in:SERVER2 x'), { text: 'x', source: 'server_2', type: 'all' }, 'server 2 without its hyphen, any case');
-same(f.parseWebSearch('in:server-1 y'), { text: 'y', source: 'server_1', type: 'all' }, 'a media server with its hyphen');
-same(f.parseWebSearch('in:server3 z'), { text: 'z', source: 'all', type: 'all' }, 'a server that is not listed is still dropped');
+same(f.parseWebSearch('star wars in:server1'), { text: 'star wars', source: 'all', type: 'all' }, 'a media server is no SOURCE any more (dropped like any unknown value)');
+same(f.parseWebSearch('in:kino alien'), { text: 'alien', source: 'kino', type: 'all' }, 'in:kino');
+same(f.parseWebSearch('in:tmdb alien'), { text: 'alien', source: 'kino', type: 'all' }, 'in:tmdb is KINO');
+same(f.parseWebSearch('cosy rain vibe:on'), { text: 'cosy rain', source: 'all', type: 'all', vibe: true }, 'vibe:on');
+same(f.parseWebSearch('cosy vibe:on vibe:off'), { text: 'cosy', source: 'all', type: 'all' }, 'the last vibe: wins; off is no vibe');
+same(f.parseWebSearch('cosy vibe:maybe'), { text: 'cosy', source: 'all', type: 'all' }, 'an unknown vibe value is dropped');
+same(f.withFilter('cosy', 'vibe', 'on'), 'cosy vibe:on', 'the VIBE key writes vibe:on');
+same(f.withFilter('cosy vibe:on in:kino', 'vibe', 'off'), 'cosy in:kino', 'and takes it out');
+same(f.searchAddress(f.parseWebSearch('cosy vibe:on')), '/web?q=cosy&vibe=on', 'the address carries vibe');
+same(f.boxFromAddress(new URLSearchParams('q=cosy&vibe=on')), 'cosy vibe:on', 'and reads it back');
+same(f.sourcesToAsk({ source: 'kino', type: 'all' }), { stream: true, live: ['kino'] }, 'KINO asks TMDB alone (and the stream, for titles a server holds)');
+ok(!f.sourcesToAsk({ source: 'all', type: 'all' }).live.includes('kino'), 'an ALL search never asks KINO');
+same(f.sourcesToAsk({ source: 'kino', type: 'audio' }).live, [], 'KINO is never asked for audio');
+ok(f.matchesFilters({ platform: 'kino', kind: 'video' }, { source: 'kino', type: 'all' }, false), 'KINO keeps its own rows');
+ok(f.matchesFilters({ platform: 'server_1', kind: 'video', media: { type: 'movie', copies: [{ server: 'server_1' }] } }, { source: 'kino', type: 'all' }, true), 'and a media server title from the stream');
+ok(!f.matchesFilters({ platform: 'youtube', kind: 'video' }, { source: 'kino', type: 'all' }, true), 'and nothing else from the stream');
 same(f.parseWebSearch('in:vidsrc type:movie z'), { text: 'z', source: 'all', type: 'all' }, 'unknown values are dropped, never passed on');
 same(f.parseWebSearch('in:__proto__ in:constructor q'), { text: 'q', source: 'all', type: 'all' }, 'object-key tricks are unknown values');
 same(f.parseWebSearch('within:youtube tin:x'), { text: 'within:youtube tin:x', source: 'all', type: 'all' }, 'only whole in: / type: words are filters');
@@ -97,7 +109,8 @@ ok(/onClick=\{\(\) => pickFilter\('in', option\.value\)\}/.test(page) && /const 
 ok(/className="absolute top-full right-0 left-0 z-menu/.test(page), 'the suggestion list is drawn over the page, so typing never moves the rows');
 ok(/max-sm:min-h-tap/.test(page.slice(page.indexOf('role="option"'))), 'a suggestion row is 44px tall on a phone');
 ok(/choose\(suggestions\[[^\]]*\]\.word, event\.key === 'Enter'\)/.test(page) && /if \(search\) restart\(next\);/.test(page), 'Enter on a suggestion fills it in and searches (one Enter always searches)');
-ok(/authorsOf\(what\.filters\)\[0\] \?\? null, what\.filters\.type\)/.test(page), 'each live source is told the type, so it can search for that kind itself');
+// The type is followed by VIBE and a related keyword since 2026-11-02, so `type,` as well as `type)`.
+ok(/authorsOf\(what\.filters\)\[0\] \?\? null, what\.filters\.type[,)]/.test(page), 'each live source is told the type, so it can search for that kind itself');
 const client = readFileSync(join(ROOT, 'app/lib/web/everywhere-client.ts'), 'utf8');
 ok(/if \(type !== 'all'\) params\.set\('type', type\);/.test(client), '... and the request carries it');
 const route = readFileSync(join(ROOT, 'app/api/web/search/route.ts'), 'utf8');

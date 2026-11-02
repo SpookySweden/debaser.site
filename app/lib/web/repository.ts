@@ -28,6 +28,8 @@ export type SearchWebItemsInput = ListWebItemsInput & {
   query: string;
   /** `from:` creators (search.ts `authorList`): only their items, either of them. Words, a creator, or both. */
   from?: readonly string[];
+  /** VIBE (search-intent.ts): an item matches with ANY of the words rather than all of them. */
+  anyWord?: boolean;
 };
 
 /**

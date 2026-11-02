@@ -23,7 +23,8 @@ const TEST_SERVERS = [
 function withTestServers(source, extra = []) {
   const text = source.replace(/\r\n/g, '\n');
   const start = text.indexOf('// SERVERS-START\n');
-  const end = text.indexOf('  // SERVERS-END');
+  // The END marker may sit at any indent (the Debaser Servers program and hand edits differ); keep its line whole.
+  const end = text.search(/^[ \t]*\/\/ SERVERS-END/m);
   if (start < 0 || end < start) throw new Error('media-servers.ts has lost its SERVERS-START / SERVERS-END markers');
   return `${text.slice(0, start)}// SERVERS-START\n${[...TEST_SERVERS, ...extra].join('\n')}\n${text.slice(end)}`;
 }

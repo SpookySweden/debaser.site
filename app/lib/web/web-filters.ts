@@ -23,7 +23,7 @@ const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly strin
  * asked about one creator at a time, the first. A creator's name on a row writes it into the box (`withAuthor`).
  */
 
-export type FilterKey = 'in' | 'type' | 'from';
+export type FilterKey = 'in' | 'type' | 'from' | 'vibe';
 
 /** `saved`: the hourly stream (rows read from the database rather than found live). */
 export type SourceValue = 'all' | 'saved' | WebPlatform;
@@ -39,6 +39,8 @@ export const LIVE_SOURCE_KINDS: Readonly<Partial<Record<WebPlatform, readonly We
   wikimedia_commons: ['video', 'audio', 'image', 'text', 'other'],
   peertube: ['video'],
   openverse: ['image'],
+  // TMDB's films and shows: asked only when KINO is the SOURCE (`sourcesToAsk`), never in an ALL search.
+  kino: ['video'],
 };
 
 export const LIVE_PROVIDERS = Object.keys(LIVE_SOURCE_KINDS) as WebPlatform[];
@@ -52,15 +54,17 @@ export function sourceWord(value: SourceValue): string {
 }
 
 /**
- * The SOURCE choices, from the registries: SAVED, then every platform the stream reads or a search asks, in
- * the labels' order. A new provider, stream adapter or media server (media-servers.ts) appears here by itself. (Vimeo, reached only by a pasted
- * link, is neither, so it is not offered.)
+ * The SOURCE choices, from the registries: SAVED, KINO, then every platform the stream reads or a search asks, in
+ * the labels' order. A new provider or stream adapter appears here by itself. (Vimeo, reached only by a pasted
+ * link, is neither, so it is not offered.) The media servers are not choices (Luke, 2026-11-02: "remove the
+ * 'server 1 server 2' search parameters"): their titles show in every search, with a SERVER button each.
  */
 export const SOURCE_OPTIONS: readonly { value: SourceValue; label: string }[] = [
   { value: 'all', label: 'ALL' },
   { value: 'saved', label: 'SAVED' },
+  { value: 'kino', label: PLATFORM_LABELS.kino },
   ...(Object.keys(PLATFORM_LABELS) as WebPlatform[])
-    .filter((platform) => platform in LIVE_SOURCE_KINDS || streamPlatform(platform))
+    .filter((platform) => platform !== 'kino' && !isMediaServerId(platform) && (platform in LIVE_SOURCE_KINDS || streamPlatform(platform)))
     .map((platform) => ({ value: platform, label: PLATFORM_LABELS[platform] })),
 ];
 
@@ -80,6 +84,7 @@ const SOURCE_ALIASES: Readonly<Record<string, SourceValue>> = {
   commons: 'wikimedia_commons',
   wikimedia: 'wikimedia_commons',
   yt: 'youtube',
+  tmdb: 'kino',
 };
 
 export function readSource(word: unknown): SourceValue | null {
@@ -109,9 +114,18 @@ export type WebSearch = {
   type: TypeValue;
   /** `from:` creators as typed, at most MAX_AUTHORS, each with a letter or digit in it. Absent: anyone. */
   authors?: readonly string[];
+  /** `vibe:on` (the VIBE key): mood and tag words (search-intent.ts). Absent: off. */
+  vibe?: true;
 };
 
-const FILTER = /(^|\s)(in|type|from):("[^"]*"?|\S*)/gi;
+const FILTER = /(^|\s)(in|type|from|vibe):("[^"]*"?|\S*)/gi;
+
+/** `vibe:on` / `vibe:off` as typed; anything else is no change. */
+function readVibe(word: string): boolean | null {
+  const wanted = word.trim().toLowerCase();
+  if (wanted === 'on' || wanted === 'yes' || wanted === '1') return true;
+  return wanted === 'off' || wanted === 'no' || wanted === '0' ? false : null;
+}
 
 /** The creators of a search, or none (an absent list and an empty one are the same search). */
 export function authorsOf(search: Pick<WebSearch, 'authors'>): readonly string[] {
@@ -125,6 +139,7 @@ export function authorsOf(search: Pick<WebSearch, 'authors'>): readonly string[]
 export function parseWebSearch(box: string): WebSearch {
   let source: SourceValue = 'all';
   let type: TypeValue = 'all';
+  let vibe = false;
   const authors: string[] = [];
   const text = box
     .replace(FILTER, (_whole, space: string, key: string, raw: string) => {
@@ -132,13 +147,16 @@ export function parseWebSearch(box: string): WebSearch {
       const filter = key.toLowerCase();
       if (filter === 'in') source = readSource(value) ?? source;
       else if (filter === 'type') type = readType(value) ?? type;
+      else if (filter === 'vibe') vibe = readVibe(value) ?? vibe;
       else if (authorWords(value) !== null) authors.push(value.trim());
       return space;
     })
     .replace(/\s+/g, ' ')
     .trim();
   const kept = keptAuthors(authors);
-  return kept.length > 0 ? { text, source, type, authors: kept } : { text, source, type };
+  const search: WebSearch = kept.length > 0 ? { text, source, type, authors: kept } : { text, source, type };
+  if (vibe) search.vibe = true;
+  return search;
 }
 
 /** Names whose words are the same are one creator; at most MAX_AUTHORS, in the order typed. */
@@ -167,6 +185,7 @@ export function formatWebSearch(search: WebSearch): string {
     search.source === 'all' ? '' : `in:${sourceWord(search.source)}`,
     search.type === 'all' ? '' : `type:${search.type}`,
     ...authorsOf(search).map((name) => `from:${authorWord(name)}`),
+    search.vibe ? 'vibe:on' : '',
   ]
     .filter((part) => part.length > 0)
     .join(' ');
@@ -175,14 +194,17 @@ export function formatWebSearch(search: WebSearch): string {
 /** A creator's name pressed on a row: everything from them, under the same SOURCE and TYPE, words dropped. */
 export function withAuthor(box: string, name: string): string {
   const search = parseWebSearch(box);
-  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]) });
+  return formatWebSearch({ source: search.source, type: search.type, text: '', authors: keptAuthors([name]), ...(search.vibe ? { vibe: true as const } : {}) });
 }
 
 /** A SOURCE or TYPE key pressed: the box with that filter set (or taken out, for ALL), words untouched. */
 export function withFilter(box: string, key: FilterKey, value: string): string {
   const search = parseWebSearch(box);
   if (key === 'in') search.source = readSource(value) ?? 'all';
-  else search.type = readType(value) ?? 'all';
+  else if (key === 'vibe') {
+    if (readVibe(value) === true) search.vibe = true;
+    else delete search.vibe;
+  } else search.type = readType(value) ?? 'all';
   return formatWebSearch(search);
 }
 
@@ -193,6 +215,7 @@ export function searchAddress(search: WebSearch): string {
   if (search.source !== 'all') params.set('in', sourceWord(search.source));
   if (search.type !== 'all') params.set('type', search.type);
   for (const name of authorsOf(search)) params.append('from', name);
+  if (search.vibe) params.set('vibe', 'on');
   const query = params.toString();
   return query.length > 0 ? `/web?${query}` : '/web';
 }
@@ -204,6 +227,7 @@ export function boxFromAddress(params: { get(name: string): string | null; getAl
     source: readSource(params.get('in')) ?? 'all',
     type: readType(params.get('type')) ?? 'all',
     authors: keptAuthors((params.getAll?.('from') ?? []).map((name) => name.slice(0, 100))),
+    ...(readVibe(params.get('vibe') ?? '') === true ? { vibe: true as const } : {}),
   });
 }
 
@@ -213,10 +237,12 @@ export function boxFromAddress(params: { get(name: string): string | null; getAl
  */
 export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stream: boolean; live: WebPlatform[] } {
   const typeOk = (kinds: readonly WebItemKind[]) => search.type === 'all' || kinds.includes(search.type);
+  // KINO is asked only when it is the SOURCE: an ALL search never fills up with TMDB's titles.
   const live = LIVE_PROVIDERS.filter(
-    (platform) => (search.source === 'all' || search.source === platform) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
+    (platform) => (search.source === platform || (search.source === 'all' && platform !== 'kino')) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
   );
-  const stream = search.source === 'all' || search.source === 'saved' || streamPlatform(search.source);
+  // KINO reads the stream too, for the titles a media server holds: those rows play, and take the KINO row's place.
+  const stream = search.source === 'all' || search.source === 'saved' || search.source === 'kino' || streamPlatform(search.source);
   return { stream, live };
 }
 
@@ -231,6 +257,8 @@ export function matchesFilters(
   if (authors !== null && !matchesAuthor(item, authors)) return false;
   if (search.source === 'all') return true;
   if (search.source === 'saved') return fromStream;
+  // KINO: TMDB's rows, and from the stream only the media servers' films and shows.
+  if (search.source === 'kino') return item.platform === 'kino' || (fromStream && item.media !== undefined);
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.
   return item.platform === search.source || (item.media?.copies.some((copy) => copy.server === search.source) ?? false);
 }
@@ -254,6 +282,12 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
       .slice(0, MAX_CREATOR_SUGGESTIONS)
       .map((name) => ({ word: authorWord(name), label: 'CREATOR' }));
   }
+  if (key === 'vibe') {
+    return [
+      { word: 'on', label: 'MOOD AND TAG WORDS' },
+      { word: 'off', label: 'PLAIN WORDS' },
+    ].filter((option) => wanted.length === 0 || option.word.startsWith(wanted));
+  }
   const all = key === 'in' ? SOURCE_OPTIONS : TYPE_OPTIONS;
   return all
     .filter((option) => option.value !== 'all')
@@ -264,7 +298,7 @@ export function suggestFilterValues(key: FilterKey, partial: string, creators: r
 /** The filter whose value the caret is in (`in:you|`), with where that value sits, or null. */
 export function activeFilter(box: string, caret: number): { key: FilterKey; partial: string; start: number; end: number } | null {
   // A creator may be quoted with spaces in it (`from:"rick pre|`); the other values are one word.
-  const pattern = /(?:^|\s)(in|type|from):("[^"]*"?|\S*)/gi;
+  const pattern = /(?:^|\s)(in|type|from|vibe):("[^"]*"?|\S*)/gi;
   for (let match = pattern.exec(box); match !== null; match = pattern.exec(box)) {
     const start = match.index + match[0].indexOf(':') + 1;
     const end = start + match[2].length;

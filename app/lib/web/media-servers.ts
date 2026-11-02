@@ -6,9 +6,9 @@
  * play straight from the server's own player: the site never stores, copies or passes on a video.
  *
  * One entry per server:
- * - `id`: ours, lowercase letters, digits and `_`, starting with a letter. It is what `in:` takes in the
- *   /web search, with `-` for `_` (`in:server-1`), and part of every saved row: never change a server's id.
- * - `label`: the name on its SOURCE choice and its button, in capitals.
+ * - `id`: ours, lowercase letters, digits and `_`, starting with a letter. Part of every saved row: never change a
+ *   server's id.
+ * - `label`: the name on its button, in capitals.
  * - `base`: the server's https address, nothing after the host. Every list, picture and player address the
  *   site uses for this server must be on this host; anything else in its list file is dropped.
  * - `listPath`: where its list file sits on that host, or `'*'` for a server with no list file that plays any title
@@ -21,8 +21,9 @@
  *   to start in one (Luke, 2026-11-01). It still gets no referrer. Leave it out unless a server needs it: without
  *   the sandbox, that server's page can open pop-ups and send the whole debaser.site tab to another page.
  *
- * Adding a server here adds its SOURCE choice in the /web search by itself (web-filters.ts) and has the next
- * hourly update read its list. The friend's side of it is in docs/media-server-setup.md.
+ * Adding a server here has the next hourly update read its list. Servers are not SOURCE choices in the /web search
+ * (Luke, 2026-11-02): their titles show in every search. A show listed as a whole (no season and episode) is offered
+ * every season and episode TMDB lists for it (media-titles.ts `withTmdbEpisodes`). The friend's side of it is in docs/media-server-setup.md.
  */
 
 export type MediaServer = {
@@ -44,13 +45,15 @@ export type MediaServer = {
 // The two placeholders stand in until a real server exists: nothing answers there, so their titles say NOT ANSWERING.
 // The "Debaser Servers" program on Luke's desktop (tools/server-editor/) rewrites the lines between the two
 // SERVERS markers, one server per line in exactly this shape. Edit by hand in the same shape, or use the program.
-export const MEDIA_SERVERS = [
+// Typed as a plain list (not `as const`) so an empty list still builds; an id is then any string, checked by
+// `isMediaServerId` at run time.
+export const MEDIA_SERVERS: readonly MediaServer[] = [
   // SERVERS-START
   // (Placeholder slots)
 // SERVERS-END
-] as const satisfies readonly MediaServer[];
+];
 
-export type MediaServerId = (typeof MEDIA_SERVERS)[number]['id'];
+export type MediaServerId = string;
 
 /** The servers' ids, for code that only needs to know whether a word names one. */
 export const MEDIA_SERVER_IDS: readonly MediaServerId[] = MEDIA_SERVERS.map((server) => server.id);

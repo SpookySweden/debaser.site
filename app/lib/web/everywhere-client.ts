@@ -44,9 +44,19 @@ function toItem(value: unknown): WebStreamItem | null {
  * `provider` asks one live source only; `from` keeps only one creator's items (the route takes one); `type`
  * (not 'all') has a source that can ask for one kind do so.
  */
-export async function searchEverywhere(query: string, cursor: string | null, provider?: WebPlatform, from: string | null = null, type = 'all'): Promise<EverywherePage> {
+export async function searchEverywhere(
+  query: string,
+  cursor: string | null,
+  provider?: WebPlatform,
+  from: string | null = null,
+  type = 'all',
+  extra: { vibe?: boolean; keyword?: number } = {},
+): Promise<EverywherePage> {
   const params = new URLSearchParams({ q: query });
   if (provider !== undefined) params.set('provider', provider);
+  // VIBE (search-intent.ts) and, for KINO, a related TMDB keyword (related.ts).
+  if (extra.vibe) params.set('vibe', 'on');
+  if (extra.keyword !== undefined && Number.isInteger(extra.keyword) && extra.keyword > 0) params.set('keyword', String(extra.keyword));
   if (from !== null) params.set('from', from);
   if (type !== 'all') params.set('type', type);
   if (cursor !== null) params.set('cursor', cursor);
@@ -65,6 +75,33 @@ export async function searchEverywhere(query: string, cursor: string | null, pro
   });
   const link = LINKS.has(body.link as LinkOutcome) ? (body.link as LinkOutcome) : null;
   return { items, problems, nextCursor: typeof body.nextCursor === 'string' ? body.nextCursor : null, link };
+}
+
+export type Related = { suggestion: string | null; topics: { label: string; query: string; keyword?: number }[] };
+
+/** "Did you mean" and related topics for some words (`/api/web/related`); nothing at all on any failure. */
+export async function loadRelated(query: string, kino: boolean): Promise<Related> {
+  const none: Related = { suggestion: null, topics: [] };
+  const headers = await webSessionHeaders();
+  if (headers === null) return none;
+  try {
+    const params = new URLSearchParams({ q: query });
+    if (kino) params.set('kino', '1');
+    const response = await fetch(`/api/web/related?${params.toString()}`, { credentials: 'omit', headers });
+    if (!response.ok) return none;
+    const body = (await response.json()) as { suggestion?: unknown; topics?: unknown };
+    const words = (value: unknown) => (typeof value === 'string' && /^[\p{L}\p{N} ]{1,80}$/u.test(value) ? value : null);
+    const topics = (Array.isArray(body.topics) ? body.topics : []).flatMap((raw) => {
+      const topic = (raw ?? {}) as { label?: unknown; query?: unknown; keyword?: unknown };
+      const label = typeof topic.label === 'string' && /^[\p{L}\p{N} :]{1,80}$/u.test(topic.label) ? topic.label : null;
+      const query = words(topic.query);
+      if (label === null || query === null) return [];
+      return [typeof topic.keyword === 'number' && Number.isInteger(topic.keyword) && topic.keyword > 0 ? { label, query, keyword: topic.keyword } : { label, query }];
+    });
+    return { suggestion: words(body.suggestion), topics: topics.slice(0, 3) };
+  } catch {
+    return none;
+  }
 }
 
 /** Whether a PeerTube item is on an instance outside the fixed list, so the page needs the index's hosts. */

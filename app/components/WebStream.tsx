@@ -6,17 +6,19 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { compareItems, DEFAULT_PAGE_SIZE } from '../lib/web/paging';
-import { EverywhereError, loadPeertubeHosts, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine } from '../lib/web/everywhere-client';
+import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { arrive, EMPTY_LIVE, freeze, release, type LiveList } from '../lib/web/live-merge';
 import { getWebRepository } from '../lib/web/repository';
 import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-addresses';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
 import { authorWords, searchText } from '../lib/web/search';
+import { splitYear } from '../lib/web/search-intent';
 import {
   activeFilter,
   authorsOf,
   boxFromAddress,
+  formatWebSearch,
   matchesFilters,
   parseWebSearch,
   searchAddress,
@@ -34,7 +36,7 @@ import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import SpriteSlot from './SpriteSlot';
-import WebMediaRow, { isMediaRow } from './WebMediaRow';
+import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridgeKeys';
 
 /**
@@ -69,8 +71,8 @@ const KIND_LABELS: Record<WebItem['kind'], string> = {
 
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 
-/** The SOURCE, TYPE and `from:` filters a list is shown under (web-filters.ts). */
-type Filters = Pick<WebSearch, 'source' | 'type' | 'authors'>;
+/** The SOURCE, TYPE, `from:` and VIBE filters a list is shown under (web-filters.ts). */
+type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe'>;
 
 /**
  * What the list shows: the stream (no words; filtered when filters are set), one search (the saved stream and
@@ -95,7 +97,7 @@ const sourceLabel = (source: Source) => (source === 'stream' ? 'THE STREAM' : PL
 function requestFor(box: string): Shown {
   const parsed = parseWebSearch(box);
   if (looksLikeLink(parsed.text)) return { kind: 'link', link: parsed.text };
-  const filters: Filters = { source: parsed.source, type: parsed.type, ...(parsed.authors ? { authors: parsed.authors } : {}) };
+  const filters: Filters = { source: parsed.source, type: parsed.type, ...(parsed.authors ? { authors: parsed.authors } : {}), ...(parsed.vibe ? { vibe: true as const } : {}) };
   const query = searchText(parsed.text);
   // A creator alone is a search too: every source is asked for their items.
   if (query === null && authorsOf(filters).length === 0) return { kind: 'stream', filters };
@@ -117,6 +119,29 @@ function sourcesFor(shown: Shown): Source[] {
   const stream: Source[] = plan.stream ? ['stream'] : [];
   // Live sources need words to search for; with none, the list is the stream alone.
   return shown.kind === 'stream' ? stream : [...stream, ...plan.live];
+}
+
+type SourcePage = { items: WebStreamItem[]; nextCursor: string | null; problems?: ProviderLine[]; link?: LinkOutcome | null };
+
+/** One page from one source for a search, a link or the stream (the main list and each related section ask the same way). */
+function readSource(source: Source, what: Shown, after: string | null, keyword?: number): Promise<SourcePage> {
+  const repository = getWebRepository();
+  if (source === 'stream') {
+    return what.kind === 'search'
+      ? repository.searchItems({ query: what.query, from: authorsOf(what.filters), cursor: after, limit: DEFAULT_PAGE_SIZE, ...(what.filters.vibe ? { anyWord: true } : {}) })
+      : repository.listItems({ cursor: after, limit: DEFAULT_PAGE_SIZE });
+  }
+  if (what.kind === 'link') return searchEverywhere(what.link, after);
+  // A live source is asked about one creator at a time: the first.
+  return searchEverywhere(what.kind === 'search' ? what.query : '', after, source, authorsOf(what.filters)[0] ?? null, what.filters.type, {
+    vibe: what.filters.vibe === true,
+    ...(keyword !== undefined ? { keyword } : {}),
+  });
+}
+
+/** The box with its words replaced (a DID YOU MEAN), every filter kept. */
+function withWords(box: string, words: string): string {
+  return formatWebSearch({ ...parseWebSearch(box), text: words });
 }
 
 export default function WebStream() {
@@ -150,6 +175,18 @@ export default function WebStream() {
   const [caret, setCaret] = useState(0);
   const [suggesting, setSuggesting] = useState(false);
   const [highlight, setHighlight] = useState(0);
+  /** "Did you mean" and related topics for the search shown (related.ts), once they arrive. */
+  const [related, setRelated] = useState<Related | null>(null);
+  /** Every source has answered the search's first page once: only then may a related section load. */
+  const [firstRoundDone, setFirstRoundDone] = useState(false);
+
+  /** Asks for the search's suggestion and related topics; a new search drops a late answer. */
+  const askRelated = useCallback((asked: number, what: Shown) => {
+    if (what.kind !== 'search' || what.query === '') return;
+    void loadRelated(what.query, what.filters.source === 'kino').then((answer) => {
+      if (asked === generation.current) setRelated(answer);
+    });
+  }, []);
 
   /** One source answered: its rows (those the filters allow) join the list, and it is no longer waited on. */
   const settle = useCallback(
@@ -186,17 +223,7 @@ export default function WebStream() {
   /** Asks one source (a page of it), and settles it whatever happens. */
   const ask = useCallback(
     (asked: number, source: Source, what: Shown, after: string | null, end: boolean) => {
-      const repository = getWebRepository();
-      const read =
-        source === 'stream'
-          ? what.kind === 'search'
-            ? repository.searchItems({ query: what.query, from: authorsOf(what.filters), cursor: after, limit: DEFAULT_PAGE_SIZE })
-            : repository.listItems({ cursor: after, limit: DEFAULT_PAGE_SIZE })
-          : what.kind === 'link'
-            ? searchEverywhere(what.link, after)
-            : // A live source is asked about one creator at a time: the first.
-              searchEverywhere(what.kind === 'search' ? what.query : '', after, source, authorsOf(what.filters)[0] ?? null, what.filters.type);
-      void read
+      void readSource(source, what, after)
         .then((page) => settle(asked, source, what, page, end))
         .catch((failure: unknown) => {
           if (asked !== generation.current) return;
@@ -225,20 +252,24 @@ export default function WebStream() {
       setRefusal(null);
       setFocusId(null);
       setAnnouncement('');
+      setRelated(null);
+      setFirstRoundDone(false);
       const sources = sourcesFor(next);
       setAsking(sources);
       for (const source of sources) ask(asked, source, next, null, false);
+      askRelated(asked, next);
       window.history.replaceState(window.history.state, '', next.kind === 'link' ? searchAddress({ text: next.link, source: 'all', type: 'all' }) : searchAddress(parseWebSearch(box)));
     },
-    [ask],
+    [ask, askRelated],
   );
 
   // The first answer: the address's search, or the stream. The state above already starts as "asking" them.
   useEffect(() => {
     for (const source of sourcesFor(shown)) ask(generation.current, source, shown, null, false);
+    askRelated(generation.current, shown);
     // Once, for what the page opened with; later searches go through restart.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ask]);
+  }, [ask, askRelated]);
 
   // Once the reader scrolls or presses anything in a list that has rows, later arrivals wait behind
   // "N MORE RESULTS" instead of slotting in above what they are looking at.
@@ -342,6 +373,7 @@ export default function WebStream() {
   const filtered = shown.kind !== 'stream' || shown.filters.source !== 'all' || shown.filters.type !== 'all';
   const busy = asking.length > 0;
   const empty = list.shown.length === 0 && list.held.length === 0;
+  if (!busy && !firstRoundDone) setFirstRoundDone(true);
 
   const emptyWords = (): string | null => {
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
@@ -351,6 +383,26 @@ export default function WebStream() {
     return `NOTHING MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
   };
   const emptyLine = empty && !failed ? emptyWords() : null;
+
+  /** One row, drawn by the component for its kind: a media server's title, a KINO title, or anything else. */
+  const renderRow = (item: WebStreamItem) =>
+    isMediaRow(item) ? (
+      // A title from a media server (SPEC-media-servers.md): its SERVER buttons, pickers and player.
+      <WebMediaRow key={item.id} item={item} titleId={rowTitleId(item.id)} />
+    ) : isKinoRow(item) ? (
+      <KinoRow key={item.id} item={item} titleId={rowTitleId(item.id)} />
+    ) : (
+      <WebRow key={item.id} item={item} extraHosts={extraHosts} found={liveIds.has(item.id)} onCreator={searchCreator} />
+    );
+
+  /** DID YOU MEAN pressed: the suggested words in the box, the filters kept, and the search runs. */
+  const takeSuggestion = (words: string) => {
+    const next = withWords(draft, words);
+    setDraft(next);
+    restart(next);
+  };
+  // A year in the words (search-intent.ts): said once, so the reader knows why older titles show.
+  const yearWord = shown.kind === 'search' ? splitYear(shown.query).year : null;
 
   return (
     <section aria-label="Web stream">
@@ -445,6 +497,20 @@ export default function WebStream() {
             </button>
           ))}
         </div>
+        {/* VIBE: mood and tag words ("cosy", "80s horror") instead of exact words (search-intent.ts). */}
+        <div role="group" aria-label="Vibe" className="flex flex-wrap items-center gap-1">
+          <span className="text-label font-bold text-ink-quiet">VIBE:</span>
+          <button
+            type="button"
+            onClick={() => pickFilter('vibe', boxFilters.vibe ? 'off' : 'on')}
+            aria-pressed={boxFilters.vibe === true}
+            aria-label="Vibe search: mood and tag words"
+            className={boxFilters.vibe ? PLATE_PRESSED : PLATE}
+          >
+            {boxFilters.vibe ? '[ ON ]' : '[ OFF ]'}
+          </button>
+          <span className="text-label text-ink-quiet">MOODS, TAGS, GENRES, DECADES</span>
+        </div>
       </div>
 
       {emptyLine !== null ? (
@@ -458,6 +524,18 @@ export default function WebStream() {
             ? LINK_WORDS.found
             : `${authorsOf(shown.filters).length > 0 ? '' : 'RESULTS FOR '}${searchWordsShown(shown.query, shown.filters)}`}
         </p>
+      ) : null}
+      {shown.kind === 'search' && related?.suggestion ? (
+        <p className="flex flex-wrap items-center gap-1 text-label font-bold text-ink">
+          <span>DID YOU MEAN</span>
+          <button type="button" onClick={() => takeSuggestion(related.suggestion as string)} className={PLATE} aria-label={`Search for "${related.suggestion}" instead`}>
+            {`[ ${related.suggestion.toUpperCase()} ]`}
+          </button>
+          <span>?</span>
+        </p>
+      ) : null}
+      {yearWord !== null ? (
+        <p className="text-label text-ink-quiet wrap-anywhere">{`${yearWord} IS ALSO READ AS THE YEAR IT WAS MADE (KINO, INTERNET ARCHIVE).`}</p>
       ) : null}
       {shown.kind === 'search' && authorsOf(shown.filters).length > 1 && sourcesFor(shown).some((source) => source !== 'stream') ? (
         <p className="text-label text-ink-quiet wrap-anywhere">
@@ -493,14 +571,7 @@ export default function WebStream() {
 
       {list.shown.length === 0 ? null : (
         <ul aria-label={shown.kind === 'stream' ? 'Items, newest first' : 'Results, newest first'}>
-          {list.shown.map((item) =>
-            // A title from a media server (SPEC-media-servers.md): its SERVER buttons, pickers and player.
-            isMediaRow(item) ? (
-              <WebMediaRow key={item.id} item={item} titleId={rowTitleId(item.id)} />
-            ) : (
-              <WebRow key={item.id} item={item} extraHosts={extraHosts} found={liveIds.has(item.id)} onCreator={searchCreator} />
-            ),
-          )}
+          {list.shown.map(renderRow)}
         </ul>
       )}
 
@@ -513,7 +584,133 @@ export default function WebStream() {
       {(Object.keys(cursors).length > 0 && !empty) || (failed && empty) ? (
         <div className="mt-3">
           <button type="button" onClick={failed && empty ? () => restart(draft) : loadMore} disabled={busy} className={PLATE_MAIN}>
-            {busy ? '[ LOADING... ]' : failed && empty ? '[ TRY AGAIN ]' : '[ LOAD MORE ]'}
+            {busy ? '[ LOADING... ]' : failed && empty ? '[ TRY AGAIN ]' : shown.kind === 'search' && shown.query !== '' ? `[ MORE FOR "${shown.query.toUpperCase()}" ]` : '[ LOAD MORE ]'}
+          </button>
+        </div>
+      ) : null}
+
+      {/* Related topics (related.ts), each its own section below the results, loaded once the reader scrolls to it. */}
+      {shown.kind === 'search' && related !== null
+        ? related.topics.map((topic) => (
+            <RelatedSection
+              key={`${searchAddress({ ...shown.filters, text: shown.query })}:${topic.label}`}
+              topic={topic}
+              filters={shown.filters}
+              exclude={list.seen}
+              renderRow={renderRow}
+              ready={firstRoundDone}
+            />
+          ))
+        : null}
+    </section>
+  );
+}
+
+/**
+ * One related topic (related.ts) under the results: "RELATED: DOCTOR WHO" for a search for "dalek". It asks the same
+ * sources as the search, for the topic's words (or, for a TMDB keyword, KINO alone), once the reader scrolls it into
+ * view or presses its key; its rows join below its heading and never move the results above. A row already listed
+ * above is not shown again. MORE asks each source for its next page, here only.
+ */
+function RelatedSection({
+  topic,
+  filters,
+  exclude,
+  renderRow,
+  ready,
+}: {
+  topic: Related['topics'][number];
+  filters: Filters;
+  exclude: ReadonlySet<string>;
+  renderRow: (item: WebStreamItem) => React.ReactNode;
+  /** The search's own results have all answered once, so this section starts below them, not among them. */
+  ready: boolean;
+}) {
+  const what: Shown = { kind: 'search', query: topic.query, filters };
+  const sources: Source[] = topic.keyword !== undefined ? ['kino'] : sourcesFor(what);
+  const [started, setStarted] = useState(false);
+  const [list, setList] = useState<LiveList>(EMPTY_LIVE);
+  const [cursors, setCursors] = useState<Partial<Record<Source, string>>>({});
+  const [asking, setAsking] = useState<Source[]>([]);
+  const mark = useRef<HTMLDivElement>(null);
+  const alive = useRef(true);
+  /** Asked already: a section loads its first page once. */
+  const begun = useRef(false);
+  useEffect(() => {
+    alive.current = true;
+    return () => {
+      alive.current = false;
+    };
+  }, []);
+
+  const askAll = useCallback(
+    (from: Partial<Record<Source, string>> | null) => {
+      const asked = from === null ? sources : (Object.keys(from) as Source[]);
+      setAsking(asked);
+      for (const source of asked) {
+        void readSource(source, what, from?.[source] ?? null, topic.keyword)
+          .then((page) => {
+            if (!alive.current) return;
+            const items = page.items.filter((item) => !exclude.has(item.id) && matchesFilters(item, filters, source === 'stream'));
+            setList((current) => arrive(current, items, true));
+            setCursors((current) => {
+              const next = { ...current };
+              if (page.nextCursor === null) delete next[source];
+              else next[source] = page.nextCursor;
+              return next;
+            });
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (alive.current) setAsking((current) => current.filter((waiting) => waiting !== source));
+          });
+      }
+    },
+    // The topic and filters are fixed for this section's life (its key changes with every search).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  const start = useCallback(() => {
+    if (begun.current) return;
+    begun.current = true;
+    setStarted(true);
+    askAll(null);
+  }, [askAll]);
+
+  // Loaded when its heading comes into view, so it costs nothing for a reader who never scrolls this far.
+  useEffect(() => {
+    const node = mark.current;
+    if (node === null || started || !ready || typeof IntersectionObserver === 'undefined') return;
+    const watch = new IntersectionObserver((entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) start();
+    });
+    watch.observe(node);
+    return () => watch.disconnect();
+  }, [started, start, ready]);
+
+  const busy = asking.length > 0;
+  return (
+    <section aria-label={`Related: ${topic.label}`} className="mt-4">
+      <div ref={mark} className="rule-pixel flex flex-wrap items-center gap-2 py-1">
+        <h3 className="text-heading font-bold text-ink wrap-anywhere">{topic.keyword !== undefined ? topic.label : `RELATED: ${topic.label}`}</h3>
+        {!started ? (
+          <button type="button" onClick={start} className={PLATE}>
+            [ SHOW ]
+          </button>
+        ) : null}
+      </div>
+      {started && busy && list.shown.length === 0 ? (
+        <p role="status" className="text-label text-ink-quiet">
+          {`LOOKING FOR ${topic.label}...`}
+        </p>
+      ) : null}
+      {started && !busy && list.shown.length === 0 ? <p className="text-label text-ink-quiet">NOTHING MORE HERE.</p> : null}
+      {list.shown.length > 0 ? <ul aria-label={`Related to ${topic.label}`}>{list.shown.map(renderRow)}</ul> : null}
+      {started && Object.keys(cursors).length > 0 && list.shown.length > 0 ? (
+        <div className="mt-3">
+          <button type="button" onClick={() => askAll(cursors)} disabled={busy} className={PLATE_MAIN}>
+            {busy ? '[ LOADING... ]' : `[ MORE: ${topic.label} ]`}
           </button>
         </div>
       ) : null}

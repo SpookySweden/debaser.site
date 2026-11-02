@@ -221,7 +221,11 @@ async function main() {
   const seriesRow = rows.mediaRowToItem(row({ media_type: 'movie', id: 'media:tmdb-movie-11', details: { title: 'Star Wars', genres: [], collection: { id: 10, name: 'Star Wars Collection' } }, web_media_copies: [{ server: 'server_1', local_id: null, episodes: null }] }));
   same(seriesRow.media.details.collection, { id: 10, name: 'Star Wars Collection' }, 'the collection is read back from the details');
   const wholeRow = rows.mediaRowToItem(row({ web_media_copies: [{ server: 'server_1', local_id: null, episodes: [] }] }));
-  same(wholeRow.media.copies, [{ server: 'server_1', episodes: [], series: true }], 'a show copy with no episodes reads as the whole show');
+  // Updated on purpose 2026-11-02 (Luke: a friend's series on TMDB showed only season 1 episode 1): a whole-show copy is
+  // offered every episode TMDB lists for it; with no season list from TMDB it stays the whole show alone.
+  same(wholeRow.media.copies, [{ server: 'server_1', episodes: Array.from({ length: 10 }, (_, i) => [1, i + 1]), series: true }], 'a show copy with no episodes reads as the whole show, with the TMDB episodes offered');
+  const bareWhole = rows.mediaRowToItem(row({ details: null, web_media_copies: [{ server: 'server_1', local_id: null, episodes: [] }] }));
+  same(bareWhole.media.copies, [{ server: 'server_1', episodes: [], series: true }], 'and without the TMDB seasons it is the whole show alone');
   ok(/collection_id/.test(rows.WEB_MEDIA_COLUMNS) && !/vote|popularity|rating/i.test(rows.WEB_MEDIA_COLUMNS), 'the column list adds collection_id and still no rating or popularity');
 
   same(tmdb.detailsUrl('tv', 1399), 'https://api.themoviedb.org/3/tv/1399?language=en-US', 'TMDB addresses are built from fixed parts and a checked number');

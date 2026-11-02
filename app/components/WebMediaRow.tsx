@@ -2,9 +2,10 @@
 
 import { useRef, useState } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
-import { FIELD_TIGHT, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
+import { seasonsLine } from '../lib/web/kino';
 import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../lib/web/media-titles';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
@@ -322,6 +323,86 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
       ) : null}
     </li>
   );
+}
+
+/**
+ * One KINO title (kino.ts): TMDB's details, with no player. A show lists its seasons with their episode counts. A
+ * title a media server holds is drawn by `WebMediaRow` instead (its row replaces this one, live-merge.ts).
+ */
+export function KinoRow({ item, titleId }: { item: WebStreamItem & { media: MediaInfo }; titleId: string }) {
+  const [thumbFailed, setThumbFailed] = useState(false);
+  const details = item.media.details;
+  const addresses = rowAddresses(item);
+  const thumb = thumbFailed ? null : addresses.thumb;
+  const minutes = details?.runtimeMinutes;
+  const facts = [
+    item.media.type === 'tv' ? 'SHOW' : 'FILM',
+    yearOf(details?.date),
+    minutes ? `${minutes} MIN` : null,
+    seasonsLine(details),
+    ...(details?.genres ?? []).map((genre) => genre.toUpperCase()),
+  ].filter(Boolean);
+  const seasons = (details?.seasons ?? []).filter((season) => season.season >= 1 && season.episodes > 0);
+
+  return (
+    <li className="rule-pixel py-2">
+      <div className="flex items-start gap-2">
+        <span className="block h-36 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
+          {thumb ? (
+            // eslint-disable-next-line @next/next/no-img-element -- hotlinked from TMDB's image host, never proxied or copied
+            <img
+              src={thumb}
+              alt=""
+              width={96}
+              height={144}
+              loading="lazy"
+              decoding="async"
+              referrerPolicy="no-referrer"
+              onError={() => setThumbFailed(true)}
+              className="block h-full w-full object-cover"
+            />
+          ) : (
+            <SpriteSlot
+              src={MISSING_THUMB_SRC}
+              alt=""
+              width={96}
+              height={144}
+              title="No picture"
+              fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
+            />
+          )}
+        </span>
+        <div className="min-w-0 flex-1">
+          <p id={titleId} tabIndex={-1} className="text-title font-bold text-ink wrap-anywhere">
+            {item.title}
+          </p>
+          <p className="text-label font-bold text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p>
+          {item.description ? <p className="mt-0.5 line-clamp-3 text-prose text-ink wrap-anywhere">{item.description}</p> : null}
+          {seasons.length > 0 ? (
+            <ul aria-label={`Seasons of "${item.title}"`} className="mt-0.5 flex flex-wrap gap-x-2 text-label text-ink">
+              {seasons.map((season) => (
+                <li key={season.season}>{`S${season.season}: ${season.episodes} EP`}</li>
+              ))}
+            </ul>
+          ) : null}
+          <p className="mt-0.5 text-label text-ink-quiet">DETAILS AND POSTER FROM TMDB. THIS SITE USES THE TMDB API BUT IS NOT ENDORSED OR CERTIFIED BY TMDB.</p>
+        </div>
+      </div>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>
+        {addresses.link ? (
+          <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
+            [ ON TMDB ↗ ]
+          </a>
+        ) : null}
+      </div>
+    </li>
+  );
+}
+
+/** Whether a row is a KINO title: TMDB's details, held by no media server (and so drawn by `KinoRow`). */
+export function isKinoRow(item: WebStreamItem): item is WebStreamItem & { media: MediaInfo } {
+  return item.media !== undefined && item.media.copies.length === 0;
 }
 
 /** Whether a row is a media-server title (and so drawn by this component). */

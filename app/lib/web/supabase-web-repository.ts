@@ -48,8 +48,10 @@ const itemsQuery = (client: SupabaseClient) => client.from(WEB_ITEMS_TABLE).sele
 type ItemsQuery = ReturnType<typeof itemsQuery>;
 
 /** What a search reads: its words (`searchText`) and its `from:` creators (`authorPattern`); either may be absent. */
-type Search = { text: string | null; author: string | null };
+type Search = { text: string | null; author: string | null; anyWord?: boolean };
 const NO_SEARCH: Search = { text: null, author: null };
+/** VIBE: the words joined by `|` for to_tsquery. Each is letters and digits only (`searchText`), so none is syntax. */
+const ANY_WORD_CONFIG = { config: 'simple' } as const;
 
 /**
  * The stream, or a search of it: `searchText` (search.ts: letters, digits and spaces only) is passed as
@@ -59,7 +61,8 @@ const NO_SEARCH: Search = { text: null, author: null };
 function stream(client: SupabaseClient, search: Search): () => ItemsQuery {
   return () => {
     let query = itemsQuery(client);
-    if (search.text !== null) query = query.textSearch(SEARCH_COLUMN, search.text, SEARCH_CONFIG);
+    if (search.text !== null && search.anyWord) query = query.textSearch(SEARCH_COLUMN, search.text.split(' ').join(' | '), ANY_WORD_CONFIG);
+    else if (search.text !== null) query = query.textSearch(SEARCH_COLUMN, search.text, SEARCH_CONFIG);
     if (search.author !== null) query = query.regexIMatch('creator', search.author);
     return query;
   };
@@ -92,7 +95,10 @@ async function listMedia(client: SupabaseClient, cursor: string | null | undefin
     // Every word in the title OR in the film series' name (so "star wars" finds the series whatever its films are
     // called). The one `.or()` string in WEB: each word is letters and digits only (`searchText`, checked again
     // here), so nothing typed can add a filter, a comma or a bracket to it.
-    for (const word of search.text?.split(' ').filter((part) => /^[\p{L}\p{N}]+$/u.test(part)) ?? []) {
+    const words = search.text?.split(' ').filter((part) => /^[\p{L}\p{N}]+$/u.test(part)) ?? [];
+    // VIBE: any one of the words, in one `.or()` (the same letters-and-digits words).
+    if (search.anyWord && words.length > 0) query = query.or(words.map((word) => `title.ilike.*${word}*,${SERIES_NAME}.ilike.*${word}*`).join(','));
+    else for (const word of words) {
       query = query.or(`title.ilike.*${word}*,${SERIES_NAME}.ilike.*${word}*`);
     }
     if (search.author !== null) query = query.regexIMatch('creator', search.author);
@@ -224,11 +230,11 @@ export function createSupabaseWebRepository(getClient: GetClient): WebRepository
     listItems({ cursor, limit }) {
       return listRows(getClient, cursor, limit, NO_SEARCH);
     },
-    async searchItems({ query, from, cursor, limit }) {
+    async searchItems({ query, from, cursor, limit, anyWord }) {
       const text = searchText(query);
       const authors = authorList(from);
       if (text === null && authors === null) return { items: [], nextCursor: null };
-      return listRows(getClient, cursor, limit, { text, author: authors === null ? null : authorPattern(authors) });
+      return listRows(getClient, cursor, limit, { text, author: authors === null ? null : authorPattern(authors), ...(anyWord ? { anyWord: true } : {}) });
     },
     async listSources() {
       const client = getClient();

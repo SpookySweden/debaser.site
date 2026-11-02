@@ -244,6 +244,30 @@ export function posterUrl(posterPath: string | undefined): string | undefined {
   return posterPath !== undefined && TMDB_POSTER_FILE.test(posterPath) ? `https://${TMDB_IMAGE_HOST}/t/p/${TMDB_POSTER_SIZE}${posterPath}` : undefined;
 }
 
+/** The most episodes a whole-show copy is given from TMDB's season list (a long soap stays a sane size). */
+export const MAX_TMDB_EPISODES = 3_000;
+
+/**
+ * A show's copies with TMDB's episodes filled in for every copy its list names as the whole show (an entry with no
+ * season and episode): the server says it holds the show, so each season and episode TMDB lists is offered on it
+ * (Luke, 2026-11-02: a friend's series on TMDB showed only season 1 episode 1). Specials (season 0) are left out.
+ * A copy whose list names its episodes keeps exactly those. New copies; the ones passed in are not changed.
+ */
+export function withTmdbEpisodes(copies: readonly MediaCopy[], details: MediaDetails | undefined): MediaCopy[] {
+  const all: [number, number][] = [];
+  for (const { season, episodes } of details?.seasons ?? []) {
+    if (season < 1) continue;
+    for (let episode = 1; episode <= episodes && all.length < MAX_TMDB_EPISODES; episode += 1) all.push([season, episode]);
+  }
+  if (all.length === 0) return copies.map((copy) => ({ ...copy }));
+  return copies.map((copy) => {
+    if (copy.series !== true) return { ...copy };
+    const held = new Set((copy.episodes ?? []).map(([season, episode]) => `${season}:${episode}`));
+    const extra = all.filter(([season, episode]) => !held.has(`${season}:${episode}`));
+    return { ...copy, episodes: [...(copy.episodes ?? []), ...extra].sort(byPair) };
+  });
+}
+
 /**
  * A title as a stream row. TMDB's details, where it has them, win over the list's words; the list's own
  * fields fill in for a title TMDB does not know (spec decision 6). `publishedAt` is when the title first
@@ -264,7 +288,10 @@ export function titleToItem(title: MediaTitle, times: { publishedAt: string; fet
     title: details?.title || title.title,
     publishedAt: times.publishedAt,
     fetchedAt: times.fetchedAt,
-    media: details === undefined ? { type: title.type, copies: title.copies } : { type: title.type, copies: title.copies, details },
+    media:
+      details === undefined
+        ? { type: title.type, copies: title.copies }
+        : { type: title.type, copies: title.type === 'tv' ? withTmdbEpisodes(title.copies, details) : title.copies, details },
   };
   if (title.tmdbId !== undefined) (item.media as MediaInfo).tmdbId = title.tmdbId;
   if (title.creator) item.creator = title.creator;

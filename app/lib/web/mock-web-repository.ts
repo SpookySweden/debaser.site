@@ -229,12 +229,12 @@ export function getMockWebRepository(): WebRepository {
       const stream = await readStreamPage(async (at) => pageOf(MOCK_WEB_ITEMS, at, limit), mockGroup(null), cursor ?? null);
       return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS, cursor, limit), limit);
     },
-    async searchItems({ query, from, cursor, limit }) {
+    async searchItems({ query, from, cursor, limit, anyWord }) {
       const wanted = searchWords(query);
       const authors = authorList(from);
       if (!wanted && !authors) return { items: [], nextCursor: null };
       // A film's series name counts as part of its title (as the Supabase repository searches it).
-      const matches = (item: WebItem) => (!wanted || matchesSearch(withSeriesName(item), wanted)) && (!authors || matchesAuthor(item, authors));
+      const matches = (item: WebItem) => (!wanted || (anyWord ? wanted.some((word) => matchesSearch(withSeriesName(item), [word])) : matchesSearch(withSeriesName(item), wanted))) && (!authors || matchesAuthor(item, authors));
       const found = MOCK_WEB_ITEMS.filter(matches);
       const stream = await readStreamPage(async (at) => pageOf(found, at, limit), mockGroup(matches), cursor ?? null);
       return mergeStreamPages(stream, await mockMedia(MOCK_MEDIA_ITEMS.filter(matches), cursor, limit), limit);

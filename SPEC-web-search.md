@@ -98,3 +98,36 @@ rate-limited per IP.
   notice, counts as a failure and falls back. Known and accepted: a bad answer can sit in the day-long cache,
   so that search keeps using the fallback (capped by its daily budget) until the cache expires.
   Held by `scripts/check-web-search-youtube-innertube.cjs`.
+
+## KINO, VIBE, years, did-you-mean and related topics (2026-11-02, Luke's request)
+Luke: "remove the 'server 1 server 2' search parameters. include a tmdb search parameter but call it kino ... allow things
+to also be searched for by tag description and kind of vibe ... searching dalek would list a bunch of videos about daleks
+but then if you scroll long enough you also get related videos about doctor who ... allow for spelling mistakes similar
+to google ... allow the inclusion of the year ... without any appended parameter".
+- **No server SOURCE choices.** Media servers are no longer `in:` values or keys (SPEC-media-servers.md decision 3 reversed).
+- **KINO** (`in:kino`, alias `in:tmdb`; search/providers/kino.ts, kino.ts): TMDB alone, films and shows, never asked in
+  an ALL search. A KINO row is details only: poster, year, overview, runtime, genres, every season with its episode
+  count, a link out to TMDB, "NO SERVER HAS THIS". No player: a title a media server holds shows as that server's
+  playable row instead (same id; live-merge.ts swaps it in place). Needs `TMDB_READ_TOKEN`, else "KINO: NOT SET UP".
+  No rating, vote or popularity is read or kept.
+- **Seasons for friends' shows.** A show a server lists as a whole (no season/episode) is offered every season and
+  episode TMDB lists (media-titles.ts `withTmdbEpisodes`, specials left out). A list that names episodes keeps exactly
+  those. The "play anything by TMDB number" path (`listPath: '*'`) is unchanged on purpose: it was being used for
+  vidsrc/2embed embeds, which stream without a licence (Claude declined to extend it; Luke is looking into the patcher).
+- **VIBE** (`vibe:on`, a key, `?vibe=on`; search-intent.ts): the saved stream matches ANY of the words; the Internet
+  Archive matches any word in subject tags, description or title; KINO turns words into TMDB genres, a decade ("80s",
+  "1980s", "eighties") and TMDB keywords, and asks TMDB's discover lists. YouTube, PeerTube, Commons and Openverse get
+  the words as typed (their own search is already loose).
+- **A year in the words** ("alien 1979", search-intent.ts `splitYear`): read as the year of making by KINO (titles made
+  that year first, then titles with the number in them) and the Internet Archive (`year:` beside the title words); a
+  plain word everywhere else, where a date is only an upload date. Never alone ("1917") and never past next year
+  ("Blade Runner 2049"). The page says so in one quiet line.
+- **Did you mean** (related.ts, `/api/web/related`): Wikipedia's own spelling suggestion, keyless; a DID YOU MEAN key
+  puts the words in the box (filters kept) and searches.
+- **Related topics:** Wikidata (keyless open data): the words' entry, then the series / fictional universe / franchise
+  / larger work it belongs to, at most two (Dalek -> DOCTOR WHO), worked out from the corrected words. KINO adds TMDB's
+  exact keyword ("TAGGED: DALEK"). Each is its own section below the results ("RELATED: DOCTOR WHO"), loaded when the
+  reader scrolls to it, with its own MORE key; rows already listed above are not repeated. The search's own LOAD MORE
+  is now "MORE FOR "DALEK"".
+- Held by `scripts/check-web-kino.cjs` and `scripts/check-web-related.cjs` (each shown failing on broken code), and the
+  updated filters, media and live-merge checks.

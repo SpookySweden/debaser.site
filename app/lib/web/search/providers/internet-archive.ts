@@ -11,6 +11,7 @@
  */
 import { IA_FIELDS, toWebItem } from '../../adapters/internet-archive';
 import { safeFetchJson } from '../../safe-fetch';
+import { splitYear } from '../../search-intent';
 import { buildUrl, isSafeIdentifier } from '../../urls';
 import type { WebItem } from '../../types';
 import type { ProviderPage, SearchDeps, SearchKind, SearchPage, SearchProvider } from '../types';
@@ -35,9 +36,19 @@ const KIND_MEDIA: Record<SearchKind, string> = {
  * `words` and `author` are letters and digits only (`searchText`, `authorWords`), so nothing in them is
  * Lucene syntax. Either may be empty, not both.
  */
-export function iaSearchQuery(words: string, author = '', kind?: SearchKind): string {
+export function iaSearchQuery(words: string, author = '', kind?: SearchKind, how: { vibe?: boolean; now?: Date } = {}): string {
   const all = (field: string, text: string) => (text === '' ? [] : [`${field}:(${text.split(' ').join(' AND ')})`]);
-  return [...all('title', words), ...all('creator', author), kind === undefined ? MEDIA : KIND_MEDIA[kind]].join(' AND ');
+  const any = (text: string) => text.split(' ').join(' OR ');
+  let match = all('title', words);
+  if (words !== '' && how.vibe) {
+    // VIBE (search-intent.ts): any of the words, in the Archive's subject tags, description or title.
+    match = [`(subject:(${any(words)}) OR description:(${any(words)}) OR title:(${any(words)}))`];
+  } else if (words !== '') {
+    // A year (search-intent.ts `splitYear`): the title with the number in it, or the other words made that year.
+    const { words: rest, year } = splitYear(words, how.now);
+    if (year !== null) match = [`(${all('title', words)[0]} OR (${all('title', rest)[0]} AND year:${year}))`];
+  }
+  return [...match, ...all('creator', author), kind === undefined ? MEDIA : KIND_MEDIA[kind]].join(' AND ');
 }
 
 export function iaSearchUrl(query: string, page: number): string {
@@ -74,7 +85,7 @@ export const internetArchiveSearch: SearchProvider = {
   byAuthor: true,
   async search(words: string, page: ProviderPage | null, deps: SearchDeps, author?: string, kind?: SearchKind): Promise<SearchPage> {
     const at = pageNumber(page);
-    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind), at), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
+    const body = await safeFetchJson(iaSearchUrl(iaSearchQuery(words, author, kind, { vibe: deps.vibe, now: deps.now?.() }), at), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS });
     return parseIaSearch(body, at, (deps.now?.() ?? new Date()).toISOString());
   },
   async fetchOne(externalId: string, deps: SearchDeps): Promise<WebItem | null> {

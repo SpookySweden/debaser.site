@@ -108,6 +108,7 @@ const HOME_VIDEO_SEEN = '2026-11-01T08:00:00.000Z';
 const FIRST = MEDIA_SERVER_IDS[0];
 const SECOND = MEDIA_SERVER_IDS[1] ?? FIRST;
 
-export const MOCK_MEDIA_ITEMS: readonly WebItem[] = groupTitles([...parseList(SERVER_1_LIST, FIRST, NOW), ...parseList(SERVER_2_LIST, SECOND, NOW)]).map((title) =>
+// No server listed: no mock titles (there is nothing to hold them).
+export const MOCK_MEDIA_ITEMS: readonly WebItem[] = FIRST === undefined ? [] : groupTitles([...parseList(SERVER_1_LIST, FIRST, NOW), ...parseList(SERVER_2_LIST, SECOND, NOW)]).map((title) =>
   titleToItem(title, { publishedAt: FIRST_SEEN[title.key] ?? (title.key.endsWith('-home-video-03') ? HOME_VIDEO_SEEN : NOW), fetchedAt: NOW }, DETAILS[title.key]),
 );

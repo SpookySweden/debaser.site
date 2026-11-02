@@ -1,4 +1,5 @@
 import { MEDIA_SERVERS, serverHost, type MediaServerId } from './media-servers';
+import { KINO_PAGE_HOST, KINO_PAGE_PATH } from './kino';
 import { TMDB_IMAGE_HOST } from './media-titles';
 import type { WebPlatform } from './types';
 
@@ -166,6 +167,17 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     pageHosts: ['vimeo.com'],
     thumbHosts: ['i.vimeocdn.com'],
     embedHosts: ['player.vimeo.com'],
+  },
+  // KINO (kino.ts): a link out to the title's TMDB page and TMDB's poster on its image host; no player.
+  kino: {
+    hosts: [KINO_PAGE_HOST, TMDB_IMAGE_HOST],
+    linkHosts: [],
+    pagePath: KINO_PAGE_PATH,
+    thumbPath: /^\/t\/p\/w342\/[A-Za-z0-9]{8,64}\.(?:jpg|jpeg|png|webp)$/,
+    embedPath: NEVER,
+    pageHosts: [KINO_PAGE_HOST],
+    thumbHosts: [TMDB_IMAGE_HOST],
+    embedHosts: [],
   },
   // The media servers (SPEC-media-servers.md), one entry each from media-servers.ts. A title's row has no link
   // and no embed of its own here: its player is built per server by `mediaPlayUrl` (media-titles.ts), on that

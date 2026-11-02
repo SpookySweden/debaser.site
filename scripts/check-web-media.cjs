@@ -10,7 +10,8 @@
  * - play addresses: built from the server's patterns with checked numbers, on the server's own host, only for
  *   a server that holds that very episode
  * - the merge with the stream: newest first, one cursor, no row lost or shown twice across pages
- * - a new server in media-servers.ts is offered as a SOURCE choice by itself: a copy of the code with a fake
+ * - (changed 2026-11-02, Luke: "remove the 'server 1 server 2' search parameters") no server is a SOURCE choice, not
+ *   even a new one: a copy of the code with a fake
  *   server added is compiled and asked
  * - the rules above run against a copy of the code with two FIXED test servers (web-media-test-servers.cjs), so
  *   Luke's own list (rewritten by the Debaser Servers program) never changes what they test; his real list is
@@ -253,12 +254,9 @@ same(mockFilm.media.copies.map((copy) => copy.server), ['server_1', 'server_2'],
 ok(MOCK_MEDIA_ITEMS.every((row) => /MOCK/.test(row.title)), 'every mock title says MOCK');
 
 /* ---------------------------------------------------------------- the SOURCE choices */
-same(
-  filters.SOURCE_OPTIONS.filter((option) => /^server_/.test(option.value)).map((option) => [option.value, option.label]),
-  [['server_1', 'SERVER 1'], ['server_2', 'SERVER 2']],
-  'each listed server is a SOURCE choice',
-);
-same(filters.parseWebSearch('in:server-2 film').source, 'server_2', '`in:server-2` reads as that server');
+// Updated on purpose 2026-11-02 (Luke: "remove the 'server 1 server 2' search parameters").
+same(filters.SOURCE_OPTIONS.filter((option) => /^server_/.test(option.value)), [], 'no listed server is a SOURCE choice');
+same(filters.parseWebSearch('in:server-2 film').source, 'all', '`in:server-2` is not a filter any more');
 same(filters.sourcesToAsk({ source: 'server_2', type: 'all' }), { stream: true, live: [] }, 'a server is read with the stream, never asked live');
 ok(filters.matchesFilters(mockFilm, { source: 'server_2', type: 'all' }, true), 'in:server-2 keeps a title server 2 holds, though its row is filed under server 1');
 ok(!filters.matchesFilters(MOCK_MEDIA_ITEMS.find((row) => row.id === 'media:tmdb-movie-999999904'), { source: 'server_2', type: 'all' }, true), 'and drops one only server 1 holds');
@@ -267,9 +265,9 @@ ok(!filters.matchesFilters(MOCK_MEDIA_ITEMS.find((row) => row.id === 'media:tmdb
 // what the code does, not what a comment says.
 const FAKE_LINE = "  { id: 'fake_server', label: 'FAKE SERVER', base: 'https://fake.example', listPath: '/l.json', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' } },";
 const fakeFilters = require(join(compileWithTestServers('out-web-media-fake', ['lib/web/web-filters.ts'], [FAKE_LINE]), 'lib', 'web', 'web-filters.js'));
-ok(fakeFilters.SOURCE_OPTIONS.some((option) => option.value === 'fake_server' && option.label === 'FAKE SERVER'), 'a server added to media-servers.ts is offered as a SOURCE choice by itself');
-same(fakeFilters.parseWebSearch('in:fake-server x').source, 'fake_server', 'and `in:fake-server` finds it');
-ok(fakeFilters.suggestFilterValues('in', 'fake').some((option) => option.word === 'fake-server'), 'and the suggestion list offers it');
+ok(!fakeFilters.SOURCE_OPTIONS.some((option) => option.value === 'fake_server'), 'a server added to media-servers.ts is not offered as a SOURCE choice');
+same(fakeFilters.parseWebSearch('in:fake-server x').source, 'all', 'and `in:fake-server` is no filter');
+ok(!fakeFilters.suggestFilterValues('in', 'fake').some((option) => option.word === 'fake-server'), 'and the suggestion list does not offer it');
 
 /* ---------------------------------------------------------------- the player sandbox (Luke, 2026-11-01) */
 // Every server's player is sandboxed unless its line says `unsandboxed: true`: a copy with one such server is
@@ -299,7 +297,8 @@ const real = require(join(REAL, 'media-servers.js'));
 const realTitles = require(join(REAL, 'media-titles.js'));
 const realFilters = require(join(REAL, 'web-filters.js'));
 const list = real.MEDIA_SERVERS;
-ok(list.length >= 1, 'at least one server is listed (the site needs one)');
+// Updated on purpose 2026-11-02: an empty list is allowed (Luke reset it; the site builds and shows no server titles).
+ok(Array.isArray(list), 'the server list is a list (it may be empty)');
 same(new Set(list.map((s) => s.id)).size, list.length, 'every server id is different');
 same(new Set(list.map((s) => s.label)).size, list.length, 'every server name is different');
 for (const s of list) {
@@ -315,7 +314,7 @@ for (const s of list) {
   const episode = realTitles.mediaPlayUrl(s, { type: 'tv', tmdbId: 1399, copies: [{ server: s.id, episodes: [[1, 2]] }] }, { season: 1, episode: 2 });
   ok(episode !== null && episode.includes('1399') && /\/1\/2(?:$|[/?])/.test(episode), `${s.id}: its show pattern makes an address with the number, season and episode`);
   if (s.play.other !== undefined) ok(realTitles.mediaPlayUrl(s, { type: 'movie', copies: [{ server: s.id, localId: 'abc' }] }) !== null, `${s.id}: its own-video pattern makes an address on its own host`);
-  ok(realFilters.SOURCE_OPTIONS.some((option) => option.value === s.id && option.label === s.label), `${s.id}: offered as a SOURCE choice`);
+  ok(!realFilters.SOURCE_OPTIONS.some((option) => option.value === s.id), `${s.id}: not a SOURCE choice`);
   if (s.play.series !== undefined) {
     const whole = realTitles.mediaPlayUrl(s, { type: 'tv', tmdbId: 1399, copies: [{ server: s.id, series: true, episodes: [] }] }, { whole: true });
     ok(whole !== null && whole.includes('1399'), `${s.id}: its whole-series pattern makes an address with the number, on its own host`);

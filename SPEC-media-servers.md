@@ -16,7 +16,8 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
    buttons. Matched by TMDB id (plus season/episode for TV); items without a TMDB id match only within
    one server. Switching server after pressing PLAY reloads the player from the new server, same title,
    nothing re-typed. If a server doesn't answer, say so in large plain words and offer the next server.
-3. **Each server is its own SOURCE choice** in the /web search (e.g. `in:sams-server`), named in code.
+3. **(Reversed 2026-11-02, Luke: "remove the 'server 1 server 2' search parameters": servers are no SOURCE
+   choices; their titles show in every search, and in KINO.)** **Each server is its own SOURCE choice** in the /web search (e.g. `in:sams-server`), named in code.
    Adding a server in code must add its SOURCE choice by itself, the way `SOURCE_OPTIONS` in
    `app/lib/web/web-filters.ts` already derives from `PLATFORM_LABELS`. A check proves it: add a fake server,
    see it offered.

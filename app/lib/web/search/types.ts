@@ -20,6 +20,10 @@ export type SearchDeps = {
    * that provider then shows "DAILY LIMIT REACHED" and is not asked. Only providers with `dailyBudget`.
    */
   spendBudget?: (platform: WebPlatform) => boolean;
+  /** The VIBE toggle (search-intent.ts): mood and tag words, read by the providers that can (KINO, the Archive). */
+  vibe?: boolean;
+  /** KINO only: a TMDB keyword number from /api/web/related, for the titles tagged with it. */
+  keyword?: number;
 };
 
 /**

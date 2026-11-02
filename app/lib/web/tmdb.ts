@@ -91,23 +91,90 @@ export type TmdbHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; dat
 const SEARCH_HITS_MAX = 20;
 
 /** TMDB's search across films and shows for the words of a search (`searchText`: letters and digits only). */
-export function searchUrl(words: string): string {
+export function searchUrl(words: string, page = 1): string {
   return buildUrl(TMDB_API_HOST, ['3', 'search', 'multi'], [
     ['query', words],
     ['include_adult', 'false'],
     ['language', 'en-US'],
-    ['page', '1'],
+    ['page', String(page)],
   ]);
 }
 
-/** TMDB's search answer, cut down to films and shows and the fields we keep. Pure. */
-export function toHits(body: unknown): TmdbHit[] {
+/** The deepest page KINO asks for (20 titles a page). */
+export const TMDB_MAX_PAGE = 10;
+
+/** How many pages TMDB says an answer has, within `TMDB_MAX_PAGE`. Pure. */
+export function totalPages(body: unknown): number {
+  const total = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).total_pages : undefined;
+  return typeof total === 'number' && Number.isInteger(total) && total >= 0 ? Math.min(total, TMDB_MAX_PAGE) : 0;
+}
+
+/** What a discover list is narrowed by: TMDB keyword and genre numbers, and a first and last date. */
+export type TmdbDiscover = { keywords?: readonly number[]; genres?: readonly number[]; from?: string; to?: string };
+
+const WHOLE_ID = (id: number) => Number.isInteger(id) && id > 0 && id < 1_000_000_000;
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+
+/**
+ * TMDB's discover list of films or shows (`/3/discover/movie|tv`): keywords are either one (`|`), genres all of them
+ * (`,`). Only checked numbers and dates go in. TMDB's own order is kept; it is never shown or stored.
+ */
+export function discoverUrl(type: 'movie' | 'tv', narrow: TmdbDiscover, page = 1): string {
+  const params: [string, string][] = [
+    ['include_adult', 'false'],
+    ['language', 'en-US'],
+    ['page', String(page)],
+  ];
+  const keywords = (narrow.keywords ?? []).filter(WHOLE_ID).slice(0, 8);
+  const genres = (narrow.genres ?? []).filter(WHOLE_ID).slice(0, 4);
+  if (keywords.length > 0) params.push(['with_keywords', keywords.join('|')]);
+  if (genres.length > 0) params.push(['with_genres', genres.join(',')]);
+  const field = type === 'movie' ? 'primary_release_date' : 'first_air_date';
+  if (narrow.from !== undefined && ISO_DAY.test(narrow.from)) params.push([`${field}.gte`, narrow.from]);
+  if (narrow.to !== undefined && ISO_DAY.test(narrow.to)) params.push([`${field}.lte`, narrow.to]);
+  return buildUrl(TMDB_API_HOST, ['3', 'discover', type], params);
+}
+
+/** TMDB's keyword search (the tags its editors give titles, "dalek", "time travel"), for one word or phrase. */
+export function keywordSearchUrl(words: string): string {
+  return buildUrl(TMDB_API_HOST, ['3', 'search', 'keyword'], [['query', words], ['page', '1']]);
+}
+
+/** TMDB's keywords for a keyword search: number and name, best first. Pure. */
+export function toKeywords(body: unknown): { id: number; name: string }[] {
   const results = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).results : undefined;
   if (!Array.isArray(results)) return [];
   return results
+    .flatMap((raw) => {
+      const d = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+      const id = whole(d.id, 1, 999_999_999);
+      const name = sanitiseText(d.name, 100);
+      return id === undefined || !name ? [] : [{ id, name }];
+    })
+    .slice(0, 10);
+}
+
+/** One TMDB read through `safe-fetch` on TMDB's API host only. Throws TmdbError with nothing of the answer in it. */
+export async function tmdbJson(url: string, fetchImpl: FetchLike): Promise<unknown> {
+  try {
+    return await safeFetchJson(url, { allowedHosts: [TMDB_API_HOST], fetchImpl, timeoutMs: 8_000, maxBytes: 512 * 1024 });
+  } catch (error) {
+    throw new TmdbError(error instanceof SafeFetchError && error.status !== undefined ? `HTTP ${error.status}` : 'no answer');
+  }
+}
+
+/**
+ * TMDB's search answer, cut down to films and shows and the fields we keep. Pure. `type`: the answer is all one kind
+ * (a discover list, whose results carry no `media_type`).
+ */
+export function toHits(body: unknown, type?: 'movie' | 'tv'): TmdbHit[] {
+  const results = typeof body === 'object' && body !== null ? (body as Record<string, unknown>).results : undefined;
+  if (!Array.isArray(results)) return [];
+  const forced = type;
+  return results
     .flatMap((raw): TmdbHit[] => {
       const d = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
-      const type = d.media_type === 'movie' || d.media_type === 'tv' ? d.media_type : null;
+      const type = forced ?? (d.media_type === 'movie' || d.media_type === 'tv' ? d.media_type : null);
       const tmdbId = whole(d.id, 1, 999_999_999);
       if (type === null || tmdbId === undefined) return [];
       const title = sanitiseText(type === 'movie' ? d.title : d.name, 300);

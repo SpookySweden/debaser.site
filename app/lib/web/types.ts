@@ -16,7 +16,7 @@ export type WebPlatform = StreamPlatform | SearchOnlyPlatform | MediaServerId;
 
 /**
  * Luke's own and his friends' media servers (SPEC-media-servers.md): each one listed in `media-servers.ts` is a
- * platform of its own, so it gets its own SOURCE choice in the search by itself. They have no adapter: their
+ * platform of its own (not a SOURCE choice since 2026-11-02). They have no adapter: their
  * titles come from the servers' list files (media-titles.ts) and live in their own tables.
  */
 export type { MediaServerId } from './media-servers';
@@ -34,7 +34,7 @@ void STREAM_PLATFORMS_COMPLETE;
  * Found only by searching everywhere or by a pasted link (`app/lib/web/search/`, SPEC-web-search.md): no
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
-export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo';
+export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino';
 
 export type WebItemKind = 'audio' | 'video' | 'image' | 'text' | 'other';
 
@@ -93,5 +93,7 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   youtube: 'YOUTUBE',
   wikimedia_commons: 'WIKIMEDIA COMMONS',
   vimeo: 'VIMEO',
+  // TMDB's films and shows, asked only when KINO is the SOURCE (search/providers/kino.ts).
+  kino: 'KINO',
   ...(Object.fromEntries(MEDIA_SERVERS.map((server) => [server.id, server.label])) as Record<MediaServerId, string>),
 };

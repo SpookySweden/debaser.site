@@ -70,12 +70,22 @@ export async function GET(request: Request): Promise<Response> {
   const q = params.get('q') ?? '';
   const cursor = params.get('cursor');
   const only = params.get('provider');
-  const providers = only === null ? SEARCH_PROVIDERS : SEARCH_PROVIDERS.filter((provider) => provider.platform === only);
+  // Without `provider`, every source an ALL search asks: KINO only ever when named (web-filters.ts `sourcesToAsk`).
+  const providers = only === null ? SEARCH_PROVIDERS.filter((provider) => provider.platform !== 'kino') : SEARCH_PROVIDERS.filter((provider) => provider.platform === only);
   if (providers.length === 0) return json({ error: 'There is no such source.' }, 400);
   if (q.length > MAX_Q_LENGTH || (cursor !== null && cursor.length > 1500)) {
     return json({ error: 'That search is too long.' }, 400);
   }
-  const deps = { fetch: cachedFetch, env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY } };
+  // `vibe=on`: mood and tag words (search-intent.ts). `keyword=<number>`: KINO only, a TMDB keyword from /api/web/related.
+  const vibe = params.get('vibe') === 'on';
+  const keywordParam = params.get('keyword');
+  const keyword = keywordParam !== null && /^[1-9][0-9]{0,8}$/.test(keywordParam) ? Number(keywordParam) : undefined;
+  const deps = {
+    fetch: cachedFetch,
+    env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN },
+    ...(vibe ? { vibe } : {}),
+    ...(keyword !== undefined && only === 'kino' ? { keyword } : {}),
+  };
 
   if (looksLikeLink(q)) {
     const hosts = await peertubeHosts(cachedFetch);
@@ -103,7 +113,7 @@ export async function GET(request: Request): Promise<Response> {
   // `from=<a creator>`: only that creator's items (search.ts `authorWords`; one creator per search everywhere).
   const author = authorWords(params.get('from'));
   const words = searchText(q);
-  if (words === null && author === null) return json({ error: 'Type a word to search for.' }, 400);
+  if (words === null && author === null && deps.keyword === undefined) return json({ error: 'Type a word to search for.' }, 400);
 
   // `type=<video|audio|image|text>`: a provider that can ask its platform for one kind does; anything else is no filter.
   const type = params.get('type');

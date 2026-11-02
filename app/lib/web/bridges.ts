@@ -93,6 +93,8 @@ export const WATCH_KIND_BY_PLATFORM: Record<WebPlatform, Extract<WatchLinkKind, 
   wikimedia_commons: null,
   // The room already drives Vimeo with its own player.
   vimeo: 'vimeo',
+  // KINO rows have no player at all (kino.ts).
+  kino: null,
   // Media-server titles play on /web only, from the server's own player (SPEC-media-servers.md).
   ...(Object.fromEntries(MEDIA_SERVER_IDS.map((id) => [id, null])) as Record<MediaServerId, null>),
 };

@@ -10,6 +10,8 @@ import { compareItems } from './paging';
  * - Until the reader scrolls or presses anything, arrivals slot into the list newest first.
  * - After that (`frozen`), nothing moves under them: arrivals wait in `held`, behind a "N MORE RESULTS" key at
  *   the top; pressing it puts them at the top of the list, newest first.
+ * - A row that plays (a media server's title, with SERVER buttons) takes the place of the same title's KINO row,
+ *   which has none, wherever that row is; it never moves. The other way round, the KINO row is dropped.
  * - LOAD MORE is the reader asking for more, so its arrivals go at the end of the list, newest first among
  *   themselves, never above what is already there.
  */
@@ -28,19 +30,28 @@ function idsOf(item: WebStreamItem): string[] {
 }
 
 /** Adds what arrived. `end`: LOAD MORE's answers, appended below everything already shown. */
+const plays = (item: WebStreamItem) => (item.media?.copies.length ?? 0) > 0;
+
 export function arrive(list: LiveList, items: readonly WebStreamItem[], end = false): LiveList {
   const seen = new Set(list.seen);
   const fresh: WebStreamItem[] = [];
+  let { shown, held } = list;
   for (const item of items) {
-    if (idsOf(item).some((id) => seen.has(id))) continue;
+    if (idsOf(item).some((id) => seen.has(id))) {
+      // The same title: one that plays replaces one that does not, in place.
+      const swap = (rows: WebStreamItem[]) => rows.map((row) => (row.id === item.id && plays(item) && !plays(row) && row.media !== undefined ? item : row));
+      shown = swap(shown);
+      held = swap(held);
+      continue;
+    }
     for (const id of idsOf(item)) seen.add(id);
     fresh.push(item);
   }
-  if (fresh.length === 0) return list;
+  if (fresh.length === 0) return shown === list.shown && held === list.held ? list : { ...list, shown, held };
   fresh.sort(compareItems);
-  if (end) return { ...list, shown: [...list.shown, ...fresh], seen };
-  if (list.frozen) return { ...list, held: [...list.held, ...fresh], seen };
-  return { ...list, shown: [...list.shown, ...fresh].sort(compareItems), seen };
+  if (end) return { ...list, shown: [...shown, ...fresh], held, seen };
+  if (list.frozen) return { ...list, shown, held: [...held, ...fresh], seen };
+  return { ...list, shown: [...shown, ...fresh].sort(compareItems), held, seen };
 }
 
 /** The reader scrolled or pressed something: from now on nothing slots in above them. */
