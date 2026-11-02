@@ -1,5 +1,5 @@
 import type { ForumAnchor, ForumThread } from '../forum/types';
-import type { QueueMove, WatchCrown, WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead } from './types';
+import type { QueueMove, WatchCrown, WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchSeriesMark } from './types';
 
 /**
  * Watch together's rules, pure so each can be checked without two browsers (SPEC-watch-together.md).
@@ -98,16 +98,134 @@ export function playOrder(queue: WatchQueueEntry[]): WatchQueueEntry[] {
   return queue.filter((entry) => entry.playIndex !== null).sort((a, b) => (a.playIndex ?? 0) - (b.playIndex ?? 0));
 }
 
+/**
+ * Queue order: the place, then when it was added; inside a series' block (one place, one moment for all its
+ * episodes) the episode order. Ties between two adds keep each block together.
+ */
+function byQueueOrder(a: WatchQueueEntry, b: WatchQueueEntry): number {
+  return (
+    a.position - b.position ||
+    a.addedAt.localeCompare(b.addedAt) ||
+    (a.series?.id ?? '').localeCompare(b.series?.id ?? '') ||
+    (a.series?.episode ?? 0) - (b.series?.episode ?? 0) ||
+    a.id.localeCompare(b.id)
+  );
+}
+
 /** What is still to play, in queue order: rows in the queue, never somebody's waiting addition. */
 export function upcoming(queue: WatchQueueEntry[]): WatchQueueEntry[] {
-  return queue
-    .filter((entry) => entry.inQueue && entry.playedAt === null)
-    .sort((a, b) => a.position - b.position || a.addedAt.localeCompare(b.addedAt));
+  return queue.filter((entry) => entry.inQueue && entry.playedAt === null).sort(byQueueOrder);
+}
+
+/**
+ * What the host's player starts next, at the end of a video or on SKIP: the next episode of a series' block,
+ * then past the block to what follows (SPEC-stream-series.md). Undefined when nothing is queued.
+ */
+export function nextToPlay(queue: WatchQueueEntry[]): WatchQueueEntry | undefined {
+  return upcoming(queue)[0];
 }
 
 /** Additions waiting on people's own lists for a crown to pull them in, oldest first (SPEC-stream-queue.md). */
 export function waitingAdditions(queue: WatchQueueEntry[]): WatchQueueEntry[] {
-  return queue.filter((entry) => !entry.inQueue && entry.playedAt === null).sort((a, b) => a.addedAt.localeCompare(b.addedAt));
+  return queue
+    .filter((entry) => !entry.inQueue && entry.playedAt === null)
+    .sort(
+      (a, b) =>
+        a.addedAt.localeCompare(b.addedAt) ||
+        (a.series?.id ?? '').localeCompare(b.series?.id ?? '') ||
+        (a.series?.episode ?? 0) - (b.series?.episode ?? 0) ||
+        a.id.localeCompare(b.id),
+    );
+}
+
+/**
+ * Rows side by side, with each run of one series' episodes as one block (SPEC-stream-series.md): what the queue
+ * window draws, folded. `key` is the row's id, or for a block its series' id with its first row's (one series
+ * can show twice when a crown moved something between its episodes).
+ */
+export type QueueBlock = { key: string; series: WatchSeriesMark | null; entries: WatchQueueEntry[] };
+
+export function queueBlocks(rows: WatchQueueEntry[]): QueueBlock[] {
+  const blocks: QueueBlock[] = [];
+  for (const entry of rows) {
+    const last = blocks[blocks.length - 1];
+    if (entry.series && last?.series && last.series.id === entry.series.id) {
+      last.entries.push(entry);
+      continue;
+    }
+    blocks.push({ key: entry.series ? `${entry.series.id}:${entry.id}` : entry.id, series: entry.series ?? null, entries: [entry] });
+  }
+  return blocks;
+}
+
+/**
+ * What a crown moves as one, among what is still to play (or among one person's waiting additions): a row,
+ * or every unplayed episode of one series' add. `id` is what a `QueueMove` names: the row's, or the series'.
+ */
+export type QueueUnit = { id: string; series: boolean; position: number; inQueue: boolean; entries: WatchQueueEntry[] };
+
+function unitsOf(rows: WatchQueueEntry[]): QueueUnit[] {
+  const units: QueueUnit[] = [];
+  const bySeries = new Map<string, QueueUnit>();
+  for (const entry of rows) {
+    if (!entry.series) {
+      units.push({ id: entry.id, series: false, position: entry.position, inQueue: entry.inQueue, entries: [entry] });
+      continue;
+    }
+    const known = bySeries.get(entry.series.id);
+    if (known !== undefined) {
+      known.entries.push(entry);
+      known.position = Math.min(known.position, entry.position);
+      continue;
+    }
+    const unit: QueueUnit = { id: entry.series.id, series: true, position: entry.position, inQueue: entry.inQueue, entries: [entry] };
+    bySeries.set(entry.series.id, unit);
+    units.push(unit);
+  }
+  return units;
+}
+
+/** What is still to play as the units a crown moves, in queue order. */
+export function upcomingUnits(queue: WatchQueueEntry[]): QueueUnit[] {
+  return unitsOf(upcoming(queue));
+}
+
+/** Waiting additions as units: a series added onto a list waits there as one block. */
+export function additionUnits(entries: WatchQueueEntry[]): QueueUnit[] {
+  return unitsOf(entries);
+}
+
+/** The unit a key names among what has not played: a row's id (a lone row, or any episode of a block) or a series' id. */
+function unitFor(queue: WatchQueueEntry[], key: string): QueueUnit | undefined {
+  const row = queue.find((entry) => entry.id === key);
+  if (row !== undefined && row.playedAt !== null) return undefined;
+  const seriesId = row === undefined ? key : row.series?.id;
+  if (seriesId === undefined) return row === undefined ? undefined : unitsOf([row])[0];
+  const rows = seriesRows(queue, seriesId).sort(byQueueOrder);
+  return rows.length === 0 ? undefined : unitsOf(rows)[0];
+}
+
+/** The write that puts a unit at a place, with `pull` when it is coming into the queue. */
+function moveFor(unit: QueueUnit, position: number, pull: boolean): QueueMove {
+  const move: QueueMove = { id: unit.id, position };
+  if (pull) move.pull = true;
+  if (unit.series) move.series = true;
+  return move;
+}
+
+/** Whether a unit already sits at a place: every one of its rows there. */
+function unitAt(unit: QueueUnit, position: number): boolean {
+  return unit.entries.every((entry) => entry.position === position);
+}
+
+/** The episodes of a series' add not yet played (in the queue or still waiting): what one `QueueMove` with `series` reaches. */
+export function seriesRows(queue: WatchQueueEntry[], seriesId: string): WatchQueueEntry[] {
+  return queue.filter((entry) => entry.series?.id === seriesId && entry.playedAt === null);
+}
+
+/** `SERIES :: EPISODE` for an episode (the strip, NOW, the board's record); a lone row's own title otherwise. */
+export function withSeries(entry: Pick<WatchQueueEntry, 'series'>, title: string): string {
+  return entry.series ? `${entry.series.title} :: ${title}` : title;
 }
 
 export function currentEntry(read: WatchRoomRead): WatchQueueEntry | undefined {
@@ -134,12 +252,13 @@ export function queueBadge(read: WatchRoomRead): string {
 }
 
 /**
- * The reorder the host asked for: `entryId` swaps with its neighbour among the upcoming entries.
- * Returns the two new positions to write, or [] when it is already at that end.
+ * The reorder a crown asked for: `key` (a row, or a series' block) swaps with its neighbour among what is still
+ * to play. Returns the two new places to write, or [] when it is already at that end.
  */
-export function moveInQueue(queue: WatchQueueEntry[], entryId: string, direction: -1 | 1): { id: string; position: number }[] {
-  const waiting = upcoming(queue);
-  const at = waiting.findIndex((entry) => entry.id === entryId);
+export function moveInQueue(queue: WatchQueueEntry[], key: string, direction: -1 | 1): QueueMove[] {
+  const waiting = upcomingUnits(queue);
+  const unit = unitFor(queue, key);
+  const at = unit === undefined ? -1 : waiting.findIndex((candidate) => candidate.id === unit.id);
   const other = waiting[at + direction];
   if (at === -1 || other === undefined) return [];
 
@@ -149,34 +268,32 @@ export function moveInQueue(queue: WatchQueueEntry[], entryId: string, direction
   const lowFor = direction === 1 ? other : mine;
   const highFor = direction === 1 ? mine : other;
 
-  return [
-    { id: lowFor.id, position: low },
-    { id: highFor.id, position: high === low ? low + 1 : high },
-  ];
+  return [moveFor(lowFor, low, false), moveFor(highFor, high === low ? low + 1 : high, false)];
 }
 
 /**
- * A crown's drop (SPEC-stream-queue.md): `entryId` - an addition, or a row already in the queue - lands at
- * `index` among what is still to play, counted without it. From where the queue starts now, each row takes
- * the next place in turn; only the rows whose place changes are written, with `pull` on an addition coming
- * in. [] when nothing would change, or for something that has played.
+ * A crown's drop (SPEC-stream-queue.md): `key` - an addition, or a row already in the queue, or a series' block
+ * of either (SPEC-stream-series.md) - lands at `index` among the units still to play, counted without it. From
+ * where the queue starts now, each unit takes the next place in turn (a block's episodes all take the one place);
+ * only the units whose place changes are written, with `pull` on an addition coming in. [] when nothing would
+ * change, or for something that has played.
  */
-export function placeInQueue(queue: WatchQueueEntry[], entryId: string, index: number): QueueMove[] {
-  const entry = queue.find((candidate) => candidate.id === entryId);
-  if (entry === undefined || entry.playedAt !== null) return [];
+export function placeInQueue(queue: WatchQueueEntry[], key: string, index: number): QueueMove[] {
+  const unit = unitFor(queue, key);
+  if (unit === undefined) return [];
 
-  const waiting = upcoming(queue);
-  const rest = waiting.filter((candidate) => candidate.id !== entryId);
+  const waiting = upcomingUnits(queue);
+  const rest = waiting.filter((candidate) => candidate.id !== unit.id);
   const at = Math.max(0, Math.min(Math.floor(index), rest.length));
-  const order = [...rest.slice(0, at), entry, ...rest.slice(at)];
-  // An empty queue keeps the entry's own number: only being in it matters then.
-  const start = waiting.length > 0 ? Math.min(...waiting.map((each) => each.position)) : entry.position;
+  const order = [...rest.slice(0, at), unit, ...rest.slice(at)];
+  // An empty queue keeps the unit's own number: only being in it matters then.
+  const start = waiting.length > 0 ? Math.min(...waiting.map((each) => each.position)) : unit.position;
 
   return order.flatMap((each, offset) => {
     const position = start + offset;
-    const pull = each.id === entryId && !each.inQueue;
-    if (each.position === position && !pull) return [];
-    return [pull ? { id: each.id, position, pull: true } : { id: each.id, position }];
+    const pull = each.id === unit.id && !each.inQueue;
+    if (unitAt(each, position) && !pull) return [];
+    return [moveFor(each, position, pull)];
   });
 }
 

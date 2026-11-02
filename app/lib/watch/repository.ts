@@ -51,6 +51,12 @@ export type AddToQueueInput = { roomId: string; addedBy: string; position: numbe
   | { link: WatchLink; mediaItemId?: undefined }
 );
 
+/**
+ * A series' episodes added in one go (SPEC-stream-series.md): one row per episode, all at one place and one
+ * moment, sharing a new series id, numbered in the order given. The same rules as `AddToQueueInput`.
+ */
+export type AddSeriesInput = { roomId: string; addedBy: string; position: number; inQueue: boolean; seriesTitle: string; links: WatchLink[] };
+
 /** One write to a room, as `subscribeRoom` hands it over. `refresh` means "read it again". */
 export type RoomChange =
   | { kind: 'room'; room: WatchRoom }
@@ -86,12 +92,16 @@ export type WatchRepository = {
   /** Closes a room nobody has written for minutes. True when it was closed by this call. */
   closeStale(roomId: string): Promise<boolean>;
   addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry>;
+  /** A series as one block of rows, in one write however many episodes it has. */
+  addSeriesToQueue(input: AddSeriesInput): Promise<WatchQueueEntry[]>;
   /**
    * Takes out what has not played: a crown, from the queue or anybody's list; or `by`'s own addition.
    * `by` (and below) is who asks: the database knows from the session, the mock keeps the rule by hand.
    */
   removeFromQueue(entryId: string, by: string): Promise<void>;
-  /** A crown's reorder, or an addition pulled in (`pull`) with the places around it. */
+  /** Every episode of a series' add that has not played, under the same rules as `removeFromQueue`. */
+  removeSeries(seriesId: string, by: string): Promise<void>;
+  /** A crown's reorder, or an addition pulled in (`pull`) with the places around it; a `series` move places a whole block. */
   reorderQueue(moves: QueueMove[], by: string): Promise<void>;
   /** The host gives (`crowned`) or takes a crown, their own included: the crown given, or null once taken. */
   setCrown(roomId: string, userId: string, crowned: boolean, by: string): Promise<WatchCrown | null>;

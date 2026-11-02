@@ -1,4 +1,4 @@
-import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
 import { NOT_ALLOWED, TAKE_OVER_QUIET_MS, hasCrown } from './rules';
 import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
@@ -43,7 +43,7 @@ function load(): Tables {
     return {
       rooms: Array.isArray(parsed.rooms) ? parsed.rooms : [],
       // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
-      queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true })) : [],
+      queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true, series: entry.series ?? null })) : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
       crowns: Array.isArray(parsed.crowns) ? parsed.crowns : [],
     };
@@ -221,6 +221,7 @@ class MockWatchRepository implements WatchRepository {
       inQueue: true,
       mediaItemId: input.mediaItemId,
       link: null,
+      series: null,
       addedBy: input.host.id,
       addedAt: at,
       playedAt: at,
@@ -306,6 +307,7 @@ class MockWatchRepository implements WatchRepository {
       inQueue,
       mediaItemId: input.mediaItemId ?? null,
       link: input.link ?? null,
+      series: null,
       addedBy: input.addedBy,
       addedAt: stamp(),
       playedAt: null,
@@ -313,6 +315,49 @@ class MockWatchRepository implements WatchRepository {
     };
     save({ ...tables, queue: [...tables.queue, entry] }, input.roomId);
     return entry;
+  }
+
+  async addSeriesToQueue(input: AddSeriesInput): Promise<WatchQueueEntry[]> {
+    const tables = load();
+    const { crowns } = liveRoom(tables, input.roomId);
+    for (const link of input.links) {
+      const refusal = queueRefusal(link);
+      if (refusal !== null) throw new Error(refusal);
+    }
+    const title = input.seriesTitle.replace(/\s+/g, ' ').trim().slice(0, 200).trim();
+    if (input.links.length === 0 || title.length === 0) throw new Error('NOTHING TICKED.');
+    const inQueue = input.inQueue === true;
+    if (inQueue && !hasCrown(crowns, input.addedBy)) throw new Error(NOT_ALLOWED);
+
+    // One place and one moment for the whole block, as the database's one insert gives it.
+    const seriesId = newId();
+    const at = stamp();
+    const entries: WatchQueueEntry[] = input.links.map((link, index) => ({
+      id: newId(),
+      roomId: input.roomId,
+      position: input.position,
+      inQueue,
+      mediaItemId: null,
+      link,
+      series: { id: seriesId, title, episode: index + 1 },
+      addedBy: input.addedBy,
+      addedAt: at,
+      playedAt: null,
+      playIndex: null,
+    }));
+    save({ ...tables, queue: [...tables.queue, ...entries] }, input.roomId);
+    return entries;
+  }
+
+  async removeSeries(seriesId: string, by: string): Promise<void> {
+    const tables = load();
+    const rows = tables.queue.filter((entry) => entry.series?.id === seriesId && entry.playedAt === null);
+    if (rows.length === 0) throw new Error(NOT_ALLOWED);
+    const { crowns } = liveRoom(tables, rows[0].roomId);
+    // Row by row, the rules `removeFromQueue` keeps; any row refused refuses the lot, as nothing is half taken.
+    if (!hasCrown(crowns, by) && !rows.every((entry) => entry.addedBy === by && !entry.inQueue)) throw new Error(NOT_ALLOWED);
+    const gone = new Set(rows.map((entry) => entry.id));
+    save({ ...tables, queue: tables.queue.filter((candidate) => !gone.has(candidate.id)) }, rows[0].roomId);
   }
 
   async removeFromQueue(entryId: string, by: string): Promise<void> {
@@ -328,13 +373,16 @@ class MockWatchRepository implements WatchRepository {
   async reorderQueue(moves: QueueMove[], by: string): Promise<void> {
     if (moves.length === 0) return;
     const tables = load();
-    const byId = new Map(moves.map((move) => [move.id, move]));
-    const roomId = tables.queue.find((entry) => byId.has(entry.id))?.roomId;
+    // A series move reaches every episode of that add not yet played.
+    const byId = new Map(moves.filter((move) => move.series !== true).map((move) => [move.id, move]));
+    const bySeries = new Map(moves.filter((move) => move.series === true).map((move) => [move.id, move]));
+    const moveOf = (entry: WatchQueueEntry) => byId.get(entry.id) ?? (entry.series === null ? undefined : bySeries.get(entry.series.id));
+    const roomId = tables.queue.find((entry) => moveOf(entry) !== undefined)?.roomId;
     if (roomId === undefined) return;
     // Only a crown moves the queue: a row's place, or an addition into it. What played stays where it played.
     if (!hasCrown(liveRoom(tables, roomId).crowns, by)) throw new Error(NOT_ALLOWED);
     const queue = tables.queue.map((entry) => {
-      const move = byId.get(entry.id);
+      const move = moveOf(entry);
       if (move === undefined || entry.roomId !== roomId || entry.playedAt !== null) return entry;
       return { ...entry, position: move.position, inQueue: entry.inQueue || move.pull === true };
     });

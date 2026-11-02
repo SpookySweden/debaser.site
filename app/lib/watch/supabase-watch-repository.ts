@@ -1,13 +1,13 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
-import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
 import { NOT_ALLOWED, watchClockSkewMs } from './rules';
 import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
- * 20261102192043_watch_queue_additions.sql).
+ * 20261102192043_watch_queue_additions.sql; series, 20261102224336_watch_queue_series.sql).
  *
  * The tables hold the record; Realtime Presence holds who is there. Each room has its own presence
  * channel (`watch:<id>`, keyed per tab), and every tab in a live room also says so on one site-wide
@@ -26,12 +26,24 @@ const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
   'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at';
-const QUEUE_COLUMNS = 'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, added_by, added_at, played_at, play_index';
+const QUEUE_COLUMNS =
+  'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
 const CROWN_COLUMNS = 'room_id, user_id, given_by, given_at';
 
 /** Enough for a long night; the window draws the newest of them. */
 const MESSAGE_LIMIT = 1000;
+/**
+ * A room's queue is read in pages of this many rows (the API's own most per answer), however long it is: a series
+ * adds a row per episode and has no cap (SPEC-stream-series.md). A series is written in batches of the same size.
+ */
+const QUEUE_PAGE = 1000;
+/**
+ * A series is written as one statement but heard as one event per episode row, and a long one is a burst Realtime
+ * may thin out. So the feed applies each row as it comes and, this long after the last of a burst, reads the room
+ * once more: whatever was dropped is drawn then.
+ */
+const BURST_REREAD_MS = 800;
 const FOLD_ROOM_LIMIT = 200;
 
 type RoomRow = {
@@ -57,6 +69,9 @@ type QueueRow = {
   source_url: string | null;
   source_kind: string | null;
   source_title: string | null;
+  series_id?: string | null;
+  series_title?: string | null;
+  series_episode?: number | null;
   added_by: string | null;
   added_at: string;
   played_at: string | null;
@@ -108,6 +123,10 @@ function toEntry(row: QueueRow): WatchQueueEntry {
     mediaItemId: row.media_item_id,
     link:
       row.source_url !== null && isLinkKind(row.source_kind) ? { url: row.source_url, kind: row.source_kind, title: row.source_title ?? row.source_url } : null,
+    series:
+      typeof row.series_id === 'string' && typeof row.series_title === 'string' && typeof row.series_episode === 'number'
+        ? { id: row.series_id, title: row.series_title, episode: row.series_episode }
+        : null,
     addedBy: row.added_by,
     addedAt: row.added_at,
     playedAt: row.played_at,
@@ -247,20 +266,34 @@ class SupabaseWatchRepository implements WatchRepository {
     const client = requireClient();
     const [room, queue, messages, crowns] = await Promise.all([
       client.from(ROOMS).select(ROOM_COLUMNS).eq('id', roomId).maybeSingle<RoomRow>(),
-      client.from(QUEUE).select(QUEUE_COLUMNS).eq('room_id', roomId).order('position').limit(500),
+      this.readQueue(client, roomId),
       client.from(MESSAGES).select(MESSAGE_COLUMNS).eq('room_id', roomId).order('created_at', { ascending: false }).limit(MESSAGE_LIMIT),
       client.from(CROWNS).select(CROWN_COLUMNS).eq('room_id', roomId).limit(200),
     ]);
 
-    if (room.error || queue.error || messages.error || crowns.error) throw new Error('THE STREAM COULD NOT BE READ.');
+    if (room.error || queue === null || messages.error || crowns.error) throw new Error('THE STREAM COULD NOT BE READ.');
     if (room.data === null) return null;
 
     return {
       room: toRoom(room.data),
-      queue: ((queue.data ?? []) as QueueRow[]).map(toEntry),
+      queue: queue.map(toEntry),
       messages: ((messages.data ?? []) as MessageRow[]).map(toMessage).reverse(),
       crowns: ((crowns.data ?? []) as CrownRow[]).map(toCrown),
     };
+  }
+
+  /** Every queue row of a room, page by page (`QUEUE_PAGE`); null when a page failed. Ordered by id so pages never overlap. */
+  private async readQueue(client: SupabaseClient, roomId: string): Promise<QueueRow[] | null> {
+    // Pages are separate reads: a row added or taken out between two may show twice or be missed. Each is kept
+    // once; a missed one arrives by the feed.
+    const rows = new Map<string, QueueRow>();
+    for (let from = 0; ; from += QUEUE_PAGE) {
+      const page = await client.from(QUEUE).select(QUEUE_COLUMNS).eq('room_id', roomId).order('id').range(from, from + QUEUE_PAGE - 1);
+      if (page.error) return null;
+      const got = (page.data ?? []) as QueueRow[];
+      for (const row of got) rows.set(row.id, row);
+      if (got.length < QUEUE_PAGE) return [...rows.values()];
+    }
   }
 
   async openRoom(input: OpenRoomInput): Promise<WatchRoomRead> {
@@ -371,6 +404,54 @@ class SupabaseWatchRepository implements WatchRepository {
     return toEntry(data);
   }
 
+  async addSeriesToQueue(input: AddSeriesInput): Promise<WatchQueueEntry[]> {
+    for (const link of input.links) {
+      const refusal = queueRefusal(link);
+      if (refusal !== null) throw new Error(refusal);
+    }
+    const title = input.seriesTitle.replace(/\s+/g, ' ').trim().slice(0, 200).trim();
+    if (input.links.length === 0 || title.length === 0) throw new Error('NOTHING TICKED.');
+    const client = requireClient();
+    // The block's id is made here, so every batch of one add names the same series.
+    const seriesId = crypto.randomUUID();
+    const rows = input.links.map((link, index) => ({
+      room_id: input.roomId,
+      source_url: link.url,
+      source_kind: link.kind,
+      source_title: link.title,
+      series_id: seriesId,
+      series_title: title,
+      series_episode: index + 1,
+      added_by: input.addedBy,
+      position: input.position,
+      in_queue: input.inQueue === true,
+    }));
+    const written: WatchQueueEntry[] = [];
+    for (let at = 0; at < rows.length; at += QUEUE_PAGE) {
+      const { data, error } = await client.from(QUEUE).insert(rows.slice(at, at + QUEUE_PAGE)).select(QUEUE_COLUMNS);
+      if (error) {
+        // Nothing half added: the batches already written go again.
+        if (written.length > 0) await client.from(QUEUE).delete().eq('series_id', seriesId).is('played_at', null);
+        throw refused(error, 'THE SERIES COULD NOT BE ADDED.');
+      }
+      written.push(...((data ?? []) as QueueRow[]).map(toEntry));
+    }
+    return written;
+  }
+
+  /** Whether a series still has an episode that has not played (so a write that reached none of it was refused). */
+  private async seriesUnplayed(seriesId: string): Promise<boolean> {
+    const { data, error } = await requireClient().from(QUEUE).select('id').eq('series_id', seriesId).is('played_at', null).limit(1);
+    return error !== null || (data ?? []).length > 0;
+  }
+
+  async removeSeries(seriesId: string): Promise<void> {
+    const { data, error } = await requireClient().from(QUEUE).delete().eq('series_id', seriesId).is('played_at', null).select('id');
+    if (error) throw refused(error, 'THE SERIES COULD NOT BE TAKEN OUT.');
+    // None back: refused, or every episode played a moment ago. Only a refusal leaves one unplayed.
+    if ((data ?? []).length === 0 && (await this.seriesUnplayed(seriesId))) throw new Error(NOT_ALLOWED);
+  }
+
   // A row the rules hide from a write is left alone without an error, so each write asks for its rows back:
   // none back is a refusal (`by` is the mock's; the database knows who asks).
   async removeFromQueue(entryId: string): Promise<void> {
@@ -382,17 +463,21 @@ class SupabaseWatchRepository implements WatchRepository {
   async reorderQueue(moves: QueueMove[]): Promise<void> {
     const client = requireClient();
     const results = await Promise.all(
-      moves.map((move) =>
-        client
-          .from(QUEUE)
-          .update(move.pull === true ? { position: move.position, in_queue: true } : { position: move.position })
-          .eq('id', move.id)
-          .select('id'),
-      ),
+      moves.map((move) => {
+        const update = client.from(QUEUE).update(move.pull === true ? { position: move.position, in_queue: true } : { position: move.position });
+        // A series move is one write for every episode of that add not yet played.
+        return (move.series === true ? update.eq('series_id', move.id).is('played_at', null) : update.eq('id', move.id)).select('id');
+      }),
     );
     const failed = results.find((result) => result.error !== null);
     if (failed !== undefined) throw refused(failed.error, 'THE QUEUE COULD NOT BE REORDERED.');
-    if (results.some((result) => (result.data ?? []).length === 0)) throw new Error(NOT_ALLOWED);
+    for (const [index, result] of results.entries()) {
+      if ((result.data ?? []).length > 0) continue;
+      // A series whose last queued episode started a moment ago has nothing left to move: not a refusal.
+      const move = moves[index];
+      if (move.series === true && !(await this.seriesUnplayed(move.id))) continue;
+      throw new Error(NOT_ALLOWED);
+    }
   }
 
   async setCrown(roomId: string, userId: string, crowned: boolean, by: string): Promise<WatchCrown | null> {
@@ -482,17 +567,28 @@ class SupabaseWatchRepository implements WatchRepository {
     const client = getSupabaseBrowserClient();
     if (client === null) return () => undefined;
 
+    let reread: ReturnType<typeof setTimeout> | null = null;
+    let deletes = 0;
+    const settle = () => {
+      if (reread !== null) clearTimeout(reread);
+      reread = setTimeout(() => {
+        reread = null;
+        deletes = 0;
+        onChange({ kind: 'refresh' });
+      }, BURST_REREAD_MS);
+    };
+    const queueRow = (row: QueueRow) => {
+      onChange({ kind: 'entry', entry: toEntry(row) });
+      if (typeof row.series_id === 'string') settle();
+    };
+
     const channel = client
       .channel(`watch-db:${roomId}:${(channelSerial += 1)}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: ROOMS, filter: `id=eq.${roomId}` }, (payload) => {
         onChange({ kind: 'room', room: toRoom(payload.new as RoomRow) });
       })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: QUEUE, filter: `room_id=eq.${roomId}` }, (payload) => {
-        onChange({ kind: 'entry', entry: toEntry(payload.new as QueueRow) });
-      })
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: QUEUE, filter: `room_id=eq.${roomId}` }, (payload) => {
-        onChange({ kind: 'entry', entry: toEntry(payload.new as QueueRow) });
-      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: QUEUE, filter: `room_id=eq.${roomId}` }, (payload) => queueRow(payload.new as QueueRow))
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: QUEUE, filter: `room_id=eq.${roomId}` }, (payload) => queueRow(payload.new as QueueRow))
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: MESSAGES, filter: `room_id=eq.${roomId}` }, (payload) => {
         onChange({ kind: 'message', message: toMessage(payload.new as MessageRow) });
       })
@@ -500,6 +596,10 @@ class SupabaseWatchRepository implements WatchRepository {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: QUEUE }, (payload) => {
         const id = (payload.old as { id?: string }).id;
         if (typeof id === 'string') onChange({ kind: 'removed', table: 'queue', id });
+        // Only the id comes, so a series taken out is told by its burst: two or more at once, read again after.
+        deletes += 1;
+        if (deletes >= 2) settle();
+        else if (reread === null) setTimeout(() => (deletes = Math.max(0, deletes - 1)), BURST_REREAD_MS);
       })
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: MESSAGES }, (payload) => {
         const id = (payload.old as { id?: string }).id;
@@ -519,6 +619,7 @@ class SupabaseWatchRepository implements WatchRepository {
       });
 
     return () => {
+      if (reread !== null) clearTimeout(reread);
       void client.removeChannel(channel);
     };
   }

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
@@ -12,6 +12,7 @@ import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
+  additionUnits,
   additionsPeople,
   dropSlot,
   formatMediaTime,
@@ -20,15 +21,21 @@ import {
   nextQueuePosition,
   placeInQueue,
   playOrder,
+  queueBlocks,
   queueRights,
+  seriesRows,
   upcoming,
+  upcomingUnits,
   waitingAdditions,
   type AdditionsPerson,
+  type QueueUnit,
 } from '../lib/watch/rules';
+import { episodeLink, seriesMark, seriesTargetOf, type SeriesRead, type SeriesTarget } from '../lib/watch/series';
+import { fetchSeries, useSeriesCount } from '../lib/watch/series-client';
 import { checkLink } from '../lib/watch/stream-player';
 import type { WatchLink, WatchMember, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
-import { isQueueableWebLink, watchLinkForItem } from '../lib/web/bridges';
+import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
@@ -53,6 +60,8 @@ const CROWN_HELD_GLYPH = '♛︎';
 const QUEUED_MS = 2000;
 /** How far a pressed addition moves before it is picked up: less is a press, not a drag. */
 const PICK_UP_PX = 6;
+/** The queue's titles in their state's colour: played red, on green, to come blue (Luke, 2026-11-02). */
+const QUEUE_INK = { played: 'text-queue-played-ink', now: 'text-queue-now-ink', queued: 'text-queue-next-ink' } as const;
 
 type StreamQueueWindowProps = {
   read: WatchRoomRead;
@@ -78,8 +87,20 @@ type AddedWords = 'QUEUED' | 'ADDED';
 
 type LinkState = { kind: 'idle' } | { kind: 'checking' } | { kind: 'added'; words: AddedWords } | { kind: 'refused'; reason: string };
 
-/** An addition being dragged: where the pointer is, and the queue slot it would land in (null: not over the queue). */
-type Drag = { entryId: string; title: string; x: number; y: number; slot: number | null };
+/** An addition (a row, or a series' block by its id) being dragged: where the pointer is, and the queue slot it would land in (null: not over the queue). */
+type Drag = { key: string; title: string; x: number; y: number; slot: number | null };
+
+/** A pasted series link's episodes, as the window reads them (SPEC-stream-series.md). */
+type SeriesState =
+  | { kind: 'idle' }
+  | { kind: 'reading'; key: string }
+  | { kind: 'read'; key: string; read: SeriesRead }
+  | { kind: 'failed'; key: string; reason: string };
+
+/** A target as one string, so an effect can follow it. */
+function targetKey(target: SeriesTarget): string {
+  return target.source === 'internet_archive' ? `ia:${target.id}` : `yt:${target.list}`;
+}
 
 /** The pointer's events on an addition a crown can drag. */
 type PickUp = {
@@ -164,6 +185,27 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     }
   }
 
+  /** A series' ticked episodes as one block: onto your own list, or (`straight`) into the queue. Null signed out. */
+  async function putSeries(title: string, links: WatchLink[], straight: boolean): Promise<AddedWords | null> {
+    if (userId === null || links.length === 0) return null;
+    const inQueue = straight && rights.arrange;
+    const entries = await repository.addSeriesToQueue({ roomId, addedBy: userId, position: nextQueuePosition(read.queue), inQueue, seriesTitle: title, links });
+    for (const entry of entries) applyLocalChange(roomId, { kind: 'entry', entry });
+    return inQueue ? 'QUEUED' : 'ADDED';
+  }
+
+  /** A search result's series: the ticked episodes, or (never opened) every one. */
+  async function addSeriesResult(item: WebItem, episodes: WatchLink[] | null, straight: boolean) {
+    setProblem(null);
+    try {
+      const links = episodes ?? (await fetchSeries({ source: 'internet_archive', id: item.externalId })).episodes.map(episodeLink);
+      const words = await putSeries(item.title, links, straight);
+      if (words !== null) setJustAdded({ key: `web:${item.id}`, words });
+    } catch (failure) {
+      fail('THE SERIES COULD NOT BE ADDED.')(failure);
+    }
+  }
+
   async function addWeb(item: WebItem, straight: boolean) {
     setProblem(null);
     const link = watchLinkForItem(item);
@@ -187,7 +229,93 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   const [linkState, setLinkState] = useState<LinkState>({ kind: 'idle' });
   const [search, setSearch] = useState<Search>({ kind: 'none' });
   const address = isAddress(text);
-  const verdict = address ? recognizeLink(text) : null;
+  // A series link (an archive.org `details` page, a YouTube playlist) is read and ticked in a pop-up instead.
+  const seriesTarget = address ? seriesTargetOf(text) : null;
+  const verdict = address && seriesTarget === null ? recognizeLink(text) : null;
+
+  /* --- a pasted series link: its episodes read once, then the tick pop-up --------------------------- */
+
+  const [seriesFound, setSeriesState] = useState<SeriesState>({ kind: 'idle' });
+  const [picking, setPicking] = useState<SeriesRead | null>(null);
+  const seriesKey = seriesTarget === null ? null : targetKey(seriesTarget);
+  // An answer counts only for the address in the bar now; until it comes, that address is being read.
+  const seriesState: SeriesState =
+    seriesKey === null ? { kind: 'idle' } : seriesFound.kind !== 'idle' && seriesFound.key === seriesKey ? seriesFound : { kind: 'reading', key: seriesKey };
+  const popped = useRef<string | null>(null);
+  useEffect(() => {
+    if (seriesKey === null || seriesTarget === null) return;
+    let stale = false;
+    fetchSeries(seriesTarget).then(
+      (found) => {
+        if (stale) return;
+        setSeriesState({ kind: 'read', key: seriesKey, read: found });
+        // Two or more episodes: the pop-up opens by itself, once per pasted link.
+        if (found.episodes.length >= 2 && popped.current !== seriesKey) {
+          popped.current = seriesKey;
+          setPicking(found);
+        }
+      },
+      (failure: unknown) => {
+        if (!stale) setSeriesState({ kind: 'failed', key: seriesKey, reason: failure instanceof Error ? failure.message : 'THE SERIES COULD NOT BE READ.' });
+      },
+    );
+    return () => {
+      stale = true;
+    };
+    // The target is read again only when the address names another one.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seriesKey]);
+
+  /** The bar's ADD for a series link: the pop-up again for a series; one video (or the Archive's own player) as one row. */
+  async function addSeriesLink(straight: boolean) {
+    if (seriesState.kind !== 'read') return;
+    const found = seriesState.read;
+    if (found.episodes.length >= 2) {
+      setPicking(found);
+      return;
+    }
+    let link: WatchLink | null = found.episodes.length === 1 ? { ...episodeLink(found.episodes[0]), title: found.title } : null;
+    // An Archive item none of whose videos plays in a browser: its own player, as /web would queue it.
+    if (link === null && found.target.source === 'internet_archive') {
+      const url = officialEmbedUrl(`https://archive.org/embed/${found.target.id}`);
+      link = url === null ? null : { url, kind: 'embed', title: found.title };
+    }
+    if (link === null) {
+      setLinkState({ kind: 'refused', reason: 'NOTHING HERE PLAYS IN A ROOM.' });
+      return;
+    }
+    try {
+      const words = await put({ link }, straight);
+      if (words === null) return;
+      clearBar();
+      setLinkState({ kind: 'added', words });
+    } catch (failure) {
+      setLinkState({ kind: 'refused', reason: failure instanceof Error ? failure.message : 'IT COULD NOT BE ADDED.' });
+    }
+  }
+
+  /** The pop-up's ADD: the ticked episodes as one block. */
+  async function addPicked(found: SeriesRead, links: WatchLink[], straight: boolean): Promise<string | null> {
+    try {
+      const words = await putSeries(found.title, links, straight);
+      if (words === null) return null;
+      setPicking(null);
+      clearBar();
+      setLinkState({ kind: 'added', words });
+      return null;
+    } catch (failure) {
+      return failure instanceof Error ? failure.message : 'THE SERIES COULD NOT BE ADDED.';
+    }
+  }
+
+  const closePicker = useCallback(() => setPicking(null), []);
+
+  function clearBar() {
+    popped.current = null;
+    setText('');
+    setLinkName('');
+    setNameTyped(false);
+  }
 
   useEffect(() => {
     if (linkState.kind !== 'added') return;
@@ -212,6 +340,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 
   function type(next: string) {
     setText(next);
+    // An emptied bar forgets the pop-up was shown: the same series pasted again opens it again.
+    if (next.trim().length === 0) popped.current = null;
     if (linkState.kind === 'refused' || linkState.kind === 'added') setLinkState({ kind: 'idle' });
     // An emptied box starts over; a title the adder typed is kept while they fix the link.
     if (next.trim().length === 0) setNameTyped(false);
@@ -299,15 +429,18 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 
   /* --- a crown's work: pulling in, reordering, taking out; the host's: crowning --------------------- */
 
-  /** A drop or `[ ← ]`: the places `placeInQueue` gives, drawn at once and read again if the store refuses. */
-  async function place(entryId: string, slot: number) {
+  /**
+   * A drop or `[ ← ]`: the places `placeInQueue` gives (a row, or a series' whole block by its id), drawn at once
+   * and read again if the store refuses.
+   */
+  async function place(key: string, slot: number) {
     if (userId === null) return;
-    const moves = placeInQueue(read.queue, entryId, slot);
+    const moves = placeInQueue(read.queue, key, slot);
     if (moves.length === 0) return;
     setProblem(null);
     for (const move of moves) {
-      const entry = read.queue.find((candidate) => candidate.id === move.id);
-      if (entry !== undefined) applyLocalChange(roomId, { kind: 'entry', entry: { ...entry, position: move.position, inQueue: entry.inQueue || move.pull === true } });
+      const rows = move.series === true ? seriesRows(read.queue, move.id) : read.queue.filter((candidate) => candidate.id === move.id);
+      for (const entry of rows) applyLocalChange(roomId, { kind: 'entry', entry: { ...entry, position: move.position, inQueue: entry.inQueue || move.pull === true } });
     }
     try {
       await repository.reorderQueue(moves, userId);
@@ -317,10 +450,23 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     }
   }
 
-  function reorder(entryId: string, direction: -1 | 1) {
+  function reorder(key: string, direction: -1 | 1) {
     if (userId === null) return;
     setProblem(null);
-    void repository.reorderQueue(moveInQueue(read.queue, entryId, direction), userId).catch(fail('THE QUEUE COULD NOT BE REORDERED.'));
+    void repository.reorderQueue(moveInQueue(read.queue, key, direction), userId).catch(fail('THE QUEUE COULD NOT BE REORDERED.'));
+  }
+
+  /** A series' block out (every episode of it not yet played): a crown's `[ × ]`, or your own taken back. */
+  function takeOutSeries(seriesId: string, fallback: string) {
+    if (userId === null) return;
+    setProblem(null);
+    const rows = seriesRows(read.queue, seriesId);
+    void repository
+      .removeSeries(seriesId, userId)
+      .then(() => {
+        for (const entry of rows) applyLocalChange(roomId, { kind: 'removed', table: 'queue', id: entry.id });
+      })
+      .catch(fail(fallback));
   }
 
   /** An unplayed row out: a crown's `[ × ]` in the queue, or your own addition taken back. */
@@ -352,7 +498,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   const queueList = useRef<HTMLOListElement>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   /** The pressed row (not yet a drag until it moves) and the drag itself, as the pointer's own events read them. */
-  const press = useRef<{ entryId: string; title: string; x: number; y: number; pointerId: number } | null>(null);
+  const press = useRef<{ key: string; title: string; x: number; y: number; pointerId: number } | null>(null);
   const dragNow = useRef<Drag | null>(null);
 
   function follow(next: Drag | null) {
@@ -360,12 +506,32 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setDrag(next);
   }
 
-  /** The queue slot under the pointer: anywhere over the queue's half (stretched to the window's row) counts; above its first queued row is 0. */
+  /*
+   * What the queue draws (SPEC-stream-series.md): what played and what is to come, each run of one series' episodes
+   * as one folded block; and what a crown moves, a row or a block (`units`, which ↑ ↓, drops and [ ← ] count in).
+   */
+  const blocks = queueBlocks([...played, ...waiting]);
+  const units = upcomingUnits(read.queue);
+  const nowId = read.room.currentEntryId;
+  /** The drawn block holding a unit: a lone row's id, or its block's key. */
+  const blockOf = (unit: QueueUnit) => blocks.find((block) => block.entries.includes(unit.entries[0]))?.key ?? unit.id;
+  /**
+   * 1 while a series that has started (the one on screen, as a rule) still has episodes to come: they are unit 0,
+   * drawn inside its block rather than as a queued row of their own, so the drop rows start after it.
+   */
+  const slotBase =
+    units.length > 0 && units[0].series && blocks.some((block) => block.entries.includes(units[0].entries[0]) && block.entries.some((entry) => entry.playedAt !== null)) ? 1 : 0;
+
+  /**
+   * The queue slot under the pointer: anywhere over the queue's half (stretched to the window's row) counts; above
+   * its first queued row is 0 - or 1 while a series plays, whose episodes still to come stay in its block (a drop
+   * never lands inside the series on screen).
+   */
   function slotAt(x: number, y: number): number | null {
     const zone = queueZone.current?.getBoundingClientRect();
     if (zone === undefined || x < zone.left || x > zone.right || y < zone.top || y > zone.bottom) return null;
     const rows = queueList.current?.querySelectorAll<HTMLElement>('[data-queue-state="queued"]') ?? [];
-    return dropSlot(
+    return slotBase + dropSlot(
       [...rows].map((row) => {
         const box = row.getBoundingClientRect();
         return box.top + box.height / 2;
@@ -400,11 +566,11 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   }, [dragging]);
 
   /** What makes an addition row draggable for a crown: a press, a move past PICK_UP_PX, a release over the queue. */
-  function pickUp(entry: WatchQueueEntry): PickUp {
+  function pickUp(key: string, title: string): PickUp {
     return {
       onPointerDown(event: ReactPointerEvent<HTMLElement>) {
         if (event.button !== 0 || (event.target as HTMLElement).closest('button, a, input') !== null) return;
-        press.current = { entryId: entry.id, title: titleOf(entry), x: event.clientX, y: event.clientY, pointerId: event.pointerId };
+        press.current = { key, title, x: event.clientX, y: event.clientY, pointerId: event.pointerId };
         event.currentTarget.setPointerCapture(event.pointerId);
       },
       onPointerMove(event: ReactPointerEvent<HTMLElement>) {
@@ -417,7 +583,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
           return;
         }
         if (dragNow.current === null && Math.hypot(event.clientX - pressed.x, event.clientY - pressed.y) < PICK_UP_PX) return;
-        follow({ entryId: pressed.entryId, title: pressed.title, x: event.clientX, y: event.clientY, slot: slotAt(event.clientX, event.clientY) });
+        follow({ key: pressed.key, title: pressed.title, x: event.clientX, y: event.clientY, slot: slotAt(event.clientX, event.clientY) });
       },
       onPointerUp(event: ReactPointerEvent<HTMLElement>) {
         const pressed = press.current;
@@ -425,7 +591,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
         press.current = null;
         follow(null);
         if (pressed === null || pressed.pointerId !== event.pointerId || dropped === null || dropped.slot === null) return;
-        void place(dropped.entryId, dropped.slot);
+        void place(dropped.key, dropped.slot);
       },
       onPointerCancel() {
         press.current = null;
@@ -434,42 +600,65 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     };
   }
 
-  // Where the line in the queue shows the drop: above the queued row it would push down, under the last one
-  // for the end, or under what is on when nothing is queued.
-  const lineAt: { id: string; edge: 'top' | 'bottom' } | null =
+  // Where the line in the queue shows the drop: above the queued row (or block) it would push down, under the last
+  // one for the end, or under what is on when nothing is queued.
+  const lastBlock = blocks[blocks.length - 1];
+  const lineAt: { key: string; edge: 'top' | 'bottom' } | null =
     drag === null || drag.slot === null
       ? null
-      : drag.slot < waiting.length
-        ? { id: waiting[drag.slot].id, edge: 'top' }
-        : waiting.length > 0
-          ? { id: waiting[waiting.length - 1].id, edge: 'bottom' }
-          : played.length > 0
-            ? { id: played[played.length - 1].id, edge: 'bottom' }
-            : null;
-  const line = (entryId: string) => (lineAt !== null && lineAt.id === entryId ? <DropLine edge={lineAt.edge} /> : null);
+      : drag.slot < units.length
+        ? { key: blockOf(units[drag.slot]), edge: 'top' }
+        : lastBlock !== undefined
+          ? { key: lastBlock.key, edge: 'bottom' }
+          : null;
+  const line = (key: string) => (lineAt !== null && lineAt.key === key ? <DropLine edge={lineAt.edge} /> : null);
 
   /* --- the window ------------------------------------------------------------------------------ */
 
   const searching = search.kind !== 'none';
   const [openFolds, setOpenFolds] = useState<ReadonlySet<string>>(() => new Set());
-  const toggleFold = (personId: string) =>
+  // People's folds, the queue's series blocks and the additions' series blocks all start folded.
+  const toggleFold = (key: string) =>
     setOpenFolds((current) => {
       const next = new Set(current);
-      if (!next.delete(personId)) next.add(personId);
+      if (!next.delete(key)) next.add(key);
       return next;
     });
 
-  const additionRow = (entry: WatchQueueEntry) => (
-    <AdditionRow
-      key={entry.id}
-      entry={entry}
-      title={titleOf(entry)}
-      picked={drag?.entryId === entry.id}
-      handlers={rights.arrange ? pickUp(entry) : undefined}
-      onPull={rights.arrange ? () => void place(entry.id, waiting.length) : null}
-      onTakeBack={mayTakeBack(entry, userId) ? () => takeOut(entry, "IT COULDN'T BE TAKEN BACK.") : null}
-    />
-  );
+  /** One addition waiting: a row, or a series' block (its episodes under a fold). */
+  const additionRow = (unit: QueueUnit) => {
+    if (!unit.series) {
+      const entry = unit.entries[0];
+      return (
+        <AdditionRow
+          key={entry.id}
+          entry={entry}
+          title={titleOf(entry)}
+          picked={drag?.key === entry.id}
+          handlers={rights.arrange ? pickUp(entry.id, titleOf(entry)) : undefined}
+          onPull={rights.arrange ? () => void place(entry.id, units.length) : null}
+          onTakeBack={mayTakeBack(entry, userId) ? () => takeOut(entry, "IT COULDN'T BE TAKEN BACK.") : null}
+        />
+      );
+    }
+    const title = unit.entries[0].series?.title ?? 'SERIES';
+    const fold = `add:${unit.id}`;
+    return (
+      <AdditionBlock
+        key={unit.id}
+        unit={unit}
+        title={title}
+        open={openFolds.has(fold)}
+        onToggle={() => toggleFold(fold)}
+        picked={drag?.key === unit.id}
+        handlers={rights.arrange ? pickUp(unit.id, title) : undefined}
+        onPull={rights.arrange ? () => void place(unit.id, units.length) : null}
+        onTakeBack={unit.entries.every((entry) => mayTakeBack(entry, userId)) ? () => takeOutSeries(unit.id, "IT COULDN'T BE TAKEN BACK.") : null}
+        episodeOut={(entry) => (rights.arrange || mayTakeBack(entry, userId) ? () => takeOut(entry, 'THE EPISODE COULD NOT BE TAKEN OUT.') : null)}
+        titleOf={titleOf}
+      />
+    );
+  };
 
   return (
     <PopoutWindow title="QUEUE" onClose={onClose} maxWidth={rights.sees === 'nothing' ? 'max-w-3xl' : 'max-w-5xl'}>
@@ -481,7 +670,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
             className="flex flex-col gap-1"
             onSubmit={(event) => {
               event.preventDefault();
-              if (address) void addLink(false);
+              if (seriesTarget !== null) void addSeriesLink(false);
+              else if (address) void addLink(false);
               else void find(text);
             }}
           >
@@ -500,11 +690,15 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 autoFocus
                 className={`${FIELD_TIGHT} min-w-0 flex-1`}
               />
-              <button type="submit" className={PLATE} disabled={search.kind === 'searching' || linkState.kind === 'checking'}>
+              <button type="submit" className={PLATE} disabled={search.kind === 'searching' || linkState.kind === 'checking' || (seriesTarget !== null && seriesState.kind !== 'read')}>
                 {address ? '[ + ADD ]' : '[ SEARCH ]'}
               </button>
               {address && rights.arrange ? (
-                <QueueKey label="the link" disabled={linkState.kind === 'checking'} onAdd={() => void addLink(true)} />
+                <QueueKey
+                  label="the link"
+                  disabled={linkState.kind === 'checking' || (seriesTarget !== null && seriesState.kind !== 'read')}
+                  onAdd={() => void (seriesTarget !== null ? addSeriesLink(true) : addLink(true))}
+                />
               ) : null}
             </div>
             {/* Kept on screen with nothing in it, so nothing under it moves when a link is pasted. */}
@@ -527,6 +721,12 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
             <p className="font-bold" role="status" data-watch-link-state={linkState.kind}>
               {linkState.kind === 'checking' ? (
                 'CHECKING THE LINK...'
+              ) : seriesTarget !== null && seriesState.kind === 'reading' ? (
+                'READING THE SERIES...'
+              ) : seriesTarget !== null && seriesState.kind === 'failed' && linkState.kind !== 'refused' ? (
+                <span className="bg-bubble-pale px-1 text-ink-bar">{seriesState.reason}</span>
+              ) : seriesTarget !== null && seriesState.kind === 'read' && linkState.kind === 'idle' ? (
+                seriesState.read.episodes.length >= 2 ? `${seriesState.read.title.toUpperCase()} :: ${seriesMark(seriesState.read.episodes.length)}` : seriesState.read.title.toUpperCase()
               ) : linkState.kind === 'added' ? (
                 linkState.words
               ) : linkState.kind === 'refused' ? (
@@ -558,46 +758,87 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
           <section ref={queueZone} aria-label="Queue" className="min-w-0 md:flex-1 md:self-stretch">
             <ol ref={queueList} className="md:max-h-[60vh] md:overflow-y-auto" aria-label="Queue" data-watch-queue>
               {played.length + waiting.length === 0 ? <li className="font-bold text-ink-quiet">NOTHING QUEUED.</li> : null}
-              {played.map((entry) => {
-                const now = entry.id === read.room.currentEntryId;
-                return (
-                  <li key={entry.id} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state={now ? 'now' : 'played'}>
-                    <span className={`min-w-0 flex-1 truncate ${now ? 'text-queue-now-ink' : 'text-queue-played-ink'}`} title={titleOf(entry)}>
-                      <span className="sr-only">{now ? 'Now playing: ' : 'Played: '}</span>
-                      {titleOf(entry)}
-                    </span>
-                    {line(entry.id)}
-                  </li>
-                );
-              })}
-              {waiting.map((entry, index) => (
-                <li key={entry.id} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state="queued">
-                  <span className="min-w-0 flex-1 truncate text-queue-next-ink" title={titleOf(entry)}>
-                    <span className="sr-only">{`Next ${index + 1}: `}</span>
-                    {titleOf(entry)}
-                  </span>
-                  {rights.arrange ? (
+              {blocks.map((block) => {
+                const now = block.entries.some((entry) => entry.id === nowId);
+                const queued = block.entries.every((entry) => entry.playedAt === null);
+                const state = now ? 'now' : queued ? 'queued' : 'played';
+                const unitIndex = queued ? units.findIndex((unit) => unit.entries[0] === block.entries[0]) : -1;
+                const first = block.entries[0];
+                const name = block.series === null ? titleOf(first) : block.series.title;
+                // A crown's keys on what is still to come: up, down, out (a block's are for all its episodes).
+                const keys =
+                  rights.arrange && queued && unitIndex !== -1 ? (
                     <span className="flex shrink-0 items-center">
-                      <button type="button" className={PLATE} disabled={index === 0} aria-label={`Move ${titleOf(entry)} up`} onClick={() => reorder(entry.id, -1)}>
+                      <button type="button" className={PLATE} disabled={unitIndex - 1 < slotBase} aria-label={`Move ${name} up`} onClick={() => reorder(units[unitIndex].id, -1)}>
                         [ ↑ ]
+                      </button>
+                      <button type="button" className={PLATE} disabled={unitIndex === units.length - 1} aria-label={`Move ${name} down`} onClick={() => reorder(units[unitIndex].id, 1)}>
+                        [ ↓ ]
                       </button>
                       <button
                         type="button"
                         className={PLATE}
-                        disabled={index === waiting.length - 1}
-                        aria-label={`Move ${titleOf(entry)} down`}
-                        onClick={() => reorder(entry.id, 1)}
+                        aria-label={`Take ${name} out`}
+                        onClick={() => (block.series === null ? takeOut(first, 'THE FILE COULD NOT BE TAKEN OUT.') : takeOutSeries(block.series.id, 'THE SERIES COULD NOT BE TAKEN OUT.'))}
                       >
-                        [ ↓ ]
-                      </button>
-                      <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={() => takeOut(entry, 'THE FILE COULD NOT BE TAKEN OUT.')}>
                         [ × ]
                       </button>
                     </span>
-                  ) : null}
-                  {line(entry.id)}
-                </li>
-              ))}
+                  ) : null;
+                const said = now ? 'Now playing: ' : queued ? `Next ${unitIndex + 1}: ` : 'Played: ';
+
+                if (block.series === null) {
+                  return (
+                    <li key={block.key} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state={state}>
+                      <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[state]}`} title={name}>
+                        <span className="sr-only">{said}</span>
+                        {name}
+                      </span>
+                      {keys}
+                      {line(block.key)}
+                    </li>
+                  );
+                }
+
+                const open = openFolds.has(block.key);
+                return (
+                  <li key={block.key} className="rule-pixel relative py-1" data-queue-state={state} data-series-block={block.series.id}>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => toggleFold(block.key)}
+                        aria-expanded={open}
+                        title={name}
+                        className={`min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap ${QUEUE_INK[state]}`}
+                      >
+                        <span className="sr-only">{`${said}series, `}</span>
+                        {open ? '[-]' : '[+]'} {name} ({block.entries.length})
+                      </button>
+                      {keys}
+                    </div>
+                    {open ? (
+                      <ol className="pl-4" aria-label={`Episodes of ${name}`}>
+                        {block.entries.map((entry) => {
+                          const episodeState = entry.id === nowId ? 'now' : entry.playedAt === null ? 'queued' : 'played';
+                          return (
+                            <li key={entry.id} className="flex items-center gap-2 py-0.5" data-episode={entry.id} data-episode-state={episodeState}>
+                              <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[episodeState]}`} title={titleOf(entry)}>
+                                {titleOf(entry)}
+                              </span>
+                              {rights.arrange && episodeState === 'queued' ? (
+                                <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={() => takeOut(entry, 'THE EPISODE COULD NOT BE TAKEN OUT.')}>
+                                  [ × ]
+                                </button>
+                              ) : null}
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    ) : null}
+                    {line(block.key)}
+                  </li>
+                );
+              })}
             </ol>
             {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
           </section>
@@ -612,6 +853,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   crowned={rights.arrange}
                   onAddFile={(id, straight) => void addFile(id, straight)}
                   onAddWeb={(item, straight) => void addWeb(item, straight)}
+                  onAddSeries={(item, links, straight) => void addSeriesResult(item, links, straight)}
                   onMore={(words, cursor) => void find(words, cursor)}
                   onBack={backToAdditions}
                 />
@@ -638,7 +880,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                         onToggle={() => toggleFold(person.userId)}
                         onCrown={() => void crown(person)}
                       >
-                        {person.additions.length === 0 ? <li className="py-1 text-ink-quiet">NOTHING ADDED.</li> : person.additions.map(additionRow)}
+                        {person.additions.length === 0 ? <li className="py-1 text-ink-quiet">NOTHING ADDED.</li> : additionUnits(person.additions).map(additionRow)}
                       </PersonFold>
                     ))}
                   </ul>
@@ -651,13 +893,17 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   <div className="py-1">
                     <InfoFold topic="additions">SOMEBODY WITH A CROWN PULLS THESE INTO THE QUEUE.</InfoFold>
                   </div>
-                  <YourAdditions entries={waitingAdditions(read.queue).filter((entry) => entry.addedBy === userId)} row={additionRow} />
+                  <YourAdditions units={additionUnits(waitingAdditions(read.queue).filter((entry) => entry.addedBy === userId))} row={additionRow} />
                 </>
               )}
             </section>
           )}
         </div>
       </div>
+
+      {picking !== null && typeof document !== 'undefined' ? (
+        <SeriesPicker read={picking} crowned={rights.arrange} onAdd={(links, straight) => addPicked(picking, links, straight)} onCancel={closePicker} />
+      ) : null}
 
       {/* What is being dragged, under the pointer; out of the window's flow, so nothing in it moves. */}
       {drag !== null && typeof document !== 'undefined'
@@ -677,11 +923,11 @@ function DropLine({ edge }: { edge: 'top' | 'bottom' }) {
   return <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 h-0.5 bg-accent-ink ${edge === 'top' ? '-top-px' : '-bottom-px'}`} data-drop-line={edge} />;
 }
 
-/** Somebody without a crown: their own additions, each with `[ × ]` until a crown pulls it in. */
-function YourAdditions({ entries, row }: { entries: WatchQueueEntry[]; row: (entry: WatchQueueEntry) => ReactNode }) {
+/** Somebody without a crown: their own additions, each with `[ × ]` until a crown pulls it in (a series as one block). */
+function YourAdditions({ units, row }: { units: QueueUnit[]; row: (unit: QueueUnit) => ReactNode }) {
   return (
     <ul className="md:max-h-[60vh] md:overflow-y-auto" aria-label="Your additions" data-watch-additions="mine">
-      {entries.length === 0 ? <li className="font-bold text-ink-quiet">NOTHING ADDED.</li> : entries.map(row)}
+      {units.length === 0 ? <li className="font-bold text-ink-quiet">NOTHING ADDED.</li> : units.map(row)}
     </ul>
   );
 }
@@ -725,6 +971,74 @@ function AdditionRow({
   );
 }
 
+/**
+ * A series waiting on somebody's list (SPEC-stream-series.md): one folded block, dragged, `[ ← ]`d and `[ × ]`d as
+ * one; opened, its episodes, each with `[ × ]` for a crown (or its own adder) to drop it first.
+ */
+function AdditionBlock({
+  unit,
+  title,
+  open,
+  onToggle,
+  picked,
+  handlers,
+  onPull,
+  onTakeBack,
+  episodeOut,
+  titleOf,
+}: {
+  unit: QueueUnit;
+  title: string;
+  open: boolean;
+  onToggle: () => void;
+  picked: boolean;
+  handlers: PickUp | undefined;
+  onPull: (() => void) | null;
+  onTakeBack: (() => void) | null;
+  episodeOut: (entry: WatchQueueEntry) => (() => void) | null;
+  titleOf: (entry: WatchQueueEntry) => string;
+}) {
+  return (
+    <li className={`rule-pixel py-1 ${picked ? 'opacity-50' : ''}`} data-addition={unit.id} data-series-block={unit.id}>
+      <div {...handlers} className={`flex items-center gap-2 ${handlers === undefined ? '' : 'cursor-grab touch-pan-y select-none'}`}>
+        <button type="button" onClick={onToggle} aria-expanded={open} title={title} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
+          <span className="sr-only">Series: </span>
+          {open ? '[-]' : '[+]'} {title} ({unit.entries.length})
+        </button>
+        {onPull === null ? null : (
+          <button type="button" className={PLATE} aria-label={`Put ${title} at the end of the queue`} title="To the end of the queue" onClick={onPull}>
+            [ ← ]
+          </button>
+        )}
+        {onTakeBack === null ? null : (
+          <button type="button" className={PLATE} aria-label={`Take back ${title}`} onClick={onTakeBack}>
+            [ × ]
+          </button>
+        )}
+      </div>
+      {open ? (
+        <ol className="pl-4" aria-label={`Episodes of ${title}`}>
+          {unit.entries.map((entry) => {
+            const out = episodeOut(entry);
+            return (
+              <li key={entry.id} className="flex items-center gap-2 py-0.5" data-episode={entry.id}>
+                <span className="min-w-0 flex-1 truncate" title={titleOf(entry)}>
+                  {titleOf(entry)}
+                </span>
+                {out === null ? null : (
+                  <button type="button" className={PLATE} aria-label={`Take ${titleOf(entry)} out`} onClick={out}>
+                    [ × ]
+                  </button>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      ) : null}
+    </li>
+  );
+}
+
 /** A name to show: the room's presence knows somebody who is here; somebody who has left is asked of their profile. */
 function useShownName(userId: string, name: string): string {
   const { profile, ready } = usePublicProfile(name.length > 0 ? null : userId);
@@ -757,7 +1071,7 @@ function PersonFold({
       <div className="flex items-center gap-1">
         <Crown held={person.crowned} name={name} mine={mine} canPress={canCrown} onPress={onCrown} />
         <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
-          {open ? '[-]' : '[+]'} <ProfileName author={{ id: person.userId, displayName: name }} lamp={false} /> ({person.additions.length})
+          {open ? '[-]' : '[+]'} <ProfileName author={{ id: person.userId, displayName: name }} lamp={false} /> ({additionUnits(person.additions).length})
         </button>
         {person.host ? <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">HOST</span> : null}
       </div>
@@ -806,6 +1120,7 @@ function Results({
   crowned,
   onAddFile,
   onAddWeb,
+  onAddSeries,
   onMore,
   onBack,
 }: {
@@ -814,6 +1129,8 @@ function Results({
   crowned: boolean;
   onAddFile: (mediaItemId: string, straight: boolean) => void;
   onAddWeb: (item: WebItem, straight: boolean) => void;
+  /** A series result's ticked episodes, or null for all of them (the fold never opened). */
+  onAddSeries: (item: WebItem, links: WatchLink[] | null, straight: boolean) => void;
   onMore: (words: string, cursor: string) => void;
   onBack: () => void;
 }) {
@@ -847,7 +1164,14 @@ function Results({
             </li>
           ))}
           {search.web.map((item) => (
-            <WebResult key={item.id} item={item} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(straight) => onAddWeb(item, straight)} />
+            <WebResult
+              key={item.id}
+              item={item}
+              crowned={crowned}
+              added={added(`web:${item.id}`)}
+              onAdd={(straight) => onAddWeb(item, straight)}
+              onAddSeries={(links, straight) => onAddSeries(item, links, straight)}
+            />
           ))}
         </ul>
       )}
@@ -869,10 +1193,80 @@ function Results({
   );
 }
 
-/** One WEB result: its picture (hotlinked, re-checked like every /web row), title, maker, where from, length. */
-function WebResult({ item, crowned, added, onAdd }: { item: WebItem; crowned: boolean; added: AddedWords | null; onAdd: (straight: boolean) => void }) {
+/**
+ * One WEB result: its picture (hotlinked, re-checked like every /web row), title, maker, where from, length. A series
+ * (an Archive item with 2+ videos, SPEC-stream-series.md) says `SERIES :: n EPISODES` beside its platform, and its
+ * title is a fold, starting folded, opening to its episodes, each ticked; the ADD keys then add the ticked ones.
+ */
+function WebResult({
+  item,
+  crowned,
+  added,
+  onAdd,
+  onAddSeries,
+}: {
+  item: WebItem;
+  crowned: boolean;
+  added: AddedWords | null;
+  onAdd: (straight: boolean) => void;
+  onAddSeries: (links: WatchLink[] | null, straight: boolean) => void;
+}) {
   const [thumbFailed, setThumbFailed] = useState(false);
   const thumb = thumbFailed ? null : rowAddresses(item).thumb;
+  const count = useSeriesCount(item);
+  const [open, setOpen] = useState(false);
+  const [episodes, setEpisodes] = useState<{ kind: 'reading' } | { kind: 'read'; read: SeriesRead } | { kind: 'failed'; reason: string } | null>(null);
+  const [ticked, setTicked] = useState<ReadonlySet<number>>(() => new Set());
+
+  function toggle() {
+    setOpen((was) => !was);
+    if (episodes !== null) return;
+    setEpisodes({ kind: 'reading' });
+    fetchSeries({ source: 'internet_archive', id: item.externalId }).then(
+      (found) => {
+        setEpisodes({ kind: 'read', read: found });
+        setTicked(new Set(found.episodes.map((_, index) => index)));
+      },
+      (failure: unknown) => setEpisodes({ kind: 'failed', reason: failure instanceof Error ? failure.message : 'THE SERIES COULD NOT BE READ.' }),
+    );
+  }
+
+  if (count !== null) {
+    const read = episodes?.kind === 'read' ? episodes.read : null;
+    const links = read === null ? null : read.episodes.filter((_, index) => ticked.has(index)).map(episodeLink);
+    return (
+      <li className="rule-pixel py-1" data-series-result={item.id}>
+        <div className="flex items-center gap-2">
+          <ResultThumb thumb={thumb} onFailed={() => setThumbFailed(true)} />
+          <span className="min-w-0 flex-1">
+            <button type="button" onClick={toggle} aria-expanded={open} title={item.title} className="block w-full cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap">
+              {open ? '[-]' : '[+]'} {item.title}
+            </button>
+            <span className="mt-0.5 flex flex-wrap items-center gap-x-2">
+              <span className="bg-ice-pale px-1 font-bold">{PLATFORM_LABELS[item.platform]}</span>
+              <span className="bg-acid px-1 font-bold text-ink-plate" data-series-mark>
+                {seriesMark(count)}
+              </span>
+              {item.creator ? <span className="min-w-0 truncate">{item.creator}</span> : null}
+            </span>
+          </span>
+          {/* Nothing ticked: both keys go quiet. */}
+          <AddKey crowned={crowned} added={added} disabled={links !== null && links.length === 0} onAdd={(straight) => onAddSeries(links, straight)} label={item.title} />
+        </div>
+        {open ? (
+          <div className="pl-4 pt-1">
+            {episodes === null || episodes.kind === 'reading' ? (
+              <p className="font-bold">READING THE EPISODES...</p>
+            ) : episodes.kind === 'failed' ? (
+              <p className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar">{episodes.reason}</p>
+            ) : (
+              <EpisodeTicks read={episodes.read} ticked={ticked} onTicked={setTicked} />
+            )}
+          </div>
+        ) : null}
+      </li>
+    );
+  }
 
   return (
     <li className="rule-pixel flex items-center gap-2 py-1">
@@ -911,7 +1305,19 @@ function WebResult({ item, crowned, added, onAdd }: { item: WebItem; crowned: bo
  * `[ + ADD ]` onto your own list, and for a crown the crown-plus key beside it, straight into the queue; QUEUED or
  * ADDED for a moment after. The box is as wide as both keys either way, so the row never moves.
  */
-function AddKey({ crowned, added, onAdd, label }: { crowned: boolean; added: AddedWords | null; onAdd: (straight: boolean) => void; label: string }) {
+function AddKey({
+  crowned,
+  added,
+  onAdd,
+  label,
+  disabled = false,
+}: {
+  crowned: boolean;
+  added: AddedWords | null;
+  onAdd: (straight: boolean) => void;
+  label: string;
+  disabled?: boolean;
+}) {
   return (
     <span className={`flex shrink-0 items-center justify-end ${crowned ? 'w-36' : 'w-24'}`}>
       {added !== null ? (
@@ -920,10 +1326,10 @@ function AddKey({ crowned, added, onAdd, label }: { crowned: boolean; added: Add
         </span>
       ) : (
         <>
-          <button type="button" className={PLATE} onClick={() => onAdd(false)} aria-label={`Add ${label} to your list`}>
+          <button type="button" className={PLATE} disabled={disabled} onClick={() => onAdd(false)} aria-label={`Add ${label} to your list`}>
             [ + ADD ]
           </button>
-          {crowned ? <QueueKey label={label} onAdd={() => onAdd(true)} /> : null}
+          {crowned ? <QueueKey label={label} disabled={disabled} onAdd={() => onAdd(true)} /> : null}
         </>
       )}
     </span>
@@ -948,5 +1354,156 @@ function QueueKey({ label, disabled = false, onAdd }: { label: string; disabled?
         }
       />
     </button>
+  );
+}
+
+/** A result's picture box: hotlinked, a fixed box so a slow or missing picture never moves the row. */
+function ResultThumb({ thumb, onFailed }: { thumb: string | null; onFailed: () => void }) {
+  return (
+    <span className="block h-18 w-24 shrink-0 overflow-hidden border border-ink-plate bg-paper">
+      {thumb ? (
+        // eslint-disable-next-line @next/next/no-img-element -- hotlinked from the platform, never proxied or copied (SPEC-web.md)
+        <img src={thumb} alt="" width={96} height={72} loading="lazy" decoding="async" referrerPolicy="no-referrer" onError={onFailed} className="block h-full w-full object-cover" />
+      ) : (
+        <SpriteSlot
+          src={MISSING_THUMB_SRC}
+          alt=""
+          width={96}
+          height={72}
+          title="No picture"
+          fallback={<span aria-hidden="true" className="flex h-full w-full items-center justify-center text-label font-bold text-ink">NO IMAGE</span>}
+        />
+      )}
+    </span>
+  );
+}
+
+/**
+ * A series' episodes, each with a tick (all ticked to start), and `[ TICK ALL ]` / `[ TICK NONE ]`. The list scrolls
+ * on its own however long the series is.
+ */
+function EpisodeTicks({ read, ticked, onTicked }: { read: SeriesRead; ticked: ReadonlySet<number>; onTicked: (next: ReadonlySet<number>) => void }) {
+  const all = read.episodes.length;
+  return (
+    <div className="flex flex-col gap-1" data-episode-ticks={all}>
+      <div className="flex flex-wrap items-center gap-1">
+        <span className="min-w-0 flex-1 font-bold">{`${ticked.size} OF ${all} TICKED`}</span>
+        <button type="button" className={PLATE} disabled={ticked.size === all} onClick={() => onTicked(new Set(read.episodes.map((_, index) => index)))}>
+          [ TICK ALL ]
+        </button>
+        <button type="button" className={PLATE} disabled={ticked.size === 0} onClick={() => onTicked(new Set())}>
+          [ TICK NONE ]
+        </button>
+      </div>
+      {read.partial ? <p className="text-ink-quiet">{`THE FIRST ${all} EPISODES: THE REST TOOK TOO LONG TO READ.`}</p> : null}
+      <ul className="max-h-[40vh] overflow-y-auto" aria-label={`Episodes of ${read.title}`}>
+        {read.episodes.map((episode, index) => (
+          <li key={`${index}-${episode.url}`}>
+            <label className="flex cursor-pointer items-center gap-2 py-0.5 max-sm:min-h-tap">
+              <input
+                type="checkbox"
+                checked={ticked.has(index)}
+                onChange={(event) => {
+                  const next = new Set(ticked);
+                  if (event.target.checked) next.add(index);
+                  else next.delete(index);
+                  onTicked(next);
+                }}
+              />
+              <span className="min-w-0 flex-1 truncate" title={episode.title}>
+                {episode.title}
+              </span>
+              {episode.seconds === null ? null : <span className="shrink-0 tabular-nums">{formatMediaTime(episode.seconds)}</span>}
+            </label>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+/**
+ * The pop-up a pasted series link opens over the queue window (SPEC-stream-series.md), like a torrent client's
+ * "which files" window: the series' name, every episode ticked, the two ADD keys and `[ CANCEL ]`. ESC and a press
+ * on the dimmed window behind close it alone, never the queue window under it.
+ */
+function SeriesPicker({
+  read,
+  crowned,
+  onAdd,
+  onCancel,
+}: {
+  read: SeriesRead;
+  crowned: boolean;
+  /** The ticked episodes as one block; resolves to a refusal to show, or null once added. */
+  onAdd: (links: WatchLink[], straight: boolean) => Promise<string | null>;
+  onCancel: () => void;
+}) {
+  const [ticked, setTicked] = useState<ReadonlySet<number>>(() => new Set(read.episodes.map((_, index) => index)));
+  const [busy, setBusy] = useState(false);
+  const [refusal, setRefusal] = useState<string | null>(null);
+  const boxRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    boxRef.current?.focus();
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.stopPropagation();
+      onCancel();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onCancel]);
+
+  async function add(straight: boolean) {
+    const links = read.episodes.filter((_, index) => ticked.has(index)).map(episodeLink);
+    if (links.length === 0 || busy) return;
+    setBusy(true);
+    setRefusal(null);
+    const said = await onAdd(links, straight);
+    setBusy(false);
+    if (said !== null) setRefusal(said);
+  }
+
+  const none = ticked.size === 0;
+  return createPortal(
+    <div className="fixed inset-0 z-overlay flex items-start justify-center overflow-y-auto bg-hardware/60 p-4 sm:p-8" onMouseDown={onCancel}>
+      <div
+        ref={boxRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Pick episodes of ${read.title}`}
+        onMouseDown={(event) => event.stopPropagation()}
+        className="frame mt-6 w-full max-w-xl bg-sun-pale text-label text-ink"
+        data-series-picker
+      >
+        <div className={TITLE_BAR}>
+          <span className="truncate" title={read.title}>
+            {read.title}
+          </span>
+          <span className="shrink-0">{seriesMark(read.episodes.length)}</span>
+        </div>
+        <div className="flex flex-col gap-2 p-2">
+          <EpisodeTicks read={read} ticked={ticked} onTicked={setTicked} />
+          {refusal === null ? null : (
+            <p className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">
+              {refusal}
+            </p>
+          )}
+          <div className="flex flex-wrap items-center justify-end gap-1">
+            {busy ? <span className="font-bold">ADDING...</span> : null}
+            <button type="button" className={PLATE} disabled={none || busy} onClick={() => void add(false)} aria-label={`Add the ticked episodes of ${read.title} to your list`}>
+              [ + ADD ]
+            </button>
+            {crowned ? <QueueKey label={`the ticked episodes of ${read.title}`} disabled={none || busy} onAdd={() => void add(true)} /> : null}
+            <button type="button" className={PLATE} onClick={onCancel}>
+              [ CANCEL ]
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
   );
 }

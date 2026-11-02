@@ -40,6 +40,19 @@ export type WatchLink = {
 };
 
 /**
+ * Where an episode sits in a series (SPEC-stream-series.md): an Internet Archive item's videos or a YouTube
+ * playlist, added in one go. Every episode is its own row; the rows of one add share `id` and their place in
+ * the queue, so a block moves as one, and `episode` keeps their order inside it.
+ */
+export type WatchSeriesMark = {
+  /** One per add: the same series added twice is two blocks. */
+  id: string;
+  title: string;
+  /** The order inside the block (1, 2, 3...); gaps are left when a crown takes an episode out. */
+  episode: number;
+};
+
+/**
  * One file or link added to a room. A play is a row: a file added twice is two rows. Until somebody with a
  * crown pulls it in, an addition waits on its adder's own list (`inQueue` false, SPEC-stream-queue.md).
  */
@@ -54,6 +67,8 @@ export type WatchQueueEntry = {
   mediaItemId: string | null;
   /** Set for a link instead of a catalogue file. */
   link: WatchLink | null;
+  /** Set for an episode of a series: one block in the queue with the rest of its add. */
+  series: WatchSeriesMark | null;
   addedBy: string | null;
   addedAt: string;
   /** Set when it started playing. */
@@ -86,8 +101,11 @@ export type WatchCrown = {
   givenAt: string;
 };
 
-/** A crown's write to the queue: a row's new place, and `pull` when it is an addition coming into the queue. */
-export type QueueMove = { id: string; position: number; pull?: boolean };
+/**
+ * A crown's write to the queue: a row's new place, and `pull` when it is an addition coming into the queue.
+ * With `series` the id is a series' (`WatchSeriesMark.id`) and the place is for every episode of it not yet played.
+ */
+export type QueueMove = { id: string; position: number; pull?: boolean; series?: boolean };
 
 /** A room with everything the window and the forum record draw. */
 export type WatchRoomRead = {

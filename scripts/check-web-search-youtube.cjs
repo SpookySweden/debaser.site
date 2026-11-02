@@ -173,7 +173,16 @@ async function problem(work) {
   global.fetch = realFetch;
 
   /* ---------------------------------------------------------------- the key's name in the code */
-  const ALLOWED = new Set(['app/api/web/search/route.ts', 'app/api/web/ingest/route.ts', 'app/lib/web/search/providers/youtube.ts', 'app/lib/web/search/types.ts']);
+  // The series route and its reader (SPEC-stream-series.md, 2026-11-02) read the key on the server for a playlist's
+  // `playlistItems`, the way the provider does; nothing they answer or throw carries it.
+  const ALLOWED = new Set([
+    'app/api/web/search/route.ts',
+    'app/api/web/ingest/route.ts',
+    'app/lib/web/search/providers/youtube.ts',
+    'app/lib/web/search/types.ts',
+    'app/api/web/series/route.ts',
+    'app/lib/web/series-files.ts',
+  ]);
   const walk = (dir, out = []) => {
     for (const name of readdirSync(dir)) {
       if (name === 'node_modules' || name === '.next' || name.startsWith('.')) continue;
@@ -188,7 +197,7 @@ async function problem(work) {
   for (const file of appFiles) {
     const rel = relative(ROOT, file).replace(/\\/g, '/');
     const text = readFileSync(file, 'utf8');
-    if (text.includes('YOUTUBE_API_KEY')) ok(ALLOWED.has(rel), `${rel} names YOUTUBE_API_KEY (only the search route, the ingest route and the provider may)`);
+    if (text.includes('YOUTUBE_API_KEY')) ok(ALLOWED.has(rel), `${rel} names YOUTUBE_API_KEY (only the search route, the ingest route, the provider and the series reader may)`);
     if (/^\s*['"]use client['"]/.test(text)) ok(!text.includes('YOUTUBE_API_KEY'), `browser file ${rel} names the key`);
     ok(!/NEXT_PUBLIC_YOUTUBE/.test(text), `${rel} has a NEXT_PUBLIC YouTube value`);
   }

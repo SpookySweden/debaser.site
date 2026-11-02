@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { useCatalogue } from '../lib/media/catalogue';
 import { useNow } from '../lib/ui/use-now';
-import { playOrder, roomIsLive, streamDate } from '../lib/watch/rules';
+import { playOrder, roomIsLive, streamDate, withSeries } from '../lib/watch/rules';
 import type { WatchMessage, WatchQueueEntry } from '../lib/watch/types';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { watchHref } from '../lib/watch/watch-window';
@@ -39,7 +39,7 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
   const plays = playOrder(read.queue);
   const titleOf = (entry: WatchQueueEntry) =>
     entry.link !== null
-      ? entry.link.title
+      ? withSeries(entry, entry.link.title)
       : entry.mediaItemId === null ? 'A FILE NO LONGER HELD' : (catalogue.items.find((item) => item.id === entry.mediaItemId)?.title ?? 'A FILE NOT HELD');
 
   // Each line belongs to the play it was said over; a line with no play (a file since removed) goes

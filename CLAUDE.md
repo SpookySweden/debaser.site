@@ -13,7 +13,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
 - Index and link or embed. Never download, copy, transcode or re-host media; thumbnails are hotlinked,
   playback is the platform's own embed (asked to autoplay on our PLAY), an outbound link, or, for audio,
   the site's music bar streaming the platform's own file straight from the platform via a redirect
-  (`app/lib/web/web-audio.ts`, Luke's OK 2026-10-31).
+  (`app/lib/web/web-audio.ts`, Luke's OK 2026-10-31), or, in a stream room, an Internet Archive series'
+  episodes as their https video files played straight from archive.org in the room's own player, in step
+  (`app/lib/web/series-files.ts`, Luke's OK in SPEC-stream-series.md, 2026-11-02).
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.

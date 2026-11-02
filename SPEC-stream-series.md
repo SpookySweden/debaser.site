@@ -78,3 +78,21 @@ rules. Existing rows (single Archive embeds already queued) stay as they are.
 - The rules probe (Temp/probe-watch-crowns.sql pattern) for any new policy or guard rule.
 - Drives on the mock: search folds and ticks, the link pop-up, a block folding in the queue, SKIP inside a
   block. Live: a real Archive series in a room (needs `.env.test` back for a signed-in drive; otherwise say so).
+
+## Built (2026-11-02)
+- **Data:** supabase/migrations/20261102224336_watch_queue_series.sql (Luke's typed OK): `series_id` (one per add),
+  `series_title`, `series_episode` on `watch_queue`. One row per episode; the episodes of one add share one place, so a
+  block moves, is pulled in or is taken out with one write (`where series_id = X and played_at is null`).
+- **No cap, settled:** one row per episode, and the room reads its queue in pages of 1,000 (it stopped at 500); a series is
+  written 1,000 episodes per request. The feed reads the room once more after a burst of series events, so a viewer who
+  missed some of a long series' events still gets it whole. A YouTube playlist is read for up to 20 seconds; past that the
+  pop-up says it shows the first part. The tick list scrolls on its own.
+- **Reading:** app/lib/web/series-files.ts (the Archive's h.264 copy over the upload, in name order, 2 before 10; YouTube's
+  Data API with the key, InnerTube's `browse` otherwise), served by `/api/web/series` (signed-in only), re-checked in the
+  page by app/lib/watch/series.ts. Only Archive items with 2+ videos and pasted YouTube playlists are series (WEB's YouTube
+  search finds videos only).
+- **Beyond the spec, said here:** a crown's `[ × ]` on a whole block (every episode still to come) as well as on single
+  episodes. A pasted Archive item with one video plays as that file in the room's own player; one with no video a browser
+  plays falls back to the Archive's own player, as /web queues it.
+- **Proof:** Temp/check-stream-series.cjs (59, four deliberate breaks caught), Temp/drive-stream-series.cjs (mock),
+  Temp/probe-watch-series.sql (13/13 live, rolled back).

@@ -23,10 +23,12 @@ import {
   formatMediaTime,
   handoverTo,
   nextPlayIndex,
+  nextToPlay,
   roomIsLive,
   shouldTakeOver,
   upcoming,
   viewerStep,
+  withSeries,
 } from '../lib/watch/rules';
 import type { WatchLink, WatchMember, WatchMessage, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
@@ -101,7 +103,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const link = entry?.link ?? null;
   /** What the stage plays: the link's own address, or the catalogue file's. */
   const src = link?.url ?? item?.src;
-  const entryTitle = link?.title ?? item?.title;
+  // An episode is named `SERIES :: EPISODE` (SPEC-stream-series.md).
+  const entryTitle = entry === undefined ? undefined : link !== null ? withSeries(entry, link.title) : item?.title;
   const entryId = entry?.id ?? null;
   /** A streaming link's player (hls.js / dash.js) while one is on; the stage's `src` is then its business. */
   const streamRef = useRef<StreamHandle | null>(null);
@@ -194,9 +197,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
   });
 
-  /** The host moves on: the next file in the queue, or the same one again from the top. */
+  /** The host moves on: the next file in the queue (inside a series, its next episode), or the same one again from the top. */
   function moveOn(skip: boolean) {
-    const next = upcoming(read.queue)[0];
+    const next = nextToPlay(read.queue);
     const video = videoRef.current;
 
     if (next === undefined) {
@@ -408,7 +411,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const linkDead = link !== null && deadEntry !== null && deadEntry === entryId;
   const skipDead = useEffectEvent(() => {
     if (upcoming(read.queue).length === 0) return;
-    setNotice(`SKIPPED: ${(link?.title ?? '').toUpperCase()} WOULDN'T PLAY`);
+    setNotice(`SKIPPED: ${(entryTitle ?? '').toUpperCase()} WOULDN'T PLAY`);
     moveOn(true);
   });
   useEffect(() => {
@@ -725,7 +728,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   const nextEntry = waiting[0];
   const nextTitle =
-    nextEntry === undefined ? null : nextEntry.link !== null ? nextEntry.link.title : nextEntry.mediaItemId ? (itemsById.get(nextEntry.mediaItemId)?.title ?? null) : null;
+    nextEntry === undefined
+      ? null
+      : nextEntry.link !== null
+        ? withSeries(nextEntry, nextEntry.link.title)
+        : nextEntry.mediaItemId
+          ? (itemsById.get(nextEntry.mediaItemId)?.title ?? null)
+          : null;
 
   // Top to bottom (Luke, 2026-11-02): the QUEUE line, which opens the queue as its own window; the strip of
   // who is watching with what is on and what is next, newswire-style, the width of the chat; then the chat.

@@ -4,6 +4,8 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type KeyboardEvent } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
+import { seriesMark } from '../lib/watch/series';
+import { useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { DEFAULT_PAGE_SIZE } from '../lib/web/paging';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
@@ -926,6 +928,8 @@ function WebRow({
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
   const date = item.publishedAt.slice(0, 10);
+  // An Archive item with two or more videos is a series (SPEC-stream-series.md): marked here, ticked in a room's queue.
+  const seriesCount = useSeriesCount(item);
 
   return (
     <li className="rule-pixel py-2">
@@ -982,6 +986,11 @@ function WebRow({
 
           <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label">
             <span className="font-bold text-ink-quiet">{KIND_LABELS[item.kind]}</span>
+            {seriesCount === null ? null : (
+              <span className="bg-acid px-1 font-bold text-ink-plate" data-series-mark>
+                {seriesMark(seriesCount)}
+              </span>
+            )}
             <time dateTime={item.publishedAt} className="text-ink">
               {date}
             </time>
