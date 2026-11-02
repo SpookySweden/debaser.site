@@ -7,6 +7,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
 - Changes go through the house loop in core.md (verify, checks, commit, push to main, `npm run read`).
 - Metadata only: title, creator, plain-text description, thumbnail, date, kind, licence, duration.
   Never store or show likes, views, downloads, ratings, follower counts or comments.
+  Sorting a search (SPEC-web-sort.md, Luke 2026-11-02): a platform's own popularity order may be asked for, and TMDB's
+  rating may order KINO titles. Counts and ratings stay on the server and decide order only: never shown, saved or
+  sent to the browser.
 - Index and link or embed. Never download, copy, transcode or re-host media; thumbnails are hotlinked,
   playback is the platform's own embed (asked to autoplay on our PLAY), an outbound link, or, for audio,
   the site's music bar streaming the platform's own file straight from the platform via a redirect

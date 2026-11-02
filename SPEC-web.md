@@ -12,6 +12,9 @@ video, image, text) collected automatically from many platforms.
 - Metadata only: title, creator/uploader, description (plain text), thumbnail, publish date, kind,
   licence URL if the source gives one, duration if given. NEVER store or show likes, views,
   downloads, ratings, follower counts or comments. The site's own forum owns those.
+- Sorting a search (Luke, 2026-11-02, SPEC-web-sort.md): a platform's own popularity order may be asked for, and
+  TMDB's rating may be used to order KINO titles. Counts and ratings stay on the server and decide order only: never
+  shown, never saved, never sent to the browser.
 - We index metadata and link or embed. We never download, copy, transcode or re-host media files.
   Playback is the platform's official embed (unmodified but for `?autoplay=1` once the reader has
   pressed our PLAY), or an outbound link, or (Luke's OK 2026-10-31) for Internet Archive, podcast and

@@ -110,6 +110,9 @@ server-only.
 - Hosts that are not fixed come from a list read and checked on the server (PeerTube: `peertube-index.ts`),
   never from a result alone; rows from them pass `rowAddresses` only with those hosts (`ExtraHosts`).
 - `fetchOne` is how the hourly ingest saves an item someone opened: one request, by id, null when gone.
+- Orders (SPEC-web-sort.md): list in `orders` only what the platform really gives (`popular`, `newest`, `oldest`),
+  read `deps.order`, and date items by the field the platform orders by. DATE needs both directions; without a
+  popularity order, also add the platform to `NO_POPULAR` in `app/lib/web/web-sort.ts` (check-web-sort holds both).
 - A new platform: add it to `WebPlatform` (as `SearchOnlyPlatform` if no stream source reads it),
   `PLATFORM_HOSTS`, `WATCH_KIND_BY_PLATFORM`, then `SEARCH_PROVIDERS` in `app/lib/web/search/index.ts`.
   If a pasted link should find it, add its address forms to `search/link.ts`.

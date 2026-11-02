@@ -70,3 +70,22 @@ TITLE / LENGTH sorts, sorting the plain stream (no search words), and showing an
   and phone width of a real search ("night of the living dead") in DATE ↓, DATE ↑ and POPULAR, signed in as
   TEST ACCOUNT A.
 - No database changes.
+
+## Build notes (2026-11-02, found while building; the code follows these)
+- **Openverse**: the parameters are `unstable__sort_by=indexed_on` and `unstable__sort_dir=asc|desc` (from the API's
+  own published description, api.openverse.org/v1/schema/; the API itself still timed out with 504s all day, so no
+  sorted answer was seen). "unstable" is Openverse's word: an answer that comes back out of date order shows
+  "OPENVERSE: CAN'T SORT BY DATE" instead.
+- **YouTube windows**: `after:D before:D+1` is exactly day D in Pacific time (checked against real upload times).
+  `after:D before:D` is ignored and answers everything, so it is never sent. YouTube slips a few of the last days'
+  videos (and, in thin answers, a few unrelated older ones) into any window: those are dropped, and only an answer
+  of 8+ older videos mostly outside its window counts as "not honoured". Past its first pages a window matches very
+  loosely (LitRPG audiobooks for "night of the living dead"), so a dated YouTube video must have every searched word
+  in its title, channel or description (the saved stream's rule). A sparse window is cut into 8 rather than every
+  day; one answer stops after about 9s and LOAD MORE carries on from the next day. A day is read up to 8 pages.
+- **KINO by date**: a title with no release date has no place in a date order, so DATE leaves it out (it would
+  show as "today" at the top). BEST MATCH and POPULAR still list it.
+- **N MORE RESULTS**: still puts the held rows at the top, in the chosen order among themselves.
+- **Live arrivals by date**: rows shown before a slower site answered go back to waiting if that site's next page
+  could beat them, but only until the reader scrolls or presses anything.
+- **Related sections** under the results keep each site's best match, newest first, as before the SORT row.
