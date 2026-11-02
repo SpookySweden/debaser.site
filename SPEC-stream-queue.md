@@ -27,14 +27,18 @@ in a fresh session.
 | The host's own crown | Filled at GO LIVE. Off: the host's own additions go to their list like anybody's and they cannot move things in the queue until they put it back, which they can at any time. Only the host crowns. |
 | Where it is built | A fresh session, from this spec. |
 
-## Still to settle (ask Luke before building; proposed answers in brackets)
-- Does a person without a crown see the real queue on the left, read-only? (Yes.)
-- Can somebody take back their own addition before it is used? (Yes: `[ × ]` on their own rows.)
-- When the host changes (hand-over or take-over), do crowns stay, and does the new host get one? (Crowns
-  stay; the new host gets a filled crown at once.)
-- Do somebody's additions stay after they leave the room? (Yes, until used or the stream ends.)
-- Does the chat or the strip say when something is pulled in? (No.)
-- What does ADD in the search results say now? (`ADDED`, and the row appears under your name on the right.)
+## Settled (Luke picked the proposed answer to all six, 2026-11-02)
+| Question | Answer |
+|---|---|
+| Does a person without a crown see the real queue on the left? | Yes, read-only: no dragging, reordering or taking out. |
+| Can somebody take back their own addition before it is used? | Yes: `[ × ]` on their own rows until a crowned person pulls it in; after that only a crown takes it out. |
+| When the host changes (hand-over or take-over), what happens to crowns? | Crowns stay, and whoever becomes host gets a filled crown at once. The database does it on every host change (a trigger), so a tab closing mid-hand-over cannot miss it. |
+| Do somebody's additions stay after they leave the room? | Yes, until each is pulled in or taken back, or the stream ends. |
+| Does the chat or the strip say when something is pulled in? | No. The queue window just updates. |
+| What does ADD (a search result or a pasted link) do now? | With a crown: straight onto the end of the queue, `QUEUED` as before. Without one: `ADDED`, and the row appears under your name on the right. (This is the crown rule above: a host whose crown is off adds to their list like anybody.) The /web page's ADD TO QUEUE for a host follows the same rule. |
+
+Also decided while building: somebody holding a crown stays in the host's list after leaving, so the host can
+still take it off.
 
 ## Data (needs Luke's typed OK before anything is run)
 In plain English:

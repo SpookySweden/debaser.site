@@ -2,11 +2,12 @@ import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
-import { watchClockSkewMs } from './rules';
-import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import { NOT_ALLOWED, watchClockSkewMs } from './rules';
+import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
- * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql).
+ * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
+ * 20261102192043_watch_queue_additions.sql).
  *
  * The tables hold the record; Realtime Presence holds who is there. Each room has its own presence
  * channel (`watch:<id>`, keyed per tab), and every tab in a live room also says so on one site-wide
@@ -21,11 +22,13 @@ import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom,
 const ROOMS = 'watch_rooms';
 const QUEUE = 'watch_queue';
 const MESSAGES = 'watch_messages';
+const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
   'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at';
-const QUEUE_COLUMNS = 'id, room_id, position, media_item_id, source_url, source_kind, source_title, added_by, added_at, played_at, play_index';
+const QUEUE_COLUMNS = 'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
+const CROWN_COLUMNS = 'room_id, user_id, given_by, given_at';
 
 /** Enough for a long night; the window draws the newest of them. */
 const MESSAGE_LIMIT = 1000;
@@ -49,6 +52,7 @@ type QueueRow = {
   id: string;
   room_id: string;
   position: number;
+  in_queue?: boolean;
   media_item_id: string | null;
   source_url: string | null;
   source_kind: string | null;
@@ -57,6 +61,13 @@ type QueueRow = {
   added_at: string;
   played_at: string | null;
   play_index: number | null;
+};
+
+type CrownRow = {
+  room_id: string;
+  user_id: string;
+  given_by: string | null;
+  given_at: string;
 };
 
 type MessageRow = {
@@ -92,6 +103,8 @@ function toEntry(row: QueueRow): WatchQueueEntry {
     id: row.id,
     roomId: row.room_id,
     position: row.position,
+    // Every row from before additions existed was in the queue.
+    inQueue: row.in_queue !== false,
     mediaItemId: row.media_item_id,
     link:
       row.source_url !== null && isLinkKind(row.source_kind) ? { url: row.source_url, kind: row.source_kind, title: row.source_title ?? row.source_url } : null,
@@ -100,6 +113,10 @@ function toEntry(row: QueueRow): WatchQueueEntry {
     playedAt: row.played_at,
     playIndex: row.play_index,
   };
+}
+
+function toCrown(row: CrownRow): WatchCrown {
+  return { roomId: row.room_id, userId: row.user_id, givenBy: row.given_by, givenAt: row.given_at };
 }
 
 function toMessage(row: MessageRow): WatchMessage {
@@ -118,7 +135,7 @@ function toMessage(row: MessageRow): WatchMessage {
 
 /** A refusal in plain words: no database message reaches the screen. */
 function refused(error: { code?: string; message?: string } | null, fallback: string): Error {
-  if (error?.code === '42501' || /row-level security/i.test(error?.message ?? '')) return new Error('NOT ALLOWED: THE STREAM MAY HAVE ENDED OR CHANGED HOST.');
+  if (error?.code === '42501' || /row-level security/i.test(error?.message ?? '')) return new Error(NOT_ALLOWED);
   return new Error(fallback);
 }
 
@@ -228,19 +245,21 @@ class SupabaseWatchRepository implements WatchRepository {
 
   async readRoom(roomId: string): Promise<WatchRoomRead | null> {
     const client = requireClient();
-    const [room, queue, messages] = await Promise.all([
+    const [room, queue, messages, crowns] = await Promise.all([
       client.from(ROOMS).select(ROOM_COLUMNS).eq('id', roomId).maybeSingle<RoomRow>(),
       client.from(QUEUE).select(QUEUE_COLUMNS).eq('room_id', roomId).order('position').limit(500),
       client.from(MESSAGES).select(MESSAGE_COLUMNS).eq('room_id', roomId).order('created_at', { ascending: false }).limit(MESSAGE_LIMIT),
+      client.from(CROWNS).select(CROWN_COLUMNS).eq('room_id', roomId).limit(200),
     ]);
 
-    if (room.error || queue.error || messages.error) throw new Error('THE STREAM COULD NOT BE READ.');
+    if (room.error || queue.error || messages.error || crowns.error) throw new Error('THE STREAM COULD NOT BE READ.');
     if (room.data === null) return null;
 
     return {
       room: toRoom(room.data),
       queue: ((queue.data ?? []) as QueueRow[]).map(toEntry),
       messages: ((messages.data ?? []) as MessageRow[]).map(toMessage).reverse(),
+      crowns: ((crowns.data ?? []) as CrownRow[]).map(toCrown),
     };
   }
 
@@ -276,7 +295,9 @@ class SupabaseWatchRepository implements WatchRepository {
       .single<RoomRow>();
     if (live.error) throw refused(live.error, 'THE STREAM COULD NOT START.');
 
-    return { room: toRoom(live.data), queue: [toEntry(entry.data)], messages: [] };
+    // The database crowned the host as the room was written (`watch_rooms_crown_host`).
+    const crown: WatchCrown = { roomId: input.id, userId: input.host.id, givenBy: input.host.id, givenAt: room.data.started_at };
+    return { room: toRoom(live.data), queue: [toEntry(entry.data)], messages: [], crowns: [crown] };
   }
 
   async attachThread(roomId: string, threadId: string): Promise<void> {
@@ -342,6 +363,7 @@ class SupabaseWatchRepository implements WatchRepository {
         source_title: input.link?.title ?? null,
         added_by: input.addedBy,
         position: input.position,
+        in_queue: input.inQueue === true,
       })
       .select(QUEUE_COLUMNS)
       .single<QueueRow>();
@@ -349,16 +371,42 @@ class SupabaseWatchRepository implements WatchRepository {
     return toEntry(data);
   }
 
+  // A row the rules hide from a write is left alone without an error, so each write asks for its rows back:
+  // none back is a refusal (`by` is the mock's; the database knows who asks).
   async removeFromQueue(entryId: string): Promise<void> {
-    const { error } = await requireClient().from(QUEUE).delete().eq('id', entryId).is('played_at', null);
+    const { data, error } = await requireClient().from(QUEUE).delete().eq('id', entryId).is('played_at', null).select('id');
     if (error) throw refused(error, 'THE FILE COULD NOT BE TAKEN OUT.');
+    if ((data ?? []).length === 0) throw new Error(NOT_ALLOWED);
   }
 
-  async reorderQueue(moves: { id: string; position: number }[]): Promise<void> {
+  async reorderQueue(moves: QueueMove[]): Promise<void> {
     const client = requireClient();
-    const results = await Promise.all(moves.map((move) => client.from(QUEUE).update({ position: move.position }).eq('id', move.id)));
+    const results = await Promise.all(
+      moves.map((move) =>
+        client
+          .from(QUEUE)
+          .update(move.pull === true ? { position: move.position, in_queue: true } : { position: move.position })
+          .eq('id', move.id)
+          .select('id'),
+      ),
+    );
     const failed = results.find((result) => result.error !== null);
     if (failed !== undefined) throw refused(failed.error, 'THE QUEUE COULD NOT BE REORDERED.');
+    if (results.some((result) => (result.data ?? []).length === 0)) throw new Error(NOT_ALLOWED);
+  }
+
+  async setCrown(roomId: string, userId: string, crowned: boolean, by: string): Promise<WatchCrown | null> {
+    const client = requireClient();
+    if (!crowned) {
+      const { error } = await client.from(CROWNS).delete().eq('room_id', roomId).eq('user_id', userId);
+      if (error) throw refused(error, 'THE CROWN COULD NOT BE TAKEN.');
+      return null;
+    }
+    const { data, error } = await client.from(CROWNS).insert({ room_id: roomId, user_id: userId, given_by: by }).select(CROWN_COLUMNS).single<CrownRow>();
+    // Already crowned (two presses, or the host's own at GO LIVE): the crown they hold is the answer.
+    if (error?.code === '23505') return { roomId, userId, givenBy: by, givenAt: new Date().toISOString() };
+    if (error) throw refused(error, 'THE CROWN COULD NOT BE GIVEN.');
+    return toCrown(data);
   }
 
   async sendMessage(input: SendMessageInput): Promise<WatchMessage> {
@@ -456,6 +504,14 @@ class SupabaseWatchRepository implements WatchRepository {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: MESSAGES }, (payload) => {
         const id = (payload.old as { id?: string }).id;
         if (typeof id === 'string') onChange({ kind: 'removed', table: 'messages', id });
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: CROWNS, filter: `room_id=eq.${roomId}` }, (payload) => {
+        onChange({ kind: 'crown', crown: toCrown(payload.new as CrownRow) });
+      })
+      // A crown's key is the room and the person, so its delete says which room it was in.
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: CROWNS }, (payload) => {
+        const old = payload.old as { room_id?: string; user_id?: string };
+        if (old.room_id === roomId && typeof old.user_id === 'string') onChange({ kind: 'uncrowned', userId: old.user_id });
       })
       .subscribe((status) => {
         // A (re)join may have missed writes: read the room again.

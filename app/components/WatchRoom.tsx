@@ -748,9 +748,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         <StreamQueueWindow
           read={read}
           itemsById={itemsById}
-          amHost={amHost && live}
-          canAdd={user !== null && live}
+          live={live}
           userId={user?.id ?? null}
+          members={members}
           nowLive={stageLive}
           onClose={() => setQueueOpen(false)}
         />

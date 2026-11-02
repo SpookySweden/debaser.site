@@ -98,6 +98,14 @@ function apply(roomId: string, change: RoomChange): void {
           : { ...current, messages: current.messages.filter((message) => message.id !== change.id) };
       if (next.queue.length === current.queue.length && next.messages.length === current.messages.length) return;
       break;
+    case 'crown':
+      if (current.crowns.some((crown) => crown.userId === change.crown.userId)) return;
+      next = { ...current, crowns: [...current.crowns, change.crown] };
+      break;
+    case 'uncrowned':
+      if (!current.crowns.some((crown) => crown.userId === change.userId)) return;
+      next = { ...current, crowns: current.crowns.filter((crown) => crown.userId !== change.userId) };
+      break;
   }
   publish(entry, { read: next, error: null });
 }

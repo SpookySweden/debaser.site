@@ -1,13 +1,14 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { StreamFold, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
  *
  * Supabase means the `watch_rooms`, `watch_queue` and `watch_messages` tables
- * (supabase/migrations/20261027120000_watch_rooms.sql) and two kinds of Realtime Presence channel: one per
+ * (supabase/migrations/20261027120000_watch_rooms.sql), `watch_crowns` and the queue's `in_queue` mark
+ * (20261102192043_watch_queue_additions.sql), and two kinds of Realtime Presence channel: one per
  * room (`watch:<id>`, who is in it) and one for the site (`site-watching`, what the `[ TV ]` key reads).
  * The mock keeps it all in this browser (localStorage, and a BroadcastChannel between its tabs), like the
  * other mocks. Default is the mock:
@@ -41,8 +42,14 @@ export type SendMessageInput = {
   mediaSeconds: number;
 };
 
-/** One addition to a queue: a catalogue file or a link, never both. */
-export type AddToQueueInput = { roomId: string; addedBy: string; position: number } & ({ mediaItemId: string; link?: undefined } | { link: WatchLink; mediaItemId?: undefined });
+/**
+ * One addition: a catalogue file or a link, never both. `inQueue` puts it straight into the queue, which
+ * only a crown may do (`addsTo` in rules.ts); otherwise it waits on the adder's own list.
+ */
+export type AddToQueueInput = { roomId: string; addedBy: string; position: number; inQueue: boolean } & (
+  | { mediaItemId: string; link?: undefined }
+  | { link: WatchLink; mediaItemId?: undefined }
+);
 
 /** One write to a room, as `subscribeRoom` hands it over. `refresh` means "read it again". */
 export type RoomChange =
@@ -50,6 +57,8 @@ export type RoomChange =
   | { kind: 'entry'; entry: WatchQueueEntry }
   | { kind: 'message'; message: WatchMessage }
   | { kind: 'removed'; table: 'queue' | 'messages'; id: string }
+  | { kind: 'crown'; crown: WatchCrown }
+  | { kind: 'uncrowned'; userId: string }
   | { kind: 'refresh' };
 
 /** One tab's place in a room, while it is there. */
@@ -77,8 +86,15 @@ export type WatchRepository = {
   /** Closes a room nobody has written for minutes. True when it was closed by this call. */
   closeStale(roomId: string): Promise<boolean>;
   addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry>;
-  removeFromQueue(entryId: string): Promise<void>;
-  reorderQueue(moves: { id: string; position: number }[]): Promise<void>;
+  /**
+   * Takes out what has not played: a crown, from the queue or anybody's list; or `by`'s own addition.
+   * `by` (and below) is who asks: the database knows from the session, the mock keeps the rule by hand.
+   */
+  removeFromQueue(entryId: string, by: string): Promise<void>;
+  /** A crown's reorder, or an addition pulled in (`pull`) with the places around it. */
+  reorderQueue(moves: QueueMove[], by: string): Promise<void>;
+  /** The host gives (`crowned`) or takes a crown, their own included: the crown given, or null once taken. */
+  setCrown(roomId: string, userId: string, crowned: boolean, by: string): Promise<WatchCrown | null>;
   sendMessage(input: SendMessageInput): Promise<WatchMessage>;
   deleteMessage(messageId: string): Promise<void>;
   /** Every stream that played one of these files, newest first, each with what was said over that file. */

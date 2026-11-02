@@ -1,7 +1,7 @@
 import type { AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
-import { TAKE_OVER_QUIET_MS } from './rules';
-import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import { NOT_ALLOWED, TAKE_OVER_QUIET_MS, hasCrown } from './rules';
+import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -9,8 +9,9 @@ import type { StreamFold, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom,
  *
  * Presence here is a tab saying "here" every second and a half; a tab silent for five seconds is gone.
  * The Supabase store gets the same answers from Realtime Presence, which hears a closed tab at once.
- * The rules the database keeps (only the host writes the room, a take-over only past a quiet host) are
- * kept here by hand, so a check against the mock means the same as one against the tables.
+ * The rules the database keeps (only the host writes the room, a take-over only past a quiet host; only a
+ * crown moves the queue, only the host crowns, and the host is crowned at GO LIVE and on every change of host)
+ * are kept here by hand, so a check against the mock means the same as one against the tables.
  */
 
 const KEY = 'debaser.watch.v1';
@@ -19,9 +20,9 @@ const BEAT_MS = 1500;
 const GONE_MS = 5000;
 const STALE_MS = 3 * 60 * 1000;
 
-type Tables = { rooms: WatchRoom[]; queue: WatchQueueEntry[]; messages: WatchMessage[] };
+type Tables = { rooms: WatchRoom[]; queue: WatchQueueEntry[]; messages: WatchMessage[]; crowns: WatchCrown[] };
 
-let memory: Tables = { rooms: [], queue: [], messages: [] };
+let memory: Tables = { rooms: [], queue: [], messages: [], crowns: [] };
 
 function hasStorage(): boolean {
   try {
@@ -41,9 +42,10 @@ function load(): Tables {
 
     return {
       rooms: Array.isArray(parsed.rooms) ? parsed.rooms : [],
-      // Rows stored before links existed have no `link`.
-      queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null })) : [],
+      // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
+      queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true })) : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
+      crowns: Array.isArray(parsed.crowns) ? parsed.crowns : [],
     };
   } catch {
     return memory;
@@ -122,7 +124,25 @@ function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | nul
 
   const next = change(room);
   if (next === null) return;
-  save({ ...tables, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...next, updatedAt: stamp() } : candidate)) }, roomId);
+  // A new host is crowned at once, as the database's `watch_rooms_crown_host` does it.
+  const crowns = next.hostId === room.hostId ? tables.crowns : withCrown(tables.crowns, crownFor(roomId, next.hostId, room.hostId));
+  save({ ...tables, crowns, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...next, updatedAt: stamp() } : candidate)) }, roomId);
+}
+
+function crownFor(roomId: string, userId: string, givenBy: string): WatchCrown {
+  return { roomId, userId, givenBy, givenAt: stamp() };
+}
+
+/** The crowns with this one added, unless that person already holds one in that room. */
+function withCrown(crowns: WatchCrown[], crown: WatchCrown): WatchCrown[] {
+  return crowns.some((held) => held.roomId === crown.roomId && held.userId === crown.userId) ? crowns : [...crowns, crown];
+}
+
+/** A live room and its crowns, or a refusal for an ended or missing one. */
+function liveRoom(tables: Tables, roomId: string): { room: WatchRoom; crowns: WatchCrown[] } {
+  const room = tables.rooms.find((candidate) => candidate.id === roomId);
+  if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
+  return { room, crowns: tables.crowns.filter((crown) => crown.roomId === roomId) };
 }
 
 /* --- the watching room (the `[ TV ]` key) ------------------------------------------------------- */
@@ -187,6 +207,7 @@ class MockWatchRepository implements WatchRepository {
       room,
       queue: tables.queue.filter((entry) => entry.roomId === roomId),
       messages: tables.messages.filter((message) => message.roomId === roomId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      crowns: tables.crowns.filter((crown) => crown.roomId === roomId),
     };
   }
 
@@ -197,6 +218,7 @@ class MockWatchRepository implements WatchRepository {
       id: newId(),
       roomId: input.id,
       position: 0,
+      inQueue: true,
       mediaItemId: input.mediaItemId,
       link: null,
       addedBy: input.host.id,
@@ -217,9 +239,10 @@ class MockWatchRepository implements WatchRepository {
       updatedAt: at,
       endedAt: null,
     };
-    save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, entry] }, room.id);
+    const crown = crownFor(room.id, input.host.id, input.host.id);
+    save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, entry], crowns: withCrown(tables.crowns, crown) }, room.id);
 
-    return { room, queue: [entry], messages: [] };
+    return { room, queue: [entry], messages: [], crowns: [crown] };
   }
 
   async attachThread(roomId: string, threadId: string): Promise<void> {
@@ -268,16 +291,19 @@ class MockWatchRepository implements WatchRepository {
 
   async addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry> {
     const tables = load();
-    const room = tables.rooms.find((candidate) => candidate.id === input.roomId);
-    if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
+    const { crowns } = liveRoom(tables, input.roomId);
     // The database's link checks, and the allow-list for an `embed` link, as the Supabase store asks them.
     const refusal = input.link === undefined ? null : queueRefusal(input.link);
     if (refusal !== null) throw new Error(refusal);
+    // Straight into the queue takes a crown; anything else waits on the adder's own list.
+    const inQueue = input.inQueue === true;
+    if (inQueue && !hasCrown(crowns, input.addedBy)) throw new Error(NOT_ALLOWED);
 
     const entry: WatchQueueEntry = {
       id: newId(),
       roomId: input.roomId,
       position: input.position,
+      inQueue,
       mediaItemId: input.mediaItemId ?? null,
       link: input.link ?? null,
       addedBy: input.addedBy,
@@ -289,19 +315,46 @@ class MockWatchRepository implements WatchRepository {
     return entry;
   }
 
-  async removeFromQueue(entryId: string): Promise<void> {
+  async removeFromQueue(entryId: string, by: string): Promise<void> {
     const tables = load();
     const entry = tables.queue.find((candidate) => candidate.id === entryId);
     if (entry === undefined || entry.playedAt !== null) return;
+    // A crown takes out what has not played; anybody else only their own addition, until it is pulled in.
+    const { crowns } = liveRoom(tables, entry.roomId);
+    if (!hasCrown(crowns, by) && !(entry.addedBy === by && !entry.inQueue)) throw new Error(NOT_ALLOWED);
     save({ ...tables, queue: tables.queue.filter((candidate) => candidate.id !== entryId) }, entry.roomId);
   }
 
-  async reorderQueue(moves: { id: string; position: number }[]): Promise<void> {
+  async reorderQueue(moves: QueueMove[], by: string): Promise<void> {
     if (moves.length === 0) return;
     const tables = load();
-    const byId = new Map(moves.map((move) => [move.id, move.position]));
-    const roomId = tables.queue.find((entry) => byId.has(entry.id))?.roomId ?? null;
-    save({ ...tables, queue: tables.queue.map((entry) => (byId.has(entry.id) ? { ...entry, position: byId.get(entry.id) ?? entry.position } : entry)) }, roomId);
+    const byId = new Map(moves.map((move) => [move.id, move]));
+    const roomId = tables.queue.find((entry) => byId.has(entry.id))?.roomId;
+    if (roomId === undefined) return;
+    // Only a crown moves the queue: a row's place, or an addition into it. What played stays where it played.
+    if (!hasCrown(liveRoom(tables, roomId).crowns, by)) throw new Error(NOT_ALLOWED);
+    const queue = tables.queue.map((entry) => {
+      const move = byId.get(entry.id);
+      if (move === undefined || entry.roomId !== roomId || entry.playedAt !== null) return entry;
+      return { ...entry, position: move.position, inQueue: entry.inQueue || move.pull === true };
+    });
+    save({ ...tables, queue }, roomId);
+  }
+
+  async setCrown(roomId: string, userId: string, crowned: boolean, by: string): Promise<WatchCrown | null> {
+    const tables = load();
+    const { room } = liveRoom(tables, roomId);
+    // Only the host gives and takes crowns, their own included.
+    if (room.hostId !== by) throw new Error(NOT_ALLOWED);
+    if (!crowned) {
+      save({ ...tables, crowns: tables.crowns.filter((crown) => !(crown.roomId === roomId && crown.userId === userId)) }, roomId);
+      return null;
+    }
+    const held = tables.crowns.find((crown) => crown.roomId === roomId && crown.userId === userId);
+    if (held !== undefined) return held;
+    const crown = crownFor(roomId, userId, by);
+    save({ ...tables, crowns: [...tables.crowns, crown] }, roomId);
+    return crown;
   }
 
   async sendMessage(input: SendMessageInput): Promise<WatchMessage> {
@@ -472,6 +525,6 @@ export function getMockWatchRepository(): WatchRepository {
 
 /** Test helper: forgets every room this browser (or process) holds. */
 export function resetMockWatch(): void {
-  memory = { rooms: [], queue: [], messages: [] };
+  memory = { rooms: [], queue: [], messages: [], crowns: [] };
   if (hasStorage()) window.localStorage.removeItem(KEY);
 }

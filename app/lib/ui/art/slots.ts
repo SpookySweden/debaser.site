@@ -537,6 +537,28 @@ export const ART_SLOTS = [
     fallback: 'the arrow `➤` from the system font (the stream chat box)',
     brief: 'Send, at the right-hand end inside the stream chat box.',
   },
+  {
+    id: 'mark-crown',
+    label: 'STREAM: CROWN (NONE)',
+    kind: 'mark',
+    path: 'assets/icons/crown.png',
+    shown: [[16, 16]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'the hollow chess queen `♕` from the system font (`StreamQueueWindow`)',
+    brief: "Beside a name in the stream's queue window: no crown. The host presses it to give one.",
+  },
+  {
+    id: 'mark-crown-filled',
+    label: 'STREAM: CROWN (HELD)',
+    kind: 'mark',
+    path: 'assets/icons/crown-filled.png',
+    shown: [[16, 16]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'the filled chess queen `♛` from the system font (`StreamQueueWindow`)',
+    brief: 'The same name holding a crown: they can pull additions into the queue. The host presses it to take it.',
+  },
 
   /* ----------------------------------------------------------------- the moving */
   {

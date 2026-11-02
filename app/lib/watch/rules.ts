@@ -1,5 +1,5 @@
 import type { ForumAnchor, ForumThread } from '../forum/types';
-import type { WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead } from './types';
+import type { QueueMove, WatchCrown, WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead } from './types';
 
 /**
  * Watch together's rules, pure so each can be checked without two browsers (SPEC-watch-together.md).
@@ -36,6 +36,9 @@ export const CATCH_UP_RATE = 1.1;
 export const HOLD_BACK_RATE = 0.92;
 
 export const MESSAGE_MAX_LENGTH = 500;
+
+/** A write the room's rules refused: both stores say it in these words (no database message reaches the screen). */
+export const NOT_ALLOWED = 'NOT ALLOWED: THE STREAM MAY HAVE ENDED, OR ITS HOST OR CROWNS CHANGED.';
 
 /* --- the clock ----------------------------------------------------------------------------------- */
 
@@ -95,11 +98,16 @@ export function playOrder(queue: WatchQueueEntry[]): WatchQueueEntry[] {
   return queue.filter((entry) => entry.playIndex !== null).sort((a, b) => (a.playIndex ?? 0) - (b.playIndex ?? 0));
 }
 
-/** What is still to play, in queue order. */
+/** What is still to play, in queue order: rows in the queue, never somebody's waiting addition. */
 export function upcoming(queue: WatchQueueEntry[]): WatchQueueEntry[] {
   return queue
-    .filter((entry) => entry.playedAt === null)
+    .filter((entry) => entry.inQueue && entry.playedAt === null)
     .sort((a, b) => a.position - b.position || a.addedAt.localeCompare(b.addedAt));
+}
+
+/** Additions waiting on people's own lists for a crown to pull them in, oldest first (SPEC-stream-queue.md). */
+export function waitingAdditions(queue: WatchQueueEntry[]): WatchQueueEntry[] {
+  return queue.filter((entry) => !entry.inQueue && entry.playedAt === null).sort((a, b) => a.addedAt.localeCompare(b.addedAt));
 }
 
 export function currentEntry(read: WatchRoomRead): WatchQueueEntry | undefined {
@@ -145,6 +153,124 @@ export function moveInQueue(queue: WatchQueueEntry[], entryId: string, direction
     { id: lowFor.id, position: low },
     { id: highFor.id, position: high === low ? low + 1 : high },
   ];
+}
+
+/**
+ * A crown's drop (SPEC-stream-queue.md): `entryId` - an addition, or a row already in the queue - lands at
+ * `index` among what is still to play, counted without it. From where the queue starts now, each row takes
+ * the next place in turn; only the rows whose place changes are written, with `pull` on an addition coming
+ * in. [] when nothing would change, or for something that has played.
+ */
+export function placeInQueue(queue: WatchQueueEntry[], entryId: string, index: number): QueueMove[] {
+  const entry = queue.find((candidate) => candidate.id === entryId);
+  if (entry === undefined || entry.playedAt !== null) return [];
+
+  const waiting = upcoming(queue);
+  const rest = waiting.filter((candidate) => candidate.id !== entryId);
+  const at = Math.max(0, Math.min(Math.floor(index), rest.length));
+  const order = [...rest.slice(0, at), entry, ...rest.slice(at)];
+  // An empty queue keeps the entry's own number: only being in it matters then.
+  const start = waiting.length > 0 ? Math.min(...waiting.map((each) => each.position)) : entry.position;
+
+  return order.flatMap((each, offset) => {
+    const position = start + offset;
+    const pull = each.id === entryId && !each.inQueue;
+    if (each.position === position && !pull) return [];
+    return [pull ? { id: each.id, position, pull: true } : { id: each.id, position }];
+  });
+}
+
+/** Where a pointer at height `y` drops among rows whose middles are `middles`, top to bottom: 0 is above them all. */
+export function dropSlot(middles: number[], y: number): number {
+  return middles.filter((middle) => y > middle).length;
+}
+
+/* --- crowns (SPEC-stream-queue.md) ---------------------------------------------------------------- */
+
+export function hasCrown(crowns: WatchCrown[], userId: string | null): boolean {
+  return userId !== null && crowns.some((crown) => crown.userId === userId);
+}
+
+/** What one person may do in a room's queue window. The database holds the same rules (watch_queue_guard). */
+export type QueueRights = {
+  /** Signed in and the room is live. */
+  add: boolean;
+  /** Where ADD puts a video: straight into the queue with a crown, otherwise onto their own list. */
+  addsTo: 'queue' | 'list';
+  /** Pull additions in, reorder the queue, take out what has not played: a crown, host or not. */
+  arrange: boolean;
+  /** Give and take crowns, their own included: the host alone. */
+  crown: boolean;
+  /** The right half: everybody's folds (the host and the crowned), only their own list, or nothing at all. */
+  sees: 'people' | 'mine' | 'nothing';
+};
+
+export function queueRights(room: Pick<WatchRoom, 'hostId' | 'endedAt'>, crowns: WatchCrown[], userId: string | null, live: boolean): QueueRights {
+  const open = live && room.endedAt === null && userId !== null;
+  const crowned = open && hasCrown(crowns, userId);
+  const hosting = open && room.hostId === userId;
+
+  return {
+    add: open,
+    addsTo: crowned ? 'queue' : 'list',
+    arrange: crowned,
+    crown: hosting,
+    sees: !open ? 'nothing' : hosting || crowned ? 'people' : 'mine',
+  };
+}
+
+/** Your own addition is yours to take back until a crown pulls it in. */
+export function mayTakeBack(entry: WatchQueueEntry, userId: string | null): boolean {
+  return userId !== null && entry.addedBy === userId && !entry.inQueue && entry.playedAt === null;
+}
+
+/** One person in the right half the host and the crowned see. */
+export type AdditionsPerson = {
+  userId: string;
+  /** As the room's presence has it; empty for somebody who has left (the window asks their profile). */
+  name: string;
+  host: boolean;
+  crowned: boolean;
+  present: boolean;
+  /** Their additions still waiting, oldest first. */
+  additions: WatchQueueEntry[];
+};
+
+/**
+ * Who the right half lists for the host and the crowned: everybody in the room now, and anybody with an
+ * addition waiting or a crown even after leaving, so anybody present can be crowned and any crown taken off.
+ * The host first, then the room in the order people came in, then those who have left, by when their first
+ * waiting addition or their crown arrived.
+ */
+export function additionsPeople(read: Pick<WatchRoomRead, 'room' | 'queue' | 'crowns'>, members: WatchMember[]): AdditionsPerson[] {
+  const waiting = waitingAdditions(read.queue);
+  const people = new Map<string, AdditionsPerson>();
+  const list = (userId: string, name: string, present: boolean) => {
+    if (people.has(userId)) return;
+    people.set(userId, {
+      userId,
+      name,
+      host: userId === read.room.hostId,
+      crowned: hasCrown(read.crowns, userId),
+      present,
+      additions: waiting.filter((entry) => entry.addedBy === userId),
+    });
+  };
+
+  const here = accountsPresent(members);
+  const host = here.find((member) => member.userId === read.room.hostId);
+  list(read.room.hostId, host?.name ?? '', host !== undefined);
+  for (const member of here) if (member.userId !== null) list(member.userId, member.name, true);
+
+  const since = new Map<string, string>();
+  for (const entry of waiting) if (entry.addedBy !== null && !since.has(entry.addedBy)) since.set(entry.addedBy, entry.addedAt);
+  for (const crown of read.crowns) {
+    const known = since.get(crown.userId);
+    if (known === undefined || crown.givenAt < known) since.set(crown.userId, crown.givenAt);
+  }
+  for (const [userId] of [...since].sort((a, b) => a[1].localeCompare(b[1]) || a[0].localeCompare(b[0]))) list(userId, '', false);
+
+  return [...people.values()];
 }
 
 /* --- who is in the room -------------------------------------------------------------------------- */

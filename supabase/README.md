@@ -93,6 +93,7 @@ order `db push` applies them:
     20261031134418_web_items.sql               WEB: web_sources / web_items, public read only, written by the ingest route (see "WEB: the stream's tables")
     20261031170000_web_search_dedupe.sql       WEB: search_tsv (generated, GIN) and dedupe_key on web_items; after web_items (see "WEB: search and dedupe")
     20261031210000_web_requests.sql            WEB: web_requests (no direct access) + web_request_add + two lock-checked ingest functions: saving opened search results (pushed 2026-10-31, Luke's OK; see "WEB: saving opened items")
+    20261102192043_watch_queue_additions.sql   stream queue: watch_queue.in_queue (old rows true, new default false) + watch_crowns (host gives/takes; host crowned at GO LIVE and on every host change by trigger) + the queue guard trigger (only the host marks plays, only a crown moves rows); probed live by Temp/probe-watch-crowns.sql, 29/29, rolled back (pushed 2026-11-02, Luke's OK; SPEC-stream-queue.md)
 
 The date part is the date the section was written; the time part is **the
 schema section it holds**. That is deliberate: the old names were

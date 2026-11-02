@@ -39,12 +39,17 @@ export type WatchLink = {
   title: string;
 };
 
-/** One file or link added to a room's queue. A play is a row: a file added twice is two rows. */
+/**
+ * One file or link added to a room. A play is a row: a file added twice is two rows. Until somebody with a
+ * crown pulls it in, an addition waits on its adder's own list (`inQueue` false, SPEC-stream-queue.md).
+ */
 export type WatchQueueEntry = {
   id: string;
   roomId: string;
   /** The order of what is still to play. */
   position: number;
+  /** In the room's queue; false while it is somebody's addition. Whatever played was in the queue. */
+  inQueue: boolean;
   /** Null for a link, and once the file has left the catalogue. */
   mediaItemId: string | null;
   /** Set for a link instead of a catalogue file. */
@@ -70,11 +75,26 @@ export type WatchMessage = {
   createdAt: string;
 };
 
+/**
+ * Somebody holding a crown in a room: they may pull additions into the queue, reorder it and take out what
+ * has not played. Only the host gives and takes crowns; the host gets one at GO LIVE and on every change of host.
+ */
+export type WatchCrown = {
+  roomId: string;
+  userId: string;
+  givenBy: string | null;
+  givenAt: string;
+};
+
+/** A crown's write to the queue: a row's new place, and `pull` when it is an addition coming into the queue. */
+export type QueueMove = { id: string; position: number; pull?: boolean };
+
 /** A room with everything the window and the forum record draw. */
 export type WatchRoomRead = {
   room: WatchRoom;
   queue: WatchQueueEntry[];
   messages: WatchMessage[];
+  crowns: WatchCrown[];
 };
 
 /** One tab in a room, as its presence channel carries it. Guests have no account. */

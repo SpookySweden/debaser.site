@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { getWatchRepository } from '../lib/watch/repository';
-import { nextQueuePosition, roomIsLive } from '../lib/watch/rules';
+import { nextQueuePosition, queueRights, roomIsLive } from '../lib/watch/rules';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useWatching } from '../lib/watch/use-watching';
 import { watchHref } from '../lib/watch/watch-window';
@@ -71,7 +71,8 @@ export function WebWatchKey({ item, open, onToggle }: { item: WebItem; open: boo
   );
 }
 
-type QueueState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'queued'; roomId: string } | { kind: 'refused'; reason: string };
+/** `listed`: the host's crown was off, so it went onto their own list in the room (SPEC-stream-queue.md). */
+type QueueState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'queued'; roomId: string; listed: boolean } | { kind: 'refused'; reason: string };
 
 /** The panel under a row: where the item would go, and the press that puts it there. */
 export function WebWatchPanel({ item }: { item: WebItem }) {
@@ -95,9 +96,11 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
         setState({ kind: 'refused', reason: "YOU'RE NOT HOSTING THAT ROOM ANY MORE." });
         return;
       }
-      await repository.addToQueue({ roomId: hostedRoom, link, addedBy: user.id, position: nextQueuePosition(read.queue) });
+      // Straight into the queue with the host's crown on, as the room's own ADD does; onto their list with it off.
+      const inQueue = queueRights(read.room, read.crowns, user.id, true).addsTo === 'queue';
+      await repository.addToQueue({ roomId: hostedRoom, link, addedBy: user.id, position: nextQueuePosition(read.queue), inQueue });
       applyLocalChange(hostedRoom, { kind: 'refresh' });
-      setState({ kind: 'queued', roomId: hostedRoom });
+      setState({ kind: 'queued', roomId: hostedRoom, listed: !inQueue });
     } catch (failure) {
       setState({ kind: 'refused', reason: failure instanceof Error ? failure.message : 'IT COULD NOT BE QUEUED.' });
     }
@@ -109,7 +112,7 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
         <p className="font-bold">SIGN IN AND GO LIVE FROM THE BOARD TO WATCH THIS IN A STREAM ROOM.</p>
       ) : state.kind === 'queued' ? (
         <p className="flex flex-wrap items-center gap-2 font-bold" role="status">
-          QUEUED IN YOUR STREAM ROOM.
+          {state.listed ? 'ADDED TO YOUR LIST IN YOUR STREAM ROOM.' : 'QUEUED IN YOUR STREAM ROOM.'}
           <Link href={watchHref({ kind: 'room', roomId: state.roomId })} className={PLATE}>
             [ OPEN ROOM ]
           </Link>
