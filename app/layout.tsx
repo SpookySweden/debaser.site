@@ -34,11 +34,14 @@ export const metadata: Metadata = {
 /**
  * Phones get the desktop, zoomed out, like "Request desktop site" (Luke's decision,
  * 2026-11-02): a fixed 1280px layout width means every breakpoint sees a desktop screen.
+ * `initialScale` is cleared because Next's default of 1 opens a phone zoomed in on the top-left
+ * corner; without it the phone fits the whole 1280px to the screen.
  * The narrow layout stays in the code for the real phone design later; going back to it is
  * `width: 'device-width', initialScale: 1`.
  */
 export const viewport: Viewport = {
   width: 1280,
+  initialScale: undefined,
 };
 
 /**
