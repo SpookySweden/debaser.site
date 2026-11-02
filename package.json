@@ -21,6 +21,7 @@
     "stages": "node scripts/measure-stages.cjs",
     "contrast": "node scripts/contrast.cjs",
     "deployed": "node scripts/check-deployed.cjs",
+    "deploy-status": "node scripts/deploy-status.cjs",
     "checks": "node scripts/run-checks.cjs",
     "checks:web": "node scripts/run-checks.cjs --only check-web-",
     "db": "node scripts/db.cjs",

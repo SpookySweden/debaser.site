@@ -31,15 +31,12 @@ for step 6.
    - Anything uncommitted or unpushed: **stop here.** Tell Luke Part 1's result and that the deployed
      steps would show the old site. Do not commit or push on his behalf from this skill - pushing to
      `main` puts the change live, and that click is his last look.
-   - Otherwise wait for Vercel to finish building this exact commit. Vercel reports to GitHub's public
-     API, so poll (every ~20s, up to ~5 minutes) with:
-
-     ```bash
-     curl -s https://api.github.com/repos/SpookySweden/debaser.site/commits/$(git rev-parse HEAD)/status | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const j=JSON.parse(s);const v=(j.statuses||[]).find(x=>x.context==='Vercel');console.log(v?v.state:'no Vercel status yet')})"
-     ```
-
-     `success` - continue. `failure`/`error` - stop and report the build failed on Vercel.
-     Still `pending` after ~5 minutes - stop and say so; do not screenshot a site that may be stale.
+   - Otherwise wait for Vercel to finish building this exact commit with `npm run deploy-status`
+     (scripts/deploy-status.cjs: GitHub's public status API through plain Node, no `gh`, which is not
+     installed here). It waits up to 10 minutes and its exit code says what happened: 0 built - continue;
+     1 build failed on Vercel - stop and report it; 2 not pushed; 3 could not ask GitHub - stop and say so,
+     never keep waiting; 4 still building - stop and say so, and do not screenshot a site that may be stale.
+     Run it in the background if it may take long; never write a hand-made polling loop instead.
 
 ## Part 2 - the deployed site
 

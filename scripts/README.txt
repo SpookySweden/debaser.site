@@ -47,6 +47,7 @@ working check look flaky for three separate turns. A header may now be as long a
 
 read-site.cjs
 -------------
+    npm run deploy-status               wait for Vercel to build the pushed commit; stops loudly if GitHub cannot be asked
     npm run read                        the deployed site, default expectations
     npm run read:local                  a local `next start` on :3210
     npm run read -- "+ NEW POST"        expect this text to be present
