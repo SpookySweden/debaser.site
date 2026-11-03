@@ -61,11 +61,6 @@ export default function BlankScreen({ fit, onPick, hidden = false }: { fit: stri
       aria-hidden={hidden}
       data-watch-blank={hidden ? 'hidden' : 'shown'}
     >
-      {/* STUB until the room canvas is on main (SPEC-stream-art.md): its switch goes in this corner. Swap this line for
-          the stage's CanvasToggle, and pass `hidden` while the viewer has the canvas up. */}
-      <span className="absolute right-1 top-1 text-label text-ink-bar" data-canvas-stub>
-        CANVAS: COMING SOON
-      </span>
       {BLANK_KEYS.map(({ key, label }) => (
         <button
           key={key}

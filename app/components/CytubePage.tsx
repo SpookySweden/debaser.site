@@ -2,12 +2,13 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCatalogue } from '../lib/media/catalogue';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { goLiveEmpty } from '../lib/watch/go-live';
 import { roomIsLive } from '../lib/watch/rules';
+import { getCanvasRepository } from '../lib/watch/canvas-repository';
 import { enterRoom } from '../lib/watch/use-music-room';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useWatching } from '../lib/watch/use-watching';
@@ -16,7 +17,8 @@ import type { AccountUser } from '../lib/auth/types';
 import { useAuth } from './AuthProvider';
 import CytubeLayout from './CytubeLayout';
 import { useForum } from './ForumProvider';
-import { useLiveStreams } from './CytubeLiveStreams';
+import { useLiveStreams, type LiveStreamRow } from './CytubeLiveStreams';
+import StreamArtShelf from './StreamArtShelf';
 import StreamQueueWindow from './StreamQueueWindow';
 
 /**
@@ -34,6 +36,9 @@ const TABS: readonly { key: Tab; label: string }[] = [
   { key: 'live', label: 'LIVE' },
   { key: 'canvases', label: 'CANVASES' },
 ];
+
+/** How many live rooms the CANVASES tab asks about an open canvas. */
+const OPEN_CANVAS_ROOMS = 12;
 
 function readTab(value: string | null): Tab {
   return TABS.find((tab) => tab.key === value)?.key ?? 'about';
@@ -180,8 +185,13 @@ function About() {
         GO PUBLIC in the QUEUES window opens a room for your music. People who join hear what you play in their own music bar, add songs
         and talk in its chat. A room&apos;s queue takes songs and videos alike. Switch it off and it is kept for next time.
       </AboutPart>
-      <AboutPart title="THE CANVAS AND STREAM ART">
-        Coming soon: a shared drawing canvas on every room&apos;s screen, and the saved canvases kept in the archive as STREAM ART.
+      <AboutPart title="THE CANVAS">
+        Every room has a shared drawing canvas. The canvas key on the screen switches your own screen to it, and back. Anybody in the room
+        can draw on it and drag the chat&apos;s pictures and lines onto it. Nobody can clear it.
+      </AboutPart>
+      <AboutPart title="STREAM ART">
+        Anybody in the room can save the canvas. Saved canvases are kept in the archive under STREAM ART, with everybody who was there,
+        and are listed on the CANVASES tab here.
       </AboutPart>
       <AboutPart title="YOUR LOOK">
         CUSTOMIZE LAYOUT picks the colours your room is drawn in when you broadcast. In somebody else&apos;s room you see their look, or keep
@@ -252,15 +262,63 @@ function RoomQueue({ roomId, onClose }: { roomId: string; onClose: () => void })
 }
 
 /**
- * CANVASES (SPEC-stream-art.md): the rooms whose canvas is open now and the saved STREAM ART pieces.
- *
- * STUB until the room canvas is on main (Luke, 2026-11-03: CYTUBE goes live first). Switch it on by listing the
- * live rooms with an open canvas (`getCanvasRepository().findOpenCanvas`) and the archive's `StreamArtShelf`.
+ * CANVASES (SPEC-stream-art.md): the rooms whose canvas is open right now, then every saved STREAM ART piece - the
+ * archive's own shelf, so the same pieces, credits and participant pop-up.
  */
 function Canvases() {
+  const rooms = useLiveStreams();
+  const open = useOpenCanvases(rooms);
+
   return (
-    <p className="text-label font-bold text-ink" data-cytube-canvases="coming-soon">
-      COMING SOON.
-    </p>
+    <div className="flex min-w-0 flex-col gap-3" data-cytube-canvases>
+      <section className="flex flex-col gap-1">
+        <h2 className={TITLE_BAR_INACTIVE}>LIVE NOW</h2>
+        {open === null ? (
+          <p className="text-label font-bold text-ink">READING THE ROOMS...</p>
+        ) : open.length === 0 ? (
+          <p className="text-label font-bold text-ink">NO CANVAS IS OPEN.</p>
+        ) : (
+          <ul className="flex flex-col">
+            {open.map((room) => (
+              <li key={room.roomId} className="rule-pixel flex flex-wrap items-center gap-2 py-1.5 text-label text-ink" data-cytube-canvas-room={room.roomId}>
+                <span className="font-bold">{room.hostName.toUpperCase()}</span>
+                <span className="min-w-0 flex-1 truncate">{room.kind === 'music' ? 'MUSIC' : 'STREAM'}</span>
+                <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`}>
+                  [ JOIN ]
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+      <section className="flex flex-col gap-1">
+        <h2 className={TITLE_BAR_INACTIVE}>STREAM ART</h2>
+        <StreamArtShelf />
+      </section>
+    </div>
   );
+}
+
+/** Of the live rooms, the ones with an open canvas (one read per live room: there are only ever a few). */
+function useOpenCanvases(rooms: LiveStreamRow[] | null): LiveStreamRow[] | null {
+  const key = rooms === null ? null : rooms.map((room) => room.roomId).join(',');
+  const [found, setFound] = useState<{ key: string; rooms: LiveStreamRow[] } | null>(null);
+  const roomsNow = useRef(rooms);
+  useEffect(() => {
+    roomsNow.current = rooms;
+  });
+  useEffect(() => {
+    const listed = roomsNow.current;
+    if (key === null || listed === null) return;
+    let alive = true;
+    const shown = listed.slice(0, OPEN_CANVAS_ROOMS);
+    void Promise.all(shown.map((room) => getCanvasRepository().findOpenCanvas(room.roomId).catch(() => null))).then((canvases) => {
+      if (alive) setFound({ key, rooms: shown.filter((_, index) => canvases[index] !== null) });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [key]);
+  if (key === null) return null;
+  return found?.key === key ? found.rooms : null;
 }

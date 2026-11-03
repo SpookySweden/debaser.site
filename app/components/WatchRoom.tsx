@@ -966,7 +966,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       <div ref={stageRef} className={`flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1 ${look === null ? '' : `frame ${lookLines}`}`}>
       <div className="relative flex min-h-0 flex-1 items-center justify-center">
         {blank ? (
-          <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} />
+          <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
