@@ -41,6 +41,8 @@ export type CanvasContext = {
   title: string;
   amHost: boolean;
   live: boolean;
+  /** The session is over: the stream ended, or the music room was switched off (not just quiet for a moment). */
+  over: boolean;
   /** Everybody signed in who is in the room now, crowned or not. */
   present: CanvasParticipant[];
   /** Who holds a crown now. */
@@ -164,6 +166,19 @@ async function refresh(session: Session): Promise<void> {
       return;
     }
     const canvas = await repository.readCanvas(session.canvas.id);
+    if (canvas !== null && canvas.closedAt !== null && session.context !== null && !session.context.over) {
+      // That session's canvas was closed and the room is on again (a music room's next GO PUBLIC): a fresh canvas.
+      session.canvas = null;
+      session.raster = new CanvasRaster();
+      session.inputs = [];
+      session.known = new Map();
+      session.pending = [];
+      session.lastSnapshot = null;
+      session.lastAskedAt = null;
+      emit(session, {}, true);
+      await adopt(session, await repository.findOpenCanvas(session.roomId));
+      return;
+    }
     if (canvas !== null) {
       session.canvas = canvas;
       emit(session);
@@ -475,7 +490,17 @@ function viewedNow(session: Session): void {
 }
 
 function setContext(session: Session, context: CanvasContext): void {
+  const was = session.context;
   session.context = context;
+  // The session ended while the host looked on (END STREAM, a music room switched off): the host's tab closes the
+  // canvas, so the next session starts a new one.
+  if (was !== null && !was.over && context.over && context.amHost && context.me !== null && session.canvas !== null && session.canvas.closedAt === null) {
+    const canvas = session.canvas;
+    void getCanvasRepository()
+      .close(canvas.id, context.me.id)
+      .then(() => session.wire?.send({ type: 'canvas', canvasId: canvas.id }))
+      .catch(() => undefined);
+  }
 }
 
 export function useRoomCanvas(roomId: string, context: CanvasContext): RoomCanvasControls {

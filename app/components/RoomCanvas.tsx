@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { NAME_COLOURS, profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { artSlot } from '../lib/ui/art/slots';
-import { PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
+import { PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED } from '../lib/ui/controls';
 import {
   CANVAS_HEIGHT,
   CANVAS_WIDTH,
@@ -258,18 +258,34 @@ function DragGhost() {
 export function CanvasSaveAsk({ roomId, reason }: { roomId: string; reason: 'close' | 'view' }) {
   const { asking, saving, answer } = useCanvasAsk(roomId);
   if (asking === null || asking.reason !== reason) return null;
+  if (reason === 'close') {
+    // Over everything, so it is seen even when the room window is folded away (END STREAM on the music bar).
+    if (typeof document === 'undefined') return null;
+    return createPortal(
+      <div className="fixed inset-x-0 top-1/3 z-popout mx-auto flex w-fit max-w-full flex-wrap items-center gap-2 frame bg-sun-pale p-2 text-ink" role="alertdialog" aria-label="Save this canvas" data-canvas-ask="close">
+        <span className="text-label font-bold">SAVE THIS CANVAS?</span>
+        <button type="button" disabled={saving} className={PLATE_MAIN} onClick={() => answer(true)}>
+          [ SAVE ]
+        </button>
+        <button type="button" disabled={saving} className={PLATE} onClick={() => answer(false)}>
+          [ DON&apos;T SAVE ]
+        </button>
+      </div>,
+      document.body,
+    );
+  }
   return (
     <div
-      className={`flex flex-wrap items-center gap-2 ${reason === 'view' ? 'absolute inset-x-1 top-1 z-20 bg-ink-plate px-1 py-0.5 text-sun' : 'text-ink'}`}
+      className="absolute inset-x-1 top-1 z-20 flex flex-wrap items-center gap-2 bg-ink-plate px-1 py-0.5 text-sun"
       role="alertdialog"
       aria-label="Save this canvas"
       data-canvas-ask={reason}
     >
       <span className="text-label font-bold">SAVE THIS CANVAS?</span>
-      <button type="button" disabled={saving} className={reason === 'view' ? PLATE_ON_BLACK : 'key px-1 py-1 text-label'} onClick={() => answer(true)}>
+      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(true)}>
         [ SAVE ]
       </button>
-      <button type="button" disabled={saving} className={reason === 'view' ? PLATE_ON_BLACK : 'key px-1 py-1 text-label'} onClick={() => answer(false)}>
+      <button type="button" disabled={saving} className={PLATE_ON_BLACK} onClick={() => answer(false)}>
         [ DON&apos;T SAVE ]
       </button>
     </div>
