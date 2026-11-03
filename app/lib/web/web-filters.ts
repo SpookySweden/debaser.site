@@ -23,15 +23,15 @@ const streamPlatform = (platform: string) => (STREAM_PLATFORMS as readonly strin
  * `matchesAuthor`). Two are either creator, as on the forum; the saved stream reads them all, and a live source,
  * asked about one creator at a time, the first. A creator's name on a row writes it into the box (`withAuthor`).
  *
- * A fourth, `sort:` (SPEC-web-sort.md): `sort:best`, `sort:popular`, `sort:oldest` (`sort:newest`, the default, is
- * no word at all). The SORT keys and the flip key write it; the address carries `?sort=popular` or
- * `?sort=date&dir=asc`. web-sort.ts says what each order means.
+ * A fourth, `sort:` (SPEC-web-sort.md): `sort:popular`, `sort:newest`, `sort:oldest` (`sort:best`, the default since
+ * 2026-11-03, is no word at all). The SORT keys and the flip key write it; the address carries `?sort=popular`,
+ * `?sort=date` or `?sort=date&dir=asc`. web-sort.ts says what each order means.
  */
 
 export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort';
 
-/** A sort as typed after `sort:`; DATE newest first, the default, has no word. */
-export type SortWord = 'best' | 'popular' | 'oldest';
+/** A sort as typed after `sort:`; BEST MATCH, the default (Luke, 2026-11-03), has no word. */
+export type SortWord = 'popular' | 'newest' | 'oldest';
 
 export type SourceValue = 'all' | WebPlatform;
 export type TypeValue = 'all' | Exclude<WebItemKind, 'other'>;
@@ -122,14 +122,14 @@ export type WebSearch = {
   authors?: readonly string[];
   /** `vibe:on` (the VIBE key): mood and tag words (search-intent.ts). Absent: off. */
   vibe?: true;
-  /** `sort:` (the SORT keys and the flip key). Absent: DATE, newest first. */
+  /** `sort:` (the SORT keys and the flip key). Absent: BEST MATCH. */
   sort?: SortWord;
 };
 
 const FILTER = /(^|\s)(in|type|from|vibe|sort):("[^"]*"?|\S*)/gi;
 
-/** Words people will type after `sort:`; the default's words (`newest`, `date`) clear it. Anything else: no change. */
-const SORT_WORDS: Readonly<Record<string, SortWord | 'newest'>> = {
+/** Words people will type after `sort:`; the default's words (`best`, `match`) clear it. Anything else: no change. */
+const SORT_WORDS: Readonly<Record<string, SortWord | 'best'>> = {
   best: 'best',
   match: 'best',
   relevance: 'best',
@@ -144,22 +144,23 @@ const SORT_WORDS: Readonly<Record<string, SortWord | 'newest'>> = {
   old: 'oldest',
 };
 
-function readSortWord(word: string): SortWord | 'newest' | null {
+function readSortWord(word: string): SortWord | 'best' | null {
   const wanted = word.trim().toLowerCase();
   return Object.prototype.hasOwnProperty.call(SORT_WORDS, wanted) ? SORT_WORDS[wanted] : null;
 }
 
 /** The order a search is shown in (web-sort.ts). */
 export function sortOf(search: Pick<WebSearch, 'sort'>): SortChoice {
-  if (search.sort === 'best') return { sort: 'best', dir: 'desc' };
   if (search.sort === 'popular') return { sort: 'popular', dir: 'desc' };
-  return { sort: 'date', dir: search.sort === 'oldest' ? 'asc' : 'desc' };
+  if (search.sort === 'newest' || search.sort === 'oldest') return { sort: 'date', dir: search.sort === 'oldest' ? 'asc' : 'desc' };
+  return { sort: 'best', dir: 'desc' };
 }
 
 /** The word for an order (the reverse of `sortOf`); undefined for the default. */
 function sortWordOf(choice: SortChoice): SortWord | undefined {
-  if (choice.sort === 'best' || choice.sort === 'popular') return choice.sort;
-  return choice.dir === 'asc' ? 'oldest' : undefined;
+  if (choice.sort === 'best') return undefined;
+  if (choice.sort === 'popular') return 'popular';
+  return choice.dir === 'asc' ? 'oldest' : 'newest';
 }
 
 /** `vibe:on` / `vibe:off` as typed; anything else is no change. */
@@ -182,7 +183,7 @@ export function parseWebSearch(box: string): WebSearch {
   let source: SourceValue = 'all';
   let type: TypeValue = 'all';
   let vibe = false;
-  let sort: SortWord | 'newest' = 'newest';
+  let sort: SortWord | 'best' = 'best';
   const authors: string[] = [];
   const text = box
     .replace(FILTER, (_whole, space: string, key: string, raw: string) => {
@@ -200,7 +201,7 @@ export function parseWebSearch(box: string): WebSearch {
   const kept = keptAuthors(authors);
   const search: WebSearch = kept.length > 0 ? { text, source, type, authors: kept } : { text, source, type };
   if (vibe) search.vibe = true;
-  if (sort !== 'newest') search.sort = sort;
+  if (sort !== 'best') search.sort = sort;
   return search;
 }
 
@@ -252,7 +253,7 @@ export function withFilter(box: string, key: FilterKey, value: string): string {
     else delete search.vibe;
   } else if (key === 'sort') {
     const word = readSortWord(value);
-    if (word === null || word === 'newest') delete search.sort;
+    if (word === null || word === 'best') delete search.sort;
     else search.sort = word;
   } else search.type = readType(value) ?? 'all';
   return formatWebSearch(search);
@@ -267,10 +268,10 @@ export function searchAddress(search: WebSearch): string {
   for (const name of authorsOf(search)) params.append('from', name);
   if (search.vibe) params.set('vibe', 'on');
   const choice = sortOf(search);
-  if (choice.sort !== 'date') params.set('sort', choice.sort);
-  else if (choice.dir === 'asc') {
+  if (choice.sort === 'popular') params.set('sort', 'popular');
+  else if (choice.sort === 'date') {
     params.set('sort', 'date');
-    params.set('dir', 'asc');
+    if (choice.dir === 'asc') params.set('dir', 'asc');
   }
   const query = params.toString();
   return query.length > 0 ? `/archive?${query}` : '/archive';

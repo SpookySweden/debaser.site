@@ -11,7 +11,8 @@ oldest - newest ... without any compromises". Answers to the interview are below
 - A **flip key** beside it (↓ / ↑). Only DATE flips (newest-first or oldest-first). On BEST MATCH and
   POPULAR it is shown greyed and disabled with an accessible name saying why. No site gives a real
   "least popular" order (YouTube has none), and a reversed best match isn't useful.
-- Default: DATE ↓ (newest first), as today. The address carries it: `?sort=popular`, `?sort=date&dir=asc`.
+- Default: **BEST MATCH** (Luke, 2026-11-03: "sort by best match first"; it was DATE ↓ until then). The address
+  carries any other order: `?sort=popular`, `?sort=date` (newest first), `?sort=date&dir=asc`; typed, `sort:newest`.
   Typed in the box the forum's way too (`sort:popular`, `sort:oldest`), like `in:` and `type:` (web-filters.ts).
 - A site that can't give the chosen order is **not asked**, and one plain line says so
   ("COMMONS: NO POPULARITY ORDER"), in the same place as the existing problem lines. Never a wrong order.

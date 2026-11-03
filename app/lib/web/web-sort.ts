@@ -4,10 +4,10 @@ import type { WebItem, WebPlatform } from './types';
  * The /web search's SORT row (SPEC-web-sort.md; Luke, 2026-11-02: "ways to sort the results ... and a reversable
  * option"). Pure and client-safe: the page, the route and `scripts/check-web-sort.cjs` all read it.
  *
- * - BEST MATCH: each site's own best match, the sites taking turns.
+ * - BEST MATCH (the default since Luke's ask, 2026-11-03): each site's own best match, the sites taking turns.
  * - POPULAR: each site's own popularity order (KINO: TMDB's rating), the sites taking turns, so no site's numbers are
  *   ever compared with another's. A site with no popularity order is not asked, and says so.
- * - DATE (the default): one true date order across every site, newest first or (the flip key) oldest first.
+ * - DATE: one true date order across every site, newest first or (the flip key) oldest first.
  *
  * Counts and ratings decide order on the server only: nothing here, or anywhere in the browser, ever holds one.
  */
@@ -16,8 +16,8 @@ export type WebSort = 'best' | 'popular' | 'date';
 export type SortDir = 'desc' | 'asc';
 export type SortChoice = { sort: WebSort; dir: SortDir };
 
-/** Today's order, and the one an address without `sort` means. */
-export const DEFAULT_SORT: SortChoice = { sort: 'date', dir: 'desc' };
+/** The order a search opens in, and the one an address without `sort` means (Luke, 2026-11-03: best match first). */
+export const DEFAULT_SORT: SortChoice = { sort: 'best', dir: 'desc' };
 
 export const SORT_OPTIONS: readonly { value: WebSort; label: string }[] = [
   { value: 'best', label: 'BEST MATCH' },

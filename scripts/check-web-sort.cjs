@@ -288,15 +288,23 @@ const day = (n) => new Date(Date.UTC(2026, 0, n)).toISOString();
   /* ---------------------------------------------------------------- sort: in the box and the address */
   same(filters.parseWebSearch('night sort:popular').sort, 'popular', 'sort:popular is read from the box');
   same(filters.parseWebSearch('night sort:oldest').text, 'night', '... and taken out of the words');
-  same(filters.parseWebSearch('night sort:newest').sort, undefined, 'sort:newest is the default (no word)');
+  // BEST MATCH is the default since 2026-11-03 (Luke: "sort by best match first"): no word, no `?sort=`.
+  same(filters.parseWebSearch('night sort:best').sort, undefined, 'sort:best is the default (no word)');
+  same(filters.sortOf(filters.parseWebSearch('night')), { sort: 'best', dir: 'desc' }, 'a search with no sort word is BEST MATCH');
+  same(sort.searchOrder(filters.sortOf(filters.parseWebSearch('night'))), 'relevance', '... and asks each site for its best match');
+  same(filters.parseWebSearch('night sort:newest').sort, 'newest', 'sort:newest is a word of its own now');
+  same(filters.searchAddress(filters.parseWebSearch('night')), '/archive?q=night', 'BEST MATCH leaves the address without ?sort');
   same(filters.searchAddress(filters.parseWebSearch('night sort:popular')), '/archive?q=night&sort=popular', 'the address carries ?sort=popular');
+  same(filters.searchAddress(filters.parseWebSearch('night sort:newest')), '/archive?q=night&sort=date', 'newest first is ?sort=date');
   same(filters.searchAddress(filters.parseWebSearch('night sort:oldest')), '/archive?q=night&sort=date&dir=asc', 'oldest first is ?sort=date&dir=asc');
   same(filters.boxFromAddress(new URLSearchParams('q=night&sort=date&dir=asc')), 'night sort:oldest', 'the address back to the box');
-  same(filters.boxFromAddress(new URLSearchParams('q=night&sort=best&dir=asc')), 'night sort:best', 'a flip on BEST MATCH means nothing');
-  same(filters.withFilter('night in:youtube', 'sort', 'best'), 'night in:youtube sort:best', 'the SORT key writes the word, filters kept');
-  same(filters.withFilter('night sort:best', 'sort', 'newest'), 'night', 'DATE newest clears it');
+  same(filters.boxFromAddress(new URLSearchParams('q=night&sort=date')), 'night sort:newest', '?sort=date back to sort:newest');
+  same(filters.boxFromAddress(new URLSearchParams('q=night&sort=best&dir=asc')), 'night', 'a flip on BEST MATCH means nothing');
+  same(filters.withFilter('night in:youtube', 'sort', 'newest'), 'night in:youtube sort:newest', 'the SORT key writes the word, filters kept');
+  same(filters.withFilter('night sort:newest', 'sort', 'best'), 'night', 'BEST MATCH clears it');
   same(sort.searchOrder(filters.sortOf({ sort: 'oldest' })), 'oldest', 'the box word becomes the order asked');
-  same(sort.readSort('nonsense', 'asc'), { sort: 'date', dir: 'desc' }, 'an unknown sort in the address is the default');
+  same(sort.readSort('nonsense', 'asc'), { sort: 'best', dir: 'desc' }, 'an unknown sort in the address is the default');
+  same(sort.readSort(null, null), { sort: 'best', dir: 'desc' }, 'an address without ?sort is BEST MATCH');
 
   /* ---------------------------------------------------------------- the saved stream, oldest first */
   const mock = getMockWebRepository();
