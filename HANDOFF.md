@@ -1,4 +1,32 @@
-# Latest: the stream takes over the music bar (2026-11-03)
+# Latest: CYTUBE (SPEC-cytube.md) - the /cytube page, empty GO LIVE, broadcaster looks (2026-11-03)
+- Page: app/cytube/page.tsx + components/CytubePage.tsx (tabs from `?tab=`), CytubeLayout.tsx (5 looks + NONE, the
+  SHOW THE HOST'S LOOK / KEEP MY OWN LOOK toggle, also in the room's chat column for viewers), CytubeLiveStreams.tsx
+  (LIVE = `useLiveRooms` + `listedRooms`, the QUEUES tab's own list). Nav: `cytube` key in NAV_ITEMS + HEADER_ITEMS,
+  ICON_CYTUBE `▣` stand-in, slot `mark-cytube` (art to draw).
+- GO LIVE: lib/watch/go-live.ts `goLiveEmpty` (openRoom with `mediaItemId: null`, both repos; files the board
+  thread). Black screen: components/BlankScreen.tsx (tokens `--color-blank-*`, `--animate-blank-press`, `.blank-key`
+  in globals.css); window opens on `animationend` (1s fallback), at once under reduced motion. Pre-filled searches
+  and back-to-black are pure (lib/watch/blank-screen.ts): `type:video|music|books` in the queue bar; BOOKS adds
+  "audiobook" (book texts cannot play in a room, so none are listed). WatchRoom: `moveOn` writes nothing-on instead
+  of looping; a black-screen heartbeat; the host auto-starts what a crown queues (one at a time; refs `goingBlack`,
+  `startingEntry` keep the beats from undoing either).
+- Old entry points: StreamAddKey.tsx (`[ + QUEUE ]` for host/crown, else `[ ▶ CYTUBE ]`) in MediaCatalogue and
+  WebSiteFiles; WebBridgeKeys points to CYTUBE; WatchWindow's pre-live window links to /cytube.
+- Looks: colours only in tokens.css (`.look-*`, `.room-black`, room tokens `--room-*` with `@theme inline`);
+  `.room-keyed` (globals.css, unlayered on purpose) puts the look's key colour on bar keys. The bar strip reads the
+  open room's look from lib/cytube/room-look.ts. Data: `cytube_looks` (migration 20261103165921, PUSHED with Luke's
+  OK), lib/cytube/{look-repository,mock-,supabase-}, store use-looks.ts (saves are merged patches).
+- Also fixed: use-watch-room.ts dropped a refresh asked for while a read was out (a room stayed a step behind).
+- STUBS until the canvas is on main (Luke: go live first): CANVASES tab and the black screen's corner say COMING SOON.
+  The wired versions are in this session's scratchpad (canvas-wired/); `Canvases()` in CytubePage and the stub
+  line in BlankScreen say what to swap in (`findOpenCanvas` per live room + `StreamArtShelf`; the stage's
+  CanvasToggle, and `hidden={screen === 'canvas'}` on BlankScreen).
+- Proof: `npm run checks -- --only check-cytube` (93; proven to fail with a loop, a list addition starting, BOOKS
+  words dropped, BLOOD's pink outline). Drive: `node Temp/drive-cytube.cjs [base]` on a dev-mock server (30 steps,
+  host + viewer, desktop + 390 wide; pictures Temp/browse/cytube/). Phones get the 1280 desktop, so "keys stack"
+  was checked at a 390 window.
+
+# Before that: the stream takes over the music bar (2026-11-03)
 - In a room the bottom bar is the stream's (MusicPlayer `StreamStrip`): TV key at the left (wiggles; turns the bar
   back to music for that room, per tab, lib/watch/stream-bar.ts), black screen (LIVE/ENDED, host, title, NEXT,
   time), keys in a black recess incl. QUEUE. WatchRoom portals its part into the box the bar registers.
