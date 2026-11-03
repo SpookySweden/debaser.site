@@ -7,7 +7,8 @@ import { openWatch } from './watch-window';
 import type { ForumAnchor } from '../forum/types';
 
 /**
- * GO LIVE, from the CYTUBE page only (SPEC-cytube.md): the host's room opens **empty**, no file needed, its
+ * GO LIVE, from the CYTUBE page and the side panel's GO LIVE key (SPEC-cytube.md; the key, Luke 2026-11-03): the
+ * host's room opens **empty**, no file needed, its
  * screen black with the three keys. The forum record is filed as it starts, as GO LIVE always did; a room that
  * could not be filed is still a room (it says NOT ON THE BOARD). The room window opens over the page.
  *

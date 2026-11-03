@@ -23,7 +23,7 @@ import StreamQueueWindow from './StreamQueueWindow';
 
 /**
  * The CYTUBE page (SPEC-cytube.md): what streaming here is, the live rooms, the stream canvases, and - always
- * above the tabs - GO LIVE (the only place a room is started) and CUSTOMIZE LAYOUT (your broadcast look).
+ * above the tabs - GO LIVE (with the side panel's GO LIVE key, the only places a room is started) and CUSTOMIZE LAYOUT (your broadcast look).
  * Signed-in people only, like the archive: signed out it shows a sign-in prompt.
  *
  * The tab is in the address (`?tab=live`), so a link can open on the list of live rooms.

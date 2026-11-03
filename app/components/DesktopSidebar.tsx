@@ -1,7 +1,9 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from './AuthProvider';
+import { useForum } from './ForumProvider';
 import SidebarComms from './SidebarComms';
 import SidebarProfile from './SidebarProfile';
 import UserDirectory from './UserDirectory';
@@ -26,7 +28,12 @@ import {
   subscribeToQueueWindow,
   toggleQueues,
 } from '../lib/audio/queue-window';
+import type { AccountUser } from '../lib/auth/types';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { ICON_LIVE } from '../lib/ui/icons';
+import { goLiveEmpty } from '../lib/watch/go-live';
+import { useWatching } from '../lib/watch/use-watching';
+import { openWatch } from '../lib/watch/watch-window';
 
 /**
  * Where the panel remembers whether it is open. Named like the store keys so the
@@ -121,6 +128,59 @@ function ShelfKey({
 }
 
 /**
+ * GO LIVE in one press, above the arcade (Luke, 2026-11-03): the same empty room CYTUBE's GO LIVE opens
+ * (`goLiveEmpty`), black screen and all, so the two cannot drift. Already hosting a live room: back to it,
+ * never a second one. Accounts only, as on CYTUBE.
+ *
+ * One press rather than the board's usual two, on Luke's word: nothing plays until the host picks
+ * something on the black screen. The press does file the room's board thread at once.
+ */
+function GoLiveKey({ user }: { user: AccountUser }) {
+  const forum = useForum();
+  const watching = useWatching(user.id);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hosting = watching !== null && watching.hosting ? watching.roomId : null;
+
+  async function goLive() {
+    if (hosting !== null) {
+      openWatch({ kind: 'room', roomId: hosting });
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await goLiveEmpty(user, forum.createThread);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => void goLive()}
+        disabled={busy}
+        data-side-go-live={hosting === null ? 'new' : 'back'}
+        className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label"
+      >
+        <span className="min-w-0 flex-1 truncate text-left">
+          [ <span aria-hidden="true">{ICON_LIVE}</span> {busy ? 'GOING LIVE...' : hosting === null ? 'GO LIVE' : 'BACK TO YOUR ROOM'} ]
+        </span>
+      </button>
+      {error === null ? null : (
+        <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
  * The side panel: the profile, the conversations and the directory, on the right.
  *
  * It lives inside the DEBASER_OS window rather than floating beside it, so it
@@ -139,6 +199,7 @@ export default function DesktopSidebar() {
   const arcadeOpen = arcadeState.open;
   const queueState = useSyncExternalStore(subscribeToQueueWindow, queueWindowState, queueWindowState);
   const queuesOpen = queueState.open;
+  const { user } = useAuth();
   const pathname = usePathname();
   const router = useRouter();
 
@@ -262,6 +323,7 @@ export default function DesktopSidebar() {
           </div>
 
           <div className="space-y-1 p-2">
+            {user === null ? null : <GoLiveKey user={user} />}
             <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />

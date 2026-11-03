@@ -51,6 +51,9 @@ export const ICON_WEB = '◎';
  */
 export const ICON_CYTUBE = '▣';
 
+/** Going live: the lamp on a camera that says it is recording (the side panel's GO LIVE key). */
+export const ICON_LIVE = '●';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 
