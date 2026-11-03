@@ -14,6 +14,8 @@
  *   else's input is ignored, wherever it came from: nobody can clear or change anybody else's work.
  */
 
+import { chatImageUrl } from './chat-images';
+
 export const CANVAS_WIDTH = 480;
 export const CANVAS_HEIGHT = 270;
 const PIXELS = CANVAS_WIDTH * CANVAS_HEIGHT;
@@ -123,9 +125,11 @@ function readPlacement(value: unknown): Placement | null {
   const place = value as Record<string, unknown>;
   const [x, y] = clampPoint(Number(place.x), Number(place.y));
   if (place.type === 'picture') {
-    if (typeof place.url !== 'string' || !/^https:\/\//.test(place.url)) return null;
+    // Only the chat's picture hosts (GIPHY, Commons thumbnails), hotlinked: never an address of anybody's choosing.
+    const url = typeof place.url === 'string' ? chatImageUrl(place.url) : null;
+    if (url === null) return null;
     const h = Math.min(CANVAS_HEIGHT, Math.max(8, Math.round(Number(place.h) || PLACED_PICTURE_HEIGHT)));
-    return { type: 'picture', url: place.url, title: typeof place.title === 'string' ? place.title.slice(0, 120) : '', x, y, h };
+    return { type: 'picture', url, title: typeof place.title === 'string' ? place.title.slice(0, 120) : '', x, y, h };
   }
   if (place.type === 'text') {
     if (typeof place.text !== 'string' || place.text.trim().length === 0) return null;
@@ -334,16 +338,17 @@ export class CanvasRaster {
   }
 
   /**
-   * One input, in timeline order. A stroke seen again (it grows while it is drawn, `points` longer each time)
-   * repaints at its first place in the order. Returns whether the picture changed.
+   * One input, in timeline order. A stroke or rub seen again (it grows while it is drawn, `points` longer each
+   * time) is drawn again at its first place in the order. Returns whether the picture changed.
    */
   apply(input: CanvasInput): boolean {
     const known = this.orderOf.get(input.id);
     if (known !== undefined) {
-      if (input.kind !== 'stroke') return false;
+      if (input.kind !== 'stroke' && input.kind !== 'erase') return false;
       const index = this.applied.findIndex((entry) => entry.id === input.id);
-      if (index >= 0) this.applied[index] = input;
-      for (const pixel of this.paint(input, known)) this.composite(pixel);
+      if (index < 0 || this.applied[index].kind !== input.kind || this.applied[index].authorId !== input.authorId) return false;
+      this.applied[index] = input;
+      for (const pixel of input.kind === 'stroke' ? this.paint(input, known) : this.rub(input)) this.composite(pixel);
       return true;
     }
     const when = (this.order += 1);

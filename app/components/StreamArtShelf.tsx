@@ -116,7 +116,6 @@ function PieceRow({ piece, admin, onOpen, onPeople, onChanged }: { piece: Stream
             <button type="button" onClick={onPeople} className="inline-flex shrink-0 cursor-pointer" title="Everybody who was there" aria-label={`Everybody in ${canvas.hostLabel}'s room`} data-stream-art-host>
               <PersonPicture id={canvas.hostId} label={canvas.hostLabel} size={HOST_PICTURE} />
             </button>
-            <span className="text-label font-bold text-ink-quiet">STREAM ART</span>
             {canvas.hidden ? <span className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">HIDDEN</span> : null}
           </div>
           <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink">

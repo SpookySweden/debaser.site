@@ -8,6 +8,7 @@ import { getWatchRepository } from './repository';
 import { songLink, trackForSong } from './songs';
 import { showMusicOnBar } from './stream-bar';
 import type { LiveRoom, RoomOrigin, WatchRoom, WatchRoomRead } from './types';
+import { askToSaveCanvas } from './use-room-canvas';
 import { primeRoom } from './use-watch-room';
 import { closeWatch, collapseWatch, openWatch, watchWindowState } from './watch-window';
 
@@ -98,6 +99,8 @@ export function useMusicRoomSwitch(user: { id: string; displayName: string } | n
     setBusy(true);
     setMessage(null);
     try {
+      // Public off ends the canvas session too: a changed canvas nobody saved asks first (SPEC-stream-art.md).
+      if (user !== null) await askToSaveCanvas(room.id, { ending: true, hostId: user.id });
       const kept = await repository.readRoom(room.id);
       if (kept !== null) await switchMusicRoomOff(kept, player);
       read();

@@ -17,6 +17,7 @@ import {
   canvasColour,
   clampPoint,
   type CanvasPoint,
+  type EraseInput,
   type StrokeInput,
 } from '../lib/watch/canvas';
 import { setCanvasDropTarget, useCanvasDrag, type CanvasDragPayload } from '../lib/watch/canvas-drag';
@@ -74,7 +75,8 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
   /* --- drawing ------------------------------------------------------------------------------- */
 
   const surface = useRef<HTMLDivElement>(null);
-  const stroke = useRef<{ pointerId: number; input: StrokeInput | null; erase: CanvasPoint[]; sent: number; last: number; tool: Tool } | null>(null);
+  /** The stroke or rub under the pointer: drawn and sent as it grows, written once the pointer lets go. */
+  const stroke = useRef<{ pointerId: number; input: StrokeInput | EraseInput; sent: number; last: number } | null>(null);
 
   const pointAt = (event: { clientX: number; clientY: number }): CanvasPoint => {
     const box = surface.current?.getBoundingClientRect();
@@ -82,31 +84,23 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
     return clampPoint(((event.clientX - box.left) / box.width) * CANVAS_WIDTH, ((event.clientY - box.top) / box.height) * CANVAS_HEIGHT);
   };
   const base = () => ({ id: canvas.newInputId(), authorId: me?.id ?? '', authorLabel: me?.label ?? 'Unknown', at: new Date().toISOString() });
+  const fresh = (point: CanvasPoint): StrokeInput | EraseInput =>
+    tool === 'pen' ? { ...base(), kind: 'stroke', colour, size, points: [point] } : { ...base(), kind: 'erase', size: ERASER_SIZE, points: [point] };
 
-  /** Sends what is new of the stroke (or the eraser's path) now. */
+  /** Sends what is new of the stroke or rub now; `final` writes it whole. */
   const push = (final: boolean) => {
     const held = stroke.current;
     if (held === null) return;
-    if (held.tool === 'pen' && held.input !== null) {
-      if (final) canvas.draw(held.input);
-      else if (held.input.points.length > held.sent) canvas.drawing(held.input, held.sent);
-      held.sent = held.input.points.length;
-    } else if (held.tool === 'eraser' && held.erase.length > 0) {
-      // The eraser goes out in short runs, each starting where the last ended, so the rub shows as it is made.
-      canvas.draw({ ...base(), kind: 'erase', size: ERASER_SIZE, points: held.erase });
-      held.erase = [held.erase[held.erase.length - 1]];
-    }
+    if (final) canvas.draw(held.input);
+    else if (held.input.points.length > held.sent) canvas.drawing(held.input, held.sent);
+    held.sent = held.input.points.length;
     held.last = Date.now();
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (!canDraw || event.button !== 0) return;
     event.currentTarget.setPointerCapture(event.pointerId);
-    const point = pointAt(event);
-    stroke.current =
-      tool === 'pen'
-        ? { pointerId: event.pointerId, input: { ...base(), kind: 'stroke', colour, size, points: [point] }, erase: [], sent: 0, last: 0, tool }
-        : { pointerId: event.pointerId, input: null, erase: [point], sent: 0, last: 0, tool };
+    stroke.current = { pointerId: event.pointerId, input: fresh(pointAt(event)), sent: 0, last: 0 };
     push(false);
   };
 
@@ -114,21 +108,14 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
     const held = stroke.current;
     if (held === null || held.pointerId !== event.pointerId) return;
     const point = pointAt(event);
-    if (held.tool === 'pen' && held.input !== null) {
-      const last = held.input.points[held.input.points.length - 1];
-      if (last[0] === point[0] && last[1] === point[1]) return;
-      held.input = { ...held.input, points: [...held.input.points, point] };
-      // A long scribble becomes several strokes, joined end to end.
-      if (held.input.points.length >= STROKE_MAX_POINTS) {
-        push(true);
-        held.input = { ...base(), kind: 'stroke', colour: held.input.colour, size: held.input.size, points: [point] };
-        held.sent = 0;
-      }
-    } else {
-      const last = held.erase[held.erase.length - 1];
-      if (last !== undefined && last[0] === point[0] && last[1] === point[1]) return;
-      held.erase.push(point);
-      if (held.erase.length >= STROKE_MAX_POINTS) push(false);
+    const last = held.input.points[held.input.points.length - 1];
+    if (last[0] === point[0] && last[1] === point[1]) return;
+    held.input = { ...held.input, points: [...held.input.points, point] };
+    // A long scribble becomes several, joined end to end.
+    if (held.input.points.length >= STROKE_MAX_POINTS) {
+      push(true);
+      held.input = held.input.kind === 'stroke' ? { ...base(), kind: 'stroke', colour: held.input.colour, size: held.input.size, points: [point] } : { ...base(), kind: 'erase', size: held.input.size, points: [point] };
+      held.sent = 0;
     }
     if (Date.now() - held.last >= SEND_EVERY_MS) push(false);
   };

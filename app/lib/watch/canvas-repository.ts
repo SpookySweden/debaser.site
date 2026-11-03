@@ -77,7 +77,7 @@ export type CanvasWireMessage =
   /** A finished input (also written to the timeline in the next batch). */
   | { type: 'input'; canvasId: string; input: CanvasInput }
   /** A stroke while it is being drawn: its points from `start` on. */
-  | { type: 'progress'; canvasId: string; input: CanvasInput & { kind: 'stroke' }; start: number }
+  | { type: 'progress'; canvasId: string; input: CanvasInput & { kind: 'stroke' | 'erase' }; start: number }
   /** The canvas row changed (opened, saved, snapshot taken, closed): read it again. */
   | { type: 'canvas'; canvasId: string };
 

@@ -299,15 +299,25 @@ class SupabaseCanvasRepository implements CanvasRepository {
   joinWire(roomId: string, onMessage: (message: CanvasWireMessage) => void): CanvasWire {
     const client = getSupabaseBrowserClient();
     if (client === null) return { send: () => undefined, leave: () => undefined };
-    const channel: RealtimeChannel = client.channel(`canvas:${roomId}`, { config: { broadcast: { self: false } } });
-    channel.on('broadcast', { event: 'canvas' }, ({ payload }) => onMessage(payload as CanvasWireMessage));
-    channel.subscribe();
+    // Every tab in the room must share the topic, so it cannot carry a serial; the client hands back a channel it
+    // still holds for that topic (a quick close and reopen), so the old one is let go first.
+    const topic = `canvas:${roomId}`;
+    let channel: RealtimeChannel | null = null;
+    let left = false;
+    const stale = client.getChannels().filter((held) => held.topic === `realtime:${topic}`);
+    void Promise.all(stale.map((held) => client.removeChannel(held))).then(() => {
+      if (left) return;
+      channel = client.channel(topic, { config: { broadcast: { self: false } } });
+      channel.on('broadcast', { event: 'canvas' }, ({ payload }) => onMessage(payload as CanvasWireMessage));
+      channel.subscribe();
+    });
     return {
       send: (message) => {
-        void channel.send({ type: 'broadcast', event: 'canvas', payload: message });
+        if (channel !== null) void channel.send({ type: 'broadcast', event: 'canvas', payload: message });
       },
       leave: () => {
-        void client.removeChannel(channel);
+        left = true;
+        if (channel !== null) void client.removeChannel(channel);
       },
     };
   }

@@ -11,9 +11,12 @@ import {
   creditsOf,
   nextUndoTarget,
   placementsOf,
+  rasterOf,
   readInput,
+  replayOrder,
   type CanvasInput,
   type Placement,
+  type EraseInput,
   type StrokeInput,
 } from './canvas';
 import { getCanvasRepository, type CanvasParticipant, type CanvasWire, type CanvasWireMessage, type RoomCanvasRecord } from './canvas-repository';
@@ -33,6 +36,10 @@ const FLUSH_MS = 2000;
 const REFRESH_MS = 20_000;
 /** How often the autosave rule is asked. */
 const AUTOSAVE_TICK_MS = 30_000;
+/** A wire input the timeline has not taken within this long is dropped (a failed write, or a forged message). */
+const WIRE_GRACE_MS = 30_000;
+/** The bucket's rate limit: one picture per account every 10 seconds (the migration's storage policy). */
+const SNAPSHOT_GAP_MS = 10_500;
 
 /** What the room tells its canvas on every render. */
 export type CanvasContext = {
@@ -71,14 +78,24 @@ type Session = {
   roomId: string;
   users: number;
   raster: CanvasRaster;
+  /** What this tab draws, in order: the timeline's inputs in the server's order, then those not yet written. */
   inputs: CanvasInput[];
   known: Map<string, CanvasInput>;
+  /** The inputs the timeline holds (the server took them); the rest came over the wire or are this tab's own. */
+  confirmed: Set<string>;
+  /** Everybody with an input on the timeline. */
+  confirmedAuthors: Set<string>;
+  /** When each input not yet on the timeline was first seen here. */
+  seenAt: Map<string, number>;
   canvas: RoomCanvasRecord | null;
   opening: Promise<RoomCanvasRecord | null> | null;
   pending: CanvasInput[];
   /** Wire messages waiting for the canvas to be opened. */
   held: CanvasWireMessage[];
+  /** The newest snapshot this tab knows of, and how many timeline inputs it was made from. */
   lastSnapshot: { at: number; inputCount: number } | null;
+  /** When this tab last took a snapshot (the bucket takes one per account every few seconds). */
+  mySnapshotAt: number;
   lastAskedAt: number | null;
   context: CanvasContext | null;
   wire: CanvasWire | null;
@@ -108,51 +125,77 @@ function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `i-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/** One input into this tab's canvas, from anywhere (this tab, the wire, the timeline). A stroke seen again grows. */
-function take(session: Session, input: CanvasInput): void {
+/** Empties the session for a new canvas. What this tab drew and has not written yet is kept for the new one. */
+function reset(session: Session): void {
+  session.canvas = null;
+  session.raster = new CanvasRaster();
+  session.inputs = [];
+  session.known = new Map();
+  session.confirmed = new Set();
+  session.confirmedAuthors = new Set();
+  session.seenAt = new Map();
+  session.lastSnapshot = null;
+  session.lastAskedAt = null;
+  for (const input of session.pending) take(session, input);
+}
+
+/**
+ * One input into this tab's canvas, from anywhere (this tab, the wire, the timeline). A stroke or rub seen again
+ * grows; an id already known as somebody else's, or as another kind, is not taken.
+ */
+function take(session: Session, input: CanvasInput): boolean {
   const known = session.known.get(input.id);
   if (known !== undefined) {
-    if (input.kind !== 'stroke' || known.kind !== 'stroke' || input.points.length <= known.points.length) return;
+    if (known.authorId !== input.authorId || known.kind !== input.kind) return false;
+    if ((input.kind !== 'stroke' && input.kind !== 'erase') || (known.kind !== 'stroke' && known.kind !== 'erase') || input.points.length <= known.points.length) return false;
     const index = session.inputs.findIndex((entry) => entry.id === input.id);
     if (index >= 0) session.inputs[index] = input;
   } else {
     session.inputs.push(input);
+    if (!session.confirmed.has(input.id) && !session.seenAt.has(input.id)) session.seenAt.set(input.id, Date.now());
   }
   session.known.set(input.id, input);
   session.raster.apply(input);
+  return true;
 }
 
+/**
+ * The timeline read again: the canvas is drawn in the server's order (`seq`), then what is not written yet - this
+ * tab's own, and what came over the wire in the last half minute. A wire input the timeline never took (somebody
+ * forging one on the open channel, or a write that failed) is dropped after that.
+ */
 async function loadTimeline(session: Session, canvas: RoomCanvasRecord): Promise<void> {
-  const inputs = await getCanvasRepository().readInputs(canvas.id);
+  const timeline = replayOrder(await getCanvasRepository().readInputs(canvas.id));
   if (session.canvas?.id !== canvas.id) return;
-  let added = false;
-  for (const input of inputs) {
-    if (!session.known.has(input.id)) added = true;
-    take(session, input);
-  }
-  if (added) emit(session, {}, true);
+  const onTimeline = new Set(timeline.map((input) => input.id));
+  const me = session.context?.me?.id ?? null;
+  const now = Date.now();
+  const unwritten = session.inputs.filter(
+    (input) => !onTimeline.has(input.id) && (input.authorId === me || now - (session.seenAt.get(input.id) ?? 0) < WIRE_GRACE_MS),
+  );
+  const next: CanvasInput[] = [...timeline, ...unwritten];
+  const same = next.length === session.inputs.length && next.every((input, index) => input.id === session.inputs[index].id && session.confirmed.has(input.id) === onTimeline.has(input.id));
+  session.confirmed = onTimeline;
+  session.confirmedAuthors = new Set(timeline.map((input) => input.authorId));
+  for (const id of onTimeline) session.seenAt.delete(id);
+  if (same) return;
+  session.inputs = [];
+  session.known = new Map();
+  session.raster = new CanvasRaster();
+  for (const input of next) take(session, input);
+  emit(session, {}, true);
 }
 
 /** Adopts the room's open canvas (read from the store) and hands it whatever waited for it. */
 async function adopt(session: Session, canvas: RoomCanvasRecord | null): Promise<void> {
-  if (canvas === null) return;
+  if (canvas === null || canvas.closedAt !== null) return;
   const fresh = session.canvas?.id !== canvas.id;
-  if (fresh && session.canvas !== null) {
-    // A new session's canvas: start from nothing.
-    session.raster = new CanvasRaster();
-    session.inputs = [];
-    session.known = new Map();
-    session.lastSnapshot = null;
-    session.lastAskedAt = null;
-  }
+  if (fresh && session.canvas !== null) reset(session);
   session.canvas = canvas;
   if (session.lastAskedAt === null) session.lastAskedAt = Date.parse(canvas.openedAt) || Date.now();
   if (fresh) {
     const held = session.held.splice(0);
     for (const message of held) session.wire?.send({ ...message, canvasId: canvas.id });
-    for (const input of session.pending) {
-      if (!session.known.has(input.id)) take(session, input);
-    }
     emit(session, {}, true);
     await loadTimeline(session, canvas).catch(() => undefined);
   } else {
@@ -170,13 +213,7 @@ async function refresh(session: Session): Promise<void> {
     const canvas = await repository.readCanvas(session.canvas.id);
     if (canvas !== null && canvas.closedAt !== null && session.context !== null && !session.context.over) {
       // That session's canvas was closed and the room is on again (a music room's next GO PUBLIC): a fresh canvas.
-      session.canvas = null;
-      session.raster = new CanvasRaster();
-      session.inputs = [];
-      session.known = new Map();
-      session.pending = [];
-      session.lastSnapshot = null;
-      session.lastAskedAt = null;
+      reset(session);
       emit(session, {}, true);
       await adopt(session, await repository.findOpenCanvas(session.roomId));
       return;
@@ -194,7 +231,7 @@ async function refresh(session: Session): Promise<void> {
 async function flush(session: Session): Promise<void> {
   const canvas = session.canvas;
   const me = session.context?.me ?? null;
-  if (canvas === null || me === null || session.pending.length === 0) return;
+  if (canvas === null || canvas.closedAt !== null || me === null || session.pending.length === 0) return;
   const batch = session.pending.splice(0);
   try {
     await getCanvasRepository().writeInputs(canvas.id, batch, me.id);
@@ -205,6 +242,18 @@ async function flush(session: Session): Promise<void> {
     if (session.context?.live) session.pending.unshift(...batch);
     emit(session, { error: words });
   }
+}
+
+/**
+ * Who may be heard on the wire: the people in the room now, the host, and whoever already has inputs on the
+ * timeline. The channel itself is open, so this keeps a stranger's messages (and a flood of made-up names, each a
+ * layer of pixels) off the canvas; the timeline, written under the database's rules, has the last word.
+ */
+function heard(session: Session, authorId: string): boolean {
+  const context = session.context;
+  if (context === null) return false;
+  if (authorId === context.host.id || context.present.some((person) => person.id === authorId)) return true;
+  return session.confirmedAuthors.has(authorId);
 }
 
 function onWire(session: Session, message: CanvasWireMessage): void {
@@ -220,20 +269,21 @@ function onWire(session: Session, message: CanvasWireMessage): void {
     return;
   }
   const input = readInput(message.input);
-  if (input === null) return;
+  if (input === null || !heard(session, input.authorId)) return;
   if (session.canvas === null || session.canvas.id !== message.canvasId) {
     // A canvas this tab has not met yet: draw the input now, read the canvas in the background.
     onWire(session, { type: 'canvas', canvasId: message.canvasId });
   }
-  if (message.type === 'progress' && input.kind === 'stroke') {
+  let taken: boolean;
+  if (message.type === 'progress' && (input.kind === 'stroke' || input.kind === 'erase')) {
     const known = session.known.get(input.id);
-    const before = known?.kind === 'stroke' ? known.points : [];
+    const before = known !== undefined && (known.kind === 'stroke' || known.kind === 'erase') ? known.points : [];
     if (message.start > before.length) return;
-    take(session, { ...input, points: [...before.slice(0, message.start), ...input.points] });
+    taken = take(session, { ...input, points: [...before.slice(0, message.start), ...input.points] });
   } else {
-    take(session, input);
+    taken = take(session, input);
   }
-  emit(session, {}, true);
+  if (taken) emit(session, {}, true);
 }
 
 /** The room's session object: one per room for the life of the tab, so every caller holds the same one. */
@@ -246,11 +296,15 @@ function sessionFor(roomId: string): Session {
       raster: new CanvasRaster(),
       inputs: [],
       known: new Map(),
+      confirmed: new Set(),
+      confirmedAuthors: new Set(),
+      seenAt: new Map(),
       canvas: null,
       opening: null,
       pending: [],
       held: [],
       lastSnapshot: null,
+      mySnapshotAt: 0,
       lastAskedAt: null,
       context: null,
       wire: null,
@@ -290,9 +344,14 @@ function release(session: Session): void {
 
 /** The room's canvas, opened if nobody has yet (by a signed-in person in a live room). */
 async function ensureCanvas(session: Session): Promise<RoomCanvasRecord | null> {
-  if (session.canvas !== null) return session.canvas;
+  if (session.canvas !== null && session.canvas.closedAt === null) return session.canvas;
   const context = session.context;
-  if (context === null || context.me === null || !context.live) return null;
+  if (context === null || context.me === null || !context.live || context.over) return null;
+  // That session's canvas is closed: this is a new session, with a canvas of its own.
+  if (session.canvas !== null) {
+    reset(session);
+    emit(session, {}, true);
+  }
   if (session.opening === null) {
     const me = context.me;
     session.opening = getCanvasRepository()
@@ -313,6 +372,17 @@ async function ensureCanvas(session: Session): Promise<RoomCanvasRecord | null> 
   return session.opening;
 }
 
+/** Closes the canvas (the host, at the session's end), here as well as in the store. */
+async function closeCanvas(session: Session): Promise<void> {
+  const canvas = session.canvas;
+  const me = session.context?.me ?? null;
+  if (canvas === null || canvas.closedAt !== null || me === null) return;
+  await getCanvasRepository().close(canvas.id, me.id);
+  if (session.canvas?.id === canvas.id) session.canvas = { ...canvas, closedAt: new Date().toISOString() };
+  session.wire?.send({ type: 'canvas', canvasId: canvas.id });
+  emit(session);
+}
+
 /* --- snapshots and saving ------------------------------------------------------------------------- */
 
 function pngOf(raster: CanvasRaster): Promise<Blob | null> {
@@ -325,7 +395,7 @@ function pngOf(raster: CanvasRaster): Promise<Blob | null> {
   return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), 'image/png'));
 }
 
-function participantsNow(session: Session): CanvasParticipant[] {
+function participantsNow(session: Session, inputs: readonly CanvasInput[]): CanvasParticipant[] {
   const context = session.context;
   const byId = new Map<string, CanvasParticipant>();
   const crowned = context?.crowned ?? new Set<string>();
@@ -336,28 +406,37 @@ function participantsNow(session: Session): CanvasParticipant[] {
     add(context.host.id, context.host.label);
     for (const person of context.present) add(person.id, person.label);
   }
-  for (const input of session.inputs) add(input.authorId, input.authorLabel);
+  for (const input of inputs) add(input.authorId, input.authorLabel);
   return [...byId.values()];
 }
 
+/**
+ * A snapshot of what the timeline holds, in the server's order: this tab's own inputs are written first, and only
+ * what the database took goes into the archive (never something heard only on the wire).
+ */
 async function snapshot(session: Session): Promise<void> {
   const canvas = session.canvas;
   const me = session.context?.me ?? null;
   if (canvas === null || canvas.savedAt === null || me === null) return;
   await flush(session);
-  const png = await pngOf(session.raster);
+  const timeline = replayOrder(await getCanvasRepository().readInputs(canvas.id));
+  const raster = rasterOf(timeline);
+  const png = await pngOf(raster);
   if (png === null) return;
-  const inputCount = session.inputs.length;
+  // The bucket takes one picture per account every few seconds: a snapshot right after another waits its turn.
+  const wait = session.mySnapshotAt + SNAPSHOT_GAP_MS - Date.now();
+  if (wait > 0) await new Promise((resolve) => window.setTimeout(resolve, wait));
   await getCanvasRepository().addSnapshot({
     canvasId: canvas.id,
     takenBy: me,
     png,
-    placements: placementsOf(session.inputs).map((entry) => entry.place),
-    credits: creditsOf(session.inputs),
-    participants: participantsNow(session),
-    inputCount,
+    placements: placementsOf(timeline).map((entry) => entry.place),
+    credits: creditsOf(timeline),
+    participants: participantsNow(session, timeline),
+    inputCount: timeline.length,
   });
-  session.lastSnapshot = { at: Date.now(), inputCount };
+  session.mySnapshotAt = Date.now();
+  session.lastSnapshot = { at: Date.now(), inputCount: timeline.length };
   session.wire?.send({ type: 'canvas', canvasId: canvas.id });
 }
 
@@ -375,7 +454,7 @@ async function autosave(session: Session): Promise<void> {
   const last = session.lastSnapshot;
   const due = autosaveDue({
     saved: true,
-    changedSinceSnapshot: last === null || session.inputs.length !== last.inputCount,
+    changedSinceSnapshot: last === null || session.confirmed.size + session.pending.length !== last.inputCount,
     lastSnapshotAt: last?.at ?? null,
     now: Date.now(),
     host: context.amHost,
@@ -390,10 +469,11 @@ async function saveNow(session: Session): Promise<void> {
   emit(session, { saving: true, error: null });
   try {
     const canvas = await ensureCanvas(session);
-    if (canvas === null) return;
+    if (canvas === null) throw new Error('THIS CANVAS IS CLOSED.');
     await flush(session);
     const saved = await getCanvasRepository().save(canvas.id, me);
-    if (saved !== null) session.canvas = saved;
+    if (saved === null || saved.savedAt === null) throw new Error('THE CANVAS COULD NOT BE SAVED.');
+    session.canvas = saved;
     await snapshot(session);
     session.wire?.send({ type: 'canvas', canvasId: canvas.id });
     emit(session, { saving: false });
@@ -419,25 +499,34 @@ function ask(session: Session, reason: SaveAsk['reason']): Promise<boolean> {
 /**
  * Before a room session closes for this tab (END STREAM, leaving, public off): a changed canvas nobody saved asks
  * "save this canvas?" first; a saved one that changed takes its last snapshot. `ending`: the host is ending the
- * session, so the canvas is closed once that is done. Resolves when the room may close.
+ * session, so the canvas is closed once that is done (`hostId` closes the room's open canvas even when no room
+ * window is open in this tab). Resolves when the room may close.
  */
-export async function askToSaveCanvas(roomId: string, options: { ending?: boolean } = {}): Promise<void> {
+export async function askToSaveCanvas(roomId: string, options: { ending?: boolean; hostId?: string } = {}): Promise<void> {
   const session = sessions.get(roomId);
-  if (session === undefined || session.users === 0) return;
+  if (session === undefined || session.users === 0) {
+    // No room window here (public off from the QUEUES tab): nothing drawn in this tab to ask about, but the
+    // session still ends, so its canvas is closed.
+    if (options.ending && options.hostId !== undefined) {
+      const repository = getCanvasRepository();
+      const open = await repository.findOpenCanvas(roomId).catch(() => null);
+      if (open !== null) await repository.close(open.id, options.hostId).catch(() => undefined);
+    }
+    return;
+  }
   await flush(session);
+  const context = session.context;
   const state = { changed: session.inputs.length > 0, saved: session.canvas?.savedAt != null };
-  if (asksOnClose(state) && session.context?.me) {
+  // Only while it can still be saved: once the room is over (the host ended it) the canvas takes nothing more.
+  const open = context !== null && context.me !== null && context.live && !context.over && session.canvas?.closedAt == null;
+  if (open && asksOnClose(state)) {
     if (await ask(session, 'close')) await saveNow(session);
-  } else if (state.saved && session.lastSnapshot?.inputCount !== session.inputs.length) {
+  } else if (open && state.saved && session.lastSnapshot?.inputCount !== session.confirmed.size + session.pending.length) {
     await snapshot(session).catch(() => undefined);
   }
   // A music room's host closing the room switches it off: that ends the session too.
-  const ending = options.ending === true || (session.context?.music === true && session.context.amHost);
-  if (ending && session.canvas !== null && session.context?.me) {
-    await getCanvasRepository()
-      .close(session.canvas.id, session.context.me.id)
-      .catch(() => undefined);
-  }
+  const ending = options.ending === true || (context?.music === true && context.amHost);
+  if (ending) await closeCanvas(session).catch(() => undefined);
 }
 
 export type RoomCanvasControls = {
@@ -449,7 +538,7 @@ export type RoomCanvasControls = {
   /** A finished input of this tab's own. */
   draw: (input: CanvasInput) => void;
   /** A stroke being drawn: its points from `start` on are new. */
-  drawing: (stroke: StrokeInput, start: number) => void;
+  drawing: (stroke: StrokeInput | EraseInput, start: number) => void;
   undo: () => void;
   save: () => void;
   /** The viewer switched to the canvas: every half hour of unsaved drawing, that asks "save this canvas?". */
@@ -471,7 +560,7 @@ function drawOwn(session: Session, input: CanvasInput): void {
 }
 
 /** A stroke of this tab's own while it is drawn: drawn now and sent on the wire, written once it is finished. */
-function drawingOwn(session: Session, stroke: StrokeInput, start: number): void {
+function drawingOwn(session: Session, stroke: StrokeInput | EraseInput, start: number): void {
   take(session, stroke);
   if (session.canvas !== null) session.wire?.send({ type: 'progress', canvasId: session.canvas.id, input: { ...stroke, points: stroke.points.slice(start) }, start });
   emit(session, {}, true);
@@ -499,11 +588,7 @@ function setContext(session: Session, context: CanvasContext): void {
   // The session ended while the host looked on (END STREAM, a music room switched off): the host's tab closes the
   // canvas, so the next session starts a new one.
   if (was !== null && !was.over && context.over && context.amHost && context.me !== null && session.canvas !== null && session.canvas.closedAt === null) {
-    const canvas = session.canvas;
-    void getCanvasRepository()
-      .close(canvas.id, context.me.id)
-      .then(() => session.wire?.send({ type: 'canvas', canvasId: canvas.id }))
-      .catch(() => undefined);
+    void closeCanvas(session).catch(() => undefined);
   }
 }
 

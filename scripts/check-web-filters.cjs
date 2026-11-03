@@ -108,9 +108,12 @@ same(f.withAuthor('night sort:popular', 'Rick'), 'from:Rick sort:popular', 'a cr
 /* ---------------------------------------------------------------- the page */
 const page = readFileSync(join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
 ok(/SOURCE_OPTIONS\.map/.test(page) && /TYPE_OPTIONS\.map/.test(page), 'the keys are drawn from the choices');
-ok((page.match(/aria-pressed=\{boxFilters\.(source|type) === option\.value\}/g) ?? []).length === 2, 'each key says whether it is on');
+// A SOURCE key may read `!art && ...` (SPEC-stream-art.md, 2026-11-03): while STREAM ART shows, it is the SOURCE
+// key that is on, so no other is. Changed on purpose; the rule (each key says whether it is on) is the same.
+ok((page.match(/aria-pressed=\{(?:!art && )?boxFilters\.(source|type) === option\.value\}/g) ?? []).length === 2, 'each key says whether it is on');
+ok(/aria-pressed=\{art\}/.test(page), '... the STREAM ART key too');
 ok(/aria-label=\{`Source: \$\{option\.label\}`\}/.test(page) && /aria-label=\{`Type: \$\{option\.label\}`\}/.test(page), 'each key has a name');
-ok(/className=\{boxFilters\.source === option\.value \? PLATE_PRESSED : PLATE\}/.test(page), 'keys are the shared plates (44px tap height on a phone)');
+ok(/className=\{(?:!art && )?boxFilters\.source === option\.value \? PLATE_PRESSED : PLATE\}/.test(page),'keys are the shared plates (44px tap height on a phone)');
 ok(/onClick=\{\(\) => pickFilter\('in', option\.value\)\}/.test(page) && /const next = withFilter\(draft, key, value\);/.test(page), 'a key writes its filter into the box');
 ok(/className="absolute top-full right-0 left-0 z-menu/.test(page), 'the suggestion list is drawn over the page, so typing never moves the rows');
 ok(/max-sm:min-h-tap/.test(page.slice(page.indexOf('role="option"'))), 'a suggestion row is 44px tall on a phone');
