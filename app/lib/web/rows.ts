@@ -1,4 +1,5 @@
 import { dedupeKey } from './dedupe';
+import { normaliseLanguage } from './language';
 import type { WebItem, WebItemKind, WebPlatform, WebSource } from './types';
 
 /**
@@ -13,7 +14,7 @@ export const WEB_ITEMS_TABLE = 'web_items';
 export const WEB_SOURCES_TABLE = 'web_sources';
 
 export const WEB_ITEM_COLUMNS =
-  'id, platform, external_id, kind, url, canonical_url, title, creator, description, thumbnail_url, embed_url, license_url, duration_seconds, tags, published_at, fetched_at';
+  'id, platform, external_id, kind, url, canonical_url, title, creator, description, thumbnail_url, embed_url, license_url, duration_seconds, tags, published_at, fetched_at, language';
 
 export const WEB_SOURCE_COLUMNS = 'id, platform, ref, label, enabled, last_checked_at, last_error';
 
@@ -34,6 +35,8 @@ export type WebItemRow = {
   tags: string[] | null;
   published_at: string;
   fetched_at: string;
+  /** The platform's language for the item (`normaliseLanguage`), when it said one (20261103094322). */
+  language: string | null;
   /**
    * Written by the ingest (`dedupeKey`, dedupe.ts) and never selected: the page recomputes it from the
    * title and creator. Only the database's sibling lookup filters on it.
@@ -60,6 +63,7 @@ export function canonicalIso(value: string): string {
 }
 
 export function rowToItem(row: WebItemRow): WebItem {
+  const language = normaliseLanguage(row.language);
   return {
     id: row.id,
     platform: row.platform as WebPlatform,
@@ -77,6 +81,7 @@ export function rowToItem(row: WebItemRow): WebItem {
     tags: row.tags ?? undefined,
     publishedAt: canonicalIso(row.published_at),
     fetchedAt: canonicalIso(row.fetched_at),
+    ...(language ? { language } : {}),
   };
 }
 
@@ -99,6 +104,7 @@ export function itemToRow(item: WebItem): WebItemRow {
     tags: item.tags ?? null,
     published_at: item.publishedAt,
     fetched_at: item.fetchedAt,
+    language: normaliseLanguage(item.language),
     dedupe_key: dedupeKey(item),
   };
 }

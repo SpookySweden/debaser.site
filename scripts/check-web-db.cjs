@@ -119,7 +119,12 @@ for (const column of [...itemColumns, ...sourceColumns]) {
   ok(!ENGAGEMENT.test(column), `the repository selects an engagement field: ${column}`);
   ok(column !== '*', 'the repository never selects *');
 }
-for (const column of itemColumns) ok(new RegExp(`^\\s*${column} `, 'm').test(itemsBody), `web_items has the selected column ${column}`);
+// A column a later migration adds (`alter table public.web_items add column if not exists x`) counts too:
+// 20261103094322_web_items_language.sql added `language` (Luke, 2026-11-03).
+const ALL_SQL = readdirSync(MIGRATIONS).sort().map((name) => ({ name, sql: sqlCode(readFileSync(join(MIGRATIONS, name), 'utf8')) }));
+const addedItemColumns = ALL_SQL.flatMap(({ sql }) => [...sql.matchAll(/alter table public\.web_items\s+add column if not exists (\w+)/g)].map((m) => m[1]));
+for (const column of addedItemColumns) ok(!ENGAGEMENT.test(column), `a later migration adds an engagement field to web_items: ${column}`);
+for (const column of itemColumns) ok(new RegExp(`^\\s*${column} `, 'm').test(itemsBody) || addedItemColumns.includes(column), `web_items has the selected column ${column}`);
 for (const column of sourceColumns) ok(new RegExp(`^\\s*${column} `, 'm').test(sourcesBody), `web_sources has the selected column ${column}`);
 
 for (const path of ['app/lib/web/supabase-web-repository.ts']) {
@@ -170,6 +175,22 @@ const insertCols = save.match(/insert into public\.web_items as w \(([^)]*)\)/);
 ok(insertCols && !/\benabled\b/.test(insertCols[1]), 'the save never inserts enabled');
 ok(save.includes('on conflict') && !/\benabled\s*=/.test(save.split('on conflict')[1]), 'the save never updates enabled (a takedown stays down)');
 ok(/jsonb_array_length\(p_rows\) > 100/.test(save), 'a batch is capped at 100 rows');
+
+// The newest definition of the save is the live one: it keeps every rule above and touches no grant.
+const saveFiles = ALL_SQL.filter(({ sql }) => sql.includes('create or replace function public.web_ingest_save('));
+const newest = saveFiles[saveFiles.length - 1];
+if (newest.name !== LOCK_FILE) {
+  const at = newest.sql.indexOf('create or replace function public.web_ingest_save(');
+  const body = newest.sql.slice(at, newest.sql.indexOf('\n$$;', at));
+  ok(/security definer/.test(body) && /set search_path = ''/.test(body), `${newest.name}: the save is SECURITY DEFINER with an empty search_path`);
+  ok(/\bbegin\s+if not public\.web_ingest_lock_ok\(p_secret\) then\s+raise exception 'not allowed' using errcode = '28000';/.test(body), `${newest.name}: the save checks the lock before anything else`);
+  const cols = body.match(/insert into public\.web_items as w \(([^)]*)\)/);
+  ok(cols && !/\benabled\b/.test(cols[1]), `${newest.name}: the save never inserts enabled`);
+  ok(body.includes('on conflict') && !/\benabled\s*=/.test(body.split('on conflict')[1]), `${newest.name}: the save never updates enabled`);
+  ok(/jsonb_array_length\(p_rows\) > 100/.test(body), `${newest.name}: a batch is still capped at 100 rows`);
+  for (const column of itemColumns) ok(cols && new RegExp(`\\b${column}\\b`).test(cols[1]), `${newest.name}: the save writes the selected column ${column}`);
+  ok(!/\b(grant|revoke)\b[^;]*web_ingest_save/.test(newest.sql), `${newest.name}: the save's grants are left as the lock migration set them`);
+}
 ok(/limit least\(greatest\(coalesce\(p_limit, 0\), 0\), 5\)/.test(fnBody('web_ingest_sources')), 'the sources read is capped at 5');
 ok(!/grant\s+(insert|update|delete|all)\b/.test(lockSql), 'the lock migration grants no table writes');
 ok(/revoke execute on all functions in schema net from anon, authenticated;/.test(lockSql) && /revoke usage on schema net from anon, authenticated;/.test(lockSql), "pg_net's HTTP functions are revoked from the API roles (a no-op on hosted Supabase; net is not API-exposed)");

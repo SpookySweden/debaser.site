@@ -1,6 +1,7 @@
 import { isMediaServerId, MEDIA_SERVERS } from './media-servers';
 import { titleToItem, type MediaCopy, type MediaDetails, type MediaTitle, type MediaType } from './media-titles';
 import { canonicalIso } from './rows';
+import { normaliseLanguage } from './language';
 import type { WebItem } from './types';
 import { isSafeIdentifier } from './urls';
 
@@ -64,6 +65,8 @@ export function readDetails(value: unknown): MediaDetails | undefined {
   const overview = text(d.overview, 1000);
   if (overview) details.overview = overview;
   if (typeof d.posterPath === 'string') details.posterPath = d.posterPath;
+  const language = normaliseLanguage(d.language);
+  if (language) details.language = language;
   if (isWhole(d.runtimeMinutes, 1, 6000)) details.runtimeMinutes = d.runtimeMinutes;
   const c = typeof d.collection === 'object' && d.collection !== null ? (d.collection as Record<string, unknown>) : null;
   const cName = c ? text(c.name, 300) : undefined;

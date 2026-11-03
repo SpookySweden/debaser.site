@@ -1,6 +1,6 @@
 /*
  * Language flags on content (Luke, 2026-11-03; run by `npm run checks:web`, part of `npm run verify`):
- *   npx tsc app/lib/web/language.ts --outDir Temp/out-web-language --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --resolveJsonModule
+ *   npx tsc app/lib/web/language.ts app/lib/web/rows.ts app/lib/web/media-rows.ts app/lib/web/tmdb.ts app/lib/web/kino.ts --outDir Temp/out-web-language --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node --resolveJsonModule
  *
  * - a platform's own language wins, in any spelling it uses (en-US, pt_BR, eng, Spanish; Castilian)
  * - the alphabet decides Japanese, Korean, Chinese, Arabic/Persian/Urdu, Hebrew, Thai, Greek, Hindi and the
@@ -9,6 +9,8 @@
  * - the flag rule: English never; a region in the tag wins; else the language's home country; a language
  *   with no one country has no flag but is still named
  * - every flag a language can wear is a country with a flag file
+ * - a saved stream row keeps the platform's language (web_items.language, 20261103094322), and a media title
+ *   keeps TMDB's in its saved details
  */
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
@@ -16,6 +18,10 @@ const { join } = require('node:path');
 const ROOT = join(__dirname, '..');
 const OUT = join(ROOT, 'Temp', 'out-web-language');
 const { normaliseLanguage, detectLanguage, languageFlag, contentLanguage } = require(join(OUT, 'lib', 'web', 'language.js'));
+const { itemToRow, rowToItem } = require(join(OUT, 'lib', 'web', 'rows.js'));
+const { readDetails } = require(join(OUT, 'lib', 'web', 'media-rows.js'));
+const { toDetails } = require(join(OUT, 'lib', 'web', 'tmdb.js'));
+const { kinoItem } = require(join(OUT, 'lib', 'web', 'kino.js'));
 
 let passed = 0;
 const ok = (condition, message) => {
@@ -123,5 +129,24 @@ const homes = new Set(
 );
 ok(!homes.has(null) && !homes.has(undefined), 'every listed language has a home country');
 for (const country of homes) ok(existsSync(join(ROOT, 'assets', 'flags', `${country.toLowerCase()}.png`)), `assets/flags/${country.toLowerCase()}.png exists`);
+
+/* ------------------------------------------------------------------ kept when saved */
+const item = {
+  id: 'peertube:6f1d0a52-7c1a-4f0e-9b1e-2a3c4d5e6f70', platform: 'peertube', externalId: '6f1d0a52-7c1a-4f0e-9b1e-2a3c4d5e6f70', kind: 'video',
+  url: 'https://tilvids.com/videos/watch/x', canonicalUrl: 'https://tilvids.com/videos/watch/x', title: 'Les meilleurs moments',
+  publishedAt: '2026-11-01T00:00:00.000Z', fetchedAt: '2026-11-03T00:00:00.000Z', language: 'pt-BR',
+};
+const row = itemToRow(item);
+is(row.language, 'pt-BR', 'the ingest saves the platform language');
+is(itemToRow({ ...item, language: undefined }).language, null, 'no language saves null');
+is(itemToRow({ ...item, language: 'not a language' }).language, null, 'a junk language is never saved');
+ok(/^[a-z]{2,3}(-[A-Z]{2})?$/.test(itemToRow({ ...item, language: 'Spanish; Castilian' }).language), "what is saved fits the column's shape");
+is(rowToItem(row).language, 'pt-BR', 'a saved row reads its language back');
+ok(!('language' in rowToItem({ ...row, language: null })), 'a row with no language reads none');
+is(contentLanguage(rowToItem(row)), 'pt-BR', 'so a saved row wears the same flag as the search result');
+is(toDetails({ title: 'Spirited Away', original_language: 'ja', genres: [] }, 'movie').language, 'ja', "TMDB's details carry original_language");
+is(readDetails({ title: 'Spirited Away', genres: [], language: 'ja' }).language, 'ja', 'saved details read their language back');
+ok(readDetails({ title: 'X', genres: [], language: '<b>' }).language === undefined, 'junk in saved details is dropped');
+is(kinoItem({ type: 'movie', tmdbId: 129, title: 'Spirited Away' }, { title: 'Spirited Away', genres: [], language: 'ja' }, '2026-11-03T00:00:00.000Z').language, 'ja', 'a KINO row takes the language from its details too');
 
 console.log(`check-web-language: ${passed} passed`);

@@ -41,6 +41,8 @@ export type MediaDetails = {
   seasons?: { season: number; episodes: number }[];
   /** Films only: the TMDB collection (film series) it belongs to, from `belongs_to_collection`. */
   collection?: MediaCollection;
+  /** TMDB's `original_language` (`normaliseLanguage`), for the row's language flag. */
+  language?: string;
 };
 
 /** A TMDB collection: a film series such as all the Star Wars films. */
@@ -301,6 +303,7 @@ export function titleToItem(title: MediaTitle, times: { publishedAt: string; fet
   if (thumbnail) item.thumbnailUrl = thumbnail;
   const seconds = runtime !== undefined ? runtime * 60 : title.durationSeconds;
   if (seconds !== undefined) item.durationSeconds = seconds;
+  if (details?.language) item.language = details.language;
   return item;
 }
 

@@ -58,6 +58,8 @@ export function toDetails(doc: unknown, type: 'movie' | 'tv'): MediaDetails | nu
   if (date) details.date = date;
   const overview = sanitiseText(d.overview, 1000);
   if (overview) details.overview = overview;
+  const language = normaliseLanguage(d.original_language);
+  if (language) details.language = language;
   if (typeof d.poster_path === 'string' && POSTER.test(d.poster_path)) details.posterPath = d.poster_path;
   const runtime = type === 'movie' ? whole(d.runtime, 1, 6000) : whole(Array.isArray(d.episode_run_time) ? d.episode_run_time[0] : undefined, 1, 6000);
   if (runtime !== undefined) details.runtimeMinutes = runtime;

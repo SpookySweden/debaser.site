@@ -37,7 +37,8 @@ export function kinoItem(hit: KinoHit, details: MediaDetails | undefined, fetche
     media: { type: hit.type, tmdbId: hit.tmdbId, copies: [], details: shown },
   };
   if (shown.overview) item.description = shown.overview;
-  if (hit.language) item.language = hit.language;
+  const language = hit.language ?? details?.language;
+  if (language) item.language = language;
   const thumbnail = posterUrl(shown.posterPath ?? hit.posterPath);
   if (thumbnail) item.thumbnailUrl = thumbnail;
   if (shown.runtimeMinutes !== undefined) item.durationSeconds = shown.runtimeMinutes * 60;
