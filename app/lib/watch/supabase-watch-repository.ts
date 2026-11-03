@@ -453,6 +453,11 @@ class SupabaseWatchRepository implements WatchRepository {
 
   async clearRoomQueue(roomId: string, by: string): Promise<void> {
     const client = requireClient();
+    // The host's alone, as the mock says it: a room write anybody else makes matches no row (RLS) rather than failing,
+    // so it is asked first, before anything is taken out.
+    const marked = await client.from(ROOMS).update({ cleared_at: new Date().toISOString() }).eq('id', roomId).eq('host_id', by).select('id');
+    if (marked.error) throw refused(marked.error, 'THE QUEUE COULD NOT BE CLEARED.');
+    if ((marked.data ?? []).length === 0) throw new Error(NOT_ALLOWED);
     // A crown's to take out (RLS); the host without their crown only starts the window blank.
     const crowned = await client.from(CROWNS).select('user_id').eq('room_id', roomId).eq('user_id', by).limit(1);
     if (crowned.error) throw refused(crowned.error, 'THE QUEUE COULD NOT BE CLEARED.');
@@ -460,8 +465,6 @@ class SupabaseWatchRepository implements WatchRepository {
       const { error } = await client.from(QUEUE).delete().eq('room_id', roomId).eq('in_queue', true).is('played_at', null);
       if (error) throw refused(error, 'THE QUEUE COULD NOT BE CLEARED.');
     }
-    const { error } = await client.from(ROOMS).update({ cleared_at: new Date().toISOString() }).eq('id', roomId);
-    if (error) throw refused(error, 'THE QUEUE COULD NOT BE CLEARED.');
   }
 
   async listLiveRooms(): Promise<LiveRoom[]> {

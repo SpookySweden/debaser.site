@@ -423,11 +423,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const songStart = useEffectEvent(() => (entryId === fromTop.current ? 0 : room.currentEntryId === entryId ? hostPosition(room, Date.now()) : 0));
   // The host's bar plays it when the room says so (a room opened paused stays paused); a follower's clock decides theirs.
   const songPlays = useEffectEvent(() => !amHost || room.currentEntryId !== entryId || room.isPlaying);
+  // Cued once per song row: `cue` changes whenever the player's own list does (a song it did not hold joins it as it
+  // is cued, or the shelf is read again), and following that would put the song on again, from the top for an
+  // off-queue play (code review, 2026-11-03).
+  const cueSong = useEffectEvent((track: AudioTrack) => cue(track, { at: songStart() }, songPlays()));
   useEffect(() => {
     if (songSrc === null || !live) return;
     const track = songToCue();
-    if (track !== null) cue(track, { at: songStart() }, songPlays());
-  }, [songSrc, entryId, live, cue]);
+    if (track !== null) cueSong(track);
+  }, [songSrc, entryId, live]);
 
   // The room's sync reads the bar's element while a song is on, and the stage's own player otherwise.
   const songOn = songSrc !== null;
