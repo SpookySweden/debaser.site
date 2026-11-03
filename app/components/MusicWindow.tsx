@@ -18,7 +18,7 @@ import DockWindow from './DockWindow';
 import PersonalLibrary from './PersonalLibrary';
 import VanityView from './VanityView';
 
-/** The screens drawn inside the window (ARCHIVE is a page, so its tab is a link). */
+/** The screens drawn inside the window (CATALOGUE is a page, so its tab is a link). */
 const SCREENS: { screen: MusicScreen; label: string }[] = [
   { screen: 'mine', label: 'MY MUSIC' },
   { screen: 'vanity', label: 'VANITY' },
@@ -77,10 +77,11 @@ export default function MusicWindow() {
       defaultSize={{ w: 576, h: 700 }}
       minSize={{ w: 380, h: 260 }}
     >
-      {/* ARCHIVE is the link to the page the shelf moved to; MY MUSIC and VANITY are this window's screens. */}
+      {/* CATALOGUE is the link to the page the shelf moved to (the media catalogue's music); MY MUSIC and VANITY
+          are this window's screens. It said ARCHIVE until that word became the archive search's (Luke, 2026-11-03). */}
       <div className="mb-2 flex flex-wrap items-stretch gap-1">
         <Link href={MUSIC_HREF} onClick={close} className={`${TAB} cursor-pointer`}>
-          [ ARCHIVE ]
+          [ CATALOGUE ]
         </Link>
         {SCREENS.map(({ screen, label }) =>
           state.screen === screen ? (

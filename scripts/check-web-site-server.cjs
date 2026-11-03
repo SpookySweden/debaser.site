@@ -14,6 +14,7 @@
  * The rename:
  * - /web redirects to /archive for good (next.config.ts), the page file moved with it
  * - the header has one ARCHIVE key, to /archive, and none to /media; the menus' WEB key is ARCHIVE
+ * - the music window's tab to the catalogue's music says CATALOGUE, so ARCHIVE names one page
  * - none of the old WEB words is left on the screens that showed them
  */
 const { existsSync, readFileSync } = require('node:fs');
@@ -123,6 +124,10 @@ ok(!header.some((key) => key.href === '/media'), 'the header: no key to the cata
 ok(!header.some((key) => key.label === 'WEB') && !menu.some((key) => key.label === 'WEB'), 'no key says WEB');
 same(menu.find((key) => key.key === 'web'), { key: 'web', label: 'ARCHIVE', href: '/archive' }, 'the Start menu and phone menu: ARCHIVE, to /archive');
 same(menu.find((key) => key.key === 'media'), { key: 'media', label: 'MEDIA', href: '/media' }, 'the catalogue is still MEDIA in the menus');
+// The music window's link to the catalogue's music said ARCHIVE too; ARCHIVE is one page now (Luke, 2026-11-03).
+const musicWindow = readFileSync(join(ROOT, 'app', 'components', 'MusicWindow.tsx'), 'utf8');
+const catalogueTab = /<Link href=\{MUSIC_HREF\}[^>]*>\s*([^<]*?)\s*<\/Link>/.exec(musicWindow)?.[1];
+same(catalogueTab, '[ CATALOGUE ]', 'the music window\'s tab to the catalogue\'s music says CATALOGUE, not ARCHIVE');
 
 /* ---------------------------------------------------------------- the old words */
 const SCREENS = [
