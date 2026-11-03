@@ -143,7 +143,7 @@ for (const { dir, name } of files) {
   try {
     for (const step of steps) execSync(direct(step), { stdio: 'pipe', cwd: ROOT });
 
-    const output = execSync(`node ${join(dir, name)}`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
+    const output = execSync(`node "${join(dir, name)}"`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
     console.log(`ok   ${name.padEnd(34)} ${output.trim()}`);
   } catch (error) {
     const detail = (error.stdout?.toString() ?? error.message).split('\n').slice(0, 4).join(' / ');
