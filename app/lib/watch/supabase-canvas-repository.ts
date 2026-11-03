@@ -307,7 +307,9 @@ class SupabaseCanvasRepository implements CanvasRepository {
     const stale = client.getChannels().filter((held) => held.topic === `realtime:${topic}`);
     void Promise.all(stale.map((held) => client.removeChannel(held))).then(() => {
       if (left) return;
-      channel = client.channel(topic, { config: { broadcast: { self: false } } });
+      // Private: only signed-in, unbanned people hear or send on it, and only while the room is live (the
+      // realtime.messages policies in 20261103205948_stream-art-safety.sql).
+      channel = client.channel(topic, { config: { broadcast: { self: false }, private: true } });
       channel.on('broadcast', { event: 'canvas' }, ({ payload }) => onMessage(payload as CanvasWireMessage));
       channel.subscribe();
     });

@@ -62,6 +62,31 @@ function newId(): string {
 
 const refused = (words: string) => new Error(words);
 
+/**
+ * Who has a part in a canvas, from the records (the database's `room_canvas_people`): the host, the saver, who drew,
+ * who chatted in the room since it opened, and who is crowned there. `mayTake` leaves out chat-only watchers.
+ */
+async function peopleOf(canvas: RoomCanvasRecord): Promise<{ people: Map<string, { label: string; crowned: boolean }>; mayTake: Set<string> }> {
+  const read = await getMockWatchRepository().readRoom(canvas.roomId);
+  const crowned = new Set((read?.crowns ?? []).map((crown) => crown.userId));
+  const people = new Map<string, { label: string; crowned: boolean }>();
+  const mayTake = new Set<string>([canvas.hostId, ...crowned]);
+  if (read !== null) mayTake.add(read.room.hostId);
+  if (canvas.savedBy !== null) mayTake.add(canvas.savedBy);
+  const add = (id: string, label: string) => {
+    if (!people.has(id)) people.set(id, { label, crowned: crowned.has(id) });
+  };
+  add(canvas.hostId, canvas.hostLabel);
+  if (canvas.savedBy !== null) add(canvas.savedBy, canvas.savedByLabel ?? 'Unknown');
+  for (const input of load().inputs.filter((entry) => entry.canvasId === canvas.id)) {
+    add(input.authorId, input.authorLabel);
+    mayTake.add(input.authorId);
+  }
+  for (const message of read?.messages ?? []) if (message.createdAt >= canvas.openedAt) add(message.authorId, message.authorLabel);
+  for (const id of crowned) add(id, 'Unknown');
+  return { people, mayTake };
+}
+
 async function roomIsOpen(roomId: string): Promise<{ live: boolean; hostId: string | null }> {
   const read = await getMockWatchRepository().readRoom(roomId);
   if (read === null) return { live: false, hostId: null };
@@ -164,6 +189,14 @@ class MockCanvasRepository implements CanvasRepository {
     // One picture per account every 10 seconds, as the bucket's policy allows.
     const recent = load().snapshots.some((snapshot) => snapshot.takenBy === input.takenBy.id && Date.now() - Date.parse(snapshot.takenAt) < SNAPSHOT_EVERY_MS);
     if (recent) throw refused('ONE SNAPSHOT EVERY FEW SECONDS.');
+    // As the database: only somebody with a part in the canvas takes one, and "who was there", crowns and credits
+    // come from the records, never from what the browser sent.
+    const { people, mayTake } = await peopleOf(canvas);
+    if (!mayTake.has(input.takenBy.id)) throw refused('NOT ALLOWED.');
+    if (!people.has(input.takenBy.id)) people.set(input.takenBy.id, { label: input.takenBy.label, crowned: false });
+    const participants = [...people.entries()].map(([id, person]) => ({ id, label: person.label, crowned: person.crowned }));
+    const credits = input.credits.filter((credit) => credit.id === null || people.has(credit.id));
+    const inputCount = load().inputs.filter((entry) => entry.canvasId === canvas.id).length;
     const stored: StoredSnapshot = {
       id: newId(),
       canvasId: input.canvasId,
@@ -172,9 +205,9 @@ class MockCanvasRepository implements CanvasRepository {
       takenByLabel: input.takenBy.label,
       image: await blobToDataUrl(input.png),
       placements: input.placements,
-      credits: input.credits,
-      participants: input.participants,
-      inputCount: input.inputCount,
+      credits,
+      participants: [...participants.filter((person) => person.id === canvas.hostId), ...participants.filter((person) => person.id !== canvas.hostId)],
+      inputCount,
     };
     const tables = load();
     save({ ...tables, snapshots: [...tables.snapshots, stored] });
