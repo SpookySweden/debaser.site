@@ -24,7 +24,8 @@ export type OpenRoomInput = {
   /** Made by the caller, so the forum thread can name the room before either is written. */
   id: string;
   host: { id: string; label: string };
-  mediaItemId: string;
+  /** The first file, as play 0; null opens the room empty, its screen black (GO LIVE on CYTUBE, SPEC-cytube.md). */
+  mediaItemId: string | null;
 };
 
 /**
@@ -94,7 +95,7 @@ export type WatchRepository = {
   readonly source: WatchDataSource;
   /** The room with its queue and chat, or null if there is no such room. Throws on a failed read. */
   readRoom(roomId: string): Promise<WatchRoomRead | null>;
-  /** GO LIVE: the room, its first file as play 0, on screen and playing. Throws with a sentence fit to show. */
+  /** GO LIVE: the room, with its first file as play 0 on screen and playing, or empty. Throws with a sentence fit to show. */
   openRoom(input: OpenRoomInput): Promise<WatchRoomRead>;
   /** The host's one music room, kept whether or not it is public; null when they never went public. */
   findMusicRoom(hostId: string): Promise<WatchRoom | null>;

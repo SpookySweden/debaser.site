@@ -14,6 +14,10 @@ import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/wat
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump } from '../lib/watch/links';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
+import { lookClass, lookForRoom } from '../lib/cytube/looks';
+import { setOpenRoomLook } from '../lib/cytube/room-look';
+import { saveLookChoice, useLookChoice } from '../lib/cytube/use-looks';
+import { afterFile, blankPrefill, blankStart, screenIsBlank, type BlankKey } from '../lib/watch/blank-screen';
 import { getWatchRepository } from '../lib/watch/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { frontPosition } from '../lib/watch/music-rooms';
@@ -34,7 +38,6 @@ import {
   hostPosition,
   nextQueuePosition,
   nextPlayIndex,
-  nextToPlay,
   roomIsLive,
   shouldTakeOver,
   upcoming,
@@ -55,6 +58,8 @@ import { archiveSubtitles, streamSubtitles, type VideoSubtitles } from '../lib/w
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
+import BlankScreen from './BlankScreen';
+import { LookToggle } from './CytubeLayout';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import LanguageFlag from './LanguageFlag';
 import MarqueeText from './MarqueeText';
@@ -98,7 +103,8 @@ type WatchRoomProps = {
  *
  * **The host** runs the one transport: every play, pause, seek and skip is written to the room at once,
  * and a heartbeat every few seconds keeps the pointer fresh (and tells the room the host is still there).
- * At the end of a file the next one in the queue starts; with nothing queued the last file loops.
+ * At the end of a file the next one in the queue starts; with nothing queued the screen goes back to black with
+ * its three keys (SPEC-cytube.md), and the next thing a crown queues starts by itself.
  *
  * **Everybody else** follows: twice a second the player is compared with where the host should be now
  * and jumps (off by more than two seconds) or nudges its speed (a little off). A browser that refuses to
@@ -120,6 +126,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const music = room.origin === 'music';
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
   const entry = currentEntry(read);
+  /** Nothing on: the black screen with its three keys (SPEC-cytube.md). */
+  const blank = screenIsBlank(room, read.queue);
   const item = entry?.mediaItemId ? itemsById.get(entry.mediaItemId) : undefined;
   const link = entry?.link ?? null;
   /**
@@ -212,9 +220,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
    */
   const hostEntry = useRef<string | null>(null);
 
+  /** The queue ran out and the room is being put back to black: the old play's beat must not write it back. */
+  const goingBlack = useRef(false);
+
   const publish = useEffectEvent(() => {
     const video = videoRef.current;
-    if (video === null || !amHost || !live) return;
+    if (video === null || !amHost || !live || goingBlack.current) return;
 
     void repository
       .writePlayback(roomId, {
@@ -227,15 +238,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   /** The host moves on: the next file in the queue (inside a series, its next episode), or the same one again from the top. */
   function moveOn(skip: boolean) {
-    const next = nextToPlay(read.queue);
+    const after = afterFile(read.queue);
     const video = videoRef.current;
 
-    if (next === undefined) {
-      if (skip || video === null) return;
-      video.currentTime = 0;
-      void video.play().catch(() => setNeedsPress(true));
+    // The queue ran out: back to the black screen with its three keys (SPEC-cytube.md), not a loop of the last file.
+    if (after.kind === 'black') {
+      if (skip) return;
+      hostEntry.current = null;
+      goingBlack.current = true;
+      video?.pause();
+      void repository
+        .writePlayback(roomId, { currentEntryId: null, positionSeconds: 0, isPlaying: false })
+        .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+        .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
       return;
     }
+    const next = after.entry;
+    goingBlack.current = false;
 
     // From the top, at once: the next play may be the same file (nothing for the element to reload),
     // and a different file is loaded by its new `src` and started by `autoPlay`. The music bar's element
@@ -597,6 +616,46 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     return steadyInterval(() => officialBeat(), WATCH_HEARTBEAT_MS);
   }, [officialOn, amHost, live, entryId]);
 
+  // A black screen has no player either (SPEC-cytube.md): the host's beat keeps the room live with nothing on.
+  // Not while a play is being started, or a late beat would put the room back on nothing.
+  const startingEntry = useRef<string | null>(null);
+  const blankBeat = useEffectEvent(() => {
+    // Also not once this host has put something on (a play from a post or profile): its echo is on the way.
+    if (startingEntry.current !== null || hostEntry.current !== null) return;
+    void repository
+      .writePlayback(roomId, { currentEntryId: null, positionSeconds: 0, isPlaying: false })
+      .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE UPDATED.'));
+  });
+  useEffect(() => {
+    if (blank) goingBlack.current = false;
+    if (!blank || !amHost || !live) return;
+    blankBeat();
+    return steadyInterval(() => blankBeat(), WATCH_HEARTBEAT_MS);
+  }, [blank, amHost, live]);
+
+  // Black, and a crown has queued something: the host starts it, from the top.
+  const toStart = amHost && live ? blankStart(room, read.queue) : null;
+  const toStartId = toStart?.id ?? null;
+  const playIndexNow = useEffectEvent(() => nextPlayIndex(read.queue));
+  useEffect(() => {
+    // One start at a time: a second row queued at once waits until the first is on screen.
+    if (toStartId === null || startingEntry.current !== null) return;
+    startingEntry.current = toStartId;
+    goingBlack.current = false;
+    hostEntry.current = toStartId;
+    void repository
+      .startEntry(roomId, toStartId, playIndexNow())
+      .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+      .catch((failure: unknown) => {
+        startingEntry.current = null;
+        setFault(failure instanceof Error ? failure.message : 'THE NEXT FILE COULD NOT START.');
+      });
+  }, [toStartId, roomId, repository]);
+  // On screen at last: the beat may speak again.
+  useEffect(() => {
+    if (room.currentEntryId !== null) startingEntry.current = null;
+  }, [room.currentEntryId]);
+
   // A streaming link is fed into the same element by its library; the sync above reads and seeks it as
   // it would a file.
   const linkUrl = link?.url;
@@ -706,6 +765,28 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   }
 
   const [queueOpen, setQueueOpen] = useState(false);
+  /** The search a blank screen's key opened the queue window with (SPEC-cytube.md). */
+  const [queuePrefill, setQueuePrefill] = useState<string | undefined>(undefined);
+  const openQueue = (key?: BlankKey) => {
+    setQueuePrefill(key === undefined ? undefined : blankPrefill(key));
+    setQueueOpen(true);
+  };
+
+  /* --- the room's look (SPEC-cytube.md) -------------------------------------------------------- */
+
+  const myChoice = useLookChoice(user?.id ?? null);
+  // Read fresh as the room opens: a look the host changed since this tab last read it shows.
+  const hostChoice = useLookChoice(room.hostId, { fresh: true });
+  const look = lookForRoom(hostChoice.look, myChoice, amHost);
+  const lookCls = lookClass(look);
+  /** With a look: its lines on the screen's frame and the LED's frames, its key colour on the bar's keys. */
+  const lookLines = look === null ? '' : `${lookCls} [--frame-line:var(--room-lines)]`;
+  const lookKeys = look === null ? '' : `${lookCls} room-keyed`;
+  // The bar's own strip is drawn by the music player, outside this room: it reads the look from here.
+  useEffect(() => {
+    setOpenRoomLook(look);
+  }, [look]);
+  useEffect(() => () => setOpenRoomLook(null), []);
 
   /* --- the layout ------------------------------------------------------------------------------ */
 
@@ -854,9 +935,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const stage = (
     <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
       {/* The picture with its bar under it: the two go fullscreen together. */}
-      <div ref={stageRef} className="flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1">
+      <div ref={stageRef} className={`flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1 ${look === null ? '' : `frame ${lookLines}`}`}>
       <div className="relative flex min-h-0 flex-1 items-center justify-center">
-        {src === undefined ? (
+        {blank ? (
+          <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} />
+        ) : src === undefined ? (
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
@@ -961,14 +1044,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     keysOnMusicBar && barTarget !== null
       ? createPortal(
           <>
-            <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label" data-stream-bar-screen>
+            <span className={`min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label ${lookLines}`} data-stream-bar-screen>
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
                 <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{live ? 'LIVE' : music ? 'OFF' : 'ENDED'}</span>
                 <span className="truncate">
                   {music ? 'MUSIC' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : `HOSTED BY ${hostName.toUpperCase()}`}
                 </span>
               </span>
-              <MarqueeText className="block text-key font-bold text-acid" text={entryTitle ?? '...'} />
+              <MarqueeText className={`block text-key font-bold ${look === null ? 'text-acid' : 'text-room-readout'}`} text={blank ? 'NOTHING ON' : (entryTitle ?? '...')} />
               <MarqueeText className="block leading-readout-tight text-ink-bar" durationSeconds={22} text={barCaption} />
               {hasTransport ? (
                 <span className="mt-1 flex min-w-0 items-center gap-2 text-ink-bar">
@@ -978,11 +1061,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
               ) : null}
             </span>
             {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
-            <span className="relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun" data-watch-bar="music">
+            <span className={`relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun ${lookLines} ${lookKeys}`} data-watch-bar="music">
               {playKey}
               {skipKey}
               {pictureKeys}
-              <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => setQueueOpen(true)} data-stream-bar-queue>
+              <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => openQueue()} data-stream-bar-queue>
                 [ QUEUE ]
               </button>
               {endKey}
@@ -998,11 +1081,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     <div className="flex flex-col gap-1 sm:min-h-0 sm:w-80 sm:shrink-0 lg:w-96">
       {/* One key for the queue window, where everything is added and seen (Luke, 2026-11-02). */}
       <div className={TITLE_BAR}>
-        <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => setQueueOpen(true)} data-watch-queue-key>
+        <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>
           [ QUEUE ]
         </button>
       </div>
-      <StreamCrawl accounts={accounts} hostId={hostId} currentTitle={entryTitle ?? '...'} nextTitle={nextTitle} />
+      {user !== null && !amHost ? (
+        <LookToggle compact choice={myChoice} onChange={(next) => void saveLookChoice(user.id, next).catch(() => undefined)} />
+      ) : null}
+      <StreamCrawl accounts={accounts} hostId={hostId} currentTitle={blank ? 'NOTHING ON' : (entryTitle ?? '...')} nextTitle={nextTitle} />
       <ChatPanel read={read} item={item} videoRef={videoRef} live={live} nextTitle={live ? nextTitle : null} />
       {queueOpen ? (
         <StreamQueueWindow
@@ -1013,6 +1099,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           members={members}
           nowLive={stageLive}
           onClose={() => setQueueOpen(false)}
+          prefill={queuePrefill}
+          inRoom
+          look={look}
         />
       ) : null}
     </div>

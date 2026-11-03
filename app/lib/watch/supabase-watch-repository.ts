@@ -328,6 +328,11 @@ class SupabaseWatchRepository implements WatchRepository {
       .single<RoomRow>();
     if (room.error) throw refused(room.error, 'THE STREAM COULD NOT START.');
 
+    // The database crowned the host as the room was written (`watch_rooms_crown_host`).
+    const crown: WatchCrown = { roomId: input.id, userId: input.host.id, givenBy: input.host.id, givenAt: room.data.started_at };
+    // Empty (GO LIVE on CYTUBE): nothing on screen, the screen black until something is queued.
+    if (input.mediaItemId === null) return { room: toRoom(room.data), queue: [], messages: [], crowns: [crown] };
+
     const entry = await client
       .from(QUEUE)
       .insert({ room_id: input.id, position: 0, media_item_id: input.mediaItemId, added_by: input.host.id, played_at: new Date().toISOString(), play_index: 0 })
@@ -343,8 +348,6 @@ class SupabaseWatchRepository implements WatchRepository {
       .single<RoomRow>();
     if (live.error) throw refused(live.error, 'THE STREAM COULD NOT START.');
 
-    // The database crowned the host as the room was written (`watch_rooms_crown_host`).
-    const crown: WatchCrown = { roomId: input.id, userId: input.host.id, givenBy: input.host.id, givenAt: room.data.started_at };
     return { room: toRoom(live.data), queue: [toEntry(entry.data)], messages: [], crowns: [crown] };
   }
 

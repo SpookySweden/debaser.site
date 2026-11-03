@@ -5,6 +5,7 @@ import {
   ICON_ACCOUNT,
   ICON_ARCADE,
   ICON_COMMS,
+  ICON_CYTUBE,
   ICON_FORUM,
   ICON_HOME,
   ICON_LOOP,
@@ -23,7 +24,7 @@ import { LIBRARY_HREF } from '../lib/audio/music-window';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'cytube' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -80,6 +81,9 @@ export const NAV_ITEMS: NavItem[] = [
   // One stream of media from other platforms, newest first (SPEC-web.md): a place a reader goes. Called WEB
   // until Luke renamed it ARCHIVE (2026-11-03); its key is still `web`.
   { key: 'web', label: 'ARCHIVE', mark: ICON_WEB, href: '/archive' },
+  // Watching and listening together (SPEC-cytube.md, Luke 2026-11-03): what streaming is, the live rooms, the
+  // stream canvases, GO LIVE and your broadcast look. Named after CyTube (cytu.be) as a nod, Luke's choice.
+  { key: 'cytube', label: 'CYTUBE', mark: ICON_CYTUBE, href: '/cytube' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },
@@ -164,6 +168,7 @@ const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'web', label: 'ARCHIVE', href: '/archive' },
+  { key: 'cytube', label: 'CYTUBE', href: '/cytube' },
 ];
 
 /** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */

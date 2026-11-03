@@ -4,14 +4,15 @@ import Link from 'next/link';
 import { useCallback, useState } from 'react';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { getWatchRepository } from '../lib/watch/repository';
-import { nextQueuePosition, queueRights, roomIsLive } from '../lib/watch/rules';
-import { applyLocalChange } from '../lib/watch/use-watch-room';
+import { hasCrown, nextQueuePosition, queueRights, roomIsLive } from '../lib/watch/rules';
+import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
 import { useWatching } from '../lib/watch/use-watching';
 import { watchHref } from '../lib/watch/watch-window';
 import { isQueueableWebLink, watchLinkForItem, webAnchor } from '../lib/web/bridges';
 import type { WebItem } from '../lib/web/types';
 import { useAuth } from './AuthProvider';
 import CommentWindow from './CommentWindow';
+import { CYTUBE_HREF } from './StreamAddKey';
 import { useForum } from './ForumProvider';
 
 /**
@@ -79,7 +80,11 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
   const { user } = useAuth();
   const watching = useWatching(user?.id ?? null);
   const [state, setState] = useState<QueueState>({ kind: 'idle' });
-  const hostedRoom = watching !== null && watching.hosting ? watching.roomId : null;
+  // The room you are in, if you host it or hold a crown there (SPEC-cytube.md); anybody else is pointed to CYTUBE.
+  const roomIn = watching !== null ? watching.roomId : null;
+  const { read: inRoom } = useWatchRoom(roomIn, { follow: false });
+  const mayAdd = user !== null && inRoom !== undefined && inRoom !== null && (inRoom.room.hostId === user.id || hasCrown(inRoom.crowns, user.id));
+  const hostedRoom = mayAdd ? roomIn : null;
 
   async function queue() {
     if (user === null || hostedRoom === null) return;
@@ -92,8 +97,12 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
     try {
       const repository = getWatchRepository();
       const read = await repository.readRoom(hostedRoom);
-      if (read === null || !roomIsLive(read.room, Date.now()) || read.room.hostId !== user.id) {
-        setState({ kind: 'refused', reason: "YOU'RE NOT HOSTING THAT ROOM ANY MORE." });
+      if (read === null || !roomIsLive(read.room, Date.now())) {
+        setState({ kind: 'refused', reason: 'THAT ROOM IS NOT LIVE ANY MORE.' });
+        return;
+      }
+      if (read.room.hostId !== user.id && !hasCrown(read.crowns, user.id)) {
+        setState({ kind: 'refused', reason: 'ONLY THE HOST OR A CROWN ADDS FROM HERE.' });
         return;
       }
       // Straight into the queue with the host's crown on, as the room's own ADD does; onto their list with it off.
@@ -109,7 +118,7 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
   return (
     <div className="mt-2 frame bg-paper p-2 text-label text-ink" role="group" aria-label={`Stream room: ${item.title}`}>
       {user === null ? (
-        <p className="font-bold">SIGN IN AND GO LIVE FROM THE BOARD TO WATCH THIS IN A STREAM ROOM.</p>
+        <p className="font-bold">SIGN IN AND GO LIVE ON CYTUBE TO WATCH THIS IN A STREAM ROOM.</p>
       ) : state.kind === 'queued' ? (
         <p className="flex flex-wrap items-center gap-2 font-bold" role="status">
           {state.listed ? 'ADDED TO YOUR LIST IN YOUR STREAM ROOM.' : 'QUEUED IN YOUR STREAM ROOM.'}
@@ -118,10 +127,15 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
           </Link>
         </p>
       ) : hostedRoom === null ? (
-        <p className="font-bold">YOU&apos;RE NOT HOSTING A STREAM ROOM. GO LIVE FROM THE BOARD, THEN COME BACK.</p>
+        <p className="flex flex-wrap items-center gap-2 font-bold">
+          YOU&apos;RE NOT HOSTING A STREAM ROOM. GO LIVE ON CYTUBE, THEN COME BACK.
+          <Link href={CYTUBE_HREF} className={PLATE}>
+            [ CYTUBE ]
+          </Link>
+        </p>
       ) : (
         <div className="flex flex-wrap items-center gap-2">
-          <p className="font-bold">ADD THIS TO THE QUEUE OF THE ROOM YOU&apos;RE HOSTING?</p>
+          <p className="font-bold">ADD THIS TO THE QUEUE OF YOUR ROOM?</p>
           <button type="button" onClick={() => void queue()} disabled={state.kind === 'busy'} className={PLATE_MAIN}>
             {state.kind === 'busy' ? '[ ADDING... ]' : '[ + ADD TO QUEUE ]'}
           </button>

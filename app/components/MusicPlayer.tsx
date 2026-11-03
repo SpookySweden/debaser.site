@@ -3,6 +3,8 @@
 import { type RefObject, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AudioTrack } from '../lib/audio/tracks';
+import { lookClass } from '../lib/cytube/looks';
+import { useOpenRoomLook } from '../lib/cytube/room-look';
 import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
 import {
   musicAddressSpentByClose,
@@ -300,6 +302,8 @@ function PlayerName({ roomId, className }: { roomId: string | null; className: s
  */
 function StreamStrip({ roomId, onHide }: { roomId: string; onHide: () => void }) {
   const strip = useRef<HTMLDivElement>(null);
+  // The room's broadcaster look (SPEC-cytube.md): the strip, its top rule, its words and keys; none, the site's theme.
+  const look = useOpenRoomLook();
   useEdgeReserve(strip, '--bottom-bar', true);
   useEdgeReserve(strip, '--music-top', true);
   const keys = useRef<HTMLSpanElement>(null);
@@ -308,7 +312,12 @@ function StreamStrip({ roomId, onHide }: { roomId: string; onHide: () => void })
   const target = useCallback((box: HTMLDivElement | null) => setStreamBarTarget(box), []);
 
   return (
-    <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink" data-stream-bar>
+    <div
+      ref={strip}
+      className={`fixed bottom-0 left-0 right-0 z-50 border-t-line px-2 py-1 font-mono ${look === null ? 'border-ink bg-sun-pale text-ink' : `${lookClass(look)} room-keyed border-room-lines bg-room-bar text-room-words`}`}
+      data-stream-bar
+      data-room-look={look ?? 'none'}
+    >
       <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
         <span ref={keys} className="flex items-center gap-1">
           <button

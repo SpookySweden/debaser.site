@@ -234,7 +234,8 @@ class MockWatchRepository implements WatchRepository {
   async openRoom(input: OpenRoomInput): Promise<WatchRoomRead> {
     const tables = load();
     const at = stamp();
-    const entry: WatchQueueEntry = {
+    // Empty (GO LIVE on CYTUBE): no first file, the screen black until something is queued.
+    const entry: WatchQueueEntry | null = input.mediaItemId === null ? null : {
       id: newId(),
       roomId: input.id,
       position: 0,
@@ -253,9 +254,9 @@ class MockWatchRepository implements WatchRepository {
       originalHostLabel: input.host.label,
       hostId: input.host.id,
       forumThreadId: null,
-      currentEntryId: entry.id,
+      currentEntryId: entry?.id ?? null,
       positionSeconds: 0,
-      isPlaying: true,
+      isPlaying: entry !== null,
       startedAt: at,
       updatedAt: at,
       endedAt: null,
@@ -264,9 +265,10 @@ class MockWatchRepository implements WatchRepository {
       clearedAt: null,
     };
     const crown = crownFor(room.id, input.host.id, input.host.id);
-    save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, entry], crowns: withCrown(tables.crowns, crown) }, room.id);
+    const queue = entry === null ? [] : [entry];
+    save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, ...queue], crowns: withCrown(tables.crowns, crown) }, room.id);
 
-    return { room, queue: [entry], messages: [], crowns: [crown] };
+    return { room, queue, messages: [], crowns: [crown] };
   }
 
   async findMusicRoom(hostId: string): Promise<WatchRoom | null> {

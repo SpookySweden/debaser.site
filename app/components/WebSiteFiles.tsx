@@ -7,7 +7,6 @@ import type { CatalogueEntry, MediaKind } from '../lib/media/types';
 import { artSlot } from '../lib/ui/art/slots';
 import { PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
 import { ICON_MEDIA } from '../lib/ui/icons';
-import { watchHref } from '../lib/watch/watch-window';
 import { WEB_HREF } from '../lib/web/bridges';
 import { SITE_FILES_SHOWN, SITE_SERVER_LABEL, siteFileHref } from '../lib/web/site-server';
 import { useAuth } from './AuthProvider';
@@ -15,6 +14,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import SheetImage from './SheetImage';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
 import SpriteSlot from './SpriteSlot';
+import StreamAddKey from './StreamAddKey';
 
 /**
  * DEBASER.SITE in an archive search: the site's own files the search finds (`siteFileMatches` in
@@ -137,12 +137,8 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
                 {open ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
               </button>
             ) : null}
-            {/* Streamed to a room the way the catalogue does it: the room opens first, GO LIVE is the second press. */}
-            {item.kind === 'video' && user !== null ? (
-              <Link href={watchHref({ kind: 'prelive', mediaItemId: item.id })} className={PLATE_LINK}>
-                [ ▶ STREAM ]
-              </Link>
-            ) : null}
+            {/* Streamed the way the catalogue does it (SPEC-cytube.md): into the room you host or hold a crown in, or to CYTUBE to go live. */}
+            {item.kind === 'video' && user !== null ? <StreamAddKey mediaItemId={item.id} title={item.title} /> : null}
             {item.kind === 'image' ? (
               <button
                 type="button"

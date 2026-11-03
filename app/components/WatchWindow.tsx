@@ -9,10 +9,9 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
-import { getWatchRepository } from '../lib/watch/repository';
-import { roomIsLive, streamAnchor, streamThreadTitle } from '../lib/watch/rules';
+import { roomIsLive } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
-import { primeRoom, useWatchRoom } from '../lib/watch/use-watch-room';
+import { useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
   collapseWatch,
@@ -21,13 +20,11 @@ import {
   subscribeToWatchWindow,
   watchWindowServerState,
   watchFocusFromSearch,
-  watchHref,
   watchWindowState,
 } from '../lib/watch/watch-window';
 import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
-import { useForum } from './ForumProvider';
 import WatchRoom from './WatchRoom';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
@@ -42,9 +39,8 @@ const UP_MARK_HEIGHT = 16;
 /**
  * The stream room, drawn once in `layout.tsx` (SPEC-watch-together.md).
  *
- * It reads the address (`lib/watch/watch-window.ts`) and opens for one of two purposes: the host's
- * window before going live, with the file loaded and `[ GO LIVE ]` (the second of the two presses a
- * start takes), or a room. Closing it is leaving the room; the room itself asks a host first.
+ * It reads the address (`lib/watch/watch-window.ts`) and opens for one of two purposes: an old pre-live
+ * address, which now points to CYTUBE (GO LIVE lives there, SPEC-cytube.md), or a room. Closing it is leaving the room; the room itself asks a host first.
  */
 export default function WatchWindow() {
   const state = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowServerState);
@@ -79,45 +75,15 @@ export default function WatchWindow() {
   );
 }
 
-/** The host's window before anybody can see it: the file, and the key that opens the room. */
+/**
+ * An old "load a file, then GO LIVE" address (`?watch=new&media=`): GO LIVE is only on the CYTUBE page now
+ * (SPEC-cytube.md), so the window shows the file and points there. Nothing here starts a room.
+ */
 function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose: () => void }) {
   const { user } = useAuth();
-  const forum = useForum();
   const catalogue = useCatalogue();
-  const router = useRouter();
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const item = catalogue.items.find((candidate) => candidate.id === mediaItemId && candidate.kind === 'video');
   const name = user?.displayName ?? 'GUEST';
-
-  async function goLive() {
-    if (user === null || item === undefined) return;
-    setBusy(true);
-    setError(null);
-
-    try {
-      const id = crypto.randomUUID();
-      const read = await getWatchRepository().openRoom({ id, host: { id: user.id, label: user.displayName }, mediaItemId: item.id });
-      primeRoom(read);
-
-      // The forum record, filed as it starts and drawn from the room (decision 9). A room that could not
-      // be filed is still a room: the stream goes on, and the thread is what is missing.
-      try {
-        const thread = await forum.createThread({ title: streamThreadTitle(user.displayName, read.room.startedAt), body: '', anchor: streamAnchor(id) });
-        await getWatchRepository().attachThread(id, thread.id);
-        // Into the shared copy at once, so the room does not say NOT ON THE BOARD until the echo arrives.
-        primeRoom({ ...read, room: { ...read.room, forumThreadId: thread.id } });
-      } catch {
-        // Said by the room's own line (NOT ON THE BOARD) rather than here: the window is about to change.
-      }
-
-      openWatch({ kind: 'room', roomId: id });
-      router.replace(watchHref({ kind: 'room', roomId: id }));
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');
-      setBusy(false);
-    }
-  }
 
   return (
     <DockWindow id="stream" fill title={`STREAM :: ${name}`} badge="NOT LIVE" onClose={onClose} dock="top" defaultSize={ROOM_SIZE} minSize={ROOM_MIN}>
@@ -139,16 +105,12 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
               TO STREAM
             </p>
           ) : (
-            <div className="flex flex-wrap items-center gap-2">
-              <button type="button" onClick={() => void goLive()} disabled={busy} className={PLATE_MAIN}>
-                {busy ? '[ GOING LIVE... ]' : '[ GO LIVE ]'}
-              </button>
-              {error === null ? null : (
-                <span className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-                  {error}
-                </span>
-              )}
-            </div>
+            <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
+              <Link href="/cytube" className={PLATE_MAIN} onClick={onClose}>
+                [ GO LIVE ON CYTUBE ]
+              </Link>
+              THEN ADD THIS FROM THE QUEUE.
+            </p>
           )}
         </div>
       )}

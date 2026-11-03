@@ -32,6 +32,10 @@ type PopoutWindowProps = {
   maxWidth?: string;
   /** Background class for the window body (white for reading windows). */
   bodyClassName?: string;
+  /** Extra classes on the window itself (a CYTUBE room's look and Black body, SPEC-cytube.md). */
+  windowClassName?: string;
+  /** The title line's ink instead of the accent ink (a room look's `text-room-title`). */
+  titleInk?: string;
   children: ReactNode;
 };
 
@@ -54,6 +58,8 @@ export default function PopoutWindow({
   actions,
   maxWidth = 'max-w-2xl',
   bodyClassName = 'bg-sun-pale',
+  windowClassName = '',
+  titleInk,
   dismissOnBackdrop = true,
   children,
 }: PopoutWindowProps) {
@@ -99,12 +105,12 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`mt-6 w-full ${maxWidth} frame bg-sun-pale`}
+        className={`mt-6 w-full ${maxWidth} frame bg-sun-pale ${windowClassName}`}
       >
         {/* Draggable title bar */}
         <div
           {...dragHandlers}
-          className={`${TITLE_BAR} touch-none cursor-move select-none`}
+          className={`${titleInk === undefined ? TITLE_BAR : `title-line ${titleInk}`} touch-none cursor-move select-none`}
           title={status}
         >
           <span id={titleId} className="truncate">

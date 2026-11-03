@@ -25,6 +25,8 @@ type Entry = {
   followers: number;
   unsubscribe: (() => void) | null;
   reading: boolean;
+  /** A read was asked for while one was out: that one may predate the change, so it is read once more. */
+  again: boolean;
 };
 
 const rooms = new Map<string, Entry>();
@@ -33,7 +35,7 @@ const IDLE: WatchRoomState = { read: undefined, error: null };
 function entryFor(roomId: string): Entry {
   let entry = rooms.get(roomId);
   if (entry === undefined) {
-    entry = { state: IDLE, listeners: new Set(), followers: 0, unsubscribe: null, reading: false };
+    entry = { state: IDLE, listeners: new Set(), followers: 0, unsubscribe: null, reading: false, again: false };
     rooms.set(roomId, entry);
   }
   return entry;
@@ -46,7 +48,10 @@ function publish(entry: Entry, state: WatchRoomState): void {
 
 function read(roomId: string): void {
   const entry = entryFor(roomId);
-  if (entry.reading) return;
+  if (entry.reading) {
+    entry.again = true;
+    return;
+  }
   entry.reading = true;
 
   void getWatchRepository()
@@ -67,6 +72,10 @@ function read(roomId: string): void {
     .catch((error: unknown) => publish(entry, { ...entry.state, error: error instanceof Error ? error.message : 'THE STREAM COULD NOT BE READ.' }))
     .finally(() => {
       entry.reading = false;
+      if (entry.again) {
+        entry.again = false;
+        read(roomId);
+      }
     });
 }
 

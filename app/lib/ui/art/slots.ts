@@ -505,6 +505,17 @@ export const ART_SLOTS = [
     brief: "A little TV: at the music bar's left while a stream is open, in place of the ♪. It wiggles. Press it to switch the bar back to the music player.",
   },
   {
+    id: 'mark-cytube',
+    label: 'CYTUBE: BAND ICON',
+    kind: 'mark',
+    path: 'assets/icons/cytube.png',
+    shown: [[16, 16]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'the glyph `▣` from the font (`ICON_CYTUBE` in app/lib/ui/icons.ts), and the word CYTUBE',
+    brief: 'The CYTUBE page (watching and listening together): its mark wherever the site lists its pages, and in the page title.',
+  },
+  {
     id: 'mark-up-wide',
     label: 'STREAM: WIDE UP ARROW',
     kind: 'mark',

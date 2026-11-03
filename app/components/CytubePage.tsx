@@ -1,0 +1,266 @@
+'use client';
+
+import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
+import { useCatalogue } from '../lib/media/catalogue';
+import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { useNow } from '../lib/ui/use-now';
+import { goLiveEmpty } from '../lib/watch/go-live';
+import { roomIsLive } from '../lib/watch/rules';
+import { enterRoom } from '../lib/watch/use-music-room';
+import { useWatchRoom } from '../lib/watch/use-watch-room';
+import { useWatching } from '../lib/watch/use-watching';
+import { openWatch } from '../lib/watch/watch-window';
+import type { AccountUser } from '../lib/auth/types';
+import { useAuth } from './AuthProvider';
+import CytubeLayout from './CytubeLayout';
+import { useForum } from './ForumProvider';
+import { useLiveStreams } from './CytubeLiveStreams';
+import StreamQueueWindow from './StreamQueueWindow';
+
+/**
+ * The CYTUBE page (SPEC-cytube.md): what streaming here is, the live rooms, the stream canvases, and - always
+ * above the tabs - GO LIVE (the only place a room is started) and CUSTOMIZE LAYOUT (your broadcast look).
+ * Signed-in people only, like the archive: signed out it shows a sign-in prompt.
+ *
+ * The tab is in the address (`?tab=live`), so a link can open on the list of live rooms.
+ */
+
+type Tab = 'about' | 'live' | 'canvases';
+
+const TABS: readonly { key: Tab; label: string }[] = [
+  { key: 'about', label: 'ABOUT' },
+  { key: 'live', label: 'LIVE' },
+  { key: 'canvases', label: 'CANVASES' },
+];
+
+function readTab(value: string | null): Tab {
+  return TABS.find((tab) => tab.key === value)?.key ?? 'about';
+}
+
+export default function CytubePage() {
+  const { status, user } = useAuth();
+
+  if (status === 'loading') {
+    return (
+      <p role="status" className="text-title font-bold text-ink">
+        CHECKING YOUR SIGN-IN...
+      </p>
+    );
+  }
+
+  if (status !== 'signed-in' || user === null) {
+    return (
+      <section aria-labelledby="cytube-sign-in-title" className="flex flex-col items-start gap-3 py-2">
+        <h2 id="cytube-sign-in-title" className="text-headline font-bold text-ink">
+          SIGN IN TO USE CYTUBE
+        </h2>
+        <p className="text-prose text-ink">CYTUBE is for people with an account. Sign in to go live, join a room or pick your look.</p>
+        <Link href="/account" className={PLATE_MAIN}>
+          [ SIGN IN ]
+        </Link>
+      </section>
+    );
+  }
+
+  return <SignedIn user={user} />;
+}
+
+function SignedIn({ user }: { user: AccountUser }) {
+  const search = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const tab = readTab(search.get('tab'));
+  const [layoutOpen, setLayoutOpen] = useState(false);
+
+  function show(next: Tab) {
+    router.replace(next === 'about' ? pathname : `${pathname}?tab=${next}`, { scroll: false });
+  }
+
+  return (
+    <div className="flex min-w-0 flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <GoLiveKey user={user} />
+        <button type="button" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((open) => !open)} className={layoutOpen ? PLATE_PRESSED : PLATE} data-cytube-layout-key>
+          [ CUSTOMIZE LAYOUT ]
+        </button>
+      </div>
+
+      {layoutOpen ? <CytubeLayout userId={user.id} /> : null}
+
+      {/* The tabs scroll sideways inside their strip on a narrow screen, never the page. */}
+      <div className="flex min-w-0 flex-nowrap items-stretch gap-1 overflow-x-auto" role="tablist" aria-label="CYTUBE">
+        {TABS.map((entry) => (
+          <button
+            key={entry.key}
+            type="button"
+            role="tab"
+            id={`cytube-tab-${entry.key}`}
+            aria-selected={tab === entry.key}
+            aria-controls={`cytube-panel-${entry.key}`}
+            onClick={() => show(entry.key)}
+            className={`shrink-0 ${tab === entry.key ? `${PLATE_PRESSED} cursor-pointer` : PLATE}`}
+          >
+            [ {entry.label} ]
+          </button>
+        ))}
+      </div>
+
+      <div role="tabpanel" id={`cytube-panel-${tab}`} aria-labelledby={`cytube-tab-${tab}`} className="min-w-0">
+        {tab === 'about' ? <About /> : tab === 'live' ? <LiveRooms /> : <Canvases />}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * GO LIVE: your room, empty, its screen black (SPEC-cytube.md). Already hosting a live room: back to it, never a
+ * second one. One press opens the room; it is the page's one main action.
+ */
+function GoLiveKey({ user }: { user: AccountUser }) {
+  const forum = useForum();
+  const watching = useWatching(user.id);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const hosting = watching !== null && watching.hosting ? watching.roomId : null;
+
+  async function goLive() {
+    if (hosting !== null) {
+      openWatch({ kind: 'room', roomId: hosting });
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      await goLiveEmpty(user, forum.createThread);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={() => void goLive()} disabled={busy} className={PLATE_MAIN} data-cytube-go-live={hosting === null ? 'new' : 'back'}>
+        {busy ? '[ GOING LIVE... ]' : hosting === null ? '[ GO LIVE ]' : '[ BACK TO YOUR ROOM ]'}
+      </button>
+      {error === null ? null : (
+        <span className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
+          {error}
+        </span>
+      )}
+    </>
+  );
+}
+
+/** ABOUT: streaming here, in plain words (written by the building session; Luke reviews). */
+function About() {
+  return (
+    <div className="flex max-w-3xl flex-col gap-3 text-prose text-ink" data-cytube-about>
+      <AboutPart title="ROOMS">
+        A room is somebody&apos;s stream: everybody in it sees and hears the same thing at the same moment, and talks in its chat. Press GO LIVE
+        to open yours. It starts empty, on a black screen with three keys - VIDEO, MUSIC and BOOKS - that open the queue with a search ready.
+      </AboutPart>
+      <AboutPart title="THE QUEUE AND ADDITIONS">
+        What plays comes from the room&apos;s queue: red has played, green is on, blue is next. Anybody can add things. Without a crown, what
+        you add waits on your own list until somebody with a crown pulls it into the queue. When the queue runs out, the screen goes black
+        again until something new is queued.
+      </AboutPart>
+      <AboutPart title="CROWNS">
+        The host holds a crown and can give one to anybody in the room. A crown puts things straight into the queue, moves them around and
+        takes out what has not played yet. Playing, pausing, skipping and ending the stream stay with the host.
+      </AboutPart>
+      <AboutPart title="THE STREAM BAR AND THE TV KEY">
+        While you are in a room, the music bar along the foot of the screen becomes the stream&apos;s: what is on, what is next, and the
+        room&apos;s keys. The TV key at its left turns it back into your music player, and back again.
+      </AboutPart>
+      <AboutPart title="MUSIC ROOMS">
+        GO PUBLIC in the QUEUES window opens a room for your music. People who join hear what you play in their own music bar, add songs
+        and talk in its chat. A room&apos;s queue takes songs and videos alike. Switch it off and it is kept for next time.
+      </AboutPart>
+      <AboutPart title="THE CANVAS AND STREAM ART">
+        Coming soon: a shared drawing canvas on every room&apos;s screen, and the saved canvases kept in the archive as STREAM ART.
+      </AboutPart>
+      <AboutPart title="YOUR LOOK">
+        CUSTOMIZE LAYOUT picks the colours your room is drawn in when you broadcast. In somebody else&apos;s room you see their look, or keep
+        your own if you prefer.
+      </AboutPart>
+    </div>
+  );
+}
+
+function AboutPart({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="flex flex-col gap-1">
+      <h2 className={TITLE_BAR_INACTIVE}>{title}</h2>
+      <p>{children}</p>
+    </section>
+  );
+}
+
+/**
+ * LIVE: every live room, each with JOIN and QUEUE. The list is `useLiveStreams` (./CytubeLiveStreams.tsx), the
+ * one source the page reads.
+ */
+function LiveRooms() {
+  const rooms = useLiveStreams();
+  const [queueFor, setQueueFor] = useState<string | null>(null);
+
+  if (rooms === null) return <p className="text-label font-bold text-ink">READING THE ROOMS...</p>;
+  if (rooms.length === 0) return <p className="text-label font-bold text-ink">NOBODY IS LIVE.</p>;
+
+  return (
+    <>
+      <ul className="flex flex-col" data-cytube-live>
+        {rooms.map((room) => (
+          <li key={room.roomId} className="rule-pixel flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 text-label text-ink" data-cytube-room={room.roomId}>
+            <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">LIVE</span>
+            <span className="font-bold">{room.hostName.toUpperCase()}</span>
+            <span className="min-w-0 flex-1 truncate" title={room.title}>
+              {room.kind === 'music' ? 'MUSIC' : 'STREAM'} :: {room.title.length > 0 ? room.title : 'NOTHING ON YET'}
+            </span>
+            <span className="flex shrink-0 items-center gap-1">
+              {/* As QUEUES joins: a music room folded with the bar playing it, a video stream opened. */}
+              <button type="button" onClick={() => enterRoom(room.roomId, room.kind)} className={PLATE} aria-label={`Join ${room.hostName}'s room`} data-cytube-join>
+                [ JOIN ]
+              </button>
+              <button type="button" onClick={() => setQueueFor(room.roomId)} aria-haspopup="dialog" className={PLATE} aria-label={`${room.hostName}'s queue`}>
+                [ QUEUE ]
+              </button>
+            </span>
+          </li>
+        ))}
+      </ul>
+      {queueFor === null ? null : <RoomQueue roomId={queueFor} onClose={() => setQueueFor(null)} />}
+    </>
+  );
+}
+
+/** A live room's queue window, to look before joining (outside a room it keeps its usual look). */
+function RoomQueue({ roomId, onClose }: { roomId: string; onClose: () => void }) {
+  const { read } = useWatchRoom(roomId);
+  const { user } = useAuth();
+  const catalogue = useCatalogue();
+  const now = useNow(5000);
+  const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
+  if (read === undefined || read === null) return null;
+  return (
+    <StreamQueueWindow read={read} itemsById={itemsById} live={roomIsLive(read.room, now)} userId={user?.id ?? null} members={[]} nowLive={false} onClose={onClose} />
+  );
+}
+
+/**
+ * CANVASES (SPEC-stream-art.md): the rooms whose canvas is open now and the saved STREAM ART pieces.
+ *
+ * STUB until the room canvas is on main (Luke, 2026-11-03: CYTUBE goes live first). Switch it on by listing the
+ * live rooms with an open canvas (`getCanvasRepository().findOpenCanvas`) and the archive's `StreamArtShelf`.
+ */
+function Canvases() {
+  return (
+    <p className="text-label font-bold text-ink" data-cytube-canvases="coming-soon">
+      COMING SOON.
+    </p>
+  );
+}

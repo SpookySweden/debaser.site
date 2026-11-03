@@ -229,6 +229,118 @@
   /* The news crawl (its duration is set per strip, from the number of rows) and the pin tick. */
   --animate-crawl: crawl 40s linear infinite;
   --animate-pin-tick: pin-tick 150ms ease-out;
+  /* A CYTUBE blank screen's key pressed (SPEC-cytube.md): a few quick blinks of its lit colour while it squashes
+     and springs back, then the queue window opens (on `animationend`). Still under reduced motion. */
+  --animate-blank-press: blank-press 420ms steps(1, end) 1;
+}
+
+/* -----------------------------------------------------------------------------------------------------
+   CYTUBE ROOMS (SPEC-cytube.md, "Look presets"; Luke OK'd the five looks, 2026-11-03).
+
+   A broadcaster's look colours their room: the stream bar's strip (`bar`), its plain words (`words`), its
+   bracket keys (`keys`: under the pointer a key fills with this and its words take the bar colour), the
+   screen's frame, the bar's top rule, the LED's frame and the queue window's frame (`lines`), the LED's words
+   (`readout`) and the queue window's title (`title`). Components ask for `bg-room-bar`, `text-room-words`,
+   `[--frame-line:var(--room-lines)]` and so on, and the class `look-<id>` on the room's elements picks the
+   look; without one (a host who never picked) the room wears the site's own theme, as below.
+
+   No new colours: every look is dyes already in themes.ts. The check `scripts/check-cytube.cjs` reads these
+   blocks and holds every pair to the floors (4.5:1 for words, 3:1 for lines), as Temp/check-themes.cjs holds
+   the themes; change a look here and the check says whether it still reads.
+   ----------------------------------------------------------------------------------------------------- */
+@theme inline {
+  --color-room-bar: var(--room-bar);
+  --color-room-words: var(--room-words);
+  --color-room-keys: var(--room-keys);
+  --color-room-lines: var(--room-lines);
+  --color-room-readout: var(--room-readout);
+  --color-room-title: var(--room-title);
+  /* The blank screen's three keys look the same in every look: Daffodil words at rest; under the pointer or
+     keyboard focus each fills with its own dye and its words turn Black. */
+  --color-blank-rest: var(--dye-daffodil);
+  --color-blank-video: var(--dye-light-red);
+  --color-blank-music: var(--dye-brilliant-pink);
+  --color-blank-books: var(--dye-emerald);
+}
+
+/* No look: the site's current theme. */
+:root,
+:host {
+  --room-bar: var(--color-sun-pale);
+  --room-words: var(--color-ink);
+  --room-keys: var(--color-accent-ink);
+  --room-lines: var(--color-ink);
+  --room-readout: var(--color-acid);
+  --room-title: var(--color-accent-ink);
+}
+
+/* The queue window's body inside a room: Black whatever the viewer's theme, so a look's frame and title are
+   checked against a surface we know, and the window's own words and keys are the dark theme's. */
+.room-black {
+  --color-paper: var(--dye-black);
+  --color-sun-pale: var(--dye-black);
+  --color-ice: var(--dye-black);
+  --color-ice-pale: var(--dye-black);
+  --color-chrome-dark: var(--dye-black);
+  --color-acid-pale: var(--dye-black);
+  --color-ink: var(--dye-white);
+  --color-accent-ink: var(--dye-daffodil);
+  --color-ink-quiet: var(--dye-flavine);
+  --color-sun: var(--dye-daffodil);
+  --color-pointed: var(--dye-royal-blue);
+  --color-pointed-quiet: var(--dye-royal-blue);
+  --color-acid: var(--dye-emerald);
+  --color-queue-played-ink: var(--dye-light-red);
+  --color-queue-now-ink: var(--dye-emerald);
+  --color-queue-next-ink: var(--dye-light-blue);
+  --room-title: var(--dye-daffodil);
+  --room-lines: var(--dye-white);
+}
+
+/* The five looks. */
+.look-nigrosine {
+  --room-bar: var(--dye-nigrosine);
+  --room-words: var(--dye-white);
+  --room-keys: var(--dye-daffodil);
+  --room-lines: var(--dye-white);
+  --room-readout: var(--dye-daffodil);
+  --room-title: var(--dye-daffodil);
+}
+
+.look-royal {
+  --room-bar: var(--dye-royal-blue);
+  --room-words: var(--dye-white);
+  --room-keys: var(--dye-daffodil);
+  --room-lines: var(--dye-daffodil);
+  --room-readout: var(--dye-flavine);
+  --room-title: var(--dye-daffodil);
+}
+
+.look-blood {
+  --room-bar: var(--dye-deep-red);
+  --room-words: var(--dye-white);
+  --room-keys: var(--dye-daffodil);
+  --room-lines: var(--dye-light-red);
+  --room-readout: var(--dye-light-red);
+  --room-title: var(--dye-candy);
+}
+
+.look-jungle {
+  --room-bar: var(--dye-deep-green);
+  --room-words: var(--dye-white);
+  --room-keys: var(--dye-lime);
+  --room-lines: var(--dye-emerald);
+  --room-readout: var(--dye-emerald);
+  --room-title: var(--dye-mint);
+}
+
+.look-orchid {
+  --room-bar: var(--dye-black);
+  --room-words: var(--dye-candy);
+  --room-keys: var(--dye-lime);
+  --room-lines: var(--dye-orchid);
+  --room-readout: var(--dye-candy);
+  --room-title: var(--dye-lime);
 }
 
 /* The phone's field text: browsers zoom a page in when a field's text is under 16px, so this never goes

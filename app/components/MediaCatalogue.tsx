@@ -12,7 +12,6 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { useStreamFolds } from '../lib/watch/use-stream-folds';
 import type { StreamFold } from '../lib/watch/types';
-import { watchHref } from '../lib/watch/watch-window';
 import { catalogueTrack, KIND_LABELS, useCatalogue } from '../lib/media/catalogue';
 import { type Category, SECTIONS, categorise, categoryWords, folderCategoryId, groupMatches, tagCounts } from '../lib/media/categories';
 import { getMediaRepository } from '../lib/media/repository';
@@ -33,6 +32,7 @@ import { useMusicLibrary } from './MusicLibraryProvider';
 import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
+import StreamAddKey from './StreamAddKey';
 
 type Sort = 'newest' | 'title' | 'used';
 
@@ -683,13 +683,11 @@ function CatalogueRow({
           </div>
         </div>
 
-        {/* A video's key: stream it to the site (SPEC-watch-together.md). It opens the room window
-            before anything is live; GO LIVE in there is the second press. Accounts only. */}
+        {/* A video's key (SPEC-cytube.md): GO LIVE is only on the CYTUBE page, so this adds the video to the room
+            you host or hold a crown in, or points you to CYTUBE. Accounts only. */}
         {item.kind === 'video' && viewerId !== null ? (
           <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
-            <Link href={watchHref({ kind: 'prelive', mediaItemId: item.id })} className={PLATE_LINK}>
-              [ ▶ STREAM ]
-            </Link>
+            <StreamAddKey mediaItemId={item.id} title={item.title} />
           </span>
         ) : null}
 

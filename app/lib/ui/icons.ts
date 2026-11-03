@@ -45,6 +45,12 @@ export const ICON_MEDIA = '▦';
 /** WEB: a target - the stream of things found out there (SPEC-web.md). */
 export const ICON_WEB = '◎';
 
+/**
+ * CYTUBE: a screen, for watching together (SPEC-cytube.md). The font's stand-in until Luke draws the band icon
+ * (the `mark-cytube` slot in app/lib/ui/art/slots.ts).
+ */
+export const ICON_CYTUBE = '▣';
+
 /** A notice waiting. */
 export const ICON_BELL = '☼';
 

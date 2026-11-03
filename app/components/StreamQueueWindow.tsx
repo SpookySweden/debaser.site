@@ -1,8 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useEffectEvent, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { lookClass, type LookId } from '../lib/cytube/looks';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -10,6 +11,7 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
+import { keepsKind, queueSearchPlan } from '../lib/watch/blank-screen';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   additionUnits,
@@ -84,6 +86,11 @@ type StreamQueueWindowProps = {
   /** What is on is a live stream: it never ends, so nothing loops. */
   nowLive: boolean;
   onClose: () => void;
+  /** A search to open with, already run: a blank screen's VIDEO / MUSIC / BOOKS key (SPEC-cytube.md). */
+  prefill?: string;
+  /** Opened from inside the room: the body goes Black and the frame and title wear the room's look. */
+  inRoom?: boolean;
+  look?: LookId | null;
 };
 
 type Search =
@@ -154,7 +161,7 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * An empty search lists the site's own videos. `[ + ADD ]` puts a video on your own list (ADDED); with a
  * crown a second key beside it, a plus under a crown, puts it straight into the queue (QUEUED).
  */
-export default function StreamQueueWindow({ read, itemsById, live, userId, members, nowLive, onClose }: StreamQueueWindowProps) {
+export default function StreamQueueWindow({ read, itemsById, live, userId, members, nowLive, onClose, prefill, inRoom = false, look = null }: StreamQueueWindowProps) {
   const repository = getWatchRepository();
   const catalogue = useCatalogue();
   const roomId = read.room.id;
@@ -276,7 +283,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 
   /* --- the bar: words to search, or a pasted link ------------------------------------------------ */
 
-  const [text, setText] = useState('');
+  const [text, setText] = useState(prefill ?? '');
   const [linkName, setLinkName] = useState('');
   const [nameTyped, setNameTyped] = useState(false);
   const [linkState, setLinkState] = useState<LinkState>({ kind: 'idle' });
@@ -444,18 +451,23 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setProblem(null);
     if (cursor === null) setSearch({ kind: 'searching', words: trimmed });
     else setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: true } : current));
-    const ours = ourMatches(videos, trimmed);
-    const songs = songMatches(shelf, trimmed);
+    // A filter word (`type:video`, `type:music`, `type:books`, which a blank screen's keys fill in) decides
+    // which of the site's files are listed and what the archive is asked (lib/watch/blank-screen.ts).
+    const plan = queueSearchPlan(trimmed);
+    const ours = plan.site.videos ? ourMatches(videos, plan.words) : [];
+    const songs = plan.site.songs ? songMatches(shelf, plan.words) : [];
     // No words: only what the site holds (the archive's other sources need something to look for).
-    if (trimmed.length === 0) {
+    const ask = plan.ask;
+    if (ask === null) {
       setSearch({ kind: 'found', words: trimmed, ours, songs, web: [], problems: [], next: null, loadingMore: false });
       return;
     }
     try {
-      const page = await searchEverywhere(trimmed, cursor);
+      const page = await searchEverywhere(ask.words, cursor, undefined, null, ask.type);
       if (run !== searchRun.current) return;
       // Videos a room can play, and audio the music bar streams from its platform (a song row).
       const web = page.items.filter((item) => {
+        if (!keepsKind(ask.keep, item.kind)) return false;
         if (playsInBar(item)) return true;
         const link = watchLinkForItem(item);
         return link !== null && isQueueableWebLink(link);
@@ -482,6 +494,18 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     searchRun.current += 1;
     setSearch({ kind: 'none' });
   }
+
+  // A blank screen's key opened the window with its search filled in: it runs once, as if it had been typed.
+  const ranPrefill = useRef(false);
+  const findPrefill = useEffectEvent((words: string) => void find(words));
+  useEffect(() => {
+    if (prefill === undefined || ranPrefill.current) return;
+    const frame = window.requestAnimationFrame(() => {
+      ranPrefill.current = true;
+      findPrefill(prefill);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [prefill]);
 
   /* --- a crown's work: pulling in, reordering, taking out; the host's: crowning --------------------- */
 
@@ -717,7 +741,14 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   };
 
   return (
-    <PopoutWindow title="QUEUE" onClose={onClose} maxWidth={rights.sees === 'nothing' ? 'max-w-3xl' : 'max-w-5xl'}>
+    <PopoutWindow
+      title="QUEUE"
+      onClose={onClose}
+      maxWidth={rights.sees === 'nothing' ? 'max-w-3xl' : 'max-w-5xl'}
+      // Inside a room (SPEC-cytube.md): a Black body whatever the theme, the frame and title in the room's look.
+      windowClassName={inRoom ? `room-black ${lookClass(look)} [--frame-line:var(--room-lines)]` : undefined}
+      titleInk={inRoom ? 'text-room-title' : undefined}
+    >
       <div className="flex flex-col gap-2 p-2 text-label text-ink">
         {rights.add ? (
           // noValidate: the room says what is wrong with a link, not the browser's own bubble.

@@ -522,6 +522,62 @@ img {
   }
 }
 
+/* The CYTUBE blank screen's three keys (SPEC-cytube.md): Daffodil words on the Black screen at rest; under the
+   pointer or keyboard focus the key fills with its own dye (`--blank-lit`, set per key) and its words turn
+   Black. Pressed (`animate-blank-press`): blinks of the lit dye while it squashes and springs back. */
+.blank-key {
+  color: var(--color-blank-rest);
+  background-color: transparent;
+}
+
+.blank-key:hover,
+.blank-key:focus-visible {
+  background-color: var(--blank-lit);
+  color: var(--color-ink-plate);
+}
+
+@keyframes blank-press {
+  0% {
+    background-color: var(--blank-lit);
+    color: var(--color-ink-plate);
+    transform: scale(1.12, 0.82);
+  }
+
+  20% {
+    background-color: transparent;
+    color: var(--blank-lit);
+    transform: scale(0.94, 1.08);
+  }
+
+  40% {
+    background-color: var(--blank-lit);
+    color: var(--color-ink-plate);
+    transform: scale(1.04, 0.96);
+  }
+
+  60% {
+    background-color: transparent;
+    color: var(--blank-lit);
+    transform: scale(1, 1);
+  }
+
+  80%,
+  100% {
+    background-color: var(--blank-lit);
+    color: var(--color-ink-plate);
+    transform: scale(1, 1);
+  }
+}
+
+/* A room in a broadcaster look (SPEC-cytube.md): its bracket keys wear the look's key colour, and under the
+   pointer fill with it while their words take the bar colour. Outside any layer on purpose, so it wins over a
+   key's own `--key-ink` (PLATE_ON_BLACK, PLATE_HARDWARE). Only a room with a look wears `.room-keyed`; without
+   one the keys stay as the site draws them. */
+.room-keyed .key:not(.key-fill) {
+  --key-ink: var(--room-keys);
+  --key-hover-ink: var(--room-bar);
+}
+
 
 /* The control vocabulary --------------------------------------------------
    Every plate, field, bar and chip on this site, written once, as real CSS classes rather than as a
