@@ -1,4 +1,11 @@
-# Latest: stream room rework, stages 1-3 LIVE; stage 4 specced (SPEC-stream-queue.md) (2026-11-02)
+# Latest: workflow tools for sessions sharing this folder (2026-11-03)
+- `npm run verify:clean` replaces the hand-made detached worktree below: commit only your files, run it, push.
+  It keeps one clean copy (~\.debaser-clean-verify) with packages installed once; one session at a time; ~5 min.
+- `npm run web:fetch` runs the hourly archive fetch now (Luke's standing OK, to check work). The Stop hook's
+  typecheck now sends a session back only for errors in files it touched. Edge is the browser (no Chrome).
+- Still missing: `.env.test` (one line, `DEBASER_TEST_PASSWORD=...`), which only Luke can restore.
+
+# Before that: stream room rework, stages 1-3 LIVE; stage 4 specced (SPEC-stream-queue.md) (2026-11-02)
 - LIVE: 6176ff1 (bar under the video, speaker + QUALITY, YouTube strips cut off, fold away to a TV box) and
   43b6a82 (watcher strip, queue as a pop-up with WEB search, send arrow in the box, no :) key, no delete x).
   No database or repository changes. Next: stage 4 (people's additions, crowns, drag) in a fresh session

@@ -144,8 +144,10 @@ function pre(input) {
 //
 // Several sessions share this folder and the typecheck reads all of it, so it also sees other sessions'
 // half-written files. Eight sessions were sent back to "fix" those (2026-10-30 .. 11-02), one of them a session
-// that had only changed Edge settings. So a session is sent back only for errors in files its own tool calls named
-// (an Edit, a Write, a command; read from its transcript); verify before a commit still sees every error.
+// that had only changed Edge settings. So an error is let go only when its file has uncommitted changes (git
+// status) that this session's own tool calls never named (an Edit, a Write, a command, read from its transcript):
+// another session's half-written file. An error in a committed file was caused by a change somewhere, perhaps
+// this session's, so it still sends the session back, as does any error line that cannot be tied to a file.
 // And a typecheck is not run again while no source has changed since the last one (it takes about 15 seconds):
 // the last answer is kept per folder in the system temp folder, for every session's turn ends.
 
@@ -200,10 +202,11 @@ function typecheck() {
 }
 
 // tsc's errors, each with its file: `app/x.ts(4,28): error TS2307: ...`, then any indented lines that belong to it.
+// A folder name may hold brackets (`app/(group)/page.tsx`), so the path runs to the first `(line,col): error`.
 function errorsIn(out) {
   const errors = [];
   for (const line of out.split(/\r?\n/)) {
-    const match = line.match(/^(\S[^(]*)\(\d+,\d+\): error /);
+    const match = line.match(/^(\S.*?)\(\d+,\d+\): error TS\d+:/);
     if (match) errors.push({ file: match[1].replace(/\\/g, '/').toLowerCase(), lines: [line] });
     else if (errors.length > 0 && line.trim() !== '') errors[errors.length - 1].lines.push(line);
   }
@@ -234,7 +237,23 @@ function touchedText(transcriptPath) {
       if (block && block.type === 'tool_use' && CHANGING_TOOLS.has(block.name)) named.push(JSON.stringify(block.input || {}));
     }
   }
+  // Whole inputs on purpose, a Write's content included: a scripted edit names its file only inside the script.
   return named.join('\n').replace(/\\\\/g, '/').toLowerCase();
+}
+
+// Files with uncommitted changes, lower-case with forward slashes; null when git cannot say (then every error counts).
+function dirtyFiles() {
+  try {
+    const out = execFileSync('git', ['status', '--porcelain', '-z', '--untracked-files=all'], {
+      cwd: ROOT,
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 20000,
+    });
+    return new Set(out.split('\0').filter(Boolean).map((entry) => entry.replace(/^.. /, '').replace(/\\/g, '/').toLowerCase()));
+  } catch {
+    return null;
+  }
 }
 
 function stop(input) {
@@ -261,21 +280,23 @@ function stop(input) {
   if (result.ok) process.exit(0);
 
   const errors = errorsIn(result.out);
-  const touched = errors.length > 0 ? touchedText(input.transcript_path) : null;
-  const mine = touched === null ? null : errors.filter((error) => touched.includes(error.file));
-  if (mine !== null && mine.length === 0) process.exit(0); // only other sessions' work in progress
+  // An error line no file could be read from (a broken tsconfig, a missing type library) cannot be anyone else's.
+  const tiedToFiles = errors.length > 0 && (result.out.match(/error TS\d+:/g) || []).length === errors.length;
+  const touched = tiedToFiles ? touchedText(input.transcript_path) : null;
+  const dirty = touched === null ? null : dirtyFiles();
+  const mine = dirty === null ? null : errors.filter((error) => touched.includes(error.file) || !dirty.has(error.file));
+  if (mine !== null && mine.length === 0) process.exit(0); // only other sessions' half-written files
 
   const out = (mine === null ? result.out.split('\n') : mine.flatMap((error) => error.lines)).slice(0, 40).join('\n');
   const others = mine === null ? 0 : errors.length - mine.length;
-  const note = others > 0 ? `\n(${others} more in files this session never touched: another session's work in progress. Leave those alone.)` : '';
+  const note = others > 0 ? `\n(${others} more in files another session is still writing, which this session never touched. Leave those alone.)` : '';
   if (input.stop_hook_active) {
     // Already sent back once this turn: let the turn end, but say so.
     process.stdout.write(JSON.stringify({ systemMessage: `Typecheck still failing at the end of the turn:\n${out}${note}` }));
     process.exit(0);
   }
-  const which = mine === null ? '' : ' in files this session changed';
   process.stdout.write(
-    JSON.stringify({ decision: 'block', reason: `npm run typecheck failed${which}. Fix these before finishing:\n${out}${note}` }),
+    JSON.stringify({ decision: 'block', reason: `npm run typecheck failed. Fix these before finishing:\n${out}${note}` }),
   );
   process.exit(0);
 }

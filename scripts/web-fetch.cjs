@@ -11,10 +11,12 @@
  * run.
  *
  * How: pg_cron's job `web-ingest` (supabase/migrations/20261031200000_web_ingest_cron.sql) is one
- * `select net.http_post(...)` that reads the ingest lock out of Vault inside the database. This runs that job's own
- * command, read from cron.job so it cannot drift from the schedule, in a `do` block: the lock never leaves the
- * database, and nothing here reads or prints it. pg_net sends the request in the background, so this then waits
- * for the route's answer in net._http_response and prints what each source saved (the answer is counts and ids).
+ * `select net.http_post(...)` that reads the ingest lock out of Vault inside the database. This reads that job's own
+ * command from cron.job, so it cannot drift from the schedule, and runs it. The command holds only the Vault
+ * sub-select, never the lock itself, so the lock never leaves the database and nothing here prints it. The run
+ * answers with its pg_net request id; pg_net sends the request in the background, so this waits for that id's
+ * answer in net._http_response and prints what each source saved (the answer is counts and ids). Waiting on its
+ * own id means two runs at once, or a late answer from an earlier run, can never be mistaken for this one.
  *
  * Exit codes: 0 the fetch answered 200, 1 it answered an error or did not answer in time, 2 the database could not
  * be asked, 3 the hourly run is due within minutes (wait for that one instead).
@@ -41,7 +43,7 @@ function db(flag, sql) {
     const detail = `${error.stdout ?? ''}\n${error.stderr ?? ''}`.trim().split('\n').slice(-3).join(' ');
     finish(2, `COULD NOT ASK THE DATABASE: ${detail || error.message}`);
   }
-  const at = out.indexOf('{');
+  const at = out.search(/^\{/m); // the CLI's JSON starts on a line of its own, after db.cjs's one-line summary
   if (at === -1) return [];
   try {
     return JSON.parse(out.slice(at)).rows ?? [];
@@ -81,20 +83,21 @@ async function main() {
     finish(3, `The hourly fetch runs at minute 17 and it is minute ${minute}: wait for that run rather than start a second one beside it.`);
   }
 
-  const before = Number(db('--read-only', 'select coalesce(max(id), 0) as last from net._http_response;')[0]?.last ?? 0);
-  const jobs = db('--read-only', "select count(*)::int as n from cron.job where jobname = 'web-ingest' and active;");
-  if (jobs[0]?.n !== 1) finish(2, 'NO ACTIVE web-ingest JOB in cron.job, so there is no fetch to run.');
+  const jobs = db('--read-only', "select command from cron.job where jobname = 'web-ingest' and active;");
+  const command = String(jobs[0]?.command ?? '').trim();
+  if (jobs.length !== 1 || !/^select\s+net\.http_post\s*\(/i.test(command)) {
+    finish(2, 'NO ACTIVE web-ingest JOB that is one `select net.http_post(...)`, so nothing was run.');
+  }
 
   console.log('asking the database to run the hourly fetch now (the web-ingest job\'s own command)');
-  db('--write', "do $$ begin execute (select command from cron.job where jobname = 'web-ingest'); end $$;");
+  const started = db('--write', command);
+  const id = Number(Object.values(started[0] ?? {})[0]);
+  if (!Number.isInteger(id)) finish(2, 'THE DATABASE DID NOT ANSWER WITH A REQUEST ID, so there is no answer to wait for.');
 
   const deadline = Date.now() + ANSWER_WITHIN_MS;
   while (Date.now() < deadline) {
     await new Promise((resolve) => setTimeout(resolve, EVERY_MS));
-    const rows = db(
-      '--read-only',
-      `select id, status_code, timed_out, error_msg, content from net._http_response where id > ${before} order by id limit 1;`,
-    );
+    const rows = db('--read-only', `select id, status_code, timed_out, error_msg, content from net._http_response where id = ${id};`);
     if (rows.length > 0) {
       const row = rows[0];
       if (row.timed_out || row.status_code === null) finish(1, `THE FETCH DID NOT ANSWER: ${row.error_msg ?? 'timed out'}`);
@@ -102,7 +105,7 @@ async function main() {
       finish(row.status_code === 200 ? 0 : 1, row.status_code === 200 ? 'FETCHED: the stream has whatever it saved now.' : 'THE FETCH FAILED: see its answer above.');
     }
   }
-  finish(1, `NO ANSWER after ${ANSWER_WITHIN_MS / 1000}s: the request may still be queued. Look in net._http_response for an id above ${before}.`);
+  finish(1, `NO ANSWER after ${ANSWER_WITHIN_MS / 1000}s: request ${id} may still be queued. Look for id ${id} in net._http_response.`);
 }
 
 main();

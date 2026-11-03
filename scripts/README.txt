@@ -116,8 +116,9 @@ web-fetch.cjs
 The fetch is pg_cron's job `web-ingest`, at minute 17 of every hour, and a change to what it saves can only be
 seen after it has run: one session waited 50 minutes for it. This runs the job's own command (read from
 `cron.job`, so it cannot drift from the schedule) through `db.cjs --write`. The command reads the ingest lock out
-of Vault inside the database, so the lock never leaves it and nothing here prints it. It refuses between minutes
-15 and 20, when the hourly run is due anyway. It writes into the live stream like the hourly run: Luke's
+of Vault inside the database, so the lock never leaves it and nothing here prints it. It waits for the answer to
+its own request id, so two runs at once cannot swap answers. It refuses between minutes 15 and 20, when the
+hourly run is due anyway. It writes into the live stream like the hourly run: Luke's
 standing OK (2026-11-03) covers running it to check work, nothing else.
 
 verify-clean.cjs
@@ -127,10 +128,11 @@ verify-clean.cjs
 
 Several sessions share this checkout, so one session's half-finished files can fail another session's verify.
 This runs `npm run verify` on a commit in one kept git worktree outside the repository
-(`%LOCALAPPDATA%\debaser-clean-verify`), where only committed code exists. Packages are installed there once and
-again only when package-lock.json changes (a junction to this folder's node_modules breaks Turbopack). A lock
-file next to the copy lets one session in at a time, and the next one waits. It proves the committed code passes
-verify; the scratch checks in `Temp/` (`npm run checks`) still run in this folder.
+(`~\.debaser-clean-verify`; not under AppData, which the Claude app redirects into its own package folder), where
+only committed code exists. Packages are installed there once and again only when package-lock.json changes (a
+junction to this folder's node_modules breaks Turbopack). A lock file next to the copy lets one session in at a
+time, and the next one waits. A run takes about five minutes, so start it in the background. It proves the
+committed code passes verify; the scratch checks in `Temp/` (`npm run checks`) still run in this folder.
 
 db-cli.cjs, db-repair.cjs
 -------------------------

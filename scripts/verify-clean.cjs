@@ -4,6 +4,8 @@
  *   npm run verify:clean -- <sha>          another commit
  *   npm run verify:clean -- --wait 1800    seconds to wait while another session holds the copy (default 900)
  *
+ * A run takes about five minutes (verify itself is most of it), so start it in the background.
+ *
  * Why it exists (2026-11-03): several sessions share this folder, so one session's half-finished files fail another
  * session's verify. The way round it was a new detached worktree per push, and every one of them paid a full
  * `npm ci` (507 packages, 2-3 minutes: a node_modules junction breaks Turbopack, "Symlink points out of the
@@ -11,9 +13,10 @@
  * folder also refuse each other ("Another next build process is already running"), and the checks compile into
  * fixed Temp/out-* folders that two runs at once overwrite.
  *
- * This keeps ONE clean copy outside the repository (%LOCALAPPDATA%\debaser-clean-verify, a git worktree, so a
- * commit made here is already there) and reinstalls packages only when package-lock.json changed since its last
- * install. One session at a time: a lock file next to the copy names who holds it, and the next one waits.
+ * This keeps ONE clean copy outside the repository (~\.debaser-clean-verify, a git worktree, so a commit made here
+ * is already there) and reinstalls packages only when package-lock.json changed since its last install. Not under
+ * AppData: the Claude app redirects that into its own package folder, so a terminal outside the app would see
+ * another place. One session at a time: a lock file next to the copy names who holds it, and the next one waits.
  *
  * What it proves: the committed code passes verify on its own. What it does not: anything uncommitted, the scratch
  * checks in Temp/ (`npm run checks` still runs in this folder), a capture, or the deployed site.
@@ -26,7 +29,7 @@ const { existsSync, mkdirSync, openSync, closeSync, readFileSync, rmSync, writeF
 const os = require('node:os');
 const path = require('node:path');
 
-const COPY = path.join(process.env.LOCALAPPDATA || os.tmpdir(), 'debaser-clean-verify');
+const COPY = path.join(os.homedir(), '.debaser-clean-verify');
 const LOCK = `${COPY}.lock`;
 const STAMP = path.join(COPY, 'node_modules', '.clean-verify-lock-hash');
 /** A lock older than this is a crashed run, whatever its process id says (ids are reused). */
@@ -80,7 +83,11 @@ async function claim(sha) {
       writeFileSync(fd, JSON.stringify({ pid: process.pid, sha, started: new Date().toISOString() }));
       closeSync(fd);
       process.on('exit', () => {
-        if (readLock()?.pid === process.pid) rmSync(LOCK, { force: true });
+        try {
+          if (readLock()?.pid === process.pid) rmSync(LOCK, { force: true });
+        } catch {
+          // left behind: the next run sees this process is gone and takes it over
+        }
       });
       return;
     } catch (error) {
@@ -146,7 +153,8 @@ async function main() {
   const steps = `install ${took.install === undefined ? 'skipped (packages unchanged)' : `${took.install}s`}, typegen ${took.typegen}s, verify ${took.verify ?? 'failed'}${took.verify === undefined ? '' : 's'}`;
   const total = Math.round((Date.now() - started) / 1000);
   if (passed) finish(0, `CLEAN VERIFY PASSED: ${sha.slice(0, 7)} in ${total}s (${steps}). Push it from this folder.`);
-  finish(1, `CLEAN VERIFY FAILED: ${sha.slice(0, 7)} after ${total}s (${steps}). The failure is in the committed code, not another session's files.`);
+  finish(1, `CLEAN VERIFY FAILED: ${sha.slice(0, 7)} after ${total}s (${steps}). Only committed code is in the copy, so a lint, typecheck, check or build failure above is in the commit, not another session's files.`);
 }
 
-main();
+// Anything that throws outside verify itself (the lock, git, the disk) is a setup failure, never "verify failed".
+main().catch((error) => finish(2, `COULD NOT RUN THE CLEAN VERIFY: ${String(error && error.message).split('\n')[0]}`));

@@ -10,7 +10,7 @@ Companion website for my comic book "Debaser": a social simulation styled as an 
 ## Commands
 Exact script names live in package.json. If a name here is wrong, fix this section and tell me.
 - `npm run verify`: lint + tokens + typecheck + build. Must pass before any task counts as done.
-- `npm run verify:clean`: the same verify on your latest commit, in a kept clean copy away from other sessions' half-done files (packages installed once, one session at a time). When verify fails here on files that aren't yours: commit only your own files, run this, push when it passes.
+- `npm run verify:clean`: the same verify on your latest commit, in a kept clean copy away from other sessions' half-done files (packages installed once, one session at a time; about five minutes, so run it in the background). When verify fails here on files that aren't yours: commit only your own files, run this, push when it passes.
 - `npm run tokens`: the theming guard (raw colours, sizes or fonts outside the token files fail it); `-- --write` regenerates the colour block in `app/theme/tokens.css` after a change to `app/lib/ui/themes.ts`. See `docs/theming.md`.
 - `npm run styles`: records every element's computed look (`--out <dir>`) and compares two recordings (`--compare <a> <b>`): the proof that a refactor changed nothing visible.
 - `npm run dev`: local dev server.
