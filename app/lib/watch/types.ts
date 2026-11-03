@@ -22,15 +22,30 @@ export type WatchRoom = {
   startedAt: string;
   /** Stamped by the store on every write: the host's heartbeat, and the moment `positionSeconds` was true. */
   updatedAt: string;
-  /** Null while live. */
+  /** Null while live. A music room is never ended: it is kept, and switched on and off (`isPublic`). */
   endedAt: string | null;
+  /**
+   * `stream`: GO LIVE on a video. `music`: somebody's music, opened by GO PUBLIC (SPEC-music-queues.md):
+   * one per person, kept for good, its host always its owner, never on the board.
+   */
+  origin: RoomOrigin;
+  /** A music room's GO PUBLIC switch; a stream room is always public. */
+  isPublic: boolean;
+  /** STORE AND START BLANK: what played before this is no longer shown in the queue window. */
+  clearedAt: string | null;
 };
+
+export type RoomOrigin = 'stream' | 'music';
+
+/** A room on the QUEUES list: the room and what is on in it (null when nothing is). */
+export type LiveRoom = { room: WatchRoom; current: WatchQueueEntry | null };
 
 /**
  * Which player a link needs (SPEC-watch-links.md). `embed` is a WEB platform's own official player in a
  * sandboxed frame (app/lib/web/official-embed.ts): queued from /web only, never from a pasted address.
+ * `audio` is a song, played by the music bar from its own address (lib/watch/songs.ts, SPEC-music-queues.md).
  */
-export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch' | 'embed';
+export type WatchLinkKind = 'file' | 'hls' | 'dash' | 'youtube' | 'vimeo' | 'dailymotion' | 'twitch' | 'embed' | 'audio';
 
 /** A video link in the queue: only its address, its player and its title are kept, never the video. */
 export type WatchLink = {

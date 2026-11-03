@@ -19,6 +19,7 @@ import {
   expandWatch,
   openWatch,
   subscribeToWatchWindow,
+  watchWindowServerState,
   watchFocusFromSearch,
   watchHref,
   watchWindowState,
@@ -46,7 +47,7 @@ const UP_MARK_HEIGHT = 16;
  * start takes), or a room. Closing it is leaving the room; the room itself asks a host first.
  */
 export default function WatchWindow() {
-  const state = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowState);
+  const state = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowServerState);
   const search = useSearchParams();
   const pathname = usePathname();
   const router = useRouter();
@@ -170,8 +171,8 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
         id="stream"
         fill
-        title={read ? `STREAM :: ${hostName.toUpperCase()}` : 'STREAM'}
-        badge={read ? (live ? 'LIVE' : 'ENDED') : undefined}
+        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${hostName.toUpperCase()}` : 'STREAM'}
+        badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
         onClose={() => (read && live ? setClosing(true) : onLeft())}
         onMinimize={read ? onCollapse : undefined}
         minimized={collapsed}

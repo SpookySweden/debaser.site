@@ -15,6 +15,12 @@ import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump } from '../lib/watch/links';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
+import type { AudioTrack } from '../lib/audio/tracks';
+import { frontPosition } from '../lib/watch/music-rooms';
+import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
+import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
+import { switchMusicRoomOff } from '../lib/watch/use-music-room';
+
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
   MESSAGE_MAX_LENGTH,
@@ -24,6 +30,9 @@ import {
   currentEntry,
   formatMediaTime,
   handoverTo,
+  hasCrown,
+  hostPosition,
+  nextQueuePosition,
   nextPlayIndex,
   nextToPlay,
   roomIsLive,
@@ -106,10 +115,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   const live = roomIsLive(room, now);
   const amHost = user !== null && room.hostId === user.id;
+  /** Somebody's music room (SPEC-music-queues.md): its owner always hosts, it is switched off rather than ended, and it is not on the board. */
+  const music = room.origin === 'music';
   const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
   const entry = currentEntry(read);
   const item = entry?.mediaItemId ? itemsById.get(entry.mediaItemId) : undefined;
   const link = entry?.link ?? null;
+  /**
+   * A song row (SPEC-music-queues.md): the music bar plays it, from its own address, and the room's sync
+   * reads and steers the bar's one audio element as it does the stage's `<video>`.
+   */
+  const song = isSongLink(link) ? link : null;
+  const webSong = useWebTrack(song?.url);
+  const songTrack = song === null ? null : trackForSong(song, player.queue, webSong);
   /** What the stage plays: the link's own address, or the catalogue file's. */
   const src = link?.url ?? item?.src;
   // An episode is named `SERIES :: EPISODE` (SPEC-stream-series.md).
@@ -219,9 +237,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     }
 
     // From the top, at once: the next play may be the same file (nothing for the element to reload),
-    // and a different file is loaded by its new `src` and started by `autoPlay`.
+    // and a different file is loaded by its new `src` and started by `autoPlay`. The music bar's element
+    // still holds the song that ended: the next row puts its own file on (`cue`, below).
     hostEntry.current = next.id;
-    if (video !== null) {
+    if (video !== null && song === null) {
       video.currentTime = 0;
       void video.play().catch(() => setNeedsPress(true));
     }
@@ -327,11 +346,127 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     if (!live) videoRef.current?.pause();
   }, [live]);
 
+  /* --- songs: the music bar plays them -------------------------------------------------------------- */
+
+  const { bindRoom, cue, audioElement } = player;
+  // While the room is live the bar's keys are the room's (MusicPlayerProvider `bindRoom`): the host's NEXT
+  // skips, and a follower who takes the controls leaves the room.
+  const skipFromBar = useEffectEvent(() => moveOn(true));
+  const leaveFromBar = useEffectEvent(() => onLeft());
+
+  // Off-queue plays (SPEC-music-queues.md): a song the host plays from a post, a profile or PLAY FOR YOU slots into
+  // the queue at the current spot as playing, so the queue never lies; a book's later chapters go in right after it.
+  /** The play the host just put on from outside the queue: it starts from the top, whatever the room said before. */
+  const fromTop = useRef<string | null>(null);
+  const playFromOutside = useEffectEvent((tracks: AudioTrack[]) => {
+    const [first, ...rest] = tracks;
+    if (first === undefined || user === null || !amHost) return;
+    const queue = read.queue;
+    const crowned = hasCrown(read.crowns, user.id);
+    void repository
+      .playNow({ roomId, by: user.id, link: songLink(first), position: nextQueuePosition(queue), playIndex: nextPlayIndex(queue) })
+      .then(async (entry) => {
+        fromTop.current = entry.id;
+        hostEntry.current = entry.id;
+        applyLocalChange(roomId, { kind: 'entry', entry });
+        applyLocalChange(roomId, { kind: 'refresh' });
+        if (rest.length === 1) await repository.addToQueue({ roomId, addedBy: user.id, position: frontPosition(queue), inQueue: crowned, link: songLink(rest[0]) });
+        else if (rest.length > 1) await repository.addSeriesToQueue({ roomId, addedBy: user.id, position: frontPosition(queue), inQueue: crowned, seriesTitle: first.credit || first.title, links: rest.map(songLink) });
+        if (rest.length > 0) applyLocalChange(roomId, { kind: 'refresh' });
+      })
+      .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'IT COULD NOT BE PLAYED IN THE ROOM.'));
+  });
+  // The host's ADD TO QUEUE / PLAY NEXT write into the room, by the crown rule: crowned, straight in; else their list.
+  const enqueueFromOutside = useEffectEvent((track: AudioTrack, where: 'end' | 'next') => {
+    if (user === null) return;
+    void repository
+      .addToQueue({
+        roomId,
+        addedBy: user.id,
+        position: where === 'next' ? frontPosition(read.queue) : nextQueuePosition(read.queue),
+        inQueue: hasCrown(read.crowns, user.id),
+        link: songLink(track),
+      })
+      .then((entry) => applyLocalChange(roomId, { kind: 'entry', entry }))
+      .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'IT COULD NOT BE ADDED.'));
+  });
+  // The room's songs still to play are the host's up-next while they host (what PLAY FOR YOU counts and tops up).
+  // Kept on the stored queue's identity, not `waiting` (a new list each render): a new list here re-binds the player,
+  // which draws this room again.
+  const shelf = player.queue;
+  const storedQueue = read.queue;
+  const waitingSongs = useMemo(
+    () => upcoming(storedQueue).flatMap((next) => (isSongLink(next.link) ? [trackForSong(next.link, shelf, webTrackNow(next.link.url))] : [])),
+    [storedQueue, shelf],
+  );
+  useEffect(() => {
+    if (!live) return;
+    bindRoom({
+      roomId,
+      hosting: amHost,
+      onNext: () => skipFromBar(),
+      onLeave: () => leaveFromBar(),
+      onPlay: (tracks) => playFromOutside(tracks),
+      onEnqueue: (track, where) => enqueueFromOutside(track, where),
+      waiting: waitingSongs,
+    });
+  }, [bindRoom, roomId, amHost, live, waitingSongs]);
+  useEffect(() => () => bindRoom(null), [bindRoom]);
+  useEffect(() => {
+    if (!live) bindRoom(null);
+  }, [live, bindRoom]);
+
+  // A song row's file goes on the bar, where the host is in it; a follower's clock then keeps it in step.
+  const songSrc = songTrack?.src ?? null;
+  const songToCue = useEffectEvent(() => songTrack);
+  const songStart = useEffectEvent(() => (entryId === fromTop.current ? 0 : room.currentEntryId === entryId ? hostPosition(room, Date.now()) : 0));
+  // The host's bar plays it when the room says so (a room opened paused stays paused); a follower's clock decides theirs.
+  const songPlays = useEffectEvent(() => !amHost || room.currentEntryId !== entryId || room.isPlaying);
+  useEffect(() => {
+    if (songSrc === null || !live) return;
+    const track = songToCue();
+    if (track !== null) cue(track, { at: songStart() }, songPlays());
+  }, [songSrc, entryId, live, cue]);
+
+  // The room's sync reads the bar's element while a song is on, and the stage's own player otherwise.
+  const songOn = songSrc !== null;
+  const songTime = useEffectEvent(() => onTime());
+  useEffect(() => {
+    if (!songOn) return;
+    const audio = audioElement();
+    if (audio === null) return;
+    // Handed to the sync once this effect is done, as the subtitles' player is below.
+    let current = true;
+    void Promise.resolve().then(() => {
+      if (current) attachVideo(audio);
+    });
+    const tick = () => songTime();
+    for (const type of ['timeupdate', 'loadedmetadata', 'play', 'pause']) audio.addEventListener(type, tick);
+    return () => {
+      current = false;
+      for (const type of ['timeupdate', 'loadedmetadata', 'play', 'pause']) audio.removeEventListener(type, tick);
+      if (videoRef.current === audio) attachVideo(null);
+    };
+  }, [songOn, audioElement, attachVideo]);
+
+  // From a song to a video: the bar falls silent, and the picture plays.
+  const songWasOn = useRef(false);
+  useEffect(() => {
+    if (songOn) {
+      songWasOn.current = true;
+      return;
+    }
+    if (!songWasOn.current) return;
+    songWasOn.current = false;
+    steer(false);
+  }, [songOn, steer]);
+
   /* --- a host who vanished --------------------------------------------------------------------- */
 
   const hostId = room.hostId;
   useEffect(() => {
-    if (user === null || amHost || !live || !membersHeard) return;
+    // A music room is its owner's: a quiet host is waited for, never taken over.
+    if (music || user === null || amHost || !live || !membersHeard) return;
     if (!shouldTakeOver(members, hostId, myKey)) return;
 
     const attempt = () =>
@@ -341,7 +476,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     attempt();
     const timer = window.setInterval(attempt, TAKE_OVER_RETRY_MS);
     return () => window.clearInterval(timer);
-  }, [repository, roomId, hostId, user, amHost, live, members, membersHeard, myKey]);
+  }, [repository, roomId, hostId, user, amHost, live, members, membersHeard, myKey, music]);
 
   // `<NAME> IS HOSTING NOW` on every change of host after the first one this tab saw (decision 6).
   const seenHost = useRef(hostId);
@@ -387,14 +522,27 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     onLeft();
   }
 
-  // Anybody but a host with something to decide simply goes.
+  // Anybody but a host with something to decide simply goes. A music room's host closing it switches it off: kept,
+  // and its songs are their up-next again.
+  const switchOff = useEffectEvent(() => switchMusicRoomOff(read, player));
+  const switching = useRef(false);
   useEffect(() => {
-    if (closing && !(amHost && live && !myOtherTab)) onLeft();
-  }, [closing, amHost, live, myOtherTab, onLeft]);
+    if (!closing) return;
+    if (music && amHost) {
+      if (switching.current) return;
+      switching.current = true;
+      void switchOff()
+        .catch(() => undefined)
+        .finally(onLeft);
+      return;
+    }
+    if (!(amHost && live && !myOtherTab)) onLeft();
+  }, [closing, amHost, live, myOtherTab, onLeft, music]);
 
   // A host whose tab closes with others in the room hands over on the way out; if the write is lost
   // the others take over by themselves once the host has been quiet a few seconds.
   const goodbye = useEffectEvent(() => {
+    if (music) return;
     const heirId = heir?.userId ?? null;
     if (amHost && live && !myOtherTab && heirId !== null) void repository.handOver(roomId, heirId).catch(() => undefined);
   });
@@ -406,12 +554,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   /* --- the picture ----------------------------------------------------------------------------- */
 
+  // A song's sound is the music bar's (its own volume, and BARR's mute), not the room's speaker key.
   useEffect(() => {
     const video = videoRef.current;
-    if (video === null) return;
+    if (video === null || songOn) return;
     video.volume = volume;
     video.muted = muted;
-  }, [volume, muted, src, videoElement]);
+  }, [volume, muted, src, videoElement, songOn]);
 
   // A link that will not play in this browser (an address tied to somebody else's session, one that
   // expired in the queue): it says so on the stage, and chat goes on. A host's room moves on after a
@@ -629,7 +778,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       [ ▶▶ ]
     </button>
   ) : null;
-  const pictureKeys = hasTransport ? (
+  const pictureKeys = hasTransport && song === null ? (
     <>
       <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
       <QualityKey source={qualitySource} />
@@ -651,7 +800,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       </button>
     </>
   ) : null;
-  const endKey = hostKeys ? (
+  const endKey = hostKeys && !music ? (
     // Ending it for everybody takes a second press, like starting it did.
     <button
       type="button"
@@ -706,6 +855,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           <div className={`flex items-center justify-center text-label font-bold text-ink-bar ${pictureFit}`}>
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
+        ) : songTrack !== null ? (
+          <SongStage track={songTrack} fit={pictureFit} />
         ) : link !== null && link.kind === 'embed' ? (
           <OfficialEmbedStage key={`official-${entryId}`} link={link} fit={pictureFit} />
         ) : link !== null && isEmbedKind(link.kind) ? (
@@ -782,7 +933,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           {fault}
         </p>
       )}
-      {room.forumThreadId === null && live ? (
+      {room.forumThreadId === null && live && !music ? (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">NOT ON THE BOARD</p>
       ) : null}
     </div>
@@ -807,8 +958,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           <>
             <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label" data-stream-bar-screen>
               <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
-                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{live ? 'LIVE' : 'ENDED'}</span>
-                <span className="truncate">STREAM :: {amHost ? 'YOU ARE HOSTING' : `HOSTED BY ${hostName.toUpperCase()}`}</span>
+                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{live ? 'LIVE' : music ? 'OFF' : 'ENDED'}</span>
+                <span className="truncate">
+                  {music ? 'MUSIC' : 'STREAM'} :: {amHost ? 'YOU ARE HOSTING' : `HOSTED BY ${hostName.toUpperCase()}`}
+                </span>
               </span>
               <MarqueeText className="block text-key font-bold text-acid" text={entryTitle ?? '...'} />
               <MarqueeText className="block leading-readout-tight text-ink-bar" durationSeconds={22} text={barCaption} />
@@ -865,7 +1018,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       {musicBarPart}
       {ended ? (
         <p className="text-label font-bold text-ink" role="status">
-          {room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
+          {music ? (room.isPublic ? 'THIS ROOM WENT QUIET.' : 'THIS ROOM IS OFF.') : room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}
           {room.forumThreadId === null ? null : (
             <Link href={`/forum#${threadDomId(room.forumThreadId)}`} className="key px-1 py-1 text-label">
               [ READ THE RECORD ]
@@ -874,7 +1027,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         </p>
       ) : null}
 
-      {closing && amHost && live && !myOtherTab ? (
+      {closing && amHost && live && !myOtherTab && !music ? (
         <div className="flex flex-wrap items-center gap-2" role="alertdialog" aria-label="Leave the stream">
           <span className="text-label font-bold text-ink">{heir !== null ? `LEAVE? ${heir.name.toUpperCase()} WILL HOST.` : 'NOBODY ELSE IS HERE. END THE STREAM?'}</span>
           {heir !== null ? (
@@ -898,6 +1051,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         {stage}
         {side}
       </div>
+    </div>
+  );
+}
+
+/* --- a song on the stage --------------------------------------------------------------------------- */
+
+/** While a song plays (in the music bar), the stage says what it is. */
+function SongStage({ track, fit }: { track: { title: string; credit: string }; fit: string }) {
+  return (
+    <div className={`flex flex-col items-center justify-center gap-1 p-4 text-center ${fit}`} data-watch-song>
+      <span className="text-key font-bold text-acid">♪ {track.title}</span>
+      {track.credit.length > 0 ? <span className="text-label text-ink-bar">{track.credit}</span> : null}
+      <span className="text-label text-ink-bar">PLAYING IN THE MUSIC BAR</span>
     </div>
   );
 }

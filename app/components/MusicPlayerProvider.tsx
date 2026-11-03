@@ -134,6 +134,8 @@ export type MusicPlayerValue = {
   upNext: AudioTrack[];
   /** Puts a song at the end of `upNext` (`'end'`) or at its front (`'next'`). */
   enqueue: (track: AudioTrack, where: 'end' | 'next') => void;
+  /** `upNext` becomes these: GO PUBLIC moves it into the room, and switching off brings the room's songs back. */
+  replaceUpNext: (tracks: AudioTrack[]) => void;
   /** How much of the front of `queue` is the archive as read; songs after it were added by a press. */
   shelfSize: number;
   /**
@@ -148,6 +150,36 @@ export type MusicPlayerValue = {
   playAnyway: () => void;
   /** SKIP: on to the queued song or the shelf's next file; at the end of the shelf, stop. */
   skipBarred: () => void;
+  /**
+   * A stream room playing its song rows through this player (SPEC-music-queues.md), or null for none.
+   * While one is bound the room decides what plays: the end of a song is the room's to move on from, the
+   * host's NEXT is the room's skip, and a follower who takes the controls (play, next, a song pressed
+   * anywhere) leaves the room first, as touching your own player ended a follow.
+   */
+  bindRoom: (binding: RoomBinding | null) => void;
+  /** The room bound now, for the bar's words; null outside a room. */
+  room: RoomBinding | null;
+  /** The room puts a song row on: from `start`, playing or held (`play` false), without leaving the room or ending anything. */
+  cue: (track: AudioTrack, start?: PlayStart, play?: boolean) => void;
+  /** The one audio element, for the room's sync to read, seek and listen to as it does a `<video>`. */
+  audioElement: () => HTMLAudioElement | null;
+};
+
+/** A room bound to the player (`bindRoom`): whose it is, and what the bar's keys do inside it. */
+export type RoomBinding = {
+  roomId: string;
+  /** The host's player is the one everybody follows: their keys drive the room. */
+  hosting: boolean;
+  /** The host's NEXT: the room moves on. */
+  onNext: () => void;
+  /** A follower took the controls: they leave the room. */
+  onLeave: () => void;
+  /** The host played songs from outside the queue (a post, a profile, PLAY FOR YOU): the first slots in as playing, the rest after it. */
+  onPlay: (tracks: AudioTrack[]) => void;
+  /** The host's ADD TO QUEUE / PLAY NEXT: into the room, by the crown rule. */
+  onEnqueue: (track: AudioTrack, where: 'end' | 'next') => void;
+  /** The room's songs still to play: the host's up-next while they host (what PLAY FOR YOU tops up). */
+  waiting: AudioTrack[];
 };
 
 const MusicPlayerContext = createContext<MusicPlayerValue | null>(null);
@@ -352,8 +384,12 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   // paused with the question, and the speaker stays silent. The allowance lasts until the track changes.
   const barred = useSyncExternalStore(subscribeToBarrs, barredSrcs, barredSrcs);
   const followingHost = useSyncExternalStore(subscribeToFollow, followState, followState).hostId !== null;
+  /** The room bound now (`bindRoom`), as state for the render and as a ref for the handlers. */
+  const [roomBinding, setRoomBinding] = useState<RoomBinding | null>(null);
+  const roomRef = useRef<RoomBinding | null>(null);
   const [allowedSrc, setAllowedSrc] = useState<string | null>(null);
-  const gate = barrGate(track?.src, barred, allowedSrc, followingHost);
+  // In somebody else's room a barred song is muted in step, as in a followed broadcast.
+  const gate = barrGate(track?.src, barred, allowedSrc, followingHost || (roomBinding !== null && !roomBinding.hosting));
   const held = playing && gate === 'ask';
   /** The same, for the element's `pause` handler: a held song's pause must not clear the question. */
   const holding = useRef(false);
@@ -671,10 +707,21 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   }, [index, queue]);
 
   const enqueue = useCallback((wanted: AudioTrack, where: 'end' | 'next') => {
+    // While you host a room your up-next is its queue.
+    const bound = roomRef.current;
+    if (bound !== null && bound.hosting) {
+      bound.onEnqueue(wanted, where);
+      return;
+    }
     const nextList = enqueueTrack(upNextRef.current, wanted, where);
 
     upNextRef.current = nextList;
     setUpNext(nextList);
+  }, []);
+
+  const replaceUpNext = useCallback((tracks: AudioTrack[]) => {
+    upNextRef.current = tracks;
+    setUpNext(tracks);
   }, []);
 
   // Ending: repeat this one, or walk on to the next. Looping is done here rather than
@@ -690,6 +737,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     if (audio === null) return;
 
     const onEnded = () => {
+      // In a room the room moves on (WatchRoom listens to this element's `ended` itself).
+      if (roomRef.current !== null) return;
+
       if (repeatOnEnd(ownLoop, loop) === 'repeat') {
         audio.currentTime = 0;
         void audio.play().catch(() => setPlaying(false));
@@ -818,9 +868,29 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   }, [playUpNext, playing, queue.length, track]);
 
 
+  const bindRoom = useCallback((binding: RoomBinding | null) => {
+    roomRef.current = binding;
+    setRoomBinding(binding);
+  }, []);
+
+  /**
+   * A follower in somebody's room took the controls: they leave the room, and the press then does what it
+   * does outside one. True when the reader is the room's host, whose presses are the room's own.
+   */
+  const hostingRoom = useCallback((): boolean => {
+    const bound = roomRef.current;
+    if (bound === null) return false;
+    if (bound.hosting) return true;
+    roomRef.current = null;
+    setRoomBinding(null);
+    bound.onLeave();
+    return false;
+  }, []);
+
   const toggle = useCallback(() => {
     setError(null);
     stopFollowing('');
+    hostingRoom();
 
     if (track === undefined) {
       setError('SHELF EMPTY.');
@@ -834,7 +904,7 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     }
 
     setPlaying((current) => !current);
-  }, [held, track]);
+  }, [held, hostingRoom, track]);
 
   /**
    * Stop: silence, and back to the start of the track.
@@ -846,38 +916,57 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    */
   const stop = useCallback(() => {
     stopFollowing('');
+    hostingRoom();
     const audio = audioRef.current;
     if (audio !== null) audio.currentTime = 0;
 
     setPlaying(false);
-  }, []);
+  }, [hostingRoom]);
 
   const next = useCallback(() => {
     setError(null);
+    // The host's NEXT is the room's skip: the room puts on what it plays next.
+    if (hostingRoom()) {
+      roomRef.current?.onNext();
+      return;
+    }
     pendingStart.current = null;
     stopFollowing('');
     setAllowedSrc(null);
     if (!playUpNext()) setIndex((current) => nextIndex(current, queue.length));
-  }, [playUpNext, queue.length]);
+  }, [hostingRoom, playUpNext, queue.length]);
 
   const previous = useCallback(() => {
     setError(null);
+    // A room has no going back: the host's PREVIOUS starts the song again.
+    if (hostingRoom()) {
+      const audio = audioRef.current;
+      if (audio !== null) audio.currentTime = 0;
+      return;
+    }
     pendingStart.current = null;
     stopFollowing('');
     setAllowedSrc(null);
     setIndex((current) => previousIndex(current, queue.length));
-  }, [queue.length]);
+  }, [hostingRoom, queue.length]);
 
   const playAt = useCallback(
     (target: number) => {
       setError(null);
     pendingStart.current = null;
       stopFollowing('');
+      hostingRoom();
       setAllowedSrc(null);
+      // The host picking a song off the shelf plays it in the room.
+      if (hostingRoom()) {
+        const picked = queue[Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0))];
+        if (picked !== undefined) roomRef.current?.onPlay([picked]);
+        return;
+      }
       setIndex(Math.min(Math.max(target, 0), Math.max(queue.length - 1, 0)));
       setPlaying(true);
     },
-    [queue.length],
+    [hostingRoom, queue],
   );
 
   /**
@@ -936,18 +1025,40 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     [queue],
   );
 
+  // An off-queue play while hosting a room: it goes into the room's queue as playing (the room then cues it).
   const play = useCallback(
-    (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => startTracks(wanted, [], origin, start),
-    [startTracks],
+    (wanted: AudioTrack, origin?: PlayOrigin, start?: PlayStart) => {
+      if (start?.follow !== true && hostingRoom()) {
+        roomRef.current?.onPlay([wanted]);
+        return;
+      }
+      startTracks(wanted, [], origin, start);
+    },
+    [hostingRoom, startTracks],
   );
 
   const playList = useCallback(
     (tracks: AudioTrack[], origin?: PlayOrigin) => {
       const [first, ...rest] = tracks;
-      if (first !== undefined) startTracks(first, rest, origin);
+      if (first === undefined) return;
+      if (hostingRoom()) {
+        roomRef.current?.onPlay(tracks);
+        return;
+      }
+      startTracks(first, rest, origin);
+    },
+    [hostingRoom, startTracks],
+  );
+
+  const cue = useCallback(
+    (wanted: AudioTrack, start?: PlayStart, play = true) => {
+      startTracks(wanted, [], undefined, { ...start, follow: true });
+      if (!play) setPlaying(false);
     },
     [startTracks],
   );
+
+  const audioElement = useCallback(() => audioRef.current, []);
 
   const playAnyway = useCallback(() => {
     if (track !== undefined) setAllowedSrc(track.src);
@@ -1006,8 +1117,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const assign = useCallback(
     (wanted: AudioTrack, options?: { loop?: boolean; autoplay?: boolean; origin?: PlayOrigin }) => {
       // A hand-over is automatic - a profile's song arriving because a page was opened - so it does not
-      // get to break a follow the reader chose. Nobody pressed anything.
-      if (isFollowing()) return;
+      // get to break a follow (or a room) the reader chose. Nobody pressed anything.
+      if (isFollowing() || roomRef.current !== null) return;
 
       setAllowedSrc(null);
       setError(null);
@@ -1041,14 +1152,17 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
   const steer = useCallback((wanted: boolean) => setPlaying(wanted), []);
 
   const seek = useCallback((seconds: number, options?: { follow?: boolean }) => {
-    if (options?.follow !== true) stopFollowing('');
+    if (options?.follow !== true) {
+      stopFollowing('');
+      hostingRoom();
+    }
 
     const audio = audioRef.current;
     if (audio === null || !Number.isFinite(seconds)) return;
 
     audio.currentTime = seconds;
     setElapsed(seconds);
-  }, []);
+  }, [hostingRoom]);
 
   /**
    * How fast to play.
@@ -1106,13 +1220,19 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       setPlaybackRate,
       heardFrom: heardFrom !== null && heardFrom.src === track?.src ? heardFrom.origin : null,
       refresh,
-      upNext,
+      // Hosting a room, up-next is the room's songs still to play.
+      upNext: roomBinding !== null && roomBinding.hosting ? roomBinding.waiting : upNext,
       enqueue,
+      replaceUpNext,
       shelfSize,
       barrAsk: held ? (track ?? null) : null,
       barrMuted: playing && gate === 'mute',
       playAnyway,
       skipBarred,
+      bindRoom,
+      room: roomBinding,
+      cue,
+      audioElement,
     }),
     [
       queue,
@@ -1148,11 +1268,16 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       refresh,
       upNext,
       enqueue,
+      replaceUpNext,
       shelfSize,
       held,
       gate,
       playAnyway,
       skipBarred,
+      bindRoom,
+      roomBinding,
+      cue,
+      audioElement,
     ],
   );
 

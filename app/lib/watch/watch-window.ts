@@ -31,6 +31,8 @@ const CLOSED: WatchWindowState = { open: false, focus: null, collapsed: false };
 const slot = createWindowSlot<WatchWindowState>(CLOSED);
 
 export const watchWindowState = slot.state;
+/** What the server drew, for hydration: closed. A room opened before this part of the page hydrates (your music room after a reload) is drawn just after. */
+export const watchWindowServerState = (): WatchWindowState => CLOSED;
 export const subscribeToWatchWindow = slot.subscribe;
 
 /**

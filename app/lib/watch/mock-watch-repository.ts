@@ -1,7 +1,8 @@
-import type { AddSeriesInput, AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
-import { NOT_ALLOWED, TAKE_OVER_QUIET_MS, hasCrown } from './rules';
-import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import { goPublicPlan } from './music-rooms';
+import { NOT_ALLOWED, TAKE_OVER_QUIET_MS, hasCrown, nextPlayIndex, nextQueuePosition } from './rules';
+import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -41,7 +42,10 @@ function load(): Tables {
     const parsed = JSON.parse(raw) as Partial<Tables>;
 
     return {
-      rooms: Array.isArray(parsed.rooms) ? parsed.rooms : [],
+      // Rooms stored before music rooms were all public streams, never cleared.
+      rooms: Array.isArray(parsed.rooms)
+        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, clearedAt: room.clearedAt ?? null }))
+        : [],
       // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
       queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true, series: entry.series ?? null })) : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
@@ -122,8 +126,14 @@ function changeRoom(roomId: string, change: (room: WatchRoom) => WatchRoom | nul
   if (room === undefined) throw new Error('NO SUCH STREAM.');
   if (room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
 
-  const next = change(room);
-  if (next === null) return;
+  const changed = change(room);
+  if (changed === null) return;
+  // As the database's `watch_rooms_guard`: a room keeps its origin; a music room keeps its host and is never
+  // ended; a stream room is always public.
+  const next: WatchRoom =
+    room.origin === 'music'
+      ? { ...changed, origin: room.origin, hostId: room.hostId, endedAt: null }
+      : { ...changed, origin: room.origin, isPublic: true };
   // A new host is crowned at once, as the database's `watch_rooms_crown_host` does it.
   const crowns = next.hostId === room.hostId ? tables.crowns : withCrown(tables.crowns, crownFor(roomId, next.hostId, room.hostId));
   save({ ...tables, crowns, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...next, updatedAt: stamp() } : candidate)) }, roomId);
@@ -143,6 +153,16 @@ function liveRoom(tables: Tables, roomId: string): { room: WatchRoom; crowns: Wa
   const room = tables.rooms.find((candidate) => candidate.id === roomId);
   if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
   return { room, crowns: tables.crowns.filter((crown) => crown.roomId === roomId) };
+}
+
+/** A music room switched off is its host's alone: nobody else adds to it or talks in it (the database's rule too). */
+function refuseIfShut(room: WatchRoom, userId: string): void {
+  if (!room.isPublic && room.hostId !== userId) throw new Error(NOT_ALLOWED);
+}
+
+/** A queue row as GO PUBLIC writes it. */
+function songRow(roomId: string, link: WatchLink, over: Partial<WatchQueueEntry>): WatchQueueEntry {
+  return { id: newId(), roomId, position: 0, inQueue: true, mediaItemId: null, link, series: null, addedBy: null, addedAt: stamp(), playedAt: null, playIndex: null, ...over };
 }
 
 /* --- the watching room (the `[ TV ]` key) ------------------------------------------------------- */
@@ -239,11 +259,114 @@ class MockWatchRepository implements WatchRepository {
       startedAt: at,
       updatedAt: at,
       endedAt: null,
+      origin: 'stream',
+      isPublic: true,
+      clearedAt: null,
     };
     const crown = crownFor(room.id, input.host.id, input.host.id);
     save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, entry], crowns: withCrown(tables.crowns, crown) }, room.id);
 
     return { room, queue: [entry], messages: [], crowns: [crown] };
+  }
+
+  async findMusicRoom(hostId: string): Promise<WatchRoom | null> {
+    return load().rooms.find((room) => room.origin === 'music' && room.originalHostId === hostId) ?? null;
+  }
+
+  async openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead> {
+    for (const link of [...(input.playing === null ? [] : [input.playing]), ...input.upNext]) {
+      const refusal = queueRefusal(link);
+      if (refusal !== null) throw new Error(refusal);
+    }
+    let tables = load();
+    let room = tables.rooms.find((candidate) => candidate.origin === 'music' && candidate.originalHostId === input.host.id);
+    let crowns = tables.crowns;
+    if (room === undefined) {
+      const at = stamp();
+      room = {
+        id: input.id,
+        originalHostId: input.host.id,
+        originalHostLabel: input.host.label,
+        hostId: input.host.id,
+        forumThreadId: null,
+        currentEntryId: null,
+        positionSeconds: 0,
+        isPlaying: false,
+        startedAt: at,
+        updatedAt: at,
+        endedAt: null,
+        origin: 'music',
+        isPublic: true,
+        clearedAt: null,
+      };
+      // The host is crowned as the room is written, as GO LIVE does it.
+      crowns = withCrown(crowns, crownFor(room.id, input.host.id, input.host.id));
+      tables = { ...tables, rooms: [...tables.rooms, room], crowns };
+    }
+    const roomId = room.id;
+    const queue = tables.queue.filter((entry) => entry.roomId === roomId);
+    const current = queue.find((entry) => entry.id === room?.currentEntryId);
+    const plan = goPublicPlan(queue, current, input.playing, input.upNext);
+    const crowned = hasCrown(crowns.filter((crown) => crown.roomId === roomId), input.host.id);
+    const added: WatchQueueEntry[] = [];
+    let currentEntryId = room.currentEntryId;
+    if (plan.slot !== null) {
+      const at = stamp();
+      const slotted = songRow(roomId, plan.slot, { position: nextQueuePosition(queue), addedBy: input.host.id, playedAt: at, playIndex: nextPlayIndex(queue) });
+      added.push(slotted);
+      currentEntryId = slotted.id;
+    }
+    let position = nextQueuePosition([...queue, ...added]);
+    // Without their own crown the host's up-next waits on their list, like anybody's.
+    for (const link of plan.append) added.push(songRow(roomId, link, { position: position++, addedBy: input.host.id, inQueue: crowned }));
+    const opened: WatchRoom = {
+      ...room,
+      currentEntryId,
+      positionSeconds: plan.slot !== null || input.playing !== null ? Math.max(0, input.positionSeconds) : room.positionSeconds,
+      isPlaying: input.isPlaying && currentEntryId !== null,
+      isPublic: true,
+      updatedAt: stamp(),
+    };
+    save({ ...tables, queue: [...tables.queue, ...added], rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? opened : candidate)) }, roomId);
+    return (await this.readRoom(roomId)) as WatchRoomRead;
+  }
+
+  async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
+    changeRoom(roomId, (room) => (room.origin !== 'music' ? null : { ...room, isPublic, isPlaying: isPublic && room.isPlaying }));
+  }
+
+  async playNow(input: PlayNowInput): Promise<WatchQueueEntry> {
+    const refusal = queueRefusal(input.link);
+    if (refusal !== null) throw new Error(refusal);
+    const tables = load();
+    const { room } = liveRoom(tables, input.roomId);
+    // Only the host files a play (the database's `watch_queue_plays_by_host`).
+    if (room.hostId !== input.by) throw new Error(NOT_ALLOWED);
+    const entry = songRow(input.roomId, input.link, { position: input.position, addedBy: input.by, playedAt: stamp(), playIndex: input.playIndex });
+    save({ ...tables, queue: [...tables.queue, entry] }, input.roomId);
+    changeRoom(input.roomId, (current) => ({ ...current, currentEntryId: entry.id, positionSeconds: 0, isPlaying: true }));
+    return entry;
+  }
+
+  async clearRoomQueue(roomId: string, by: string): Promise<void> {
+    const tables = load();
+    const { room, crowns } = liveRoom(tables, roomId);
+    if (room.hostId !== by) throw new Error(NOT_ALLOWED);
+    // Taking out what is queued takes a crown, as `removeFromQueue` does; without one only the window starts blank.
+    const queue = hasCrown(crowns, by) ? tables.queue.filter((entry) => !(entry.roomId === roomId && entry.inQueue && entry.playedAt === null)) : tables.queue;
+    save({ ...tables, queue }, roomId);
+    changeRoom(roomId, (current) => ({ ...current, clearedAt: stamp() }));
+  }
+
+  async listLiveRooms(): Promise<LiveRoom[]> {
+    const tables = load();
+    return tables.rooms
+      .filter((room) => room.endedAt === null)
+      .map((room) => ({ room, current: tables.queue.find((entry) => entry.id === room.currentEntryId) ?? null }));
+  }
+
+  subscribeLiveRooms(listener: () => void): () => void {
+    return this.subscribeStreamActivity(listener);
   }
 
   async attachThread(roomId: string, threadId: string): Promise<void> {
@@ -270,7 +393,8 @@ class MockWatchRepository implements WatchRepository {
 
   async takeOver(roomId: string, goneHostId: string, callerId: string): Promise<boolean> {
     const room = load().rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined || room.endedAt !== null || room.hostId !== goneHostId || room.hostId === callerId) return false;
+    // A music room is its owner's: never taken over.
+    if (room === undefined || room.origin === 'music' || room.endedAt !== null || room.hostId !== goneHostId || room.hostId === callerId) return false;
     if (Date.now() - Date.parse(room.updatedAt) < TAKE_OVER_QUIET_MS) return false;
 
     changeRoom(roomId, (current) => ({ ...current, hostId: callerId }));
@@ -284,7 +408,8 @@ class MockWatchRepository implements WatchRepository {
   async closeStale(roomId: string): Promise<boolean> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    if (room === undefined || room.endedAt !== null || Date.now() - Date.parse(room.updatedAt) < STALE_MS) return false;
+    // A quiet music room is kept, not closed.
+    if (room === undefined || room.origin === 'music' || room.endedAt !== null || Date.now() - Date.parse(room.updatedAt) < STALE_MS) return false;
 
     save({ ...tables, rooms: tables.rooms.map((candidate) => (candidate.id === roomId ? { ...candidate, endedAt: candidate.updatedAt } : candidate)) }, roomId);
     return true;
@@ -292,7 +417,8 @@ class MockWatchRepository implements WatchRepository {
 
   async addToQueue(input: AddToQueueInput): Promise<WatchQueueEntry> {
     const tables = load();
-    const { crowns } = liveRoom(tables, input.roomId);
+    const { room, crowns } = liveRoom(tables, input.roomId);
+    refuseIfShut(room, input.addedBy);
     // The database's link checks, and the allow-list for an `embed` link, as the Supabase store asks them.
     const refusal = input.link === undefined ? null : queueRefusal(input.link);
     if (refusal !== null) throw new Error(refusal);
@@ -319,7 +445,8 @@ class MockWatchRepository implements WatchRepository {
 
   async addSeriesToQueue(input: AddSeriesInput): Promise<WatchQueueEntry[]> {
     const tables = load();
-    const { crowns } = liveRoom(tables, input.roomId);
+    const { room, crowns } = liveRoom(tables, input.roomId);
+    refuseIfShut(room, input.addedBy);
     for (const link of input.links) {
       const refusal = queueRefusal(link);
       if (refusal !== null) throw new Error(refusal);
@@ -412,6 +539,7 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === input.roomId);
     if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
+    refuseIfShut(room, input.author.id);
 
     const message: WatchMessage = {
       id: newId(),

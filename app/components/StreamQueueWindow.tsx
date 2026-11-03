@@ -16,11 +16,11 @@ import {
   additionsPeople,
   dropSlot,
   formatMediaTime,
+  hasCrown,
   mayTakeBack,
   moveInQueue,
   nextQueuePosition,
   placeInQueue,
-  playOrder,
   queueBlocks,
   queueRights,
   seriesRows,
@@ -40,7 +40,15 @@ import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-clien
 import { rowAddresses } from '../lib/web/row-addresses';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
+import type { AudioTrack } from '../lib/audio/tracks';
+import { songLink, songMatches, trackForSong } from '../lib/watch/songs';
+import { listLinks, playedSinceCleared, storedListItems, storedListName } from '../lib/watch/music-rooms';
+import type { Playlist } from '../lib/audio/library';
+import { isBarAudioPlatform, playsInBar } from '../lib/web/web-audio';
+import { loadWebItem, webTrackNow } from '../lib/web/web-track-lookup';
 import ArtMark from './ArtMark';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { useMusicPlayer } from './MusicPlayerProvider';
 import InfoFold from './InfoFold';
 import { EntryLanguageFlags, EpisodeLanguageFlag, SeriesLanguageFlags, WithSeriesAudio } from './QueueLanguageFlags';
 import PopoutWindow from './PopoutWindow';
@@ -81,7 +89,7 @@ type StreamQueueWindowProps = {
 type Search =
   | { kind: 'none' }
   | { kind: 'searching'; words: string }
-  | { kind: 'found'; words: string; ours: MediaItem[]; web: WebItem[]; problems: ProviderLine[]; next: string | null; loadingMore: boolean }
+  | { kind: 'found'; words: string; ours: MediaItem[]; songs: AudioTrack[]; web: WebItem[]; problems: ProviderLine[]; next: string | null; loadingMore: boolean }
   | { kind: 'failed'; words: string; reason: string };
 
 /** What an add says: QUEUED when a crown put it straight into the queue, ADDED when it went onto the adder's list. */
@@ -151,10 +159,21 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   const catalogue = useCatalogue();
   const roomId = read.room.id;
   const rights = queueRights(read.room, read.crowns, userId, live);
-  const played = playOrder(read.queue);
+  // Since the last STORE AND START BLANK (SPEC-music-queues.md); a room never cleared shows every play.
+  const played = playedSinceCleared(read);
   const waiting = upcoming(read.queue);
+  // A song (SPEC-music-queues.md) is marked with a note, the way the music bar names what it plays.
   const titleOf = (entry: WatchQueueEntry) =>
-    entry.link !== null ? entry.link.title : entry.mediaItemId ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD') : 'A FILE NO LONGER HELD';
+    entry.link !== null
+      ? entry.link.kind === 'audio'
+        ? `♪ ${entry.link.title}`
+        : entry.link.title
+      : entry.mediaItemId
+        ? (itemsById.get(entry.mediaItemId)?.title ?? 'A FILE NOT HELD')
+        : 'A FILE NO LONGER HELD';
+  // The site's own songs, as the music shelf holds them, for the search.
+  const player = useMusicPlayer();
+  const shelf = player.queue.slice(0, player.shelfSize);
   // Said in this window, over the dimmed room, not under the video where nobody would see it.
   const [problem, setProblem] = useState<string | null>(null);
   const fail = (fallback: string) => (failure: unknown) => setProblem(failure instanceof Error ? failure.message : fallback);
@@ -209,8 +228,39 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     }
   }
 
+  /** One of the site's own songs (SPEC-music-queues.md): a song row, which the music bar plays. */
+  async function addSong(track: AudioTrack, straight: boolean) {
+    setProblem(null);
+    try {
+      const words = await put({ link: songLink(track) }, straight);
+      if (words !== null) setJustAdded({ key: `song:${track.src}`, words });
+    } catch (failure) {
+      fail('THE SONG COULD NOT BE ADDED.')(failure);
+    }
+  }
+
+  /** Archive audio the music bar streams from its platform: one song row, or an album's or a book's files as a block. */
+  async function addWebAudio(item: WebItem, straight: boolean) {
+    if (!isBarAudioPlatform(item.platform)) return;
+    try {
+      const tracks = await loadWebItem(item.platform, item.externalId);
+      if (tracks === null || tracks.length === 0) {
+        setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
+        return;
+      }
+      const words = tracks.length === 1 ? await put({ link: songLink(tracks[0]) }, straight) : await putSeries(item.title, tracks.map(songLink), straight);
+      if (words !== null) setJustAdded({ key: `web:${item.id}`, words });
+    } catch (failure) {
+      fail('IT COULD NOT BE ADDED.')(failure);
+    }
+  }
+
   async function addWeb(item: WebItem, straight: boolean) {
     setProblem(null);
+    if (playsInBar(item)) {
+      await addWebAudio(item, straight);
+      return;
+    }
     const link = watchLinkForItem(item);
     if (link === null || !isQueueableWebLink(link)) {
       setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
@@ -395,22 +445,25 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     if (cursor === null) setSearch({ kind: 'searching', words: trimmed });
     else setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: true } : current));
     const ours = ourMatches(videos, trimmed);
+    const songs = songMatches(shelf, trimmed);
     // No words: only what the site holds (the archive's other sources need something to look for).
     if (trimmed.length === 0) {
-      setSearch({ kind: 'found', words: trimmed, ours, web: [], problems: [], next: null, loadingMore: false });
+      setSearch({ kind: 'found', words: trimmed, ours, songs, web: [], problems: [], next: null, loadingMore: false });
       return;
     }
     try {
       const page = await searchEverywhere(trimmed, cursor);
       if (run !== searchRun.current) return;
+      // Videos a room can play, and audio the music bar streams from its platform (a song row).
       const web = page.items.filter((item) => {
+        if (playsInBar(item)) return true;
         const link = watchLinkForItem(item);
         return link !== null && isQueueableWebLink(link);
       });
       setSearch((current) =>
         cursor !== null && current.kind === 'found'
           ? { ...current, web: [...current.web, ...web.filter((item) => !current.web.some((known) => known.id === item.id))], next: page.nextCursor, loadingMore: false }
-          : { kind: 'found', words: trimmed, ours, web, problems: page.problems, next: page.nextCursor, loadingMore: false },
+          : { kind: 'found', words: trimmed, ours, songs, web, problems: page.problems, next: page.nextCursor, loadingMore: false },
       );
     } catch (failure) {
       if (run !== searchRun.current) return;
@@ -849,6 +902,9 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
               })}
             </ol>
             {waiting.length === 0 && played.length > 0 && !nowLive ? <p className="text-ink-quiet">LAST VIDEO LOOPS.</p> : null}
+            {read.room.origin === 'music' && userId !== null && read.room.hostId === userId && live ? (
+              <StoreKeys read={read} userId={userId} shelf={player.queue} />
+            ) : null}
           </section>
 
           {/* The additions (or a search's answer in their place); a narrow window puts a search's answer first. */}
@@ -862,6 +918,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   onAddFile={(id, straight) => void addFile(id, straight)}
                   onAddWeb={(item, straight) => void addWeb(item, straight)}
                   onAddSeries={(item, links, straight) => void addSeriesResult(item, links, straight)}
+                  onAddSong={(track, straight) => void addSong(track, straight)}
                   onMore={(words, cursor) => void find(words, cursor)}
                   onBack={backToAdditions}
                 />
@@ -927,6 +984,113 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
 }
 
 /** The line in the queue where a dragged addition would land: drawn over the row's edge, so no row moves. */
+/**
+ * The host's two keys under a music room's queue (SPEC-music-queues.md). STORE AND START BLANK (two presses) saves the
+ * shared queue as one of their saved lists, named with the day and time, every song and video kept whole, and starts
+ * an empty queue; what is on plays on and people's additions stay. LOAD A LIST puts one of their saved lists back as
+ * the shared queue, in its order.
+ */
+function StoreKeys({ read, userId, shelf }: { read: WatchRoomRead; userId: string; shelf: readonly AudioTrack[] }) {
+  const repository = getWatchRepository();
+  const library = useMusicLibrary();
+  const roomId = read.room.id;
+  const [armed, setArmed] = useState(false);
+  const [picking, setPicking] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [said, setSaid] = useState<string | null>(null);
+
+  async function storeAndBlank() {
+    if (!armed) {
+      setArmed(true);
+      return;
+    }
+    setArmed(false);
+    setBusy(true);
+    setSaid(null);
+    try {
+      const at = new Date();
+      const trackIdOf = (link: WatchLink) => {
+        const track = trackForSong(link, shelf, webTrackNow(link.url));
+        return track.id === link.url ? null : track.id;
+      };
+      const list = await library.savePlaylist(storedListName(at), storedListItems(read, trackIdOf, at.toISOString()));
+      await repository.clearRoomQueue(roomId, userId);
+      applyLocalChange(roomId, { kind: 'refresh' });
+      setSaid(`STORED AS ${list.name}. THE QUEUE STARTS BLANK.`);
+    } catch (failure) {
+      setSaid(failure instanceof Error ? failure.message : 'THE QUEUE COULD NOT BE STORED.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function load(list: Playlist) {
+    setPicking(false);
+    setBusy(true);
+    setSaid(null);
+    try {
+      const byId = new Map(shelf.map((track) => [track.id, track]));
+      const links = listLinks(list.items, (id) => byId.get(id) ?? webTrackNow(id) ?? undefined);
+      if (links.length === 0) {
+        setSaid('NOTHING IN THAT LIST PLAYS HERE.');
+        return;
+      }
+      // The list becomes the shared queue: what was queued goes, the list goes in, in its order.
+      await repository.clearRoomQueue(roomId, userId);
+      const crowned = hasCrown(read.crowns, userId);
+      let position = nextQueuePosition(read.queue);
+      for (const link of links) await repository.addToQueue({ roomId, addedBy: userId, position: position++, inQueue: crowned, link });
+      applyLocalChange(roomId, { kind: 'refresh' });
+      setSaid(`${list.name} IS THE QUEUE NOW.`);
+    } catch (failure) {
+      setSaid(failure instanceof Error ? failure.message : 'THE LIST COULD NOT BE LOADED.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-2 flex flex-col gap-1" data-store-keys>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className={armed ? PLATE_PRESSED : PLATE}
+          disabled={busy}
+          onClick={() => void storeAndBlank()}
+          onBlur={() => setArmed(false)}
+          title="Save this queue as one of your lists, then start an empty one"
+          data-store-blank
+        >
+          {armed ? '[ STORE IT AND CLEAR? ]' : '[ STORE + START BLANK ]'}
+        </button>
+        <button type="button" className={picking ? PLATE_PRESSED : PLATE} disabled={busy} aria-expanded={picking} onClick={() => setPicking((was) => !was)} data-load-list>
+          [ LOAD A LIST ]
+        </button>
+      </div>
+      {picking ? (
+        library.playlists.length === 0 ? (
+          <p className="text-ink-quiet">NO SAVED LISTS YET.</p>
+        ) : (
+          <ul aria-label="Your saved lists" className="flex flex-col gap-0.5">
+            {library.playlists.map((list) => (
+              <li key={list.id}>
+                <button type="button" className="cursor-pointer truncate text-left font-bold hover:underline max-sm:min-h-tap" onClick={() => void load(list)} data-load-pick={list.name}>
+                  {list.name} ({list.items.length})
+                </button>
+              </li>
+            ))}
+          </ul>
+        )
+      ) : null}
+      {said === null ? null : (
+        <p className="font-bold" role="status">
+          {said}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function DropLine({ edge }: { edge: 'top' | 'bottom' }) {
   return <span aria-hidden="true" className={`pointer-events-none absolute inset-x-0 h-0.5 bg-accent-ink ${edge === 'top' ? '-top-px' : '-bottom-px'}`} data-drop-line={edge} />;
 }
@@ -1134,6 +1298,7 @@ function Results({
   onAddFile,
   onAddWeb,
   onAddSeries,
+  onAddSong,
   onMore,
   onBack,
 }: {
@@ -1144,6 +1309,8 @@ function Results({
   onAddWeb: (item: WebItem, straight: boolean) => void;
   /** A series result's ticked episodes, or null for all of them (the fold never opened). */
   onAddSeries: (item: WebItem, links: WatchLink[] | null, straight: boolean) => void;
+  /** One of the site's own songs. */
+  onAddSong: (track: AudioTrack, straight: boolean) => void;
   onMore: (words: string, cursor: string) => void;
   onBack: () => void;
 }) {
@@ -1165,7 +1332,7 @@ function Results({
         </p>
       ) : (
         <ul className="md:max-h-[60vh] md:overflow-y-auto" aria-label="Results">
-          {search.ours.length + search.web.length === 0 ? <li className="font-bold">NOTHING FOUND.</li> : null}
+          {search.ours.length + search.songs.length + search.web.length === 0 ? <li className="font-bold">NOTHING FOUND.</li> : null}
           {search.ours.map((video) => (
             <li key={video.id} className="rule-pixel flex items-center gap-2 py-1">
               <span className="w-28 shrink-0 bg-ice-pale px-1 text-center font-bold text-ink">{SITE_SERVER_LABEL}</span>
@@ -1174,6 +1341,19 @@ function Results({
               </span>
               {video.length.length === 0 ? null : <span className="shrink-0">{video.length}</span>}
               <AddKey crowned={crowned} added={added(`ours:${video.id}`)} onAdd={(straight) => onAddFile(video.id, straight)} label={video.title} />
+            </li>
+          ))}
+          {search.songs.map((track) => (
+            <li key={track.src} className="rule-pixel flex items-center gap-2 py-1" data-song-result>
+              <span className="w-28 shrink-0 bg-ice-pale px-1 text-center font-bold text-ink">{SITE_SERVER_LABEL}</span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate" title={track.title}>
+                  ♪ {track.title}
+                </span>
+                {track.credit.length > 0 ? <span className="block truncate">{track.credit}</span> : null}
+              </span>
+              {track.length === '--:--' ? null : <span className="shrink-0">{track.length}</span>}
+              <AddKey crowned={crowned} added={added(`song:${track.src}`)} onAdd={(straight) => onAddSong(track, straight)} label={track.title} />
             </li>
           ))}
           {search.web.map((item) => (
@@ -1226,7 +1406,9 @@ function WebResult({
 }) {
   const [thumbFailed, setThumbFailed] = useState(false);
   const thumb = thumbFailed ? null : rowAddresses(item).thumb;
-  const count = useSeriesCount(item);
+  // Audio the music bar plays is added as songs (a book's or an album's files as one block), never as a video series.
+  const videoSeries = useSeriesCount(item);
+  const count = playsInBar(item) ? null : videoSeries;
   const [open, setOpen] = useState(false);
   const [episodes, setEpisodes] = useState<{ kind: 'reading' } | { kind: 'read'; read: SeriesRead } | { kind: 'failed'; reason: string } | null>(null);
   const [ticked, setTicked] = useState<ReadonlySet<number>>(() => new Set());

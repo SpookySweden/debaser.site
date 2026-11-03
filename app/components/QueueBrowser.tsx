@@ -1,209 +1,99 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
-import { PLATE_LINK } from '../lib/ui/controls';
-import {
-  calibrateClock,
-  hostPositionSeconds,
-  hostState,
-  hostStateLabel,
-  queueTrackBadge,
-  visibleQueues,
-  type BroadcastQueue,
-} from '../lib/audio/broadcast';
+import { useMemo, useState } from 'react';
 import { formatClock } from '../lib/audio/format';
-import { followState, subscribeToFollow } from '../lib/audio/follow';
-import { getMusicRepository } from '../lib/audio/repository';
-import { announceQueueChanged } from '../lib/audio/queue-window';
+import { saveLoop } from '../lib/audio/loops';
+import { useCatalogue } from '../lib/media/catalogue';
+import { PLATE, PLATE_LINK } from '../lib/ui/controls';
+import { useNow } from '../lib/ui/use-now';
+import { listedRooms, roomRowState, type RoomRowState } from '../lib/watch/music-rooms';
+import { hostPosition, roomIsLive, withSeries } from '../lib/watch/rules';
+import type { LiveRoom, WatchQueueEntry } from '../lib/watch/types';
+import { enterRoom, useLiveRooms, useMusicRoomSwitch } from '../lib/watch/use-music-room';
 import { useQueueName } from '../lib/audio/use-queue-name';
+import { useWatchRoom } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
-import QueueProfilePopout from './QueueProfilePopout';
+import StreamQueueWindow from './StreamQueueWindow';
+
+const STATE_WORDS: Record<RoomRowState, string> = { live: 'LIVE', paused: 'PAUSED', silent: 'SILENT' };
 
 /**
- * QUEUES: the people broadcasting what they are listening to, and the switch that puts you among them.
+ * QUEUES (SPEC-music-queues.md): every live room, people's music rooms and video streams alike, and the switch
+ * that opens yours.
  *
- * A server browser, in the shape the brief asked for: a list of accounts, what each is playing, how far
- * in they are, and a lamp that says whether you are level with them. Following one takes the player over
- * - which is the point of the tab, and the reason RADI-OH exists to keep what it displaced.
- *
- * **The lamp is about the host, and only the followed row talks about you.** `LIVE`, `PAUSED` and
- * `SILENT` are read from the host's own row (`hostState`). How far behind you are is shown on the one
- * row you are following and nowhere else - the old lamp measured every row against whatever this player
- * happened to be on, so a reader who had followed nobody was told they were an hour behind and
- * "catching up" at 4x. Rows untouched for half an hour are not listed (`visibleQueues`).
- *
- * The clock ticks locally rather than polling: a `setInterval` re-reads `Date.now()` so the lamps age on
- * their own, and the repository's realtime subscription is what says a queue *moved*. Polling for that
- * would be a second source of truth for the same question.
+ * GO PUBLIC opens your music room - kept for good, built on the stream room - from what your player has on and
+ * your up-next; switching it off leaves the room's songs as your up-next. Pressing a row joins that room: a music
+ * room folded, with the bar playing its music (the TV key turns the bar to the room's screen, chat and queue); a
+ * video stream as its `[ TV ]` key opens it. `[ QUEUE ]` on a row opens that room's queue window, to look before
+ * you join. RADI-OH is unchanged: whatever your player had on is kept there as you join.
  */
 export default function QueueBrowser() {
   const { user, status } = useAuth();
   const player = useMusicPlayer();
-  const repository = getMusicRepository();
-
-  const [queues, setQueues] = useState<BroadcastQueue[] | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
-  /** Whose card is open, by account - so the card reads the *current* row, not the one that was pressed. */
-  const [openId, setOpenId] = useState<string | null>(null);
-  const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
-  const [now, setNow] = useState(() => Date.now());
-
-  /** Ages the lamps once a second, so LIVE can become DELAY without anybody reloading. */
-  useEffect(() => {
-    const timer = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(timer);
-  }, []);
-
-  const read = useCallback((options?: { fresh?: boolean }) => {
-    let cancelled = false;
-
-    void repository
-      .listQueues()
-      .then((found) => {
-        if (cancelled) return;
-        // Answering a realtime change: the newest row was written a moment ago (`calibrateClock`).
-        if (options?.fresh === true) calibrateClock(found, Date.now());
-        setQueues(found);
-      })
-      .catch((error: unknown) => {
-        if (cancelled) return;
-
-        // An unreadable list is said out loud rather than drawn as an empty one: "nobody is
-        // broadcasting" and "the database did not answer" are different sentences, and only the
-        // second one is something a reader can act on.
-        setQueues([]);
-        setNotice(error instanceof Error ? error.message : 'THE QUEUE LIST COULD NOT BE READ.');
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [repository]);
-
-  useEffect(() => read(), [read]);
-
-  // Realtime, so somebody going public or changing track appears without a reload. The unsubscribe is
-  // returned rather than stored, because the repository hands one back per subscription.
-  useEffect(
-    () =>
-      repository.subscribeToQueues(() => {
-        read({ fresh: true });
-      }),
-    [read, repository],
-  );
+  const catalogue = useCatalogue();
+  const now = useNow(1000);
+  const { rooms, error } = useLiveRooms();
+  const [peek, setPeek] = useState<string | null>(null);
+  const titles = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item.title])), [catalogue.items]);
 
   const signedIn = status === 'signed-in' && user !== null;
-  const shown = queues === null ? null : visibleQueues(queues, now);
-  const open = openId === null ? undefined : queues?.find((queue) => queue.userId === openId);
+  const shown = rooms === null ? null : listedRooms(rooms, now);
+  const titleOf = (entry: WatchQueueEntry | null) =>
+    entry === null ? 'NOTHING ON' : entry.link !== null ? withSeries(entry, entry.link.title) : (titles.get(entry.mediaItemId ?? '') ?? 'A FILE');
+
+  /** Joining: what your player had on goes to RADI-OH first, as following always kept it (lib/audio/loops.ts). */
+  function join(live: LiveRoom, name: string) {
+    const playing = player.track;
+    if (playing !== undefined && live.room.hostId !== user?.id && live.current?.link?.url !== playing.src) {
+      saveLoop({ label: playing.title, trackId: playing.src, positionSeconds: player.elapsed, kind: 'taken-over', origin: 'own', originContext: player.heardFrom?.context, displacedBy: name });
+    }
+    enterRoom(live.room.id, live.room.origin);
+  }
 
   // No title line: the QUEUES tab pressed right above already names this screen (SPEC-efficiency.md).
   return (
     <section>
-      <BroadcastSwitch
-        signedIn={signedIn}
-        userId={user?.id ?? null}
-        onChanged={() => read()}
-        track={player.track?.src ?? null}
-        index={player.index}
-        total={player.queue.length}
-        position={player.elapsed}
-        playing={player.playing}
-      />
+      <PublicSwitch signedIn={signedIn} />
 
-      {notice === null ? null : (
-        <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar">{notice}</p>
-      )}
+      {error === null ? null : <p className="border-b border-ink bg-bubble-pale px-2 py-1 text-label font-bold text-ink-bar">{error}</p>}
 
       {shown === null ? (
-        <p className="p-3 text-label font-bold text-ink">READING THE QUEUE LIST...</p>
+        <p className="p-3 text-label font-bold text-ink">READING THE ROOMS...</p>
       ) : shown.length === 0 ? (
         // A guest's way to broadcast is the `[ LOG IN ]` line above, so the empty state does not say it twice.
-        <p className="p-3 text-key font-bold text-ink">
-          NOBODY IS BROADCASTING.
-        </p>
+        <p className="p-3 text-key font-bold text-ink">NOBODY IS BROADCASTING.</p>
       ) : (
-        <ul className="divide-y divide-ink">
-          {shown.map((queue) => (
-            <QueueRow
-              key={queue.userId}
-              queue={queue}
+        <ul className="divide-y divide-ink" data-queues-rooms>
+          {shown.map((live) => (
+            <RoomRow
+              key={live.room.id}
+              live={live}
               now={now}
-              mine={queue.userId === user?.id}
-              following={follow.hostId === queue.userId}
-              catchingUp={follow.hostId === queue.userId && follow.catchingUp}
-              behind={hostPositionSeconds(queue, now) - player.elapsed}
-              onOpen={() => setOpenId(queue.userId)}
+              mine={live.room.hostId === user?.id}
+              inRoom={player.room?.roomId === live.room.id}
+              title={titleOf(live.current)}
+              onJoin={(name) => join(live, name)}
+              onQueue={() => setPeek(live.room.id)}
             />
           ))}
         </ul>
       )}
 
-      {open === undefined ? null : (
-        <QueueProfilePopout queue={open} now={now} mine={open.userId === user?.id} onClose={() => setOpenId(null)} />
-      )}
+      {peek === null ? null : <QueuePeek roomId={peek} userId={user?.id ?? null} onClose={() => setPeek(null)} />}
     </section>
   );
 }
 
 /**
- * The switch: whether this account's queue is on the list.
- *
- * A `button` with `aria-pressed` rather than a checkbox, for the reason the theme rows in
- * `PreferencesWindow` are: the whole plate is the control on this site, and a 13px native checkbox
- * beside a label would be the only input on the page that does not take the site's press.
- *
- * Going public writes the *current* track and position, so the row is never a queue with nothing in it -
- * and a reader signed out gets one `[ LOG IN ] TO ...` line rather than a switch that refuses.
- * Whether it reads as on comes from the same store the rows do, so the switch and the row it produces
- * cannot disagree.
+ * The switch: whether your music room is open. A `button` with `aria-pressed`, the whole plate the control, as
+ * the theme rows in `PreferencesWindow` are. Signed out, one `[ LOG IN ] TO BROADCAST` line instead.
  */
-function BroadcastSwitch({
-  signedIn,
-  userId,
-  onChanged,
-  track,
-  index,
-  total,
-  position,
-  playing,
-}: {
-  signedIn: boolean;
-  /** The signed-in account, or null. Passed in rather than read here, so this stays a plain component. */
-  userId: string | null;
-  onChanged: () => void;
-  track: string | null;
-  index: number;
-  total: number;
-  position: number;
-  playing: boolean;
-}) {
-  const repository = getMusicRepository();
-  const [busy, setBusy] = useState(false);
-  const [isPublic, setIsPublic] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (userId === null) return;
-
-    let cancelled = false;
-
-    void repository
-      .readOwnQueue(userId)
-      .then((own) => {
-        if (!cancelled) setIsPublic(own?.isPublic ?? false);
-      })
-      .catch(() => {
-        // An unreadable own-queue is not worth a banner: the switch reads as off, and pressing it
-        // reports whatever goes wrong next.
-        if (!cancelled) setIsPublic(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [repository, userId]);
+function PublicSwitch({ signedIn }: { signedIn: boolean }) {
+  const { user } = useAuth();
+  const player = useMusicPlayer();
+  const room = useMusicRoomSwitch(user, player);
 
   if (!signedIn) {
     return (
@@ -216,133 +106,83 @@ function BroadcastSwitch({
     );
   }
 
-  const press = () => {
-    // Narrowed here rather than trusted: `signedIn` and `userId` are two facts and only one of them is
-    // the id. A switch that wrote a null owner would be a queue filed under nobody.
-    if (userId === null) return;
-
-    if (track === null) {
-      setMessage('PLAY SOMETHING FIRST.');
-      return;
-    }
-
-    setBusy(true);
-    setMessage(null);
-
-    const next = !isPublic;
-
-    void repository
-      .publishQueue({
-        userId,
-        trackId: track,
-        trackIndex: index,
-        trackTotal: total,
-        positionSeconds: position,
-        isPublic: next,
-        isPlaying: playing,
-      })
-      .then(() => {
-        setIsPublic(next);
-
-        // Both listeners: `onChanged` re-reads the window's own list, and the event wakes the heartbeat,
-        // which is drawn by the shell and cannot see this component at all.
-        onChanged();
-        announceQueueChanged();
-      })
-      .catch((error: unknown) => {
-        setMessage(error instanceof Error ? error.message : 'THAT DID NOT SAVE.');
-      })
-      .finally(() => setBusy(false));
-  };
-
-  // The switch's own face says which way it is; the sentence that restated it beside it is gone
-  // (SPEC-efficiency.md), and its tip says what a press does.
   return (
     <div className="border-b border-ink px-2 py-1">
       <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
         <button
           type="button"
-          onClick={press}
-          disabled={busy}
-          aria-pressed={isPublic}
+          onClick={() => void (room.isPublic ? room.goPrivate() : room.goPublic())}
+          disabled={room.busy}
+          aria-pressed={room.isPublic}
+          title={room.isPublic ? 'Switch your room off: its songs stay as your up-next' : 'Open your music room from what you are playing and your up-next'}
           className={`cursor-pointer px-2 py-0.5 text-label disabled:cursor-not-allowed max-sm:min-h-tap max-sm:px-3 ${
-            isPublic
-              ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate'
-              : 'key'
+            room.isPublic ? 'key key-fill [--key-fill:var(--color-acid)] text-ink-plate' : 'key'
           }`}
+          data-go-public
         >
-          {isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}
+          {room.isPublic ? '[ PUBLIC ]' : '[ GO PUBLIC ]'}
         </button>
       </p>
-
-      {message === null ? null : <p className="mt-1 text-label font-bold text-ink">{message}</p>}
+      {room.message === null ? null : <p className="mt-1 text-label font-bold text-ink">{room.message}</p>}
     </div>
   );
 }
 
-/**
- * One account's queue, as a row: who, what track, where they are in it, and whether they are playing.
- *
- * The followed row is the one that also speaks about *you* - `FOLLOWING`, and how far behind while a
- * catch-up runs. Every other row is the same for every reader, because it only describes the host.
- */
-function QueueRow({
-  queue,
+/** One room: whose, what is on, where they are in it, and whether they are playing; `[ QUEUE ]` to look in first. */
+function RoomRow({
+  live,
   now,
   mine,
-  following,
-  catchingUp,
-  behind,
-  onOpen,
+  inRoom,
+  title,
+  onJoin,
+  onQueue,
 }: {
-  queue: BroadcastQueue;
+  live: LiveRoom;
   now: number;
   mine: boolean;
-  following: boolean;
-  catchingUp: boolean;
-  /** Seconds this player is behind the host. Read only on the followed row. */
-  behind: number;
-  onOpen: () => void;
+  /** This player is in that room now. */
+  inRoom: boolean;
+  title: string;
+  onJoin: (name: string) => void;
+  onQueue: () => void;
 }) {
-  const name = useQueueName(queue.userId);
-  const state = hostState(queue, now);
+  const name = useQueueName(live.room.hostId);
+  const state = roomRowState(live.room, now);
+  const music = live.room.origin === 'music';
 
   return (
-    <li>
+    <li className={`flex items-center gap-1 pr-2 ${inRoom ? 'bg-ice' : ''}`} data-room-row={live.room.id}>
       <button
         type="button"
-        onClick={onOpen}
-        className={`flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-left text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap ${
-          following ? 'bg-ice' : ''
-        }`}
+        onClick={() => onJoin(name)}
+        aria-label={`${mine ? 'Your room' : `Join ${name}'s ${music ? 'music' : 'stream'}`}: ${title}`}
+        className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-2 py-1 text-left text-label font-bold text-ink hover:bg-ice max-sm:min-h-tap"
       >
-        <span aria-hidden="true" className={`w-4 shrink-0 text-center text-label leading-none ${state === 'live' ? 'text-accent-ink' : 'text-ink-quiet'}`}>
-          {following ? '▶' : '♪'}
+        <span aria-hidden="true" className={`w-6 shrink-0 text-center text-label leading-none ${state === 'live' ? 'text-accent-ink' : 'text-ink-quiet'}`}>
+          {inRoom ? '▶' : music ? '♪' : 'TV'}
         </span>
-
         <span className="min-w-0 flex-1 truncate">
           {mine ? 'YOU' : name}
-          <span className="ml-2 font-normal text-ink-quiet">TRACK {queueTrackBadge(queue)}</span>
+          <span className="ml-2 font-normal text-ink-quiet">{title}</span>
         </span>
-
-        {following ? (
-          <span className="shrink-0 text-ink">
-            {catchingUp ? `CATCHING UP :: ${Math.round(Math.max(0, behind))}S BEHIND` : 'FOLLOWING'}
-          </span>
-        ) : null}
-
-        <span className="w-10 shrink-0 text-right font-normal text-ink-quiet">
-          {formatClock(hostPositionSeconds(queue, now))}
-        </span>
-
-        <span
-          className={`w-14 shrink-0 text-center ${
-            state === 'live' ? 'bg-hardware text-acid' : 'bg-chrome-dark text-ink'
-          }`}
-        >
-          {hostStateLabel(state)}
-        </span>
+        {inRoom ? <span className="shrink-0 text-ink">{mine ? 'HOSTING' : 'IN THE ROOM'}</span> : null}
+        <span className="w-10 shrink-0 text-right font-normal text-ink-quiet">{formatClock(hostPosition(live.room, now))}</span>
+        <span className={`w-14 shrink-0 text-center ${state === 'live' ? 'bg-hardware text-acid' : 'bg-chrome-dark text-ink'}`}>{STATE_WORDS[state]}</span>
+      </button>
+      <button type="button" className={`${PLATE} shrink-0`} aria-haspopup="dialog" aria-label={`${mine ? 'Your' : `${name}'s`} queue`} onClick={onQueue} data-room-queue>
+        [ QUEUE ]
       </button>
     </li>
   );
+}
+
+/** A room's queue window from the QUEUES list, to look before joining (adding follows the room's rules as usual). */
+function QueuePeek({ roomId, userId, onClose }: { roomId: string; userId: string | null; onClose: () => void }) {
+  const { read } = useWatchRoom(roomId);
+  const catalogue = useCatalogue();
+  const now = useNow(5000);
+  const itemsById = useMemo(() => new Map(catalogue.items.map((item) => [item.id, item])), [catalogue.items]);
+  if (read === undefined || read === null) return null;
+  return <StreamQueueWindow read={read} itemsById={itemsById} live={roomIsLive(read.room, now)} userId={userId} members={[]} nowLive={false} onClose={onClose} />;
 }

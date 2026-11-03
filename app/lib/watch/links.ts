@@ -1,4 +1,5 @@
 import { officialEmbedUrl } from '../web/official-embed';
+import { isSitePath } from './songs';
 import type { WatchLink, WatchLinkKind } from './types';
 
 /**
@@ -9,7 +10,7 @@ import type { WatchLink, WatchLinkKind } from './types';
  * reader, pretends to be the site it came from, or gets round a site's locks on its streams (decided).
  */
 
-export const LINK_KINDS: readonly WatchLinkKind[] = ['file', 'hls', 'dash', 'youtube', 'vimeo', 'dailymotion', 'twitch', 'embed'];
+export const LINK_KINDS: readonly WatchLinkKind[] = ['file', 'hls', 'dash', 'youtube', 'vimeo', 'dailymotion', 'twitch', 'embed', 'audio'];
 
 /** The database holds these limits too (supabase/migrations/20261030181430_watch_queue_links.sql). */
 export const LINK_URL_MAX = 2048;
@@ -43,7 +44,9 @@ export function isLinkKind(value: string | null | undefined): value is WatchLink
  */
 export function queueRefusal(link: WatchLink): string | null {
   if (!isLinkKind(link.kind)) return LINK_REFUSALS.notVideo;
-  if (typeof link.url !== 'string' || !link.url.startsWith('https://')) return LINK_REFUSALS.notHttps;
+  // A song (`audio`, songs.ts) may be one of the site's own paths, which the music bar plays as it is.
+  const sitePath = link.kind === 'audio' && typeof link.url === 'string' && isSitePath(link.url);
+  if (typeof link.url !== 'string' || (!link.url.startsWith('https://') && !sitePath)) return LINK_REFUSALS.notHttps;
   if (link.url.length > LINK_URL_MAX) return LINK_REFUSALS.tooLong;
   if (link.kind === 'embed' && officialEmbedUrl(link.url) === null) return LINK_REFUSALS.notEmbeddable;
   return null;

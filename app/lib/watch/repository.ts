@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -26,6 +26,23 @@ export type OpenRoomInput = {
   host: { id: string; label: string };
   mediaItemId: string;
 };
+
+/**
+ * GO PUBLIC (SPEC-music-queues.md): the host's music room, opened or reopened from what their player has on
+ * (`playing`, where it is and whether it plays) and their up-next. See `goPublicPlan` for what is written.
+ */
+export type OpenMusicRoomInput = {
+  /** Made by the caller; used only when the host has no music room yet. */
+  id: string;
+  host: { id: string; label: string };
+  playing: WatchLink | null;
+  positionSeconds: number;
+  isPlaying: boolean;
+  upNext: WatchLink[];
+};
+
+/** The host plays something from outside the queue (SPEC-music-queues.md, off-queue plays): its row, as it is filed. */
+export type PlayNowInput = { roomId: string; by: string; link: WatchLink; position: number; playIndex: number };
 
 export type PlaybackPatch = {
   currentEntryId: string | null;
@@ -79,6 +96,26 @@ export type WatchRepository = {
   readRoom(roomId: string): Promise<WatchRoomRead | null>;
   /** GO LIVE: the room, its first file as play 0, on screen and playing. Throws with a sentence fit to show. */
   openRoom(input: OpenRoomInput): Promise<WatchRoomRead>;
+  /** The host's one music room, kept whether or not it is public; null when they never went public. */
+  findMusicRoom(hostId: string): Promise<WatchRoom | null>;
+  /** GO PUBLIC: opens (or reopens) the host's music room and switches it on. Throws with a sentence fit to show. */
+  openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead>;
+  /** A music room's switch; nothing in it is cleared when it goes off. */
+  setRoomPublic(roomId: string, isPublic: boolean): Promise<void>;
+  /**
+   * An off-queue play: the host played a song from a post, a profile or PLAY FOR YOU, and it slots into the queue at
+   * the current spot as playing (a played row, on screen from the start), so the queue never lies.
+   */
+  playNow(input: PlayNowInput): Promise<WatchQueueEntry>;
+  /**
+   * STORE AND START BLANK, once the queue is saved: what is still queued is taken out (a crown's to take), people's
+   * additions stay on their lists, and the window shows only what plays from now (`clearedAt`, the host's to set).
+   */
+  clearRoomQueue(roomId: string, by: string): Promise<void>;
+  /** Every room not ended (music rooms public or not), with what is on in each: the QUEUES list sorts them out. */
+  listLiveRooms(): Promise<LiveRoom[]>;
+  /** Fires when any room changes, for the QUEUES list. */
+  subscribeLiveRooms(listener: () => void): () => void;
   attachThread(roomId: string, threadId: string): Promise<void>;
   /** The host's write: what is on, where, playing or not. Also the heartbeat. */
   writePlayback(roomId: string, patch: PlaybackPatch): Promise<void>;

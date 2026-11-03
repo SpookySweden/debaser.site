@@ -20,7 +20,7 @@ import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { setStreamBarTarget, showMusicOnBar, showsStream, showStreamOnBar, streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
-import { subscribeToWatchWindow, watchWindowState } from '../lib/watch/watch-window';
+import { subscribeToWatchWindow, watchWindowServerState, watchWindowState } from '../lib/watch/watch-window';
 import ArtMark from './ArtMark';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import AboveAnchor from './AboveAnchor';
@@ -149,7 +149,7 @@ export default function MusicPlayer() {
 
   // While a room is open the bar is the stream's, until its TV key turns it back to the music (./WatchRoom.tsx
   // draws the stream's part into it; lib/watch/stream-bar.ts).
-  const watch = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowState);
+  const watch = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowServerState);
   const streamBar = useSyncExternalStore(subscribeToStreamBar, streamBarState, streamBarState);
   const roomId = watch.open && watch.focus?.kind === 'room' ? watch.focus.roomId : null;
   const streamOn = roomId !== null && showsStream(streamBar, roomId);

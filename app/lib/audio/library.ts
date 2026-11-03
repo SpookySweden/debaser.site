@@ -11,6 +11,7 @@
  * re-credited is not a favourite pointing at a stale name. A track the shelf has forgotten is dropped
  * from the list rather than drawn as a half-row (see `resolveLikes`).
  */
+import type { WatchLink } from '../watch/types';
 
 /** A track this account liked. */
 export type LikedTrack = {
@@ -37,6 +38,11 @@ export type Playlist = {
 export type PlaylistItem = {
   trackId: string;
   addedAt: string;
+  /**
+   * The item whole, as a room's queue held it (SPEC-music-queues.md: a stored queue comes back whole): a song's
+   * address and title, or a video link. A list made by hand has none; a video has no track on any shelf.
+   */
+  link?: WatchLink;
 };
 
 /** Longest a playlist name may be, shared by the form and the store. */
@@ -126,6 +132,8 @@ export function resolvePlaylistItems<T extends { id: string }>(
   const rows: (T & { likedAt: string })[] = [];
 
   for (const item of playlist.items) {
+    // A video from a stored room queue plays only in a room: not a missing song.
+    if (item.link !== undefined && item.link.kind !== 'audio') continue;
     const track = byId.get(item.trackId);
 
     if (track === undefined) {

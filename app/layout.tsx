@@ -1,8 +1,8 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
-import BroadcastHeartbeat from './components/BroadcastHeartbeat';
-import QueueFollower from './components/QueueFollower';
+import ForYouRadio from './components/ForYouRadio';
+import MusicRoomKeeper from './components/MusicRoomKeeper';
 import AuthProvider from './components/AuthProvider';
 import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
@@ -91,11 +91,11 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                       <CommsNotifier />
                       {/* ...and the player's bar sits over every page, docked to the bottom. */}
                       <MusicPlayer />
-                      {/* A broadcast has to keep telling the database where it is, whether or not the
-                          window that started it is open - so the heartbeat is drawn by the shell, next to
-                          the player whose clock it reads, and not inside the queue window. */}
-                      <BroadcastHeartbeat />
-                      <QueueFollower />
+                      {/* A music broadcast is a room now (SPEC-music-queues.md): the room window keeps it
+                          going, and this opens yours again after a reload while it is public. PLAY FOR YOU
+                          keeps topping up up-next from the shell, whatever window is open. */}
+                      <MusicRoomKeeper />
+                      <ForYouRadio />
                       {/* The site's two utility windows, drawn once and docked beside whatever is
                           being read rather than being pages of their own: the arcade (a post's
                           `[ CHALLENGE ]`, the side panel's key or the bell) and the music window (the

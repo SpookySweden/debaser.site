@@ -76,8 +76,9 @@ export function roomAgeSeconds(room: Pick<WatchRoom, 'updatedAt'>, now: number):
 }
 
 /** Live: not ended, and the host has written recently. */
-export function roomIsLive(room: Pick<WatchRoom, 'endedAt' | 'updatedAt'>, now: number): boolean {
-  return room.endedAt === null && roomAgeSeconds(room, now) <= ROOM_QUIET_SECONDS;
+export function roomIsLive(room: Pick<WatchRoom, 'endedAt' | 'updatedAt'> & { isPublic?: boolean }, now: number): boolean {
+  // A music room switched off is kept, not live (SPEC-music-queues.md).
+  return room.endedAt === null && room.isPublic !== false && roomAgeSeconds(room, now) <= ROOM_QUIET_SECONDS;
 }
 
 /**

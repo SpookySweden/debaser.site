@@ -1,13 +1,15 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
-import type { AddSeriesInput, AddToQueueInput, OpenRoomInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
-import { NOT_ALLOWED, watchClockSkewMs } from './rules';
-import type { QueueMove, StreamFold, WatchCrown, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
+import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
+import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
- * 20261102192043_watch_queue_additions.sql; series, 20261102224336_watch_queue_series.sql).
+ * 20261102192043_watch_queue_additions.sql; series, 20261102224336_watch_queue_series.sql; music rooms and
+ * songs, 20261103140000_music_rooms.sql).
  *
  * The tables hold the record; Realtime Presence holds who is there. Each room has its own presence
  * channel (`watch:<id>`, keyed per tab), and every tab in a live room also says so on one site-wide
@@ -25,7 +27,7 @@ const MESSAGES = 'watch_messages';
 const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
-  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at';
+  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at';
 const QUEUE_COLUMNS =
   'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
@@ -45,6 +47,8 @@ const QUEUE_PAGE = 1000;
  */
 const BURST_REREAD_MS = 800;
 const FOLD_ROOM_LIMIT = 200;
+/** The QUEUES list reads the rooms again at most this often while hosts' heartbeats come in. */
+const LIVE_ROOMS_SETTLE_MS = 4000;
 
 type RoomRow = {
   id: string;
@@ -58,6 +62,9 @@ type RoomRow = {
   started_at: string;
   updated_at: string;
   ended_at: string | null;
+  origin?: string | null;
+  is_public?: boolean | null;
+  cleared_at?: string | null;
 };
 
 type QueueRow = {
@@ -110,7 +117,15 @@ function toRoom(row: RoomRow): WatchRoom {
     startedAt: row.started_at,
     updatedAt: row.updated_at,
     endedAt: row.ended_at,
+    origin: row.origin === 'music' ? 'music' : 'stream',
+    isPublic: row.is_public !== false,
+    clearedAt: row.cleared_at ?? null,
   };
+}
+
+/** A song or video row as GO PUBLIC writes it. */
+function linkRow(roomId: string, link: WatchLink, addedBy: string, over: Record<string, unknown>): Record<string, unknown> {
+  return { room_id: roomId, source_url: link.url, source_kind: link.kind, source_title: link.title, added_by: addedBy, ...over };
 }
 
 function toEntry(row: QueueRow): WatchQueueEntry {
@@ -331,6 +346,158 @@ class SupabaseWatchRepository implements WatchRepository {
     // The database crowned the host as the room was written (`watch_rooms_crown_host`).
     const crown: WatchCrown = { roomId: input.id, userId: input.host.id, givenBy: input.host.id, givenAt: room.data.started_at };
     return { room: toRoom(live.data), queue: [toEntry(entry.data)], messages: [], crowns: [crown] };
+  }
+
+  async findMusicRoom(hostId: string): Promise<WatchRoom | null> {
+    const { data, error } = await requireClient()
+      .from(ROOMS)
+      .select(ROOM_COLUMNS)
+      .eq('original_host_id', hostId)
+      .eq('origin', 'music')
+      .maybeSingle<RoomRow>();
+    if (error) throw refused(error, 'YOUR MUSIC ROOM COULD NOT BE READ.');
+    return data === null ? null : toRoom(data);
+  }
+
+  async openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead> {
+    for (const link of [...(input.playing === null ? [] : [input.playing]), ...input.upNext]) {
+      const refusal = queueRefusal(link);
+      if (refusal !== null) throw new Error(refusal);
+    }
+    const client = requireClient();
+    const failed = 'YOUR MUSIC ROOM COULD NOT OPEN.';
+
+    let room = await this.findMusicRoom(input.host.id);
+    if (room === null) {
+      // The database crowns the host as the room is written (`watch_rooms_crown_host`).
+      const made = await client
+        .from(ROOMS)
+        .insert({
+          id: input.id,
+          original_host_id: input.host.id,
+          original_host_label: input.host.label.slice(0, 80) || 'Unknown',
+          host_id: input.host.id,
+          origin: 'music',
+          is_public: true,
+          position_seconds: 0,
+          is_playing: false,
+        })
+        .select(ROOM_COLUMNS)
+        .single<RoomRow>();
+      if (made.error) throw refused(made.error, failed);
+      room = toRoom(made.data);
+    }
+
+    const read = await this.readRoom(room.id);
+    if (read === null) throw new Error(failed);
+    const current = read.queue.find((entry) => entry.id === read.room.currentEntryId);
+    const plan = goPublicPlan(read.queue, current, input.playing, input.upNext);
+    let currentEntryId = read.room.currentEntryId;
+
+    if (plan.slot !== null) {
+      // Already playing: only the host files a played row (`watch_queue_plays_by_host`).
+      const slotted = await client
+        .from(QUEUE)
+        .insert(linkRow(room.id, plan.slot, input.host.id, { position: nextQueuePosition(read.queue), played_at: new Date().toISOString(), play_index: nextPlayIndex(read.queue) }))
+        .select(QUEUE_COLUMNS)
+        .single<QueueRow>();
+      if (slotted.error) throw refused(slotted.error, failed);
+      currentEntryId = slotted.data.id;
+    }
+
+    if (plan.append.length > 0) {
+      // Without their own crown the host's up-next waits on their list, like anybody's.
+      const crowned = hasCrown(read.crowns, input.host.id);
+      const start = nextQueuePosition(read.queue) + (plan.slot === null ? 0 : 1);
+      const rows = plan.append.map((link, index) => linkRow(room.id, link, input.host.id, { position: start + index, in_queue: crowned }));
+      for (let at = 0; at < rows.length; at += QUEUE_PAGE) {
+        const { error } = await client.from(QUEUE).insert(rows.slice(at, at + QUEUE_PAGE));
+        if (error) throw refused(error, failed);
+      }
+    }
+
+    const opened = await client
+      .from(ROOMS)
+      .update({
+        current_entry_id: currentEntryId,
+        position_seconds: input.playing !== null ? Math.max(0, Math.round(input.positionSeconds * 1000) / 1000) : read.room.positionSeconds,
+        is_playing: input.isPlaying && currentEntryId !== null,
+        is_public: true,
+      })
+      .eq('id', room.id);
+    if (opened.error) throw refused(opened.error, failed);
+
+    const after = await this.readRoom(room.id);
+    if (after === null) throw new Error(failed);
+    return after;
+  }
+
+  async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
+    const patch = isPublic ? { is_public: true } : { is_public: false, is_playing: false };
+    const { error } = await requireClient().from(ROOMS).update(patch).eq('id', roomId).eq('origin', 'music');
+    if (error) throw refused(error, 'THAT DID NOT SAVE.');
+  }
+
+  async playNow(input: PlayNowInput): Promise<WatchQueueEntry> {
+    const refusal = queueRefusal(input.link);
+    if (refusal !== null) throw new Error(refusal);
+    const { data, error } = await requireClient()
+      .from(QUEUE)
+      .insert(linkRow(input.roomId, input.link, input.by, { position: input.position, played_at: new Date().toISOString(), play_index: input.playIndex }))
+      .select(QUEUE_COLUMNS)
+      .single<QueueRow>();
+    if (error) throw refused(error, 'IT COULD NOT BE PLAYED IN THE ROOM.');
+    await this.writePlayback(input.roomId, { currentEntryId: data.id, positionSeconds: 0, isPlaying: true });
+    return toEntry(data);
+  }
+
+  async clearRoomQueue(roomId: string, by: string): Promise<void> {
+    const client = requireClient();
+    // A crown's to take out (RLS); the host without their crown only starts the window blank.
+    const crowned = await client.from(CROWNS).select('user_id').eq('room_id', roomId).eq('user_id', by).limit(1);
+    if (crowned.error) throw refused(crowned.error, 'THE QUEUE COULD NOT BE CLEARED.');
+    if ((crowned.data ?? []).length > 0) {
+      const { error } = await client.from(QUEUE).delete().eq('room_id', roomId).eq('in_queue', true).is('played_at', null);
+      if (error) throw refused(error, 'THE QUEUE COULD NOT BE CLEARED.');
+    }
+    const { error } = await client.from(ROOMS).update({ cleared_at: new Date().toISOString() }).eq('id', roomId);
+    if (error) throw refused(error, 'THE QUEUE COULD NOT BE CLEARED.');
+  }
+
+  async listLiveRooms(): Promise<LiveRoom[]> {
+    const client = requireClient();
+    // Quiet rooms are left to the list's own rule (`listedRooms`); past half an hour none is listed.
+    const since = new Date(Date.now() - watchClockSkewMs() - MUSIC_ROOM_GONE_SECONDS * 1000).toISOString();
+    const rooms = await client.from(ROOMS).select(ROOM_COLUMNS).is('ended_at', null).gte('updated_at', since).order('updated_at', { ascending: false }).limit(100);
+    if (rooms.error) throw refused(rooms.error, 'THE ROOMS COULD NOT BE READ.');
+    const found = (rooms.data as RoomRow[]).map(toRoom);
+    const ids = found.flatMap((room) => (room.currentEntryId === null ? [] : [room.currentEntryId]));
+    const entries = ids.length === 0 ? { data: [] as QueueRow[], error: null } : await client.from(QUEUE).select(QUEUE_COLUMNS).in('id', ids);
+    if (entries.error) throw refused(entries.error, 'THE ROOMS COULD NOT BE READ.');
+    const byId = new Map((entries.data as QueueRow[]).map((row) => [row.id, toEntry(row)]));
+    return found.map((room) => ({ room, current: room.currentEntryId === null ? null : (byId.get(room.currentEntryId) ?? null) }));
+  }
+
+  subscribeLiveRooms(listener: () => void): () => void {
+    const client = getSupabaseBrowserClient();
+    if (client === null) return () => undefined;
+    // Every host's heartbeat is a room write, every few seconds: the list is told at most once a few seconds.
+    let waiting: ReturnType<typeof setTimeout> | null = null;
+    const soon = () => {
+      if (waiting !== null) return;
+      waiting = setTimeout(() => {
+        waiting = null;
+        listener();
+      }, LIVE_ROOMS_SETTLE_MS);
+    };
+    const channel = client
+      .channel(`watch-rooms:${(channelSerial += 1)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: ROOMS }, soon)
+      .subscribe();
+    return () => {
+      if (waiting !== null) clearTimeout(waiting);
+      void client.removeChannel(channel);
+    };
   }
 
   async attachThread(roomId: string, threadId: string): Promise<void> {

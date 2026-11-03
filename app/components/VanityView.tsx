@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import { createContext, useContext, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
-import { hostState, type BroadcastQueue } from '../lib/audio/broadcast';
+import { roomRowState } from '../lib/watch/music-rooms';
+import { isSongLink } from '../lib/watch/songs';
+import { enterRoom, useLiveRooms } from '../lib/watch/use-music-room';
+import { useNow } from '../lib/ui/use-now';
 import { RADIO_CONTEXT, radioState, startRadio, stopRadio, subscribeToRadio } from '../lib/audio/radio';
 import { forYou, isEmpty, liveFor, radioRound, type CloseRow, type Face, type Pick } from '../lib/audio/for-you';
 import { hasMirror, mirror, type MirrorRow } from '../lib/audio/mirror';
@@ -35,7 +38,7 @@ import LibraryRow from './LibraryRow';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ProfileAvatar from './ProfileAvatar';
-import QueueProfilePopout from './QueueProfilePopout';
+
 
 type Tab = 'foryou' | 'artist' | 'album' | 'song' | 'mirror';
 
@@ -50,7 +53,9 @@ const TABS: { key: Tab; label: string }[] = [
 const MIRROR_TAB: { key: Tab; label: string } = { key: 'mirror', label: 'MIRROR' };
 
 /** Live faces (step 7): the broadcasts live right now, and opening one's card to follow along. */
-const LiveContext = createContext<{ live: BroadcastQueue[]; open: (queue: BroadcastQueue) => void }>({ live: [], open: () => {} });
+/** A music room playing a song right now (SPEC-music-queues.md), as a live face reads it. */
+type LiveSong = { userId: string; trackId: string; roomId: string };
+const LiveContext = createContext<{ live: LiveSong[]; open: (song: LiveSong) => void }>({ live: [], open: () => {} });
 
 /**
  * VANITY (SPEC-vanity.md step 4): the site's MP3s laid out by artist, by album and by song, inside the
@@ -97,33 +102,18 @@ export default function VanityView() {
   /** FOR YOU's raw rows and the reader's own plays; a guest has neither and gets the all-site picks. */
   const [mirrorRows, setMirrorRows] = useState<MirrorRow[]>([]);
   const radio = useSyncExternalStore(subscribeToRadio, radioState, radioState);
-  /** Broadcasts live right now, for the live markers; and the one whose card is open. */
-  const [live, setLive] = useState<BroadcastQueue[]>([]);
-  const [card, setCard] = useState<{ queue: BroadcastQueue; at: number } | null>(null);
-
-  useEffect(() => {
-    let alive = true;
-    const read = () =>
-      void repository
-        .listQueues()
-        .then((queues) => {
-          const now = Date.now();
-          if (alive) setLive(queues.filter((queue) => hostState(queue, now) === 'live'));
-        })
-        .catch(() => {
-          // The markers stay as they were until the next read.
-        });
-
-    read();
-    const unsubscribe = repository.subscribeToQueues(read);
-    // A host who goes quiet writes nothing, so a slow poll is what lets their marker go.
-    const poll = window.setInterval(read, 30000);
-    return () => {
-      alive = false;
-      unsubscribe();
-      window.clearInterval(poll);
-    };
-  }, [repository]);
+  /** Music rooms playing a song right now, for the live markers; a host gone quiet loses theirs as the clock moves. */
+  const { rooms } = useLiveRooms();
+  const clock = useNow(30000);
+  const live = useMemo<LiveSong[]>(
+    () =>
+      (rooms ?? []).flatMap(({ room, current }) =>
+        room.origin === 'music' && room.isPublic && roomRowState(room, clock) === 'live' && isSongLink(current?.link)
+          ? [{ userId: room.hostId, trackId: current.link.url, roomId: room.id }]
+          : [],
+      ),
+    [rooms, clock],
+  );
   const [close, setClose] = useState<{ rows: CloseRow[]; mine: ReadonlyMap<string, number> }>({ rows: [], mine: new Map() });
 
   useEffect(() => {
@@ -221,9 +211,8 @@ export default function VanityView() {
     );
 
   return (
-    <LiveContext.Provider value={{ live, open: (queue) => setCard({ queue, at: Date.now() }) }}>
+    <LiveContext.Provider value={{ live, open: (song) => enterRoom(song.roomId, 'music') }}>
     <section>
-      {card === null ? null : <QueueProfilePopout queue={card.queue} now={card.at} mine={card.queue.userId === userId} onClose={() => setCard(null)} />}
       <div className="mb-2 flex flex-wrap items-center gap-1" role="tablist" aria-label="Vanity views">
         {(showMirror ? [...TABS, MIRROR_TAB] : TABS).map((entry) => (
           <button
@@ -465,7 +454,7 @@ function PlayedByFace({ face, srcs }: { face: Face; srcs: ReadonlySet<string> })
 
 /**
  * A small round face that opens the person's profile; the tip names them. When they are playing one of
- * `srcs` right now (null: anything), a LIVE key beside it opens their broadcast's card to follow along.
+ * `srcs` right now (null: anything), a LIVE key beside it joins their music room.
  */
 function PersonFace({ personId, tip, srcs }: { personId: string; tip: string; srcs: ReadonlySet<string> | null }) {
   const { profile, ready } = usePublicProfile(personId);
@@ -486,7 +475,7 @@ function PersonFace({ personId, tip, srcs }: { personId: string; tip: string; sr
       </span>
     </Link>
     {broadcast === null ? null : (
-      <button type="button" onClick={() => open(broadcast)} className={PLATE} title={`${name} is playing this now: listen along`}>
+      <button type="button" onClick={() => open(broadcast)} className={PLATE} title={`${name} is playing this now: join their room`}>
         [ ● LIVE ]
       </button>
     )}

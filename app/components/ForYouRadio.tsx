@@ -28,9 +28,11 @@ export default function ForYouRadio() {
 
   // Listening along is somebody else's queue: the radio steps aside (even when the host plays a song the
   // radio once handed over, which the song test below would let through).
+  // So is being in somebody else's room (SPEC-music-queues.md); in your own, its picks go into the room's queue.
+  const inTheirRoom = player.room !== null && !player.room.hosting;
   useEffect(() => {
-    if (following) stopRadio();
-  }, [following]);
+    if (following || inTheirRoom) stopRadio();
+  }, [following, inTheirRoom]);
 
   useEffect(() => {
     if (lastSrc.current === src) return;
