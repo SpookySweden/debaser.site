@@ -102,7 +102,7 @@ type ProfileCustomiserWindowProps = {
  * reach from a username or a picture.
  */
 export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCustomiserWindowProps) {
-  const { profile, repository } = usePublicProfile(userId);
+  const { profile, repository, refresh } = usePublicProfile(userId);
   const auth = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -232,6 +232,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
     try {
       await action();
+      // Re-read the row into the tab's shared copy, so this window, the profile and the account page
+      // all show the save at once. Waiting for Realtime left a new track invisible until a reload: the
+      // song table is not on the feed, and the feed's own echo of the profile row can miss.
+      await refresh();
       setSavedTick((tick) => tick + 1);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : 'UNKNOWN ERROR');
