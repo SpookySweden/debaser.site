@@ -86,7 +86,7 @@ type StreamQueueWindowProps = {
   /** What is on is a live stream: it never ends, so nothing loops. */
   nowLive: boolean;
   onClose: () => void;
-  /** A search to open with, already run: a blank screen's VIDEO / MUSIC / BOOKS key (SPEC-cytube.md). */
+  /** A search to open with, already run: a blank screen's BOOKS / VIDEO / MUSIC key (SPEC-cytube.md). */
   prefill?: string;
   /** Opened from inside the room: the body goes Black and the frame and title wear the room's look. */
   inRoom?: boolean;

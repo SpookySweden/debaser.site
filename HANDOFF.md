@@ -1,4 +1,21 @@
-# Latest: the room canvas and STREAM ART (SPEC-stream-art.md) (2026-11-03)
+# Latest: canvas safety rules, BOOKS / VIDEO / MUSIC order, the three specs filed (2026-11-03)
+- Migration 20261103205948_stream-art-safety.sql (Luke's typed OK, pushed):
+  - The `canvas:<room>` broadcast is a private channel; realtime.messages policies let in only signed-in,
+    unbanned people while the room is live.
+  - Snapshots and their bucket pictures are taken only by the host, the saver, a drawer or someone crowned
+    (`room_canvas_may_snapshot`).
+  - A before-insert trigger rewrites a snapshot's participants, crowns, credits and input count from the records
+    (`room_canvas_people`: host, saver, drawers, chat since the canvas opened, crowns). Silent watchers leave no
+    record, so they are not listed.
+  - Hidden pieces are unreadable, rows and pictures, but to `is_admin()`.
+  - The mock keeps the snapshot rules. It cannot tell who reads, so there hidden stays an archive-page filter only.
+- The blank screen's keys are in Luke's order: BOOKS, VIDEO, MUSIC (`BLANK_KEYS`, check-cytube holds it).
+- SPEC-cytube.md and SPEC-stream-art.md are committed. All three specs (music-queues, stream-art, cytube) are live.
+- Luke's to do: restore `.env.test` (signed-in live drives of all three are still undone); draw the art slots
+  (CYTUBE icon, canvas tools, crowns, `mark-up-wide`); read the CYTUBE ABOUT text; decide whether HIDE moves
+  from the house account to his own.
+
+# Before that: the room canvas and STREAM ART (SPEC-stream-art.md) (2026-11-03)
 - Every room's screen (video streams and music rooms) has a per-viewer toggle in its top-right corner
   (`CanvasToggle.tsx`: reusable, takes `roomId` + `audio`; read the choice with `useScreenView` in
   lib/watch/canvas-view.ts). `RoomCanvas.tsx` sits over the picture (the video keeps playing under it). The default

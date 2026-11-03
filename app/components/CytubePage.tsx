@@ -166,7 +166,7 @@ function About() {
     <div className="flex max-w-3xl flex-col gap-3 text-prose text-ink" data-cytube-about>
       <AboutPart title="ROOMS">
         A room is somebody&apos;s stream: everybody in it sees and hears the same thing at the same moment, and talks in its chat. Press GO LIVE
-        to open yours. It starts empty, on a black screen with three keys - VIDEO, MUSIC and BOOKS - that open the queue with a search ready.
+        to open yours. It starts empty, on a black screen with three keys - BOOKS, VIDEO and MUSIC - that open the queue with a search ready.
       </AboutPart>
       <AboutPart title="THE QUEUE AND ADDITIONS">
         What plays comes from the room&apos;s queue: red has played, green is on, blue is next. Anybody can add things. Without a crown, what

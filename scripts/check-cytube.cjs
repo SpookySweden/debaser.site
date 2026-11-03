@@ -30,7 +30,7 @@ function ok(condition, message) {
 const same = (a, b, message) => ok(JSON.stringify(a) === JSON.stringify(b), `${message}\n     got ${JSON.stringify(a)}\n    want ${JSON.stringify(b)}`);
 
 /* ---------------------------------------------------------------- the three keys' searches */
-same(blank.BLANK_KEYS.map((key) => key.label), ['VIDEO', 'MUSIC', 'BOOKS'], 'three keys, in order');
+same(blank.BLANK_KEYS.map((key) => key.label), ['BOOKS', 'VIDEO', 'MUSIC'], "three keys, in Luke's order (books, video, music)");
 for (const { key } of blank.BLANK_KEYS) {
   same(blank.queueSearchPlan(blank.blankPrefill(key)).preset, key, `${key}: the pre-fill reads back as its own search`);
 }

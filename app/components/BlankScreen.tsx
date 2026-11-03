@@ -23,7 +23,7 @@ const TIPS: Record<BlankKey, string> = {
 /**
  * A room's screen with nothing playing (SPEC-cytube.md): black, with three keys in the middle - VIDEO, MUSIC,
  * BOOKS - each opening the queue window with its search filled in. Yellow at rest; under the pointer or keyboard
- * focus VIDEO lights red, MUSIC pink, BOOKS green. Pressed, the key flashes and squishes, then the window opens;
+ * focus BOOKS lights green, VIDEO red, MUSIC pink. Pressed, the key flashes and squishes, then the window opens;
  * with reduced motion only the colour changes and it opens at once. They stack on a narrow screen.
  *
  * Whether they add straight to the queue or to your own list is the queue window's crown rule, unchanged.

@@ -12,10 +12,11 @@ import type { WatchQueueEntry, WatchRoom } from './types';
 
 export type BlankKey = 'video' | 'music' | 'books';
 
+/** In Luke's order (2026-11-03: "Books green, video red, music pink"). */
 export const BLANK_KEYS: readonly { key: BlankKey; label: string }[] = [
+  { key: 'books', label: 'BOOKS' },
   { key: 'video', label: 'VIDEO' },
   { key: 'music', label: 'MUSIC' },
-  { key: 'books', label: 'BOOKS' },
 ];
 
 /**
