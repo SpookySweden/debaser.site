@@ -53,6 +53,12 @@ type DockWindowProps = {
    * of reach - the board behind it is usable and nothing in it can be tabbed to.
    */
   minimized?: boolean;
+  /**
+   * Drawn no lower than the top of the music player in whichever shape it is in (`--music-top`: the bar, the phone
+   * card, the folded tile), whatever its box says: the stream room, whose keys are on that bar while it shows the
+   * stream, and whose way back is on the tile. Its saved box is left as it is.
+   */
+  aboveBottomBar?: boolean;
   children: ReactNode;
 };
 
@@ -119,6 +125,7 @@ export default function DockWindow({
   fill,
   onMinimize,
   minimized = false,
+  aboveBottomBar = false,
   children,
 }: DockWindowProps) {
   const desktop = useSyncExternalStore(subscribeToDesktop, isDesktop, onServer);
@@ -174,8 +181,18 @@ export default function DockWindow({
   const titleHandlers = managed ? layoutHandlers : sheetDrag;
 
   const style = managed
-    ? { left: live.rect.x, top: live.rect.y, width: live.rect.w, height: live.rect.h, zIndex: 90 + Math.min(live.z, 8) }
-    : { transform: `translate(${offset.x}px, ${offset.y}px)` };
+    ? {
+        left: live.rect.x,
+        top: live.rect.y,
+        width: live.rect.w,
+        height: aboveBottomBar ? `min(${live.rect.h}px, calc(100vh - var(--music-top, 0px) - ${live.rect.y}px - 0.25rem))` : live.rect.h,
+        zIndex: 90 + Math.min(live.z, 8),
+      }
+    : {
+        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        // The sheet's foot sits on the player's top rather than at its usual 5rem.
+        ...(aboveBottomBar ? { bottom: 'calc(var(--music-top, 4.75rem) + 0.25rem)' } : {}),
+      };
   const corner = dock === 'bottom' ? 'sm:top-auto sm:bottom-28' : 'sm:top-16 sm:bottom-auto';
   const placement = managed
     ? 'fixed'

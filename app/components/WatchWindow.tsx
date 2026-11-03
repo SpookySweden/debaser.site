@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCatalogue } from '../lib/media/catalogue';
@@ -10,6 +11,7 @@ import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { getWatchRepository } from '../lib/watch/repository';
 import { roomIsLive, streamAnchor, streamThreadTitle } from '../lib/watch/rules';
+import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { primeRoom, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
@@ -31,9 +33,10 @@ import WatchRoom from './WatchRoom';
 /** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
 const ROOM_SIZE = { w: 2560, h: 1440 };
 const ROOM_MIN = { w: 560, h: 420 };
-/** The TV box's hand-drawn mark (`mark-tv` in app/lib/ui/art/slots.ts), shown at 24px. */
-const TV_MARK_SRC = '/assets/icons/tv.png';
-const TV_MARK_SIZE = 24;
+/** The folded room's hand-drawn mark (`mark-up-wide` in app/lib/ui/art/slots.ts), shown at 40x16. */
+const UP_MARK_SRC = '/assets/icons/up-wide.png';
+const UP_MARK_WIDTH = 40;
+const UP_MARK_HEIGHT = 16;
 
 /**
  * The stream room, drawn once in `layout.tsx` (SPEC-watch-together.md).
@@ -172,6 +175,7 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         onClose={() => (read && live ? setClosing(true) : onLeft())}
         onMinimize={read ? onCollapse : undefined}
         minimized={collapsed}
+        aboveBottomBar
         dock="top"
         defaultSize={ROOM_SIZE}
         minSize={ROOM_MIN}
@@ -190,17 +194,25 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
           <WatchRoom read={read} closing={closing} onStay={() => setClosing(false)} onLeft={onLeft} />
         )}
       </DockWindow>
-      {collapsed ? <TvBox live={live} hostName={hostName} /> : null}
+      {collapsed ? <UpBox live={live} hostName={hostName} /> : null}
+      {read === undefined || read === null ? <BarWaiting text={read === null ? 'NO SUCH STREAM.' : (error ?? 'READING THE STREAM...')} /> : null}
     </>
   );
 }
 
+/** The music bar's stream box before the room has been read (the room draws its own part once it has). */
+function BarWaiting({ text }: { text: string }) {
+  const target = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
+  if (target === null) return null;
+  return createPortal(<span className="min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label font-bold text-ink-bar">{text}</span>, target);
+}
+
 /**
- * The room folded away: a framed tile just above the music player's ♪ (`--music-top`, whichever shape the
- * player is in), wiggling every few seconds while the stream is on. Pressing it brings the room back; so do
- * the `[ TV ]` keys and any link to the room (watch-window.ts).
+ * The room folded away: a framed tile with a wide up arrow just above the music bar's TV key (`--music-top`,
+ * whichever shape the player is in; Luke, 2026-11-03). Pressing it brings the room back; so does any link to
+ * the room (watch-window.ts). Still: the TV key under it is the one that wiggles.
  */
-function TvBox({ live, hostName }: { live: boolean; hostName: string }) {
+function UpBox({ live, hostName }: { live: boolean; hostName: string }) {
   const tip = live ? `BACK TO THE STREAM WITH ${hostName.toUpperCase()}` : 'BACK TO THE STREAM (ENDED)';
   // The page window's foot keeps clear of it (`--stream-box`, ./SiteWindow.tsx), as it does of the player.
   const box = useRef<HTMLSpanElement>(null);
@@ -210,12 +222,13 @@ function TvBox({ live, hostName }: { live: boolean; hostName: string }) {
     // A framed tile, like the folded music player under it: a bare key would sit straight on the desktop.
     <span
       ref={box}
-      className={`fixed left-2 z-50 frame bg-sun-pale p-0.5 ${live ? 'animate-wiggle hover:animate-none' : ''}`}
-      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)' }}
+      className="fixed z-50 frame bg-sun-pale p-0.5"
+      // Over the bar's left key (`--music-key-left`, ./MusicPlayer.tsx); the folded tile and the phone card sit at 0.5rem.
+      style={{ bottom: 'calc(var(--music-top, 0px) + 0.5rem)', left: 'var(--music-key-left, 0.5rem)' }}
       data-watch-tv-box={live ? 'live' : 'ended'}
     >
       <button type="button" onClick={expandWatch} className={PLATE} aria-label={tip} title={tip}>
-        <ArtMark src={TV_MARK_SRC} size={TV_MARK_SIZE} fallback="[ TV ]" />
+        <ArtMark src={UP_MARK_SRC} size={UP_MARK_HEIGHT} width={UP_MARK_WIDTH} fallback="[ ▲ ]" />
       </button>
     </span>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { type RefObject, useCallback, useRef, useState, useSyncExternalStore } from 'react';
+import { type RefObject, useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { followState, subscribeToFollow, type FollowState } from '../lib/audio/follow';
@@ -19,6 +19,9 @@ import { SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
 import { ACCENT_COLOUR, PLATE, PLATE_HARDWARE, PLATE_PRESSED, PLATE_TAP } from '../lib/ui/controls';
 import { useCompactViewport } from '../lib/ui/use-compact-viewport';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
+import { setStreamBarTarget, showMusicOnBar, showsStream, showStreamOnBar, streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
+import { subscribeToWatchWindow, watchWindowState } from '../lib/watch/watch-window';
+import ArtMark from './ArtMark';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import AboveAnchor from './AboveAnchor';
 import MarqueeText from './MarqueeText';
@@ -141,8 +144,15 @@ export default function MusicPlayer() {
   // What the listener chose, or - if they have never touched it - what this window wants:
   // showing in a wide one, folded away on a phone.
   const open = setting === null ? !compact : setting === 'open';
-  // The folded tile's top, for the stream's TV box above it (the bar and the card say their own).
+  // The folded tile's top, for the folded stream's box above it (the bar and the card say their own).
   useEdgeReserve(tile, '--music-top', !open);
+
+  // While a room is open the bar is the stream's, until its TV key turns it back to the music (./WatchRoom.tsx
+  // draws the stream's part into it; lib/watch/stream-bar.ts).
+  const watch = useSyncExternalStore(subscribeToWatchWindow, watchWindowState, watchWindowState);
+  const streamBar = useSyncExternalStore(subscribeToStreamBar, streamBarState, streamBarState);
+  const roomId = watch.open && watch.focus?.kind === 'room' ? watch.focus.roomId : null;
+  const streamOn = roomId !== null && showsStream(streamBar, roomId);
 
   /**
    * The music key on the phone card.
@@ -192,10 +202,17 @@ export default function MusicPlayer() {
       // Folded, the player is a window put away: a small framed tile on the desktop, its one key inside.
       // A bare bracket key would sit straight on the desktop, and Royal Blue on the bright theme's pink
       // desktop is under 3:1.
-      <span ref={tile} className="fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5">
+      // In a room it says STREAM with the TV mark and wiggles, as the bar's own TV key does.
+      <span ref={tile} className={`fixed bottom-2 left-2 z-50 frame bg-sun-pale p-0.5 ${roomId !== null ? 'animate-wiggle hover:animate-none' : ''}`}>
         <BarrNotice anchor={tile} />
-        <button type="button" onClick={() => setBarOpen(true)} className={PLATE}>
-          [ ♪ {player.playing ? 'PLAYING' : 'PLAYER'} ]
+        <button type="button" onClick={() => setBarOpen(true)} className={`${PLATE} inline-flex items-center gap-1`}>
+          {streamOn ? (
+            <>
+              [ <ArtMark src={TV_MARK_SRC} size={TV_MARK_SIZE} fallback="TV" /> STREAM ]
+            </>
+          ) : (
+            `[ ♪ ${player.playing ? 'PLAYING' : 'PLAYER'} ]`
+          )}
         </button>
       </span>
     );
@@ -203,15 +220,18 @@ export default function MusicPlayer() {
 
   return (
     <>
-      {compact ? (
+      {roomId !== null && streamOn ? (
+        <StreamStrip roomId={roomId} onHide={() => setBarOpen(false)} />
+      ) : compact ? (
         <CompactBar
+          roomId={roomId}
           onHide={() => setBarOpen(false)}
           onMusic={pressMusic}
           onQueues={pressQueues}
           onSettings={() => setSettingsOpen(true)}
         />
       ) : (
-        <DockedBar onHide={() => setBarOpen(false)} onSettings={() => setSettingsOpen(true)} />
+        <DockedBar roomId={roomId} onHide={() => setBarOpen(false)} onSettings={() => setSettingsOpen(true)} />
       )}
 
       {shelfOpen ? <ShelfWindow onClose={() => setShelfOpen(false)} /> : null}
@@ -222,9 +242,96 @@ export default function MusicPlayer() {
 
 /** What either shape of bar needs from the component that draws it. */
 type BarControls = {
+  /** The open stream room, whose bar this was turned away from: the player's name becomes the key back to it. */
+  roomId: string | null;
   onHide: () => void;
   onSettings: () => void;
 };
+
+/** The TV mark (`mark-tv` in app/lib/ui/art/slots.ts), shown at 24px. */
+const TV_MARK_SRC = '/assets/icons/tv.png';
+const TV_MARK_SIZE = 24;
+/** Both of the stream's swap keys wiggle every few seconds, to say they can be pressed (still under the pointer). */
+const WIGGLE = 'animate-wiggle hover:animate-none focus-visible:animate-none';
+
+/**
+ * Publishes where the bar's left key starts (`--music-key-left` on `<html>`), so the folded stream's up-arrow box
+ * (./WatchWindow.tsx) sits straight above it: the bar is centred, so its first key is not at the screen's edge.
+ */
+function usePublishKeyLeft(key: RefObject<HTMLElement | null>): void {
+  useLayoutEffect(() => {
+    const element = key.current;
+    if (element === null) return;
+    const root = document.documentElement;
+    const publish = () => root.style.setProperty('--music-key-left', `${Math.round(element.getBoundingClientRect().left)}px`);
+    publish();
+    window.addEventListener('resize', publish);
+    return () => {
+      window.removeEventListener('resize', publish);
+      root.style.removeProperty('--music-key-left');
+    };
+  }, [key]);
+}
+
+/**
+ * The player's name, `♪ PLAYER`. While a room is open and the bar shows the music, it is a key that wiggles and
+ * turns the bar back to the stream (Luke, 2026-11-03).
+ */
+function PlayerName({ roomId, className }: { roomId: string | null; className: string }) {
+  if (roomId === null) return <span className={className}>♪ PLAYER</span>;
+  return (
+    <button
+      type="button"
+      onClick={showStreamOnBar}
+      className={`${PLATE_HARDWARE} ${WIGGLE}`}
+      title="Back to the stream on this bar"
+      aria-label="Show the stream on this bar"
+      data-stream-bar-swap="music"
+    >
+      ♪ PLAYER
+    </button>
+  );
+}
+
+/**
+ * The stream's bar (Luke, 2026-11-03): built like the music bar, with the TV key where `♪ PLAYER` was - it wiggles,
+ * and a press turns the bar back to the music player - then the fold, then the box the room draws the rest into:
+ * the black screen (what is on, the host, what is next, the time) and the stream's keys (./WatchRoom.tsx).
+ */
+function StreamStrip({ roomId, onHide }: { roomId: string; onHide: () => void }) {
+  const strip = useRef<HTMLDivElement>(null);
+  useEdgeReserve(strip, '--bottom-bar', true);
+  useEdgeReserve(strip, '--music-top', true);
+  const keys = useRef<HTMLSpanElement>(null);
+  usePublishKeyLeft(keys);
+  // The room's part arrives through a portal; the box is empty as far as React here is concerned.
+  const target = useCallback((box: HTMLDivElement | null) => setStreamBarTarget(box), []);
+
+  return (
+    <div ref={strip} className="fixed bottom-0 left-0 right-0 z-50 border-t-line border-ink bg-sun-pale px-2 py-1 font-mono text-ink" data-stream-bar>
+      <div className="mx-auto flex max-w-[95vw] flex-wrap items-center gap-2">
+        <span ref={keys} className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => showMusicOnBar(roomId)}
+            className={`${PLATE_HARDWARE} ${WIGGLE}`}
+            title="Show the music player on this bar"
+            aria-label="Show the music player on this bar"
+            data-stream-bar-swap="stream"
+          >
+            <ArtMark src={TV_MARK_SRC} size={TV_MARK_SIZE} fallback="[ TV ]" />
+          </button>
+
+          <button type="button" onClick={onHide} className={PLATE_HARDWARE}>
+            [ HIDE ]
+          </button>
+        </span>
+
+        <div ref={target} className="flex min-w-0 flex-1 flex-wrap items-center gap-2" />
+      </div>
+    </div>
+  );
+}
 
 /** What the phone card needs on top: the two doors a wide screen keeps in the side panel's shelf. */
 type CardControls = BarControls & {
@@ -394,11 +501,13 @@ function followNote(follow: FollowState): string {
   return follow.ended.length === 0 ? 'STOPPED FOLLOWING :: ' : `STOPPED FOLLOWING - ${follow.ended} :: `;
 }
 
-function DockedBar({ onHide, onSettings }: BarControls) {
+function DockedBar({ roomId, onHide, onSettings }: BarControls) {
   // The page window keeps clear of this strip (`--bottom-bar`, read by ./SiteWindow.tsx).
   const strip = useRef<HTMLDivElement>(null);
   useEdgeReserve(strip, '--bottom-bar', true);
   useEdgeReserve(strip, '--music-top', true);
+  const nameKeys = useRef<HTMLSpanElement>(null);
+  usePublishKeyLeft(nameKeys);
   const player = useMusicPlayer();
   const { track, playing, loading, error, elapsed, duration, volume, loop } = player;
   const follow = useSyncExternalStore(subscribeToFollow, followState, followState);
@@ -450,10 +559,8 @@ function DockedBar({ onHide, onSettings }: BarControls) {
               and a reader looking for it had to scan the whole line to find the one key that closes it.
               Kept in one recess so the two read as a unit. `♪ PLAYER`, not `♪ DEBASER PLAYER`: the
               site's name is already on the window above it. */}
-          <span className="flex items-center gap-1">
-            <span className="px-1 text-label text-ink">
-              ♪ PLAYER
-            </span>
+          <span ref={nameKeys} className="flex items-center gap-1">
+            <PlayerName roomId={roomId} className="px-1 text-label text-ink" />
 
             <button
               type="button"
@@ -706,7 +813,7 @@ function ShelfWindow({ onClose }: { onClose: () => void }) {
  * surrounding chrome is the same grey. What is *not* retro is the layout, deliberately: a
  * phone's player is a solved shape.
  */
-function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
+function CompactBar({ roomId, onHide, onMusic, onQueues, onSettings }: CardControls) {
   const player = useMusicPlayer();
   /** The card itself: BARR's question and the song panel open over it, lined up with its left edge. */
   const card = useRef<HTMLElement>(null);
@@ -727,7 +834,7 @@ function CompactBar({ onHide, onMusic, onQueues, onSettings }: CardControls) {
       {/* No bar behind the row: the card's own fill, the name in the accent ink the way a window is
           titled, and a rule under it - the last Royal Blue strip left from the Win95 chrome. */}
       <div className="flex items-center justify-between gap-1 border-b-line border-ink pl-2 text-label font-bold">
-        <span className="truncate text-accent-ink">♪ PLAYER</span>
+        <PlayerName roomId={roomId} className="truncate text-accent-ink" />
 
         <span className="flex shrink-0 items-center">
           <button

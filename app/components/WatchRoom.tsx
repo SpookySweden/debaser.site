@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
 import { threadDomId } from '../lib/forum/anchors';
@@ -14,6 +15,7 @@ import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump } from '../lib/watch/links';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
+import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
   MESSAGE_MAX_LENGTH,
   TAKE_OVER_RETRY_MS,
@@ -46,6 +48,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import LanguageFlag from './LanguageFlag';
+import MarqueeText from './MarqueeText';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
@@ -559,120 +562,135 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   const duration = Number.isFinite(clock.duration) ? clock.duration : 0;
   const progress = duration > 0 ? Math.min(100, (clock.seconds / duration) * 100) : 0;
 
-  // Left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY, PIP, FULL,
-  // END STREAM (host). The line that sat under the picture (its title, `1 OF 3`, YOU ARE HOSTING) is gone:
-  // the chat column's strip names the video, and skip and end live here.
-  const playerBar = hasTransport || hostKeys ? (
-    // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
-    <div className="relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
-      {hasTransport && hostKeys ? (
-        <button
-          type="button"
-          className={`${PLATE_ON_BLACK} shrink-0`}
-          aria-label={clock.paused ? 'Play' : 'Pause'}
-          onClick={() => {
-            const video = videoRef.current;
-            if (video === null) return;
-            if (video.paused) void video.play().catch(() => setNeedsPress(true));
-            else video.pause();
-          }}
-        >
-          {clock.paused ? '[ ▶ ]' : '[ ❚❚ ]'}
+  // The music bar's box for the stream (lib/watch/stream-bar.ts): while the bar shows the stream, the keys live
+  // there (Luke, 2026-11-03) and the picture has the room to itself. In fullscreen the bar is out of sight, and
+  // while the bar shows the music it is not offered, so the keys come back under the picture.
+  const barTarget = useSyncExternalStore(subscribeToStreamBar, () => streamBarState().target, () => null);
+  const keysOnMusicBar = barTarget !== null && !fullscreen;
+
+  // The keys, each drawn in whichever of the two bars is showing them.
+  const playKey =
+    hasTransport && hostKeys ? (
+      <button
+        type="button"
+        className={`${PLATE_ON_BLACK} shrink-0`}
+        aria-label={clock.paused ? 'Play' : 'Pause'}
+        onClick={() => {
+          const video = videoRef.current;
+          if (video === null) return;
+          if (video.paused) void video.play().catch(() => setNeedsPress(true));
+          else video.pause();
+        }}
+      >
+        {clock.paused ? '[ ▶ ]' : '[ ❚❚ ]'}
+      </button>
+    ) : null;
+  // A live stream has no position to show; the space is kept so the keys beside it stay put.
+  const seekLine = stageLive ? (
+    <span className="min-w-12 flex-1" />
+  ) : amHost && live ? (
+    <input
+      type="range"
+      aria-label="Seek"
+      min={0}
+      max={duration}
+      step={0.1}
+      value={Math.min(clock.seconds, duration)}
+      onChange={(event) => {
+        const video = videoRef.current;
+        if (video !== null) video.currentTime = Number(event.target.value);
+      }}
+      className="min-w-12 flex-1 accent-sun"
+    />
+  ) : (
+    // Only the host moves the room's position, so everybody else sees where it is without a handle.
+    <span className="h-1 min-w-12 flex-1 bg-chrome-dark" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
+      <span className="block h-full bg-sun" style={{ width: `${progress}%` }} />
+    </span>
+  );
+  const timeMark = stageLive ? (
+    <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
+      LIVE
+    </span>
+  ) : (
+    <span className="shrink-0 tabular-nums" data-watch-clock={clock.seconds.toFixed(1)}>
+      {formatMediaTime(clock.seconds)} / {duration > 0 ? formatMediaTime(duration) : '--:--'}
+    </span>
+  );
+  const skipKey = hostKeys ? (
+    <button
+      type="button"
+      className={`${PLATE_ON_BLACK} shrink-0`}
+      disabled={waiting.length === 0}
+      aria-label="Skip to the next video"
+      title={waiting.length === 0 ? 'Nothing queued' : 'Skip'}
+      onClick={() => moveOn(true)}
+    >
+      [ ▶▶ ]
+    </button>
+  ) : null;
+  const pictureKeys = hasTransport ? (
+    <>
+      <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
+      <QualityKey source={qualitySource} />
+      <SubsKey
+        key={entryId ?? 'none'}
+        source={subtitleSource}
+        play={entryId}
+        seriesId={entry?.series?.id ?? null}
+        textAudio={archiveList?.language ?? detectLanguage(subtitleTitle)}
+        burnedIn={burnedInSubtitles(subtitleTitle)}
+      />
+      {canPip ? (
+        <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
+          [ PIP ]
         </button>
       ) : null}
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
+        {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
+      </button>
+    </>
+  ) : null;
+  const endKey = hostKeys ? (
+    // Ending it for everybody takes a second press, like starting it did.
+    <button
+      type="button"
+      className={`${confirmEnd ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
+      onClick={() => {
+        if (!confirmEnd) {
+          setConfirmEnd(true);
+          return;
+        }
+        void repository
+          .endRoom(roomId)
+          .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
+          .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
+      }}
+      onBlur={() => setConfirmEnd(false)}
+    >
+      {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
+    </button>
+  ) : null;
+
+  // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
+  // PIP, FULL, END STREAM (host). The chat column's strip names the video.
+  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys) ? (
+    // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
+    <div className="relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
+      {playKey}
       {/* Where it is, and the time: a row of its own on a phone, so the keys fit on the one under it. With no
           transport (a WEB platform's own player) the space only pushes the host's keys to the right. */}
       {!hasTransport ? (
         <span className="flex-1" />
       ) : (
-      <span className="flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full">
-      {/* A live stream has no position to show; the space is kept so the keys beside it stay put. */}
-      {stageLive ? (
-        <span className="min-w-12 flex-1" />
-      ) : amHost && live ? (
-        <input
-          type="range"
-          aria-label="Seek"
-          min={0}
-          max={duration}
-          step={0.1}
-          value={Math.min(clock.seconds, duration)}
-          onChange={(event) => {
-            const video = videoRef.current;
-            if (video !== null) video.currentTime = Number(event.target.value);
-          }}
-          className="min-w-12 flex-1 accent-sun"
-        />
-      ) : (
-        // Only the host moves the room's position, so everybody else sees where it is without a handle.
-        <span className="h-1 min-w-12 flex-1 bg-chrome-dark" role="progressbar" aria-label="Progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(progress)}>
-          <span className="block h-full bg-sun" style={{ width: `${progress}%` }} />
+        <span className="flex min-w-12 flex-1 items-center gap-2 max-sm:order-first max-sm:basis-full">
+          {seekLine}
+          {timeMark}
         </span>
       )}
-      {stageLive ? (
-        <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate" data-watch-clock={clock.seconds.toFixed(1)}>
-          LIVE
-        </span>
-      ) : (
-        <span className="shrink-0 tabular-nums" data-watch-clock={clock.seconds.toFixed(1)}>
-          {formatMediaTime(clock.seconds)} / {duration > 0 ? formatMediaTime(duration) : '--:--'}
-        </span>
-      )}
-      </span>
-      )}
-      {hostKeys ? (
-        <button
-          type="button"
-          className={`${PLATE_ON_BLACK} shrink-0`}
-          disabled={waiting.length === 0}
-          aria-label="Skip to the next video"
-          title={waiting.length === 0 ? 'Nothing queued' : 'Skip'}
-          onClick={() => moveOn(true)}
-        >
-          [ ▶▶ ]
-        </button>
-      ) : null}
-      {hasTransport ? (
-        <>
-          <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
-          <QualityKey source={qualitySource} />
-          <SubsKey
-            key={entryId ?? 'none'}
-            source={subtitleSource}
-            seriesId={entry?.series?.id ?? null}
-            textAudio={archiveList?.language ?? detectLanguage(subtitleTitle)}
-            burnedIn={burnedInSubtitles(subtitleTitle)}
-          />
-          {canPip ? (
-            <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
-              [ PIP ]
-            </button>
-          ) : null}
-          <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
-            {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
-          </button>
-        </>
-      ) : null}
-      {hostKeys ? (
-        // Ending it for everybody takes a second press, like starting it did.
-        <button
-          type="button"
-          className={`${confirmEnd ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK} shrink-0`}
-          onClick={() => {
-            if (!confirmEnd) {
-              setConfirmEnd(true);
-              return;
-            }
-            void repository
-              .endRoom(roomId)
-              .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
-              .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
-          }}
-          onBlur={() => setConfirmEnd(false)}
-        >
-          {confirmEnd ? '[ END FOR EVERYBODY ]' : '[ END STREAM ]'}
-        </button>
-      ) : null}
+      {skipKey}
+      {pictureKeys}
+      {endKey}
     </div>
   ) : null;
 
@@ -780,6 +798,42 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           ? (itemsById.get(nextEntry.mediaItemId)?.title ?? null)
           : null;
 
+  // On the music bar while it shows the stream, laid out as the music is: the black screen (what this is, the
+  // title, what is next, where it is), then the keys in a black recess, as the music bar has its D-pad.
+  const barCaption = notice ?? fault ?? `NEXT :: ${nextTitle ?? 'NOTHING QUEUED'}`;
+  const musicBarPart =
+    keysOnMusicBar && barTarget !== null
+      ? createPortal(
+          <>
+            <span className="min-w-0 flex-1 frame bg-hardware px-2 py-1 text-label" data-stream-bar-screen>
+              <span className="flex min-w-0 items-center gap-2 font-bold text-ink-bar">
+                <span className={`shrink-0 px-1 ${live ? 'bg-acid text-ink-plate' : 'bg-bubble-pale text-ink-bar'}`}>{live ? 'LIVE' : 'ENDED'}</span>
+                <span className="truncate">STREAM :: {amHost ? 'YOU ARE HOSTING' : `HOSTED BY ${hostName.toUpperCase()}`}</span>
+              </span>
+              <MarqueeText className="block text-key font-bold text-acid" text={entryTitle ?? '...'} />
+              <MarqueeText className="block leading-readout-tight text-ink-bar" durationSeconds={22} text={barCaption} />
+              {hasTransport ? (
+                <span className="mt-1 flex min-w-0 items-center gap-2 text-ink-bar">
+                  {seekLine}
+                  {timeMark}
+                </span>
+              ) : null}
+            </span>
+            {/* `relative`: QUALITY and SUBS open their lists over their keys, above the bar. */}
+            <span className="relative flex shrink-0 flex-wrap items-center gap-1 frame bg-hardware px-1 py-0.5 text-label text-sun" data-watch-bar="music">
+              {playKey}
+              {skipKey}
+              {pictureKeys}
+              <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-haspopup="dialog" onClick={() => setQueueOpen(true)} data-stream-bar-queue>
+                [ QUEUE ]
+              </button>
+              {endKey}
+            </span>
+          </>,
+          barTarget,
+        )
+      : null;
+
   // Top to bottom (Luke, 2026-11-02): the QUEUE line, which opens the queue as its own window; the strip of
   // who is watching with what is on and what is next, newswire-style, the width of the chat; then the chat.
   const side = (
@@ -808,6 +862,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   return (
     <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
+      {musicBarPart}
       {ended ? (
         <p className="text-label font-bold text-ink" role="status">
           {room.endedAt === null ? 'THIS STREAM WENT QUIET.' : 'STREAM ENDED.'}{' '}

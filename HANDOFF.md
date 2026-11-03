@@ -1,4 +1,19 @@
-# Latest: workflow tools for sessions sharing this folder (2026-11-03)
+# Latest: the stream takes over the music bar (2026-11-03)
+- In a room the bottom bar is the stream's (MusicPlayer `StreamStrip`): TV key at the left (wiggles; turns the bar
+  back to music for that room, per tab, lib/watch/stream-bar.ts), black screen (LIVE/ENDED, host, title, NEXT,
+  time), keys in a black recess incl. QUEUE. WatchRoom portals its part into the box the bar registers.
+- The keys under the picture show only in fullscreen, when the bar shows music, or when the bar is folded to its
+  tile (which then reads `[ TV STREAM ]` and wiggles). SUBS' "this viewer picked" is module-level (`pickedPlay`),
+  so it survives the keys moving.
+- Folded room: the old TV box is now a wide up arrow (slot `mark-up-wide`, 40x16, stand-in `[ ▲ ]`, art to draw)
+  over the bar's left key (`--music-key-left`). The room window is drawn no lower than `--music-top`
+  (DockWindow `aboveBottomBar`); its saved box is untouched.
+- Drive: `node Temp/drive-stream-bar.cjs` on dev-mock (52 checks, host + viewer, desktop + phone). The dev
+  server's Next badge sits over the TV key: the script hides `nextjs-portal`.
+- NEXT (Luke, 2026-11-03): rework the music QUEUES tab (RADI-OH, people's broadcasts) so it shares the stream's
+  queue to some degree (adding, ordering, what's next, maybe crowns). Big: interview Luke and write a SPEC first.
+
+# Before that: workflow tools for sessions sharing this folder (2026-11-03)
 - `npm run verify:clean` replaces the hand-made detached worktree below: commit only your files, run it, push.
   It keeps one clean copy (~\.debaser-clean-verify) with packages installed once; one session at a time; ~5 min.
 - `npm run web:fetch` runs the hourly archive fetch now (Luke's standing OK, to check work). The Stop hook's

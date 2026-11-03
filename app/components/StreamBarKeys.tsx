@@ -145,6 +145,17 @@ function carry(seriesId: string, choice: SubtitleChoice) {
 }
 
 /**
+ * The play this viewer picked on SUBS during: from then on their pick stands, OFF included, through seeks. Kept
+ * outside the key because the key moves between the room's own bar and the music bar (fullscreen, the TV key)
+ * and is drawn afresh each time.
+ */
+let pickedPlay: string | null = null;
+
+function markPicked(play: string | null) {
+  pickedPlay = play;
+}
+
+/**
  * SUBS (SPEC-subtitles.md, Luke 2026-11-03): `[ SUBS: [flag] ▾ ]` when the video on the stage has subtitles to
  * switch, its pop-up listing OFF, the human-made languages, then the AUTO ones. Each viewer's own: a pick changes
  * only this player. A video starts on English when its audio isn't English (or on the series' carried pick);
@@ -153,11 +164,14 @@ function carry(seriesId: string, choice: SubtitleChoice) {
  */
 export function SubsKey({
   source,
+  play,
   seriesId,
   textAudio,
   burnedIn,
 }: {
   source: SubtitleControl | null;
+  /** The play on the stage (the room's entry id), which a pick holds for. */
+  play: string | null;
   /** The playing episode's series (one add), for the carried pick; null outside a series. */
   seriesId: string | null;
   /** The audio's language as its title (or the Archive item) says. */
@@ -167,8 +181,6 @@ export function SubsKey({
   const [, heard] = useState(0);
   const [open, setOpen] = useState(false);
   const boxRef = useRef<HTMLSpanElement>(null);
-  /** This viewer picked during this play (the key is per play): from then on their pick stands, OFF included, through seeks. */
-  const picked = useRef(false);
 
   useEffect(() => {
     if (source === null) return;
@@ -182,7 +194,7 @@ export function SubsKey({
   // The start, as the player says what it carries (a stream may list its tracks one by one): the series' carried
   // pick, else the rule. Asked again only when the list changes, and never once this viewer has picked.
   useEffect(() => {
-    if (source === null || picked.current || tracks.length === 0) return;
+    if (source === null || (play !== null && pickedPlay === play) || tracks.length === 0) return;
     const carriedHere = carried !== null && seriesId !== null && carried.seriesId === seriesId ? trackForChoice(tracks, carried.choice) : undefined;
     const target = carriedHere !== undefined ? carriedHere : defaultSubtitle(tracks, audioLanguage(tracks, textAudio));
     if (target !== source.subtitle) source.setSubtitle(target);
@@ -218,7 +230,7 @@ export function SubsKey({
   const showing = tracks.find((track) => track.id === current) ?? null;
   const name = showing === null ? 'OFF' : `${subtitleName(showing)}${showing.auto ? ' (AUTO)' : ''}`;
   const pick = (track: SubtitleTrack | null) => {
-    picked.current = true;
+    markPicked(play);
     source?.setSubtitle(track === null ? null : track.id);
     if (seriesId !== null) carry(seriesId, choiceOf(track));
     setOpen(false);
