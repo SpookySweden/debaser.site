@@ -60,7 +60,8 @@ const ROUTES = [
   ['links', '/links'],
   ['project', '/projects/debaser'],
   ['profile', '/profile/qa-visitor'],
-  ['web', '/web'],
+  // The archive page, called WEB at /web until 2026-11-03 (/web redirects there).
+  ['archive', '/archive'],
 ];
 
 const findings = [];

@@ -169,7 +169,8 @@ export function tracksFromStorage(objects: StoredAudio[], described: DescribedAu
 export function trackCaption(track: AudioTrack | undefined): string {
   if (track === undefined) return 'NOTHING QUEUED';
 
-  const shelf = track.shelf === 'bucket' ? 'UPLOADED' : track.shelf === 'web' ? 'WEB' : 'ARCHIVE';
+  // A WEB track was found in the archive search, so it reads ARCHIVE too (WEB was renamed, 2026-11-03).
+  const shelf = track.shelf === 'bucket' ? 'UPLOADED' : 'ARCHIVE';
 
   return track.kind.length === 0 ? `${shelf} :: ${track.credit}` : `${shelf} :: ${track.kind} :: ${track.credit}`;
 }

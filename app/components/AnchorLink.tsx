@@ -55,7 +55,7 @@ export default function AnchorLink({ anchor, prefix = 'GO TO', preview = 'hover'
           {target.preview === undefined ? (
             <span className="block p-2 text-label font-bold text-ink">
               {/* A WEB item is somebody else's: no drawing of ours is expected, and it may have left the stream. */}
-              {anchor.kind === 'web' ? 'WEB ITEM // FROM ANOTHER SITE' : `${anchor.kind.toUpperCase()} ITEM`}
+              {anchor.kind === 'web' ? 'ARCHIVE ITEM // FROM ANOTHER SITE' : `${anchor.kind.toUpperCase()} ITEM`}
               <br />
               OPENS: {target.href}
             </span>

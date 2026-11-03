@@ -1,5 +1,7 @@
 # SPEC: media servers in WEB (/web)
 
+(WEB is called ARCHIVE and lives at /archive since 2026-11-03; /web redirects there. See SPEC-web.md.)
+
 Luke's interview, 2026-11-01. Build this in a fresh session. Read `SPEC-web.md`, the WEB section of
 `CLAUDE.md` and `.claude/skills/add-web-adapter` first; this adds to them and changes them only where it says so.
 

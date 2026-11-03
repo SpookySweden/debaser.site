@@ -79,8 +79,9 @@ export const NAV_ITEMS: NavItem[] = [
   // every file the site holds, and where each is used. It took over the ARCHIVE screen of the shelf
   // window, which keeps the reader's own tracks and lists.
   { key: 'media', label: 'MEDIA', mark: ICON_MEDIA, href: '/media' },
-  // One stream of media from other platforms, newest first (SPEC-web.md): a place a reader goes.
-  { key: 'web', label: 'WEB', mark: ICON_WEB, href: '/web' },
+  // One stream of media from other platforms, newest first (SPEC-web.md): a place a reader goes. Called WEB
+  // until Luke renamed it ARCHIVE (2026-11-03); its key is still `web`.
+  { key: 'web', label: 'ARCHIVE', mark: ICON_WEB, href: '/archive' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },
@@ -154,12 +155,15 @@ export const SIDE_QUEUES: NavItem = {
  * Kept apart from `NAV_ITEMS` on purpose. The phone's picture menu, the side panel and the Start menu
  * still draw `NAV_ITEMS`, so COMMS and ACCOUNT stay reachable there even though the header dropped
  * them. The last key is the reader's own name (see `SiteNav`), so it is not in this list.
+ *
+ * ARCHIVE is the search page that was WEB (Luke, 2026-11-03). The media catalogue, which this key used to
+ * open, is one of the archive's servers now (DEBASER.SITE in a search) and left the band, so there is one
+ * ARCHIVE; it is still MEDIA in the Start menu and the phone's menu, and each of its search results links to it.
  */
 const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
-  { key: 'media', label: 'ARCHIVE', href: '/media' },
-  { key: 'web', label: 'WEB', href: '/web' },
+  { key: 'web', label: 'ARCHIVE', href: '/archive' },
   { key: 'users', label: 'DIRECTORY', href: '/users' },
 ];
 

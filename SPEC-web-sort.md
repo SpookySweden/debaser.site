@@ -1,5 +1,7 @@
 # SPEC: WEB search sorting
 
+(WEB is called ARCHIVE and lives at /archive since 2026-11-03; /web redirects there. See SPEC-web.md.)
+
 Luke's brief, 2026-11-02: "ways to sort the results ... 'popularity' 'date' etc and a reversable option next
 to this that lets you turn date into oldest - newest". Then: "i want real popularity and i also want real
 oldest - newest ... without any compromises". Answers to the interview are below. Build in a fresh session.

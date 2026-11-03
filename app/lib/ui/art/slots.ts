@@ -646,14 +646,14 @@ export const ART_SLOTS = [
   },
   {
     id: 'web-thumb-missing',
-    label: 'WEB: NO THUMBNAIL',
+    label: 'ARCHIVE: NO THUMBNAIL',
     kind: 'portrait',
     path: 'assets/web/thumb-missing.png',
     shown: [[96, 72]],
     k: 1,
     fit: 'contain',
     fallback: '"NO IMAGE" in the empty 96x72 box (`WebStream`)',
-    brief: 'On /web, for an item whose platform gives no picture or whose picture fails to load. 96x72.',
+    brief: 'On /archive, for an item whose platform gives no picture or whose picture fails to load, and for the site\'s own tracks and videos there. 96x72.',
   },
 ] as const satisfies readonly ArtSlot[];
 

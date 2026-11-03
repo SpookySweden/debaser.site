@@ -11,7 +11,7 @@ import { useAuth } from './AuthProvider';
  * refuses a signed-out request on its own as well (web-session.ts): this gate is the page's manners, the
  * route and the database's Row Level Security are the lock.
  *
- * The header's WEB key stays for everyone, so a visitor learns WEB exists and lands here.
+ * The header's ARCHIVE key (WEB until 2026-11-03) stays for everyone, so a visitor learns it exists and lands here.
  */
 export default function WebSignInGate({ children }: { children: ReactNode }) {
   const { status } = useAuth();
@@ -29,9 +29,9 @@ export default function WebSignInGate({ children }: { children: ReactNode }) {
   return (
     <section aria-labelledby="web-sign-in-title" className="flex flex-col items-start gap-3 py-2">
       <h2 id="web-sign-in-title" className="text-headline font-bold text-ink">
-        SIGN IN TO USE WEB
+        SIGN IN TO USE THE ARCHIVE
       </h2>
-      <p className="text-prose text-ink">WEB is for people with an account. Sign in, and the stream and its search open here.</p>
+      <p className="text-prose text-ink">The archive is for people with an account. Sign in, and the stream and its search open here.</p>
       <Link href="/account" className={PLATE_MAIN}>
         [ SIGN IN ]
       </Link>

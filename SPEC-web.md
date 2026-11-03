@@ -1,6 +1,28 @@
-# SPEC: WEB (/web)
+# SPEC: ARCHIVE (/archive), called WEB (/web) until 2026-11-03
 
-Luke's brief, 2026-10-31. Phase 1 of 5 is the foundation; later phases are listed at the end.
+Luke's brief, 2026-10-31. Phase 1 of 5 is the foundation; later phases are listed at the end. The sections
+below keep the name WEB and the address /web as they were written; the code still calls it WEB.
+
+## Renamed ARCHIVE, with the old archive page as a server (Luke, 2026-11-03)
+Luke: "rename web to archive and include the old archive page as a 'server' in the web search. 'web search'
+now being archive search". His answers to the four questions, all the proposed ones:
+- Everything a reader sees says ARCHIVE (and "archive search"): the header and menu keys, the page's titles,
+  the sign-in prompt, the forum's ARCHIVE THREADS filter and `in:archive` (`in:web` still works), a thread's
+  ARCHIVE tag, the music bar's caption, the stream room's queue search. The code, the `/api/web/*` routes,
+  the tables, the checks and the add-web-adapter skill keep the WEB name.
+- The page moved to `/archive`; `/web` redirects there for good, with its search (next.config.ts). Forum
+  threads keep no address in the database, so theirs moved with the page.
+- The old archive page is the media catalogue at `/media` (the header's ARCHIVE key until now). It stays a
+  page of its own (uploads, folders, tags, where each file is used) but left the header, so there is one
+  ARCHIVE key; it is still MEDIA in the Start menu and the phone's menu.
+- As a server it is called DEBASER.SITE. A search with SOURCE ALL or SAVED lists the site's own files it
+  finds first, under that name, before the other results (app/lib/web/site-server.ts, WebSiteFiles.tsx):
+  whole words, as the rest of the search, over title, credit, filer, folder, categories and tags; TYPE, `from:`
+  and VIBE apply; the plain stream lists none. Rows look like the archive's other rows; a track plays in the
+  music bar (with its song menu), a video in its own plain player or streamed to a room, a picture opens
+  larger, and every row links to its shelf on the catalogue page. Read from the catalogue already in the
+  browser; never saved into the WEB stream. The stream room's own-video results wear DEBASER.SITE too.
+- Proof: `scripts/check-web-site-server.cjs`.
 
 ## Goal
 A new panel in the site header (`/web`) that shows one chronological stream of media items (audio,

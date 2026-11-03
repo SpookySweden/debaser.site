@@ -1,11 +1,11 @@
 ---
 name: add-web-adapter
-description: The recipe for adding a new platform (Openverse, PeerTube, a podcast RSS feed, YouTube channel RSS...) to WEB, the /web media stream. Use when asked to add a source or platform to WEB.
+description: The recipe for adding a new platform (Openverse, PeerTube, a podcast RSS feed, YouTube channel RSS...) to WEB, the media stream on the ARCHIVE page (/archive, called WEB at /web until 2026-11-03; WEB in the code). Use when asked to add a source or platform to WEB or to the archive.
 ---
 
 # Add a WEB adapter
 
-Read `SPEC-web.md` and the WEB section of `CLAUDE.md` first. The Internet Archive adapter
+Read `SPEC-web.md` and the ARCHIVE section of `CLAUDE.md` first (the page readers call ARCHIVE is WEB in the code). The Internet Archive adapter
 (`app/lib/web/adapters/internet-archive.ts`) is the worked example: copy its shape. Pick the closest
 of the others for anything unusual:
 - `peertube.ts`: the host varies, so it comes from a hand-picked list in code (`PEERTUBE_INSTANCES`).
@@ -57,7 +57,7 @@ Feeds are parsed with `adapters/xml.ts` (strict, bounded, no DTDs); do not add a
    kinds whose official player works framed. `id` is `${platform}:${externalId}`.
 4. `app/lib/web/adapters/index.ts`: add it to `WEB_ADAPTERS` (typecheck fails until you do).
 5. `app/lib/web/mock-web-repository.ts`: two items borrowing real ids from the fixture, titles starting
-   `MOCK ITEM nn`, so `/web` shows the label and the player. The new check holds its platform's mocks.
+   `MOCK ITEM nn`, so `/archive` shows the label and the player. The new check holds its platform's mocks.
 6. If the embed needs other `sandbox` tokens than `allow-scripts allow-same-origin`, `allow=`
    permissions, or a referrer, change `WebStream.tsx` per platform, record the live evidence in a
    comment, and change `check-web-types.cjs` with it. Never add `allow-top-navigation`, `allow-popups`
@@ -73,7 +73,7 @@ Save 5 real documents to `scripts/fixtures/web/<platform>-<what>.json` (or `.xml
 that engagement fields the platform sends anyway (PeerTube's views/likes, YouTube's `media:community`)
 are cut out: the repository does not store them either. Put fake ones in the check's hostile docs.
 
-Then play the embed for real: `/web` on the mock dev server (`dev-mock` in `.claude/launch.json`),
+Then play the embed for real: `/archive` on the mock dev server (`dev-mock` in `.claude/launch.json`),
 press PLAY and play inside the player. The in-app browser pane cannot play YouTube video, and Chrome is
 not installed here: drive Edge (`C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe`) with
 `playwright-core`, click inside the iframe, and read `video.currentTime` from its frame. A moving
@@ -91,7 +91,7 @@ fake fetch sees one request. `npm run checks:web` picks it up by its `check-web-
 
 ## Done
 `npm run verify` passes, the check was seen failing, the live findings are in the commit message,
-and `/web` still renders (screenshots at 1440 and 390). Commit on the WEB branch; do not push.
+and `/archive` still renders (screenshots at 1440 and 390). Commit on the WEB branch; do not push.
 
 ## A search provider (search everywhere, SPEC-web-search.md)
 EVERYWHERE asks providers live; it is separate from the stream's adapters. Copy

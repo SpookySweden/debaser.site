@@ -13,7 +13,7 @@ import { useArchiveFolders } from '../lib/audio/use-archive-folders';
 import { useStreamFolds } from '../lib/watch/use-stream-folds';
 import type { StreamFold } from '../lib/watch/types';
 import { watchHref } from '../lib/watch/watch-window';
-import { KIND_LABELS, useCatalogue } from '../lib/media/catalogue';
+import { catalogueTrack, KIND_LABELS, useCatalogue } from '../lib/media/catalogue';
 import { type Category, SECTIONS, categorise, categoryWords, folderCategoryId, groupMatches, tagCounts } from '../lib/media/categories';
 import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
@@ -83,24 +83,6 @@ function profileShelf({ item, uses }: CatalogueEntry): { owner: string; name: st
 /** Whether a profile song was on the site before or besides the profile: filed in a folder, or used elsewhere. */
 function hasSource({ item, uses }: CatalogueEntry): boolean {
   return (item.folderPath ?? '').length > 0 || uses.some((use) => use.useKind !== 'profile_song');
-}
-
-/** A catalogued track as the player's own kind: the shelf's row when it has one, else from the record. */
-function trackFor(item: MediaItem, queue: AudioTrack[]): AudioTrack {
-  const onShelf = queue.find((track) => track.src === item.src);
-  if (onShelf !== undefined) return onShelf;
-
-  return {
-    id: item.path.length === 0 ? item.src : item.path,
-    title: item.title,
-    credit: item.credit,
-    kind: 'FROM THE CATALOGUE',
-    src: item.src,
-    length: item.length.length === 0 ? '--:--' : item.length,
-    tags: item.tags,
-    folderPath: item.folderPath ?? null,
-    shelf: item.bucket.length === 0 ? 'archive' : 'bucket',
-  };
 }
 
 /** Each person whose profile songs are on the shelf, A to Z, with their songs in the order they used them. */
@@ -242,7 +224,7 @@ export default function MediaCatalogue() {
 
   const rowFor = (entry: CatalogueEntry, shelf?: { key: string; number?: number; source: boolean }) => {
     const rowId = `${shelf?.key ?? ''}|${entry.item.id}`;
-    const track = entry.item.kind === 'audio' ? trackFor(entry.item, player.queue) : undefined;
+    const track = entry.item.kind === 'audio' ? catalogueTrack(entry.item, player.queue) : undefined;
 
     return (
       <CatalogueRow

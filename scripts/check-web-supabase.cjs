@@ -191,7 +191,7 @@ ok(expected.length === 26, 'the fixture has 26 rows');
   } catch (error) {
     threw = error.message;
   }
-  ok(threw === 'The WEB stream could not be read.', `no client is a plain-words error (got ${threw})`);
+  ok(threw === 'The archive could not be read.', `no client is a plain-words error (got ${threw})`);
 
   /* ---------------------------------------------------------------- the ingest */
   const item = (platform, externalId, extra = {}) => ({

@@ -39,6 +39,7 @@ import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/w
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { detectLanguage } from '../lib/web/language';
+import { SITE_SERVER_LABEL } from '../lib/web/site-server';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
 import ArtMark from './ArtMark';
 import InfoFold from './InfoFold';
@@ -47,7 +48,7 @@ import PopoutWindow from './PopoutWindow';
 import ProfileName from './ProfileName';
 import SpriteSlot from './SpriteSlot';
 
-/** The /web row's stand-in picture (`web-thumb-missing`), for a result whose platform gives none. */
+/** The archive row's stand-in picture (`web-thumb-missing`), for a result whose platform gives none. */
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 /** The crowns (`mark-crown`, `mark-crown-filled` in app/lib/ui/art/slots.ts), shown at 16px. */
 const CROWN_SRC = `/${artSlot('mark-crown')?.path ?? 'assets/icons/crown.png'}`;
@@ -138,8 +139,9 @@ function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
  * in the queue shows (pointer events, so a finger works too; ESC puts it back), or `[ ← ]` onto the end.
  * Only the host presses a crown, their own included.
  *
- * The bar across the top searches WEB the way /web does (`searchEverywhere`, signed-in people only), with the
- * site's own videos first; the results take the additions' place until `[ ◀ ADDITIONS ]`. An address in the
+ * The bar across the top searches the archive the way /archive does (`searchEverywhere`, signed-in people only;
+ * WEB until 2026-11-03), with the site's own videos first, marked DEBASER.SITE as the archive marks that server;
+ * the results take the additions' place until `[ ◀ ADDITIONS ]`. An address in the
  * bar is a pasted link instead (SPEC-watch-links.md): recognised as it is typed, its title filled in for
  * editing, and loaded once in this browser before it is added, so a link that won't play is refused here.
  * An empty search lists the site's own videos. `[ + ADD ]` puts a video on your own list (ADDED); with a
@@ -277,7 +279,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       return;
     }
     let link: WatchLink | null = found.episodes.length === 1 ? { ...episodeLink(found.episodes[0]), title: found.title } : null;
-    // An Archive item none of whose videos plays in a browser: its own player, as /web would queue it.
+    // An Archive item none of whose videos plays in a browser: its own player, as the archive page would queue it.
     if (link === null && found.target.source === 'internet_archive') {
       const url = officialEmbedUrl(`https://archive.org/embed/${found.target.id}`);
       link = url === null ? null : { url, kind: 'embed', title: found.title };
@@ -394,7 +396,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     if (cursor === null) setSearch({ kind: 'searching', words: trimmed });
     else setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: true } : current));
     const ours = ourMatches(videos, trimmed);
-    // No words: only what the site holds (WEB needs something to look for).
+    // No words: only what the site holds (the archive's other sources need something to look for).
     if (trimmed.length === 0) {
       setSearch({ kind: 'found', words: trimmed, ours, web: [], problems: [], next: null, loadingMore: false });
       return;
@@ -679,14 +681,14 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
           >
             <div className="flex items-center gap-1">
               <label htmlFor="stream-queue-search" className="sr-only">
-                Search WEB or paste a video link
+                Search the archive or paste a video link
               </label>
               <input
                 id="stream-queue-search"
                 type="search"
                 value={text}
                 onChange={(event) => type(event.target.value)}
-                placeholder="SEARCH WEB OR PASTE A VIDEO LINK"
+                placeholder="SEARCH THE ARCHIVE OR PASTE A VIDEO LINK"
                 autoComplete="off"
                 spellCheck={false}
                 autoFocus
@@ -1119,7 +1121,7 @@ function Crown({ held, name, mine, canPress, onPress }: { held: boolean; name: s
   );
 }
 
-/** A search's answer in the additions' place: the site's own videos first, then WEB's, each with its ADD. */
+/** A search's answer in the additions' place: the site's own videos (DEBASER.SITE) first, then the rest of the archive's, each with its ADD. */
 function Results({
   search,
   justAdded,
@@ -1161,7 +1163,7 @@ function Results({
           {search.ours.length + search.web.length === 0 ? <li className="font-bold">NOTHING FOUND.</li> : null}
           {search.ours.map((video) => (
             <li key={video.id} className="rule-pixel flex items-center gap-2 py-1">
-              <span className="w-24 shrink-0 bg-ice-pale px-1 text-center font-bold text-ink">OUR VIDEO</span>
+              <span className="w-28 shrink-0 bg-ice-pale px-1 text-center font-bold text-ink">{SITE_SERVER_LABEL}</span>
               <span className="min-w-0 flex-1 truncate" title={video.title}>
                 {video.title}
               </span>
@@ -1200,7 +1202,7 @@ function Results({
 }
 
 /**
- * One WEB result: its picture (hotlinked, re-checked like every /web row), title, maker, where from, length. A series
+ * One WEB result: its picture (hotlinked, re-checked like every archive row), title, maker, where from, length. A series
  * (an Archive item with 2+ videos, SPEC-stream-series.md) says `SERIES :: n EPISODES` beside its platform, and its
  * title is a fold, starting folded, opening to its episodes, each ticked; the ADD keys then add the ticked ones.
  */

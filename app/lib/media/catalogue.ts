@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from 'react';
+import type { AudioTrack } from '../audio/tracks';
 import { CONCEPT_SHEETS } from '../concepts/sheets';
 import { getMediaRepository } from './repository';
 import type { CatalogueEntry, MediaItem, MediaKind, MediaUse } from './types';
@@ -153,6 +154,27 @@ export function useCatalogue(): CatalogueRead {
       reload,
     };
   }, [state, reload]);
+}
+
+/**
+ * A catalogued track as the player's own kind: the shelf's row when it has one, else from the record. Shared by
+ * the catalogue page and the archive search's DEBASER.SITE rows, so a track plays the same from either.
+ */
+export function catalogueTrack(item: MediaItem, queue: AudioTrack[]): AudioTrack {
+  const onShelf = queue.find((track) => track.src === item.src);
+  if (onShelf !== undefined) return onShelf;
+
+  return {
+    id: item.path.length === 0 ? item.src : item.path,
+    title: item.title,
+    credit: item.credit,
+    kind: 'FROM THE CATALOGUE',
+    src: item.src,
+    length: item.length.length === 0 ? '--:--' : item.length,
+    tags: item.tags,
+    folderPath: item.folderPath ?? null,
+    shelf: item.bucket.length === 0 ? 'archive' : 'bucket',
+  };
 }
 
 /** The kinds, in the order the page's tabs draw them. */

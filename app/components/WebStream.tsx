@@ -39,10 +39,13 @@ import { canSort, searchOrder, SORT_OPTIONS, type SortChoice } from '../lib/web/
 import { contentLanguage } from '../lib/web/language';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem } from '../lib/web/web-track-lookup';
+import { useCatalogue } from '../lib/media/catalogue';
+import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import LanguageFlag from './LanguageFlag';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
+import WebSiteFiles from './WebSiteFiles';
 import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridgeKeys';
 
 /**
@@ -71,6 +74,10 @@ import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridge
  * By date the rows are held back until no source's next page could beat them (live-merge.ts), and LOAD MORE asks
  * the source holding them back; BEST MATCH and POPULAR take one row from each source in turn. Searches only: the
  * plain stream stays newest first.
+ *
+ * DEBASER.SITE (Luke, 2026-11-03, when WEB became ARCHIVE): a search also finds the site's own files, the old
+ * archive page's (the media catalogue), listed first under that server's name (site-server.ts, WebSiteFiles.tsx).
+ * They come from the catalogue already read in this browser, never from the merge above.
  */
 
 const KIND_LABELS: Record<WebItem['kind'], string> = {
@@ -97,7 +104,7 @@ type Source = 'stream' | WebPlatform;
 
 const LINK_WORDS: Record<LinkOutcome, string> = {
   found: 'FROM THE LINK',
-  unknown: "WEB CAN'T PLAY LINKS FROM THERE.",
+  unknown: "THE ARCHIVE CAN'T PLAY LINKS FROM THERE.",
   'not-found': 'NOTHING TO PLAY AT THAT LINK.',
   'no-answer': "THAT SITE DIDN'T ANSWER. TRY AGAIN.",
 };
@@ -245,6 +252,12 @@ export default function WebStream() {
   const [related, setRelated] = useState<Related | null>(null);
   /** Every source has answered the search's first page once: only then may a related section load. */
   const [firstRoundDone, setFirstRoundDone] = useState(false);
+  /** The site's own files the search finds (DEBASER.SITE), from the catalogue the whole site shares. */
+  const catalogue = useCatalogue();
+  const siteFiles = useMemo(
+    () => (shown.kind === 'search' ? siteFileMatches(catalogue.entries, { query: shown.query, filters: shown.filters }) : []),
+    [catalogue.entries, shown],
+  );
 
   /** Asks for the search's suggestion and related topics; a new search drops a late answer. */
   const askRelated = useCallback((asked: number, what: Shown) => {
@@ -511,10 +524,10 @@ export default function WebStream() {
 
   const emptyWords = (): string | null => {
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
-    if (busy) return shown.kind === 'stream' ? 'READING THE WEB...' : null;
+    if (busy) return shown.kind === 'stream' ? 'READING THE ARCHIVE...' : null;
     if (shown.kind === 'stream' && !sourcesToAsk(shown.filters).stream) return `TYPE WORDS TO SEARCH ${sourceLabel(shown.filters.source as WebPlatform)}.`;
     if (shown.kind === 'stream') return filtered ? 'NOTHING SAVED MATCHES.' : 'NOTHING YET.';
-    return `NOTHING MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
+    return `NOTHING ${siteFiles.length > 0 ? 'ELSE ' : ''}MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
   };
   const emptyLine = empty && !failed ? emptyWords() : null;
 
@@ -539,8 +552,8 @@ export default function WebStream() {
   const yearWord = shown.kind === 'search' ? splitYear(shown.query).year : null;
 
   return (
-    <section aria-label="Web stream">
-      <form role="search" aria-label="Search the web" onSubmit={submit} className="mb-1 flex flex-wrap items-center gap-2">
+    <section aria-label="Archive stream">
+      <form role="search" aria-label="Search the archive" onSubmit={submit} className="mb-1 flex flex-wrap items-center gap-2">
         <label htmlFor="web-search" className="text-label font-bold text-ink">
           SEARCH:
         </label>
@@ -680,6 +693,9 @@ export default function WebStream() {
           </span>
         </div>
       </div>
+
+      {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
+      {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
       {emptyLine !== null ? (
         <p role="status" className="text-label font-bold text-ink wrap-anywhere">
@@ -1119,8 +1135,8 @@ function AlsoOn({ item }: { item: WebStreamItem }) {
     </div>
   );
 }
-/** Where the bar's globe sends a listener back to, for a track started here. */
-const WEB_ORIGIN = { origin: 'shelf', href: '/web', where: 'WEB' } as const;
+/** Where the bar's globe sends a listener back to, for a track started here: the archive (WEB until 2026-11-03). */
+const WEB_ORIGIN = { origin: 'shelf', href: '/archive', where: 'ARCHIVE' } as const;
 
 /**
  * PLAY for audio the site's music bar can play (web-audio.ts): asks our route for the item's files, then

@@ -22,7 +22,7 @@ export async function webSessionHeaders(): Promise<Record<string, string> | null
 }
 
 /** What a route sends a visitor with no session. */
-export const SIGNED_OUT_REFUSAL = 'Sign in to use WEB.';
+export const SIGNED_OUT_REFUSAL = 'Sign in to use the archive.';
 
 export type CheckToken = (token: string) => Promise<boolean>;
 

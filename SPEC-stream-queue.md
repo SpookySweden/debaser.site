@@ -1,5 +1,7 @@
 # SPEC: stream queue window, people's additions and crowns (2026-11-02)
 
+(WEB is called ARCHIVE and lives at /archive since 2026-11-03; /web redirects there. See SPEC-web.md.)
+
 Stage 4 of Luke's stream-room rework (2026-11-02). Stages 1-3 are live: the bar under the video, YouTube's
 strips cut off, QUALITY, the speaker, folding away to the TV box, the watcher strip, and the queue as a pop-up
 window with WEB search and pasted links. This part needs a database change, so it is specced here and built

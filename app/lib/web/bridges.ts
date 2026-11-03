@@ -17,8 +17,8 @@ import { PLATFORM_LABELS, type WebItem, type WebPlatform } from './types';
 
 /* --- the forum ------------------------------------------------------------------------------------ */
 
-/** Where a WEB item's thread links back to: the stream it is listed on. */
-export const WEB_HREF = '/web';
+/** Where a WEB item's thread links back to: the stream it is listed on, the archive page (at /web until 2026-11-03). */
+export const WEB_HREF = '/archive';
 
 /** `web_items.id`: `${platform}:${externalId}`, the same shape the table CHECKs. */
 const WEB_ITEM_ID = /^[a-z][a-z0-9_]{0,40}:[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
@@ -68,7 +68,7 @@ export function webItemStatus(anchor: Pick<ForumAnchor, 'kind' | 'id'>, read: We
 }
 
 /** The plain note a WEB thread shows once its item has left the stream. */
-export const ITEM_GONE_NOTE = 'ITEM GONE: NO LONGER ON WEB';
+export const ITEM_GONE_NOTE = 'ITEM GONE: NO LONGER IN THE ARCHIVE';
 
 /* --- the stream room ------------------------------------------------------------------------------ */
 

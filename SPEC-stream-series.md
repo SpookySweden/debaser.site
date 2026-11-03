@@ -1,5 +1,7 @@
 # SPEC: series in the stream room (2026-11-02)
 
+(WEB is called ARCHIVE and lives at /archive since 2026-11-03; /web redirects there. See SPEC-web.md.)
+
 Interview done with Luke on 2026-11-02; build in a fresh session from this file. It needs a database change,
 which waits for Luke's typed OK after a plain-English description (core.md).
 

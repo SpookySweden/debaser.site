@@ -1,5 +1,7 @@
 # WEB search everywhere (SPEC, 2026-10-31)
 
+(WEB is called ARCHIVE and lives at /archive since 2026-11-03; /web redirects there. See SPEC-web.md.)
+
 Builds on SPEC-web.md (the /web stream, Phases 1-5, all live). Every rule there still holds: metadata
 only, no engagement numbers, never download or re-host media, official APIs/feeds/oEmbed only, no HTML
 scraping, all remote fetches through `app/lib/web/safe-fetch.ts` on the server, third-party text as plain

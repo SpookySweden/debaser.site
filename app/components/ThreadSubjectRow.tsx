@@ -102,14 +102,14 @@ function WebSubject({ anchor, href, stamp }: { anchor: ForumAnchor; href: string
   return (
     <span className="inline-flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1" data-web-item-status={status}>
       <span className="font-bold">ON</span>
-      <span className="bg-ice-pale px-1 font-bold text-ink">WEB</span>
+      <span className="bg-ice-pale px-1 font-bold text-ink">ARCHIVE</span>
       {status === 'gone' ? (
         <>
           <span className="font-bold wrap-anywhere">{anchor.label}</span>
           <span className="bg-bubble-pale px-1 font-bold text-ink-bar">{ITEM_GONE_NOTE}</span>
         </>
       ) : (
-        <Link href={href} title="Open the WEB stream" className={`${SUBJECT_LINK} wrap-anywhere`}>
+        <Link href={href} title="Open the archive" className={`${SUBJECT_LINK} wrap-anywhere`}>
           {anchor.label}
         </Link>
       )}

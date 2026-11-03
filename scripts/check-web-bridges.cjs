@@ -4,11 +4,13 @@
  *
  * The forum bridge:
  * - anchor round-trip: an item's anchor is `web` + `web_items.id` + its title, reads back to the same id,
- *   links to /web even when stored without its link (the Supabase rows keep no href), and a malformed id
+ *   links to the archive page (/archive; /web until WEB was renamed ARCHIVE, 2026-11-03) even when stored
+ *   without its link (the Supabase rows keep no href), and a malformed id
  *   or another kind reads as no item
  * - both forum repositories file one thread per item: the second comment answers the first's thread,
  *   two items get two threads, and the Supabase one writes `anchor_kind = 'web'` to the (stand-in) table
- * - the board's source filter and its `in:web` search find WEB threads and nothing else
+ * - the board's source filter and its `in:archive` search find WEB threads and nothing else; `in:web`, typed
+ *   before the rename, still does
  * - gone items: a thread's subject is the WEB kind; found = live, read-and-absent = gone, still reading or
  *   a failed read = not gone; the Supabase `getItem` treats a hidden row (RLS) as absent and throws on a
  *   failed read, the mock finds its own items
@@ -154,10 +156,11 @@ const run = async () => {
   const item = MOCK_WEB_ITEMS.find((candidate) => candidate.embedUrl !== undefined);
   ok(item !== undefined, 'the mock has an item with a player');
   const anchor = webAnchor(item);
-  same([anchor.kind, anchor.id, anchor.label, anchor.href], ['web', item.id, item.title, '/web'], 'anchor is web + web_items.id + title + /web');
+  same([anchor.kind, anchor.id, anchor.label, anchor.href], ['web', item.id, item.title, '/archive'], 'anchor is web + web_items.id + title + /archive');
   same(webAnchorItemId(anchor), item.id, 'anchor reads back to the item id');
   same(webAnchorItemId({ kind: 'web', id: anchor.id, label: 'x' }), item.id, 'a row read back without its link still finds the item');
-  same(resolveAnchorTarget({ kind: 'web', id: anchor.id, label: anchor.label }).href, WEB_HREF, 'a stored web anchor with no href links to /web');
+  same(resolveAnchorTarget({ kind: 'web', id: anchor.id, label: anchor.label }).href, WEB_HREF, 'a stored web anchor with no href links to the archive');
+  same(WEB_HREF, '/archive', 'the archive page is /archive (the page was /web)');
   same(webAnchorItemId({ kind: 'track', id: item.id }), null, 'another kind is no WEB item');
   for (const bad of ['', 'internet_archive', 'internet_archive:', 'Internet_Archive:x', 'internet_archive:../x', 'internet_archive:a b', 'a:-x', `internet_archive:${'x'.repeat(201)}`]) {
     same(webAnchorItemId({ kind: 'web', id: bad }), null, `malformed id ${JSON.stringify(bad)} is no item`);
@@ -194,17 +197,20 @@ const run = async () => {
   same(s2.thread.id, s1.thread.id, 'supabase forum: one thread per item');
   same(forumTables.forum_threads.map((row) => [row.anchor_kind, row.anchor_id, row.anchor_label]), [['web', item.id, item.title], ['web', other.id, other.title]], 'supabase forum: the rows keep web + id + title');
   same(s2.thread.anchor, { kind: 'web', id: item.id, label: item.title }, 'supabase forum: the thread reads back as the WEB anchor');
-  same(resolveAnchorTarget(s2.thread.anchor).href, '/web', 'supabase forum: the read-back thread links to /web');
+  same(resolveAnchorTarget(s2.thread.anchor).href, '/archive', 'supabase forum: the read-back thread links to /archive');
 
   /* --------------------------------------------------------------------------- board filters */
   const board = { ...m1.thread, id: 'board-thread', title: 'A BOARD POST', body: 'words', anchor: { kind: 'board', id: 'board-general', label: 'GENERAL BOARD' }, comments: [] };
   const threads = [m2.thread, m3.thread, board];
   const filtered = selectBoardThreads(threads, { query: '', sourceFilter: 'web', tagKeys: [], tagMode: 'any', sort: 'new' });
   same(filtered.map((thread) => thread.id).sort(), [m2.thread.id, m3.thread.id].sort(), 'the board\'s WEB THREADS filter finds the WEB threads only');
-  ok(IN_PLACES.some((place) => place.value === 'web'), 'in:web is offered');
-  const hits = searchBoard(threads, parseSearch('in:web'));
-  const hitThreads = [...new Set(hits.map((hit) => (hit.thread ?? hit.unit?.thread ?? {}).id))];
-  ok(hitThreads.length > 0 && hitThreads.every((id) => id === m2.thread.id || id === m3.thread.id), `in:web finds WEB threads only (got ${JSON.stringify(hitThreads)})`);
+  same(IN_PLACES.find((place) => place.value === 'archive')?.label, 'ARCHIVE THREADS', 'in:archive is offered, as ARCHIVE THREADS');
+  ok(!IN_PLACES.some((place) => place.value === 'web'), 'in:web is no longer offered (the word is archive now)');
+  for (const word of ['in:archive', 'in:web']) {
+    const hits = searchBoard(threads, parseSearch(word));
+    const hitThreads = [...new Set(hits.map((hit) => (hit.thread ?? hit.unit?.thread ?? {}).id))];
+    ok(hitThreads.length > 0 && hitThreads.every((id) => id === m2.thread.id || id === m3.thread.id), `${word} finds WEB threads only (got ${JSON.stringify(hitThreads)})`);
+  }
 
   /* ------------------------------------------------------------------------------- gone items */
   same(threadSubject(m2.thread)?.kind, 'web', 'a WEB thread\'s subject is the WEB kind');

@@ -1,6 +1,7 @@
 # Putting your media server on debaser.site
 
-For friends who host their own media and want it to show in WEB (`debaser.site/web`), and later for Luke's own
+For friends who host their own media and want it to show in the ARCHIVE (`debaser.site/archive`, called WEB at
+`debaser.site/web` until 2026-11-03), and later for Luke's own
 server. The site lists what your server holds and plays it **from your server**. It never copies, downloads or
 stores your videos: only the titles and, for films and shows, details and posters from TMDB.
 
@@ -51,7 +52,7 @@ plays anything you give it a TMDB number for (a "streaming source" that finds fi
 
 ## Privacy, honestly
 
-- WEB is for signed-in people only, and the list is read by debaser.site's server, never by readers' browsers.
+- The archive is for signed-in people only, and the list is read by debaser.site's server, never by readers' browsers.
 - But your list file and player pages are on your server: **anyone who learns their addresses can open them**.
   The site can't protect them for you. If that matters, protect the player pages on your side (your media
   server's own login works: a reader signs in to your server inside the player).
@@ -65,4 +66,4 @@ plays anything you give it a TMDB number for (a "streaming source" that finds fi
 3. Check the frame header: `curl -sI https://your-host/debaser/play/movie/157336` should show the
    `Content-Security-Policy: frame-ancestors ...` line above.
 4. Send Luke the three things: your https address, your list address, your player patterns. Your titles appear
-   in WEB after the next hourly update, under your server's own SOURCE choice (`in:your-server`).
+   in the archive after the next hourly update: in every search, with a button for your server.

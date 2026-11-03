@@ -26,6 +26,16 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+
+  /**
+   * WEB became ARCHIVE and moved from /web to /archive (Luke, 2026-11-03). Every old address still lands on
+   * the page: bookmarks, shared searches (the query comes along, so `/web?q=x` opens `/archive?q=x`), and
+   * the music bar's "where this came from" saved in a browser before the move. Permanent, so browsers
+   * and search engines learn the new address. The page's API routes stay at /api/web/*.
+   */
+  async redirects() {
+    return [{ source: '/web', destination: '/archive', permanent: true }];
+  },
 };
 
 export default nextConfig;

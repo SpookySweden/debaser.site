@@ -270,7 +270,10 @@ export const GLOBE = '⊕';
  * them is honest.
  */
 export function originWhereLabel(entry: LoopSource): string | null {
-  return entry.originHref === undefined ? null : (entry.originWhere ?? 'WHERE THIS CAME FROM');
+  if (entry.originHref === undefined) return null;
+  // Saved in this browser before WEB was renamed ARCHIVE (2026-11-03); its old /web address redirects there.
+  if (entry.originWhere === 'WEB') return 'ARCHIVE';
+  return entry.originWhere ?? 'WHERE THIS CAME FROM';
 }
 
 /* ------------------------------------------------------------------------------------------------

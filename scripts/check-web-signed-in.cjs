@@ -8,7 +8,8 @@
  *   plain refusal, before it reads the search or spends the rate limit
  * - the route never lets Vercel's edge keep an answer (`public` / `s-maxage` would hand a signed-in answer to
  *   anyone asking the same address)
- * - the page: /web wraps the stream in the sign-in gate, and the gate shows the stream only when signed in
+ * - the page: /archive (the page was /web until WEB was renamed ARCHIVE, 2026-11-03) wraps the stream in the
+ *   sign-in gate, and the gate shows the stream only when signed in
  */
 const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
@@ -58,11 +59,11 @@ async function main() {
   ok(!/s-maxage|['"]public\b/.test(source), 'the route never asks Vercel\'s edge to keep an answer');
 
   /* ---------------------------------------------------------------- the page */
-  const page = readFileSync(join(ROOT, 'app', 'web', 'page.tsx'), 'utf8').replace(/\r\n/g, '\n');
-  ok(/<WebSignInGate>[\s\S]*<WebStream \/>[\s\S]*<\/WebSignInGate>/.test(page), '/web draws the stream only inside the sign-in gate');
+  const page = readFileSync(join(ROOT, 'app', 'archive', 'page.tsx'), 'utf8').replace(/\r\n/g, '\n');
+  ok(/<WebSignInGate>[\s\S]*<WebStream \/>[\s\S]*<\/WebSignInGate>/.test(page), '/archive draws the stream only inside the sign-in gate');
   const gate = readFileSync(join(ROOT, 'app', 'components', 'WebSignInGate.tsx'), 'utf8');
   ok(/if \(status === 'signed-in'\) return <>\{children\}<\/>;/.test(gate), 'the gate shows the stream for a signed-in reader only');
-  ok(/SIGN IN TO USE WEB/.test(gate) && /href="\/account"/.test(gate), 'signed out, it says so in large words and links to sign in');
+  ok(/SIGN IN TO USE THE ARCHIVE/.test(gate) && /href="\/account"/.test(gate), 'signed out, it says so in large words and links to sign in');
 
   asserts.done();
 }

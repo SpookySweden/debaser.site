@@ -222,8 +222,9 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   profile: '/users',
   // A track lives in the music window, which opens off the board (app/lib/audio/music-window.ts).
   track: MUSIC_HREF,
-  // An item from another platform is listed on /web (app/lib/web/bridges.ts, `webAnchor`).
-  web: '/web',
+  // An item from another platform is listed on the archive (app/lib/web/bridges.ts, `webAnchor`); the
+  // database keeps no address for these, so every thread follows the page to its new address.
+  web: '/archive',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {
