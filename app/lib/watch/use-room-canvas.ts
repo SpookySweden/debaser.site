@@ -125,8 +125,12 @@ function newId(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `i-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/** Empties the session for a new canvas. What this tab drew and has not written yet is kept for the new one. */
-function reset(session: Session): void {
+/**
+ * Empties the session for a new canvas. `keepPending`: what this tab drew since the old one closed is the new
+ * session's (ensureCanvas); otherwise it belonged to the old session and is let go.
+ */
+function reset(session: Session, keepPending: boolean): void {
+  if (!keepPending) session.pending = [];
   session.canvas = null;
   session.raster = new CanvasRaster();
   session.inputs = [];
@@ -190,7 +194,7 @@ async function loadTimeline(session: Session, canvas: RoomCanvasRecord): Promise
 async function adopt(session: Session, canvas: RoomCanvasRecord | null): Promise<void> {
   if (canvas === null || canvas.closedAt !== null) return;
   const fresh = session.canvas?.id !== canvas.id;
-  if (fresh && session.canvas !== null) reset(session);
+  if (fresh && session.canvas !== null) reset(session, false);
   session.canvas = canvas;
   if (session.lastAskedAt === null) session.lastAskedAt = Date.parse(canvas.openedAt) || Date.now();
   if (fresh) {
@@ -211,12 +215,16 @@ async function refresh(session: Session): Promise<void> {
       return;
     }
     const canvas = await repository.readCanvas(session.canvas.id);
-    if (canvas !== null && canvas.closedAt !== null && session.context !== null && !session.context.over) {
-      // That session's canvas was closed and the room is on again (a music room's next GO PUBLIC): a fresh canvas.
-      reset(session);
-      emit(session, {}, true);
-      await adopt(session, await repository.findOpenCanvas(session.roomId));
-      return;
+    if (canvas !== null && canvas.closedAt !== null) {
+      // That session's canvas is closed. Only once another is open (a music room's next GO PUBLIC) does this tab move
+      // to it; until then the closed one stays on screen as it was (the room is ending, or about to read as over).
+      const next = await repository.findOpenCanvas(session.roomId);
+      if (next !== null && next.id !== canvas.id) {
+        reset(session, false);
+        emit(session, {}, true);
+        await adopt(session, next);
+        return;
+      }
     }
     if (canvas !== null) {
       session.canvas = canvas;
@@ -235,6 +243,12 @@ async function flush(session: Session): Promise<void> {
   const batch = session.pending.splice(0);
   try {
     await getCanvasRepository().writeInputs(canvas.id, batch, me.id);
+    // On the timeline now: counted as such at once (the next snapshot's "changed since" depends on it).
+    for (const input of batch) {
+      session.confirmed.add(input.id);
+      session.confirmedAuthors.add(input.authorId);
+      session.seenAt.delete(input.id);
+    }
     emit(session, { error: null });
   } catch (failure) {
     // Put back unless the canvas is closed for good (the room ended): then the drawing is not kept.
@@ -271,8 +285,10 @@ function onWire(session: Session, message: CanvasWireMessage): void {
   const input = readInput(message.input);
   if (input === null || !heard(session, input.authorId)) return;
   if (session.canvas === null || session.canvas.id !== message.canvasId) {
-    // A canvas this tab has not met yet: draw the input now, read the canvas in the background.
+    // A canvas this tab has not met yet: read it in the background. With none here yet, draw the input now; with
+    // another one here, the input is that other canvas's business (a late stroke from the last session).
     onWire(session, { type: 'canvas', canvasId: message.canvasId });
+    if (session.canvas !== null) return;
   }
   let taken: boolean;
   if (message.type === 'progress' && (input.kind === 'stroke' || input.kind === 'erase')) {
@@ -349,7 +365,7 @@ async function ensureCanvas(session: Session): Promise<RoomCanvasRecord | null> 
   if (context === null || context.me === null || !context.live || context.over) return null;
   // That session's canvas is closed: this is a new session, with a canvas of its own.
   if (session.canvas !== null) {
-    reset(session);
+    reset(session, true);
     emit(session, {}, true);
   }
   if (session.opening === null) {
@@ -495,6 +511,12 @@ function ask(session: Session, reason: SaveAsk['reason']): Promise<boolean> {
 }
 
 /* --- what the room and its screen use ------------------------------------------------------------ */
+
+/** The host ends the session after "save this canvas?" was already answered (the leave prompt's END STREAM). */
+export async function closeRoomCanvas(roomId: string): Promise<void> {
+  const session = sessions.get(roomId);
+  if (session !== undefined) await closeCanvas(session).catch(() => undefined);
+}
 
 /**
  * Before a room session closes for this tab (END STREAM, leaving, public off): a changed canvas nobody saved asks

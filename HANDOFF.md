@@ -1,3 +1,55 @@
+# Latest: the room canvas and STREAM ART (SPEC-stream-art.md) (2026-11-03)
+- Every room's screen (video streams and music rooms) has a per-viewer toggle in its top-right corner
+  (`CanvasToggle.tsx`: reusable, takes `roomId` + `audio`; read the choice with `useScreenView` in
+  lib/watch/canvas-view.ts). `RoomCanvas.tsx` sits over the picture (the video keeps playing under it). The default
+  is the canvas while a song plays and the picture with a video.
+- Pure rules are in lib/watch/canvas.ts. 480x270 pixels, no anti-aliasing (Bresenham line plus a square brush).
+  Each person has a layer and every pixel remembers when it was painted, so the eraser rubs out only your own paint
+  and undo removes only your own latest input. Placements: a GIF (GIPHY or Commons hosts only, through
+  `chatImageUrl`) or a chat line (as text in the writer's name colour, credited to them). Save timing:
+  `asksOnClose`, `asksOnCanvasView` (30 min), `autosaveDue` (3 min, or 6 min for a non-host standing in).
+- The per-room store is lib/watch/use-room-canvas.ts.
+  - Inputs go out at once on a broadcast channel `canvas:<room>` and are written in batches every 2 s.
+  - Every 20 s the timeline is read again and the canvas is redrawn in the server's order. A wire input the
+    database never took is dropped after 30 s.
+  - Only the people in the room and those already on the timeline are heard on the wire.
+  - Snapshots are made from the database's timeline only.
+- Data: migration 20261103170312_stream-art.sql, PUSHED with Luke's OK.
+  - Tables: room_canvases, room_canvas_inputs, room_canvas_snapshots, plus the private bucket `stream-art`
+    (PNG, 1 MB, one upload per account every 10 s).
+  - Functions: room_canvas_save, room_canvas_close (the host), room_canvas_hide (`is_admin()` = the house account).
+  - There are no update or delete policies.
+  - Pushed from a copied folder with an empty stand-in for the cytube migration, because its file was not in this
+    checkout. Plain `db:push` would also have pushed music_rooms.
+- Saving: any participant presses SAVE, after which it autosaves.
+  - "SAVE THIS CANVAS?" comes at END STREAM, on leaving (WatchWindow's close), and at public off (goPrivate). It is
+    a portal, so it shows even when the room is folded away.
+  - The canvas view also asks every 30 min while unsaved.
+- Snapshots store only the pixels. GIFs and text are drawn live over them (CanvasPicture.tsx), so a GIF that
+  GIPHY removes leaves a gap.
+- Archive: a `[ STREAM ART ]` key in the SOURCE row (`?art=1`, StreamArtShelf.tsx).
+  - Each piece shows its newest snapshot, SAVED BY, DRAWN BY, and the host's picture. The picture opens WHO WAS
+    THERE: faces with lamps, a crown above anyone crowned, each linking to their profile.
+  - OPEN shows FINAL (the final snapshot), TIMELINE (a replay you can step through), then every snapshot credited.
+  - `[ HIDE ]` / `[ SHOW ]` for the house account only.
+  - check-web-filters was updated on purpose: a SOURCE key may read `!art && ...`.
+- Proof:
+  - Temp/check-stream-art.cjs: 60 checks, mutations proven to fail first.
+  - Temp/drive-stream-art.cjs: two people in one mock browser on dev-mock, desktop and phone. Covers drawing, the
+    eraser and undo, dragging a GIF and a chat line, the leave prompt, SAVE, the archive, WHO WAS THERE, the replay
+    and HIDE.
+  - Temp/drive-stream-art-song.cjs: the canvas is the default while a song plays.
+- Edit scripts in Temp/stream-art-*-edit.cjs add or remove (`--undo`) this work's hunks in shared files.
+  Temp/stream-art-stage-only-mine.cjs stages only those hunks.
+- Open, needs Luke:
+  - A private Realtime channel needs a policy on `realtime.messages` (a DB change). Until then the wire is
+    open-but-filtered.
+  - RLS lets any signed-in account add a snapshot to any saved, open canvas (rooms have no members table). The
+    snapshot's participants and crowns come from the browser.
+  - Hidden pieces stay readable to signed-in people through the API.
+  - HIDE belongs to the house account. Luke's own Google account would need a one-line change.
+  - No live policy probe was run, because `.env.test` is missing.
+
 # Latest: CYTUBE (SPEC-cytube.md) - the /cytube page, empty GO LIVE, broadcaster looks (2026-11-03)
 - Page: app/cytube/page.tsx + components/CytubePage.tsx (tabs from `?tab=`), CytubeLayout.tsx (5 looks + NONE, the
   SHOW THE HOST'S LOOK / KEEP MY OWN LOOK toggle, also in the room's chat column for viewers), CytubeLiveStreams.tsx

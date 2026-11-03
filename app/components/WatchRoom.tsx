@@ -72,7 +72,7 @@ import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
 import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
 import { useScreenView } from '../lib/watch/canvas-view';
 import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
-import { askToSaveCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
+import { askToSaveCanvas, closeRoomCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import SongCoverCard from './SongCoverCard';
 
 /** One per tab: two tabs of one account are two members of a room. */
@@ -544,7 +544,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   async function leave(choice: 'handover' | 'end') {
     setLeaving(true);
     try {
-      if (choice === 'end') await repository.endRoom(roomId);
+      // The canvas was asked about when the window's close key was pressed; ending the stream closes it too.
+      if (choice === 'end') {
+        await closeRoomCanvas(roomId);
+        await repository.endRoom(roomId);
+      }
       else if (heir !== null && heir.userId !== null) await repository.handOver(roomId, heir.userId);
     } catch {
       // Leaving is not stopped by a failed write: the room hands itself over once this tab is gone.
