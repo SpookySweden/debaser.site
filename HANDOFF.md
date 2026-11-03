@@ -26,6 +26,33 @@
   host + viewer, desktop + 390 wide; pictures Temp/browse/cytube/). Phones get the 1280 desktop, so "keys stack"
   was checked at a 390 window.
 
+# Latest: music rooms (SPEC-music-queues.md), steps 1-4 (2026-11-03)
+- A music broadcast is a stream room (`watch_rooms.origin` 'music', one per person, kept for good, `is_public` is
+  GO PUBLIC; never ended, never taken over or handed on, never closed as quiet). Migration
+  20261103171458_music_rooms.sql PUSHED with Luke's OK, through the Supabase connector: the CLI refused because the
+  cytube migration was live but its file only in the cytube worktree. CAREFUL: `db:push --include-all` here pushes
+  every pending local migration, other sessions' too.
+- Songs: a queue row of kind `audio` (lib/watch/songs.ts), its address the bar's own `src`. WatchRoom plays it through
+  the music player: `player.bindRoom` (the bar's keys become the room's: host NEXT skips, a follower's press leaves the
+  room), `player.cue`, and the room's sync reads `player.audioElement()` as it reads a `<video>`.
+- GO PUBLIC (QUEUES tab, lib/watch/use-music-room.ts): opens/reopens the room from what plays + up-next
+  (`goPublicPlan`), folded, bar on the music; off = `upNextFromRoom` back into up-next. Joining = `enterRoom`.
+  MusicRoomKeeper reopens your public room after a reload. BroadcastHeartbeat / QueueFollower / QueueProfilePopout and
+  `music_queues` are no longer used (files left; delete only with Luke's OK). The follow log (VANITY closeness) is no
+  longer written by listening along; shared rooms still count.
+- While hosting, up-next IS the room's queue: play/playList/playAt -> `playNow` (a played row, slotted in), enqueue ->
+  the room by the crown rule; PLAY FOR YOU tops up the room and stops in somebody else's room. STORE + START BLANK /
+  LOAD A LIST in the queue window (host, music rooms): saved lists hold `link` per item (videos too).
+- Cover card (SongCoverCard.tsx, tokens cover-card*, dye Ash): WEB audio's thumbnail+words (`getItemByExternal`),
+  uploader's notes (`music_song_notes`, picture in `images/<uid>/song-cover-*`) else their face, hand-filed = the
+  `web-thumb-missing` slot (a dedicated cover slot is still to add: slots.ts was another session's open file).
+  SPEC-stream-art's canvas is the default screen while a song plays; its toggle shows the card.
+- Proof: Temp/check-music-rooms.cjs (74, each part proven to fail first); drives on dev-mock with two people
+  (Temp/drive-music-rooms.cjs, -2, -3, -4; Temp/music-drive-kit.cjs relays the mock store between two browsers -
+  its relay must not re-forward relayed wire messages, or the two bounce them for ever). Checks updated on purpose:
+  check-barr (play/playList/cue), check-for-you (radio stop; live faces read rooms).
+- NOT done: a policy probe on the live database with TEST ACCOUNT A and B (`.env.test` is still missing).
+
 # Before that: the stream takes over the music bar (2026-11-03)
 - In a room the bottom bar is the stream's (MusicPlayer `StreamStrip`): TV key at the left (wiggles; turns the bar
   back to music for that room, per tab, lib/watch/stream-bar.ts), black screen (LIVE/ENDED, host, title, NEXT,
