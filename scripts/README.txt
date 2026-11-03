@@ -109,6 +109,29 @@ SQL editor is, with a personal access token read from `.env.local`. This is the 
 can ask the *database* a question rather than asking what a visitor would see, and it is what the
 database rules in `.claude/rules/core.md` (Safety) run on. The write guard is deliberate: leave it alone.
 
+web-fetch.cjs
+-------------
+    npm run web:fetch                   run the archive's hourly fetch now, and print what each source saved
+
+The fetch is pg_cron's job `web-ingest`, at minute 17 of every hour, and a change to what it saves can only be
+seen after it has run: one session waited 50 minutes for it. This runs the job's own command (read from
+`cron.job`, so it cannot drift from the schedule) through `db.cjs --write`. The command reads the ingest lock out
+of Vault inside the database, so the lock never leaves it and nothing here prints it. It refuses between minutes
+15 and 20, when the hourly run is due anyway. It writes into the live stream like the hourly run: Luke's
+standing OK (2026-11-03) covers running it to check work, nothing else.
+
+verify-clean.cjs
+----------------
+    npm run verify:clean                verify the latest commit in a kept clean copy
+    npm run verify:clean -- <sha>       another commit
+
+Several sessions share this checkout, so one session's half-finished files can fail another session's verify.
+This runs `npm run verify` on a commit in one kept git worktree outside the repository
+(`%LOCALAPPDATA%\debaser-clean-verify`), where only committed code exists. Packages are installed there once and
+again only when package-lock.json changes (a junction to this folder's node_modules breaks Turbopack). A lock
+file next to the copy lets one session in at a time, and the next one waits. It proves the committed code passes
+verify; the scratch checks in `Temp/` (`npm run checks`) still run in this folder.
+
 db-cli.cjs, db-repair.cjs
 -------------------------
     npm run db:list                     the migration history, remote against local
@@ -145,7 +168,8 @@ client.** The hand-rolled one worked, and was replaced on purpose: typing, keys,
 a lot of protocol to write by hand, and each of them was a question that had to be answered by reading source
 instead of by pressing something. `playwright-core` is the *core* package - it has no bundled browser and no
 download step, which matters here: a full `playwright` install wants ~130MB of Chromium, and that download is
-exactly what had silently failed before. It drives the Chrome already on the machine, with the same
+exactly what had silently failed before. It drives the browser already on the machine (the first of
+`CHROME_CANDIDATES` that exists: on this machine that is Edge, since Chrome is not installed), with the same
 `--use-angle=swiftshader --enable-unsafe-swiftshader` args, so WebGL still exists in a headless build.
 
 **`--start` is what makes a session cost one sign-in instead of one per capture.** The browser is detached and
@@ -182,8 +206,8 @@ pressed - because a sequence that quietly skipped its second press would write a
 call it a success. `--attach` reuses the session; `--scale 0.5` is a cheap reading; `--wait-for` waits for a
 chunk to appear instead of for a stopwatch.
 
-Chrome is installed at `C:\Program Files\Google\Chrome\Application\chrome.exe`; `--use-angle=swiftshader` is
-load-bearing, since without the software GL a headless build has no WebGL and a blank canvas would say
+Edge is installed at `C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe` (Chrome is not, though
+it is looked for first); `--use-angle=swiftshader` is load-bearing, since without the software GL a headless build has no WebGL and a blank canvas would say
 nothing. **Read pixels inside a `requestAnimationFrame`**: a WebGL buffer is cleared on present, so a zero read
 from outside a frame is a statement about the probe, not the renderer. **And count colours, not lit pixels** -
 an opaque clear makes every pixel non-zero-alpha, so an alpha count reported the same `21112/21112` for the

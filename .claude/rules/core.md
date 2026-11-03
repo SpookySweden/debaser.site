@@ -10,6 +10,7 @@ Companion website for my comic book "Debaser": a social simulation styled as an 
 ## Commands
 Exact script names live in package.json. If a name here is wrong, fix this section and tell me.
 - `npm run verify`: lint + tokens + typecheck + build. Must pass before any task counts as done.
+- `npm run verify:clean`: the same verify on your latest commit, in a kept clean copy away from other sessions' half-done files (packages installed once, one session at a time). When verify fails here on files that aren't yours: commit only your own files, run this, push when it passes.
 - `npm run tokens`: the theming guard (raw colours, sizes or fonts outside the token files fail it); `-- --write` regenerates the colour block in `app/theme/tokens.css` after a change to `app/lib/ui/themes.ts`. See `docs/theming.md`.
 - `npm run styles`: records every element's computed look (`--out <dir>`) and compares two recordings (`--compare <a> <b>`): the proof that a refactor changed nothing visible.
 - `npm run dev`: local dev server.
@@ -17,8 +18,9 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - `npm run capture` then `npm run audit`: the accessibility audit (unnamed controls, tiny tap targets, small text, low contrast). Always capture first, or the audit reads old snapshots.
 - `npm run deploy-status`: waits for Vercel to build the pushed commit (exit 0 built, 1 build failed, 2 not pushed, 3 could not ask GitHub, 4 still building). The only way to wait for a deploy: `gh` is not installed on this machine, and a hand-made polling loop once waited minutes on errors after the build had finished.
 - `npm run read`: reads the deployed `/forum` and confirms a change is live (`-- --url <address>` for another page, `--absent <text>` to prove something is gone). Use it instead of a hand grep: React wraps text in `<!-- -->` comments, so a plain search for `[ ♪ MUSIC ]` finds nothing even when it's there.
-- Screenshots: Chrome is installed and `playwright-core` drives it. `npm run shot -- --url <address> --out Temp/browse/x.png` takes one; `npm run panes` counts the colours in it; `npm run browser -- --start --signin` opens a reusable session signed in as the kept test account (`TEST ACCOUNT A`; `B` exists for two-person tests; password in the gitignored `.env.test`). The tracked tools are all in `scripts/` (see `scripts/README.txt`).
+- Screenshots: Edge is installed (no Chrome) and `playwright-core` drives it. `npm run shot -- --url <address> --out Temp/browse/x.png` takes one; `npm run panes` counts the colours in it; `npm run browser -- --start --signin` opens a reusable session signed in as the kept test account (`TEST ACCOUNT A`; `B` exists for two-person tests; password in the gitignored `.env.test`). The tracked tools are all in `scripts/` (see `scripts/README.txt`).
 - `npm run db -- "select ..."`: SQL against the live database. Writes need `--write`, and the script prints the statement first; leave that guard alone.
+- `npm run web:fetch`: runs the archive's hourly fetch now instead of at minute 17. It saves into the live stream like the hourly run; my standing OK (2026-11-03) covers running it when you need fresh data to check your work, nothing else.
 
 ## Who I am and how to talk to me
 - I don't write code. I judge results by looking at the site, so describe changes by what I'll see, in plain English. Explain any jargon in one line.
@@ -51,7 +53,7 @@ The main session plans, decides and talks to me. The agents in `.claude/agents/`
 - IMPORTANT: secrets (API keys, passwords, the Supabase access token) live in `.env.local` only. Never write them into code, logs, commits or this file. `.env.production` is committed, so it only holds `NEXT_PUBLIC_*` values.
 - Test with the kept test accounts or throwaways only, never real user accounts.
 - Tell me before deleting files or large blocks of code.
-- One hook runs (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): the typecheck when a turn ends. The secrets rules above are on trust, not enforced. Everything else runs without a click (bypass mode), so database writes and Vercel/Supabase connector changes wait for my typed OK in chat, per the rules above.
+- One hook runs (`.claude/settings.json`, logic in `.claude/hooks/guard.cjs`): the typecheck when a turn ends, which sends a session back only for errors in files it touched itself. The secrets rules above are on trust, not enforced. Everything else runs without a click (bypass mode), so database writes and Vercel/Supabase connector changes wait for my typed OK in chat, per the rules above.
 
 ## Continuing across sessions
 - At the start of a session, read HANDOFF.md if it exists.
@@ -80,3 +82,4 @@ These are firm, unlike most of the design notes.
 - A screenshot or captured snapshot only proves something if it's newer than the code it's about.
 - Server-rendered checks can't see `ssr: false` components (the character workbench). Use a real browser capture for those, with `--use-angle=swiftshader` or there's no WebGL.
 - A check that tests a string next to the behaviour can pass while the behaviour is broken. Test what the code does.
+- Write code with the Edit and Write tools, not Bash heredocs: this Git Bash mangles backslashes, backticks and JSX in them (ten sessions lost attempts to it). For a scripted edit, Write a script file and run that.
