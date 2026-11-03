@@ -20,7 +20,8 @@ run-checks.cjs
     npm run checks                      every check, in both directories
 
 Runs every `check-*.cjs` in `Temp/` **and** in `scripts/`, in name order, compiling each one first
-from the `npx tsc ...` lines in its own header comment. The live checks are skipped by name (they need
+from the `npx tsc ...` lines in its own header comment. Those lines run as the same compiler straight
+through node (`node node_modules/typescript/bin/tsc ...`): `npx` alone costs about five seconds a call here. The live checks are skipped by name (they need
 Supabase credentials and sometimes two accounts).
 
 **Both directories, and that is a fix rather than a convenience.** It globbed only `Temp/` until the

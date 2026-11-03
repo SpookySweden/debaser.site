@@ -129,11 +129,19 @@ function compileSteps(dir, file) {
     .filter((line) => line.startsWith('npx tsc '));
 }
 
+/**
+ * A step is written `npx tsc ...`, the command a person would type, but run as the same compiler through node:
+ * `npx` spends about five seconds starting up on this machine before tsc does anything (5357ms against 404ms for
+ * `tsc --version`, 2026-11-03), and `npm run verify` runs 34 of these.
+ */
+const TSC = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
+const direct = (step) => `"${process.execPath}" "${TSC}" ${step.slice('npx tsc '.length)}`;
+
 for (const { dir, name } of files) {
   const steps = compileSteps(dir, name);
 
   try {
-    for (const step of steps) execSync(step, { stdio: 'pipe', cwd: ROOT });
+    for (const step of steps) execSync(direct(step), { stdio: 'pipe', cwd: ROOT });
 
     const output = execSync(`node ${join(dir, name)}`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
     console.log(`ok   ${name.padEnd(34)} ${output.trim()}`);
