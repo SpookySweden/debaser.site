@@ -1,5 +1,7 @@
 import { LINK_PROBE_MS, LINK_REFUSALS, youtubeWatchUrl } from './links';
-import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityControl } from './playable';
+import { normaliseLanguage } from '../web/language';
+import type { SubtitleTrack } from '../web/subtitles';
+import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityControl, type SubtitleControl } from './playable';
 
 /**
  * YouTube videos in the stream room (SPEC-watch-links.md step 3), through YouTube's own embed player
@@ -24,6 +26,11 @@ import { AUTO_QUALITY, type EmbedPlayable, type QualityChoice, type QualityContr
  * nothing); it picks by the size of its player on screen and the connection. So the QUALITY key changes the
  * size YouTube is told its player is - drawn that size and scaled to fit the picture's box - which nudges
  * what it picks rather than forcing it.
+ *
+ * **Subtitles** (SPEC-subtitles.md). The SUBS key reads and switches YouTube's captions through the player's
+ * captions module (`loadModule('captions')`, `getOption('captions', 'tracklist')`, `setOption('captions', 'track')`).
+ * That module is not in YouTube's documented API and may change without notice: when its list never arrives the
+ * key is simply not drawn, and the video plays as before. Auto-translated languages are never listed.
  */
 
 /** How far YouTube's player reaches past the picture, above and below, as a share of the picture's height. */
@@ -68,6 +75,11 @@ type YTPlayer = {
   setPlaybackRate(rate: number): void;
   /** Not in YouTube's documented API, so read defensively. */
   getVideoData?: () => { isLive?: boolean } | undefined;
+  /** The captions module: not in YouTube's documented API either, so each is read defensively. */
+  loadModule?: (name: string) => void;
+  unloadModule?: (name: string) => void;
+  getOption?: (module: string, option: string, settings?: Record<string, unknown>) => unknown;
+  setOption?: (module: string, option: string, value: unknown) => void;
   destroy(): void;
 };
 
@@ -84,6 +96,7 @@ type YTNamespace = {
         onReady: () => void;
         onStateChange: (event: { data: number }) => void;
         onError: (event: { data: number }) => void;
+        onApiChange?: () => void;
       };
     },
   ) => YTPlayer;
@@ -129,7 +142,10 @@ function loadApi(): Promise<YTNamespace> {
   return api;
 }
 
-export class YouTubePlayable extends EventTarget implements EmbedPlayable, QualityControl {
+/** One of YouTube's caption tracks as its captions module lists it. */
+type YTCaptionTrack = { languageCode?: unknown; languageName?: unknown; displayName?: unknown; kind?: unknown; vss_id?: unknown };
+
+export class YouTubePlayable extends EventTarget implements EmbedPlayable, QualityControl, SubtitleControl {
   private player: YTPlayer | null = null;
   private ready = false;
   private destroyed = false;
@@ -140,6 +156,9 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   private readonly cover: HTMLDivElement;
   private readonly resizing: ResizeObserver;
   private qualityNow: string = AUTO_QUALITY;
+  /** YouTube's caption tracks once its captions module has listed them, as the SUBS key's list, and the one showing. */
+  private captionTracks: { track: SubtitleTrack; raw: YTCaptionTrack }[] = [];
+  private captionNow: string | null = null;
   /** play() was asked for and pause() was not since: what `paused` reports, as a `<video>` does. */
   private wanted = false;
   /** `play` has been said for the current run of playing (YouTube may pass through buffering first). */
@@ -183,6 +202,7 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
             onReady: () => this.onReady(),
             onStateChange: (event) => this.onState(event.data),
             onError: (event) => this.onError(event.data),
+            onApiChange: () => this.readCaptions(),
           },
         });
         this.layout();
@@ -253,6 +273,12 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
         this.emit('blocked');
       });
     this.ticker = window.setInterval(() => this.emit('timeupdate'), 250);
+    // The captions module lists the video's caption tracks; its answer comes through onApiChange.
+    try {
+      this.player.loadModule?.('captions');
+    } catch {
+      // An older or newer player without the module: no SUBS key, nothing else changes.
+    }
     this.emit('loadedmetadata');
   }
 
@@ -299,6 +325,69 @@ export class YouTubePlayable extends EventTarget implements EmbedPlayable, Quali
   onQualities(listener: () => void): () => void {
     this.addEventListener('qualities', listener);
     return () => this.removeEventListener('qualities', listener);
+  }
+
+  /* --- the SUBS key (YouTube's captions module, unofficial) ----------------------------------------- */
+
+  /** Reads the captions module's list when YouTube says its API changed (the module loaded, a list arrived). */
+  private readCaptions() {
+    const player = this.player;
+    if (this.destroyed || player === null || typeof player.getOption !== 'function') return;
+    let list: unknown;
+    let current: unknown;
+    try {
+      // includeAsr: the automatic captions too, which some players list only when asked (not seen in 5 videos checked
+      // 2026-11-03, none of which had any; harmless where ignored).
+      list = player.getOption('captions', 'tracklist', { includeAsr: true });
+      current = player.getOption('captions', 'track');
+    } catch {
+      return;
+    }
+    if (!Array.isArray(list)) return;
+    const tracks = list.flatMap((raw: YTCaptionTrack) => {
+      if (typeof raw !== 'object' || raw === null || typeof raw.languageCode !== 'string') return [];
+      const auto = raw.kind === 'asr';
+      const label = typeof raw.languageName === 'string' ? raw.languageName : typeof raw.displayName === 'string' ? raw.displayName : raw.languageCode;
+      const id = typeof raw.vss_id === 'string' && raw.vss_id.length > 0 ? raw.vss_id : `${auto ? 'a' : ''}.${raw.languageCode}`;
+      return [{ track: { id, language: normaliseLanguage(raw.languageCode), label, auto }, raw }];
+    });
+    if (tracks.length === 0 && this.captionTracks.length > 0) return;
+    this.captionTracks = tracks;
+    // What YouTube shows now, unless this viewer already chose (the module may come up showing its own pick).
+    const showing = current as YTCaptionTrack | undefined;
+    if (this.captionNow === null && showing && typeof showing.languageCode === 'string') {
+      const match = tracks.find(({ raw }) => raw.languageCode === showing.languageCode && (raw.kind === 'asr') === (showing.kind === 'asr'));
+      this.captionNow = match?.track.id ?? null;
+    }
+    this.emit('subtitles');
+  }
+
+  subtitles(): SubtitleTrack[] {
+    return this.captionTracks.map(({ track }) => track);
+  }
+
+  get subtitle(): string | null {
+    return this.captionNow;
+  }
+
+  setSubtitle(id: string | null): void {
+    const player = this.player;
+    if (player === null || typeof player.setOption !== 'function') return;
+    const chosen = id === null ? null : this.captionTracks.find(({ track }) => track.id === id);
+    if (chosen === undefined) return;
+    try {
+      // Off as an empty track keeps the module (and its list) loaded; a track is asked for as YouTube listed it.
+      player.setOption('captions', 'track', chosen === null ? {} : chosen.raw);
+    } catch {
+      return;
+    }
+    this.captionNow = id;
+    this.emit('subtitles');
+  }
+
+  onSubtitles(listener: () => void): () => void {
+    this.addEventListener('subtitles', listener);
+    return () => this.removeEventListener('subtitles', listener);
   }
 
   private onError(code: number) {

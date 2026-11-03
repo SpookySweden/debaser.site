@@ -19,6 +19,10 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   (`app/lib/web/web-audio.ts`, Luke's OK 2026-10-31), or, in a stream room, an Internet Archive series'
   episodes as their https video files played straight from archive.org in the room's own player, in step
   (`app/lib/web/series-files.ts`, Luke's OK in SPEC-stream-series.md, 2026-11-02).
+- Subtitles (SPEC-subtitles.md, Luke's OK 2026-11-03): an Internet Archive item's `.vtt`/`.srt` subtitle text passes
+  through our server (`/api/web/subtitles`) to a viewer's player when they switch it on (archive.org sends no CORS
+  header): only files the item lists, SRT converted to VTT, never stored (not on disk, in the database or in the
+  fetch cache). Subtitle text only, never video or audio. Each viewer picks their own; nothing is synced.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.

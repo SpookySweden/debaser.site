@@ -38,12 +38,11 @@ import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
-import { detectLanguage } from '../lib/web/language';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
 import ArtMark from './ArtMark';
 import InfoFold from './InfoFold';
-import LanguageFlag from './LanguageFlag';
+import { EntryLanguageFlags, EpisodeLanguageFlag, SeriesLanguageFlags, WithSeriesAudio } from './QueueLanguageFlags';
 import PopoutWindow from './PopoutWindow';
 import ProfileName from './ProfileName';
 import SpriteSlot from './SpriteSlot';
@@ -794,7 +793,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 if (block.series === null) {
                   return (
                     <li key={block.key} className="rule-pixel relative flex items-center gap-2 py-1" data-queue-state={state}>
-                      <LanguageFlag tag={detectLanguage(name)} className="shrink-0" />
+                      <EntryLanguageFlags entry={first} title={name} className="shrink-0" />
                       <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[state]}`} title={name}>
                         <span className="sr-only">{said}</span>
                         {name}
@@ -809,7 +808,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 return (
                   <li key={block.key} className="rule-pixel relative py-1" data-queue-state={state} data-series-block={block.series.id}>
                     <div className="flex items-center gap-2">
-                      <LanguageFlag tag={detectLanguage(name)} className="shrink-0" />
+                      <SeriesLanguageFlags entries={block.entries} title={name} titleOf={titleOf} className="shrink-0" />
                       <button
                         type="button"
                         onClick={() => toggleFold(block.key)}
@@ -824,10 +823,12 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                     </div>
                     {open ? (
                       <ol className="pl-4" aria-label={`Episodes of ${name}`}>
-                        {block.entries.map((entry) => {
+                        <WithSeriesAudio entries={block.entries} title={name} titleOf={titleOf}>
+                        {(blockAudio) => block.entries.map((entry) => {
                           const episodeState = entry.id === nowId ? 'now' : entry.playedAt === null ? 'queued' : 'played';
                           return (
                             <li key={entry.id} className="flex items-center gap-2 py-0.5" data-episode={entry.id} data-episode-state={episodeState}>
+                              <EpisodeLanguageFlag entry={entry} title={titleOf(entry)} blockAudio={blockAudio} className="shrink-0" />
                               <span className={`min-w-0 flex-1 truncate ${QUEUE_INK[episodeState]}`} title={titleOf(entry)}>
                                 {titleOf(entry)}
                               </span>
@@ -839,6 +840,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                             </li>
                           );
                         })}
+                        </WithSeriesAudio>
                       </ol>
                     ) : null}
                     {line(block.key)}
@@ -960,7 +962,7 @@ function AdditionRow({
       className={`rule-pixel flex items-center gap-2 py-1 ${handlers === undefined ? '' : 'cursor-grab touch-pan-y select-none'} ${picked ? 'opacity-50' : ''}`}
       data-addition={entry.id}
     >
-      <LanguageFlag tag={detectLanguage(title)} className="shrink-0" />
+      <EntryLanguageFlags entry={entry} title={title} className="shrink-0" />
       <span className="min-w-0 flex-1 truncate" title={title}>
         {title}
       </span>
@@ -1008,7 +1010,7 @@ function AdditionBlock({
   return (
     <li className={`rule-pixel py-1 ${picked ? 'opacity-50' : ''}`} data-addition={unit.id} data-series-block={unit.id}>
       <div {...handlers} className={`flex items-center gap-2 ${handlers === undefined ? '' : 'cursor-grab touch-pan-y select-none'}`}>
-        <LanguageFlag tag={detectLanguage(title)} className="shrink-0" />
+        <SeriesLanguageFlags entries={unit.entries} title={title} titleOf={titleOf} className="shrink-0" />
         <button type="button" onClick={onToggle} aria-expanded={open} title={title} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
           <span className="sr-only">Series: </span>
           {open ? '[-]' : '[+]'} {title} ({unit.entries.length})
@@ -1026,10 +1028,12 @@ function AdditionBlock({
       </div>
       {open ? (
         <ol className="pl-4" aria-label={`Episodes of ${title}`}>
-          {unit.entries.map((entry) => {
+          <WithSeriesAudio entries={unit.entries} title={title} titleOf={titleOf}>
+          {(blockAudio) => unit.entries.map((entry) => {
             const out = episodeOut(entry);
             return (
               <li key={entry.id} className="flex items-center gap-2 py-0.5" data-episode={entry.id}>
+                <EpisodeLanguageFlag entry={entry} title={titleOf(entry)} blockAudio={blockAudio} className="shrink-0" />
                 <span className="min-w-0 flex-1 truncate" title={titleOf(entry)}>
                   {titleOf(entry)}
                 </span>
@@ -1041,6 +1045,7 @@ function AdditionBlock({
               </li>
             );
           })}
+          </WithSeriesAudio>
         </ol>
       ) : null}
     </li>

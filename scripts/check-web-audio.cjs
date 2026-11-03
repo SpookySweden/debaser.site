@@ -116,7 +116,9 @@ ok(startingEmbed('https://commons.wikimedia.org/wiki/File:A.ogg?embedplayer=yes'
 
 /* ------------------------------------------------------------------ the routes */
 const page = readFileSync(join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
-ok(/src=\{startingEmbed\(embed, item\.platform\)\}/.test(page), 'the row frames the checked address, asked to start');
+// 2026-11-03 (SPEC-subtitles.md): the row also hands over its language, so a foreign row's player is asked for
+// English subtitles (check-web-subtitles.cjs); the address is still the checked one.
+ok(/src=\{startingEmbed\(embed, item\.platform(, contentLanguage\(item\))?\)\}/.test(page), 'the row frames the checked address, asked to start');
 const fileRoute = readFileSync(join(ROOT, 'app/api/web/audio/[platform]/[id]/[n]/route.ts'), 'utf8');
 ok(/status: 302/.test(fileRoute) && /Location: file\.url/.test(fileRoute) && !/\bfetch\(/.test(fileRoute), 'the file route only redirects, and fetches nothing itself');
 ok(/'Referrer-Policy': 'no-referrer'/.test(fileRoute), 'the redirect sends no referrer on to the platform');

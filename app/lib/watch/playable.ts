@@ -1,3 +1,5 @@
+import type { SubtitleTrack } from '../web/subtitles';
+
 /**
  * What the stream room's sync needs from a player (SPEC-watch-links.md step 3): the parts of a `<video>`
  * it reads, seeks and listens to. A `<video>` is one already; an embedded site's player (the YouTube
@@ -55,6 +57,24 @@ export interface QualityControl {
 
 export function hasQualityControl(player: unknown): player is QualityControl {
   return typeof player === 'object' && player !== null && typeof (player as Partial<QualityControl>).qualities === 'function';
+}
+
+/**
+ * A player whose subtitles can be switched (the SUBS key, SPEC-subtitles.md): YouTube's captions, Vimeo's text
+ * tracks, a stream's subtitle tracks, an Archive video's subtitle files. `subtitles()` is empty while there is
+ * nothing to choose, and the key is not drawn then. Each viewer's own: nothing here is synced or stored.
+ */
+export interface SubtitleControl {
+  subtitles(): SubtitleTrack[];
+  /** The track showing (its `id`), or null for none. */
+  readonly subtitle: string | null;
+  setSubtitle(id: string | null): void;
+  /** Hears the list or the choice change; returns the way to stop hearing. */
+  onSubtitles(listener: () => void): () => void;
+}
+
+export function hasSubtitleControl(player: unknown): player is SubtitleControl {
+  return typeof player === 'object' && player !== null && typeof (player as Partial<SubtitleControl>).subtitles === 'function';
 }
 
 /** `720P` from a height, for the libraries and sites that list qualities by height. */

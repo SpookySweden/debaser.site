@@ -1,6 +1,8 @@
 import { EmbedPlayer, loadScript } from './embed-player';
 import { vimeoUrl, type VimeoVideo } from './links';
-import { AUTO_QUALITY, type QualityChoice, type QualityControl } from './playable';
+import { normaliseLanguage } from '../web/language';
+import type { SubtitleTrack } from '../web/subtitles';
+import { AUTO_QUALITY, type QualityChoice, type QualityControl, type SubtitleControl } from './playable';
 
 /**
  * Vimeo videos in the stream room (SPEC-watch-links.md step 4), through Vimeo's own embed player and its
@@ -21,7 +23,11 @@ type VimeoPlayer = {
   getQualities(): Promise<{ id?: unknown; label?: unknown; active?: unknown }[]>;
   /** Refused unless the video's owner has a paid Vimeo account. */
   setQuality(id: string): Promise<string>;
-  on(event: string, listener: (data: { seconds?: number; duration?: number; name?: string; quality?: string }) => void): void;
+  /** The video's subtitles and captions (official, player.js); `texttrackchange` says which shows. */
+  getTextTracks(): Promise<{ language?: unknown; kind?: unknown; label?: unknown; mode?: unknown }[]>;
+  enableTextTrack(language: string, kind?: string): Promise<unknown>;
+  disableTextTrack(): Promise<void>;
+  on(event: string, listener: (data: { seconds?: number; duration?: number; name?: string; quality?: string; language?: string | null; kind?: string | null }) => void): void;
   destroy(): Promise<void>;
 };
 
@@ -33,13 +39,16 @@ declare global {
 
 const SDK = 'https://player.vimeo.com/api/player.js';
 
-export class VimeoPlayable extends EmbedPlayer implements QualityControl {
+export class VimeoPlayable extends EmbedPlayer implements QualityControl, SubtitleControl {
   private player: VimeoPlayer | null = null;
   private time = 0;
   private length = 0;
   /** What the QUALITY key offers, from Vimeo once ready; emptied if Vimeo refuses a change (its owner's plan). */
   private qualityList: QualityChoice[] = [];
   private qualityNow: string = AUTO_QUALITY;
+  /** The SUBS key's list from Vimeo's text tracks once ready (id: `<kind>:<language>`), and the one showing. */
+  private textTracks: SubtitleTrack[] = [];
+  private textNow: string | null = null;
 
   constructor(container: HTMLElement, video: VimeoVideo, autoPlay: boolean) {
     super(autoPlay);
@@ -69,6 +78,10 @@ export class VimeoPlayable extends EmbedPlayer implements QualityControl {
           this.becameSeeked();
         });
         player.on('error', (data) => this.refused(data.name === 'PrivacyError' ? 'embed' : 'missing'));
+        player.on('texttrackchange', (data) => {
+          this.textNow = typeof data.language === 'string' && data.language.length > 0 ? `${data.kind ?? 'subtitles'}:${data.language}` : null;
+          this.emit('subtitles');
+        });
         player.on('qualitychange', (data) => {
           if (typeof data.quality !== 'string' || this.qualityList.length === 0) return;
           this.qualityNow = data.quality === 'auto' ? AUTO_QUALITY : data.quality;
@@ -81,6 +94,7 @@ export class VimeoPlayable extends EmbedPlayer implements QualityControl {
               this.becameReady();
             }, () => this.becameReady());
             void player.getQualities().then((found) => this.listQualities(found), () => undefined);
+            void player.getTextTracks().then((found) => this.listTextTracks(found), () => undefined);
           },
           (error: { name?: string }) => this.refused(error?.name === 'PrivacyError' ? 'embed' : 'missing'),
         );
@@ -167,6 +181,46 @@ export class VimeoPlayable extends EmbedPlayer implements QualityControl {
   onQualities(listener: () => void): () => void {
     this.addEventListener('qualities', listener);
     return () => this.removeEventListener('qualities', listener);
+  }
+
+  /* --- the SUBS key ------------------------------------------------------------------------------ */
+
+  private listTextTracks(found: { language?: unknown; kind?: unknown; label?: unknown; mode?: unknown }[]) {
+    this.textTracks = found.flatMap((entry): SubtitleTrack[] => {
+      if (typeof entry.language !== 'string' || entry.language.length === 0) return [];
+      const kind = typeof entry.kind === 'string' ? entry.kind : 'subtitles';
+      const label = typeof entry.label === 'string' ? entry.label : entry.language;
+      // Vimeo names its machine-made captions "English (auto-generated)".
+      return [{ id: `${kind}:${entry.language}`, language: normaliseLanguage(entry.language), label, auto: /auto/i.test(label) }];
+    });
+    const showing = found.find((entry) => entry.mode === 'showing');
+    this.textNow = showing && typeof showing.language === 'string' ? `${typeof showing.kind === 'string' ? showing.kind : 'subtitles'}:${showing.language}` : null;
+    this.emit('subtitles');
+  }
+
+  subtitles(): SubtitleTrack[] {
+    return this.textTracks;
+  }
+
+  get subtitle(): string | null {
+    return this.textNow;
+  }
+
+  setSubtitle(id: string | null): void {
+    if (this.player === null || (id !== null && !this.textTracks.some((track) => track.id === id))) return;
+    this.textNow = id;
+    this.emit('subtitles');
+    if (id === null) {
+      void this.player.disableTextTrack().catch(() => undefined);
+      return;
+    }
+    const [kind, ...language] = id.split(':');
+    void this.player.enableTextTrack(language.join(':'), kind).catch(() => undefined);
+  }
+
+  onSubtitles(listener: () => void): () => void {
+    this.addEventListener('subtitles', listener);
+    return () => this.removeEventListener('subtitles', listener);
   }
 }
 

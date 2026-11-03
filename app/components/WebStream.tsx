@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent, type
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { seriesMark } from '../lib/watch/series';
-import { useSeriesCount } from '../lib/watch/series-client';
+import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { DEFAULT_PAGE_SIZE } from '../lib/web/paging';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
@@ -37,12 +37,13 @@ import {
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, searchOrder, SORT_OPTIONS, type SortChoice } from '../lib/web/web-sort';
 import { contentLanguage } from '../lib/web/language';
+import { burnedInSubtitles } from '../lib/web/subtitles';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useCatalogue } from '../lib/media/catalogue';
 import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
-import LanguageFlag from './LanguageFlag';
+import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebSiteFiles from './WebSiteFiles';
@@ -948,6 +949,7 @@ function WebRow({
   const date = item.publishedAt.slice(0, 10);
   // An Archive item with two or more videos is a series (SPEC-stream-series.md): marked here, ticked in a room's queue.
   const seriesCount = useSeriesCount(item);
+  const archiveSubtitles = useArchiveRowSubtitles(item);
 
   return (
     <li className="rule-pixel py-2">
@@ -984,7 +986,8 @@ function WebRow({
         <div className="min-w-0 flex-1">
           <p id={rowTitleId(item.id)} tabIndex={-1} className="text-sm font-bold text-ink wrap-anywhere">
             {item.title}
-            <LanguageFlag tag={contentLanguage(item)} className="ml-1.5" />
+            <AudioSubsFlags audio={contentLanguage(item)} subs={archiveSubtitles} burnedIn={burnedInSubtitles(item.description ? `${item.title}
+${item.description}` : item.title)} className="ml-1.5" />
           </p>
           {item.creator && authorWords(item.creator) !== null ? (
             <p>
@@ -1079,7 +1082,7 @@ function WebRow({
       {/* Nothing from the platform loads until the reader asks: the iframe exists only while open. */}
       {playing && embed ? (
         <iframe
-          src={startingEmbed(embed, item.platform)}
+          src={startingEmbed(embed, item.platform, contentLanguage(item))}
           title={`${source} player: ${item.title}`}
           loading="lazy"
           // YouTube's player refuses to start without knowing which site embeds it ("Error 153: video player

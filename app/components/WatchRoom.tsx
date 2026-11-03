@@ -12,7 +12,7 @@ import { useNow } from '../lib/ui/use-now';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump } from '../lib/watch/links';
-import { hasQualityControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
+import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   MESSAGE_MAX_LENGTH,
@@ -35,15 +35,19 @@ import { steadyInterval } from '../lib/watch/steady-timer';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
+import { withEnglishSubtitles } from '../lib/web/row-addresses';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { detectLanguage } from '../lib/web/language';
+import { burnedInSubtitles } from '../lib/web/subtitles';
+import { archiveFileOf, useArchiveSubtitles } from '../lib/web/subtitles-client';
+import { archiveSubtitles, streamSubtitles, type VideoSubtitles } from '../lib/watch/subtitle-tracks';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import LanguageFlag from './LanguageFlag';
 import ProfileName from './ProfileName';
-import { QualityKey, SpeakerKey } from './StreamBarKeys';
+import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
 import StreamQueueWindow from './StreamQueueWindow';
 
@@ -463,6 +467,36 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   /** What QUALITY asks: an embedded site's player (YouTube, Twitch, Vimeo), else this play's streaming library. */
   const qualitySource = hasQualityControl(videoElement) ? videoElement : streamQuality !== null && streamQuality.entryId === entryId ? streamQuality.control : null;
 
+  // SUBS (SPEC-subtitles.md): an embedded site's own captions (YouTube, Vimeo), a stream's subtitle tracks, or an
+  // Archive video's subtitle files, fetched through our route only when this viewer switches one on.
+  const archiveFile = link !== null && link.kind === 'file' ? archiveFileOf(link.url) : null;
+  const archiveList = useArchiveSubtitles(archiveFile?.id ?? null);
+  const archiveFiles = archiveFile !== null && archiveList ? (archiveList.videos[archiveFile.path] ?? null) : null;
+  const [videoSubtitles, setVideoSubtitles] = useState<{ entryId: string | null; control: VideoSubtitles } | null>(null);
+  useEffect(() => {
+    if (!(videoElement instanceof HTMLVideoElement) || videoRef.current !== videoElement || linkKind === undefined) return;
+    const control =
+      linkKind === 'hls' || linkKind === 'dash'
+        ? streamSubtitles(videoElement)
+        : archiveFile !== null && archiveFiles !== null && archiveFiles.length > 0
+          ? archiveSubtitles(videoElement, archiveFile.id, archiveFiles)
+          : null;
+    if (control === null) return;
+    // Handed to the bar once this effect is done, as the streaming library's QUALITY player is from its callback.
+    let current = true;
+    void Promise.resolve().then(() => {
+      if (current) setVideoSubtitles({ entryId, control });
+    });
+    return () => {
+      current = false;
+      control.detach();
+      setVideoSubtitles((now) => (now?.control === control ? null : now));
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [videoElement, linkKind, entryId, archiveFiles]);
+  const subtitleSource = hasSubtitleControl(videoElement) ? videoElement : videoSubtitles !== null && videoSubtitles.entryId === entryId ? videoSubtitles.control : null;
+  const subtitleTitle = link?.title ?? item?.title ?? '';
+
   function onTime() {
     const video = videoRef.current;
     if (video === null) return;
@@ -529,7 +563,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   // END STREAM (host). The line that sat under the picture (its title, `1 OF 3`, YOU ARE HOSTING) is gone:
   // the chat column's strip names the video, and skip and end live here.
   const playerBar = hasTransport || hostKeys ? (
-    <div className="flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
+    // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
+    <div className="relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
       {hasTransport && hostKeys ? (
         <button
           type="button"
@@ -601,6 +636,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         <>
           <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
           <QualityKey source={qualitySource} />
+          <SubsKey
+            key={entryId ?? 'none'}
+            source={subtitleSource}
+            seriesId={entry?.series?.id ?? null}
+            textAudio={archiveList?.language ?? detectLanguage(subtitleTitle)}
+            burnedIn={burnedInSubtitles(subtitleTitle)}
+          />
           {canPip ? (
             <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
               [ PIP ]
@@ -1180,7 +1222,10 @@ export function TimedMessage({ message }: { message: WatchMessage }) {
  * step: everybody presses play on it themselves, and the host moves the room on with NEXT.
  */
 function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
-  const url = officialEmbedUrl(link.url);
+  const checked = officialEmbedUrl(link.url);
+  // A PeerTube player is asked to start with English subtitles on foreign audio (SPEC-subtitles.md): its own
+  // menu is the way to change them, since the room cannot drive this player. Added after the check, never stored.
+  const url = checked !== null && new URL(checked).pathname.startsWith('/videos/embed/') ? withEnglishSubtitles(checked, 'peertube', detectLanguage(link.title)) : checked;
 
   if (url === null) {
     return (

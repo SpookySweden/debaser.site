@@ -34,6 +34,8 @@ export async function fetchSeries(target: SeriesTarget): Promise<SeriesRead> {
 
 /** Known counts by Archive item (0: not a series); asked once per page load. */
 const counts = new Map<string, number>();
+/** The subtitle languages each Archive item holds (`en`, `ja:auto`), from the same answer (SPEC-subtitles.md). */
+const subtitleLanguages = new Map<string, string[]>();
 const waiting = new Set<string>();
 const listeners = new Set<() => void>();
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -48,11 +50,13 @@ async function askCounts(): Promise<void> {
   if (headers === null || ids.length === 0) return;
   try {
     const response = await fetch(`/api/web/series?counts=${ids.map(encodeURIComponent).join(',')}`, { headers });
-    const body = (await response.json().catch(() => null)) as { counts?: Record<string, unknown> } | null;
+    const body = (await response.json().catch(() => null)) as { counts?: Record<string, unknown>; subs?: Record<string, unknown> } | null;
     if (!response.ok || body === null) return;
     for (const id of ids) {
       const value = body.counts?.[id];
       counts.set(id, typeof value === 'number' && Number.isInteger(value) && value >= 2 ? value : 0);
+      const languages = body.subs?.[id];
+      subtitleLanguages.set(id, Array.isArray(languages) ? languages.filter((tag): tag is string => typeof tag === 'string' && /^[a-z]{2,3}(-[A-Z]{2})?(:auto)?$/.test(tag)).slice(0, 40) : []);
     }
   } catch {
     return;
@@ -74,6 +78,21 @@ export function maySeries(item: Pick<WebItem, 'platform' | 'kind'>): boolean {
 
 /** How many episodes a WEB row's item holds when it is a series (2 or more), else null. */
 export function useSeriesCount(item: Pick<WebItem, 'platform' | 'kind' | 'externalId'>): number | null {
+  const id = useArchiveRead(item);
+  const known = id === null ? undefined : counts.get(id);
+  return known !== undefined && known >= 2 ? known : null;
+}
+
+/** The subtitle languages a WEB row's Archive item holds (`en`, `ja:auto`), from the SERIES mark's own read; empty until known. */
+export function useArchiveRowSubtitles(item: Pick<WebItem, 'platform' | 'kind' | 'externalId'>): readonly string[] {
+  const id = useArchiveRead(item);
+  return (id === null ? undefined : subtitleLanguages.get(id)) ?? NO_LANGUAGES;
+}
+
+const NO_LANGUAGES: readonly string[] = [];
+
+/** Asks for a row's Archive read (batched with the rows drawn beside it) and redraws when it lands; its item id, or null. */
+function useArchiveRead(item: Pick<WebItem, 'platform' | 'kind' | 'externalId'>): string | null {
   const id = maySeries(item) ? item.externalId : null;
   const [, setTick] = useState(0);
   useEffect(() => {
@@ -85,6 +104,5 @@ export function useSeriesCount(item: Pick<WebItem, 'platform' | 'kind' | 'extern
       listeners.delete(listener);
     };
   }, [id]);
-  const known = id === null ? undefined : counts.get(id);
-  return known !== undefined && known >= 2 ? known : null;
+  return id;
 }

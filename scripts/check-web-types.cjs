@@ -132,7 +132,8 @@ for (const anchor of anchors) {
 // every address to the platform's path shapes (check-web-search-peertube.cjs).
 ok(/const addresses = rowAddresses\(item, extraHosts\)/.test(stream), 'the row takes its addresses from rowAddresses');
 ok(/src=\{thumb\}/.test(stream) && /const thumb = thumbFailed \? null : addresses\.thumb;/.test(stream), 'the thumbnail is the checked one');
-ok(/src=\{startingEmbed\(embed, item\.platform\)\}/.test(stream) && /const \{ link, embed, licence \} = addresses;/.test(stream), 'the player and links are the checked ones (the player asked to start: check-web-audio.cjs)');
+// 2026-11-03: the row's language rides along for English subtitles (SPEC-subtitles.md).
+ok(/src=\{startingEmbed\(embed, item\.platform(, contentLanguage\(item\))?\)\}/.test(stream) && /const \{ link, embed, licence \} = addresses;/.test(stream), 'the player and links are the checked ones (the player asked to start: check-web-audio.cjs)');
 ok(!/item\.(url|thumbnailUrl|embedUrl|licenseUrl)\b/.test(stream.replace(/\/\*[\s\S]*?\*\//g, '')), 'no raw item address is used in the page');
 const img = stream.match(/<img\b[\s\S]*?\/>/);
 ok(img && /referrerPolicy="no-referrer"/.test(img[0]) && /loading="lazy"/.test(img[0]), 'the thumbnail is lazy and sends no referrer');

@@ -34,13 +34,34 @@ const AUTOPLAY_PLATFORMS: readonly WebPlatform[] = ['youtube', 'peertube', 'inte
  * the platform's own big play button would be a second press for the same thing (Luke, 2026-10-31). Only
  * the one fixed flag is added, after `rowAddresses` has checked the address; a platform not listed is
  * framed as it was.
+ *
+ * `audio`: the row's language (`contentLanguage`). When it is known and isn't English, the players that take a
+ * setting are asked to start with English subtitles (SPEC-subtitles.md, Luke 2026-11-03); their own CC menus
+ * stay as they are, and a video with no English subtitles simply starts without.
  */
-export function startingEmbed(embed: string, platform: WebPlatform): string {
-  if (!AUTOPLAY_PLATFORMS.includes(platform)) return embed;
-  const url = new URL(embed);
+export function startingEmbed(embed: string, platform: WebPlatform, audio: string | null = null): string {
+  const subtitled = withEnglishSubtitles(embed, platform, audio);
+  if (!AUTOPLAY_PLATFORMS.includes(platform)) return subtitled;
+  const url = new URL(subtitled);
   url.searchParams.set('autoplay', '1');
   return url.toString();
 }
+
+/** A checked player address asking for English subtitles from the start when `audio` is known and isn't English (`startingEmbed`); else as it was. */
+export function withEnglishSubtitles(embed: string, platform: WebPlatform, audio: string | null): string {
+  const subtitles = audio !== null && audio.split('-')[0] !== 'en' ? ENGLISH_SUBTITLES[platform] : undefined;
+  if (subtitles === undefined) return embed;
+  const url = new URL(embed);
+  for (const [name, value] of subtitles) url.searchParams.set(name, value);
+  return url.toString();
+}
+
+/** Each platform's documented way to ask its player for English subtitles from the start. */
+const ENGLISH_SUBTITLES: Partial<Record<WebPlatform, readonly [string, string][]>> = {
+  youtube: [['cc_load_policy', '1'], ['cc_lang_pref', 'en']],
+  vimeo: [['texttrack', 'en']],
+  peertube: [['subtitle', 'en']],
+};
 
 /**
  * The addresses a row may use, each re-checked against its platform's allow-list and path shapes.

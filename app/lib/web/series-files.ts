@@ -18,8 +18,10 @@
 import { secondsOf } from './audio-files';
 import { IA_ALLOWED_HOSTS } from './adapters/internet-archive';
 import { INNERTUBE_HOSTS } from './search/providers/youtube-innertube';
-import { SafeFetchError, safeFetchJson, type FetchLike } from './safe-fetch';
+import { normaliseLanguage } from './language';
+import { SafeFetchError, safeFetchJson, safeFetchText, type FetchLike } from './safe-fetch';
 import { sanitiseText } from './sanitise';
+import { archiveSubtitleFile, subtitlesForVideo, SUBTITLE_MAX_BYTES, toWebVtt, type ArchiveSubtitleFile } from './subtitles';
 import { buildUrl, isSafeIdentifier } from './urls';
 import { LINK_TITLE_MAX } from '../watch/links';
 import type { SeriesEpisode, SeriesRead, SeriesTarget } from '../watch/series';
@@ -66,12 +68,32 @@ function bareName(name: string): string {
  * be played (dark, or access-restricted) or has no files list; its title either way when it has one.
  */
 export function parseArchiveSeries(id: string, body: unknown): Omit<SeriesRead, 'target' | 'partial'> | null {
+  const item = readArchiveItem(body);
+  if (item === null) return null;
+  const title = sanitiseText(str(item.metadata.title), LINK_TITLE_MAX) || id;
+  const episodes = item.videos.map(({ chosen, upload }): SeriesEpisode => ({
+    title: sanitiseText(str(chosen.file.title) ?? str(upload?.title) ?? bareName(chosen.name), LINK_TITLE_MAX) || bareName(chosen.name).slice(0, LINK_TITLE_MAX),
+    // Path parts are encoded one by one: a file may sit in a folder inside the item.
+    url: buildUrl('archive.org', ['download', id, ...chosen.name.split('/')]),
+    kind: 'file',
+    seconds: secondsOf(chosen.file.length) ?? secondsOf(upload?.length),
+  }));
+  return { title, episodes };
+}
+
+type ArchiveFile = { file: Record<string, unknown>; name: string; format: string };
+
+/**
+ * An Archive metadata answer read once for both of its uses (the episodes, the subtitles): its metadata, every
+ * file that may be read, and its videos in play order (`key`: the upload a copy was made from). Null when the
+ * item may not be played (dark, or access-restricted) or has no files list.
+ */
+function readArchiveItem(body: unknown): { metadata: Record<string, unknown>; files: ArchiveFile[]; videos: { key: string; chosen: ArchiveFile; upload: Record<string, unknown> | undefined }[] } | null {
   const root = record(body);
   if (!root || root.is_dark === true || !Array.isArray(root.files)) return null;
   const metadata = record(root.metadata) ?? {};
   const restricted = str(metadata['access-restricted-item']);
   if (restricted !== undefined && restricted.trim().toLowerCase() === 'true') return null;
-  const title = sanitiseText(str(metadata.title), LINK_TITLE_MAX) || id;
 
   const files = root.files.flatMap((raw) => {
     const file = record(raw);
@@ -95,7 +117,7 @@ export function parseArchiveSeries(id: string, body: unknown): Omit<SeriesRead, 
   }
 
   const rank = (format: string) => IA_VIDEO_FORMATS.indexOf(format);
-  const episodes = [...groups.entries()]
+  const videos = [...groups.entries()]
     .map(([key, group]) => {
       const pool = group.copies.length > 0 ? group.copies : group.uploads;
       const chosen = [...pool].sort((a, b) => rank(a.format) - rank(b.format) || a.name.localeCompare(b.name))[0];
@@ -107,15 +129,41 @@ export function parseArchiveSeries(id: string, body: unknown): Omit<SeriesRead, 
     .sort((a, b) =>
       Number.isFinite(a.track) && Number.isFinite(b.track) && a.track !== b.track ? a.track - b.track : a.key.localeCompare(b.key, 'en', { numeric: true }),
     )
-    .map(({ chosen, upload }): SeriesEpisode => ({
-      title: sanitiseText(str(chosen.file.title) ?? str(upload?.title) ?? bareName(chosen.name), LINK_TITLE_MAX) || bareName(chosen.name).slice(0, LINK_TITLE_MAX),
-      // Path parts are encoded one by one: a file may sit in a folder inside the item.
-      url: buildUrl('archive.org', ['download', id, ...chosen.name.split('/')]),
-      kind: 'file',
-      seconds: secondsOf(chosen.file.length) ?? secondsOf(upload?.length),
-    }));
+    .map(({ key, chosen, upload }) => ({ key, chosen, upload }));
 
-  return { title, episodes };
+  return { metadata, files, videos };
+}
+
+/** An item's subtitles (SPEC-subtitles.md): the audio's language, and each played video's subtitle files by its path. */
+export type ArchiveSubtitles = { language: string | null; videos: Record<string, ArchiveSubtitleFile[]> };
+
+/**
+ * An Archive metadata answer's subtitle files, sorted onto the videos a room plays (`subtitlesForVideo`): files
+ * named `*.<lang>.vtt` / `*.<lang>.srt`, `.asr.` ones AUTO in the item's own language. Null as `parseArchiveSeries`.
+ */
+export function parseArchiveSubtitles(body: unknown): ArchiveSubtitles | null {
+  const item = readArchiveItem(body);
+  if (item === null) return null;
+  const language = normaliseLanguage(str(item.metadata.language));
+  const subtitles = item.files.flatMap((entry) => {
+    const size = Number.parseInt(str(entry.file.size) ?? '', 10);
+    if (Number.isFinite(size) && size > SUBTITLE_MAX_BYTES) return [];
+    const read = archiveSubtitleFile(entry.name, language);
+    return read === null ? [] : [read];
+  });
+  const videos: Record<string, ArchiveSubtitleFile[]> = {};
+  for (const video of item.videos) {
+    const own = subtitlesForVideo(subtitles, { name: video.chosen.name, original: video.key }, item.videos.length === 1);
+    if (own.length > 0) videos[video.chosen.name] = own;
+  }
+  return { language, videos };
+}
+
+/** Every subtitle language an item holds, once each (`en`, `ja:auto`), for its row's SUBS flags. */
+export function archiveSubtitleLanguages(subtitles: ArchiveSubtitles): string[] {
+  const seen = new Set<string>();
+  for (const files of Object.values(subtitles.videos)) for (const file of files) if (file.language !== null) seen.add(file.auto ? `${file.language}:auto` : file.language);
+  return [...seen];
 }
 
 /* --- YouTube --------------------------------------------------------------------------------------- */
@@ -244,10 +292,47 @@ export function parseInnertubePlaylist(body: unknown, first: boolean): { title: 
 
 export type SeriesDeps = { fetch?: FetchLike; env?: Record<string, string | undefined>; now?: () => number };
 
+/** `textFetch`: how a subtitle file is fetched, never through `fetch`'s cache (the text is passed on, never kept). */
+export type SubtitleDeps = SeriesDeps & { textFetch?: FetchLike };
+
+function readArchiveMetadata(id: string, deps: SeriesDeps): Promise<unknown> {
+  return safeFetchJson(buildUrl('archive.org', ['metadata', id]), { allowedHosts: IA_ALLOWED_HOSTS, fetchImpl: deps.fetch, maxBytes: IA_METADATA_MAX_BYTES });
+}
+
 async function readArchive(id: string, deps: SeriesDeps): Promise<SeriesRead | null> {
-  const body = await safeFetchJson(buildUrl('archive.org', ['metadata', id]), { allowedHosts: IA_ALLOWED_HOSTS, fetchImpl: deps.fetch, maxBytes: IA_METADATA_MAX_BYTES });
-  const parsed = parseArchiveSeries(id, body);
+  const parsed = parseArchiveSeries(id, await readArchiveMetadata(id, deps));
   return parsed === null ? null : { ...parsed, target: { source: 'internet_archive', id }, partial: false };
+}
+
+/** An Archive item's subtitles (the same day-cached metadata read as its episodes), or null for an item that may not be played. */
+export async function readArchiveSubtitles(id: string, deps: SeriesDeps = {}): Promise<ArchiveSubtitles | null> {
+  return isSafeIdentifier(id) ? parseArchiveSubtitles(await readArchiveMetadata(id, deps)) : null;
+}
+
+/** The Archive's file servers a download is sent on to (`ia800300.us.archive.org`, `dn721905.ca.archive.org`). */
+const IA_FILE_SERVER = /^(?:ia|dn)\d{1,8}\.(?:[a-z]{2}\.)?archive\.org$/;
+
+/**
+ * One subtitle file's text as WebVTT, passed through to a viewer's player and never kept (SPEC-subtitles.md,
+ * Luke's OK). Only a `.vtt`/`.srt` file the item's own metadata lists, under `SUBTITLE_MAX_BYTES`, from
+ * archive.org and the file servers it sends a download on to. Null when the item doesn't list it, or the text
+ * isn't subtitles; throws `SafeFetchError` when the Archive did not answer.
+ */
+export async function readArchiveSubtitleText(id: string, file: string, deps: SubtitleDeps = {}): Promise<string | null> {
+  if (!isSafeIdentifier(id) || file.length === 0 || file.length > 500 || !/\.(vtt|srt)$/i.test(file)) return null;
+  // A path inside the item only: no empty, `.` or `..` part, even in a name the item lists.
+  if (file.split('/').some((part) => part === '' || part === '.' || part === '..')) return null;
+  const subtitles = await readArchiveSubtitles(id, deps);
+  const listed = subtitles !== null && Object.values(subtitles.videos).some((files) => files.some((entry) => entry.file === file));
+  if (!listed) return null;
+  const text = await safeFetchText(buildUrl('archive.org', ['download', id, ...file.split('/')]), {
+    allowedHosts: IA_ALLOWED_HOSTS,
+    redirectHosts: IA_FILE_SERVER,
+    fetchImpl: deps.textFetch,
+    maxBytes: SUBTITLE_MAX_BYTES,
+    accept: 'text/vtt, application/x-subrip, text/plain, */*',
+  });
+  return toWebVtt(text);
 }
 
 async function readPlaylistApi(list: string, key: string, deps: SeriesDeps, deadline: number): Promise<SeriesRead> {
@@ -306,20 +391,29 @@ export async function readSeries(target: SeriesTarget, deps: SeriesDeps = {}): P
   }
 }
 
-/** How many episodes each Archive item holds (only items with two or more are named), for the SERIES marks. */
-export async function readSeriesCounts(ids: readonly string[], deps: SeriesDeps = {}, together = 4): Promise<Record<string, number>> {
+/**
+ * How many episodes each Archive item holds (only items with two or more are named), for the SERIES marks, and
+ * the subtitle languages it holds (`archiveSubtitleLanguages`, only items with any), for its row's SUBS flags:
+ * both from the one metadata read.
+ */
+export async function readSeriesCounts(ids: readonly string[], deps: SeriesDeps = {}, together = 4): Promise<{ counts: Record<string, number>; subs: Record<string, string[]> }> {
   const counts: Record<string, number> = {};
+  const subs: Record<string, string[]> = {};
   const queue = ids.filter((id) => isSafeIdentifier(id));
   const work = async () => {
     for (let id = queue.shift(); id !== undefined; id = queue.shift()) {
       try {
-        const read = await readArchive(id, deps);
+        const body = await readArchiveMetadata(id, deps);
+        const read = parseArchiveSeries(id, body);
         if (read !== null && read.episodes.length >= 2) counts[id] = read.episodes.length;
+        const subtitles = parseArchiveSubtitles(body);
+        const languages = subtitles === null ? [] : archiveSubtitleLanguages(subtitles);
+        if (languages.length > 0) subs[id] = languages;
       } catch {
         // A platform that did not answer leaves that row unmarked; the next look asks again.
       }
     }
   };
   await Promise.all(Array.from({ length: Math.min(together, queue.length) }, work));
-  return counts;
+  return { counts, subs };
 }

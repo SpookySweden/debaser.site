@@ -87,7 +87,20 @@ export type SafeFetchOptions = {
   accept?: string;
   /** Send this as a JSON POST body instead of a GET. */
   postJson?: unknown;
+  /** Hosts a redirect may also lead to (https, the same checks), for a platform that hands downloads to numbered file servers. */
+  redirectHosts?: RegExp;
 };
+
+/** A redirect's address on one of `redirectHosts`, with every other check `isAllowedUrl` makes. */
+function redirectAllowed(value: string, redirectHosts: RegExp | undefined): boolean {
+  if (redirectHosts === undefined) return false;
+  try {
+    const host = new URL(value).hostname.toLowerCase();
+    return redirectHosts.test(host) && isAllowedUrl(value, [host]);
+  } catch {
+    return false;
+  }
+}
 
 /** GET (or `postJson`: POST) an allow-listed https URL and return its body as text. Throws `SafeFetchError` on any breach. */
 export async function safeFetchText(url: string, options: SafeFetchOptions): Promise<string> {
@@ -96,7 +109,8 @@ export async function safeFetchText(url: string, options: SafeFetchOptions): Pro
   let current = url;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
-    if (!isAllowedUrl(current, allowedHosts)) throw new SafeFetchError('host not allowed');
+    const redirected = hop > 0 && redirectAllowed(current, options.redirectHosts);
+    if (!redirected && !isAllowedUrl(current, allowedHosts)) throw new SafeFetchError('host not allowed');
 
     let response: Response;
     try {

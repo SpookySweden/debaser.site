@@ -10,7 +10,8 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
  *
  *   GET /api/web/series?ia=<archive item>       -> { title, episodes: [{ title, url, kind, seconds }], partial }
  *   GET /api/web/series?list=<youtube playlist> -> the same
- *   GET /api/web/series?counts=<item>,<item>... -> { counts: { <item>: n } }   (Archive items with 2+ videos only)
+ *   GET /api/web/series?counts=<item>,<item>... -> { counts: { <item>: n }, subs: { <item>: ['en', 'ja:auto'] } }
+ *                                                  (counts: Archive items with 2+ videos; subs: items with subtitles, SPEC-subtitles.md)
  *
  * The episode lists come from each platform's own listing, read on the server (app/lib/web/series-files.ts) and
  * cached there for a day; the page checks every answer again (app/lib/watch/series.ts) before a row is written.
@@ -46,7 +47,7 @@ export async function GET(request: Request): Promise<Response> {
   const counts = params.get('counts');
   if (counts !== null) {
     const ids = [...new Set(counts.split(',').filter((id) => isSafeIdentifier(id)))].slice(0, MAX_COUNTS);
-    return json({ counts: await readSeriesCounts(ids, deps) }, 200);
+    return json(await readSeriesCounts(ids, deps), 200);
   }
 
   const ia = params.get('ia');
