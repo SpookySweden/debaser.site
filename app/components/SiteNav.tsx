@@ -159,12 +159,13 @@ export const SIDE_QUEUES: NavItem = {
  * ARCHIVE is the search page that was WEB (Luke, 2026-11-03). The media catalogue, which this key used to
  * open, is one of the archive's servers now (DEBASER.SITE in a search) and left the band, so there is one
  * ARCHIVE; it is still MEDIA in the Start menu and the phone's menu, and each of its search results links to it.
+ *
+ * No DIRECTORY key (Luke, 2026-11-03): the account list is the side panel's DIRECTORY, whose `[ ALL ]` opens /users.
  */
 const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'web', label: 'ARCHIVE', href: '/archive' },
-  { key: 'users', label: 'DIRECTORY', href: '/users' },
 ];
 
 /** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */

@@ -7,7 +7,7 @@
  * DEBASER.SITE (app/lib/web/site-server.ts `siteFileMatches`), the site's own files in an archive search:
  * - whole words, as the rest of the archive search: every word, or any one with VIBE on; found in the title,
  *   credit, filer, folder, category names and tags
- * - only for SOURCE ALL or SAVED; TYPE keeps its kind; `from:` matches the credit or the filer
+ * - only for SOURCE ALL; TYPE keeps its kind; `from:` matches the credit or the filer
  * - no words and no creator: nothing (the plain stream lists none of the site's files)
  * - newest first, oldest first under SORT: DATE flipped
  * - each file links to its first category on the catalogue page (`/media?cat=`)
@@ -83,7 +83,6 @@ same(ids('sheet', { type: 'audio' }), [], 'TYPE: AUDIO leaves it out');
 same(ids('nosferatu', { type: 'video' }), ['reel'], 'TYPE: VIDEO');
 same(ids('nosferatu', { type: 'text' }), [], 'TYPE: TEXT: the site holds none');
 
-same(ids('francis', { source: 'saved' }), ['francis'], 'SOURCE: SAVED still lists the site\'s files');
 same(ids('francis', { source: 'youtube' }), [], 'SOURCE: one platform leaves them out');
 same(ids('nosferatu', { source: 'kino' }), [], 'SOURCE: KINO leaves them out');
 

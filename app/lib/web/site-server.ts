@@ -40,7 +40,7 @@ function fileWords(entry: CatalogueEntry): Set<string> {
 /**
  * The files a search finds, newest first (oldest first under SORT: DATE flipped).
  *
- * - Only in a search with SOURCE ALL or SAVED: a search of one platform (or KINO) is about that platform.
+ * - Only in a search with SOURCE ALL: a search of one platform (or KINO) is about that platform.
  * - TYPE keeps its own kind: IMAGE, AUDIO or VIDEO (the site holds no TEXT).
  * - Words are whole words, as everywhere else in the archive search (search.ts), found in the title, credit, who
  *   filed it, its folder, its categories (PROFILE PICTURES, VIDEOS...) or its tags. Every word must be there; with
@@ -50,7 +50,7 @@ function fileWords(entry: CatalogueEntry): Set<string> {
  */
 export function siteFileMatches(entries: readonly CatalogueEntry[], search: SiteSearch): CatalogueEntry[] {
   const { filters } = search;
-  if (filters.source !== 'all' && filters.source !== 'saved') return [];
+  if (filters.source !== 'all') return [];
   const wanted = searchWords(search.query) ?? [];
   const authors = authorList(filters.authors ?? []);
   if (wanted.length === 0 && authors === null) return [];

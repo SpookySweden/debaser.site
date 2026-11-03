@@ -33,8 +33,7 @@ export type FilterKey = 'in' | 'type' | 'from' | 'vibe' | 'sort';
 /** A sort as typed after `sort:`; DATE newest first, the default, has no word. */
 export type SortWord = 'best' | 'popular' | 'oldest';
 
-/** `saved`: the hourly stream (rows read from the database rather than found live). */
-export type SourceValue = 'all' | 'saved' | WebPlatform;
+export type SourceValue = 'all' | WebPlatform;
 export type TypeValue = 'all' | Exclude<WebItemKind, 'other'>;
 
 /**
@@ -62,14 +61,14 @@ export function sourceWord(value: SourceValue): string {
 }
 
 /**
- * The SOURCE choices, from the registries: SAVED, KINO, then every platform the stream reads or a search asks, in
+ * The SOURCE choices, from the registries: KINO, then every platform the stream reads or a search asks, in
  * the labels' order. A new provider or stream adapter appears here by itself. (Vimeo, reached only by a pasted
  * link, is neither, so it is not offered.) The media servers are not choices (Luke, 2026-11-02: "remove the
  * 'server 1 server 2' search parameters"): their titles show in every search, with a SERVER button each.
+ * SAVED (the hourly stream alone) is not a choice either (Luke, 2026-11-03): the stream shows in every ALL search.
  */
 export const SOURCE_OPTIONS: readonly { value: SourceValue; label: string }[] = [
   { value: 'all', label: 'ALL' },
-  { value: 'saved', label: 'SAVED' },
   { value: 'kino', label: PLATFORM_LABELS.kino },
   ...(Object.keys(PLATFORM_LABELS) as WebPlatform[])
     .filter((platform) => platform !== 'kino' && !isMediaServerId(platform) && (platform in LIVE_SOURCE_KINDS || streamPlatform(platform)))
@@ -86,7 +85,6 @@ export const TYPE_OPTIONS: readonly { value: TypeValue; label: string }[] = [
 
 /** Short words people will type, beside each platform's own (`in:archive`, `in:commons`). */
 const SOURCE_ALIASES: Readonly<Record<string, SourceValue>> = {
-  stream: 'saved',
   archive: 'internet_archive',
   ia: 'internet_archive',
   commons: 'wikimedia_commons',
@@ -306,11 +304,11 @@ export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stre
     (platform) => (search.source === platform || (search.source === 'all' && platform !== 'kino')) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
   );
   // KINO reads the stream too, for the titles a media server holds: those rows play, and take the KINO row's place.
-  const stream = search.source === 'all' || search.source === 'saved' || search.source === 'kino' || streamPlatform(search.source);
+  const stream = search.source === 'all' || search.source === 'kino' || streamPlatform(search.source);
   return { stream, live };
 }
 
-/** Whether a row belongs in the list under the filters. `saved`: it came from the stream, not a live search. */
+/** Whether a row belongs in the list under the filters. `fromStream`: it came from the stream, not a live search. */
 export function matchesFilters(
   item: Pick<WebItem, 'platform' | 'kind' | 'creator' | 'media'>,
   search: Pick<WebSearch, 'source' | 'type' | 'authors'>,
@@ -320,7 +318,6 @@ export function matchesFilters(
   const authors = authorList(authorsOf(search));
   if (authors !== null && !matchesAuthor(item, authors)) return false;
   if (search.source === 'all') return true;
-  if (search.source === 'saved') return fromStream;
   // KINO: TMDB's rows, and from the stream only the media servers' films and shows.
   if (search.source === 'kino') return item.platform === 'kino' || (fromStream && item.media !== undefined);
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.

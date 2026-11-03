@@ -90,8 +90,10 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
   return (
     <div className="space-y-3">
       <section className={PANEL}>
-        <div className={compact ? `${TITLE_BAR_INACTIVE} title-stack` : TITLE_BAR_INACTIVE}>
-          <span title={LAMP_TIP}>ACCOUNT DIRECTORY</span>
+        {/* In the panel the title is DIRECTORY, short enough for `[ ALL ]` to share its line rather than
+            hang alone on a second row (Luke, 2026-11-03); it is also the header's old DIRECTORY key's word. */}
+        <div className={TITLE_BAR_INACTIVE}>
+          <span title={LAMP_TIP}>{compact ? 'DIRECTORY' : 'ACCOUNT DIRECTORY'}</span>
           <span>
             {/* Said once and short (SPEC-efficiency.md): the panel's key to the whole list, and the page's
                 one count. `n SEEN THIS HOUR :: n ELSEWHERE` and the account total were the lamps again in

@@ -2,12 +2,12 @@
  * WEB search filters (SOURCE and TYPE), offline (SPEC-web-search.md; run by `npm run checks:web`):
  *   npx tsc app/lib/web/web-filters.ts --outDir Temp/out-web-filters --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *
- * - the SOURCE choices come from the platform registries (SAVED, every stream or search platform; not Vimeo)
+ * - the SOURCE choices come from the platform registries (every stream or search platform; not Vimeo, not SAVED)
  * - typed filters (`in:youtube`, `type:audio`, aliases, quotes) are read out of the box; unknown values are dropped
  * - the keys write into the box, so keys and typed words never disagree; words are untouched
  * - the address carries the same search (`?q=&in=&type=`) and reads back to the same box
  * - the filters decide which sources are asked: YouTube only when YouTube and video are allowed
- * - rows are kept only when they match; SAVED means from the stream
+ * - rows are kept only when they match
  * - the page: keys with names and pressed states, the suggestion list drawn over the page, the address updated
  */
 const { readFileSync } = require('node:fs');
@@ -23,10 +23,10 @@ const { ok, same } = asserts;
 /* ---------------------------------------------------------------- the choices */
 same(
   f.SOURCE_OPTIONS.map((option) => option.label),
-  // Updated on purpose 2026-11-02 (Luke): KINO (TMDB alone) after SAVED, and no media server is a choice any more
-  // ("remove the 'server 1 server 2' search parameters").
-  ['ALL', 'SAVED', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS'],
-  'SOURCE: ALL, SAVED, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one); no media server',
+  // Updated on purpose 2026-11-02 (Luke): KINO (TMDB alone) after ALL, and no media server is a choice any more
+  // ("remove the 'server 1 server 2' search parameters"). 2026-11-03 (Luke): SAVED is no choice any more.
+  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS'],
+  'SOURCE: ALL, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one); no media server, no SAVED',
 );
 same(f.TYPE_OPTIONS.map((option) => option.label), ['ALL', 'VIDEO', 'AUDIO', 'IMAGE', 'TEXT'], 'TYPE choices');
 
@@ -34,7 +34,8 @@ same(f.TYPE_OPTIONS.map((option) => option.label), ['ALL', 'VIDEO', 'AUDIO', 'IM
 same(f.parseWebSearch('night of the living dead in:youtube type:video'), { text: 'night of the living dead', source: 'youtube', type: 'video' }, 'filters taken out of the words');
 same(f.parseWebSearch('type:AUDIO piano IN:Internet-Archive'), { text: 'piano', source: 'internet_archive', type: 'audio' }, 'any case, any order, hyphenated names');
 same(f.parseWebSearch('in:archive x in:commons'), { text: 'x', source: 'wikimedia_commons', type: 'all' }, 'aliases; the last of a filter wins');
-same(f.parseWebSearch('in:"saved" y'), { text: 'y', source: 'saved', type: 'all' }, 'a quoted value');
+same(f.parseWebSearch('in:"kino" y'), { text: 'y', source: 'kino', type: 'all' }, 'a quoted value');
+same(f.parseWebSearch('in:saved y in:stream'), { text: 'y', source: 'all', type: 'all' }, 'SAVED is no SOURCE any more (in:saved, in:stream dropped like any unknown value)');
 same(f.parseWebSearch('star wars in:server1'), { text: 'star wars', source: 'all', type: 'all' }, 'a media server is no SOURCE any more (dropped like any unknown value)');
 same(f.parseWebSearch('in:kino alien'), { text: 'alien', source: 'kino', type: 'all' }, 'in:kino');
 same(f.parseWebSearch('in:tmdb alien'), { text: 'alien', source: 'kino', type: 'all' }, 'in:tmdb is KINO');
@@ -82,7 +83,6 @@ same(asked({ source: 'all', type: 'image' }).live, ['internet_archive', 'wikimed
 ok(!asked({ source: 'all', type: 'text' }).live.includes('youtube'), 'type:text never asks YouTube');
 same(asked({ source: 'youtube', type: 'all' }), { stream: true, live: ['youtube'] }, 'in:youtube asks YouTube (and the stream, which holds YouTube channels)');
 same(asked({ source: 'youtube', type: 'audio' }).live, [], 'in:youtube type:audio asks no live source');
-same(asked({ source: 'saved', type: 'all' }), { stream: true, live: [] }, 'in:saved asks the stream only');
 same(asked({ source: 'wikimedia_commons', type: 'all' }), { stream: false, live: ['wikimedia_commons'] }, 'in:wikimedia-commons does not read the stream (it holds none)');
 same(asked({ source: 'podcast', type: 'all' }), { stream: true, live: [] }, 'in:podcast: the stream only');
 
@@ -91,7 +91,6 @@ const yt = { platform: 'youtube', kind: 'video' };
 ok(f.matchesFilters(yt, { source: 'all', type: 'all' }, false), 'no filter keeps everything');
 ok(!f.matchesFilters(yt, { source: 'all', type: 'audio' }, true), 'a video is not audio');
 ok(!f.matchesFilters(yt, { source: 'peertube', type: 'all' }, true), 'a YouTube row is not PeerTube');
-ok(f.matchesFilters(yt, { source: 'saved', type: 'video' }, true) && !f.matchesFilters(yt, { source: 'saved', type: 'video' }, false), 'SAVED: from the stream only');
 
 /* ---------------------------------------------------------------- suggestions */
 same(f.suggestFilterValues('in', 'you').map((s) => s.word), ['youtube'], 'in:you suggests youtube');
