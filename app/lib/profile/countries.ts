@@ -21,12 +21,12 @@
  * drift from them. `countryName` is the only thing that reads it, and its fallback is the code
  * itself, so a code this build somehow lost still prints as *something*.
  *
- * **The flag itself is a hand-drawn file, never code.** `countryFlagPath` points at where the
- * drawing belongs (`assets/flags/<code>.png`, lowercase - the folder's README says so, and the
- * archive route serves it at `/assets/flags/<code>.png`) and `app/components/CountryFlag.tsx`
- * renders that slot, so the artwork rule holds: no CSS gradients, no SVG and no emoji standing in
- * for a drawing. Until a file lands the slot shows the code in glyphs, the same answer
- * `app/lib/ui/icons.ts` gives for a mark whose drawing is not made yet.
+ * **The flag itself is a file, never code.** `countryFlagPath` points at it (`assets/flags/<code>.png`,
+ * lowercase - the folder's README says so, and the archive route serves it at
+ * `/assets/flags/<code>.png`) and `app/components/CountryFlag.tsx` renders that slot: no CSS
+ * gradients, no SVG and no emoji. The files are the one ready-made set on the site, by Luke's
+ * choice (2026-11-03; source and licence in the folder's README). A file that fails to load shows
+ * the code in glyphs.
  */
 
 /**

@@ -36,10 +36,12 @@ import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/str
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
 import { webSessionHeaders } from '../lib/web/web-session';
+import { detectLanguage } from '../lib/web/language';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
 import ProfileAvatarLink from './ProfileAvatarLink';
+import LanguageFlag from './LanguageFlag';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
@@ -887,6 +889,7 @@ function ChatPanel({
           ) : (
             <li key={line.note.id} className="rule-pixel py-1 text-label font-bold text-ink-quiet" data-watch-up-next>
               UP NEXT :: {line.note.title}
+              <LanguageFlag tag={detectLanguage(line.note.title)} className="ml-1.5" />
             </li>
           ),
         )}

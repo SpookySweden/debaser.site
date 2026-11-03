@@ -61,6 +61,12 @@ export type WebItem = {
   durationSeconds?: number;
   tags?: string[];
   /**
+   * The language the platform says the item is in (`normaliseLanguage`: `es`, `pt-BR`), when it says: PeerTube,
+   * the Internet Archive, TMDB for KINO. Shown as a flag (app/lib/web/language.ts); not saved with stored rows,
+   * which read their language from the title instead.
+   */
+  language?: string;
+  /**
    * A media-server title only (media-titles.ts): its type, TMDB number, which servers hold it (and which
    * episodes) and TMDB's details. Absent on every other item.
    */

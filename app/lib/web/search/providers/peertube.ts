@@ -22,6 +22,7 @@ import { buildUrl } from '../../urls';
 import type { WebItem } from '../../types';
 import { peertubeHosts } from '../peertube-index';
 import type { ProviderPage, SearchDeps, SearchOrder, SearchPage, SearchProvider } from '../types';
+import { normaliseLanguage } from '../../language';
 
 const SEPIA = 'sepiasearch.org';
 export const PT_SEARCH_HOSTS = [SEPIA] as const;
@@ -100,6 +101,7 @@ export function toWebItem(doc: unknown, allowed: ReadonlySet<string>, fetchedAt:
   const description = sanitiseText(str(video.truncatedDescription) ?? str(video.description), MAX_TEXT_LENGTH) || undefined;
   const licence = PT_LICENCES[idOf(video.licence) ?? 0];
   const duration = video.duration;
+  const language = normaliseLanguage(str(record(video.language)?.id));
 
   return {
     id: `peertube:${uuid}`,
@@ -114,6 +116,7 @@ export function toWebItem(doc: unknown, allowed: ReadonlySet<string>, fetchedAt:
     ...(thumb ? { thumbnailUrl: buildUrl(host, [thumb[1], 'thumbnails', thumb[2]]) } : {}),
     embedUrl: buildUrl(host, ['videos', 'embed', uuid]),
     ...(licence ? { licenseUrl: licence } : {}),
+    ...(language ? { language } : {}),
     ...(typeof duration === 'number' && Number.isInteger(duration) && duration > 0 && duration <= MAX_DURATION_SECONDS
       ? { durationSeconds: duration }
       : {}),

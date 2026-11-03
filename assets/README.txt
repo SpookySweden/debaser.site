@@ -11,7 +11,8 @@ assets/audio/        the music shelf's tracks, played in the music window (/foru
 assets/icons/        sign-in marks (google-retro.png) and other small marks
 assets/cursors/      the retro pointers named in app/globals.css
 assets/flags/        the country flags a profile may wear (ISO 3166-1 alpha-2 names,
-                     lowercase: se.png, gb.png), read by app/lib/profile/countries.ts
+                     lowercase: se.png, gb.png), read by app/lib/profile/countries.ts.
+                     The one ready-made set on the site (Luke, 2026-11-03): see its README
 assets/sprites/      the looping avatar sprites used by the taskbar
 assets/profiles/     public profile pictures (the default pfp avatar-default.png,
                      and uploads/ written by the app itself)

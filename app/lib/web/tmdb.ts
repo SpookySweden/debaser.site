@@ -1,6 +1,7 @@
 import type { MediaDetails } from './media-titles';
 import { buildUrl, SafeFetchError, safeFetchJson, type FetchLike } from './safe-fetch';
 import { sanitiseText } from './sanitise';
+import { normaliseLanguage } from './language';
 
 /**
  * TMDB's details for a media-server title (SPEC-media-servers.md decision 7). Server only: the hourly WEB update
@@ -88,7 +89,8 @@ export function detailsUrl(type: 'movie' | 'tv', tmdbId: number): string {
 }
 
 /** One film or show from TMDB's search: its number, title, year and poster only. */
-export type TmdbHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; date?: string; posterPath?: string };
+/** `language`: TMDB's `original_language` (`normaliseLanguage`), for the row's language flag. */
+export type TmdbHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; date?: string; posterPath?: string; language?: string };
 
 const SEARCH_HITS_MAX = 20;
 
@@ -195,6 +197,8 @@ export function toRatedHits(body: unknown, type?: 'movie' | 'tv'): RatedHit[] {
       const date = dateOf(type === 'movie' ? d.release_date : d.first_air_date);
       if (date) hit.date = date;
       if (typeof d.poster_path === 'string' && POSTER.test(d.poster_path)) hit.posterPath = d.poster_path;
+      const language = normaliseLanguage(d.original_language);
+      if (language) hit.language = language;
       const rating = typeof d.vote_average === 'number' && Number.isFinite(d.vote_average) ? d.vote_average : 0;
       return [{ hit, rating, votes: whole(d.vote_count, 0, 1_000_000_000) ?? 0 }];
     })

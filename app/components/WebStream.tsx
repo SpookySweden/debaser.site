@@ -36,9 +36,11 @@ import {
 } from '../lib/web/web-filters';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, searchOrder, SORT_OPTIONS, type SortChoice } from '../lib/web/web-sort';
+import { contentLanguage } from '../lib/web/language';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import LanguageFlag from './LanguageFlag';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridgeKeys';
@@ -966,6 +968,7 @@ function WebRow({
         <div className="min-w-0 flex-1">
           <p id={rowTitleId(item.id)} tabIndex={-1} className="text-sm font-bold text-ink wrap-anywhere">
             {item.title}
+            <LanguageFlag tag={contentLanguage(item)} className="ml-1.5" />
           </p>
           {item.creator && authorWords(item.creator) !== null ? (
             <p>

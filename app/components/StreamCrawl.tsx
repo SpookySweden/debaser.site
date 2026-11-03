@@ -3,6 +3,8 @@
 import { crawlStops, stillStops, type CrawlStop } from '../lib/watch/crawl';
 import type { WatchMember } from '../lib/watch/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { detectLanguage } from '../lib/web/language';
+import LanguageFlag from './LanguageFlag';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 
@@ -84,6 +86,7 @@ function VideoLine({ label, title }: { label: string; title: string }) {
   return (
     <span className="font-bold text-ink">
       <span className="text-accent-ink">{label}:</span> {title}
+      <LanguageFlag tag={detectLanguage(title)} className="ml-1.5" />
     </span>
   );
 }

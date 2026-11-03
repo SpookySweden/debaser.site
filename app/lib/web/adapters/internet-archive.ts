@@ -16,6 +16,7 @@ import { buildUrl, isAllowedUrl, isSafeIdentifier } from '../urls';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../sanitise';
 import type { WebItem, WebItemKind, WebSource } from '../types';
 import type { WebAdapter, WebAdapterDeps } from './types';
+import { normaliseLanguage } from '../language';
 
 export const IA_ALLOWED_HOSTS = PLATFORM_HOSTS.internet_archive.hosts;
 /** Licence pages an item may link to (Creative Commons is what the Archive's `licenseurl` almost always is). */
@@ -34,6 +35,7 @@ export const IA_FIELDS = [
   'mediatype',
   'licenseurl',
   'access-restricted-item',
+  'language',
 ] as const;
 
 const MEDIATYPE_KINDS: Record<string, WebItemKind> = {
@@ -116,6 +118,7 @@ export function toWebItem(doc: unknown, fetchedAt: string): WebItem | null {
   const creator = sanitiseText(joined(record.creator, '; '), 200) || undefined;
   const description = sanitiseText(joined(record.description, ' '), MAX_TEXT_LENGTH) || undefined;
   const licence = licenceUrl(record.licenseurl);
+  const language = normaliseLanguage(first(record.language));
 
   return {
     id: `internet_archive:${id}`,
@@ -131,6 +134,7 @@ export function toWebItem(doc: unknown, fetchedAt: string): WebItem | null {
     // The Archive's player handles audio, video and books; an image or "other" item is a link only.
     ...(kind === 'audio' || kind === 'video' || kind === 'text' ? { embedUrl: buildUrl(HOST, ['embed', id]) } : {}),
     ...(licence ? { licenseUrl: licence } : {}),
+    ...(language ? { language } : {}),
     publishedAt,
     fetchedAt,
   };

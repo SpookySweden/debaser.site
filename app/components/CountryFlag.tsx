@@ -7,35 +7,42 @@ type CountryFlagProps = {
   /** Width in whole pixels. Flags are drawn 3:2, so a wider slot wants a taller one too. */
   width?: number;
   height?: number;
+  /** What the flag is called, when it stands for something other than the country (a language: `LanguageFlag`). */
+  label?: string;
 };
 
 /**
  * A country, drawn as a flag beside a name.
  *
- * **It replaced a place line, and what it is has to be a drawing.** `PLACE: GOTHENBURG` was a
- * sentence, and the site cannot draw a sentence - so a profile that once said a place now says
- * *which country*, which is a code off a closed list and a picture that belongs to it. The picture
- * is a hand-drawn file (`assets/flags/<code>.png`, served at `/assets/flags/<code>.png`; the
- * folder's own README is the contract) because CLAUDE.md's asset rules say code never draws
- * artwork: not a CSS gradient, not an SVG, and not an emoji standing in for the drawing either.
+ * **It replaced a place line, and what it is has to be a picture.** `PLACE: GOTHENBURG` was a
+ * sentence; a profile now says *which country*, a code off a closed list with a flag that belongs
+ * to it (`assets/flags/<code>.png`, served at `/assets/flags/<code>.png`; the folder's README is the
+ * contract).
  *
- * **So the slot is the whole component, and the code is what fills it until the file lands.** That
- * is the one deliberate difference from every other `SpriteSlot` on the site: a missing sprite may
- * honestly be an empty field, but a missing *flag* would leave a profile's country readable only
- * from a tooltip - and a tooltip is exactly what a phone does not have. `fallback` is SpriteSlot's
- * hook for this, and it draws the two letters the country is filed under, which is the same
- * text-mode answer `app/lib/ui/icons.ts` gives for an icon whose drawing is not made yet.
+ * **The flags are the one ready-made set on the site, by Luke's choice (2026-11-03).** They were
+ * waiting to be hand-drawn, none had been, and every profile showed two tiny letters instead. The
+ * files are drawn from the MIT-licensed `country-flag-icons` set (the official national designs,
+ * not anybody's artwork; licence and source in `assets/flags/README.txt`). A flag Luke draws himself
+ * simply replaces its file. Code still draws none: no CSS, no SVG, no emoji.
  *
- * **Nothing is rendered when there is no country.** Not a placeholder, not a dash: a reader with no
- * flag chosen shows a name with nothing beside it, and the callers that need to say "not given"
- * say it in words (`PublicProfileWindow`) rather than by pointing at an empty box.
+ * **Drawn smoothly, unlike every other picture here.** The site's pictures are pixel drawings shown
+ * at whole multiples (`img { image-rendering: pixelated }`); a flag is a 72x48 file shown at 18x12,
+ * and nearest-neighbour shrinking eats a coat of arms or a star field. `.country-flag` in
+ * globals.css hands it back to ordinary smoothing.
+ *
+ * **The two letters stay as the fallback.** A file that fails to load would leave a profile's
+ * country readable only from a tooltip, and a phone has no tooltip, so SpriteSlot's `fallback`
+ * draws the code the country is filed under.
+ *
+ * **Nothing is rendered when there is no country.** Not a placeholder, not a dash: the callers that
+ * need to say "not given" say it in words (`PublicProfileWindow`).
  */
-export default function CountryFlag({ code, width = 18, height = 12 }: CountryFlagProps) {
+export default function CountryFlag({ code, width = 18, height = 12, label }: CountryFlagProps) {
   // The list, not a length test: a row hand-edited to "Sw" or "SWEDEN" is not a country this site
   // knows, and rendering it would be the free-text field creeping back in one plate at a time.
   if (!isCountryCode(code)) return null;
 
-  const name = countryName(code);
+  const name = label ?? countryName(code);
 
   return (
     <SpriteSlot
@@ -43,7 +50,8 @@ export default function CountryFlag({ code, width = 18, height = 12 }: CountryFl
       alt={name}
       width={width}
       height={height}
-      title={`${name} - the flag is a hand-drawn file at ${countryFlagPath(code)}`}
+      title={name}
+      className="country-flag"
       fallback={
         /* The outer span is already the field, so this only centres the letters in it. The name is
            carried in the alt-lookalike rather than left to the tooltip, for the same reason. */

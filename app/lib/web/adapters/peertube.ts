@@ -22,6 +22,7 @@ import { buildUrl, isSafeIdentifier } from '../urls';
 import { MAX_TEXT_LENGTH, plausibleIsoDate, sanitiseText } from '../sanitise';
 import type { WebItem, WebSource } from '../types';
 import type { WebAdapter, WebAdapterDeps } from './types';
+import { normaliseLanguage } from '../language';
 
 export const PT_ALLOWED_HOSTS = PLATFORM_HOSTS.peertube.hosts;
 export const PT_LINK_HOSTS = PLATFORM_HOSTS.peertube.linkHosts;
@@ -108,6 +109,7 @@ export function toWebItem(doc: unknown, instance: string, fetchedAt: string): We
     sanitiseText(str(video.truncatedDescription) ?? str(video.description), MAX_TEXT_LENGTH) || undefined;
   const licence = PT_LICENCES[idOf(video.licence) ?? 0];
   const duration = video.duration;
+  const language = normaliseLanguage(str(record(video.language)?.id));
 
   return {
     id: `peertube:${uuid}`,
@@ -122,6 +124,7 @@ export function toWebItem(doc: unknown, instance: string, fetchedAt: string): We
     ...(thumb ? { thumbnailUrl: buildUrl(instance, [thumb[1], 'thumbnails', thumb[2]]) } : {}),
     embedUrl: buildUrl(instance, ['videos', 'embed', uuid]),
     ...(licence ? { licenseUrl: licence } : {}),
+    ...(language ? { language } : {}),
     ...(typeof duration === 'number' && Number.isInteger(duration) && duration > 0 && duration <= MAX_DURATION_SECONDS
       ? { durationSeconds: duration }
       : {}),

@@ -2,7 +2,7 @@ import { MEDIA_ID_PREFIX, posterUrl, type MediaDetails } from './media-titles';
 import type { WebItem } from './types';
 
 /** A TMDB search hit (tmdb.ts `TmdbHit`, the same shape; not imported, so browser code never reaches the server-only reader). */
-type KinoHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; date?: string; posterPath?: string };
+type KinoHit = { type: 'movie' | 'tv'; tmdbId: number; title: string; date?: string; posterPath?: string; language?: string };
 
 /**
  * KINO (Luke, 2026-11-02): the /web SOURCE that asks TMDB alone, a finder for films and shows. Pure and client-safe;
@@ -37,6 +37,7 @@ export function kinoItem(hit: KinoHit, details: MediaDetails | undefined, fetche
     media: { type: hit.type, tmdbId: hit.tmdbId, copies: [], details: shown },
   };
   if (shown.overview) item.description = shown.overview;
+  if (hit.language) item.language = hit.language;
   const thumbnail = posterUrl(shown.posterPath ?? hit.posterPath);
   if (thumbnail) item.thumbnailUrl = thumbnail;
   if (shown.runtimeMinutes !== undefined) item.durationSeconds = shown.runtimeMinutes * 60;

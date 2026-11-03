@@ -611,7 +611,7 @@ export const ART_SLOTS = [
     fit: 'contain',
     css: ['--art-flag'],
     fallback: 'the two-letter code in a bordered plate (`CountryFlag` draws it)',
-    brief: 'One file per country in `app/lib/profile/countries.ts`, named by its two-letter code.',
+    brief: 'One file per country in `app/lib/profile/countries.ts`, named by its two-letter code. Filled from the MIT-licensed country-flag-icons set (Luke, 2026-11-03); a hand-drawn file replaces its country.',
   },
 
   /* ---------------------------------------------------------------- the pictures */

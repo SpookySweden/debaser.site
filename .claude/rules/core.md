@@ -68,6 +68,7 @@ The main session plans, decides and talks to me. The agents in `.claude/agents/`
 ## Asset Rules
 These are firm, unlike most of the design notes.
 - No AI-generated artwork of any kind. All artwork is hand-drawn by me on a Kamvas tablet and added by hand.
+  One exception, my choice (2026-11-03): the country flags in `assets/flags/` are a ready-made open set (MIT); see its README.
 - Code never draws a character, icon or illustration (no CSS or SVG art). Repeating tile patterns, dithers and dotted lines are fine.
 - When something needs artwork, point at a placeholder file through a slot (`SpriteSlot`, the registry in `app/lib/ui/art/`) and stop. Don't make a stand-in.
 

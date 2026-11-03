@@ -121,7 +121,7 @@ export default function PostAuthorRow({
       )}
 
       <ProfileLink author={author} className="text-key font-bold">
-        <ProfileName author={author} colour={nameColour}>
+        <ProfileName author={author} colour={nameColour} flag={false}>
           {label}
         </ProfileName>
       </ProfileLink>

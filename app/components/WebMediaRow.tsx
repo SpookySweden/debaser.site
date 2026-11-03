@@ -10,6 +10,8 @@ import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
 import { webSessionHeaders } from '../lib/web/web-session';
+import { contentLanguage } from '../lib/web/language';
+import LanguageFlag from './LanguageFlag';
 import SpriteSlot from './SpriteSlot';
 
 /**
@@ -171,6 +173,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         <div className="min-w-0 flex-1">
           <p id={titleId} tabIndex={-1} className="text-title font-bold text-ink wrap-anywhere">
             {item.title}
+            <LanguageFlag tag={contentLanguage(item)} className="ml-1.5" />
           </p>
           {facts.length > 0 ? <p className="text-label font-bold text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p> : null}
           {item.creator ? <p className="text-label text-ink wrap-anywhere">{item.creator}</p> : null}
@@ -375,6 +378,7 @@ export function KinoRow({ item, titleId }: { item: WebStreamItem & { media: Medi
         <div className="min-w-0 flex-1">
           <p id={titleId} tabIndex={-1} className="text-title font-bold text-ink wrap-anywhere">
             {item.title}
+            <LanguageFlag tag={contentLanguage(item)} className="ml-1.5" />
           </p>
           <p className="text-label font-bold text-ink-quiet wrap-anywhere">{facts.join(' · ')}</p>
           {item.description ? <p className="mt-0.5 line-clamp-3 text-prose text-ink wrap-anywhere">{item.description}</p> : null}

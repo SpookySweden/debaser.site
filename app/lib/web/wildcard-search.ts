@@ -27,7 +27,9 @@ export function hitToItem(hit: TmdbHit, servers: readonly MediaServer[], fetched
   // Ordered by release, so a search's rows sit newest first like everything else; a title with no date, as found.
   const publishedAt = hit.date ? new Date(`${hit.date.length === 4 ? `${hit.date}-01-01` : hit.date}T00:00:00.000Z`).toISOString() : fetchedAt;
   const details = { title: hit.title, genres: [], ...(hit.date ? { date: hit.date } : {}), ...(hit.posterPath ? { posterPath: hit.posterPath } : {}) };
-  return titleToItem({ id: `media:${key}`, key, type: hit.type, tmdbId: hit.tmdbId, title: hit.title, copies }, { publishedAt, fetchedAt }, details);
+  const item = titleToItem({ id: `media:${key}`, key, type: hit.type, tmdbId: hit.tmdbId, title: hit.title, copies }, { publishedAt, fetchedAt }, details);
+  // TMDB's original language, for the row's flag (app/lib/web/language.ts); not stored.
+  return hit.language ? { ...item, language: hit.language } : item;
 }
 
 /**

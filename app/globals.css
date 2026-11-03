@@ -365,6 +365,11 @@ html {
 img {
   image-rendering: pixelated;
 }
+/* Except a country flag: a ready-made 72x48 file (not a pixel drawing) shown at 18x12, where
+   nearest-neighbour shrinking eats stars and coats of arms. app/components/CountryFlag.tsx. */
+.country-flag img {
+  image-rendering: auto;
+}
 /* The colours ---------------------------------------------------------------------------------------
    Declared in app/theme/tokens.css, generated from app/lib/ui/themes.ts: the nine dyes ("Dyacid Dyes",
    docs/design.md) are named once there, and each theme says which dye plays which part. What each colour

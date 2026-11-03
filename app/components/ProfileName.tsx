@@ -6,6 +6,7 @@ import { showsPresenceLamp } from '../lib/auth/builtin-account';
 import type { ForumAuthor } from '../lib/forum/types';
 import { nameColourDark, profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import CountryFlag from './CountryFlag';
 import { usePresence } from './PresenceProvider';
 import StatusDot from './StatusDot';
 
@@ -26,6 +27,11 @@ type ProfileNameProps = {
    * left off. The account page's own lines and the board activity list use it.
    */
   lamp?: boolean;
+  /**
+   * False where the caller draws the country itself: the post byline (`PostAuthorRow`) puts the
+   * flag *and* the country's name after the name, and a second flag there would say it twice.
+   */
+  flag?: boolean;
 };
 
 /**
@@ -33,13 +39,15 @@ type ProfileNameProps = {
  *
  * Reading the profile here means the colour follows the name everywhere it is
  * printed - the board, the comments, the comms page, the account page - and a
- * visitor's browser sees a change as soon as the owner saves it. The lamp comes
+ * visitor's browser sees a change as soon as the owner saves it. The country flag rides along for
+ * the same reason (Luke, 2026-11-03: flags "don't show up in enough places"), so every name on the
+ * site wears its flag without each caller having to read the profile again. The lamp comes
  * from `usePresence`, so green / yellow / red follow presence the same way, and
  * `lamp={false}` drops it where presence is not the point. Guests have neither:
  * an anonymous post has no profile to read a colour from and no account to be
  * online with.
  */
-export default function ProfileName({ author, children, className, colour, lamp = true }: ProfileNameProps) {
+export default function ProfileName({ author, children, className, colour, lamp = true, flag = true }: ProfileNameProps) {
   const { profile } = usePublicProfile(author.id);
   const { status, record } = usePresence(author.id);
   const chosen = colour !== undefined && colour.length > 0 ? colour : profileNameColour(profile);
@@ -64,6 +72,11 @@ export default function ProfileName({ author, children, className, colour, lamp 
     <span className={classes} style={ink}>
       {showsLamp && status !== undefined ? <StatusDot status={status} record={record} className="mr-1" /> : null}
       {children ?? authorLabel(author)}
+      {flag && profile.country.length > 0 ? (
+        <span className="ml-1 inline-flex align-middle">
+          <CountryFlag code={profile.country} />
+        </span>
+      ) : null}
     </span>
   );
 }

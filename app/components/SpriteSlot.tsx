@@ -22,6 +22,8 @@ type SpriteSlotProps = {
    * reader with no pointer has no tooltip. `CountryFlag` is that case and passes the code.
    */
   fallback?: ReactNode;
+  /** Added to the slot's own classes (`CountryFlag` uses it to draw its flags smoothly). */
+  className?: string;
 };
 
 /**
@@ -37,12 +39,12 @@ type SpriteSlotProps = {
  * holds its shape (and its dither) whether or not the artwork has arrived yet - which is what keeps
  * the layout honest while the drawing is still being made.
  */
-export default function SpriteSlot({ src, alt, width, height, title, fallback }: SpriteSlotProps) {
+export default function SpriteSlot({ src, alt, width, height, title, fallback, className }: SpriteSlotProps) {
   const [missing, setMissing] = useState(false);
 
   return (
     <span
-      className={`${SPRITE_SLOT} inline-block shrink-0 align-middle`}
+      className={`${SPRITE_SLOT} inline-block shrink-0 align-middle${className ? ` ${className}` : ''}`}
       style={{ width, height }}
       title={title ?? `${src} is not in the assets folder yet`}
     >
