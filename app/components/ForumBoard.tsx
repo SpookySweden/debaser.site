@@ -270,10 +270,55 @@ export default function ForumBoard() {
     });
   }, []);
 
+  /** Set once the reader picks a page size, or once the board has sized itself to the screen. */
+  const perPageSettled = useRef(false);
+
   const handlePerPageChange = useCallback((next: number) => {
+    perPageSettled.current = true;
     setPerPage(next);
     setPage(1);
   }, []);
+
+  /**
+   * The first page fills the screen: once the feed has drawn its first posts, count how many more of
+   * that height fit between the list's top and the bottom of whatever scrolls it, and hold that many.
+   * Never fewer than the smallest choice; the reader's own pick always wins.
+   */
+  useEffect(() => {
+    if (perPageSettled.current || view !== 'feed' || pageThreads.length === 0) return;
+    const list = document.getElementById('forum-thread-list');
+    if (!list || list.children.length === 0) return;
+    perPageSettled.current = true;
+    // A link to one post has already picked its page at the old size: leave the size alone.
+    if (pendingJump !== null || window.location.hash.startsWith('#thread-')) return;
+    const heights = Array.from(list.children, (card) => (card as HTMLElement).offsetHeight).sort((a, b) => a - b);
+    const cardHeight = heights[Math.floor(heights.length / 2)];
+    if (cardHeight <= 0) return;
+    let bottom = window.innerHeight;
+    for (let node = list.parentElement; node; node = node.parentElement) {
+      const overflow = window.getComputedStyle(node).overflowY;
+      if (overflow === 'auto' || overflow === 'scroll') {
+        bottom = Math.min(bottom, node.getBoundingClientRect().bottom);
+        break;
+      }
+    }
+    // Room for the page foot under the list.
+    const foot = list.nextElementSibling instanceof HTMLElement ? list.nextElementSibling.offsetHeight + 16 : 48;
+    const fits = Math.floor((bottom - list.getBoundingClientRect().top - foot) / cardHeight);
+    if (fits <= PAGE_SIZES[0]) return;
+    // Set from a timer, so nothing is set synchronously inside the effect body (a frame would wait
+    // for as long as the tab sits in the background).
+    let done = false;
+    const timer = window.setTimeout(() => {
+      done = true;
+      setPerPage(fits);
+    }, 0);
+    return () => {
+      window.clearTimeout(timer);
+      // Cut short before it landed (the posts were still arriving): measure again next time.
+      if (!done) perPageSettled.current = false;
+    };
+  }, [view, pageThreads.length, pendingJump]);
 
   /** A panel's own key opens it, and a second press on that key closes it again. */
   const toggleMenu = useCallback((next: BoardMenu) => {
@@ -868,7 +913,7 @@ export default function ForumBoard() {
                 onChange={(event) => handlePerPageChange(Number(event.target.value))}
                 className="cursor-pointer bg-transparent font-bold text-ink outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-dotted focus-visible:outline-bubble max-sm:min-h-tap"
               >
-                {PAGE_SIZES.map((size) => (
+                {(PAGE_SIZES.includes(perPage) ? PAGE_SIZES : [...PAGE_SIZES, perPage].sort((a, b) => a - b)).map((size) => (
                   // The select is transparent, and Chrome on Windows paints a transparent popup white under the
                   // ink: each choice carries the paper itself so the list reads in every theme.
                   <option key={size} value={size} className="bg-paper">
