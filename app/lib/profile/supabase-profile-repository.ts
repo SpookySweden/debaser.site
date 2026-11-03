@@ -873,6 +873,38 @@ function changedProfileId(table: string, payload: unknown): string | null {
   return typeof candidate === 'string' ? candidate : null;
 }
 
+/** Columns the once-a-minute presence stamp writes: a change to these alone changes nothing on a profile. */
+const PRESENCE_ONLY_COLUMNS = new Set(['last_seen_at', 'is_online', 'updated_at']);
+
+/** Each account's profile row as last heard, without the presence columns: what the page draws from it. */
+const lastFaces = new Map<string, string>();
+
+/**
+ * Whether a change to the profiles row is only the presence stamp.
+ *
+ * Every open tab stamps its account once a minute, and each stamp reaches every tab on this channel. A
+ * full profile read per stamp per tab grows with the square of the people online, for a change the
+ * presence channel already carries. Realtime sends no old row (the table's default replica identity),
+ * so the row is compared with the one heard last; the first change heard for an account is read.
+ */
+function presenceOnly(table: string, id: string, payload: unknown): boolean {
+  if (table !== PROFILES_TABLE) return false;
+
+  const change = payload as { eventType?: string; new?: Record<string, unknown> };
+  if (change.eventType !== 'UPDATE' || change.new === undefined) return false;
+
+  const face = JSON.stringify(
+    Object.keys(change.new)
+      .filter((column) => !PRESENCE_ONLY_COLUMNS.has(column))
+      .sort()
+      .map((column) => [column, change.new?.[column]]),
+  );
+  const same = lastFaces.get(id) === face;
+  lastFaces.set(id, face);
+
+  return same;
+}
+
 function openProfileChannel(repository: SupabaseProfileRepository): void {
   if (profileChannel !== null) return;
 
@@ -881,7 +913,7 @@ function openProfileChannel(repository: SupabaseProfileRepository): void {
 
   const respond = (table: string) => (payload: unknown) => {
     const id = changedProfileId(table, payload);
-    if (id === null) return;
+    if (id === null || presenceOnly(table, id, payload)) return;
 
     void repository
       .getProfile(id)
@@ -896,6 +928,7 @@ function openProfileChannel(repository: SupabaseProfileRepository): void {
     .channel('profile-directory')
     .on('postgres_changes', { event: '*', schema: 'public', table: PROFILES_TABLE }, respond(PROFILES_TABLE))
     .on('postgres_changes', { event: '*', schema: 'public', table: VERSIONS_TABLE }, respond(VERSIONS_TABLE))
+    .on('postgres_changes', { event: '*', schema: 'public', table: SONGS_TABLE }, respond(SONGS_TABLE))
     .on('postgres_changes', { event: '*', schema: 'public', table: TAGS_TABLE }, respond(TAGS_TABLE))
     .on('postgres_changes', { event: '*', schema: 'public', table: COMMENTS_TABLE }, respond(COMMENTS_TABLE))
     .subscribe();
