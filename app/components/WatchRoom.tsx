@@ -67,6 +67,12 @@ import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
 import StreamQueueWindow from './StreamQueueWindow';
+import CanvasToggle from './CanvasToggle';
+import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
+import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
+import { useScreenView } from '../lib/watch/canvas-view';
+import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
+import { askToSaveCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import SongCoverCard from './SongCoverCard';
 
 /** One per tab: two tabs of one account are two members of a room. */
@@ -896,8 +902,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           setConfirmEnd(true);
           return;
         }
-        void repository
-          .endRoom(roomId)
+        // A changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
+        void askToSaveCanvas(roomId, { ending: true })
+          .then(() => repository.endRoom(roomId))
           .then(() => applyLocalChange(roomId, { kind: 'refresh' }))
           .catch((failure: unknown) => setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT BE ENDED.'));
       }}
@@ -931,6 +938,23 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
   const pictureFit = fullscreen ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
+
+  // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
+  // song plays the canvas is the default; with a video, the picture.
+  const canvasAudio = song !== null;
+  const screen = useScreenView(roomId, canvasAudio);
+  const crownedIds = new Set(read.crowns.map((crown) => crown.userId));
+  const canvasContext: CanvasContext = {
+    me: user === null ? null : { id: user.id, label: user.displayName },
+    host: { id: room.originalHostId, label: room.originalHostLabel },
+    title: `${music ? 'MUSIC' : 'STREAM'} :: ${room.originalHostLabel.toUpperCase()}`,
+    amHost,
+    live,
+    music,
+    over: room.endedAt !== null || !room.isPublic,
+    present: accounts.flatMap((member) => (member.userId === null ? [] : [{ id: member.userId, label: member.name, crowned: crownedIds.has(member.userId) }])),
+    crowned: crownedIds,
+  };
 
   const stage = (
     <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
@@ -1011,6 +1035,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             </button>
           </div>
         ) : null}
+        <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />
+        <CanvasToggle roomId={roomId} audio={canvasAudio} className="absolute right-1 top-1 z-30" />
       </div>
       {playerBar}
       </div>
@@ -1137,6 +1163,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           </button>
         </div>
       ) : null}
+
+      <CanvasSaveAsk roomId={roomId} reason="close" />
 
       {/* One tree at every width, so the video element is never rebuilt when the layout changes (a phone
           turned, a window resized): the host's listeners are on that element, and a rebuilt one played on
@@ -1345,6 +1373,8 @@ function ChatShelf({
   busy: boolean;
 }) {
   const [words, setWords] = useState('');
+  // While the canvas is on screen the results can be dragged onto it, and now and then wiggle to say so.
+  const canvasOpen = useCanvasOpen();
   const [state, setState] = useState<{ kind: 'idle' } | { kind: 'searching' } | { kind: 'found'; results: ImageResult[] } | { kind: 'failed'; reason: string }>({
     kind: 'idle',
   });
@@ -1443,18 +1473,20 @@ function ChatShelf({
                 <p className="text-label font-bold text-ink">NOTHING FOUND.</p>
               ) : (
                 <ul className="grid grid-cols-3 gap-1" aria-label="Pictures">
-                  {state.results.map((result) => (
+                  {state.results.map((result, index) => (
                     <li key={result.id}>
                       <button
                         type="button"
                         disabled={busy}
                         onClick={() => onPicture(result.url)}
-                        className={`block aspect-square w-full cursor-pointer overflow-hidden border border-ink bg-paper ${KEY_FOCUS}`}
+                        {...(canvasOpen ? canvasDraggable(() => ({ type: 'picture', url: result.url, title: result.title })) : {})}
+                        style={canvasOpen ? { animationDelay: `${(index % 6) * 0.45}s` } : undefined}
+                        className={`block aspect-square w-full cursor-pointer overflow-hidden border border-ink bg-paper ${KEY_FOCUS} ${canvasOpen ? 'touch-none animate-wiggle hover:animate-none focus-visible:animate-none' : ''}`}
                         title={result.title}
                         aria-label={`Send ${result.title || 'this picture'}`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element -- hotlinked from GIPHY or Commons, never proxied or copied */}
-                        <img src={result.thumb} alt="" loading="lazy" referrerPolicy="no-referrer" className="h-full w-full object-cover" />
+                        <img src={result.thumb} alt="" loading="lazy" draggable={false} referrerPolicy="no-referrer" className="h-full w-full object-cover" />
                       </button>
                     </li>
                   ))}
@@ -1487,8 +1519,10 @@ function MessageBody({ body }: { body: string }) {
  */
 function ChatLine({ message }: { message: WatchMessage }) {
   const author = { id: message.authorId, displayName: message.authorLabel };
+  // While the canvas is on screen, a line can be dragged onto it (SPEC-stream-art.md).
+  const drag = useChatLineDrag(message);
   return (
-    <li className="flex gap-2 py-1" data-watch-message={message.id}>
+    <li className={`flex gap-2 py-1 ${drag === null ? '' : 'cursor-grab touch-none select-none'}`} data-watch-message={message.id} {...drag}>
       <ProfileAvatarLink author={author} size={CHAT_AVATAR} showName={false} variant="plain" className="shrink-0 self-start" />
       <span className="min-w-0 flex-1 wrap-anywhere">
         <span className="flex items-baseline gap-2">

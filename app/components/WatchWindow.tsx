@@ -26,6 +26,7 @@ import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 import WatchRoom from './WatchRoom';
+import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
 /** Large, over the board, like the arcade but bigger: the video is the point (decision 1). */
 /** Wide enough to take the screen: the room opens filling it (`fill`), as the video wants all the room it can get. */
@@ -135,7 +136,8 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         fill
         title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${hostName.toUpperCase()}` : 'STREAM'}
         badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
-        onClose={() => (read && live ? setClosing(true) : onLeft())}
+        // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
+        onClose={() => void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft()))}
         onMinimize={read ? onCollapse : undefined}
         minimized={collapsed}
         aboveBottomBar

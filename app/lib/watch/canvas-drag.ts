@@ -101,6 +101,8 @@ export function canvasDraggable(payload: () => CanvasDragPayload | null): Canvas
       const move = (moved: PointerEvent) => {
         if (moved.pointerId !== pointerId) return;
         if (!dragging && Math.hypot(moved.clientX - startX, moved.clientY - startY) < PICK_UP_PX) return;
+        // Carrying, not selecting: what the press began to select is let go.
+        if (!dragging) window.getSelection()?.removeAllRanges();
         dragging = true;
         moved.preventDefault();
         state = { payload: carried, x: moved.clientX, y: moved.clientY };

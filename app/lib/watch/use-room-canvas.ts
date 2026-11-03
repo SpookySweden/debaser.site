@@ -41,6 +41,8 @@ export type CanvasContext = {
   title: string;
   amHost: boolean;
   live: boolean;
+  /** Somebody's music room (SPEC-music-queues.md): its host closing the room switches it off. */
+  music: boolean;
   /** The session is over: the stream ended, or the music room was switched off (not just quiet for a moment). */
   over: boolean;
   /** Everybody signed in who is in the room now, crowned or not. */
@@ -429,7 +431,9 @@ export async function askToSaveCanvas(roomId: string, options: { ending?: boolea
   } else if (state.saved && session.lastSnapshot?.inputCount !== session.inputs.length) {
     await snapshot(session).catch(() => undefined);
   }
-  if (options.ending && session.canvas !== null && session.context?.me) {
+  // A music room's host closing the room switches it off: that ends the session too.
+  const ending = options.ending === true || (session.context?.music === true && session.context.amHost);
+  if (ending && session.canvas !== null && session.context?.me) {
     await getCanvasRepository()
       .close(session.canvas.id, session.context.me.id)
       .catch(() => undefined);

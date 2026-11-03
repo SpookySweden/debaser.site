@@ -26,9 +26,10 @@ const CROWN_SIZE = 16;
 /** The host's picture on a row, where language flags sit on other media. */
 const HOST_PICTURE = 24;
 const PARTICIPANT_PICTURE = 56;
-/** A whole replay takes about this long, however many inputs it has (a quick canvas steps no faster than this). */
+/** A whole replay takes about this long, however many inputs it has: a step every 30 to 250 ms. */
 const REPLAY_MS = 20_000;
 const REPLAY_STEP_MIN_MS = 30;
+const REPLAY_STEP_MAX_MS = 250;
 
 /**
  * STREAM ART in the archive (SPEC-stream-art.md): every saved room canvas, newest saved first. Each shows its
@@ -309,7 +310,7 @@ function Replay({ inputs }: { inputs: readonly CanvasInput[] }) {
     return held.raster;
   }, [step, inputs]);
 
-  const every = Math.max(REPLAY_STEP_MIN_MS, Math.round(REPLAY_MS / Math.max(1, inputs.length)));
+  const every = Math.min(REPLAY_STEP_MAX_MS, Math.max(REPLAY_STEP_MIN_MS, Math.round(REPLAY_MS / Math.max(1, inputs.length))));
   useEffect(() => {
     if (!playing) return;
     const timer = window.setInterval(() => {
