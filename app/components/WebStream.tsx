@@ -47,6 +47,7 @@ import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebSiteFiles from './WebSiteFiles';
+import StreamArtShelf from './StreamArtShelf';
 import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridgeKeys';
 
 /**
@@ -211,6 +212,8 @@ function withWords(box: string, words: string): string {
 
 export default function WebStream() {
   const params = useSearchParams();
+  /** STREAM ART (SPEC-stream-art.md): the saved room canvases instead of the stream (`?art=1`). Any search leaves it. */
+  const [art, setArt] = useState(() => params.get('art') === '1');
   /** What is in the field (the one truth for the filters too), and what the list shows. */
   const [draft, setDraft] = useState(() => boxFromAddress(params));
   const [shown, setShown] = useState<Shown>(() => requestFor(boxFromAddress(params)));
@@ -337,6 +340,7 @@ export default function WebStream() {
   const restart = useCallback(
     (box: string) => {
       const next = requestFor(box);
+      setArt(false);
       generation.current += 1;
       const asked = generation.current;
       setShown(next);
@@ -622,13 +626,26 @@ export default function WebStream() {
               key={option.value}
               type="button"
               onClick={() => pickFilter('in', option.value)}
-              aria-pressed={boxFilters.source === option.value}
+              aria-pressed={!art && boxFilters.source === option.value}
               aria-label={`Source: ${option.label}`}
-              className={boxFilters.source === option.value ? PLATE_PRESSED : PLATE}
+              className={!art && boxFilters.source === option.value ? PLATE_PRESSED : PLATE}
             >
               {`[ ${option.label} ]`}
             </button>
           ))}
+          <button
+            type="button"
+            onClick={() => {
+              setArt(true);
+              window.history.replaceState(window.history.state, '', '?art=1');
+            }}
+            aria-pressed={art}
+            aria-label="Source: stream art, the saved room canvases"
+            className={art ? PLATE_PRESSED : PLATE}
+            data-stream-art-key
+          >
+            [ STREAM ART ]
+          </button>
         </div>
         <div role="group" aria-label="Type" className="flex flex-wrap items-center gap-1">
           <span className="text-label font-bold text-ink-quiet">TYPE:</span>
@@ -695,6 +712,7 @@ export default function WebStream() {
         </div>
       </div>
 
+      {art ? <StreamArtShelf /> : <>
       {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
       {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
@@ -795,6 +813,7 @@ export default function WebStream() {
             />
           ))
         : null}
+      </>}
     </section>
   );
 }

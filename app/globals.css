@@ -365,6 +365,10 @@ html {
 img {
   image-rendering: pixelated;
 }
+/* The room canvas (SPEC-stream-art.md): 480 x 270 pixels scaled up to the screen with hard edges, no smoothing. */
+.canvas-pixels {
+  image-rendering: pixelated;
+}
 /* Except a country flag: a ready-made 72x48 file (not a pixel drawing) shown at 18x12, where
    nearest-neighbour shrinking eats stars and coats of arms. app/components/CountryFlag.tsx. */
 .country-flag img {
