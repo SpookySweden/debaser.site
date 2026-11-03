@@ -8,7 +8,10 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { keepableSong } from '../lib/audio/up-next';
 import { folderCategoryId } from '../lib/media/categories';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
+import { songOwner } from '../lib/audio/song-notes';
 import AboveAnchor from './AboveAnchor';
+import { useAuth } from './AuthProvider';
+import { SongCardEditor } from './SongCoverCard';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewPostForm from './NewPostForm';
@@ -93,6 +96,9 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
   const [naming, setNaming] = useState(false);
   const [newName, setNewName] = useState('');
   const [posting, setPosting] = useState(false);
+  // COVER CARD (SPEC-music-queues.md): the uploader's picture and words for their own song, shown in a room.
+  const { user } = useAuth();
+  const [carding, setCarding] = useState(false);
 
   // The shelf's own record of this file when it has one, or a WEB track itself (see the note above).
   const shelved = fromShelf ? track : keepableSong(player.queue, player.shelfSize, track);
@@ -291,6 +297,11 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
               [ GO TO {top} ]
             </Link>
           )}
+          {user !== null && songOwner(song.id) === user.id ? (
+            <button type="button" role="menuitem" onClick={() => setCarding(true)} className={PLATE} title="The picture and words a room shows while this song plays">
+              [ COVER CARD ]
+            </button>
+          ) : null}
         </div>
 
         {notice === null ? null : (
@@ -311,6 +322,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
         menu
       )}
 
+      {carding && user !== null ? <SongCardEditor track={song} ownerId={user.id} onClose={() => setCarding(false)} /> : null}
       {/* The board's composer with this song already filed: the same seam the old COMMENT key used. */}
       {posting ? (
         <NewPostForm

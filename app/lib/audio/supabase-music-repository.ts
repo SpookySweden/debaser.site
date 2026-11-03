@@ -9,6 +9,7 @@ import type { CreateFolderInput, LibraryRead, MusicFolder, MusicRepository, OwnQ
 import { normaliseAudioTags } from './tags';
 import type { AudioTrack, DescribedAudio, StoredAudio } from './tracks';
 import { tracksFromStorage } from './tracks';
+import { cleanNote, pictureRefusal, songOwner, songPicturePath, type SaveSongNoteInput, type SongNote } from './song-notes';
 
 /**
  * The music shelf in Supabase - the production implementation of `MusicRepository`.
@@ -37,6 +38,10 @@ const FOLDERS_TABLE = 'music_folders';
 /** What one account liked - see supabase/migrations/20260930000025_music_library.sql. */
 const LIKES_TABLE = 'music_likes';
 const BARRS_TABLE = 'music_barrs';
+/** The cover card's notes (supabase/migrations/20261103171458_music_rooms.sql); pictures in the `images` bucket. */
+const NOTES_TABLE = 'music_song_notes';
+const NOTE_COLUMNS = 'track_id, owner_id, picture_path, description, updated_at';
+const PICTURE_BUCKET = 'images';
 const LISTENS_TABLE = 'music_listens';
 const FOLLOWS_LOG_TABLE = 'music_follows_log';
 /** ON REPEAT reads this many of your newest plays: plenty to rank a habit, small enough to send. */
@@ -471,6 +476,39 @@ class SupabaseMusicRepository implements MusicRepository {
   }
 
   /** The same read-then-write-once shape `toggleLike` uses, for the same reason. */
+  private toNote(row: { track_id: string; owner_id: string; picture_path: string | null; description: string | null; updated_at: string }): SongNote {
+    const pictureSrc = row.picture_path === null ? null : this.client().storage.from(PICTURE_BUCKET).getPublicUrl(row.picture_path).data.publicUrl;
+    return { trackId: row.track_id, ownerId: row.owner_id, picturePath: row.picture_path, pictureSrc, description: row.description, updatedAt: row.updated_at };
+  }
+
+  async readSongNote(trackId: string): Promise<SongNote | null> {
+    try {
+      const { data, error } = await this.client().from(NOTES_TABLE).select(NOTE_COLUMNS).eq('track_id', trackId).maybeSingle();
+      return error !== null || data === null ? null : this.toNote(data);
+    } catch {
+      return null;
+    }
+  }
+
+  async saveSongNote(input: SaveSongNoteInput): Promise<SongNote> {
+    if (songOwner(input.trackId) !== input.ownerId) throw new Error('ONLY THE SONG’S UPLOADER CAN DO THAT.');
+    const client = this.client();
+    let picturePath: string | null | undefined;
+    if (input.picture === null) picturePath = null;
+    else if (input.picture !== 'keep') {
+      const refusal = pictureRefusal(input.picture);
+      if (refusal !== undefined) throw new Error(refusal);
+      picturePath = songPicturePath(input.ownerId, input.picture, new Date());
+      const { error } = await client.storage.from(PICTURE_BUCKET).upload(picturePath, input.picture, { contentType: input.picture.type, upsert: false });
+      if (error !== null) throw new Error('THE PICTURE COULD NOT BE SAVED.');
+    }
+    const row: Record<string, unknown> = { track_id: input.trackId, owner_id: input.ownerId, description: cleanNote(input.description) };
+    if (picturePath !== undefined) row.picture_path = picturePath;
+    const { data, error } = await client.from(NOTES_TABLE).upsert(row, { onConflict: 'track_id' }).select(NOTE_COLUMNS).single();
+    if (error !== null) throw new Error('THE NOTES COULD NOT BE SAVED.');
+    return this.toNote(data);
+  }
+
   async toggleBarr(userId: string, src: string): Promise<{ barred: boolean }> {
     const client = this.client();
 

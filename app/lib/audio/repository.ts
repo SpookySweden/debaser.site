@@ -4,6 +4,7 @@ import type { BroadcastQueue } from './broadcast';
 import type { CloseRow } from './for-you';
 import type { MirrorRow } from './mirror';
 import type { LikedTrack, Playlist, PlaylistItem } from './library';
+import type { SaveSongNoteInput, SongNote } from './song-notes';
 import { getMockMusicRepository } from './mock-music-repository';
 import { getSupabaseMusicRepository } from './supabase-music-repository';
 import type { AudioTrack } from './tracks';
@@ -154,6 +155,10 @@ export type MusicRepository = {
   listBarrs(userId: string): Promise<LibraryRead<string>>;
   /** Bars a song by its file address, or unbars it if it is barred already. */
   toggleBarr(userId: string, src: string): Promise<{ barred: boolean }>;
+  /** A site song's cover card notes (SPEC-music-queues.md), or null for none. Never throws: an unread note is no note. */
+  readSongNote(trackId: string): Promise<SongNote | null>;
+  /** The song's uploader writes its picture and words (song-notes.ts). Throws with a sentence fit to show. */
+  saveSongNote(input: SaveSongNoteInput): Promise<SongNote>;
   /**
    * Logs one play of a file by this account (SPEC-vanity.md step 3), once it has been listened to long
    * enough (`lib/audio/listens.ts`). Never throws: a play that could not be logged costs a count, not

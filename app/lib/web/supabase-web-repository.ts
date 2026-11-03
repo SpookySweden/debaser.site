@@ -258,6 +258,14 @@ export function createSupabaseWebRepository(getClient: GetClient): WebRepository
       const row = ((data ?? []) as unknown as WebItemRow[])[0];
       return row === undefined ? null : rowToItem(row);
     },
+    async getItemByExternal(platform, externalId) {
+      const client = getClient();
+      if (!client) throw new Error(READ_FAILED);
+      const { data, error } = await client.from(WEB_ITEMS_TABLE).select(WEB_ITEM_COLUMNS).eq('platform', platform).eq('external_id', externalId).limit(1);
+      if (error) throw new Error(READ_FAILED);
+      const row = ((data ?? []) as unknown as WebItemRow[])[0];
+      return row === undefined ? null : rowToItem(row);
+    },
   };
 }
 

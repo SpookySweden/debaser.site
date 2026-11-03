@@ -26,6 +26,11 @@ picked under SHERBET in Preferences. All are light except Orchid, and Orchid wor
 (3:1), so SHERBET's words and links borrow Black, Nigrosine and Royal Blue from the palette above.
 Light/dark CSS (name colours, the CONTRAST cursor) reads `data-scheme`, not a theme id.
 
+## The cover card (SPEC-music-queues.md, 2026-11-03)
+A room's screen while a song plays has a look of its own, the same in every theme: still retro, an Ash grey
+ground (#3D3C44) with coloured words, the title in Flavine and the rest in Candy (`cover-card`,
+`cover-card-title`, `cover-card-ink` in themes.ts). The song's cover sits above its words.
+
 ## The look: Gnorp windows (SPEC-readability.md, 2026-10-22)
 Styled after *(the) Gnorp Apologue*: smooth dark windows, thin light outlines, a quiet pixel font.
 No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.

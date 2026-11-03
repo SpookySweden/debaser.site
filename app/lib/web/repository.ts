@@ -2,7 +2,7 @@ import { isSupabaseConfigured } from '../supabase/client';
 import type { WebStreamPage } from './dedupe';
 import { getMockWebRepository } from './mock-web-repository';
 import { getSupabaseWebRepository } from './supabase-web-repository';
-import type { WebItem, WebSource } from './types';
+import type { WebItem, WebPlatform, WebSource } from './types';
 
 /**
  * Where /web reads its stream from, by the same switch as the other features. Default is the mock, so the
@@ -50,6 +50,11 @@ export type WebRepository = {
    * is hidden or gone; throws when the read itself fails, which a thread must not take for "gone".
    */
   getItem(id: string): Promise<WebItem | null>;
+  /**
+   * One item by its platform and the platform's own id, for a song's cover card in a room (SPEC-music-queues.md):
+   * a WEB audio track names only those. Null when it is not in the stream (never saved, hidden or gone).
+   */
+  getItemByExternal(platform: WebPlatform, externalId: string): Promise<WebItem | null>;
 };
 
 export function getWebRepository(): WebRepository {

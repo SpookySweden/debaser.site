@@ -247,6 +247,10 @@ export function getMockWebRepository(): WebRepository {
       const item = MOCK_WEB_ITEMS.find((candidate) => candidate.id === id);
       return item === undefined ? null : { ...item };
     },
+    async getItemByExternal(platform, externalId) {
+      const item = MOCK_WEB_ITEMS.find((candidate) => candidate.platform === platform && candidate.externalId === externalId);
+      return item === undefined ? null : { ...item };
+    },
   };
   return instance;
 }

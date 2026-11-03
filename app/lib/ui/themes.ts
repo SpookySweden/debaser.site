@@ -45,6 +45,9 @@ export const DYES = {
   mint: '#67dca9',
   orchid: '#b149aa',
   lime: '#c5ff3f',
+  // The cover card's grey (SPEC-music-queues.md, Luke 2026-11-03): the screen of a room while a song plays, a look
+  // of its own in every theme - still retro, a greyish ground with coloured words.
+  ash: '#3d3c44',
   // The stream queue's titles (Luke, 2026-11-02): red, green and blue as words, each a shade that reads on
   // its theme's window. The dyes themselves fail as words somewhere (Royal Blue 1.9:1 and Rose 3.8:1 on
   // Nigrosine, Emerald 2:1 on Flavine), so the light windows take the deep pair and the dark ones the light pair.
@@ -190,6 +193,14 @@ export type ThemeTokens = {
   'queue-played-ink': string;
   'queue-now-ink': string;
   'queue-next-ink': string;
+  /**
+   * The cover card (SPEC-music-queues.md): a room's screen while a song plays - the song's cover and a short
+   * description on a grey ground, the title in Flavine and the words in Candy, the same in every theme
+   * (9.6:1 and 6.8:1 on Ash).
+   */
+  'cover-card': string;
+  'cover-card-title': string;
+  'cover-card-ink': string;
   acid: string;
   'acid-pale': string;
   /**
@@ -296,6 +307,9 @@ export const DEFAULT_THEME: Theme = {
     'queue-played-ink': DYES.deepRed,
     'queue-now-ink': DYES.deepGreen,
     'queue-next-ink': DYES.royalBlue,
+    'cover-card': DYES.ash,
+    'cover-card-title': DYES.flavine,
+    'cover-card-ink': DYES.candy,
     acid: DYES.emerald,
     'acid-pale': DYES.flavine,
     // The desktop as it has always been: Brilliant Pink with Nigrosine dithered through it. These two
@@ -393,6 +407,9 @@ export const DARK_THEME: Theme = {
     'queue-played-ink': DYES.lightRed,
     'queue-now-ink': DYES.emerald,
     'queue-next-ink': DYES.lightBlue,
+    'cover-card': DYES.ash,
+    'cover-card-title': DYES.flavine,
+    'cover-card-ink': DYES.candy,
     acid: DYES.emerald,
     'acid-pale': DYES.nigrosine,
     // The night desktop: the tile's fill is the field's own Nigrosine and its dither is Black, so the
@@ -447,6 +464,9 @@ export const SHERBET_PINK_THEME: Theme = {
     'queue-played-ink': DYES.deepRed,
     'queue-now-ink': DYES.deepGreen,
     'queue-next-ink': DYES.royalBlue,
+    'cover-card': DYES.ash,
+    'cover-card-title': DYES.flavine,
+    'cover-card-ink': DYES.candy,
     acid: DYES.lime,
     'acid-pale': DYES.carnation,
     desktop: DYES.orchid,
@@ -487,6 +507,9 @@ export const SHERBET_NIGHT_THEME: Theme = {
     'queue-played-ink': DYES.lightRed,
     'queue-now-ink': DYES.emerald,
     'queue-next-ink': DYES.lightBlue,
+    'cover-card': DYES.ash,
+    'cover-card-title': DYES.flavine,
+    'cover-card-ink': DYES.candy,
     acid: DYES.lime,
     'acid-pale': DYES.nigrosine,
     desktop: DYES.orchid,
@@ -527,6 +550,9 @@ export const SHERBET_MINT_THEME: Theme = {
     'queue-played-ink': DYES.deepRed,
     'queue-now-ink': DYES.deepGreen,
     'queue-next-ink': DYES.royalBlue,
+    'cover-card': DYES.ash,
+    'cover-card-title': DYES.flavine,
+    'cover-card-ink': DYES.candy,
     acid: DYES.lime,
     'acid-pale': DYES.lime,
     desktop: DYES.tangerine,

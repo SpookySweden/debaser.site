@@ -1,4 +1,5 @@
 import { normaliseFolderPath, normaliseArchiveName } from './archive-tree';
+import { cleanNote, pictureRefusal, songOwner, type SaveSongNoteInput, type SongNote } from './song-notes';
 import type { BroadcastQueue } from './broadcast';
 import { validateTrackFile } from './catalogue';
 import { playlistId, validatePlaylistName, type LikedTrack, type Playlist, type PlaylistItem } from './library';
@@ -346,6 +347,28 @@ function announceQueue(): void {
   }
 }
 
+/** The cover card's notes in this browser, by track id; a picture is kept as its own data address. */
+const NOTES_KEY = 'debaser.audio.notes.v1';
+
+function loadNotes(): Record<string, SongNote> {
+  if (!hasStorage()) return {};
+  try {
+    const parsed: unknown = JSON.parse(window.localStorage.getItem(NOTES_KEY) ?? '{}');
+    return typeof parsed === 'object' && parsed !== null ? (parsed as Record<string, SongNote>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(new Error('THE PICTURE COULD NOT BE READ.'));
+    reader.readAsDataURL(file);
+  });
+}
+
 class MockMusicRepository implements MusicRepository {
   readonly source = 'mock' as const;
 
@@ -581,6 +604,33 @@ class MockMusicRepository implements MusicRepository {
 
   async listBarrs(userId: string): Promise<LibraryRead<string>> {
     return { items: [...(recordFor(userId).barrs ?? [])], answered: true };
+  }
+
+  async readSongNote(trackId: string): Promise<SongNote | null> {
+    return loadNotes()[trackId] ?? null;
+  }
+
+  async saveSongNote(input: SaveSongNoteInput): Promise<SongNote> {
+    // The database's rule, kept by hand: only the account whose folder the song is in.
+    if (songOwner(input.trackId) !== input.ownerId) throw new Error('ONLY THE SONG’S UPLOADER CAN DO THAT.');
+    const notes = loadNotes();
+    const was = notes[input.trackId];
+    let picture: string | null = was?.picturePath ?? null;
+    if (input.picture === null) picture = null;
+    else if (input.picture !== 'keep') {
+      const refusal = pictureRefusal(input.picture);
+      if (refusal !== undefined) throw new Error(refusal);
+      picture = await readAsDataUrl(input.picture);
+    }
+    const note: SongNote = { trackId: input.trackId, ownerId: input.ownerId, picturePath: picture, pictureSrc: picture, description: cleanNote(input.description), updatedAt: new Date().toISOString() };
+    if (hasStorage()) {
+      try {
+        window.localStorage.setItem(NOTES_KEY, JSON.stringify({ ...notes, [input.trackId]: note }));
+      } catch {
+        throw new Error('THE PICTURE IS TOO BIG FOR THIS BROWSER.');
+      }
+    }
+    return note;
   }
 
   async toggleBarr(userId: string, src: string): Promise<{ barred: boolean }> {

@@ -62,6 +62,7 @@ import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
 import StreamQueueWindow from './StreamQueueWindow';
+import SongCoverCard from './SongCoverCard';
 
 /** One per tab: two tabs of one account are two members of a room. */
 function newTabKey(): string {
@@ -856,7 +857,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
             {catalogue.loading ? 'READING THE CATALOGUE...' : 'THIS FILE IS NOT IN THE CATALOGUE.'}
           </div>
         ) : songTrack !== null ? (
-          <SongStage track={songTrack} fit={pictureFit} />
+          <SongCoverCard track={songTrack} fit={pictureFit} />
         ) : link !== null && link.kind === 'embed' ? (
           <OfficialEmbedStage key={`official-${entryId}`} link={link} fit={pictureFit} />
         ) : link !== null && isEmbedKind(link.kind) ? (
@@ -1055,18 +1056,6 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   );
 }
 
-/* --- a song on the stage --------------------------------------------------------------------------- */
-
-/** While a song plays (in the music bar), the stage says what it is. */
-function SongStage({ track, fit }: { track: { title: string; credit: string }; fit: string }) {
-  return (
-    <div className={`flex flex-col items-center justify-center gap-1 p-4 text-center ${fit}`} data-watch-song>
-      <span className="text-key font-bold text-acid">♪ {track.title}</span>
-      {track.credit.length > 0 ? <span className="text-label text-ink-bar">{track.credit}</span> : null}
-      <span className="text-label text-ink-bar">PLAYING IN THE MUSIC BAR</span>
-    </div>
-  );
-}
 
 /* --- the chat ------------------------------------------------------------------------------------ */
 
