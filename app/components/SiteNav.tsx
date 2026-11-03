@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import {
   ICON_ACCOUNT,
   ICON_ARCADE,
@@ -16,7 +15,6 @@ import {
 } from '../lib/ui/icons';
 import { QUEUES_HREF } from '../lib/audio/queue-window';
 import { LIBRARY_HREF } from '../lib/audio/music-window';
-import { useAuth } from './AuthProvider';
 
 /**
  * The window's keys, and the mark each one wears.
@@ -154,7 +152,7 @@ export const SIDE_QUEUES: NavItem = {
  *
  * Kept apart from `NAV_ITEMS` on purpose. The phone's picture menu, the side panel and the Start menu
  * still draw `NAV_ITEMS`, so COMMS and ACCOUNT stay reachable there even though the header dropped
- * them. The last key is the reader's own name (see `SiteNav`), so it is not in this list.
+ * them.
  *
  * ARCHIVE is the search page that was WEB (Luke, 2026-11-03). The media catalogue, which this key used to
  * open, is one of the archive's servers now (DEBASER.SITE in a search) and left the band, so there is one
@@ -177,19 +175,8 @@ function wordClass(isActive: boolean): string {
     : `${base} key active:translate-y-press active:bg-bubble active:text-ink-plate`;
 }
 
+// No profile key (Luke, 2026-11-03): the reader's own profile is reached from the side panel.
 export default function SiteNav({ active }: { active?: NavKey }) {
-  const { user, status } = useAuth();
-  const pathname = usePathname();
-
-  // The last key: the reader's name, going to their public profile; PROFILE while signed out, going
-  // to the log-in page. While the session is still being read it says PROFILE too, rather than
-  // flashing a name in and out.
-  const signedIn = status === 'signed-in' && user !== null;
-  const profileHref = signedIn ? `/profile/${user.id}` : '/account';
-  const onOwnProfile = signedIn && pathname === profileHref;
-  // A profile page passes `forum`; on your own profile it is your name that is pressed in instead.
-  const lit = onOwnProfile ? undefined : active;
-
   return (
     <nav
       aria-label="Site pages"
@@ -200,20 +187,12 @@ export default function SiteNav({ active }: { active?: NavKey }) {
         <Link
           key={item.key}
           href={item.href}
-          aria-current={item.key === lit ? 'page' : undefined}
-          className={wordClass(item.key === lit)}
+          aria-current={item.key === active ? 'page' : undefined}
+          className={wordClass(item.key === active)}
         >
           {item.label}
         </Link>
       ))}
-      <Link
-        href={profileHref}
-        title={signedIn ? user.displayName : 'Log in to see your profile'}
-        aria-current={onOwnProfile ? 'page' : undefined}
-        className={`${wordClass(onOwnProfile)} max-w-48`}
-      >
-        <span className="truncate">{signedIn ? user.displayName.toUpperCase() : 'PROFILE'}</span>
-      </Link>
     </nav>
   );
 }
