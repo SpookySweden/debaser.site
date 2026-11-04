@@ -270,9 +270,10 @@ function layoutFor(subject, authorProfile) {
   const signInField = forms.slice(forms.indexOf('id="account-signin-email"'), forms.indexOf('id="account-signin-email"') + 140);
   assert.match(signUpField, /type="email"/, 'signing up still asks for an address');
   assert.match(signInField, /type="text"/, 'signing in takes an address or an account name');
-  assert.match(forms, /EMAIL ADDRESS OR ACCOUNT NAME:/);
-  assert.match(forms, /ADMIN1212/, 'the placeholder names the account to sign in with');
-  assert.match(forms, /THE HOUSE ACCOUNT SIGNS IN WITH ITS OWN NAME, NOT AN EMAIL ADDRESS/);
+  // (2026-11-04) 7b5b337 (say less): the label is short, the house account's hint and placeholder went, and the form no
+  // longer names that account to anyone reading it. Signing in with the name is held above by `type="text"`.
+  assert.match(forms, /EMAIL OR NAME:/);
+  assert.doesNotMatch(forms, /ADMIN1212/, 'the sign-in form does not advertise the house account');
 
   console.log('site account checks passed');
   console.log('  credential:', 'ADMIN1212 / ADMIN1212', '->', SITE_ACCOUNT_ADDRESS);

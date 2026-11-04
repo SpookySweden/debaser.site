@@ -1,6 +1,9 @@
 /*
  * Scratch check of the markup the board actually renders (run from the root):
  *   npx tsc app/components/PostAuthorRow.tsx app/components/AnchorLink.tsx --outDir Temp/render-check --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/components/PostAuthorRow.tsx app/components/AnchorLink.tsx app/components/AuthProvider.tsx app/components/PresenceProvider.tsx app/lib/concepts/sheets.ts --rootDir app --outDir Temp/render-check --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/forum/site-author.ts --rootDir app/lib --outDir Temp/layout-check --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-render.cjs
  *
  * Proves the two fixes at the DOM level:
