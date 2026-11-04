@@ -109,7 +109,7 @@ for (const note of PROJECT_NOTES) {
 const strip = renderToStaticMarkup(element(ProjectSectionNav, { current: 'concepts' }));
 assert.match(strip, /CONCEPTS/);
 assert.doesNotMatch(strip, /href="\/concepts"/, 'the current shelf does not link to itself');
-assert.match(strip, /href="\/media\?kind=audio"/); // 2026-10-24: the shelf is the media page's AUDIO tab
+assert.match(strip, /href="\/files\?kind=audio"/); // 2026-11-04: the shelf is the files page's AUDIO tab (it was /media)
 assert.match(strip, /href="\/notes"/);
 assert.match(strip, /href="\/links"/);
 assert.match(strip, /href="\/projects\/debaser"/);
