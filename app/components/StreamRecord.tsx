@@ -79,7 +79,7 @@ export default function StreamRecord({ roomId }: { roomId: string }) {
   );
 }
 
-/** One play. A link's title opens the original address (it has no /media page); the fold is the key before it. */
+/** One play. A link's title opens the original address (it has no /files page); the fold is the key before it. */
 function PlayRow({ number, title, href, messages }: { number: number; title: string; href?: string; messages: WatchMessage[] }) {
   const [open, setOpen] = useState(false);
   const said = `${messages.length} MESSAGE${messages.length === 1 ? '' : 'S'}`;

@@ -46,7 +46,7 @@ const pgLike = (pattern) => new RegExp(pattern.replace(/\[:alnum:\]/g, '\\p{L}\\
   same(f.parseWebSearch('xfrom:nasa').text, 'xfrom:nasa', 'from: inside a word is not a filter');
   same(f.formatWebSearch(f.parseWebSearch('from:"rick prelinger" trains type:video')), 'trains type:video from:"rick prelinger"', 'the box is written back the same way');
   same(f.withAuthor('trains in:youtube from:nasa', 'Rick "the" Prelinger'), 'in:youtube from:"Rick the Prelinger"', "a creator's name on a row: words dropped, filters kept, quotes safe");
-  same(f.searchAddress(f.parseWebSearch('x from:a from:"b c"')), '/archive?q=x&from=a&from=b+c', 'the address carries every creator');
+  same(f.searchAddress(f.parseWebSearch('x from:a from:"b c"')), '/media?q=x&from=a&from=b+c', 'the address carries every creator');
   same(f.boxFromAddress(new URLSearchParams('q=x&from=a&from=b+c&from=%25%25')), 'x from:a from:"b c"', 'and reads them back; an empty one is dropped');
   same(f.activeFilter('x from:"rick pre', 16), { key: 'from', partial: '"rick pre', start: 7, end: 16 }, 'the caret in a quoted creator');
   same(f.suggestFilterValues('from', 'pre', ['Rick Prelinger', 'NASA', 'rick prelinger', 'Prelinger_Archives']).map((s) => s.word), ['"Rick Prelinger"', 'Prelinger_Archives'], 'from: suggests the creators on the page, once each');

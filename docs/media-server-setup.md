@@ -1,6 +1,6 @@
 # Putting your media server on debaser.site
 
-For friends who host their own media and want it to show in the ARCHIVE (`debaser.site/archive`, called WEB at
+For friends who host their own media and want it to show on the MEDIA page (`debaser.site/media`, called WEB at
 `debaser.site/web` until 2026-11-03), and later for Luke's own
 server. The site lists what your server holds and plays it **from your server**. It never copies, downloads or
 stores your videos: only the titles and, for films and shows, details and posters from TMDB.

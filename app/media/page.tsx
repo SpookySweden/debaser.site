@@ -1,32 +1,34 @@
 import type { Metadata } from 'next';
 import { Suspense } from 'react';
-import MediaCatalogue from '../components/MediaCatalogue';
 import SiteWindow from '../components/SiteWindow';
+import WebSignInGate from '../components/WebSignInGate';
+import WebStream from '../components/WebStream';
 
 export const metadata: Metadata = {
-  title: 'DEBASER.SITE - Media Catalogue',
-  description: 'Every picture, track and video the site holds, and where each one is used.',
+  title: 'DEBASER.SITE - Media',
+  description: 'One stream of media from around the web, newest first, with its source on every item; a search also finds the files this site holds.',
 };
 
 /**
- * The media catalogue: a page, not a window (SPEC-media-catalogue.md, decision 2).
- *
- * `useSearchParams` reads the tab off the address (`/media?kind=audio`), which is why the catalogue
- * sits under a Suspense boundary: a page that reads the query is rendered on the client, and Next
- * asks for the boundary so the shell around it can still be served at once.
+ * MEDIA: a page, like the FILES catalogue (SPEC-web.md). Called WEB at /web, then ARCHIVE at /archive, until Luke renamed
+ * it on 2026-11-04; WEB is still its name in the code (`app/lib/web/`, the components, the checks), and both old
+ * addresses redirect here (next.config.ts). It loads on the client from the WEB repository and the search route. The
+ * stream reads its search from the address (`?q=&in=&type=`, so a search can be shared), which needs a
+ * Suspense boundary around it.
  */
-export default function MediaPage() {
+export default function WebPage() {
   return (
     <SiteWindow
-      title="DEBASER_OS - v1.0 [MEDIA CATALOGUE]"
-      active="media"
-      tip="Every picture, track and video, and where each is used."
+      title="DEBASER_OS - v1.0 [MEDIA]"
+      active="web"
+      tip="Media from around the web, newest first; a search also finds the files this site holds. Pictures come from each source; a player loads only when you press PLAY."
     >
-      <h1 className="sr-only">DEBASER.SITE // MEDIA CATALOGUE</h1>
-
-      <Suspense fallback={<p className="text-label font-bold text-ink">READING THE CATALOGUE...</p>}>
-        <MediaCatalogue />
-      </Suspense>
+      <h1 className="sr-only">DEBASER.SITE // MEDIA</h1>
+      <WebSignInGate>
+        <Suspense fallback={null}>
+          <WebStream />
+        </Suspense>
+      </WebSignInGate>
     </SiteWindow>
   );
 }

@@ -160,7 +160,7 @@ function ourMatches(videos: MediaItem[], words: string, anyWord: boolean, author
  * in the queue shows (pointer events, so a finger works too; ESC puts it back), or `[ ← ]` onto the end.
  * Only the host presses a crown, their own included.
  *
- * The bar across the top searches the archive the way /archive does (`searchEverywhere`, signed-in people only;
+ * The bar across the top searches the way the MEDIA page does (`searchEverywhere`, signed-in people only;
  * WEB until 2026-11-03), with the site's own videos first, marked DEBASER.SITE as the archive marks that server;
  * the results take the additions' place until `[ ◀ ADDITIONS ]`. An address in the
  * bar is a pasted link instead (SPEC-watch-links.md): recognised as it is typed, its title filled in for
@@ -793,7 +793,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
           >
             <div className="flex items-center gap-1">
               <label htmlFor="stream-queue-search" className="sr-only">
-                Search the archive or paste a video link
+                Search media or paste a video link
               </label>
               <input
                 ref={searchBar}
@@ -801,7 +801,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 type="search"
                 value={text}
                 onChange={(event) => type(event.target.value)}
-                placeholder="SEARCH THE ARCHIVE OR PASTE A VIDEO LINK"
+                placeholder="SEARCH MEDIA OR PASTE A VIDEO LINK"
                 autoComplete="off"
                 spellCheck={false}
                 autoFocus

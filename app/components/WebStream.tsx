@@ -77,7 +77,7 @@ import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridge
  * the source holding them back; BEST MATCH and POPULAR take one row from each source in turn. Searches only: the
  * plain stream stays newest first.
  *
- * DEBASER.SITE (Luke, 2026-11-03, when WEB became ARCHIVE): a search also finds the site's own files, the old
+ * DEBASER.SITE (Luke, 2026-11-03, when WEB became ARCHIVE, now MEDIA): a search also finds the site's own files, the old
  * archive page's (the media catalogue), listed first under that server's name (site-server.ts, WebSiteFiles.tsx).
  * They come from the catalogue already read in this browser, never from the merge above.
  */
@@ -106,7 +106,7 @@ type Source = 'stream' | WebPlatform;
 
 const LINK_WORDS: Record<LinkOutcome, string> = {
   found: 'FROM THE LINK',
-  unknown: "THE ARCHIVE CAN'T PLAY LINKS FROM THERE.",
+  unknown: "MEDIA CAN'T PLAY LINKS FROM THERE.",
   'not-found': 'NOTHING TO PLAY AT THAT LINK.',
   'no-answer': "THAT SITE DIDN'T ANSWER. TRY AGAIN.",
 };
@@ -529,7 +529,7 @@ export default function WebStream() {
 
   const emptyWords = (): string | null => {
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
-    if (busy) return shown.kind === 'stream' ? 'READING THE ARCHIVE...' : null;
+    if (busy) return shown.kind === 'stream' ? 'READING MEDIA...' : null;
     if (shown.kind === 'stream' && !sourcesToAsk(shown.filters).stream) return `TYPE WORDS TO SEARCH ${sourceLabel(shown.filters.source as WebPlatform)}.`;
     if (shown.kind === 'stream') return filtered ? 'NOTHING SAVED MATCHES.' : 'NOTHING YET.';
     return `NOTHING ${siteFiles.length > 0 ? 'ELSE ' : ''}MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
@@ -557,8 +557,8 @@ export default function WebStream() {
   const yearWord = shown.kind === 'search' ? splitYear(shown.query).year : null;
 
   return (
-    <section aria-label="Archive stream">
-      <form role="search" aria-label="Search the archive" onSubmit={submit} className="mb-1 flex flex-wrap items-center gap-2">
+    <section aria-label="Media stream">
+      <form role="search" aria-label="Search media" onSubmit={submit} className="mb-1 flex flex-wrap items-center gap-2">
         <label htmlFor="web-search" className="text-label font-bold text-ink">
           SEARCH:
         </label>
@@ -1158,7 +1158,7 @@ function AlsoOn({ item }: { item: WebStreamItem }) {
   );
 }
 /** Where the bar's globe sends a listener back to, for a track started here: the archive (WEB until 2026-11-03). */
-const WEB_ORIGIN = { origin: 'shelf', href: '/archive', where: 'ARCHIVE' } as const;
+const WEB_ORIGIN = { origin: 'shelf', href: '/media', where: 'MEDIA' } as const;
 
 /**
  * PLAY for audio the site's music bar can play (web-audio.ts): asks our route for the item's files, then

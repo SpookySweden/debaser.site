@@ -59,8 +59,8 @@ export const HAS_VALUES: { value: HasValue; note: string }[] = [
   { value: 'link', note: 'any http link' },
 ];
 
-/** `archive`: threads on an archive item, whose anchor kind is still `web` (WEB was renamed ARCHIVE, 2026-11-03). */
-export type InPlace = ForumAnchorKind | 'streams' | 'archive';
+/** `media`: threads on an item on the MEDIA page, whose anchor kind is still `web` (it was WEB, then ARCHIVE, until 2026-11-04). */
+export type InPlace = ForumAnchorKind | 'streams' | 'media';
 
 export const IN_PLACES: { value: InPlace; label: string }[] = [
   { value: 'board', label: 'BOARD THREADS' },
@@ -68,7 +68,7 @@ export const IN_PLACES: { value: InPlace; label: string }[] = [
   { value: 'text-box', label: 'TEXT BOX THREADS' },
   { value: 'profile', label: 'PROFILE COMMENTS' },
   { value: 'track', label: 'TRACK THREADS' },
-  { value: 'archive', label: 'ARCHIVE THREADS' },
+  { value: 'media', label: 'MEDIA THREADS' },
   { value: 'streams', label: 'STREAMS' },
 ];
 
@@ -272,8 +272,8 @@ function matchesFilter(unit: Unit, filter: SearchFilter, context: SearchContext)
     case 'in':
       // A stream's record is filed on the board, but it is in:streams, not in:board.
       if (value === 'streams') return isStreamThread(unit.thread);
-      // An archive item's thread is a `web` anchor; in:web, written before the rename, still finds them below.
-      if (value === 'archive') return unit.thread.anchor.kind === 'web';
+      // A MEDIA item's thread is a `web` anchor; in:archive, written before the rename, finds them here, and in:web below.
+      if (value === 'media' || value === 'archive') return unit.thread.anchor.kind === 'web';
       return unit.thread.anchor.kind === value && !(value === 'board' && isStreamThread(unit.thread));
     case 'tag':
       return unit.tags.some((tag) => tagKey(tag.label) === tagKey(value));

@@ -28,13 +28,20 @@ const nextConfig: NextConfig = {
   },
 
   /**
-   * WEB became ARCHIVE and moved from /web to /archive (Luke, 2026-11-03). Every old address still lands on
-   * the page: bookmarks, shared searches (the query comes along, so `/web?q=x` opens `/archive?q=x`), and
+   * The search page was WEB at /web, then ARCHIVE at /archive, and is MEDIA at /media (Luke, 2026-11-04). Every old
+   * address still lands on it: bookmarks, shared searches (the query comes along, so `/web?q=x` opens `/media?q=x`), and
    * the music bar's "where this came from" saved in a browser before the move. Permanent, so browsers
    * and search engines learn the new address. The page's API routes stay at /api/web/*.
+   *
+   * The catalogue was MEDIA at /media and is FILES at /files. Its old addresses always named a section, a category or a
+   * tag (`kind`, `cat`, `tag`, which the search page does not use), so those go to /files; a bare /media is the search page.
    */
   async redirects() {
-    return [{ source: '/web', destination: '/archive', permanent: true }];
+    return [
+      { source: '/web', destination: '/media', permanent: true },
+      { source: '/archive', destination: '/media', permanent: true },
+      ...['kind', 'cat', 'tag'].map((key) => ({ source: '/media', has: [{ type: 'query' as const, key }], destination: '/files', permanent: true })),
+    ];
   },
 };
 

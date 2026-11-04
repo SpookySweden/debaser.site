@@ -36,7 +36,7 @@ const TAB = 'key px-2 py-1 text-label max-sm:min-h-tap max-sm:px-3 max-sm:text-s
  *
  * **One screen since 2026-10-24.** The window is the reader's own music: what they liked, and the
  * lists they made. The ARCHIVE screen - the file browser the shelf had always been - moved to the
- * media catalogue page (`/media?kind=audio`, SPEC-media-catalogue.md, decisions 2 and 3), where every
+ * media catalogue page (`/files?kind=audio`, SPEC-media-catalogue.md, decisions 2 and 3), where every
  * file the site holds is listed; the tab that used to switch to it is a link there now, so a reader
  * who reaches for it still gets the shelf, on the page that holds it. `/forum?music=1` and
  * `/forum?music=mine` both open this window.
@@ -77,11 +77,11 @@ export default function MusicWindow() {
       defaultSize={{ w: 576, h: 700 }}
       minSize={{ w: 380, h: 260 }}
     >
-      {/* CATALOGUE is the link to the page the shelf moved to (the media catalogue's music); MY MUSIC and VANITY
-          are this window's screens. It said ARCHIVE until that word became the archive search's (Luke, 2026-11-03). */}
+      {/* FILES is the link to the page the shelf moved to (the catalogue's music); MY MUSIC and VANITY
+          are this window's screens. It said CATALOGUE until that page was named FILES (Luke, 2026-11-04). */}
       <div className="mb-2 flex flex-wrap items-stretch gap-1">
         <Link href={MUSIC_HREF} onClick={close} className={`${TAB} cursor-pointer`}>
-          [ CATALOGUE ]
+          [ FILES ]
         </Link>
         {SCREENS.map(({ screen, label }) =>
           state.screen === screen ? (

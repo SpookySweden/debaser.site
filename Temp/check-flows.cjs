@@ -511,7 +511,8 @@ function fakeStore() {
   assert.equal(musicRequested(''), false, 'and neither does no address at all');
   // 2026-10-24 (SPEC-media-catalogue.md): the archive is the AUDIO tab of the media page now, and
   // the window keeps MY MUSIC - so every "show me this file" link lands on the page.
-  assert.match(MUSIC_HREF, /^\/media\?kind=audio$/, "the archive's address is the media page's audio tab");
+  // 2026-11-04: that page is FILES at /files (Luke gave its old name to the search page).
+  assert.match(MUSIC_HREF, /^\/files\?kind=audio$/, "the archive's address is the FILES page's audio tab");
 
   const DockWindow = require('./flows-render/components/DockWindow.js').default;
   const MusicWindow = require('./flows-render/components/MusicWindow.js').default;

@@ -74,13 +74,14 @@ export type NavItem = {
 export const NAV_ITEMS: NavItem[] = [
   { key: 'home', label: 'HOME', mark: ICON_HOME, href: '/projects' },
   { key: 'forum', label: 'FORUM', mark: ICON_FORUM, href: '/forum' },
-  // The catalogue is a place a reader goes, not a window (Luke, 2026-10-24, SPEC-media-catalogue.md):
+  // The catalogue, FILES since Luke gave its old name to the search page (2026-11-04), is a place a reader goes, not a
+  // window (Luke, 2026-10-24, SPEC-media-catalogue.md):
   // every file the site holds, and where each is used. It took over the ARCHIVE screen of the shelf
   // window, which keeps the reader's own tracks and lists.
-  { key: 'media', label: 'MEDIA', mark: ICON_MEDIA, href: '/media' },
-  // One stream of media from other platforms, newest first (SPEC-web.md): a place a reader goes. Called WEB
-  // until Luke renamed it ARCHIVE (2026-11-03); its key is still `web`.
-  { key: 'web', label: 'ARCHIVE', mark: ICON_WEB, href: '/archive' },
+  { key: 'media', label: 'FILES', mark: ICON_MEDIA, href: '/files' },
+  // One stream of media from other platforms, newest first (SPEC-web.md): a place a reader goes. Called WEB, then
+  // ARCHIVE, until Luke renamed it MEDIA (2026-11-04); its key is still `web`.
+  { key: 'web', label: 'MEDIA', mark: ICON_WEB, href: '/media' },
   // Watching and listening together (SPEC-cytube.md, Luke 2026-11-03): what streaming is, the live rooms, the
   // stream canvases, GO LIVE and your broadcast look. Named after CyTube (cytu.be) as a nod, Luke's choice.
   { key: 'cytube', label: 'CYTUBE', mark: ICON_CYTUBE, href: '/cytube' },
@@ -158,16 +159,16 @@ export const SIDE_QUEUES: NavItem = {
  * still draw `NAV_ITEMS`, so COMMS and ACCOUNT stay reachable there even though the header dropped
  * them.
  *
- * ARCHIVE is the search page that was WEB (Luke, 2026-11-03). The media catalogue, which this key used to
- * open, is one of the archive's servers now (DEBASER.SITE in a search) and left the band, so there is one
- * ARCHIVE; it is still MEDIA in the Start menu and the phone's menu, and each of its search results links to it.
+ * MEDIA is the search page that was WEB, then ARCHIVE (Luke, 2026-11-04). The catalogue, which this key used to open,
+ * is one of its servers now (DEBASER.SITE in a search) and left the band, so there is one MEDIA; the catalogue is
+ * FILES in the Start menu and the phone's menu, and each of its search results links to it.
  *
  * No DIRECTORY key (Luke, 2026-11-03): the account list is the side panel's DIRECTORY, whose `[ ALL ]` opens /users.
  */
 const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
-  { key: 'web', label: 'ARCHIVE', href: '/archive' },
+  { key: 'web', label: 'MEDIA', href: '/media' },
   { key: 'cytube', label: 'CYTUBE', href: '/cytube' },
 ];
 

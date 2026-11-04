@@ -317,7 +317,7 @@ assert.match(menu, /WINDOWS/, 'the menu names the two windows');
 assert.match(menu, /href="\/forum\?arcade=1"/, 'the arcade is reachable from it');
 // 2026-10-24: the window is the reader's own music (`?music=mine`); the archive is the media page.
 assert.match(menu, /href="\/forum\?music=mine"/, 'and so is the music window');
-assert.match(menu, /href="\/media\?kind=audio"/, 'and the archive, on the media page');
+assert.match(menu, /href="\/files\?kind=audio"/, 'and the archive, on the FILES page (2026-11-04)');
 assert.match(menu, /href="\/forum\?queues=1"/, 'and the queues, which no other key reaches from 640 to 767px');
 
 // 3. The side panel and its three blocks.

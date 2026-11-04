@@ -34,7 +34,7 @@ import {
 const MAX_SOURCES = 200;
 
 /** Thrown with a plain-words message; the page shows its own error state either way. */
-const READ_FAILED = 'The archive could not be read.';
+const READ_FAILED = 'Media could not be read.';
 
 /** Which client to read with: the browser's, or a stand-in (`scripts/check-web-db-paging.cjs`). */
 export type GetClient = () => SupabaseClient | null;

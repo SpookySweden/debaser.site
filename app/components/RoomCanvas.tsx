@@ -202,7 +202,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
             className={saved ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}
             disabled={saved || view.saving}
             aria-pressed={saved}
-            aria-label={saved ? 'Saved to the archive' : 'Save to the archive'}
+            aria-label={saved ? 'Saved to the media page' : 'Save to the media page'}
             title={saved ? 'Saved' : 'Save'}
             onClick={canvas.save}
             data-canvas-save={saved ? 'saved' : 'unsaved'}

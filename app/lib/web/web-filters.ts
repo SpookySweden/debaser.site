@@ -259,7 +259,7 @@ export function withFilter(box: string, key: FilterKey, value: string): string {
   return formatWebSearch(search);
 }
 
-/** The address for a search, so it can be shared: `/archive?q=&in=&type=` with only what is set (the page was /web). */
+/** The address for a search, so it can be shared: `/media?q=&in=&type=` with only what is set (the page was /web, then /archive). */
 export function searchAddress(search: WebSearch): string {
   const params = new URLSearchParams();
   if (search.text.length > 0) params.set('q', search.text);
@@ -274,7 +274,7 @@ export function searchAddress(search: WebSearch): string {
     if (choice.dir === 'asc') params.set('dir', 'asc');
   }
   const query = params.toString();
-  return query.length > 0 ? `/archive?${query}` : '/archive';
+  return query.length > 0 ? `/media?${query}` : '/media';
 }
 
 /** The box text an address stands for (the reverse of `searchAddress`). Unknown values are dropped. */

@@ -1,7 +1,7 @@
 import type { CatalogueEntry, MediaKind } from './types';
 
 /**
- * The archive's categories: what the `/media` page opens on (Luke, 2026-10-31: "the first thing you see
+ * The archive's categories: what the `/files` page opens on (Luke, 2026-10-31: "the first thing you see
  * should be a set of categories", not a list of files).
  *
  * Nobody files anything into these by hand. A file's categories are read off what it is and where it is

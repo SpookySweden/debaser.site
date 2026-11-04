@@ -289,7 +289,7 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
           </button>
           {top.length === 0 ? null : (
             <Link
-              href={`/media?cat=${encodeURIComponent(folderCategoryId(top))}`}
+              href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`}
               role="menuitem"
               className={PLATE_LINK}
               title={song.folderPath ?? top}

@@ -41,12 +41,12 @@ const SORT_LABELS: Record<Sort, string> = { newest: 'NEWEST', title: 'TITLE', us
 /** The glyph a row without a picture leads with. */
 const KIND_MARKS: Record<MediaKind, string> = { image: '▦', audio: '♪', video: '▶' };
 
-/** The section the address asks for (`/media?kind=audio`), or null for the front page. */
+/** The section the address asks for (`/files?kind=audio`), or null for the front page. */
 function kindRequested(value: string | null): MediaKind | null {
   return value === 'image' || value === 'audio' || value === 'video' ? value : null;
 }
 
-/** The tag keys the address asks for: `/media?kind=audio&tag=lo-fi`, or `&tag=lo-fi,ambient`. */
+/** The tag keys the address asks for: `/files?kind=audio&tag=lo-fi`, or `&tag=lo-fi,ambient`. */
 function parseTagKeys(wanted: string | null): string[] {
   if (wanted === null || wanted.length === 0) return [];
 
@@ -240,7 +240,7 @@ export default function MediaCatalogue() {
           catalogue.reload();
         }}
         track={track}
-        onPlay={(candidate) => player.play(candidate, { origin: 'shelf', href: MUSIC_HREF, where: 'THE MEDIA PAGE' })}
+        onPlay={(candidate) => player.play(candidate, { origin: 'shelf', href: MUSIC_HREF, where: 'THE FILES PAGE' })}
         folds={entry.item.kind === 'video' ? streamFolds[entry.item.id] : undefined}
         plays={entry.item.kind === 'audio' ? (plays.get(entry.item.src) ?? 0) : 0}
       />
@@ -579,7 +579,7 @@ export default function MediaCatalogue() {
             catalogue.reload();
             setNotice(`FILED :: ${track.title}`);
             // Open it: filing a file and then having to find it would be a poor sort of shelf.
-            player.play(track, { origin: 'shelf', href: MUSIC_HREF, where: 'THE MEDIA PAGE' });
+            player.play(track, { origin: 'shelf', href: MUSIC_HREF, where: 'THE FILES PAGE' });
           }}
         />
       ) : null}

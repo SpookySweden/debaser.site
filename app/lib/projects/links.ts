@@ -54,7 +54,7 @@ export const ARCHIVE_LINKS: ArchiveLink[] = [
     label: 'MUSIC',
     // The archive's address: the AUDIO tab of the media catalogue page, which took the shelf over
     // from the music window on 2026-10-24 (`app/lib/audio/music-window.ts`, MUSIC_HREF).
-    href: '/media?kind=audio',
+    href: '/files?kind=audio',
     summary: 'Score and rough mixes.',
   },
   {

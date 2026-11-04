@@ -44,7 +44,7 @@ same(f.parseWebSearch('cosy vibe:on vibe:off'), { text: 'cosy', source: 'all', t
 same(f.parseWebSearch('cosy vibe:maybe'), { text: 'cosy', source: 'all', type: 'all' }, 'an unknown vibe value is dropped');
 same(f.withFilter('cosy', 'vibe', 'on'), 'cosy vibe:on', 'the VIBE key writes vibe:on');
 same(f.withFilter('cosy vibe:on in:kino', 'vibe', 'off'), 'cosy in:kino', 'and takes it out');
-same(f.searchAddress(f.parseWebSearch('cosy vibe:on')), '/archive?q=cosy&vibe=on', 'the address carries vibe');
+same(f.searchAddress(f.parseWebSearch('cosy vibe:on')), '/media?q=cosy&vibe=on', 'the address carries vibe');
 same(f.boxFromAddress(new URLSearchParams('q=cosy&vibe=on')), 'cosy vibe:on', 'and reads it back');
 same(f.sourcesToAsk({ source: 'kino', type: 'all' }), { stream: true, live: ['kino'] }, 'KINO asks TMDB alone (and the stream, for titles a server holds)');
 ok(!f.sourcesToAsk({ source: 'all', type: 'all' }).live.includes('kino'), 'an ALL search never asks KINO');
@@ -70,8 +70,8 @@ for (const option of f.TYPE_OPTIONS) {
 }
 
 /* ---------------------------------------------------------------- the address */
-same(f.searchAddress({ text: 'night dead', source: 'internet_archive', type: 'audio' }), '/archive?q=night+dead&in=internet-archive&type=audio', 'the address');
-same(f.searchAddress({ text: '', source: 'all', type: 'all' }), '/archive', 'nothing set: just /archive (the page was /web)');
+same(f.searchAddress({ text: 'night dead', source: 'internet_archive', type: 'audio' }), '/media?q=night+dead&in=internet-archive&type=audio', 'the address');
+same(f.searchAddress({ text: '', source: 'all', type: 'all' }), '/media', 'nothing set: just /media (the page was /web)');
 same(f.boxFromAddress(new URLSearchParams('q=night+dead&in=internet-archive&type=audio')), 'night dead in:internet-archive type:audio', 'the address reads back to the box');
 same(f.boxFromAddress(new URLSearchParams('q=x&in=evil.example&type=<b>')), 'x', 'unknown address values are dropped');
 

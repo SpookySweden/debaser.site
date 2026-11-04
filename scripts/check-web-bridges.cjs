@@ -4,7 +4,7 @@
  *
  * The forum bridge:
  * - anchor round-trip: an item's anchor is `web` + `web_items.id` + its title, reads back to the same id,
- *   links to the archive page (/archive; /web until WEB was renamed ARCHIVE, 2026-11-03) even when stored
+ *   links to the MEDIA page (/media; /web, then /archive, until 2026-11-04) even when stored
  *   without its link (the Supabase rows keep no href), and a malformed id
  *   or another kind reads as no item
  * - both forum repositories file one thread per item: the second comment answers the first's thread,
@@ -156,11 +156,11 @@ const run = async () => {
   const item = MOCK_WEB_ITEMS.find((candidate) => candidate.embedUrl !== undefined);
   ok(item !== undefined, 'the mock has an item with a player');
   const anchor = webAnchor(item);
-  same([anchor.kind, anchor.id, anchor.label, anchor.href], ['web', item.id, item.title, '/archive'], 'anchor is web + web_items.id + title + /archive');
+  same([anchor.kind, anchor.id, anchor.label, anchor.href], ['web', item.id, item.title, '/media'], 'anchor is web + web_items.id + title + /archive');
   same(webAnchorItemId(anchor), item.id, 'anchor reads back to the item id');
   same(webAnchorItemId({ kind: 'web', id: anchor.id, label: 'x' }), item.id, 'a row read back without its link still finds the item');
   same(resolveAnchorTarget({ kind: 'web', id: anchor.id, label: anchor.label }).href, WEB_HREF, 'a stored web anchor with no href links to the archive');
-  same(WEB_HREF, '/archive', 'the archive page is /archive (the page was /web)');
+  same(WEB_HREF, '/media', 'the search page is /media (it was /web, then /archive)');
   same(webAnchorItemId({ kind: 'track', id: item.id }), null, 'another kind is no WEB item');
   for (const bad of ['', 'internet_archive', 'internet_archive:', 'Internet_Archive:x', 'internet_archive:../x', 'internet_archive:a b', 'a:-x', `internet_archive:${'x'.repeat(201)}`]) {
     same(webAnchorItemId({ kind: 'web', id: bad }), null, `malformed id ${JSON.stringify(bad)} is no item`);
@@ -197,16 +197,16 @@ const run = async () => {
   same(s2.thread.id, s1.thread.id, 'supabase forum: one thread per item');
   same(forumTables.forum_threads.map((row) => [row.anchor_kind, row.anchor_id, row.anchor_label]), [['web', item.id, item.title], ['web', other.id, other.title]], 'supabase forum: the rows keep web + id + title');
   same(s2.thread.anchor, { kind: 'web', id: item.id, label: item.title }, 'supabase forum: the thread reads back as the WEB anchor');
-  same(resolveAnchorTarget(s2.thread.anchor).href, '/archive', 'supabase forum: the read-back thread links to /archive');
+  same(resolveAnchorTarget(s2.thread.anchor).href, '/media', 'supabase forum: the read-back thread links to /media');
 
   /* --------------------------------------------------------------------------- board filters */
   const board = { ...m1.thread, id: 'board-thread', title: 'A BOARD POST', body: 'words', anchor: { kind: 'board', id: 'board-general', label: 'GENERAL BOARD' }, comments: [] };
   const threads = [m2.thread, m3.thread, board];
   const filtered = selectBoardThreads(threads, { query: '', sourceFilter: 'web', tagKeys: [], tagMode: 'any', sort: 'new' });
   same(filtered.map((thread) => thread.id).sort(), [m2.thread.id, m3.thread.id].sort(), 'the board\'s WEB THREADS filter finds the WEB threads only');
-  same(IN_PLACES.find((place) => place.value === 'archive')?.label, 'ARCHIVE THREADS', 'in:archive is offered, as ARCHIVE THREADS');
-  ok(!IN_PLACES.some((place) => place.value === 'web'), 'in:web is no longer offered (the word is archive now)');
-  for (const word of ['in:archive', 'in:web']) {
+  same(IN_PLACES.find((place) => place.value === 'media')?.label, 'MEDIA THREADS', 'in:media is offered, as MEDIA THREADS');
+  ok(!IN_PLACES.some((place) => place.value === 'web'), 'in:web is no longer offered (the word is media now)');
+  for (const word of ['in:media', 'in:archive', 'in:web']) {
     const hits = searchBoard(threads, parseSearch(word));
     const hitThreads = [...new Set(hits.map((hit) => (hit.thread ?? hit.unit?.thread ?? {}).id))];
     ok(hitThreads.length > 0 && hitThreads.every((id) => id === m2.thread.id || id === m3.thread.id), `${word} finds WEB threads only (got ${JSON.stringify(hitThreads)})`);

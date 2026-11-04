@@ -65,7 +65,7 @@ export const PROJECT_SECTIONS: ProjectSection[] = [
     label: 'MUSIC',
     // The archive's address: the AUDIO tab of the media catalogue, where the shelf lives since
     // 2026-10-24 (`lib/audio/music-window.ts`, MUSIC_HREF). The reader's own music stays a window.
-    href: '/media?kind=audio',
+    href: '/files?kind=audio',
     summary: 'The score, and the rough mixes.',
     note: 'The music archive.',
   },

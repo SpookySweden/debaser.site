@@ -271,8 +271,9 @@ export const GLOBE = '⊕';
  */
 export function originWhereLabel(entry: LoopSource): string | null {
   if (entry.originHref === undefined) return null;
-  // Saved in this browser before WEB was renamed ARCHIVE (2026-11-03); its old /web address redirects there.
-  if (entry.originWhere === 'WEB') return 'ARCHIVE';
+  // Saved in this browser under an old name (WEB, ARCHIVE, the catalogue's MEDIA page); its old address redirects.
+  if (entry.originWhere === 'WEB' || entry.originWhere === 'ARCHIVE') return 'MEDIA';
+  if (entry.originWhere === 'THE MEDIA PAGE') return 'THE FILES PAGE';
   return entry.originWhere ?? 'WHERE THIS CAME FROM';
 }
 

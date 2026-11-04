@@ -60,8 +60,8 @@ const SOURCE_FILTERS: { value: SourceFilter; label: string }[] = [
   { value: 'profile', label: 'PROFILE COMMENTS' },
   // Posts filed under a track on the shelf (app/lib/audio/forum-tracks.ts, `trackAnchor`).
   { value: 'track', label: 'TRACK THREADS' },
-  // Posts filed under an item in the archive, which was WEB (app/lib/web/bridges.ts, `webAnchor`).
-  { value: 'web', label: 'ARCHIVE THREADS' },
+  // Posts filed under an item on the MEDIA page, which was WEB, then ARCHIVE (app/lib/web/bridges.ts, `webAnchor`).
+  { value: 'web', label: 'MEDIA THREADS' },
   // The records of watch-together streams (SPEC-watch-together.md): board posts that name a room.
   { value: 'stream', label: 'STREAMS' },
 ];

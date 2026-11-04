@@ -224,7 +224,7 @@ const KIND_DEFAULT_HREF: Record<ForumAnchor['kind'], string> = {
   track: MUSIC_HREF,
   // An item from another platform is listed on the archive (app/lib/web/bridges.ts, `webAnchor`); the
   // database keeps no address for these, so every thread follows the page to its new address.
-  web: '/archive',
+  web: '/media',
 };
 
 export function allKnownAnchors(): ForumAnchor[] {

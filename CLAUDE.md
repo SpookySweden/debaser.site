@@ -2,9 +2,9 @@
 
 The house rules live in `.claude/rules/core.md` (loaded automatically).
 
-## ARCHIVE (the /archive page, WEB in the code; SPEC-web.md)
-- Luke renamed WEB to ARCHIVE on 2026-11-03: readers see ARCHIVE and "archive search", the page is /archive,
-  and /web redirects there (next.config.ts). The code keeps the WEB name: `app/lib/web/`, `/api/web/*`, the `web`
+## MEDIA (the /media page, WEB in the code; SPEC-web.md)
+- Luke renamed WEB to ARCHIVE on 2026-11-03, then ARCHIVE to MEDIA on 2026-11-04: readers see MEDIA, the page is /media,
+  and /web and /archive redirect there (next.config.ts). The code keeps the WEB name: `app/lib/web/`, `/api/web/*`, the `web`
   nav key and forum anchor kind, the `web_*` tables, `npm run checks:web`, the add-web-adapter skill.
 - Proof: `npm run verify` (lint, tokens, typecheck, build) must pass, and `npm run checks:changed` (it picks the WEB checks when WEB code changes).
 - Changes go through the house loop in core.md (verify, checks:changed, commit, push to main, `npm run read`).
@@ -28,10 +28,11 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Never parse HTML pages.
 - Remote fetches go through `app/lib/web/safe-fetch.ts`, never from browser code. Third-party text is
   rendered as plain text, never as HTML. Adding a platform: `.claude/skills/add-web-adapter`.
-- /archive is for signed-in people only: signed out it shows a sign-in prompt, the WEB routes refuse, and the
+- /media is for signed-in people only: signed out it shows a sign-in prompt, the WEB routes refuse, and the
   media-server tables are unreadable to visitors (SPEC-media-servers.md).
-- DEBASER.SITE: the old ARCHIVE page, the media catalogue at /media, is one of the archive's servers. A search
-  with SOURCE ALL lists the site's own files it finds first, playing as the catalogue does
+- DEBASER.SITE: the catalogue of the site's own files, FILES at /files, is one of this page's servers. It was MEDIA at
+  /media until 2026-11-04 (its `key` in the nav and `app/lib/media/` keep that name), and its old `/media?kind=`, `?cat=`
+  and `?tag=` addresses redirect to /files. A search with SOURCE ALL lists the site's own files it finds first, playing as the catalogue does
   (`app/lib/web/site-server.ts`, `WebSiteFiles.tsx`); read in the browser, never saved into the WEB stream.
 - Luke's own and his friends' media servers are allowed sources, read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the

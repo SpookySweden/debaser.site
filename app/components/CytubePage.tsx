@@ -190,7 +190,7 @@ function About() {
         can draw on it and drag the chat&apos;s pictures and lines onto it. Nobody can clear it.
       </AboutPart>
       <AboutPart title="STREAM ART">
-        Anybody in the room can save the canvas. Saved canvases are kept in the archive under STREAM ART, with everybody who was there,
+        Anybody in the room can save the canvas. Saved canvases are kept on the MEDIA page under STREAM ART, with everybody who was there,
         and are listed on the CANVASES tab here.
       </AboutPart>
       <AboutPart title="YOUR LOOK">

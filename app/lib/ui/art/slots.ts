@@ -645,7 +645,7 @@ export const ART_SLOTS = [
     k: 2,
     fit: 'contain',
     fallback: 'the key reads `[ SAVE ]`, `[ SAVED ]` once anybody saved (`RoomCanvas`)',
-    brief: 'Keeps the canvas in the archive under STREAM ART; once anybody presses it the canvas keeps autosaving.',
+    brief: 'Keeps the canvas on the MEDIA page under STREAM ART; once anybody presses it the canvas keeps autosaving.',
   },
 
   /* ----------------------------------------------------------------- the moving */
@@ -723,14 +723,14 @@ export const ART_SLOTS = [
   },
   {
     id: 'web-thumb-missing',
-    label: 'ARCHIVE: NO THUMBNAIL',
+    label: 'MEDIA: NO THUMBNAIL',
     kind: 'portrait',
     path: 'assets/web/thumb-missing.png',
     shown: [[96, 72]],
     k: 1,
     fit: 'contain',
     fallback: '"NO IMAGE" in the empty 96x72 box (`WebStream`)',
-    brief: 'On /archive, for an item whose platform gives no picture or whose picture fails to load, and for the site\'s own tracks and videos there. 96x72.',
+    brief: 'On /media, for an item whose platform gives no picture or whose picture fails to load, and for the site\'s own tracks and videos there. 96x72.',
   },
 ] as const satisfies readonly ArtSlot[];
 

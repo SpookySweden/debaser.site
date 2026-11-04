@@ -1,3 +1,5 @@
+'use client';
+
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import { QUEUE_SOURCES, QUEUE_TYPES, queueSearchPlan, withQueueFilter } from '../lib/watch/blank-screen';
 import type { FilterKey } from '../lib/web/web-filters';

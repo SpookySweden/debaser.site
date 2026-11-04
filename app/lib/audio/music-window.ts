@@ -37,7 +37,7 @@ export type MusicScreen = 'archive' | 'mine' | 'vanity';
  * Shut, on the reader's own music. One shared object, so React can compare it by identity.
  *
  * `mine` rather than `archive` since 2026-10-24: the archive screen moved to the catalogue page
- * (`/media?kind=audio`, SPEC-media-catalogue.md, decisions 2 and 3), and this window is the reader's
+ * (`/files?kind=audio`, SPEC-media-catalogue.md, decisions 2 and 3), and this window is the reader's
  * own shelf. `archive` stays in the type so the screen tab can still be named and linked.
  */
 const SHUT: MusicWindowState = { open: false, screen: 'mine' };
@@ -55,7 +55,7 @@ export const subscribeToMusicWindow = slot.subscribe;
  * `[ INJECT ]` keys live now. Every link that meant "show me this file" - a post's `♪ MP3` plate, a
  * track's tag badge, a track anchor - still points here and still lands on the shelf.
  */
-export const MUSIC_HREF = '/media?kind=audio';
+export const MUSIC_HREF = '/files?kind=audio';
 
 /** The reader's own music, as its own address: a link somebody can be sent, and a screen that survives a reload. */
 export const LIBRARY_HREF = '/forum?music=mine';

@@ -105,8 +105,8 @@ for (const start of clientFiles) {
 }
 
 /* ------------------------------------------------------------------ no HTML, no public fetching config */
-// The page is /archive since WEB was renamed ARCHIVE (2026-11-03); DEBASER.SITE's rows are drawn by WebSiteFiles.tsx.
-const webFiles = [...walk(join(APP, 'lib', 'web')), resolve(APP, 'components/WebStream.tsx'), resolve(APP, 'components/WebSiteFiles.tsx'), resolve(APP, 'archive/page.tsx')];
+// The page is /media since 2026-11-04 (it was WEB at /web, then ARCHIVE at /archive); DEBASER.SITE's rows are drawn by WebSiteFiles.tsx.
+const webFiles = [...walk(join(APP, 'lib', 'web')), resolve(APP, 'components/WebStream.tsx'), resolve(APP, 'components/WebSiteFiles.tsx'), resolve(APP, 'media/page.tsx')];
 for (const file of webFiles) {
   const text = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
   ok(!/dangerouslySetInnerHTML|innerHTML\s*=/.test(text), `${relative(ROOT, file)} renders HTML`);

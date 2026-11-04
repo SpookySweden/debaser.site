@@ -30,7 +30,7 @@ const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/
 const KIND_WORDS: Record<MediaKind, string> = { image: 'IMAGE', audio: 'AUDIO', video: 'VIDEO' };
 
 /** Where the bar's globe sends a listener back to, for a track started here: the archive, as for any of its rows. */
-const SITE_ORIGIN = { origin: 'shelf', href: WEB_HREF, where: 'ARCHIVE' } as const;
+const SITE_ORIGIN = { origin: 'shelf', href: WEB_HREF, where: 'MEDIA' } as const;
 
 export default function WebSiteFiles({ matches }: { matches: readonly CatalogueEntry[] }) {
   const [all, setAll] = useState(false);

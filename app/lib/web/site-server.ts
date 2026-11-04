@@ -5,7 +5,7 @@ import type { WebSearch } from './web-filters';
 
 /**
  * The site's own files as one of the archive's servers (Luke, 2026-11-03: "include the old archive page as a
- * 'server' in the web search"). The old archive page is the media catalogue (/media, SPEC-media-catalogue.md):
+ * 'server' in the web search"). The old archive page is the catalogue (FILES, /files, SPEC-media-catalogue.md):
  * every picture, track and video the site holds. An archive search lists the files its words find under this
  * server's name, before everything else, and each plays or opens the way the catalogue does (WebSiteFiles.tsx).
  *
@@ -68,8 +68,8 @@ export function siteFileMatches(entries: readonly CatalogueEntry[], search: Site
   return found.sort((a, b) => (oldestFirst ? a.item.createdAt.localeCompare(b.item.createdAt) : b.item.createdAt.localeCompare(a.item.createdAt)));
 }
 
-/** Where a file lives on the catalogue page: its first category (`/media?cat=`), with its uses, tags and EDIT. */
+/** Where a file lives on the catalogue page: its first category (`/files?cat=`), with its uses, tags and EDIT. */
 export function siteFileHref(entry: CatalogueEntry): string {
   const category = categoriesOf(entry)[0];
-  return category === undefined ? '/media' : `/media?cat=${encodeURIComponent(category)}`;
+  return category === undefined ? '/files' : `/files?cat=${encodeURIComponent(category)}`;
 }
