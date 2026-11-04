@@ -1,6 +1,7 @@
 import { isSiteAccount } from '../auth/builtin-account';
 import { readInput, type CanvasInput } from './canvas';
 import type {
+  CanvasCredit,
   CanvasRepository,
   CanvasSnapshot,
   CanvasTimelineInput,
@@ -82,7 +83,15 @@ async function peopleOf(canvas: RoomCanvasRecord): Promise<{ people: Map<string,
     add(input.authorId, input.authorLabel);
     mayTake.add(input.authorId);
   }
-  for (const message of read?.messages ?? []) if (message.createdAt >= canvas.openedAt) add(message.authorId, message.authorLabel);
+  // A chat line dragged onto the canvas credits its writer even when it was said before the canvas opened.
+  const writers = new Set(
+    load()
+      .inputs.filter((entry) => entry.canvasId === canvas.id && entry.kind === 'place' && entry.place.type === 'text')
+      .map((entry) => (entry.kind === 'place' && entry.place.type === 'text' ? entry.place.writerId : null)),
+  );
+  for (const message of read?.messages ?? []) {
+    if (message.createdAt >= canvas.openedAt || writers.has(message.authorId)) add(message.authorId, message.authorLabel);
+  }
   for (const id of crowned) add(id, 'Unknown');
   return { people, mayTake };
 }
@@ -195,7 +204,12 @@ class MockCanvasRepository implements CanvasRepository {
     if (!mayTake.has(input.takenBy.id)) throw refused('NOT ALLOWED.');
     if (!people.has(input.takenBy.id)) people.set(input.takenBy.id, { label: input.takenBy.label, crowned: false });
     const participants = [...people.entries()].map(([id, person]) => ({ id, label: person.label, crowned: person.crowned }));
-    const credits = input.credits.filter((credit) => credit.id === null || people.has(credit.id));
+    // Rebuilt, as the database does: an account's credit wears its own name; one with no account keeps its words, cut.
+    const credits = input.credits.flatMap((credit): CanvasCredit[] => {
+      if (credit.id === null) return credit.label.length > 0 ? [{ id: null, label: credit.label.slice(0, 80) }] : [];
+      const person = people.get(credit.id);
+      return person === undefined ? [] : [{ id: credit.id, label: person.label }];
+    });
     const inputCount = load().inputs.filter((entry) => entry.canvasId === canvas.id).length;
     const stored: StoredSnapshot = {
       id: newId(),
@@ -236,7 +250,9 @@ class MockCanvasRepository implements CanvasRepository {
   async setHidden(canvasId: string, hidden: boolean, by: string): Promise<void> {
     if (!isSiteAccount(by)) throw refused('NOT ALLOWED.');
     const tables = load();
-    save({ ...tables, canvases: tables.canvases.map((entry) => (entry.id === canvasId ? { ...entry, hidden } : entry)) });
+    // A hidden canvas is never left open, so its room can open a fresh one (as room_canvas_hide).
+    const closedAt = (entry: RoomCanvasRecord) => (hidden ? (entry.closedAt ?? new Date().toISOString()) : entry.closedAt);
+    save({ ...tables, canvases: tables.canvases.map((entry) => (entry.id === canvasId ? { ...entry, hidden, closedAt: closedAt(entry) } : entry)) });
   }
 
   joinWire(roomId: string, onMessage: (message: CanvasWireMessage) => void): CanvasWire {

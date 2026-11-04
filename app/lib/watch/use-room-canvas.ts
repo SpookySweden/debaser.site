@@ -459,6 +459,17 @@ async function snapshot(session: Session): Promise<void> {
 async function autosave(session: Session): Promise<void> {
   const context = session.context;
   if (context === null || context.me === null || !context.live || session.canvas?.savedAt == null) return;
+  // Only somebody with a part in the canvas may take a snapshot (room_canvas_may_snapshot): anybody else would be
+  // refused on every try, so they leave autosaving to those who can.
+  const me = context.me.id;
+  const canvas = session.canvas;
+  const hasPart =
+    context.amHost ||
+    canvas.hostId === me ||
+    canvas.savedBy === me ||
+    context.crowned.has(me) ||
+    session.inputs.some((input) => input.authorId === me && session.confirmed.has(input.id));
+  if (!hasPart) return;
   if (session.lastSnapshot === null) {
     // What the others already took: this tab only knows its own snapshots, so read the newest.
     const shots = await getCanvasRepository()
