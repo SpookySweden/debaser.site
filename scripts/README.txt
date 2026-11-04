@@ -127,9 +127,17 @@ SQL editor is, with a personal access token read from `.env.local`. This is the 
 can ask the *database* a question rather than asking what a visitor would see, and it is what the
 database rules in `.claude/rules/core.md` (Safety) run on. The write guard is deliberate: leave it alone.
 
+drive-queue-filters.cjs
+-----------------------
+    node scripts/drive-queue-filters.cjs [base]   the stream queue's filters, MEDIA and FILES, in a real browser
+
+Signs in as kept test account A, goes live, presses every filter key and reads what each search asks. On the
+deployed site it leaves one ended stream, its board thread and one queue row (`supabase/cleanup/watch-test-streams.sql`
+lists them; removing them is a delete, so ask Luke). Kept here, not in `Temp/`, so both machines have it.
+
 web-fetch.cjs
 -------------
-    npm run web:fetch                   run the archive's hourly fetch now, and print what each source saved
+    npm run web:fetch                   run the MEDIA page's hourly fetch now, and print what each source saved
 
 The fetch is pg_cron's job `web-ingest`, at minute 17 of every hour, and a change to what it saves can only be
 seen after it has run: one session waited 50 minutes for it. This runs the job's own command (read from

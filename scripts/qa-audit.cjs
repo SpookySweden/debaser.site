@@ -60,7 +60,7 @@ const ROUTES = [
   ['links', '/links'],
   ['project', '/projects/debaser'],
   ['profile', '/profile/qa-visitor'],
-  // The archive page, called WEB at /web until 2026-11-03 (/web redirects there).
+  // The search page (WEB at /web, then ARCHIVE at /archive, until 2026-11-04) and the catalogue (MEDIA at /media until then).
   ['media', '/media'],
   ['files', '/files'],
   // Watching and listening together (SPEC-cytube.md, 2026-11-03); signed-in only, so a capture is its sign-in check.
