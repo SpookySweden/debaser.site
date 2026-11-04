@@ -44,8 +44,11 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# scratch verification output (logs and the throwaway check scripts beside them)
-/Temp/
+# scratch verification output (logs and one-off scripts); the checks themselves are tracked, so every machine has
+# the same suite (scripts/README.txt). check-resend.cjs holds a mailbox password and this repository is public.
+/Temp/*
+!/Temp/check-*.cjs
+/Temp/check-resend.cjs
 
 # the revert tools leave their backup beside the file they moved (Temp/revert.cjs): a `.revert-bak`
 # is a copy of a tracked source file, so it must never be committed

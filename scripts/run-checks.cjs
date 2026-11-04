@@ -31,8 +31,9 @@
  * run from a clone.
  */
 const { execSync } = require('node:child_process');
-const { existsSync, readdirSync, readFileSync } = require('node:fs');
-const { join } = require('node:path');
+const { existsSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { join, relative } = require('node:path');
+const { changedFiles, pickChecks } = require('./checks-changed.cjs');
 
 /**
  * Where the checks live. `Temp/` holds the scratch ones, written against whatever is being worked on;
@@ -61,9 +62,8 @@ const SKIP = new Set([
 ]);
 
 /**
- * `--only <prefix>` narrows the run to the checks whose name starts with it. `npm run checks:web`
- * (`--only check-web-`) is the one user: the WEB checks are tracked in `scripts/` and run inside
- * `npm run verify`, where the whole scratch suite would be too slow and would not exist on a clone.
+ * `--only <prefix>` narrows the run to the checks whose name starts with it (`npm run checks:web`).
+ * `--changed` narrows it to the checks this work can affect (`npm run checks:changed`, `checks-changed.cjs`).
  */
 const onlyAt = process.argv.indexOf('--only');
 const ONLY = onlyAt === -1 ? 'check-' : process.argv[onlyAt + 1];
@@ -81,6 +81,31 @@ for (const dir of CHECK_DIRS) {
   }
 }
 files.sort((a, b) => a.name.localeCompare(b.name));
+
+const CHANGED = process.argv.includes('--changed');
+/** The last whole-suite run on this machine: `checks:changed` says when another is due. */
+const LAST_FULL_RUN = join(ROOT, 'Temp', '.last-full-checks.json');
+const FULL_RUN_DAYS = 7;
+
+if (CHANGED) {
+  const changed = changedFiles();
+  const inRepo = files.map(({ dir, name }) => ({ name, path: relative(ROOT, join(dir, name)).split('\\').join('/') }));
+  const { all, picked } = pickChecks(changed, inRepo);
+  const total = files.length;
+  files.splice(0, total, ...files.filter(({ name }) => picked.has(name)));
+
+  console.log(`${changed.length} changed file(s); ${files.length} of ${total} checks can be affected.`);
+  if (all) console.log(`Running everything, because ${all} changed.`);
+  else if (files.length === 0) console.log('No check knows these files: verify and the live read are the proof.');
+
+  const last = existsSync(LAST_FULL_RUN) ? JSON.parse(readFileSync(LAST_FULL_RUN, 'utf8')) : null;
+  const days = last === null ? null : Math.floor((Date.now() - Date.parse(last.at)) / 86_400_000);
+  if (last === null || days >= FULL_RUN_DAYS || last.failed > 0) {
+    const state = last === null ? 'none on this machine yet' : `${days} day(s) ago, ${last.failed} failed`;
+    console.log(`*** FULL RUN DUE: npm run checks (last: ${state}) ***`);
+  }
+  console.log('');
+}
 
 const failures = [];
 
@@ -135,7 +160,9 @@ function compileSteps(dir, file) {
  * `tsc --version`, 2026-11-03), and `npm run verify` runs 34 of these.
  */
 const TSC = join(ROOT, 'node_modules', 'typescript', 'bin', 'tsc');
-const direct = (step) => `"${process.execPath}" "${TSC}" ${step.slice('npx tsc '.length)}`;
+// `--strictNullChecks` is what tsconfig.json compiles the site with. Without it a check could not compile the site's
+// `if (!result.ok) result.reason` code at all, and six checks tested nothing until 2026-11-04.
+const direct = (step) => `"${process.execPath}" "${TSC}" --strictNullChecks ${step.slice('npx tsc '.length)}`;
 
 for (const { dir, name } of files) {
   const steps = compileSteps(dir, name);
@@ -146,10 +173,17 @@ for (const { dir, name } of files) {
     const output = execSync(`node "${join(dir, name)}"`, { stdio: 'pipe', cwd: ROOT }).toString().split('\n')[0];
     console.log(`ok   ${name.padEnd(34)} ${output.trim()}`);
   } catch (error) {
-    const detail = (error.stdout?.toString() ?? error.message).split('\n').slice(0, 4).join(' / ');
+    // A check that throws says why on stderr; without it a failure printed an empty line.
+    const said = `${error.stderr ?? ''}\n${error.stdout ?? error.message}`.split('\n');
+    const reason = said.find((line) => /AssertionError|^\w*Error: |error TS\d/.test(line));
+    const detail = (reason ? [reason] : said.filter(Boolean).slice(0, 4)).join(' / ');
     console.log(`FAIL ${name.padEnd(34)} ${detail.trim()}`);
     failures.push(name);
   }
+}
+
+if (!CHANGED && onlyAt === -1) {
+  writeFileSync(LAST_FULL_RUN, JSON.stringify({ at: new Date().toISOString(), total: files.length, failed: failures.length }));
 }
 
 console.log(`\n${files.length - failures.length}/${files.length} checks passed`);

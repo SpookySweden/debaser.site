@@ -12,12 +12,28 @@ guarantee when the file it names may be absent.
 The distinction is deliberate:
 
     Temp/       scratch - check output, captures, one-off probes. Gitignored, and expected to be
-                thrown away. Temp/qa/*.html and Temp/check-*.cjs live here.
+                thrown away. The exception is Temp/check-*.cjs: tracked since 2026-11-04, because two
+                machines each kept their own set and neither ran the other's. They stayed in Temp/
+                because most compile into, and read from, folders beside themselves.
+                Temp/check-resend.cjs stays ignored: it holds a mailbox password, and the repo is public.
     scripts/    tools that outlive a session, and that a rule points at by name.
 
 run-checks.cjs
 --------------
     npm run checks                      every check, in both directories
+    npm run checks:changed              only the checks this work can affect (checks-changed.cjs)
+
+**Which to run (Luke's rule, 2026-11-04).** Every task runs `checks:changed`. The whole suite runs before a big
+feature and when `checks:changed` prints FULL RUN DUE: a week since the last whole run on this machine, or the last
+one failed (`Temp/.last-full-checks.json`). "Changed" means commits not yet on GitHub, uncommitted edits and new
+files, so another session's half-done work in the same folder can pick extra checks, and can fail them.
+
+**How it picks.** No list of areas to keep up to date: a check is picked if it is a changed file, names one, compiles
+something that imports one at any depth, or walks `app/` and anything there changed. It errs towards running more.
+`scripts/check-checks-changed.cjs` holds the picking, because a picker that picks too few still says "all passed".
+
+**Compiled with `--strictNullChecks`,** as the site is. Without it a check cannot compile `if (!result.ok)
+result.reason`, and six checks tested nothing at all until 2026-11-04 because of it.
 
 Runs every `check-*.cjs` in `Temp/` **and** in `scripts/`, in name order, compiling each one first
 from the `npx tsc ...` lines in its own header comment. Those lines run as the same compiler straight

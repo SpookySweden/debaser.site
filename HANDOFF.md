@@ -1,4 +1,17 @@
-# Latest: canvas safety review fixes; what is left needs Luke (2026-11-04)
+# Latest: fewer checks per task, and one shared set of checks (2026-11-04)
+- Luke's rule: every task runs `npm run checks:changed`; the whole `npm run checks` runs before a big feature and when
+  it prints FULL RUN DUE. `npm run verify` no longer runs the WEB checks. Details: core.md, scripts/README.txt.
+- `Temp/check-*.cjs` are tracked now, except `check-resend.cjs` (it holds a mailbox password; the repo is public).
+- **First time on the laptop:** its own `Temp/check-*.cjs` will stop `git pull` where the names match. Move them
+  aside, pull, then put back only the ones git doesn't now have (check-stream-art, check-music-rooms, check-song-menu,
+  check-stream-crawl, check-media-categories, check-character-place), run them, and commit them. For the rest compare before overwriting:
+  the desktop's versions were brought up to date with the laptop's code on 2026-11-04.
+- `.env.test` is on the desktop and sign-in works there, so the signed-in live drive listed below can be done from
+  it. The `drive-*` scripts for it are only on the laptop: they are one-off tools and stay untracked unless Luke says.
+- The desktop's pre-restart history is on its local branch `backup/desktop-main-2026-11-03`. Never push it: the
+  reason GitHub's history was restarted on 2026-11-01 is not recorded, and it may have been to remove something.
+
+# Before that: canvas safety review fixes; what is left needs Luke (2026-11-04)
 - Nothing is half-done. Music rooms, the canvas + STREAM ART, CYTUBE and the canvas safety rules are all live
   (last: 96dbffe). Every session from this run is archived; the extra branches, worktrees and the stash are gone.
 - Review of the safety rules (code-reviewer, fresh context) found 5 real gaps, fixed in

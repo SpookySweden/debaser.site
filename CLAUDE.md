@@ -6,8 +6,8 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
 - Luke renamed WEB to ARCHIVE on 2026-11-03: readers see ARCHIVE and "archive search", the page is /archive,
   and /web redirects there (next.config.ts). The code keeps the WEB name: `app/lib/web/`, `/api/web/*`, the `web`
   nav key and forum anchor kind, the `web_*` tables, `npm run checks:web`, the add-web-adapter skill.
-- Proof: `npm run verify` (lint, tokens, typecheck, the WEB checks, build) must pass.
-- Changes go through the house loop in core.md (verify, checks, commit, push to main, `npm run read`).
+- Proof: `npm run verify` (lint, tokens, typecheck, build) must pass, and `npm run checks:changed` (it picks the WEB checks when WEB code changes).
+- Changes go through the house loop in core.md (verify, checks:changed, commit, push to main, `npm run read`).
 - Metadata only: title, creator, plain-text description, thumbnail, date, kind, licence, duration.
   Never store or show likes, views, downloads, ratings, follower counts or comments.
   Sorting a search (SPEC-web-sort.md, Luke 2026-11-02): a platform's own popularity order may be asked for, and TMDB's

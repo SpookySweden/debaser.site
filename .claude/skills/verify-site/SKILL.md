@@ -1,6 +1,6 @@
 ---
 name: verify-site
-description: Run the full proof that a change is done - verify, checks, capture + audit locally, then confirm the pushed commit is built on Vercel, screenshot the deployed site at desktop and phone width, and read it with `npm run read`. Use when finishing a task, or when Luke types /verify-site. Optional argument - a route to screenshot and read instead of /forum (e.g. `/users`), and/or text to expect, passed through to `npm run read`.
+description: Run the full proof that a change is done - verify, the checks it can affect, capture + audit locally, then confirm the pushed commit is built on Vercel, screenshot the deployed site at desktop and phone width, and read it with `npm run read`. Use when finishing a task, or when Luke types /verify-site. Optional argument - a route to screenshot and read instead of /forum (e.g. `/users`), and/or text to expect, passed through to `npm run read`.
 ---
 
 # /verify-site
@@ -18,9 +18,10 @@ for step 6.
 
 ## Part 1 - this machine
 
-1. `npm run verify` (lint + typecheck + build). Must exit 0.
-2. `npm run checks`. Must end with every check passing. A failing check is a finding - report it, never
-   delete or loosen it to go green.
+1. `npm run verify` (lint + tokens + typecheck + build). Must exit 0.
+2. `npm run checks:changed`: the checks this work can affect. Must end with every one passing. If it prints
+   `FULL RUN DUE`, or the work was a big feature built from a SPEC, run the whole `npm run checks` instead. A
+   failing check is a finding - report it, never delete or loosen it to go green.
 3. `npm run capture`, then `npm run audit`. Capture always first, or the audit reads old snapshots. The
    audit does not fail by exit code: read its output and report every unnamed control, small tap target,
    small text and low-contrast pair it lists, plus the questions it ends with.
