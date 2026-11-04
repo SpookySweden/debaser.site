@@ -34,7 +34,7 @@ export default function ListRow({
         onClick={onSelect}
         aria-current={selected ? 'true' : undefined}
         className={`flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-none px-1 py-0.5 text-left text-label font-bold max-sm:min-h-tap max-sm:text-sm ${
-          selected ? 'text-sun' : 'text-ink hover:bg-ice'
+          selected ? 'text-ink-bar' : 'text-ink hover:bg-ice'
         }`}
       >
         <span aria-hidden="true" className="shrink-0">
@@ -51,7 +51,7 @@ export default function ListRow({
           title={`Delete the playlist ${label}`}
           aria-label={`Delete the playlist ${label}`}
           className={`shrink-0 cursor-pointer key px-1 text-label max-sm:min-h-tap max-sm:min-w-tap max-sm:text-sm ${
-            selected ? '[--key-ink:var(--color-sun)] [--key-hover-ink:var(--color-ink-plate)]' : ''
+            selected ? '[--key-ink:var(--color-ink-bar)] [--key-hover-ink:var(--color-ink-plate)]' : ''
           }`}
         >
           [ × ]

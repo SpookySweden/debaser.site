@@ -82,6 +82,7 @@ const LAYERS = [
   ['z-banner', "the guest's alarm banner"],
   ['z-popout', 'a pop-out window and its scrim'],
   ['z-overlay', 'a pop-up over a pop-out'],
+  ['z-cursor', 'the CAT cursor, above everything'],
 ] as const;
 
 const MOTION = [

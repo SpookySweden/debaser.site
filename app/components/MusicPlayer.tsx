@@ -719,7 +719,7 @@ function TransportPad({
             onClick={onCycle}
             disabled={disabled}
             title={WORD[state]}
-            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-display font-bold leading-none text-acid hover:bg-ena hover:text-sun focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
+            className="flex min-w-[3rem] cursor-pointer items-center justify-center rounded-none px-2 py-1 text-display font-bold leading-none text-acid hover:bg-ena hover:text-ink-bar focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-bubble active:animate-flash active:bg-bubble active:text-ink-plate disabled:cursor-not-allowed disabled:text-ink-bar"
           >
             <span aria-hidden="true" className={ANIMATION[state]}>
               {MARK[state]}

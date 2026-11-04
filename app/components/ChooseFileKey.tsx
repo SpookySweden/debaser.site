@@ -1,3 +1,5 @@
+'use client';
+
 import { PLATE } from '../lib/ui/controls';
 
 type ChooseFileKeyProps = {

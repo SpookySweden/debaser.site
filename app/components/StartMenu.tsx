@@ -14,7 +14,7 @@ import { NAV_ITEMS, SIDE_ARCADE, SIDE_MUSIC, SIDE_QUEUES } from './SiteNav';
  * than instead of it, so the menu doubles as the legend (see app/lib/ui/icons.ts).
  */
 const MENU_ROW =
-  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.25 text-left text-key font-bold text-ink hover:bg-ena hover:text-sun max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
+  'flex w-full cursor-pointer items-center gap-2 px-2 py-1.25 text-left text-key font-bold text-ink hover:bg-ena hover:text-ink-bar max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
 
 type StartMenuProps = {
   /** Closes the menu. Every row is a navigation, so choosing one is the end of it. */

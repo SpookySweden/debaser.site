@@ -1299,6 +1299,8 @@ alter table public.profiles add column if not exists show_song_comments boolean 
 -- versions table already points at the profile, and a circular pair would make deletes
 -- awkward.
 alter table public.profiles add column if not exists current_song_version_id uuid;
+-- The opt-out from counting a person's listening (migration 20261031130000_music_listens).
+alter table public.profiles add column if not exists hide_listening boolean not null default false;
 
 -- Comments on by default, for the databases that were created when they were off.
 --

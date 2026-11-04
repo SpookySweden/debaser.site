@@ -1,3 +1,5 @@
+'use client';
+
 import { useMemo, useSyncExternalStore } from 'react';
 import type { AudioTrack } from '../audio/tracks';
 import {
