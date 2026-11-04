@@ -1,4 +1,34 @@
-# Latest: canvas safety rules, BOOKS / VIDEO / MUSIC order, the three specs filed (2026-11-03)
+# Latest: canvas safety review fixes; what is left needs Luke (2026-11-04)
+- Nothing is half-done. Music rooms, the canvas + STREAM ART, CYTUBE and the canvas safety rules are all live
+  (last: 96dbffe). Every session from this run is archived; the extra branches, worktrees and the stash are gone.
+- Review of the safety rules (code-reviewer, fresh context) found 5 real gaps, fixed in
+  20261104005939_stream-art-safety-fixes.sql + the mock:
+  - `room_canvas_people` is no longer callable by accounts (it named a hidden piece's people) and names nobody
+    for a hidden canvas.
+  - A chat line said before the canvas opened, then dragged on, keeps its writer's credit.
+  - HIDE closes an open canvas, so the room can open a fresh one.
+  - Credits are rebuilt with each account's own name; a no-account credit is cut to 80 characters.
+  - Viewers with no part in a canvas skip autosave instead of being refused every 30 s.
+- Left as is (harmless): a snapshot's `input_count` is the database's count, so a tab may take one extra snapshot
+  at close or autosave; the 10-second limit holds it.
+- Proof: both canvas drives and drive-cytube passed on dev-mock, plus a full verify. `Temp/drive-cytube.cjs` is
+  now in this folder (it was in the removed worktree), updated for BOOKS / VIDEO / MUSIC and the live canvas parts.
+
+## Could not be done: needs Luke
+1. **Restore `.env.test`** (one line, `DEBASER_TEST_PASSWORD=...`). Only Luke can, since Claude never handles
+   passwords. Until then nobody has driven music rooms, the canvas, CYTUBE or the safety rules signed in on the
+   live site, only on dev-mock. The first job once it is back: a two-account live drive of a room: go live from
+   CYTUBE; queue from BOOKS / VIDEO / MUSIC; draw and save a canvas; check STREAM ART's pop-up; HIDE as the house
+   account.
+2. **Draw the art slots.** They show font stand-ins until filed: the CYTUBE icon (`assets/icons/cytube.png`),
+   the canvas tools (pen, eraser, undo, save, the CANVAS key), the crowns (`mark-crown`, `mark-crown-filled`) and
+   the wide up arrow (`mark-up-wide`). Code never draws art.
+3. **Read the CYTUBE ABOUT text**, written by the build session for Luke to check.
+4. **Decide who gets HIDE on STREAM ART.** Today it is the house account (debaser.site, `is_admin()`), not
+   Luke's own account. The spec said "only Luke".
+5. **Feel test of "shake"** (older, from before this run).
+
+# Before that: canvas safety rules, BOOKS / VIDEO / MUSIC order, the three specs filed (2026-11-03)
 - Migration 20261103205948_stream-art-safety.sql (Luke's typed OK, pushed):
   - The `canvas:<room>` broadcast is a private channel; realtime.messages policies let in only signed-in,
     unbanned people while the room is live.
