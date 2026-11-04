@@ -2,6 +2,9 @@
  * Scratch check for the house account (run from the project root):
  *   npx tsc app/lib/forum/post-layout.ts app/lib/auth/mock-auth.ts app/lib/auth/validation.ts app/lib/profile/mock-profile-repository.ts --outDir Temp/site-account-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   npx tsc app/components/PostAuthorRow.tsx --outDir Temp/site-account-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/lib/auth/builtin-account.ts app/lib/auth/mock-auth.ts app/lib/auth/validation.ts app/lib/forum/post-layout.ts app/lib/forum/site-author.ts app/lib/profile/name-colours.ts app/lib/profile/mock-profile-repository.ts --rootDir app/lib --outDir Temp/site-account-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/PostAuthorRow.tsx app/components/AccountForms.tsx app/components/AuthProvider.tsx app/components/PresenceProvider.tsx --rootDir app --outDir Temp/site-account-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-site-account.cjs
  *
  * Proves debaser.site is an account rather than a label:

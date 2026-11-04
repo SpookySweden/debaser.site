@@ -2,6 +2,8 @@
  * Scratch check for the projects structure (run from the project root):
  *   npx tsc app/lib/projects/debaser.ts app/lib/projects/tracks.ts app/lib/projects/notes.ts app/lib/projects/links.ts --outDir Temp/projects-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strict
  *   npx tsc app/components/ProjectSectionNav.tsx app/components/SiteNav.tsx app/components/PresenceProvider.tsx --outDir Temp/projects-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strict
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/components/ProjectSectionNav.tsx app/components/SiteNav.tsx app/components/AuthProvider.tsx app/components/PresenceProvider.tsx app/components/CommsProvider.tsx --rootDir app --outDir Temp/projects-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-projects.cjs
  *
  * Proves the shape the request asked for:

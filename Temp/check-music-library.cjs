@@ -4,6 +4,9 @@ const fs = require('node:fs');
  * The music window's two screens, and which way in lands on which.
  *
  *   npx tsc app/lib/audio/music-window.ts app/lib/ui/window-slot.ts --outDir Temp/music-keys-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/lib/audio/music-window.ts --rootDir app/lib --outDir Temp/music-keys-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/audio/library.ts --rootDir app/lib --outDir Temp/library-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-music-library.cjs
  *
  * This is the check for the wiring rather than the feature: the tables and the pure logic are held by

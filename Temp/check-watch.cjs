@@ -2,6 +2,9 @@
  * Scratch check for watch together (SPEC-watch-together.md), run from the root:
  *   npx tsc app/lib/watch/rules.ts app/lib/watch/watch-window.ts app/lib/watch/mock-watch-repository.ts app/lib/watch/steady-timer.ts app/lib/forum/site-author.ts app/lib/forum/board-query.ts --outDir Temp/watch-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   npx tsc app/components/WatchWindow.tsx app/components/StreamRecord.tsx app/components/StreamChatFolds.tsx --outDir Temp/watch-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/lib/watch/rules.ts app/lib/watch/watch-window.ts app/lib/watch/mock-watch-repository.ts app/lib/forum/site-author.ts app/lib/forum/board-query.ts app/lib/watch/steady-timer.ts --rootDir app/lib --outDir Temp/watch-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/media/catalogue.ts app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/DockWindow.tsx app/components/WatchWindow.tsx app/components/WatchRoom.tsx app/components/StreamQueueWindow.tsx app/components/StreamRecord.tsx app/components/StreamChatFolds.tsx app/lib/watch/watch-window.ts app/lib/watch/use-watch-room.ts --rootDir app --outDir Temp/watch-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-watch.cjs
  *
  * The rules (sync, queue, handover), the mock store (which keeps the database's rules by hand), and the
