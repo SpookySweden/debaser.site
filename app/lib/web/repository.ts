@@ -50,6 +50,8 @@ export type WebRepository = {
    * is hidden or gone; throws when the read itself fails, which a thread must not take for "gone".
    */
   getItem(id: string): Promise<WebItem | null>;
+  /** Claude's words for these items (`web_item_tags`), by item id. An item not tagged yet is simply absent. */
+  itemWords(ids: readonly string[]): Promise<Map<string, string[]>>;
   /**
    * One item by its platform and the platform's own id, for a song's cover card in a room (SPEC-music-queues.md):
    * a WEB audio track names only those. Null when it is not in the stream (never saved, hidden or gone).

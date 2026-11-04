@@ -13,6 +13,9 @@ import type { WebItem, WebItemKind, WebPlatform, WebSource } from './types';
 export const WEB_ITEMS_TABLE = 'web_items';
 export const WEB_SOURCES_TABLE = 'web_sources';
 
+/** Claude's words for an item (`web_item_tags`): only ever orders a list. */
+export const WEB_ITEM_TAG_COLUMNS = 'item_id, words';
+
 export const WEB_ITEM_COLUMNS =
   'id, platform, external_id, kind, url, canonical_url, title, creator, description, thumbnail_url, embed_url, license_url, duration_seconds, tags, published_at, fetched_at, language';
 

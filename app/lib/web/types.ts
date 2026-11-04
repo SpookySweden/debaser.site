@@ -75,6 +75,10 @@ export type WebItem = {
   publishedAt: string;
   /** ISO 8601: when WEB last read it. */
   fetchedAt: string;
+  /** Claude's words for it (`web_item_tags`): only ever order a list, never shown. */
+  pickWords?: readonly string[];
+  /** Which page of the stream it came in, so a list ordered for a reader only reorders within a page. */
+  pickPage?: string;
 };
 
 /** Something WEB reads from: a query, a channel or a feed on one platform. */

@@ -132,7 +132,10 @@ for (const path of ['app/lib/web/supabase-web-repository.ts']) {
   const selects = [...code.matchAll(/\.select\(([^)]*)\)/g)].map((m) => m[1].trim());
   ok(selects.length >= 1, `${path} has its selects`);
   // Updated on purpose 2026-11-01 (SPEC-media-servers.md): the media titles' own list, held by check-web-media-db.cjs.
-  for (const arg of selects) ok(/^WEB_(ITEM|SOURCE|MEDIA)_COLUMNS$/.test(arg), `${path} selects something other than the column lists: .select(${arg})`);
+  // Updated on purpose 2026-11-04 (SPEC-media-picks.md): Claude's words have their own list, held to exactly the two columns
+  // the migration grants.
+  for (const arg of selects) ok(/^WEB_(ITEM|SOURCE|MEDIA|ITEM_TAG)_COLUMNS$/.test(arg), `${path} selects something other than the column lists: .select(${arg})`);
+  ok(/WEB_ITEM_TAG_COLUMNS = 'item_id, words';/.test(read('app/lib/web/rows.ts')), "Claude's words are read by exactly the two columns granted");
   const froms = (code.match(/\.from\(/g) || []).length;
   const reads = (code.match(/\.select\(/g) || []).length;
   const limits = (code.match(/\.limit\(/g) || []).length;

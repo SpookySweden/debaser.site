@@ -98,6 +98,8 @@ export type AuthRepository = {
    * Supabase dashboard) is set.
    */
   signInWithGoogle?(): Promise<AuthResult>;
+  /** Asks Google for leave to read this person's YouTube subscriptions and likes (lib/web/youtube-link.ts). */
+  linkYouTube?(): Promise<AuthResult>;
   /**
    * The accounts this browser can see, which is what the comms "new message"
    * picker offers. Supabase answers with `select id, display_name from profiles`

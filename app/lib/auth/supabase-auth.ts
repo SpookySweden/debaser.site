@@ -20,6 +20,9 @@ import {
 } from './validation';
 import type { CredentialErrors } from './validation';
 
+/** The one Google permission linking YouTube asks for: read only. */
+const YOUTUBE_SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+
 /**
  * Supabase auth backend: real accounts, real sessions.
  *
@@ -138,6 +141,23 @@ class SupabaseAuthRepository implements AuthRepository {
    * client id and secret from Google Cloud, and this site's /account added to the
    * allowed redirect URLs.
    */
+  async linkYouTube(): Promise<AuthResult> {
+    const auth = this.client().auth;
+    const { data } = await auth.getUser();
+    if (!data.user) return { ok: false, error: 'SIGN IN FIRST.' };
+    // Someone who signs in with Google asks that identity again, with its address offered so Google picks the same
+    // account; anyone else links one, so they stay the same account here.
+    const google = (data.user.identities ?? []).find((identity) => identity.provider === 'google');
+    const queryParams: Record<string, string> = { prompt: 'consent' };
+    if (typeof google?.identity_data?.email === 'string') queryParams.login_hint = google.identity_data.email;
+    const options = { redirectTo: `${window.location.origin}/media`, scopes: YOUTUBE_SCOPE, queryParams };
+    const { error } = google
+      ? await auth.signInWithOAuth({ provider: 'google', options })
+      : await auth.linkIdentity({ provider: 'google', options });
+    if (error !== null) return { ok: false, error: error.message.toUpperCase() };
+    return { ok: true, user: null };
+  }
+
   async signInWithGoogle(): Promise<AuthResult> {
     const { error } = await this.client().auth.signInWithOAuth({
       provider: 'google',

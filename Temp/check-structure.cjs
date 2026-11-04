@@ -77,8 +77,8 @@ for (const tool of walk('scripts', (name) => name.endsWith('.cjs'))) {
   }
 }
 
-// (2026-11-04) Left by the follower's retirement (f2613e8). Deleting a file waits for Luke's OK, so it is named here until
-// he answers; anything else left unused still fails, and this entry fails once something uses it or it is gone.
+// (2026-11-04) Left by the follower's retirement (f2613e8). Luke chose on 2026-11-04 to keep it for now, so it is named here;
+// anything else left unused still fails, and this entry fails once something uses it or it is gone.
 const AWAITING_LUKE = new Set(['app/components/BroadcastHeartbeat.tsx']);
 for (const file of AWAITING_LUKE) {
   if (!sources.has(file) || referenced.has(file) || toolReferenced.has(file)) fail(file, 'take it off AWAITING_LUKE');
@@ -266,18 +266,9 @@ for (const check of checks) {
 // forgiven: each is named here and printed on every run, a NEW component with no render still fails, and an entry fails
 // the moment it is covered until it is taken off. Luke was told. The tracked scripts/check-web-*.cjs read some of these
 // as source, which is not a render, so they do not count.
-const OWED_RENDERS = new Set([
-  'app/components/CatCursor.tsx',
-  'app/components/CytubeLiveStreams.tsx',
-  'app/components/CytubePage.tsx',
-  'app/components/MusicRoomKeeper.tsx',
-  'app/components/StreamArtShelf.tsx',
-  'app/components/WebBridgeKeys.tsx',
-  'app/components/WebMediaRow.tsx',
-  'app/components/WebSignInGate.tsx',
-  'app/components/WebSiteFiles.tsx',
-  'app/components/WebStream.tsx',
-]);
+// (2026-11-04) All ten are paid: Temp/check-owed-renders.cjs renders each of them, so the list is empty. It stays as the
+// way to name a debt out loud, rather than forgive one, if a component ever arrives with no render again.
+const OWED_RENDERS = new Set([]);
 const components = files.filter((file) => file.startsWith('app/components/'));
 for (const file of components) {
   if (OWED_RENDERS.has(file)) {

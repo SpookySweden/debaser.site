@@ -330,6 +330,10 @@ class MockAuthRepository implements AuthRepository {
    * the mock backend is this browser's localStorage. It answers with that rather
    * than a dead button, so the UI never claims something happened.
    */
+  async linkYouTube(): Promise<AuthResult> {
+    return { ok: false, error: 'THE MOCK ACCOUNTS HAVE NO GOOGLE TO LINK.' };
+  }
+
   async signInWithGoogle(): Promise<AuthResult> {
     return { ok: false, error: GOOGLE_NEEDS_SUPABASE };
   }

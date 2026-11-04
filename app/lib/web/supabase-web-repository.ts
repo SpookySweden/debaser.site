@@ -10,6 +10,7 @@ import type { WebRepository } from './repository';
 import type { WebItem } from './types';
 import {
   WEB_ITEM_COLUMNS,
+  WEB_ITEM_TAG_COLUMNS,
   WEB_ITEMS_TABLE,
   WEB_SOURCE_COLUMNS,
   WEB_SOURCES_TABLE,
@@ -237,6 +238,17 @@ export function createSupabaseWebRepository(getClient: GetClient): WebRepository
       const authors = authorList(from);
       if (text === null && authors === null) return { items: [], nextCursor: null };
       return listRows(getClient, cursor, limit, { text, author: authors === null ? null : authorPattern(authors), ...(anyWord ? { anyWord: true } : {}), ...(oldestFirst ? { direction: 'asc' as const } : {}) });
+    },
+    async itemWords(ids) {
+      const client = getClient();
+      if (!client || ids.length === 0) return new Map<string, string[]>();
+      const { data, error } = await client
+        .from('web_item_tags')
+        .select(WEB_ITEM_TAG_COLUMNS)
+        .in('item_id', [...ids])
+        .limit(ids.length);
+      if (error) throw new Error(READ_FAILED);
+      return new Map(((data ?? []) as { item_id: string; words: string[] | null }[]).map((row) => [row.item_id, row.words ?? []]));
     },
     async listSources() {
       const client = getClient();

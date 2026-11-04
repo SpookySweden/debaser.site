@@ -131,4 +131,13 @@ ok(!/transition|animate-/.test(page.slice(page.indexOf('role="group" aria-label=
 ok(/role="group" aria-label="Sort"/.test(page) && /SORT_OPTIONS\.map/.test(page) && /aria-pressed=\{boxSort\.sort === option\.value\}/.test(page), 'the SORT keys are drawn from the choices and say which is on');
 ok(/disabled=\{boxSort\.sort !== 'date'\}/.test(page), 'the flip key works on DATE only, and is disabled (with its reason in its name) otherwise');
 
+// The IMDB key (Luke, 2026-11-04): above the SOURCE choices, centred, and it is the KINO filter.
+const imdbKey = page.indexOf('data-imdb-key');
+ok(imdbKey !== -1 && imdbKey < page.indexOf('role="group" aria-label="Source"'), 'the IMDB key sits above the SOURCE choices');
+ok(/flex justify-center">\s*<button\s+type="button"\s+onClick=\{\(\) => pickFilter\('in', 'kino'\)\}/.test(page), 'centred, and it filters to KINO');
+ok(
+  require('node:fs').readFileSync('next.config.ts', 'utf8').includes("{ source: '/cytube', destination: '/stream', permanent: true }"),
+  'an old /cytube address lands on /stream',
+);
+
 asserts.done();

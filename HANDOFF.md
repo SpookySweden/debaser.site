@@ -25,6 +25,9 @@ Older notes: `docs/handoff-archive.md`, newest first. Search it when a past deci
 - `npm run verify:clean` verifies your commit away from someone else's half-done files.
 
 ## Needs Luke
+0. **MEDIA picks (SPEC-media-picks.md):** a newly made Claude key in Vercel as `ANTHROPIC_API_KEY`, or tagging stays idle.
+   For YouTube: the Google Cloud and Supabase steps in that spec, then `NEXT_PUBLIC_GOOGLE_VIDEOS_LINK=on`. Neither job has
+   run against the real services yet, so the first batch and first link need watching.
 1. **Draw the art slots.** They show font stand-ins until filed: the CYTUBE icon (`assets/icons/cytube.png`), the canvas
    tools (pen, eraser, undo, save, the CANVAS key), the crowns (`mark-crown`, `mark-crown-filled`), the wide up arrow
    (`mark-up-wide`). Code never draws art.

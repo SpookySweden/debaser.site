@@ -7,7 +7,11 @@ import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED } from '../li
 import { seriesMark } from '../lib/watch/series';
 import { useArchiveRowSubtitles, useSeriesCount } from '../lib/watch/series-client';
 import type { WebStreamItem } from '../lib/web/dedupe';
-import { DEFAULT_PAGE_SIZE } from '../lib/web/paging';
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from '../lib/web/paging';
+import { pickSeed, recommendOrder, withOpened } from '../lib/web/recommend';
+import { noteOpened, readTaste } from '../lib/web/taste-store';
+import { forgetYouTube, readMine, rememberLinker, YOUTUBE_LINK_ON } from '../lib/web/youtube-link';
+import { getAuthRepository } from '../lib/auth/auth-repository';
 import { EverywhereError, loadPeertubeHosts, loadRelated, needsPeertubeHosts, searchEverywhere, type LinkOutcome, type ProviderLine, type Related } from '../lib/web/everywhere-client';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { arrive, compareIn, EMPTY_LIVE, emptyLive, freeze, heldBack, lanesToAsk, release, type ListOrder, type LiveList } from '../lib/web/live-merge';
@@ -99,7 +103,8 @@ type Filters = Pick<WebSearch, 'source' | 'type' | 'authors' | 'vibe' | 'sort'>;
  * What the list shows: the stream (no words; filtered when filters are set), one search (the saved stream and
  * every live source the filters allow, together; its words may be none when it names a creator), or one pasted link.
  */
-type Shown = { kind: 'stream'; filters: Filters } | { kind: 'search'; query: string; filters: Filters } | { kind: 'link'; link: string };
+/** `picked`: a search the page chose because the stream had nothing to show (recommend.ts). The box stays empty. */
+type Shown = { kind: 'stream'; filters: Filters } | { kind: 'search'; query: string; filters: Filters; picked?: boolean } | { kind: 'link'; link: string };
 
 /** Who a search is still waiting on: the saved stream, or a live source. */
 type Source = 'stream' | WebPlatform;
@@ -189,7 +194,12 @@ function readSource(source: Source, what: Shown, after: string | null, keyword?:
           ...(what.filters.vibe ? { anyWord: true } : {}),
           ...(order === 'oldest' ? { oldestFirst: true } : {}),
         })
-      : repository.listItems({ cursor: after, limit: DEFAULT_PAGE_SIZE });
+      : // A whole page to choose from, since this list is ordered by what suits the reader, with Claude's words for each row.
+        // Words that cannot be read only make the order plainer; they never stop the list.
+        repository.listItems({ cursor: after, limit: MAX_PAGE_SIZE }).then(async (page) => {
+          const words = await repository.itemWords(page.items.map((item) => item.id)).catch(() => new Map<string, string[]>());
+          return { ...page, items: page.items.map((item) => ({ ...item, pickWords: words.get(item.id), pickPage: after ?? '' })) };
+        });
   }
   if (what.kind === 'link') return searchEverywhere(what.link, after);
   // A live source is asked about one creator at a time: the first.
@@ -256,6 +266,40 @@ export default function WebStream() {
   const [related, setRelated] = useState<Related | null>(null);
   /** Every source has answered the search's first page once: only then may a related section load. */
   const [firstRoundDone, setFirstRoundDone] = useState(false);
+  /** What this reader has opened in this browser, read once so the list holds still while they look at it. */
+  const [savedTaste] = useState(readTaste);
+  /** A linked YouTube account's uploads and likes (youtube-link.ts), which also teach this visit's order. */
+  const [mine, setMine] = useState<readonly WebItem[]>([]);
+  const [mineNeedsLink, setMineNeedsLink] = useState(false);
+  const [linkProblem, setLinkProblem] = useState<string | null>(null);
+  const taste = useMemo(() => mine.reduce((sum, item) => withOpened(sum, item), savedTaste), [mine, savedTaste]);
+  useEffect(() => {
+    if (!YOUTUBE_LINK_ON) return;
+    let live = true;
+    void readMine().then((answer) => {
+      if (!live) return;
+      setMine(answer.items);
+      setMineNeedsLink(answer.needsLink);
+      if (answer.wrongAccount) setLinkProblem('THAT GOOGLE ACCOUNT BELONGS TO ANOTHER ACCOUNT HERE, AND YOU ARE NOW SIGNED IN AS IT.');
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+  const linkYouTube = async () => {
+    setLinkProblem(null);
+    await rememberLinker();
+    const result = await getAuthRepository().linkYouTube?.();
+    if (result !== undefined && !result.ok) setLinkProblem(result.error);
+  };
+  const unlinkYouTube = () => {
+    forgetYouTube();
+    setMine([]);
+    setMineNeedsLink(true);
+  };
+  const [openedAt] = useState(() => Date.now());
+  /** The words already tried for this filter when the stream had nothing (recommend.ts `pickSeed`). */
+  const [tried, setTried] = useState<ReadonlySet<string>>(() => new Set());
   /** The site's own files the search finds (DEBASER.SITE), from the catalogue the whole site shares. */
   const catalogue = useCatalogue();
   const siteFiles = useMemo(
@@ -265,7 +309,7 @@ export default function WebStream() {
 
   /** Asks for the search's suggestion and related topics; a new search drops a late answer. */
   const askRelated = useCallback((asked: number, what: Shown) => {
-    if (what.kind !== 'search' || what.query === '') return;
+    if (what.kind !== 'search' || what.query === '' || what.picked) return;
     void loadRelated(what.query, what.filters.source === 'kino').then((answer) => {
       if (asked === generation.current) setRelated(answer);
     });
@@ -337,9 +381,8 @@ export default function WebStream() {
   );
 
   /** Starts over with what a box says, and puts it in the address so the search can be shared. */
-  const restart = useCallback(
-    (box: string) => {
-      const next = requestFor(box);
+  const start = useCallback(
+    (next: Shown, box: string | null) => {
       setArt(false);
       generation.current += 1;
       const asked = generation.current;
@@ -363,9 +406,26 @@ export default function WebStream() {
       setAsking(sources);
       for (const source of sources) ask(asked, source, next, null, false);
       askRelated(asked, next);
-      window.history.replaceState(window.history.state, '', next.kind === 'link' ? searchAddress({ text: next.link, source: 'all', type: 'all' }) : searchAddress(parseWebSearch(box)));
+      if (box !== null) window.history.replaceState(window.history.state, '', next.kind === 'link' ? searchAddress({ text: next.link, source: 'all', type: 'all' }) : searchAddress(parseWebSearch(box)));
     },
     [ask, askRelated],
+  );
+
+  const restart = useCallback(
+    (box: string) => {
+      setTried(new Set());
+      start(requestFor(box), box);
+    },
+    [start],
+  );
+
+  /** Shows what a word finds, without touching the box or the address: the reader has not searched for anything. */
+  const browseWith = useCallback(
+    (seed: string, filters: Filters) => {
+      setTried((current) => new Set([...current, seed]));
+      start({ kind: 'search', query: seed, filters: { ...filters, ...(filters.source === 'kino' ? { vibe: true as const } : {}) }, picked: true }, null);
+    },
+    [start],
   );
 
   // The first answer: the address's search, or the stream. The state above already starts as "asking" them.
@@ -523,15 +583,52 @@ export default function WebStream() {
   const filtered = shown.kind !== 'stream' || shown.filters.source !== 'all' || shown.filters.type !== 'all';
   const busy = asking.length > 0 || target !== null;
   const unsorted = unsortedFor(shown);
+  // The plain stream under BEST MATCH, ordered for this reader a page at a time, so LOAD MORE adds below and never moves
+  // a row they are looking at. DATE and POPULAR keep their own order.
+  const picksOrdered = shown.kind === 'stream' && sortOf(shown.filters).sort === 'best';
+  const drawn = useMemo(() => {
+    if (!picksOrdered) return list.shown;
+    // By the page each row came in, not by counting: filters can leave a page with any number of rows.
+    const pages = new Map<string, WebStreamItem[]>();
+    for (const item of list.shown) {
+      const key = item.pickPage ?? '';
+      pages.set(key, [...(pages.get(key) ?? []), item]);
+    }
+    const words = new Map(list.shown.map((item) => [item.id, item.pickWords ?? []]));
+    return [...pages.values()].flatMap((page) => recommendOrder(page, taste, (id) => words.get(id) ?? [], openedAt));
+  }, [picksOrdered, list.shown, taste, openedAt]);
   const empty = list.shown.length === 0 && list.held.length === 0;
   // By date, only once the first top-up has been decided, so the related sections start below a settled list.
   if (!busy && !firstRoundDone && (!sortedByDate || toppedUp)) setFirstRoundDone(true);
 
+  // Not searched yet and nothing to show: the page asks a live source for something rather than draw an empty list
+  // (Luke, 2026-11-04). Only an honest last line once every word has been tried.
+  const browsing = !art && (shown.kind === 'stream' || (shown.kind === 'search' && shown.picked === true));
+  const browsed = shown.kind === 'link' ? null : shown.filters;
+  const nextSeed =
+    browsing && browsed !== null && empty && !busy && !failed
+      ? pickSeed({ kino: browsed.source === 'kino', kind: browsed.type }, taste, tried, openedAt)
+      : null;
+  useEffect(() => {
+    if (nextSeed === null || browsed === null) return;
+    // Starting a fetch is what this effect is for: the list's state moves to "asking" as it does, as `restart` does.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    browseWith(nextSeed, browsed);
+    // Runs when the next word changes; the filters are read as they stand then.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nextSeed]);
+
+  const mineRows = useMemo(() => {
+    if (browsed === null) return [];
+    return mine.filter((item) => matchesFilters(item, browsed, false)).slice(0, 6).map((item): WebStreamItem => ({ ...item, alsoOn: [] }));
+  }, [mine, browsed]);
+
   const emptyWords = (): string | null => {
+    if (nextSeed !== null || (browsing && busy)) return 'READING MEDIA...';
+    if (browsing) return 'NOTHING TO SHOW HERE YET. TYPE WORDS TO SEARCH.';
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
     if (busy) return shown.kind === 'stream' ? 'READING MEDIA...' : null;
-    if (shown.kind === 'stream' && !sourcesToAsk(shown.filters).stream) return `TYPE WORDS TO SEARCH ${sourceLabel(shown.filters.source as WebPlatform)}.`;
-    if (shown.kind === 'stream') return filtered ? 'NOTHING SAVED MATCHES.' : 'NOTHING YET.';
+    if (shown.kind === 'stream') return null;
     return `NOTHING ${siteFiles.length > 0 ? 'ELSE ' : ''}MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
   };
   const emptyLine = empty && !failed ? emptyWords() : null;
@@ -619,6 +716,21 @@ export default function WebStream() {
 
       {/* The filters, as keys. Each writes its filter into the box above, which stays the one truth. */}
       <div className="mb-2 space-y-1">
+        {/* Luke, 2026-11-04: a way into films and shows above the choices, centred. It is the KINO source, so its
+            titles and details are TMDB's; the title says so, since the key's word is IMDB's. */}
+        <div className="flex justify-center">
+          <button
+            type="button"
+            onClick={() => pickFilter('in', 'kino')}
+            aria-pressed={!art && boxFilters.source === 'kino'}
+            aria-label="IMDB: search films and shows, the same as the KINO source"
+            title="Films and shows. Same as KINO; the titles come from TMDB."
+            className={!art && boxFilters.source === 'kino' ? PLATE_PRESSED : PLATE}
+            data-imdb-key
+          >
+            [ IMDB ]
+          </button>
+        </div>
         <div role="group" aria-label="Source" className="flex flex-wrap items-center gap-1">
           <span className="text-label font-bold text-ink-quiet">SOURCE:</span>
           {SOURCE_OPTIONS.map((option) => (
@@ -780,9 +892,30 @@ export default function WebStream() {
         </div>
       ) : null}
 
+      {YOUTUBE_LINK_ON && browsing ? (
+        <div className="mb-2 flex flex-wrap items-center gap-1 text-label font-bold text-ink-quiet">
+          <span>YOUR YOUTUBE:</span>
+          {mine.length === 0 || mineNeedsLink ? (
+            <button type="button" onClick={() => void linkYouTube()} className={PLATE} data-youtube-link>
+              [ LINK YOUTUBE ]
+            </button>
+          ) : (
+            <button type="button" onClick={unlinkYouTube} className={PLATE}>
+              [ UNLINK ]
+            </button>
+          )}
+          {linkProblem !== null ? <span role="alert">{linkProblem}</span> : null}
+        </div>
+      ) : null}
+      {YOUTUBE_LINK_ON && browsing && browsed !== null && mineRows.length > 0 ? (
+        <ul aria-label="From your YouTube" className="mb-2">
+          {mineRows.map(renderRow)}
+        </ul>
+      ) : null}
+      {browsing && list.shown.length > 0 ? <p className="text-label font-bold text-ink-quiet">PICKED FOR YOU</p> : null}
       {list.shown.length === 0 ? null : (
-        <ul aria-label={shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
-          {list.shown.map(renderRow)}
+        <ul aria-label={picksOrdered ? 'Items picked for you' : shown.kind === 'stream' ? 'Items, newest first' : `Results, ${list.order.kind === 'turns' ? 'each site in turn' : list.order.dir === 'asc' ? 'oldest first' : 'newest first'}`}>
+          {drawn.map(renderRow)}
         </ul>
       )}
 
@@ -957,6 +1090,7 @@ function WebRow({
   const [thumbFailed, setThumbFailed] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
   const opened = () => {
+    noteOpened(item, item.pickWords ?? []);
     if (found) void recordOpened(item);
   };
 

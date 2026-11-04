@@ -243,6 +243,10 @@ export function getMockWebRepository(): WebRepository {
     async listSources() {
       return MOCK_WEB_SOURCES.map((source) => ({ ...source }));
     },
+    async itemWords() {
+      // The mock has no batch job behind it, so its rows are ordered by their own tags alone.
+      return new Map<string, string[]>();
+    },
     async getItem(id) {
       const item = MOCK_WEB_ITEMS.find((candidate) => candidate.id === id);
       return item === undefined ? null : { ...item };

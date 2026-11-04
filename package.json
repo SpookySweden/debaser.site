@@ -42,6 +42,7 @@
     "tokens": "node scripts/check-tokens.cjs"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.5.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.8.1",
     "@supabase/supabase-js": "^2.116.0",
