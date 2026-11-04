@@ -833,7 +833,7 @@ export default function WebStream() {
           {emptyLine}
         </p>
       ) : null}
-      {!empty && shown.kind !== 'stream' ? (
+      {!empty && shown.kind !== 'stream' && !browsing ? (
         <p className="text-label font-bold text-ink-quiet wrap-anywhere">
           {shown.kind === 'link'
             ? LINK_WORDS.found

@@ -86,6 +86,7 @@ assert.match(page, /noteOpened\(item, item\.pickWords \?\? \[\]\)/, 'opening a r
 assert.match(page, /picked: true \}, null\)/, 'a picked search writes nothing to the address');
 assert.doesNotMatch(page, /'NOTHING YET\.'/, 'the old empty line has gone from the picks');
 assert.match(page, /what\.query === '' \|\| what\.picked/, 'a picked word asks for no DID YOU MEAN');
+assert.match(page, /!empty && shown\.kind !== 'stream' && !browsing \?/, 'and is never called RESULTS FOR: the reader searched for nothing');
 const tasteStore = fs.readFileSync('app/lib/web/taste-store.ts', 'utf8');
 assert.doesNotMatch(tasteStore, /fetch\(|getClient|supabase/, 'a reader\'s taste stays in their browser');
 
