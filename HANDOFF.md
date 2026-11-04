@@ -8,6 +8,13 @@
   the desktop's versions were brought up to date with the laptop's code on 2026-11-04.
 - `.env.test` is on the desktop and sign-in works there, so the signed-in live drive listed below can be done from
   it. The `drive-*` scripts for it are only on the laptop: they are one-off tools and stay untracked unless Luke says.
+- Waiting on Luke: delete `BroadcastHeartbeat.tsx` (check-structure's AWAITING_LUKE), and possibly QueueFollower and
+  QueueProfilePopout, which only a check still reads. Whether the live house account's password is the `ADMIN1212`
+  written in the public `builtin-account.ts` (its comment says to change it before real use): only Luke can check.
+- Owed: ten components have no render (check-structure's OWED_RENDERS), and check-queues still holds retired follow code.
+- `npm run shot -- --mobile` is not what a phone shows since the fixed 1280px viewport: it drew a narrow layout tiny in
+  a corner, while the app's Browser pane drew the 1280 desktop, zoomed in on the top-left. Neither is a real phone.
+- /forum says THE BOARD IS EMPTY for a moment while the posts load (seen once signed out on a slow first load).
 - The desktop's pre-restart history is on its local branch `backup/desktop-main-2026-11-03`. Never push it: the
   reason GitHub's history was restarted on 2026-11-01 is not recorded, and it may have been to remove something.
 
