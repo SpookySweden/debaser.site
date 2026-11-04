@@ -11,7 +11,7 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
-import { keepsKind, queueSearchPlan } from '../lib/watch/blank-screen';
+import { keepsKind, QUEUE_SOURCES, queueSearchPlan } from '../lib/watch/blank-screen';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   additionUnits,
@@ -40,8 +40,10 @@ import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
+import { authorList, matchesAuthor } from '../lib/web/search';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
-import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
+import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
+import { searchOrder } from '../lib/web/web-sort';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { songLink, songMatches, trackForSong } from '../lib/watch/songs';
 import { listLinks, playedSinceCleared, storedListItems, storedListName } from '../lib/watch/music-rooms';
@@ -55,6 +57,7 @@ import InfoFold from './InfoFold';
 import { EntryLanguageFlags, EpisodeLanguageFlag, SeriesLanguageFlags, WithSeriesAudio } from './QueueLanguageFlags';
 import PopoutWindow from './PopoutWindow';
 import ProfileName from './ProfileName';
+import QueueSearchFilters from './QueueSearchFilters';
 import SpriteSlot from './SpriteSlot';
 
 /** The archive row's stand-in picture (`web-thumb-missing`), for a result whose platform gives none. */
@@ -132,10 +135,14 @@ function isAddress(text: string): boolean {
   return /^https?:\/\//i.test(text.trim());
 }
 
-/** Our own videos whose title has every word in it; no words, all of them. */
-function ourMatches(videos: MediaItem[], words: string): MediaItem[] {
+/** Our own videos whose title has every word in it (VIBE: any one); no words, all of them. `from:` keeps a file by its credit or filer, as the archive page does. */
+function ourMatches(videos: MediaItem[], words: string, anyWord: boolean, authors: readonly (readonly string[])[] | null): MediaItem[] {
   const wanted = words.toLowerCase().split(/\s+/).filter((word) => word.length > 0);
-  return videos.filter((video) => wanted.every((word) => video.title.toLowerCase().includes(word)));
+  return videos.filter((video) => {
+    const hit = (word: string) => video.title.toLowerCase().includes(word);
+    if (wanted.length > 0 && !(anyWord ? wanted.some(hit) : wanted.every(hit))) return false;
+    return authors === null || matchesAuthor({ creator: video.credit }, authors) || matchesAuthor({ creator: video.uploadedByLabel }, authors);
+  });
 }
 
 /**
@@ -288,6 +295,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   const [nameTyped, setNameTyped] = useState(false);
   const [linkState, setLinkState] = useState<LinkState>({ kind: 'idle' });
   const [search, setSearch] = useState<Search>({ kind: 'none' });
+  const searchBar = useRef<HTMLInputElement>(null);
   const address = isAddress(text);
   // A series link (an archive.org `details` page, a YouTube playlist) is read and ticked in a pop-up instead.
   const seriesTarget = address ? seriesTargetOf(text) : null;
@@ -451,20 +459,32 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     setProblem(null);
     if (cursor === null) setSearch({ kind: 'searching', words: trimmed });
     else setSearch((current) => (current.kind === 'found' ? { ...current, loadingMore: true } : current));
-    // A filter word (`type:video`, `type:music`, `type:books`, which a blank screen's keys fill in) decides
-    // which of the site's files are listed and what the archive is asked (lib/watch/blank-screen.ts).
+    // The filter words (a blank screen's keys, the filter rows, or typed: `type:video`, `in:youtube`, `from:`, `vibe:on`,
+    // `sort:popular`) decide which of the site's files are listed and what the archive is asked (lib/watch/blank-screen.ts).
     const plan = queueSearchPlan(trimmed);
-    const ours = plan.site.videos ? ourMatches(videos, plan.words) : [];
-    const songs = plan.site.songs ? songMatches(shelf, plan.words) : [];
+    const authors = authorList(plan.authors);
+    const ours = plan.site.videos ? ourMatches(videos, plan.words, plan.vibe, authors) : [];
+    const songs = plan.site.songs ? songMatches(shelf, plan.words, undefined, { listAll: plan.preset === 'music', anyWord: plan.vibe, authors }) : [];
     // No words: only what the site holds (the archive's other sources need something to look for).
     const ask = plan.ask;
     if (ask === null) {
+      // One source and no words: nothing to list at all, so the bar asks for some rather than saying NOTHING FOUND.
+      if (!plan.site.videos && !plan.site.songs) {
+        setSearch({ kind: 'none' });
+        setProblem('TYPE WHAT TO LOOK FOR.');
+        return;
+      }
       setSearch({ kind: 'found', words: trimmed, ours, songs, web: [], problems: [], next: null, loadingMore: false });
       return;
     }
     try {
-      const page = await searchEverywhere(ask.words, cursor, undefined, null, ask.type);
+      const page = await searchEverywhere(ask.words, cursor, plan.source === 'all' ? undefined : (plan.source as WebPlatform), plan.authors[0] ?? null, ask.type, {
+        vibe: plan.vibe,
+        order: searchOrder(plan.sort),
+      });
       if (run !== searchRun.current) return;
+      // A source a room cannot play from is still asked in an ALL search; its rows are never listed, so nor is its line.
+      const problems = page.problems.filter((line) => QUEUE_SOURCES.some((option) => option.value === line.platform));
       // Videos a room can play, and audio the music bar streams from its platform (a song row).
       const web = page.items.filter((item) => {
         if (!keepsKind(ask.keep, item.kind)) return false;
@@ -475,7 +495,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       setSearch((current) =>
         cursor !== null && current.kind === 'found'
           ? { ...current, web: [...current.web, ...web.filter((item) => !current.web.some((known) => known.id === item.id))], next: page.nextCursor, loadingMore: false }
-          : { kind: 'found', words: trimmed, ours, songs, web, problems: page.problems, next: page.nextCursor, loadingMore: false },
+          : { kind: 'found', words: trimmed, ours, songs, web, problems, next: page.nextCursor, loadingMore: false },
       );
     } catch (failure) {
       if (run !== searchRun.current) return;
@@ -493,6 +513,15 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   function backToAdditions() {
     searchRun.current += 1;
     setSearch({ kind: 'none' });
+  }
+
+  /** A filter key: its word goes into the bar and the search runs again, as on the archive page. */
+  function pickFilter(next: string) {
+    type(next);
+    void find(next);
+    // A source with nothing typed has nothing to search yet: the caret goes where the words go.
+    const plan = queueSearchPlan(next);
+    if (plan.ask === null && !plan.site.videos && !plan.site.songs) searchBar.current?.focus();
   }
 
   // A blank screen's key opened the window with its search filled in: it runs once, as if it had been typed.
@@ -767,6 +796,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 Search the archive or paste a video link
               </label>
               <input
+                ref={searchBar}
                 id="stream-queue-search"
                 type="search"
                 value={text}
@@ -822,6 +852,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                 ' '
               )}
             </p>
+            <QueueSearchFilters bar={text} disabled={address} onPick={pickFilter} />
           </form>
         ) : read.room.endedAt === null && userId === null ? (
           <p className="font-bold">

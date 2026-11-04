@@ -1,4 +1,5 @@
 import type { AudioTrack } from '../audio/tracks';
+import { matchesAuthor } from '../web/search';
 import type { WatchLink, WatchQueueEntry } from './types';
 
 /**
@@ -44,15 +45,24 @@ export function trackForSong(link: WatchLink, shelf: readonly AudioTrack[], look
 }
 
 /** The site's own songs whose title or credit has every word in it; no words, none (the shelf is long). */
-export function songMatches(shelf: readonly AudioTrack[], words: string, limit = 30): AudioTrack[] {
+export function songMatches(
+  shelf: readonly AudioTrack[],
+  words: string,
+  limit = 30,
+  /** The queue search's filters: `listAll`, no words lists every song (MUSIC with nothing typed); `anyWord`, VIBE; `authors`, `from:`. */
+  filters: { listAll?: boolean; anyWord?: boolean; authors?: readonly (readonly string[])[] | null } = {},
+): AudioTrack[] {
   const wanted = words.toLowerCase().split(/\s+/).filter((word) => word.length > 0);
-  if (wanted.length === 0) return [];
+  const authors = filters.authors ?? null;
+  if (wanted.length === 0 && authors === null && filters.listAll !== true) return [];
   const seen = new Set<string>();
   const found: AudioTrack[] = [];
   for (const track of shelf) {
     if (track.shelf === 'web' || seen.has(track.src)) continue;
     const text = `${track.title} ${track.credit}`.toLowerCase();
-    if (!wanted.every((word) => text.includes(word))) continue;
+    const hit = (word: string) => text.includes(word);
+    if (wanted.length > 0 && !(filters.anyWord ? wanted.some(hit) : wanted.every(hit))) continue;
+    if (authors !== null && !matchesAuthor({ creator: track.credit }, authors)) continue;
     seen.add(track.src);
     found.push(track);
     if (found.length >= limit) break;

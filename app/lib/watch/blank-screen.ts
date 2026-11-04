@@ -1,3 +1,8 @@
+import { WATCH_KIND_BY_PLATFORM } from '../web/bridges';
+import type { WebPlatform } from '../web/types';
+import { isBarAudioPlatform } from '../web/web-audio';
+import { authorsOf, formatWebSearch, LIVE_SOURCE_KINDS, parseWebSearch, SOURCE_OPTIONS, sortOf, withFilter, type FilterKey, type SourceValue } from '../web/web-filters';
+import type { SortChoice } from '../web/web-sort';
 import { nextToPlay } from './rules';
 import type { WatchQueueEntry, WatchRoom } from './types';
 
@@ -34,48 +39,110 @@ export type KeepKinds = 'video' | 'audio' | 'both';
 export type QueueAsk = { words: string; type: 'all' | 'video' | 'audio'; keep: KeepKinds };
 
 export type QueueSearchPlan = {
-  /** The words, with the filter word taken out. */
+  /** The words, with the filter words taken out. */
   words: string;
   preset: BlankKey | null;
   /** Which of the site's own files are listed first: its videos, its songs. */
   site: { videos: boolean; songs: boolean };
-  /** The archive search to run, or null: no words, so only the site's own files (BOOKS always asks). */
+  /** The archive search to run, or null: nothing to look for, so only the site's own files (BOOKS always asks). */
   ask: QueueAsk | null;
+  /** `in:`, one of `QUEUE_SOURCES`; a source a room cannot play from reads as ALL. */
+  source: SourceValue;
+  /** `from:` creators as typed (the live search asks about the first, as the archive page's does). */
+  authors: readonly string[];
+  /** `vibe:on`: mood and tag words. */
+  vibe: boolean;
+  /** `sort:`, in the archive page's terms. */
+  sort: SortChoice;
 };
 
-const PRESET = /(^|\s)type:(video|music|books)(?=\s|$)/gi;
+/** `type:audio` is the archive page's word for what the queue calls MUSIC. */
+const PRESET = /(^|\s)type:(video|music|audio|books)(?=\s|$)/gi;
 
 /** A word that marks an audiobook, added to a BOOKS search so YouTube and the Archive find the read-aloud ones. */
 export const AUDIOBOOK_WORD = 'audiobook';
 
 /**
+ * A live source a room can play from: a video its player or an official embed takes, or audio the music bar streams.
+ * The others find nothing a room can use, and PODCAST is the saved stream's, which the queue search does not read.
+ */
+function roomPlays(platform: WebPlatform): boolean {
+  const kinds = LIVE_SOURCE_KINDS[platform] ?? [];
+  return (WATCH_KIND_BY_PLATFORM[platform] !== null && kinds.includes('video')) || (isBarAudioPlatform(platform) && kinds.includes('audio'));
+}
+
+/** The queue search's SOURCE keys (Luke, 2026-11-04: "similar search filters" to the archive's), from the registries. */
+export const QUEUE_SOURCES: readonly { value: SourceValue; label: string }[] = SOURCE_OPTIONS.filter(
+  (option) => option.value === 'all' || (option.value in LIVE_SOURCE_KINDS && roomPlays(option.value)),
+);
+
+/** The TYPE keys: the blank screen's three, in Luke's order, behind ALL. A room cannot play a picture or a text. */
+export const QUEUE_TYPES: readonly { value: BlankKey | 'all'; label: string }[] = [
+  { value: 'all', label: 'ALL' },
+  ...BLANK_KEYS.map(({ key, label }) => ({ value: key, label })),
+];
+
+function isQueueSource(value: SourceValue): boolean {
+  return QUEUE_SOURCES.some((option) => option.value === value);
+}
+
+/** The bar's `type:` word (the last wins) and the rest of the bar. */
+function takePreset(bar: string): { preset: BlankKey | null; rest: string } {
+  let preset: BlankKey | null = null;
+  const rest = bar
+    .replace(PRESET, (_whole, space: string, word: string) => {
+      const said = word.toLowerCase();
+      preset = (said === 'audio' ? 'music' : said) as BlankKey;
+      return space;
+    })
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { preset: preset as BlankKey | null, rest };
+}
+
+/**
  * How the queue window searches for what is in its bar.
  *
- * - No filter word: as before - the site's videos and songs, and (with words) every archive row the room can play.
+ * - No `type:` word: as before - the site's videos and songs, and (with words) every archive row the room can play.
  * - `type:video`: the site's videos; the archive asked for videos only.
  * - `type:music`: the site's songs; the archive's audio, and its videos too - a song or an album uploaded as a
  *   video (YouTube) is music the room plays in the picture.
  * - `type:books`: audiobooks, as audio and as video (read-aloud books on YouTube), found by adding the word
  *   "audiobook" to the words; with no words it lists audiobooks at large. A book's text cannot play in a room,
  *   so text rows are never listed.
+ * - `in:`, `from:`, `vibe:` and `sort:` read as on the archive page (web-filters.ts). As there, the site's own files
+ *   are for a search with SOURCE ALL; one source is about that source.
  */
 export function queueSearchPlan(bar: string): QueueSearchPlan {
-  let preset: BlankKey | null = null;
-  const words = bar
-    .replace(PRESET, (_whole, space: string, word: string) => {
-      preset = word.toLowerCase() as BlankKey;
-      return space;
-    })
-    .replace(/\s+/g, ' ')
-    .trim();
-  const chosen = preset as BlankKey | null;
-  if (chosen === 'video') return { words, preset: chosen, site: { videos: true, songs: false }, ask: words.length === 0 ? null : { words, type: 'video', keep: 'video' } };
-  if (chosen === 'music') return { words, preset: chosen, site: { videos: false, songs: true }, ask: words.length === 0 ? null : { words, type: 'all', keep: 'both' } };
-  if (chosen === 'books') {
+  const { preset, rest } = takePreset(bar);
+  const typed = parseWebSearch(rest);
+  const words = typed.text;
+  const authors = authorsOf(typed);
+  const source = isQueueSource(typed.source) ? typed.source : 'all';
+  const anywhere = source === 'all';
+  const filters = { source, authors, vibe: typed.vibe === true, sort: sortOf(typed) };
+  // A creator is something to look for, with no words at all.
+  const empty = words.length === 0 && authors.length === 0;
+  if (preset === 'video') return { words, preset, site: { videos: anywhere, songs: false }, ask: empty ? null : { words, type: 'video', keep: 'video' }, ...filters };
+  if (preset === 'music') return { words, preset, site: { videos: false, songs: anywhere }, ask: empty ? null : { words, type: 'all', keep: 'both' }, ...filters };
+  if (preset === 'books') {
     const asked = words.length === 0 ? AUDIOBOOK_WORD : `${words} ${AUDIOBOOK_WORD}`;
-    return { words, preset: chosen, site: { videos: false, songs: false }, ask: { words: asked, type: 'all', keep: 'both' } };
+    return { words, preset, site: { videos: false, songs: false }, ask: { words: asked, type: 'all', keep: 'both' }, ...filters };
   }
-  return { words, preset: null, site: { videos: true, songs: true }, ask: words.length === 0 ? null : { words, type: 'all', keep: 'both' } };
+  return { words, preset: null, site: { videos: anywhere, songs: anywhere }, ask: empty ? null : { words, type: 'all', keep: 'both' }, ...filters };
+}
+
+/**
+ * A filter key pressed: the bar with that filter set (or taken out, for ALL and the defaults), its words untouched,
+ * and any filter the queue does not read (`type:image`, `in:kino`) tidied away. The bar stays the one truth, as on the
+ * archive page. `type:` goes first, where a blank screen's key puts it.
+ */
+export function withQueueFilter(bar: string, key: FilterKey, value: string): string {
+  const { preset, rest } = takePreset(bar);
+  const chosen = key === 'type' ? (QUEUE_TYPES.find((option) => option.value === value && option.value !== 'all')?.value as BlankKey | undefined) ?? null : preset;
+  const typed = parseWebSearch(key === 'type' ? rest : withFilter(rest, key, value));
+  const others = formatWebSearch({ ...typed, type: 'all', source: isQueueSource(typed.source) ? typed.source : 'all' });
+  return [chosen === null ? '' : `type:${chosen}`, others].filter((part) => part.length > 0).join(' ');
 }
 
 /** Whether a row of one of the plan's searches is kept. */
