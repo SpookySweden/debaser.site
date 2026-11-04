@@ -90,18 +90,29 @@ const FULL_RUN_DAYS = 7;
 if (CHANGED) {
   const changed = changedFiles();
   const inRepo = files.map(({ dir, name }) => ({ name, path: relative(ROOT, join(dir, name)).split('\\').join('/') }));
-  const { all, picked } = pickChecks(changed, inRepo);
   const total = files.length;
-  files.splice(0, total, ...files.filter(({ name }) => picked.has(name)));
 
-  console.log(`${changed.length} changed file(s); ${files.length} of ${total} checks can be affected.`);
-  if (all) console.log(`Running everything, because ${all} changed.`);
-  else if (files.length === 0) console.log('No check knows these files: verify and the live read are the proof.');
+  if (changed === null) {
+    console.log('Git cannot compare with origin/main here (try `git fetch`), so running everything.');
+  } else {
+    const { all, picked } = pickChecks(changed, inRepo);
+    files.splice(0, total, ...files.filter(({ name }) => picked.has(name)));
 
-  const last = existsSync(LAST_FULL_RUN) ? JSON.parse(readFileSync(LAST_FULL_RUN, 'utf8')) : null;
-  const days = last === null ? null : Math.floor((Date.now() - Date.parse(last.at)) / 86_400_000);
-  if (last === null || days >= FULL_RUN_DAYS || last.failed > 0) {
-    const state = last === null ? 'none on this machine yet' : `${days} day(s) ago, ${last.failed} failed`;
+    console.log(`${changed.length} changed file(s); ${files.length} of ${total} checks can be affected.`);
+    if (all) console.log(`Running everything, because ${all} changed.`);
+    else if (files.length === 0) console.log('No check knows these files: verify and the live read are the proof.');
+  }
+
+  // A stamp that cannot be read counts as no stamp: it must never stop the checks, or hide that a full run is owed.
+  let last = null;
+  try {
+    last = JSON.parse(readFileSync(LAST_FULL_RUN, 'utf8'));
+  } catch {
+    last = null;
+  }
+  const days = Math.floor((Date.now() - Date.parse(last?.at)) / 86_400_000);
+  if (!Number.isFinite(days) || days >= FULL_RUN_DAYS || last.failed !== 0) {
+    const state = Number.isFinite(days) ? `${days} day(s) ago, ${last.failed} failed` : 'none on this machine yet';
     console.log(`*** FULL RUN DUE: npm run checks (last: ${state}) ***`);
   }
   console.log('');

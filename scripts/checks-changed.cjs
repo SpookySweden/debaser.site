@@ -27,8 +27,8 @@ const EVERYTHING = new Set([
   'scripts/checks-changed.cjs',
 ]);
 
-/** Only these folders hold what a check can be about: a spec or a note changes no check's answer. */
-const CODE = /^(app|scripts|supabase|assets|docs|Temp)\//;
+/** Only these folders hold what a check can be about: a spec or a note changes no check's answer. (`.claude`: two read the rules.) */
+const CODE = /^(app|scripts|supabase|assets|docs|Temp|\.claude)\//;
 
 const WALKS_APP = /\b(readdirSync|walk\w*|glob\w*)\b/;
 const NAMES_APP = /['"`](\.\/)?app(\/[\w-]*)?\/?['"`]/;
@@ -103,12 +103,22 @@ function pickChecks(changed, checks, root = ROOT) {
   return { all: null, picked };
 }
 
-/** What this work has changed: commits not yet on GitHub, edits not yet committed, and new files. */
-function changedFiles() {
-  const git = (...args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-  const base = git('merge-base', 'HEAD', 'origin/main').trim();
+/**
+ * What this work has changed: commits not yet on GitHub, edits not yet committed, and new files. Null when git cannot
+ * say (no `origin/main` here), which the runner treats as "everything" rather than "nothing".
+ *
+ * `--no-renames`: a moved file is both paths. With git's default only the new one is listed, and a check still reading
+ * the old one would not be picked, so the run would say "all passed" about a check it never ran.
+ */
+function changedFiles(root = ROOT) {
+  const git = (...args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
   const lines = (text) => text.split('\n').map((line) => line.trim()).filter(Boolean);
-  return [...new Set([...lines(git('diff', '--name-only', base)), ...lines(git('ls-files', '--others', '--exclude-standard'))])];
+  try {
+    const base = git('merge-base', 'HEAD', 'origin/main').trim();
+    return [...new Set([...lines(git('diff', '--name-only', '--no-renames', base)), ...lines(git('ls-files', '--others', '--exclude-standard'))])];
+  } catch {
+    return null;
+  }
 }
 
 module.exports = { changedFiles, pickChecks };

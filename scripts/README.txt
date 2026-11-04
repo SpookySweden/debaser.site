@@ -29,7 +29,8 @@ one failed (`Temp/.last-full-checks.json`). "Changed" means commits not yet on G
 files, so another session's half-done work in the same folder can pick extra checks, and can fail them.
 
 **How it picks.** No list of areas to keep up to date: a check is picked if it is a changed file, names one, compiles
-something that imports one at any depth, or walks `app/` and anything there changed. It errs towards running more.
+something that imports one at any depth, or walks `app/` and anything there changed. It errs towards running more: a
+moved file counts as both paths, and if git cannot compare with origin/main it runs everything.
 `scripts/check-checks-changed.cjs` holds the picking, because a picker that picks too few still says "all passed".
 
 **Compiled with `--strictNullChecks`,** as the site is. Without it a check cannot compile `if (!result.ok)

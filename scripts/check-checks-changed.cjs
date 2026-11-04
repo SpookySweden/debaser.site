@@ -3,10 +3,11 @@
  * still says "all passed", about too few checks. So the picking is held here against the real tree.
  */
 const assert = require('node:assert/strict');
-const { mkdtempSync, mkdirSync, rmSync, writeFileSync } = require('node:fs');
+const { execFileSync } = require('node:child_process');
+const { mkdtempSync, mkdirSync, renameSync, rmSync, writeFileSync } = require('node:fs');
 const { tmpdir } = require('node:os');
 const { dirname, join } = require('node:path');
-const { pickChecks } = require('./checks-changed.cjs');
+const { changedFiles, pickChecks } = require('./checks-changed.cjs');
 
 const root = mkdtempSync(join(tmpdir(), 'checks-changed-'));
 const write = (path, text) => {
@@ -40,6 +41,30 @@ try {
   assert.deepEqual(picked('supabase/migrations/2_new.sql'), ['check-migrations.cjs'], 'a new migration picks what reads the migrations');
   assert.deepEqual(picked('Temp/check-reader.cjs'), ['check-reader.cjs'], 'a changed check picks itself');
   assert.deepEqual(picked('SPEC-anything.md', 'HANDOFF.md'), [], 'a note changes no check');
+
+  // A rule file some check reads (check-reveals and check-post-reel read frontend.md).
+  const ruleReader = { name: 'check-rule.cjs', path: 'Temp/check-rule.cjs' };
+  write(ruleReader.path, "const rules = read('.claude/rules/frontend.md');\n");
+  assert.deepEqual([...pickChecks(['.claude/rules/frontend.md'], [ruleReader], root).picked], ['check-rule.cjs'], 'a rule file picks what reads it');
+
+  // A real repository: a moved file is both paths, a commit not on GitHub counts, and no origin/main is "cannot say".
+  const repo = join(root, 'repo');
+  mkdirSync(join(repo, 'app'), { recursive: true });
+  const git = (...args) => execFileSync('git', ['-c', 'user.name=check', '-c', 'user.email=check@example.invalid', ...args], { cwd: repo, stdio: 'pipe' });
+  git('init', '-q');
+  writeFileSync(join(repo, 'app', 'old.ts'), 'export const stays = "the same text, so git calls this a rename";\n');
+  git('add', '.');
+  git('commit', '-qm', 'start');
+  assert.equal(changedFiles(repo), null, 'with no origin/main git cannot say, and the runner then runs everything');
+  git('update-ref', 'refs/remotes/origin/main', 'HEAD');
+  assert.deepEqual(changedFiles(repo), [], 'nothing changed yet');
+  renameSync(join(repo, 'app', 'old.ts'), join(repo, 'app', 'new.ts'));
+  git('add', '.');
+  assert.deepEqual(changedFiles(repo).sort(), ['app/new.ts', 'app/old.ts'], 'a moved file, staged: both paths');
+  git('commit', '-qm', 'moved');
+  assert.deepEqual(changedFiles(repo).sort(), ['app/new.ts', 'app/old.ts'], 'and committed but not pushed: both paths');
+  writeFileSync(join(repo, 'app', 'fresh.ts'), 'export const fresh = 1;\n');
+  assert.ok(changedFiles(repo).includes('app/fresh.ts'), 'a new file nobody has added counts');
 
   for (const file of ['package.json', 'package-lock.json', 'tsconfig.json', 'scripts/run-checks.cjs', 'scripts/checks-changed.cjs']) {
     const result = pickChecks([file], checks, root);
