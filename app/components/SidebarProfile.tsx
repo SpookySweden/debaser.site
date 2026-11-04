@@ -15,12 +15,8 @@ import ProfileAvatar from './ProfileAvatar';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
-import { PLATE, TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { displayCrop } from '../lib/profile/avatar-crop';
-
-/** A control that sits on the title bar: small enough not to crowd it, and never a word. */
-const TITLE_CONTROL =
-  'cursor-pointer key px-0.5 py-0.5 text-label font-bold leading-none';
 
 /** One row of the settings menu. Full width, flat until the pointer is on it. */
 const MENU_ROW =
@@ -34,14 +30,15 @@ const MENU_ROW =
  * old sentence and its own `[ LOG IN OR CREATE AN ACCOUNT ]` were the second and third
  * saying of it. Signed in it is the visitor's own card, and it carries four things:
  * their picture and their name, both of which open their public profile; an `[ EDIT PROFILE ]` key,
- * which opens the customiser; the status they wrote, when they wrote one; and a cog,
- * which opens the account's own menu.
+ * which opens the customiser; the status they wrote, when they wrote one; and a
+ * `[ ⚙ SETTINGS ]` key, which opens the account's own menu.
  *
  * Two verbs, two controls, and the difference is deliberate. Pressing a name means
  * "show me this account" and pressing EDIT means "let me change mine", so a
  * reader who meant one of them does not get the other - which is what a single
- * control that guessed from the current page would do. The cog is
- * the shape a desktop uses for that job, so it needs no label.
+ * control that guessed from the current page would do. The settings key was a bare
+ * cog until Luke asked for it to be more obvious (2026-11-04): a lone glyph was
+ * easy to miss, as the unlabelled pencil was before it, so it says what it is.
  *
  * The three states are told apart by `status` rather than by `user === null`, and that distinction
  * is the whole point of this component. `user` is null while the session is still being read, so a
@@ -74,8 +71,8 @@ export default function SidebarProfile() {
         <span>PROFILE</span>
         {/* No `[ SIGNED IN ]` / `[ GUEST ]` beside the name: the card under it already shows which. */}
         <span className="flex items-center gap-1">
-          {/* The cog. Only for somebody with a profile to set, because every row behind it is a thing
-              an account does, and a guest has none of them. */}
+          {/* The settings key. Only for somebody with a profile to set, because every row behind it is a
+              thing an account does, and a guest has none of them. */}
           {status === 'signed-in' && user !== null ? (
             <button
               type="button"
@@ -84,9 +81,9 @@ export default function SidebarProfile() {
               aria-haspopup="menu"
               aria-label="Profile settings"
               title="Profile settings"
-              className={TITLE_CONTROL}
+              className={TITLE_BAR_BUTTON}
             >
-              <span aria-hidden="true">⚙</span>
+              [ <span aria-hidden="true">⚙</span> SETTINGS ]
             </button>
           ) : null}
         </span>
