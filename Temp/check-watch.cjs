@@ -326,7 +326,8 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     const host = html(element(WatchWindow));
     assert.match(host, /data-title="STREAM :: TEST ACCOUNT A"/);
     assert.match(host, /data-badge="NOT LIVE"/);
-    assert.match(host, /href="\/cytube"[^>]*>\[ GO LIVE ON CYTUBE \]/);
+    // (2026-11-04) The page is STREAM at /stream now.
+    assert.match(host, /href="\/stream"[^>]*>\[ GO LIVE ON STREAM \]/);
     assert.doesNotMatch(host, /\[ GO LIVE \]/, 'and no key here that starts a room itself');
     assert.match(host, /<video[^>]*src="https:\/\/x\.supabase\.co\/storage\/v1\/object\/public\/video\/a\/x\.webm"/);
     viewer = null;

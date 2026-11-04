@@ -107,8 +107,8 @@ function PreLiveWindow({ mediaItemId, onClose }: { mediaItemId: string; onClose:
             </p>
           ) : (
             <p className="flex flex-wrap items-center gap-2 text-label font-bold text-ink">
-              <Link href="/cytube" className={PLATE_MAIN} onClick={onClose}>
-                [ GO LIVE ON CYTUBE ]
+              <Link href="/stream" className={PLATE_MAIN} onClick={onClose}>
+                [ GO LIVE ON STREAM ]
               </Link>
               THEN ADD THIS FROM THE QUEUE.
             </p>

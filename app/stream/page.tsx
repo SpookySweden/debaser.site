@@ -4,7 +4,7 @@ import CytubePage from '../components/CytubePage';
 import SiteWindow from '../components/SiteWindow';
 
 export const metadata: Metadata = {
-  title: 'DEBASER.SITE - CYTUBE',
+  title: 'DEBASER.SITE - STREAM',
   description: 'Watch and listen together: go live, join a live room, see the stream canvases and pick the look of your room.',
 };
 
@@ -15,8 +15,8 @@ export const metadata: Metadata = {
  */
 export default function Page() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [CYTUBE]" active="cytube" tip="Watch and listen together.">
-      <h1 className="sr-only">DEBASER.SITE // CYTUBE</h1>
+    <SiteWindow title="DEBASER_OS - v1.0 [STREAM]" active="cytube" tip="Watch and listen together.">
+      <h1 className="sr-only">DEBASER.SITE // STREAM</h1>
       <Suspense fallback={null}>
         <CytubePage />
       </Suspense>

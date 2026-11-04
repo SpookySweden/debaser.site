@@ -506,14 +506,14 @@ export const ART_SLOTS = [
   },
   {
     id: 'mark-cytube',
-    label: 'CYTUBE: BAND ICON',
+    label: 'STREAM: BAND ICON',
     kind: 'mark',
     path: 'assets/icons/cytube.png',
     shown: [[16, 16]],
     k: 2,
     fit: 'contain',
-    fallback: 'the glyph `▣` from the font (`ICON_CYTUBE` in app/lib/ui/icons.ts), and the word CYTUBE',
-    brief: 'The CYTUBE page (watching and listening together): its mark wherever the site lists its pages, and in the page title.',
+    fallback: 'the glyph `▣` from the font (`ICON_CYTUBE` in app/lib/ui/icons.ts), and the word STREAM',
+    brief: 'The STREAM page (watching and listening together): its mark wherever the site lists its pages, and in the page title.',
   },
   {
     id: 'mark-up-wide',

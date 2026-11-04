@@ -84,7 +84,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'web', label: 'MEDIA', mark: ICON_WEB, href: '/media' },
   // Watching and listening together (SPEC-cytube.md, Luke 2026-11-03): what streaming is, the live rooms, the
   // stream canvases, GO LIVE and your broadcast look. Named after CyTube (cytu.be) as a nod, Luke's choice.
-  { key: 'cytube', label: 'CYTUBE', mark: ICON_CYTUBE, href: '/cytube' },
+  { key: 'cytube', label: 'STREAM', mark: ICON_CYTUBE, href: '/stream' },
   { key: 'users', label: 'USERS', mark: ICON_USERS, href: '/users' },
   { key: 'comms', label: 'COMMS', mark: ICON_COMMS, href: '/comms' },
   { key: 'account', label: 'ACCOUNT', mark: ICON_ACCOUNT, href: '/account' },
@@ -169,7 +169,7 @@ const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'web', label: 'MEDIA', href: '/media' },
-  { key: 'cytube', label: 'CYTUBE', href: '/cytube' },
+  { key: 'cytube', label: 'STREAM', href: '/stream' },
 ];
 
 /** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */

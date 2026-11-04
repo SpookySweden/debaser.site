@@ -35,11 +35,14 @@ const nextConfig: NextConfig = {
    *
    * The catalogue was MEDIA at /media and is FILES at /files. Its old addresses always named a section, a category or a
    * tag (`kind`, `cat`, `tag`, which the search page does not use), so those go to /files; a bare /media is the search page.
+   *
+   * The page for watching together was CYTUBE at /cytube and is STREAM at /stream (Luke, 2026-11-04); `?tab=` comes along.
    */
   async redirects() {
     return [
       { source: '/web', destination: '/media', permanent: true },
       { source: '/archive', destination: '/media', permanent: true },
+      { source: '/cytube', destination: '/stream', permanent: true },
       ...['kind', 'cat', 'tag'].map((key) => ({ source: '/media', has: [{ type: 'query' as const, key }], destination: '/files', permanent: true })),
     ];
   },

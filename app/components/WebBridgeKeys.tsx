@@ -118,7 +118,7 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
   return (
     <div className="mt-2 frame bg-paper p-2 text-label text-ink" role="group" aria-label={`Stream room: ${item.title}`}>
       {user === null ? (
-        <p className="font-bold">SIGN IN AND GO LIVE ON CYTUBE TO WATCH THIS IN A STREAM ROOM.</p>
+        <p className="font-bold">SIGN IN AND GO LIVE ON STREAM TO WATCH THIS IN A STREAM ROOM.</p>
       ) : state.kind === 'queued' ? (
         <p className="flex flex-wrap items-center gap-2 font-bold" role="status">
           {state.listed ? 'ADDED TO YOUR LIST IN YOUR STREAM ROOM.' : 'QUEUED IN YOUR STREAM ROOM.'}
@@ -128,9 +128,9 @@ export function WebWatchPanel({ item }: { item: WebItem }) {
         </p>
       ) : hostedRoom === null ? (
         <p className="flex flex-wrap items-center gap-2 font-bold">
-          YOU&apos;RE NOT HOSTING A STREAM ROOM. GO LIVE ON CYTUBE, THEN COME BACK.
+          YOU&apos;RE NOT HOSTING A STREAM ROOM. GO LIVE ON STREAM, THEN COME BACK.
           <Link href={CYTUBE_HREF} className={PLATE}>
-            [ CYTUBE ]
+            [ STREAM ]
           </Link>
         </p>
       ) : (

@@ -64,7 +64,7 @@ const ROUTES = [
   ['media', '/media'],
   ['files', '/files'],
   // Watching and listening together (SPEC-cytube.md, 2026-11-03); signed-in only, so a capture is its sign-in check.
-  ['cytube', '/cytube'],
+  ['cytube', '/stream'],
 ];
 
 const findings = [];

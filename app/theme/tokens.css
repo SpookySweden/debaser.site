@@ -235,7 +235,7 @@
 }
 
 /* -----------------------------------------------------------------------------------------------------
-   CYTUBE ROOMS (SPEC-cytube.md, "Look presets"; Luke OK'd the five looks, 2026-11-03).
+   STREAM ROOMS (SPEC-cytube.md, "Look presets"; Luke OK'd the five looks, 2026-11-03).
 
    A broadcaster's look colours their room: the stream bar's strip (`bar`), its plain words (`words`), its
    bracket keys (`keys`: under the pointer a key fills with this and its words take the bar colour), the

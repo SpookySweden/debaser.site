@@ -684,7 +684,7 @@ function CatalogueRow({
         </div>
 
         {/* A video's key (SPEC-cytube.md): GO LIVE is only on the CYTUBE page, so this adds the video to the room
-            you host or hold a crown in, or points you to CYTUBE. Accounts only. */}
+            you host or hold a crown in, or points you to STREAM. Accounts only. */}
         {item.kind === 'video' && viewerId !== null ? (
           <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
             <StreamAddKey mediaItemId={item.id} title={item.title} />

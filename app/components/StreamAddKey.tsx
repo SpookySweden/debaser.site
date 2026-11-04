@@ -11,7 +11,7 @@ import { useWatching } from '../lib/watch/use-watching';
 import { useAuth } from './AuthProvider';
 
 /** Where GO LIVE is (SPEC-cytube.md): the only place a room is started. */
-export const CYTUBE_HREF = '/cytube';
+export const CYTUBE_HREF = '/stream';
 
 /**
  * A catalogue video's stream key (SPEC-cytube.md). GO LIVE is only on the CYTUBE page now, so this key never
@@ -29,8 +29,8 @@ export default function StreamAddKey({ mediaItemId, title }: { mediaItemId: stri
 
   if (!crowned || roomId === null || read === undefined || read === null || user === null) {
     return (
-      <Link href={CYTUBE_HREF} className={PLATE_LINK} title="Go live on CYTUBE, then add this to your room" aria-label={`Stream "${title}": go live on CYTUBE first`}>
-        [ ▶ CYTUBE ]
+      <Link href={CYTUBE_HREF} className={PLATE_LINK} title="Go live on STREAM, then add this to your room" aria-label={`Stream "${title}": go live on STREAM first`}>
+        [ ▶ STREAM ]
       </Link>
     );
   }

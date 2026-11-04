@@ -59,9 +59,9 @@ export default function CytubePage() {
     return (
       <section aria-labelledby="cytube-sign-in-title" className="flex flex-col items-start gap-3 py-2">
         <h2 id="cytube-sign-in-title" className="text-headline font-bold text-ink">
-          SIGN IN TO USE CYTUBE
+          SIGN IN TO USE STREAM
         </h2>
-        <p className="text-prose text-ink">CYTUBE is for people with an account. Sign in to go live, join a room or pick your look.</p>
+        <p className="text-prose text-ink">STREAM is for people with an account. Sign in to go live, join a room or pick your look.</p>
         <Link href="/account" className={PLATE_MAIN}>
           [ SIGN IN ]
         </Link>
@@ -95,7 +95,7 @@ function SignedIn({ user }: { user: AccountUser }) {
       {layoutOpen ? <CytubeLayout userId={user.id} /> : null}
 
       {/* The tabs scroll sideways inside their strip on a narrow screen, never the page. */}
-      <div className="flex min-w-0 flex-nowrap items-stretch gap-1 overflow-x-auto" role="tablist" aria-label="CYTUBE">
+      <div className="flex min-w-0 flex-nowrap items-stretch gap-1 overflow-x-auto" role="tablist" aria-label="STREAM">
         {TABS.map((entry) => (
           <button
             key={entry.key}
