@@ -37,7 +37,8 @@ if (archiveHref === null) throw new Error('MUSIC_HREF is gone - every file link 
 if (libraryHref === null) throw new Error('LIBRARY_HREF is gone - the personal screen has no address');
 
 // 2026-10-24 (SPEC-media-catalogue.md): the archive moved onto the media page's AUDIO tab.
-if (archiveHref[1] !== '/media?kind=audio') {
+// 2026-11-04: that page is FILES at /files now (Luke gave its old name to the search page).
+if (archiveHref[1] !== '/files?kind=audio') {
   throw new Error(`the archive's address changed to ${archiveHref[1]}: every existing link points here`);
 }
 

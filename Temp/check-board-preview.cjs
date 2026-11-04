@@ -2,6 +2,9 @@
  * Scratch check for the tag swatches and the collapsed row's band:
  *   npx tsc app/lib/forum/tags.ts --outDir Temp/check-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
  *   npx tsc app/components/PostRowDetails.tsx app/components/TagBadge.tsx --outDir Temp/render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/components/TagBadge.tsx app/components/PostRowDetails.tsx app/components/AuthProvider.tsx app/components/PresenceProvider.tsx --rootDir app --outDir Temp/render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/forum/tag-vocabulary.ts app/lib/ui/colour.ts app/lib/forum/tags.ts --rootDir app/lib --outDir Temp/check-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-board-preview.cjs
  */
 const assert = require('node:assert/strict');

@@ -1,6 +1,9 @@
 ﻿/*
  * What the arcade draws: the hub, a match, the board and the court.
  *   npx tsc app/components/GamesHub.tsx app/components/GameMatch.tsx app/components/TicTacToeBoard.tsx app/components/PaddleDuelCourt.tsx app/components/ProfileName.tsx --outDir Temp/games-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/components/AuthProvider.tsx app/components/CommsProvider.tsx app/components/NotificationsProvider.tsx app/components/PresenceProvider.tsx app/components/ProfileName.tsx app/components/UserDirectoryRow.tsx app/components/GamesHub.tsx app/components/GameMatch.tsx app/components/TicTacToeBoard.tsx app/components/PaddleDuelCourt.tsx --rootDir app --outDir Temp/games-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/games/paddle-duel.ts --rootDir app/lib --outDir Temp/games-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-games-render.cjs
  *
  * Offline, and nothing is stubbed that matters: the providers the hub reads (who is signed in, who is

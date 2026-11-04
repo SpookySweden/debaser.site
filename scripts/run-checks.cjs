@@ -31,7 +31,7 @@
  * run from a clone.
  */
 const { execSync } = require('node:child_process');
-const { existsSync, readdirSync, readFileSync, writeFileSync } = require('node:fs');
+const { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } = require('node:fs');
 const { join, relative } = require('node:path');
 const { changedFiles, pickChecks } = require('./checks-changed.cjs');
 
@@ -116,6 +116,32 @@ if (CHANGED) {
     console.log(`*** FULL RUN DUE: npm run checks (last: ${state}) ***`);
   }
   console.log('');
+}
+
+/**
+ * A whole run starts from nothing. Compiled output left by an earlier run let checks pass against old code: two compiled
+ * nothing at all and were still reading files from September until 2026-11-04. A narrowed run keeps them, to stay quick.
+ */
+if (!CHANGED && onlyAt === -1) {
+  for (const { dir, name } of files) {
+    for (const match of readFileSync(join(dir, name), 'utf8').matchAll(/--outDir (Temp\/[\w-]+)/g)) {
+      rmSync(join(ROOT, match[1]), { recursive: true, force: true });
+    }
+  }
+}
+
+/**
+ * These read the live database with the keys in `.env.local`, which never reaches a clean copy. Without it they are
+ * skipped out loud rather than failed, so the count says what ran.
+ */
+const NEEDS_KEYS = new Set(['check-hidden-accounts.cjs', 'check-music-library-schema.cjs', 'check-music-schema.cjs']);
+if (!existsSync(join(ROOT, '.env.local'))) {
+  for (const key of NEEDS_KEYS) {
+    const at = files.findIndex(({ name }) => name === key);
+    if (at === -1) continue;
+    files.splice(at, 1);
+    console.log(`skip ${key.padEnd(34)} needs the database keys, which this copy has not got`);
+  }
 }
 
 const failures = [];

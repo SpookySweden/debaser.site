@@ -1,4 +1,6 @@
 /**
+ * (2026-11-04) The next steps compile all it requires: it had been passing on what earlier runs left in Temp/.
+ *   npx tsc app/lib/audio/library.ts app/lib/audio/mock-music-repository.ts --rootDir app/lib --outDir Temp/library-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  * The reader's own music: the pure logic, and the mock store that backs it.
  *
  * Likes and playlists are per-account data, so the things worth holding are the rules rather than the

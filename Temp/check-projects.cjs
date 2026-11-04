@@ -56,7 +56,7 @@ assert.deepEqual(PROJECT_SECTIONS.map((section) => section.id), ['concepts', 'lo
 assert.deepEqual(
   PROJECT_SECTIONS.map((section) => section.href),
   // 2026-10-24 (SPEC-media-catalogue.md): the music shelf is the media page's AUDIO tab now.
-  ['/concepts', '/lore', '/media?kind=audio', '/notes', '/links'],
+  ['/concepts', '/lore', '/files?kind=audio', '/notes', '/links'],
   'MUSIC is the shelf that is a window rather than a page: its href is the board carrying the query',
 );
 assert.equal(projectSection('music').label, 'MUSIC');
