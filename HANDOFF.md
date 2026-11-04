@@ -9,8 +9,7 @@
 - `.env.test` is on the desktop and sign-in works there, so the signed-in live drive listed below can be done from
   it. The `drive-*` scripts for it are only on the laptop: they are one-off tools and stay untracked unless Luke says.
 - Waiting on Luke: delete `BroadcastHeartbeat.tsx` (check-structure's AWAITING_LUKE), and possibly QueueFollower and
-  QueueProfilePopout, which only a check still reads. Whether the live house account's password is the `ADMIN1212`
-  written in the public `builtin-account.ts` (its comment says to change it before real use): only Luke can check.
+  QueueProfilePopout, which only a check still reads.
 - Owed: ten components have no render (check-structure's OWED_RENDERS), and check-queues still holds retired follow code.
 - `npm run shot -- --mobile` is not what a phone shows since the fixed 1280px viewport: it drew a narrow layout tiny in
   a corner, while the app's Browser pane drew the 1280 desktop, zoomed in on the top-left. Neither is a real phone.
