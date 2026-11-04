@@ -154,6 +154,14 @@ for (const [ink, surface, why] of PAIRS) {
 
 assert.equal(failures, 0, `${failures} text pair(s) below 4.5:1 - a theme that cannot be read is not a theme`);
 
+// (2026-11-04) The pair list above says which inks read on `ena`, not who wears them. A selected ListRow sits on `ena`,
+// and Daffodil there was 2.28-2.81:1 in the SHERBET themes, so its label and key are held to the ink that reads.
+const listRow = fs.readFileSync('app/components/ListRow.tsx', 'utf8');
+assert.match(listRow, /selected \? 'bg-ena'/, 'a selected row is on ena, which is why the next two matter');
+assert.match(listRow, /selected \? 'text-ink-bar'/, 'and its label wears ink-bar');
+assert.match(listRow, /\[--key-ink:var\(--color-ink-bar\)\]/, 'and so does its delete key');
+assert.doesNotMatch(listRow, /text-sun|--color-sun/, 'Daffodil does not read on ena in every theme');
+
 /* 4. The stylesheet and the default theme, in both directions.
    `globals.css` is what a visitor who never picks a theme is served; `FALLBACK_THEME` (the dark theme since 2026-10-22) is what the picker
    applies when they come back to it. Both are "the default", and if they disagree the page changes colour
