@@ -367,6 +367,15 @@ const untagged = render(
 assert.doesNotMatch(untagged, /(?<!AUTO-)TAGGED:/);
 
 // 7. The board itself: the wire, the controls, and a card per thread.
+// (2026-11-04) A board still being read says so: it used to say THE BOARD IS EMPTY until the posts arrived.
+FORUM.threads = [];
+FORUM.ready = false;
+const reading = render(element(ForumBoard, null));
+assert.match(reading, /READING THE BOARD\.\.\./, 'a board being read says so');
+assert.doesNotMatch(reading, /THE BOARD IS EMPTY/, 'and does not claim to be empty');
+FORUM.ready = true;
+assert.match(render(element(ForumBoard, null)), /THE BOARD IS EMPTY\./, 'a board that has been read and has nothing says that');
+
 FORUM.threads = [THREAD];
 const board = render(element(ForumBoard, null));
 // (2026-10-23, SPEC-efficiency.md) With nothing pinned the newswire is not drawn at all (this fixture pins

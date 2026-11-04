@@ -442,6 +442,10 @@ async function open({
       executablePath, // the first browser found (Edge when Chrome is missing), not `channel: 'chrome'`, which ignored the list
       headless: true,
       viewport: { width, height },
+      // Told when the browser opens, not only by the override below: without it the page laid out at phone width and
+      // was then shrunk to fit the site's fixed 1280px viewport, drawing a tiny site in one corner.
+      isMobile: mobile,
+      hasTouch: mobile,
       reducedMotion: reducedMotion ? 'reduce' : 'no-preference',
       args: [...GL_ARGS, '--no-first-run', '--no-default-browser-check', '--disable-extensions', '--hide-scrollbars'],
     });

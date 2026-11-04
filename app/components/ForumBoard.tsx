@@ -868,8 +868,10 @@ export default function ForumBoard() {
               className="text-ink"
             >
               <p className="p-3 text-key font-bold text-ink">
-                {forum.threads.length === 0
-                  ? 'THE BOARD IS EMPTY.'
+                {!forum.ready
+                  ? 'READING THE BOARD...'
+                  : forum.threads.length === 0
+                    ? 'THE BOARD IS EMPTY.'
                   : view === 'gallery'
                     ? 'NO PICTURES MATCH.'
                     : 'NO THREADS MATCH.'}
