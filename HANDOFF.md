@@ -4,6 +4,8 @@ Older notes: `docs/handoff-archive.md`, newest first. Search it when a past deci
 ## State
 - MEDIA tagging's Claude key went into Vercel on 2026-11-05. Its first real batch is being watched: read `web_item_tags`
   and the `web-tag` cron's answers (`inputTokens`, `outputTokens`). Details and the cost reasoning: SPEC-media-picks.md.
+- **Privacy plan:** phase 0 is live (`supabase/README.md`, "Privacy", and `Temp/check-visitor-limits.cjs`). Phases need
+  `SPEC-privacy-decisions.md`, and each starts when Luke says. Profile reads must name their columns: `select *` on `profiles` fails.
 - Nothing else is half-done. Live: music rooms, the canvas + STREAM ART, CYTUBE, the MEDIA (/media) and FILES (/files) rename.
 - Fewer checks per task (Luke's rule): every task runs `npm run checks:changed`; the whole `npm run checks` runs before a
   big feature and when it prints FULL RUN DUE. Details: core.md, scripts/README.txt.
