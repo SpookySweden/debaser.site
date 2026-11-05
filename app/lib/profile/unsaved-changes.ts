@@ -14,12 +14,11 @@
  * which is the behaviour a reader expects and the one a naive `!== null` test gets wrong.
  */
 import { countryName } from './countries';
-import type { ProfileVisibility } from './types';
 
 /** One thing the reader changed, in the two forms the prompt needs. */
 export type UnsavedChange = {
   /** Which tab it belongs to, so the prompt can say where the work is. */
-  tab: 'profile' | 'character' | 'privacy';
+  tab: 'profile' | 'character';
   /** What it is, in as few words as fits a list row: `NAME`, `BIO`, `PICTURE`. */
   label: string;
   /** What changed about it: `"old" -> "new"`, or a sentence when there is no stored form to compare with. */
@@ -34,34 +33,7 @@ export type StoredProfile = {
   country: string;
   status: string;
   nameColour: string | null;
-  visibility: ProfileVisibility;
 };
-
-/**
- * Every visibility switch, under the name the customiser's SHOW / HIDE tab gives it.
- *
- * A `Record` over the profile's own type, so a switch added to `ProfileVisibility` does not compile until it is
- * named here. The list this replaced named three of the four by hand, and TRACK COMMENTS - the fourth - could be
- * changed and closed without a warning (Temp/check-unsaved-changes.cjs, 8b).
- */
-const SWITCH_LABELS: Record<keyof ProfileVisibility, string> = {
-  showTags: 'TAGS',
-  showProfileComments: 'PROFILE COMMENTS',
-  showAvatarComments: 'PICTURE COMMENTS',
-  showSongComments: 'TRACK COMMENTS',
-  showListening: 'MY LISTENING',
-  showOnline: 'ONLINE LAMP',
-};
-
-/**
- * A partial set of visibility switches - the same shape the customiser's tab holds.
- *
- * **Declared here rather than imported from the component that defines it.** `ProfileVisibilityDraft` is exported
- * by `ProfileCustomiserOptionsTabs`, and a library module reaching into a component for a type is the dependency
- * running the wrong way: the *rule* about what counts as unsaved should not depend on a component that renders
- * switches. It is `Partial<ProfileVisibility>` either way, so the two cannot drift.
- */
-export type VisibilityDraft = Partial<ProfileVisibility>;
 
 /** The drafts, exactly as the window holds them. `null` is "not edited". */
 export type ProfileDrafts = {
@@ -71,7 +43,6 @@ export type ProfileDrafts = {
   country: string | null;
   status: string | null;
   nameColour: string | null;
-  visibility: VisibilityDraft;
   /** Set once a picture has been uploaded but not yet filed as a version. */
   pendingPicture: string | null;
   /** Set once a track has been uploaded but not yet filed. */
@@ -151,18 +122,6 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
 
   if (drafts.pendingSong !== null) {
     changes.push({ tab: 'profile', label: 'TRACK UPLOADED', detail: 'NOT FILED YET' });
-  }
-
-  /** The visibility switches, every one of them (`SWITCH_LABELS` cannot miss one). */
-  for (const key of Object.keys(SWITCH_LABELS) as (keyof ProfileVisibility)[]) {
-    const draft = drafts.visibility[key];
-    if (draft === undefined || draft === stored.visibility[key]) continue;
-
-    changes.push({
-      tab: 'privacy',
-      label: SWITCH_LABELS[key],
-      detail: `${stored.visibility[key] ? 'VISIBLE' : 'HIDDEN'} -> ${draft ? 'VISIBLE' : 'HIDDEN'}`,
-    });
   }
 
   return changes;

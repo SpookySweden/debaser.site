@@ -1,4 +1,4 @@
-﻿/*
+/*
  * New accounts start private, and the lamp switch means what it says (SPEC-privacy-phase-1.md).
  *   npx tsc app/lib/profile/visibility.ts app/lib/profile/mock-profile-repository.ts app/lib/profile/directory.ts app/components/PrivacyFirstLook.tsx --outDir Temp/privacy-defaults-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --jsx react-jsx
  *   node Temp/check-privacy-defaults.cjs

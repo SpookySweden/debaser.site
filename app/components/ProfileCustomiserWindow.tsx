@@ -19,7 +19,8 @@ import { useBenchFigure, useCharacterStore, useKeptFigure } from '../lib/charact
 import { useAuth } from './AuthProvider';
 import PopoutWindow from './PopoutWindow';
 import UnsavedPrompt from './UnsavedPrompt';
-import { ProfileIdentityTab, ProfilePrivacyTab, type ProfileVisibilityDraft } from './ProfileCustomiserOptionsTabs';
+import { ProfileIdentityTab } from './ProfileCustomiserOptionsTabs';
+import PrivacySwitches from './PrivacySwitches';
 import ProfileCustomiserPictureTab from './ProfileCustomiserPictureTab';
 import ProfileCustomiserSongTab from './ProfileCustomiserSongTab';
 import { ProfileTagsTab } from './ProfileCustomiserTagsTab';
@@ -35,7 +36,7 @@ const TABS: { key: TabKey; label: string }[] = [
   // Between the two, because it is the middle thing: the page gets dressed first, the switches at the end are
   // about who may look, and the figure is neither - it is something built rather than described.
   { key: 'character', label: '[ CHAR 🐰 ]' },
-  { key: 'privacy', label: '[ SHOW / HIDE ]' },
+  { key: 'privacy', label: '[ PRIVACY ]' },
 ];
 
 /**
@@ -144,13 +145,12 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [songNote, setSongNote] = useState('');
   const [songMessage, setSongMessage] = useState<string | null>(null);
 
-  // Text and visibility drafts: null / empty means "show what is stored".
+  // Text drafts: null means "show what is stored". The privacy switches keep no draft: each saves as it is pressed.
   const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [bioDraft, setBioDraft] = useState<string | null>(null);
   const [countryDraft, setCountryDraft] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string | null>(null);
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
-  const [visibilityDraft, setVisibilityDraft] = useState<ProfileVisibilityDraft>({});
 
 
   /**
@@ -185,14 +185,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         country: profile.country,
         status: profile.status,
         nameColour: profile.nameColour ?? null,
-        visibility: {
-          showTags: profile.visibility.showTags,
-          showProfileComments: profile.visibility.showProfileComments,
-          showAvatarComments: profile.visibility.showAvatarComments,
-          showSongComments: profile.visibility.showSongComments,
-          showListening: profile.visibility.showListening,
-          showOnline: profile.visibility.showOnline,
-        },
       },
       {
         name: nameDraft,
@@ -200,7 +192,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         country: countryDraft,
         status: statusDraft,
         nameColour: nameColourDraft,
-        visibility: visibilityDraft,
         pendingPicture: pendingSrc,
         pendingSong: songSrc,
       },
@@ -311,7 +302,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     setCountryDraft(null);
     setStatusDraft(null);
     setNameColourDraft(null);
-    setVisibilityDraft({});
 
     // The uploads, both halves: the file that was staged and the note written about it.
     setPendingSrc(null);
@@ -346,7 +336,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     }
 
     const profileChanges = unsaved.filter((change) => change.tab === 'profile');
-    const privacyChanges = unsaved.filter((change) => change.tab === 'privacy');
 
     await run(async () => {
       if (profileChanges.length > 0) {
@@ -362,11 +351,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         setCountryDraft(null);
         setStatusDraft(null);
         setNameColourDraft(null);
-      }
-
-      if (privacyChanges.length > 0) {
-        await repository.saveProfile(userId, { visibility: visibilityDraft });
-        setVisibilityDraft({});
       }
     });
 
@@ -571,13 +555,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     });
   }
 
-  async function handleSavePrivacy() {
-    await run(async () => {
-      await repository.saveProfile(userId, { visibility: visibilityDraft });
-      setVisibilityDraft({});
-    });
-  }
-
   async function handleSetAllHidden(hidden: boolean) {
     await run(async () => {
       for (const tag of profile.tags) await repository.setTagVisibility(userId, tag.id, hidden);
@@ -689,15 +666,11 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       ) : null}
 
       {/* Its own tab: these switches are about what other people get to see, not about
-          the page you are dressing. */}
+          the page you are dressing. The same ones as the PRIVACY tab on /account, saved as they are pressed. */}
       {tab === 'privacy' ? (
-        <ProfilePrivacyTab
-          profile={profile}
-          draft={visibilityDraft}
-          onToggle={(key, value) => setVisibilityDraft((current) => ({ ...current, [key]: value }))}
-          onSave={() => void handleSavePrivacy()}
-          busy={busy}
-        />
+        <div className="p-3">
+          <PrivacySwitches userId={userId} />
+        </div>
       ) : null}
 
       {/* A problem stays on screen until the next try; a success is the `SAVED` in the foot. */}

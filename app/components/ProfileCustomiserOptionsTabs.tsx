@@ -10,7 +10,7 @@ import {
   nameColourLabel,
 } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
-import type { ProfileVisibility, PublicProfile } from '../lib/profile/types';
+import type { PublicProfile } from '../lib/profile/types';
 import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
 import InfoFold from './InfoFold';
@@ -33,8 +33,6 @@ const NAME_COLOUR_ROWS = [
   { label: 'INK', colours: NAME_COLOURS_THAT_READ },
   { label: 'GLOW', colours: NAME_COLOURS_THAT_GLOW },
 ];
-
-export type ProfileVisibilityDraft = Partial<ProfileVisibility>;
 
 export type ProfileIdentityTabProps = {
   profile: PublicProfile;
@@ -228,73 +226,3 @@ export function ProfileIdentityTab({
   );
 }
 
-export type ProfilePrivacyTabProps = {
-  profile: PublicProfile;
-  draft: ProfileVisibilityDraft;
-  onToggle: (key: keyof ProfileVisibility, value: boolean) => void;
-  onSave: () => void;
-  busy: boolean;
-};
-
-/** The switches that decide what visitors get to see. */
-export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: ProfilePrivacyTabProps) {
-  const visibility: ProfileVisibility = { ...profile.visibility, ...draft };
-
-  // A note only where the rule is not visible from the switch, and then behind a [ ? ] (SPEC-less-text.md).
-  const rows: { key: keyof ProfileVisibility; label: string; note?: string }[] = [
-    { key: 'showOnline', label: 'ONLINE LAMP', note: 'OTHERS SEE YOUR LAMP, WHEN YOU WERE LAST HERE, AND WHICH STREAM YOU ARE IN.' },
-    {
-      key: 'showTags',
-      label: 'TAGS',
-      note: 'TAGS ARRIVE HIDDEN. EACH TAG ALSO HAS ITS OWN SWITCH ON THE PROFILE TAB.',
-    },
-    {
-      key: 'showProfileComments',
-      label: 'PROFILE COMMENTS',
-      note: 'THEY ARRIVE HIDDEN. WHILE THIS IS OFF, NOBODY CAN ADD ONE EITHER.',
-    },
-    { key: 'showAvatarComments', label: 'PICTURE COMMENTS' },
-    { key: 'showSongComments', label: 'TRACK COMMENTS' },
-    {
-      key: 'showListening',
-      label: 'MY LISTENING',
-      note: "ON: YOUR PLAYS COUNT TOWARDS PLAY COUNTS, AND YOUR PICTURE CAN SHOW BESIDE SONGS YOU PLAY IN OTHER PEOPLE'S PICKS. OFF: YOU ARE LEFT OUT OF BOTH. NOBODY CAN EVER SEE A LIST OF WHAT YOU PLAYED.",
-    },
-  ];
-
-  return (
-    <div className="p-3">
-      <ul className="space-y-2">
-        {rows.map((row) => (
-          <li key={row.key} className="rule-pixel p-2">
-            <label className="flex items-start gap-2 text-label font-bold text-ink">
-              <input
-                type="checkbox"
-                checked={visibility[row.key]}
-                onChange={(event) => onToggle(row.key, event.target.checked)}
-                className="mt-0.5"
-              />
-              <span>
-                {row.label}
-                {visibility[row.key] === profile.visibility[row.key] ? '' : ' *'}
-              </span>
-            </label>
-            {row.note === undefined ? null : (
-              <InfoFold topic={`the ${row.label.toLowerCase()} switch`} className="mt-1">
-                {row.note}
-              </InfoFold>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span>
-          <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
-            {busy ? '[ WORKING... ]' : '[ SAVE ]'}
-          </button>
-        </span>
-      </div>
-    </div>
-  );
-}

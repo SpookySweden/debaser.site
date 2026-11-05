@@ -27,7 +27,6 @@ const stored = {
   country: 'SE',
   status: 'AROUND',
   nameColour: null,
-  visibility: { showTags: true, showProfileComments: false, showAvatarComments: true, showSongComments: true },
 };
 
 /** No drafts at all - the state the window opens in. */
@@ -37,7 +36,6 @@ const clean = {
   country: null,
   status: null,
   nameColour: null,
-  visibility: {},
   pendingPicture: null,
   pendingSong: null,
 };
@@ -103,49 +101,16 @@ assert.deepEqual(
 );
 assert.equal(unsavedChanges(stored, { ...clean, nameColour: '#FF00A0' }).length, 1, 'and choosing one is a change');
 
-/* 8. The visibility switches, reported per switch and in words rather than booleans. */
-const flipped = unsavedChanges(stored, { ...clean, visibility: { showProfileComments: true } });
-assert.equal(flipped.length, 1, 'flipping a switch is one change');
-assert.equal(flipped[0].tab, 'privacy', 'and it belongs to the privacy tab');
-assert.match(flipped[0].detail, /HIDDEN -> VISIBLE/, 'and says which way it went');
-
-/**
- * 8b. **Every switch the customiser shows is reported, under the name it shows.** TRACK COMMENTS (showSongComments)
- * was never in the list, so turning it off and closing gave no warning (found 2026-10-25). Each of the four is
- * flipped on its own and must come back as one change, labelled as the SHOW / HIDE tab labels it.
+/*
+ * 8. (Changed on purpose, 2026-11-05.) The privacy switches are not here any more: the editor's PRIVACY tab is the same switches as
+ * /account's, and each saves as it is pressed, so there is nothing unsaved to warn about. A change can only be in the two tabs left.
  */
-for (const [key, label] of [
-  ['showTags', 'TAGS'],
-  ['showProfileComments', 'PROFILE COMMENTS'],
-  ['showAvatarComments', 'PICTURE COMMENTS'],
-  ['showSongComments', 'TRACK COMMENTS'],
-]) {
-  const one = unsavedChanges(stored, { ...clean, visibility: { [key]: !stored.visibility[key] } });
-  assert.equal(one.length, 1, `flipping ${label} is one unsaved change`);
-  assert.equal(one[0].label, label, `and it is called ${label}, as the switch is`);
-}
-
-/**
- * 9. **A switch set back to what is stored is not a change** - the same rule as the text fields, which is why the
- * comparison is against the stored value rather than against `undefined`.
- */
-assert.deepEqual(
-  unsavedChanges(stored, { ...clean, visibility: { showProfileComments: false } }),
-  [],
-  'flipping a switch and flipping it back is not unsaved work',
-);
 
 /* 10. An upload that has not been filed is unsaved work, reported even with no text edits at all. */
 const uploaded = unsavedChanges(stored, { ...clean, pendingPicture: '/assets/avatars/new.png' });
 assert.equal(uploaded.length, 1, 'an unfiled upload is a change');
 assert.match(uploaded[0].detail, /NOT FILED/, 'and says why it is not saved');
 
-/* 11. A switch the draft does not mention is not reported - the draft is partial, and absent is not a value. */
-assert.deepEqual(
-  unsavedChanges(stored, { ...clean, visibility: { showTags: true } }),
-  [],
-  'a switch set to the value it already had is not a change',
-);
 
 /* 12. Everything at once, to prove the pieces compose rather than shadowing each other. */
 const everything = [
@@ -155,7 +120,6 @@ const everything = [
     country: 'NO',
     status: 'BUSY',
     nameColour: '#FFF000',
-    visibility: { showTags: false, showAvatarComments: false },
     pendingPicture: '/x.png',
     pendingSong: null,
   }),
@@ -163,11 +127,11 @@ const everything = [
     ? []
     : [figureIsUnsaved({ bench: 'different-figure', kept: 'kept-figure' })]),
 ];
-assert.equal(everything.length, 9, `every kind of change is reported (got ${everything.length})`);
+assert.equal(everything.length, 7, `every kind of change is reported (got ${everything.length})`);
 assert.deepEqual(
   [...new Set(everything.map((change) => change.tab))].sort(),
-  ['character', 'privacy', 'profile'],
-  'and they are attributed to all three tabs',
+  ['character', 'profile'],
+  'and they are attributed to both tabs',
 );
 
 /* 13. The figure is unsaved when it *differs* from what was kept - not when it was touched. */
@@ -266,7 +230,7 @@ assert.equal(summarise(several), '3 UNSAVED CHANGES', 'and several');
 
 console.log('customiser unsaved-changes checks passed');
 console.log('  model    : a draft equal to what is stored is not a change');
-console.log('  covers   : name, colour, bio, country flag, status, two uploads, three switches, the figure');
+console.log('  covers   : name, colour, bio, country flag, status, two uploads, the figure');
 console.log('  cannot   : prove the prompt appears. That is the component, checked in the render.');
 
 assert.ok(long[0].detail.length < 70, `a long value is shortened (${long[0].detail.length} chars)`);
