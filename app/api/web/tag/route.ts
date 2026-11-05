@@ -1,5 +1,7 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { createClient } from '@supabase/supabase-js';
+import { cachedFetch } from '../../../lib/web/search/cached-fetch';
+import { readSeenItems } from '../../../lib/web/seen-items';
 import { makeTaggingStore, runTagging } from '../../../lib/web/tagging';
 
 /**
@@ -37,7 +39,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
   try {
-    return json(await runTagging(new Anthropic(), makeTaggingStore(db, lock)), 200);
+    const reader = (names: Parameters<typeof readSeenItems>[0]) => readSeenItems(names, { fetch: cachedFetch, env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN } });
+    return json(await runTagging(new Anthropic(), makeTaggingStore(db, lock, reader)), 200);
   } catch (error) {
     if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);
     // Only the lock's holder reads this, in the cron's saved answers. Claude's own status and error type say what went

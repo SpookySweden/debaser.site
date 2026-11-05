@@ -1,3 +1,4 @@
+import { after } from 'next/server';
 import { looksLikeLink } from '../../../lib/web/link-shape';
 import { compareItems } from '../../../lib/web/paging';
 import { authorWords, searchText } from '../../../lib/web/search';
@@ -9,6 +10,7 @@ import { clientAddress, makeDailyBudgets, makeRateLimiter } from '../../../lib/w
 import { searchEverywhere } from '../../../lib/web/search/run';
 import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
 import { PLATFORM_LABELS } from '../../../lib/web/types';
+import { noteSeen } from '../../../lib/web/seen-items';
 import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
 
@@ -105,6 +107,7 @@ export async function GET(request: Request): Promise<Response> {
           timer = setTimeout(() => reject(new Error('slow')), LINK_TIMEOUT_MS);
         }),
       ]);
+      if (item !== null) after(() => noteSeen(request, [item]));
       return item === null
         ? json({ items: [], statuses: [], nextCursor: null, link: 'not-found' }, 200)
         : json({ items: [item], statuses: [], nextCursor: null, link: 'found' }, 200, true);
@@ -138,5 +141,7 @@ export async function GET(request: Request): Promise<Response> {
   const complete = statuses.every((status) => status.problem === null);
   // In an order, the provider's own order is kept and the media servers' titles follow it (the page places them).
   const items = order === undefined ? [...result.items, ...wildcard].sort(compareItems) : [...result.items, ...wildcard];
+  // Names only, once the answer has gone: what appeared gets Claude's words in the next batch (SPEC-tag-station.md).
+  after(() => noteSeen(request, items));
   return json({ items, statuses, nextCursor: result.nextCursor }, 200, complete);
 }

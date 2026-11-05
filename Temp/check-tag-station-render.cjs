@@ -109,7 +109,8 @@ const labels = map.match(/data-word="[^"]+"/g) ?? [];
 assert.ok(labels.length > 5, 'real text labels');
 assert.equal((map.match(/data-word="[^"]+"[^>]*tabindex="0"|tabindex="0"[^>]*data-word="[^"]+"/gi) ?? []).length, 1, 'one Tab stop');
 assert.ok(map.includes('>+ <!-- -->bristol') || map.includes('>+ bristol'), 'a must-have is marked without colour');
-assert.ok(map.includes('stroke-dasharray'), 'dotted lines to its closest words');
+assert.ok(map.includes('border-dotted'), 'dotted lines to its closest words');
+assert.ok(!map.includes('<svg'), 'with no drawn picture');
 
 // 8. The recipe: everything set from the address shows, folded open, with CLEAR.
 const recipe = draw('tag=dub&must=bristol&any=reggae&not=vocals&strict=most&niche=rare&near=far&src=claude&era=1990s&kind=audio&sort=new&view=list');

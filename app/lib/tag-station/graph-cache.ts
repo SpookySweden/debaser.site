@@ -11,12 +11,12 @@ const KEEP_MS = 60 * 60 * 1000;
 let held: { graph: StationGraph; at: number } | null = null;
 let building: Promise<StationGraph> | null = null;
 
-export async function stationGraph(read: () => Promise<readonly StationRow[]>, now: number = Date.now()): Promise<StationGraph> {
+export async function stationGraph(read: () => Promise<readonly StationRow[]>, now: number = Date.now(), limitReached: () => Promise<boolean> = async () => false): Promise<StationGraph> {
   if (held !== null && now - held.at < KEEP_MS) return held.graph;
   // Two readers at once share one build.
-  building ??= read()
-    .then((rows) => {
-      const graph = buildStationGraph(rows);
+  building ??= Promise.all([read(), limitReached()])
+    .then(([rows, reached]) => {
+      const graph: StationGraph = { ...buildStationGraph(rows), ...(reached ? { limitReached: true } : {}) };
       held = { graph, at: now };
       return graph;
     })

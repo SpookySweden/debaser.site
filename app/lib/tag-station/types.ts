@@ -9,7 +9,11 @@ import type { WebItem } from '../web/types';
 export type ItemWord = { word: string; claude: boolean; platform: boolean };
 
 /** A saved item, as the page needs it. The same addresses as a WEB row, so `rowAddresses` checks them the same way. */
-export type StationItem = Omit<WebItem, 'tags' | 'pickWords' | 'pickPage' | 'media'> & { words: ItemWord[] };
+export type StationItem = Omit<WebItem, 'tags' | 'pickWords' | 'pickPage' | 'media'> & {
+  words: ItemWord[];
+  /** A search result nobody saved (`web_seen_items`): its words count, and it has no address of its own here. */
+  seenOnly?: boolean;
+};
 
 /** Another word this one meets. `close` is the honest part: true only once the pair shares `MIN_SHARED` items. */
 export type Partner = {
@@ -45,10 +49,12 @@ export type StationTag = {
 export type StationGraph = {
   tags: StationTag[];
   items: StationItem[];
+  /** True when the $60 tagging limit has stopped the batches: a person has to decide (SPEC-tag-station.md). */
+  limitReached?: boolean;
 };
 
 /** One saved item and Claude's words for it, as a repository reads them. */
-export type StationRow = { item: WebItem; claudeWords: readonly string[] };
+export type StationRow = { item: WebItem; claudeWords: readonly string[]; seenOnly?: boolean };
 
 /** A word a pasted link came with, and who said so. Only ever matched to the map's words; nothing is added or saved. */
 export type LinkWord = { word: string; from: 'platform' | 'musicbrainz' };

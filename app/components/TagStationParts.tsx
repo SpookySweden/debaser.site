@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useState, type ReactNode } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import type { StationIndex } from '../lib/tag-station/query';
@@ -109,11 +110,20 @@ export function Thumb({ src, wide }: { src: string | null; wide?: boolean }) {
   );
 }
 
+/** A search result nobody saved has no address here, so this finds it again through MEDIA's own search. */
+export function FindInMedia({ item }: { item: Pick<StationItem, 'title'> }) {
+  return (
+    <Link href={`/media?q=${encodeURIComponent(item.title.slice(0, 100))}`} aria-label={`Find "${item.title}" in MEDIA`} className={STATION_KEY}>
+      [ FIND IN MEDIA ]
+    </Link>
+  );
+}
+
 /** One item in a list: its name goes there, and its source is always named beside it. */
 export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem; note?: string; extraHosts: ExtraHosts; onPick: (id: string) => void }) {
   const { link, thumb } = rowAddresses(item, extraHosts);
   const source = PLATFORM_LABELS[item.platform];
-  const year = item.publishedAt.slice(0, 4);
+  const year = Number.isFinite(Date.parse(item.publishedAt)) ? ` · ${item.publishedAt.slice(0, 4)}` : '';
   return (
     <li className="rule-pixel flex items-start gap-2 py-2">
       <Thumb src={thumb} />
@@ -122,7 +132,8 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
           {item.title}
         </button>
         <p className="break-words px-1 text-label text-ink">
-          {source} · {item.kind.toUpperCase()} · {year}
+          {source} · {item.kind.toUpperCase()}
+          {year}
           {item.creator ? ` · ${item.creator}` : ''}
         </p>
         {note ? <p className="break-words px-1 text-label text-ink-quiet">{note}</p> : null}
@@ -131,6 +142,7 @@ export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem;
             [ OPEN ↗ ]
           </a>
         ) : null}
+        {item.seenOnly ? <FindInMedia item={item} /> : null}
       </div>
     </li>
   );

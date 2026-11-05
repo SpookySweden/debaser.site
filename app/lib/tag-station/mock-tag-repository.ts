@@ -76,10 +76,24 @@ export const MOCK_STATION_ROWS: readonly StationRow[] = WORDS.map((claudeWords, 
   };
 });
 
+/** Search results nobody saved: words only, and no address, as `web_seen_items` holds them. */
+const MOCK_SEEN_ROWS: readonly StationRow[] = [
+  ['dub', 'bass', 'bristol'],
+  ['linux', 'software', 'tutorial'],
+  ['animation', 'comedy', 'short film'],
+].map((claudeWords, index) => ({
+  item: { id: `youtube:mockseen${index}`, platform: 'youtube', externalId: `mockseen${index}`, kind: 'video', url: '', canonicalUrl: '', title: `MOCK SEEN RESULT ${index}: ${claudeWords[0]}`, publishedAt: '2026-10-01T00:00:00.000Z', fetchedAt: '' },
+  claudeWords,
+  seenOnly: true,
+}));
+
 const MOCK: TagStationRepository = {
   source: 'mock',
   async rows() {
-    return MOCK_STATION_ROWS;
+    return [...MOCK_STATION_ROWS, ...MOCK_SEEN_ROWS];
+  },
+  async limitReached() {
+    return false;
   },
 };
 

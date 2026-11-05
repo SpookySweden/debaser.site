@@ -10,6 +10,8 @@ import { createSupabaseTagRepository } from './supabase-tag-repository';
 export type TagStationRepository = {
   readonly source: 'mock' | 'supabase';
   rows(): Promise<readonly StationRow[]>;
+  /** Whether the $60 tagging limit has been reached. */
+  limitReached(): Promise<boolean>;
 };
 
 const USES_SUPABASE =

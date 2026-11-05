@@ -37,6 +37,10 @@ const { BATCH_SIZE, TAGGING_MODEL, cleanWords, customIdFor, requestFor, runTaggi
     const log = { created: [], saved: [], released: [], sentIds: [], cancelled: [] };
     const store = {
       untagged: async (limit) => (over.items ?? []).slice(0, limit),
+      seen: async () => [],
+      seenSent: async () => undefined,
+      spent: async () => 0,
+      recordSpend: async () => undefined,
       pending: async () => over.pending ?? [],
       outIn: async () => over.out ?? [],
       sent: async (batchId, ids) => {

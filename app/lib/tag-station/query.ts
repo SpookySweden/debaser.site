@@ -132,8 +132,8 @@ export function matchItems(index: StationIndex, recipe: Recipe, focus: Focus): S
     if (recipe.kind !== null && item.kind !== recipe.kind) return false;
     if (recipe.site !== null && item.platform !== recipe.site) return false;
     if (recipe.from !== null || recipe.to !== null) {
+      if (!Number.isFinite(Date.parse(item.publishedAt))) return false;
       const year = Number(item.publishedAt.slice(0, 4));
-      if (!Number.isFinite(year)) return false;
       if (recipe.from !== null && year < recipe.from) return false;
       if (recipe.to !== null && year > recipe.to) return false;
     }
