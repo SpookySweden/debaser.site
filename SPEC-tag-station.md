@@ -25,7 +25,7 @@ A word is marked with where it came from: `C` Claude's, `P` the platform's own, 
 - `web_item_tags` is readable by signed-in people only, so the server reads it with the reader's own session token and
   the route refuses anyone without one. The built map is kept in the server's memory for an hour, because the words only
   change every three hours.
-- Metadata only (CLAUDE.md): the counts on this page are how many of **our saved items** carry a word. No platform's
+- Metadata only (CLAUDE.md): the counts on this page are how many of **the items we've saved or shown** carry a word. No platform's
   likes, views or ratings are read, kept or shown.
 
 ## How the map is worked out (`app/lib/tag-station/`)
@@ -106,7 +106,8 @@ into a paid batch. No new secret or key is needed from Luke.
 - `web_seen_caps`: how many results each person's searches named today, and nothing about which. Unreadable through the API.
 - `web_tag_spend`: tokens and dollars per batch. Unreadable through the API except the total, through the job's lock.
 
-**The limits, enforced in code:** a person's searches name at most 500 results a day and the whole site 5,000. Items already
+**The limits, enforced in code:** a person's searches name at most 500 results a day and the whole site 5,000 (a database lock
+stops calls made together slipping past either). Items already
 tagged are never sent again. The batch size goes from 200 to 1,000 a run, because 200 could fall behind. Before sending, the job
 adds what's been spent to the worst case of the next batch (cut to 300 output tokens an item), and sends nothing if that passes
 $60. It then stops and the run's answer says so.
@@ -118,10 +119,11 @@ $60. It then stops and the run's answer says so.
 `[ FIND IN MEDIA ]` instead of a player, because the table keeps no address for it. The map reads the newest 1,000 of each kind of
 row (PostgREST's cap on one answer); past that, the oldest drop off the map.
 
-**Still not covered:** results nobody has seen; DEBASER.SITE's own files (they stay in the browser); linked YouTube lists (they
+**Still not covered:** results nobody has seen; KINO's films and shows (TMDB's titles can't be read back by id, so the job would have
+nothing to send); DEBASER.SITE's own files (they stay in the browser); linked YouTube lists (they
 stay in the browser by design); media-server titles (friends' private lists, not sent to Claude without Luke's say-so); results
 a platform won't answer about when asked again; and a little less to go on for YouTube and Vimeo, whose keyless answers often
-have no description.
+have no description (the YouTube key isn't used here on purpose: thousands of reads would spend the quota MEDIA's searches need).
 
 ## Out of scope for now (each needs Luke's OK)
 Database tables for tags, running the tagger on pasted links, YouTube and Discogs keys, Last.fm, number dials and

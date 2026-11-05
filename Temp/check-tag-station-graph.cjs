@@ -116,6 +116,7 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
       from: (table) => (asked.push(['from', table]), query),
       select: (columns) => (asked.push(['select', columns]), query),
       order: () => query,
+      neq: () => query,
       limit: (limit) => (asked.push(['limit', limit]), Promise.resolve(result)),
     };
     return query;
@@ -132,7 +133,8 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   await assert.rejects(createSupabaseTagRepository(answer({ data: null, error: { message: 'secret detail' } })).rows(), /could not be read/);
   for (const file of ['repository.ts', 'supabase-tag-repository.ts', 'mock-tag-repository.ts', 'graph-cache.ts', 'graph.ts']) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station', file), 'utf8');
-    assert.ok(!/\.(insert|update|upsert|delete|rpc)\(/.test(source), `${file} writes nothing`);
+    assert.ok(!/\.(insert|update|upsert|delete)\(/.test(source), `${file} writes nothing`);
+    assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => name !== 'web_tag_limit_reached'), [], `${file} only asks whether the limit is reached`);
   }
   assert.ok(MOCK_STATION_ROWS.length >= 30, 'the mock has enough to draw');
 

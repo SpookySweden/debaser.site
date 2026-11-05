@@ -327,7 +327,7 @@ export function Station({ index }: { index: StationIndex }) {
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Tag Station">
-          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE OF THIS SITE&apos;S SAVED ITEMS ONLY.
+          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED OR SHOWN.
         </InfoFold>
       </div>
 

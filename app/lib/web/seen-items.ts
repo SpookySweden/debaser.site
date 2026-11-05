@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { after } from 'next/server';
 import { FETCH_ONE_PROVIDERS } from './search/index';
 import type { SearchDeps } from './search/types';
 import type { SeenItem } from './tagging';
@@ -13,8 +14,11 @@ import { isSafeIdentifier } from './urls';
  * Not who saw it, and not what they searched for: a person's count of names today is kept apart, with nothing about which.
  */
 
-/** What the table takes. A media server's title has `media`, and friends' lists aren't sent to Claude. */
-const SEEN_PLATFORMS: readonly WebPlatform[] = ['internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo', 'kino'];
+/**
+ * What the table takes. A media server's title has `media`, and friends' lists aren't sent to Claude. KINO isn't here because its
+ * titles can't be read back by id (`fetchOne` answers null), so the job would have nothing to send.
+ */
+const SEEN_PLATFORMS: readonly WebPlatform[] = ['internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo'];
 /** The most `web_seen_add` takes in one call. */
 const MAX_NAMES = 100;
 /** Names already sent from this server instance, so the same search asked twice doesn't cost a person's allowance twice. */
@@ -59,6 +63,15 @@ export async function noteSeen(request: Request, items: readonly WebItem[], clie
     await Promise.all([...names].map(([platform, ids]) => db.rpc('web_seen_add', { p_platform: platform, p_external_ids: ids })));
   } catch {
     // Not tagged this time; the next person to see it names it again.
+  }
+}
+
+/** `noteSeen` once the answer has gone, so it never holds up a search. Outside a real request there is simply nothing to do. */
+export function noteSeenLater(request: Request, items: readonly WebItem[]): void {
+  try {
+    after(() => noteSeen(request, items));
+  } catch {
+    // Not in a request (a check calling the route directly).
   }
 }
 

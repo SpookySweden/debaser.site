@@ -39,7 +39,8 @@ export async function POST(request: Request): Promise<Response> {
 
   const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
   try {
-    const reader = (names: Parameters<typeof readSeenItems>[0]) => readSeenItems(names, { fetch: cachedFetch, env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN } });
+    // No YouTube key on purpose: thousands of reads through it would spend the quota MEDIA's searches need (keyless oEmbed instead).
+    const reader = (names: Parameters<typeof readSeenItems>[0]) => readSeenItems(names, { fetch: cachedFetch });
     return json(await runTagging(new Anthropic(), makeTaggingStore(db, lock, reader)), 200);
   } catch (error) {
     if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);

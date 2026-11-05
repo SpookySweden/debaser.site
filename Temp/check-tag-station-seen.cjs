@@ -23,6 +23,7 @@ const withToken = new Request('https://x.example/', { headers: { authorization: 
     webItem({ id: 'youtube:def', externalId: 'def' }),
     webItem({ id: 'peertube:uuid', platform: 'peertube', externalId: 'uuid' }),
     webItem({ id: 'jellyfin:x', platform: 'jellyfin', externalId: 'x' }),
+    webItem({ id: 'kino:movie-1', platform: 'kino', externalId: 'movie-1' }),
     webItem({ id: 'youtube:media', externalId: 'media', media: { kind: 'film' } }),
     webItem({ id: 'youtube:bad', externalId: '../../etc' }),
   ]);
@@ -174,6 +175,9 @@ const withToken = new Request('https://x.example/', { headers: { authorization: 
   const addFn = /function public\.web_seen_add\(p_platform text, p_external_ids text\[\]\)/.test(code);
   assert.ok(addFn, 'the way in takes a platform and ids, never text');
   assert.ok(/least\(500 - used, 5000 - site_room/.test(code), 'the two caps');
+  assert.ok(code.indexOf('pg_advisory_xact_lock') > -1 && code.indexOf('pg_advisory_xact_lock') < code.indexOf('500 - used'), 'taken under a lock, so calls together cannot slip past them');
+  assert.ok(/cardinality\(p_external_ids\) > 1000/.test(code), 'and a huge list is refused before it is read');
+  assert.ok(!/'kino'/.test(code), 'KINO cannot be read back, so its titles would only use up the caps');
   for (const name of ['web_seen_waiting', 'web_seen_unreadable', 'web_seen_sent', 'web_seen_pending', 'web_seen_out', 'web_seen_save', 'web_seen_release', 'web_tag_spend_add', 'web_tag_spent']) {
     const body = new RegExp(`function public\\.${name}\\([\\s\\S]*?\\$\\$;`).exec(code)[0];
     assert.ok(body.includes('web_ingest_lock_ok(p_secret)'), `${name} needs the lock`);
@@ -189,8 +193,10 @@ const withToken = new Request('https://x.example/', { headers: { authorization: 
     if (source.startsWith("'use client'")) assert.ok(!source.includes('seen-items') && !source.includes('web_seen_add'), `${name} is browser code`);
   }
   const route = fs.readFileSync(path.join(ROOT, 'app/api/web/search/route.ts'), 'utf8');
-  assert.ok(route.indexOf('webSignedIn(request)') < route.indexOf('noteSeen(request'), 'the session is checked first');
-  assert.ok(/after\(\(\) => noteSeen\(request, items\)\)/.test(route), 'and noting never holds up the answer');
+  assert.ok(route.indexOf('webSignedIn(request)') < route.indexOf('noteSeenLater(request'), 'the session is checked first');
+  assert.ok(/noteSeenLater\(request, items\)/.test(route), 'and every page of results is noted');
+  assert.ok(/after\(\(\) => noteSeen\(request, items\)\)/.test(browserOwned), 'once the answer has gone, so it never holds up a search');
+  seen.noteSeenLater(withToken, [webItem()]);
 
   // 8. On the map: a seen row counts, has no address, and a saved copy wins.
   const dbRow = { id: 'youtube:a', platform: 'youtube', external_id: 'a', kind: 'video', url: 'u', canonical_url: 'u', title: 't', creator: null, description: null, thumbnail_url: null, embed_url: null, license_url: null, duration_seconds: null, tags: null, published_at: '2026-01-01T00:00:00+00:00', fetched_at: '2026-01-01T00:00:00+00:00', language: null, web_item_tags: { words: ['dub'] } };

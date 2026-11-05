@@ -38,10 +38,7 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const hosts = await peertubeHosts(cachedFetch);
     const answer = await Promise.race([
-      resolveStationLink(url, hosts, {
-        fetch: cachedFetch,
-        search: { env: { YOUTUBE_API_KEY: process.env.YOUTUBE_API_KEY, TMDB_READ_TOKEN: process.env.TMDB_READ_TOKEN } },
-      }),
+      resolveStationLink(url, hosts, { fetch: cachedFetch }),
       new Promise<never>((_, reject) => {
         timer = setTimeout(() => reject(new Error('slow')), LINK_TIMEOUT_MS);
       }),

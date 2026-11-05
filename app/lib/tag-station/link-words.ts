@@ -2,7 +2,6 @@ import { looksLikeLink } from '../web/link-shape';
 import { safeFetchJson, buildUrl, type FetchLike } from '../web/safe-fetch';
 import { sanitiseText } from '../web/sanitise';
 import { parseLink, resolveLink, type PastedLink } from '../web/search/link';
-import type { SearchDeps } from '../web/search/types';
 import type { LinkAnswer, LinkWord } from './types';
 import { cleanWord } from './words';
 
@@ -62,7 +61,6 @@ type Deps = {
   fetch: FetchLike;
   now?: () => number;
   sleep?: (ms: number) => Promise<void>;
-  search?: Pick<SearchDeps, 'env' | 'peertubeHosts' | 'now'>;
 };
 
 let nextMusicBrainzAt = 0;
@@ -153,7 +151,7 @@ export async function resolveStationLink(raw: unknown, peertubeHosts: ReadonlySe
   if (parsed !== null) {
     let item;
     try {
-      item = await resolveLink(parsed, { fetch: deps.fetch, peertubeHosts, ...(deps.search ?? {}) });
+      item = await resolveLink(parsed, { fetch: deps.fetch, peertubeHosts });
     } catch {
       return NOTHING('no-answer');
     }

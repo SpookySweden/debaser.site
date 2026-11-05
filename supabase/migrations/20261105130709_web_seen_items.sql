@@ -88,7 +88,12 @@ begin
   if me is null then
     raise exception 'sign in first' using errcode = '28000';
   end if;
-  if p_platform is null or p_platform not in ('internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo', 'kino') then
+  -- One at a time, so calls made together can't all read the same count and slip past the caps.
+  perform pg_advisory_xact_lock(hashtextextended('web_seen_add', 0));
+  if p_platform is null or p_platform not in ('internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo') then
+    return;
+  end if;
+  if cardinality(p_external_ids) > 1000 then
     return;
   end if;
   select coalesce(array_agg(distinct e), '{}') into wanted
