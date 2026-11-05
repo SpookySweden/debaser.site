@@ -1,7 +1,7 @@
-import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
 import { goPublicPlan } from './music-rooms';
-import { NOT_ALLOWED, TAKE_OVER_QUIET_MS, hasCrown, nextPlayIndex, nextQueuePosition } from './rules';
+import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
 import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
@@ -44,7 +44,7 @@ function load(): Tables {
     return {
       // Rooms stored before music rooms were all public streams, never cleared.
       rooms: Array.isArray(parsed.rooms)
-        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, clearedAt: room.clearedAt ?? null }))
+        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, clearedAt: room.clearedAt ?? null, name: room.name ?? null, topic: room.topic ?? null, addMode: room.addMode ?? 'anyone' }))
         : [],
       // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
       queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true, series: entry.series ?? null })) : [],
@@ -160,6 +160,11 @@ function refuseIfShut(room: WatchRoom, userId: string): void {
   if (!room.isPublic && room.hostId !== userId) throw new Error(NOT_ALLOWED);
 }
 
+/** WHO CAN ADD on CROWNS ONLY: nobody else adds (the database's rule too). Chat stays open. */
+function refuseIfCrownsOnly(room: WatchRoom, crowns: WatchCrown[], userId: string): void {
+  if (room.addMode === 'crowns' && room.hostId !== userId && !hasCrown(crowns, userId)) throw new Error(NOT_ALLOWED);
+}
+
 /** A queue row as GO PUBLIC writes it. */
 function songRow(roomId: string, link: WatchLink, over: Partial<WatchQueueEntry>): WatchQueueEntry {
   return { id: newId(), roomId, position: 0, inQueue: true, mediaItemId: null, link, series: null, addedBy: null, addedAt: stamp(), playedAt: null, playIndex: null, ...over };
@@ -263,6 +268,9 @@ class MockWatchRepository implements WatchRepository {
       origin: 'stream',
       isPublic: true,
       clearedAt: null,
+      name: null,
+      topic: null,
+      addMode: 'anyone',
     };
     const crown = crownFor(room.id, input.host.id, input.host.id);
     const queue = entry === null ? [] : [entry];
@@ -300,6 +308,9 @@ class MockWatchRepository implements WatchRepository {
         origin: 'music',
         isPublic: true,
         clearedAt: null,
+        name: null,
+        topic: null,
+        addMode: 'anyone',
       };
       // The host is crowned as the room is written, as GO LIVE does it.
       crowns = withCrown(crowns, crownFor(room.id, input.host.id, input.host.id));
@@ -335,6 +346,19 @@ class MockWatchRepository implements WatchRepository {
 
   async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
     changeRoom(roomId, (room) => (room.origin !== 'music' ? null : { ...room, isPublic, isPlaying: isPublic && room.isPlaying }));
+  }
+
+  async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
+    const { room, crowns } = liveRoom(load(), input.roomId);
+    if (!mayEditRoom(room, crowns, input.by, true)) throw new Error(NOT_ALLOWED);
+    // The stamp is when the position was true, so a save while playing walks it forward, as `watch_room_settings` does.
+    changeRoom(input.roomId, (current) => ({
+      ...current,
+      name: cleanRoomWords(input.name, ROOM_NAME_MAX),
+      topic: cleanRoomWords(input.topic, ROOM_TOPIC_MAX),
+      addMode: input.addMode,
+      positionSeconds: current.isPlaying ? current.positionSeconds + Math.max(0, (Date.now() - Date.parse(current.updatedAt)) / 1000) : current.positionSeconds,
+    }));
   }
 
   async playNow(input: PlayNowInput): Promise<WatchQueueEntry> {
@@ -421,6 +445,7 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const { room, crowns } = liveRoom(tables, input.roomId);
     refuseIfShut(room, input.addedBy);
+    refuseIfCrownsOnly(room, crowns, input.addedBy);
     // The database's link checks, and the allow-list for an `embed` link, as the Supabase store asks them.
     const refusal = input.link === undefined ? null : queueRefusal(input.link);
     if (refusal !== null) throw new Error(refusal);
@@ -449,6 +474,7 @@ class MockWatchRepository implements WatchRepository {
     const tables = load();
     const { room, crowns } = liveRoom(tables, input.roomId);
     refuseIfShut(room, input.addedBy);
+    refuseIfCrownsOnly(room, crowns, input.addedBy);
     for (const link of input.links) {
       const refusal = queueRefusal(link);
       if (refusal !== null) throw new Error(refusal);

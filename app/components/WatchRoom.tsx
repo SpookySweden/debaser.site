@@ -36,6 +36,7 @@ import {
   handoverTo,
   hasCrown,
   hostPosition,
+  mayEditRoom,
   nextQueuePosition,
   nextPlayIndex,
   roomIsLive,
@@ -66,6 +67,7 @@ import MarqueeText from './MarqueeText';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
+import RoomSettingsWindow from './RoomSettingsWindow';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
 import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
@@ -775,6 +777,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   }
 
   const [queueOpen, setQueueOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   /** The search a blank screen's key opened the queue window with (SPEC-cytube.md). */
   const [queuePrefill, setQueuePrefill] = useState<string | undefined>(undefined);
   const openQueue = (key?: BlankKey) => {
@@ -1114,7 +1117,17 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" onClick={() => openQueue()} data-watch-queue-key>
           [ QUEUE ]
         </button>
+        {user !== null && mayEditRoom(room, read.crowns, user.id, live) ? (
+          <button type="button" className={`${TITLE_BAR_BUTTON} max-sm:min-h-tap`} aria-haspopup="dialog" aria-label="Room settings" title="Room settings" onClick={() => setSettingsOpen(true)} data-room-settings-key>
+            [ {'⚙︎'} ]
+          </button>
+        ) : null}
       </div>
+      {room.topic === null ? null : (
+        <p className="truncate text-label font-bold text-ink" title={room.topic} data-room-topic-line>
+          {room.topic}
+        </p>
+      )}
       {user !== null && !amHost ? (
         <LookToggle compact choice={myChoice} onChange={(next) => void saveLookChoice(user.id, next).catch(() => undefined)} />
       ) : null}
@@ -1134,6 +1147,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
           look={look}
         />
       ) : null}
+      {settingsOpen && user !== null && mayEditRoom(room, read.crowns, user.id, live) ? <RoomSettingsWindow room={room} userId={user.id} look={look} onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 

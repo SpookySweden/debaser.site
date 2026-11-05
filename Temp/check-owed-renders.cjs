@@ -594,14 +594,14 @@ test('CytubePage: opens on ABOUT, whatever the address says that is not a tab', 
     address = at;
     const html = draw(el(CytubePage));
     assert.match(openingTag(html, '[ ABOUT ]'), /aria-selected="true"/);
-    assert.match(openingTag(html, '[ LIVE ]'), /aria-selected="false"/);
+    assert.match(openingTag(html, '[ ROOM ]'), /aria-selected="false"/);
     assert.ok(html.includes('id="cytube-panel-about"'));
     for (const heading of ['ROOMS', 'CROWNS', 'THE CANVAS', 'YOUR LOOK']) assert.ok(html.includes(`>${heading}</h2>`), heading);
   }
 });
 test('CytubePage: a tab key writes the address, and ABOUT clears it', () => {
   draw(el(CytubePage));
-  press('[ LIVE ]');
+  press('[ ROOM ]');
   press('[ ABOUT ]');
   assert.deepEqual(said('replace'), [
     ['replace', '/here?tab=live', { scroll: false }],

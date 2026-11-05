@@ -73,7 +73,7 @@ export default function QueueBrowser() {
               now={now}
               mine={live.room.hostId === user?.id}
               inRoom={player.room?.roomId === live.room.id}
-              title={titleOf(live.current)}
+              title={live.room.name ? `${live.room.name} :: ${titleOf(live.current)}` : titleOf(live.current)}
               onJoin={(name) => join(live, name)}
               onQueue={() => setPeek(live.room.id)}
             />

@@ -870,6 +870,10 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
             </Link>{' '}
             TO ADD VIDEOS
           </p>
+        ) : live && read.room.addMode === 'crowns' ? (
+          <p className="font-bold" data-watch-crowns-only>
+            ONLY CROWNS CAN ADD TO THIS ROOM.
+          </p>
         ) : null}
 
         {problem === null ? null : (

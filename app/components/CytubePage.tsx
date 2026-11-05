@@ -33,7 +33,8 @@ type Tab = 'about' | 'live' | 'canvases';
 
 const TABS: readonly { key: Tab; label: string }[] = [
   { key: 'about', label: 'ABOUT' },
-  { key: 'live', label: 'LIVE' },
+  // Reads ROOM (Luke, 2026-11-05); the address keeps `?tab=live`, so old links still open it.
+  { key: 'live', label: 'ROOM' },
   { key: 'canvases', label: 'CANVASES' },
 ];
 
@@ -177,6 +178,10 @@ function About() {
         The host holds a crown and can give one to anybody in the room. A crown puts things straight into the queue, moves them around and
         takes out what has not played yet. Playing, pausing, skipping and ending the stream stay with the host.
       </AboutPart>
+      <AboutPart title="ROOM SETTINGS">
+        The cog beside QUEUE is for the host and anybody with a crown. It names the room, gives it a topic, and sets who can add: anyone, or
+        crowns only. It also copies the room&apos;s link and picks your look.
+      </AboutPart>
       <AboutPart title="THE STREAM BAR AND THE TV KEY">
         While you are in a room, the music bar along the foot of the screen becomes the stream&apos;s: what is on, what is next, and the
         room&apos;s keys. The TV key at its left turns it back into your music player, and back again.
@@ -229,7 +234,8 @@ function LiveRooms() {
             <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">LIVE</span>
             <span className="font-bold">{room.hostName.toUpperCase()}</span>
             <span className="min-w-0 flex-1 truncate" title={room.title}>
-              {room.kind === 'music' ? 'MUSIC' : 'STREAM'} :: {room.title.length > 0 ? room.title : 'NOTHING ON YET'}
+              {room.kind === 'music' ? 'MUSIC' : 'STREAM'} :: {room.name ? `${room.name} :: ` : ''}
+              {room.title.length > 0 ? room.title : 'NOTHING ON YET'}
             </span>
             <span className="flex shrink-0 items-center gap-1">
               {/* As QUEUES joins: a music room folded with the bar playing it, a video stream opened. */}

@@ -1,6 +1,6 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
-import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, SendMessageInput, WatchRepository } from './repository';
+import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
@@ -27,7 +27,7 @@ const MESSAGES = 'watch_messages';
 const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
-  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at';
+  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode';
 const QUEUE_COLUMNS =
   'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
@@ -65,6 +65,9 @@ type RoomRow = {
   origin?: string | null;
   is_public?: boolean | null;
   cleared_at?: string | null;
+  name?: string | null;
+  topic?: string | null;
+  add_mode?: string | null;
 };
 
 type QueueRow = {
@@ -120,6 +123,9 @@ function toRoom(row: RoomRow): WatchRoom {
     origin: row.origin === 'music' ? 'music' : 'stream',
     isPublic: row.is_public !== false,
     clearedAt: row.cleared_at ?? null,
+    name: row.name ?? null,
+    topic: row.topic ?? null,
+    addMode: row.add_mode === 'crowns' ? 'crowns' : 'anyone',
   };
 }
 
@@ -439,6 +445,12 @@ class SupabaseWatchRepository implements WatchRepository {
     const patch = isPublic ? { is_public: true } : { is_public: false, is_playing: false };
     const { error } = await requireClient().from(ROOMS).update(patch).eq('id', roomId).eq('origin', 'music');
     if (error) throw refused(error, 'THAT DID NOT SAVE.');
+  }
+
+  /** Through the database's own function, which checks the host or a crown and writes these three fields only. */
+  async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
+    const { error } = await requireClient().rpc('watch_room_settings', { room: input.roomId, new_name: input.name, new_topic: input.topic, new_add_mode: input.addMode });
+    if (error) throw refused(error, 'THE SETTINGS DID NOT SAVE.');
   }
 
   async playNow(input: PlayNowInput): Promise<WatchQueueEntry> {

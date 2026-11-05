@@ -33,9 +33,17 @@ export type WatchRoom = {
   isPublic: boolean;
   /** STORE AND START BLANK: what played before this is no longer shown in the queue window. */
   clearedAt: string | null;
+  /** The settings cog (SPEC-room-settings.md). Null: the room goes by its host's name. */
+  name: string | null;
+  /** One line on what the room is for; null shows nothing. */
+  topic: string | null;
+  /** Who may add to the queue or a list of their own. */
+  addMode: RoomAddMode;
 };
 
 export type RoomOrigin = 'stream' | 'music';
+
+export type RoomAddMode = 'anyone' | 'crowns';
 
 /** A room on the QUEUES list: the room and what is on in it (null when nothing is). */
 export type LiveRoom = { room: WatchRoom; current: WatchQueueEntry | null };

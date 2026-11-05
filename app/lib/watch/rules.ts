@@ -323,18 +323,40 @@ export type QueueRights = {
   sees: 'people' | 'mine' | 'nothing';
 };
 
-export function queueRights(room: Pick<WatchRoom, 'hostId' | 'endedAt'>, crowns: WatchCrown[], userId: string | null, live: boolean): QueueRights {
+export function queueRights(room: Pick<WatchRoom, 'hostId' | 'endedAt'> & Partial<Pick<WatchRoom, 'addMode'>>, crowns: WatchCrown[], userId: string | null, live: boolean): QueueRights {
   const open = live && room.endedAt === null && userId !== null;
   const crowned = open && hasCrown(crowns, userId);
   const hosting = open && room.hostId === userId;
 
   return {
-    add: open,
+    add: open && (room.addMode !== 'crowns' || crowned || hosting),
     addsTo: crowned ? 'queue' : 'list',
     arrange: crowned,
     crown: hosting,
     sees: !open ? 'nothing' : hosting || crowned ? 'people' : 'mine',
   };
+}
+
+/* --- room settings (SPEC-room-settings.md) ------------------------------------------------------- */
+
+/** As the database's `watch_rooms_name_length` and `watch_rooms_topic_length`. */
+export const ROOM_NAME_MAX = 60;
+export const ROOM_TOPIC_MAX = 120;
+
+/** The cog is for a live room's host and anybody holding a crown there, as `watch_room_settings` checks. */
+export function mayEditRoom(room: Pick<WatchRoom, 'hostId' | 'endedAt'>, crowns: WatchCrown[], userId: string | null, live: boolean): boolean {
+  return live && room.endedAt === null && userId !== null && (room.hostId === userId || hasCrown(crowns, userId));
+}
+
+/** A name or topic as it is saved: one line, trimmed, within its limit, and nothing at all as null. */
+export function cleanRoomWords(words: string, max: number): string | null {
+  const clean = words.replace(/\s+/g, ' ').trim().slice(0, max).trim();
+  return clean.length > 0 ? clean : null;
+}
+
+/** What a room is called: its own name, else its host's. */
+export function roomShownName(room: Pick<WatchRoom, 'name'>, hostName: string): string {
+  return room.name ?? hostName;
 }
 
 /** Your own addition is yours to take back until a crown pulls it in. */

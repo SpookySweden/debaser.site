@@ -9,7 +9,7 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
-import { roomIsLive } from '../lib/watch/rules';
+import { roomIsLive, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { useWatchRoom } from '../lib/watch/use-watch-room';
 import {
@@ -134,7 +134,7 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
         id="stream"
         fill
-        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${hostName.toUpperCase()}` : 'STREAM'}
+        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${roomShownName(read.room, hostName).toUpperCase()}` : 'STREAM'}
         badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
         // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
         onClose={() => void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft()))}

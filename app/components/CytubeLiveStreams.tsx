@@ -9,7 +9,7 @@ import type { LiveRoom, RoomOrigin, WatchQueueEntry } from '../lib/watch/types';
 import { useLiveRooms } from '../lib/watch/use-music-room';
 
 /** One live room on the CYTUBE page's LIVE tab. */
-export type LiveStreamRow = { roomId: string; hostId: string; hostName: string; title: string; kind: RoomOrigin };
+export type LiveStreamRow = { roomId: string; hostId: string; hostName: string; name: string | null; title: string; kind: RoomOrigin };
 
 /**
  * The live rooms, for the LIVE tab (SPEC-cytube.md: "the same list as the QUEUES tab: one source, not a copy"):
@@ -35,6 +35,7 @@ export function liveRows(rooms: readonly LiveRoom[], titles: Map<string, string>
     roomId: room.id,
     hostId: room.hostId,
     hostName: room.originalHostLabel,
+    name: room.name,
     title: titleOf(current, titles),
     kind: room.origin,
   }));

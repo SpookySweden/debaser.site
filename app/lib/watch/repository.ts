@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { LiveRoom, QueueMove, RoomAddMode, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -44,6 +44,14 @@ export type OpenMusicRoomInput = {
 
 /** The host plays something from outside the queue (SPEC-music-queues.md, off-queue plays): its row, as it is filed. */
 export type PlayNowInput = { roomId: string; by: string; link: WatchLink; position: number; playIndex: number };
+
+export type RoomSettingsInput = {
+  roomId: string;
+  by: string;
+  name: string;
+  topic: string;
+  addMode: RoomAddMode;
+};
 
 export type PlaybackPatch = {
   currentEntryId: string | null;
@@ -103,6 +111,8 @@ export type WatchRepository = {
   openMusicRoom(input: OpenMusicRoomInput): Promise<WatchRoomRead>;
   /** A music room's switch; nothing in it is cleared when it goes off. */
   setRoomPublic(roomId: string, isPublic: boolean): Promise<void>;
+  /** The settings cog: the host's or a crown's. Throws with a sentence fit to show. */
+  saveRoomSettings(input: RoomSettingsInput): Promise<void>;
   /**
    * An off-queue play: the host played a song from a post, a profile or PLAY FOR YOU, and it slots into the queue at
    * the current spot as playing (a played row, on screen from the start), so the queue never lies.
