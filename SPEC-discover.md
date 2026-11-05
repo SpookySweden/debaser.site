@@ -103,6 +103,27 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **Wikipedia and TVmaze words:** they go to Claude and aren't stored or shown; the page's `[ ? ]` credits all three with links.
   CC BY-SA's share-alike may reach the words Claude picks, which is a question for a lawyer rather than something the code can settle.
 
+## Where this stands (end of 2026-11-05, Luke's limit running out)
+**Live on main:** the rename to DISCOVER at `/discover`, and the sweep (`/api/web/sweep`, cron `web-sweep` at minute 11 every three hours, tables in). Paid jobs that will run
+overnight, all inside the stops: tagging at minute 41, the word pass, the sweep. At most about $1.40 a day for the sweep; it stops at $50, everything at $60.
+
+**Not live, finished but unproved:** branch `feature/discover-recommending` holds `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters, presets, and DISCOVER's videos through
+the floating player. Its migration `supabase/migrations/20261105153646_web_recommendations.sql` is **not applied**. Luke OK'd those tables. Still owed, in order: read that branch's code review
+(a fresh review is cheap), run verify and the whole `npm run checks`, rebase on main, apply the migration, push, confirm live. `check-tag-station-picks` covers it.
+
+**To check first tomorrow:**
+1. First real costs: `web_tag_spend`, and the cron's answers in `net._http_response`. The 15:41 batch (257 items) is collected at 18:41 UTC, the first sweep (18:11) at 21:11.
+   Tell Luke the real cost per thousand.
+2. The word pass: at 15:41 its first call, `web_word_pending`, got a 500 from PostgREST with nothing in the database's logs, and the answer was `words: { failed: 'Error' }`, so it hasn't run. The function
+   answers a wrong lock correctly. It tries again each run; `web_word_facts` having rows means it recovered. The branch above adds which call failed and its code to that answer.
+3. Whether the sweep reads and sends as expected: its answer's `read` per source, `web_sweep_state`, and how long a run takes against Vercel's 60 seconds.
+
+**Known and left:**
+- DISCOVER's page draws a video in the page rather than through the floating player until the branch above lands (frontend.md's rule).
+- `check-privacy-defaults` fails on a checkout with CRLF line endings, because it compares whole lines. It isn't caused by this work.
+- `check-visitor-limits` needs the database settings in `.env.local`, and passes with them.
+- Wikidata has no ordering in its paged list, so a run can skip or repeat a film; repeats are filtered, skips are lost. Wikipedia's words reach Claude under CC BY-SA, a question for a lawyer.
+
 ## Rules for building
 - Every database change goes to the main session first in plain English, for Luke's OK. Only the job can write pool tables.
 - Mock and Supabase stores both, with checks that fail before the fix. Whole `npm run checks`, code review, live proof.
