@@ -2,7 +2,9 @@
 Older notes: `docs/handoff-archive.md`, newest first. Search it when a past decision matters; don't read it all.
 
 ## State
-- Nothing is half-done. Live: music rooms, the canvas + STREAM ART, CYTUBE, the MEDIA (/media) and FILES (/files) rename.
+- MEDIA tagging's Claude key went into Vercel on 2026-11-05. Its first real batch is being watched: read `web_item_tags`
+  and the `web-tag` cron's answers (`inputTokens`, `outputTokens`). Details and the cost reasoning: SPEC-media-picks.md.
+- Nothing else is half-done. Live: music rooms, the canvas + STREAM ART, CYTUBE, the MEDIA (/media) and FILES (/files) rename.
 - Fewer checks per task (Luke's rule): every task runs `npm run checks:changed`; the whole `npm run checks` runs before a
   big feature and when it prints FULL RUN DUE. Details: core.md, scripts/README.txt.
 - `Temp/check-*.cjs` are tracked now, except `check-resend.cjs` (it holds a mailbox password; the repo is public).
