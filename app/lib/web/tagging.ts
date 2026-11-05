@@ -11,8 +11,19 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * description are other people's text, so they go to Claude as data and only a validated list of short words comes back.
  */
 export const TAGGING_MODEL = 'claude-haiku-5-5';
-/** Items sent per run. Sets the most one night can cost. */
-export const BATCH_SIZE = 200;
+/** Saved items sent per run (200 until Luke's "everything anyone sees", 2026-11-05: 200 could fall behind). */
+export const BATCH_SIZE = 500;
+/** Search results sent per run, on top of the saved items (SPEC-tag-station.md). */
+export const SEEN_PER_RUN = 500;
+/** Luke's limit (2026-11-05): nothing more goes out once this much is spent or could be. Then a person has to decide. */
+export const SPEND_LIMIT_USD = 60;
+/** Haiku 5.5 in a batch: $0.05 in and $0.25 out per million tokens. */
+const USD_PER_INPUT_TOKEN = 0.05 / 1_000_000;
+const USD_PER_OUTPUT_TOKEN = 0.25 / 1_000_000;
+/** Far more than eight short words need, and what makes a batch's worst case small and known. */
+export const MAX_OUTPUT_TOKENS = 300;
+/** The shared prompt, and the wrapping around an item's text. */
+const INPUT_OVERHEAD_TOKENS = 200;
 const MAX_WORDS = 8;
 const MAX_WORD_LENGTH = 24;
 const MAX_TEXT = 600;
@@ -26,9 +37,20 @@ export type TaggableItem = {
   tags: string[] | null;
 };
 
+/** A search result nobody saved (`web_seen_items`), just read from its platform's own API. */
+export type SeenItem = TaggableItem & { publishedAt: string | null };
+
 export type TaggingStore = {
   /** Items with no words and not out in a batch. */
   untagged(limit: number): Promise<TaggableItem[]>;
+  /** Search results waiting for words, read from their platforms just now. */
+  seen(limit: number): Promise<SeenItem[]>;
+  /** Marks search results as out in a batch, with what their platforms said. */
+  seenSent(batchId: string, items: readonly SeenItem[]): Promise<void>;
+  /** Everything spent on tagging so far, in dollars. */
+  spent(): Promise<number>;
+  /** What a collected batch cost. Counted once per batch, however many times it's collected. */
+  recordSpend(batchId: string, inputTokens: number, outputTokens: number, usd: number): Promise<void>;
   /** The batches out at the moment. */
   pending(): Promise<string[]>;
   /** The items out in a batch, to turn its answers back into ids. */
@@ -61,7 +83,7 @@ export function requestFor(item: TaggableItem): Anthropic.Messages.Batches.Batch
     custom_id: customIdFor(item.id),
     params: {
       model: TAGGING_MODEL,
-      max_tokens: 1024,
+      max_tokens: MAX_OUTPUT_TOKENS,
       // Picking a few words needs no reasoning, and this keeps all of max_tokens for the answer.
       thinking: { type: 'disabled' },
       system: SYSTEM,
@@ -115,7 +137,26 @@ export function cleanWords(text: string): string[] | null {
  * `inputTokens` and `outputTokens`: what the batch collected this run was billed for, so what tagging really costs can be
  * read from the cron's saved answers instead of estimated. Only token counts; nothing of any item.
  */
-export type TaggingResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number };
+export type TaggingResult = {
+  collected: number;
+  sent: number;
+  waiting: number;
+  inputTokens: number;
+  outputTokens: number;
+  /** Set when the spending limit held something back. */
+  stopped?: 'spending limit';
+};
+
+/** What tokens cost at batch prices, in dollars. */
+export function batchCost(inputTokens: number, outputTokens: number): number {
+  return inputTokens * USD_PER_INPUT_TOKEN + outputTokens * USD_PER_OUTPUT_TOKEN;
+}
+
+/** The most one item can cost. Some text runs to a token per letter, so letters are counted as tokens: too high, on purpose. */
+export function worstCaseCost(item: TaggableItem): number {
+  const letters = item.title.slice(0, MAX_TEXT).length + (item.creator?.length ?? 0) + (item.description?.slice(0, MAX_TEXT).length ?? 0) + (item.tags ?? []).slice(0, 20).join(' ').length;
+  return batchCost(letters + INPUT_OVERHEAD_TOKENS, MAX_OUTPUT_TOKENS);
+}
 
 /** One run: collect what has finished, then send the next items, unless a batch is still out. */
 export async function runTagging(client: Pick<Anthropic, 'messages'>, store: TaggingStore, limit = BATCH_SIZE): Promise<TaggingResult> {
@@ -132,10 +173,12 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
     }
     const idFor = new Map((await store.outIn(batchId)).map((id) => [customIdFor(id), id]));
     const rows: { id: string; words: string[] }[] = [];
+    let batchInput = 0;
+    let batchOutput = 0;
     for await (const result of await client.messages.batches.results(batchId)) {
       if (result.result.type === 'succeeded') {
-        inputTokens += result.result.message.usage.input_tokens;
-        outputTokens += result.result.message.usage.output_tokens;
+        batchInput += result.result.message.usage.input_tokens;
+        batchOutput += result.result.message.usage.output_tokens;
       }
       if (result.result.type !== 'succeeded' || result.result.message.stop_reason === 'refusal') continue;
       const text = result.result.message.content.find((block) => block.type === 'text');
@@ -143,6 +186,10 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
       const id = idFor.get(result.custom_id);
       if (words !== null && id !== undefined) rows.push({ id, words });
     }
+    inputTokens += batchInput;
+    outputTokens += batchOutput;
+    // Before anything else: if the rest fails, the batch is read again next run and only counted once.
+    await store.recordSpend(batchId, batchInput, batchOutput, batchCost(batchInput, batchOutput));
     // Results come in any order, so nothing goes by position.
     await store.save(rows);
     await store.release(batchId);
@@ -152,22 +199,49 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
   // One batch out at a time, so a stuck one cannot pile up cost.
   if (waiting > 0) return { collected, sent: 0, waiting, inputTokens, outputTokens };
 
-  const items = await store.untagged(limit);
-  if (items.length === 0) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens };
+  // The spending limit: checked here, in code, against what has really been spent plus the worst this batch could cost.
+  const spent = await store.spent();
+  if (spent >= SPEND_LIMIT_USD) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens, stopped: 'spending limit' };
+
+  const saved = await store.untagged(limit);
+  const seen = await store.seen(SEEN_PER_RUN);
+  const seenIds = new Set(seen.map((item) => item.id));
+  const items: TaggableItem[] = [];
+  let worst = spent;
+  for (const item of [...saved, ...seen]) {
+    worst += worstCaseCost(item);
+    if (worst > SPEND_LIMIT_USD) break;
+    items.push(item);
+  }
+  const heldBack = items.length < saved.length + seen.length;
+  if (items.length === 0) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
+
   const batch = await client.messages.batches.create({ requests: items.map(requestFor) });
-  const ids = items.map((item) => item.id);
+  const ids = items.filter((item) => !seenIds.has(item.id)).map((item) => item.id);
+  const seenOut = seen.filter((item) => items.includes(item));
+  const mark = async () => {
+    if (ids.length > 0) await store.sent(batch.id, ids);
+    if (seenOut.length > 0) await store.seenSent(batch.id, seenOut);
+  };
   try {
-    await store.sent(batch.id, ids).catch(() => store.sent(batch.id, ids));
+    await mark().catch(mark);
   } catch (error) {
     // A batch nothing remembers would be paid for and never read, and the next run would send the items again.
     await client.messages.batches.cancel(batch.id).catch(() => undefined);
     throw error;
   }
-  return { collected, sent: items.length, waiting: 1, inputTokens, outputTokens };
+  return { collected, sent: items.length, waiting: 1, inputTokens, outputTokens, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
 }
 
-/** The store, through the lock-checking database functions (20261104120000_web_item_tags.sql): no server key needed. */
-export function makeTaggingStore(db: SupabaseClient, lock: string): TaggingStore {
+/** Reads waiting search results from their platforms, and says which the platforms had nothing on. */
+export type SeenReader = (names: readonly { id: string; platform: string; external_id: string }[]) => Promise<{ items: SeenItem[]; unreadable: string[] }>;
+
+/**
+ * The store, through the lock-checking database functions (20261104120000_web_item_tags.sql and
+ * supabase/migrations/*_web_seen_items.sql): no server key needed. A batch can hold both saved items and search results, so
+ * what comes back goes to both tables; each one's function only touches its own rows.
+ */
+export function makeTaggingStore(db: SupabaseClient, lock: string, readSeen: SeenReader): TaggingStore {
   const call = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await db.rpc(name, { p_secret: lock, ...args });
     if (error) throw new Error('TAGGING_DATABASE');
@@ -175,16 +249,39 @@ export function makeTaggingStore(db: SupabaseClient, lock: string): TaggingStore
   };
   return {
     untagged: (limit) => call<TaggableItem[]>('web_tag_untagged', { p_limit: limit }),
-    pending: () => call<string[]>('web_tag_pending', {}),
-    outIn: (batchId) => call<string[]>('web_tag_out', { p_batch: batchId }),
+    seen: async (limit) => {
+      const names = await call<{ id: string; platform: string; external_id: string }[]>('web_seen_waiting', { p_limit: limit });
+      if (names.length === 0) return [];
+      const { items, unreadable } = await readSeen(names);
+      if (unreadable.length > 0) await call('web_seen_unreadable', { p_ids: unreadable });
+      return items;
+    },
+    seenSent: async (batchId, items) => {
+      await call('web_seen_sent', {
+        p_batch: batchId,
+        p_rows: items.map((item) => ({ id: item.id, kind: item.kind, title: item.title, creator: item.creator, publishedAt: item.publishedAt })),
+      });
+    },
+    spent: async () => Number(await call<number | string>('web_tag_spent', {})),
+    recordSpend: async (batchId, inputTokens, outputTokens, usd) => {
+      await call('web_tag_spend_add', { p_batch: batchId, p_input: inputTokens, p_output: outputTokens, p_usd: usd });
+    },
+    pending: async () => {
+      const [saved, seen] = await Promise.all([call<string[]>('web_tag_pending', {}), call<string[]>('web_seen_pending', {})]);
+      return [...new Set([...saved, ...seen])];
+    },
+    outIn: async (batchId) => {
+      const [saved, seen] = await Promise.all([call<string[]>('web_tag_out', { p_batch: batchId }), call<string[]>('web_seen_out', { p_batch: batchId })]);
+      return [...saved, ...seen];
+    },
     sent: async (batchId, ids) => {
       await call('web_tag_sent', { p_batch: batchId, p_ids: [...ids] });
     },
     save: async (rows) => {
-      await call('web_tag_save', { p_rows: rows });
+      await Promise.all([call('web_tag_save', { p_rows: rows }), call('web_seen_save', { p_rows: rows })]);
     },
     release: async (batchId) => {
-      await call('web_tag_release', { p_batch: batchId });
+      await Promise.all([call('web_tag_release', { p_batch: batchId }), call('web_seen_release', { p_batch: batchId })]);
     },
   };
 }

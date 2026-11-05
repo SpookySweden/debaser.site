@@ -16,8 +16,8 @@ Station to show them. That exception is this page only: MEDIA stays exactly as i
 A word is marked with where it came from: `C` Claude's, `P` the platform's own, `L` from a pasted link's outside source.
 
 ## The data, and what there is of it
-- Read only: `web_items` and `web_item_tags` (Claude's 3 to 8 lower-case words per item) plus each item's own `tags`
-  (`WebItem.tags`). **No new tables and no database writes.** Mock and Supabase repositories, the usual switch
+- The page only reads: `web_items`, `web_item_tags` (Claude's 3 to 8 lower-case words per item), each item's own `tags`
+  (`WebItem.tags`), and the tagged results in `web_seen_items` (below). Mock and Supabase repositories, the usual switch
   (`NEXT_PUBLIC_WEB_DATA_SOURCE`).
 - On 2026-11-05: 161 items, all tagged, 979 words in all, 498 different words. No saved row has platform tags yet, so the
   `P` source is empty in practice until the ingest keeps some. Most words sit on one item, so the map starts thin. It gets
@@ -90,7 +90,7 @@ Prices: Haiku 5.5 in a batch is $0.05 in and $0.25 out per million tokens. The c
 3. **Pasted links through the batch (later).** A link is shown at once with what's known, and Claude's words arrive within three
    hours. Means saving pasted links, which this build promises not to do, so it's Luke's call.
 
-## Tagging everything anyone sees in MEDIA (Luke, 2026-11-05; proposed, waiting for his OK on the database change)
+## Tagging everything anyone sees in MEDIA (Luke, 2026-11-05; his OK: "Yes, tables and live")
 Luke's decision: every saved item plus every search result that appears for anyone, tagged in the next batch, up to $60 in all
 without asking again. Not a sweep of whole catalogues. Live only once this branch is on `main`.
 
@@ -114,6 +114,10 @@ $60. It then stops and the run's answer says so.
 **Cost:** about $0.035 per 1,000 items at the last batch's rate (519 in and 34 out per item, batch prices). The site-wide cap of
 5,000 a day is about $0.17 a day, so $60 lasts about a year at the very most. Real cost is reported after the first run.
 
+**On the map:** a result nobody saved counts towards the words and shows in the lists, marked with its source, with
+`[ FIND IN MEDIA ]` instead of a player, because the table keeps no address for it. The map reads the newest 1,000 of each kind of
+row (PostgREST's cap on one answer); past that, the oldest drop off the map.
+
 **Still not covered:** results nobody has seen; DEBASER.SITE's own files (they stay in the browser); linked YouTube lists (they
 stay in the browser by design); media-server titles (friends' private lists, not sent to Claude without Luke's say-so); results
 a platform won't answer about when asked again; and a little less to go on for YouTube and Vimeo, whose keyless answers often
@@ -125,4 +129,8 @@ readable axes, plain-English search, saved searches, listening data, sound-based
 not tagged and are not on the map.
 
 ## Handoff
-Filled in at the end of the build, below. (`HANDOFF.md` is left alone on this branch, as asked.)
+What's on the live site: everything above but the word pass, confidence scores and pasted links through the batch.
+- **Proof:** `npm run checks -- --only check-tag-station` runs the five checks; each was proved able to fail by breaking the code.
+- **First real batch:** read the `web-tag` cron's answers and `web_tag_spend`. Report the real cost per item to Luke.
+- **Watch:** when `web_seen_items` passes 1,000 tagged rows the map only reads the newest 1,000.
+- **Not done (each needs Luke's OK):** the word pass (one more table), confidence scores, pasted links through the batch.

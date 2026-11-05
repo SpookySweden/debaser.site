@@ -215,11 +215,15 @@ export default function TagStationMap({
         onPointerCancel={endDrag}
         className="frame relative h-128 touch-pan-y cursor-grab select-none overflow-hidden bg-paper max-sm:h-120"
       >
-        <svg aria-hidden="true" className="pointer-events-none absolute inset-0 h-full w-full text-ink">
-          {lines.map((line) => (
-            <line key={line.key} x1={line.x1} y1={line.y1} x2={line.x2} y2={line.y2} stroke="currentColor" strokeWidth="2" strokeDasharray="2 6" />
-          ))}
-        </svg>
+        {/* Dotted lines: a dotted rule, turned to point from one word to the other. */}
+        {lines.map((line) => (
+          <span
+            key={line.key}
+            aria-hidden="true"
+            style={{ left: line.x1, top: line.y1, width: Math.hypot(line.x2 - line.x1, line.y2 - line.y1), transform: `rotate(${Math.atan2(line.y2 - line.y1, line.x2 - line.x1)}rad)` }}
+            className="pointer-events-none absolute origin-left border-t-line border-dotted border-ink"
+          />
+        ))}
         {labels.map((label) => {
           const name = label.tag.name;
           const chosen = focus.includes(name);

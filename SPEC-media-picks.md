@@ -22,9 +22,10 @@
   are ordered a page at a time, so LOAD MORE never moves what is on screen.
 - **Tastes** are counts in that browser's storage (`taste-store.ts`), so they do not follow a person between devices. The
   opens saved on the server (`web_requests`) can't be read back per person, and that would need another database change.
-- **Claude's words** only ever order a list. They are never shown. A job runs every three hours (`/api/web/tag`, cron
-  `web-tag`), collecting the last batch and sending up to 200 new items, one batch out at a time. An item that fails
-  three times stops being sent.
+- **Claude's words** only ever order a list on this page. They are never shown here (TAG STATION shows them, Luke's exception of
+  2026-11-05: SPEC-tag-station.md). A job runs every three hours (`/api/web/tag`, cron `web-tag`), collecting the last batch and
+  sending new items, one batch out at a time: up to 500 saved items since 2026-11-05, plus up to 500 search results anyone saw,
+  and it stops at a $60 limit (SPEC-tag-station.md). An item that fails three times stops being sent.
 - **YouTube:** `[ LINK YOUTUBE ]` asks Google for read-only access. Up to 6 uploads and likes show under YOUR YOUTUBE and
   teach that visit's order. The token is used for one request from the person's own browser, and stored by neither us
   nor the server; the answer is kept in their browser for a week.
@@ -39,7 +40,7 @@ Prices from the Claude API notes: Haiku 5.5 is $0.10 in, $0.50 out per million t
   100, so a cache marker would do nothing. Padding it to qualify saves a fraction of a cent a batch, and hits in a batch
   are best-effort. Look again if the shared prompt ever passes 512 tokens.
 - **Measured, not guessed:** each run's answer has `inputTokens` and `outputTokens` for the batch it collected.
-- **The ceiling:** at most 200 items every three hours.
+- **The ceiling:** at most 1,000 items every three hours, and nothing past $60 in all (SPEC-tag-station.md).
 
 ## The IMDB key in STREAM (Luke, 2026-11-05)
 The room's queue search has the same `[ IMDB ]` key, centred above SOURCE. It lists TMDB's films and shows with their

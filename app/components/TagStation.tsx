@@ -20,7 +20,7 @@ import TagStationFilters from './TagStationFilters';
 import { linkMapWords, LinkInput, useLinkAnswer } from './TagStationLink';
 import TagStationList from './TagStationList';
 import TagStationMap from './TagStationMap';
-import { ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip } from './TagStationParts';
+import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip } from './TagStationParts';
 import TagStationSearch from './TagStationSearch';
 
 const PAGE_PATH = '/tag-station';
@@ -188,10 +188,11 @@ function ItemInput({ item, extraHosts, onPick, onAdd }: { item: StationItem; ext
       <Thumb src={thumb} wide />
       <p className="break-words text-title font-bold text-ink">{item.title}</p>
       <p className="break-words text-label text-ink">
-        {PLATFORM_LABELS[item.platform]} · {item.kind.toUpperCase()} · {item.publishedAt.slice(0, 10)}
+        {PLATFORM_LABELS[item.platform]} · {item.kind.toUpperCase()}
+        {Number.isFinite(Date.parse(item.publishedAt)) ? ` · ${item.publishedAt.slice(0, 10)}` : ''}
         {item.creator ? ` · ${item.creator}` : ''}
       </p>
-      <PlayKeys item={item} extraHosts={extraHosts} />
+      {item.seenOnly ? <FindInMedia item={item} /> : <PlayKeys item={item} extraHosts={extraHosts} />}
       {item.description ? <p className="break-words text-prose text-ink">{item.description}</p> : null}
       {licence ? (
         <a href={licence} target="_blank" rel="noopener noreferrer nofollow" className={STATION_KEY}>
@@ -329,6 +330,8 @@ export function Station({ index }: { index: StationIndex }) {
           C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE OF THIS SITE&apos;S SAVED ITEMS ONLY.
         </InfoFold>
       </div>
+
+      {index.graph.limitReached ? <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">TAGGING STOPPED: THE $60 LIMIT IS REACHED.</p> : null}
 
       <TagStationFilters index={index} recipe={recipe} onChange={(next) => go(next)} />
 

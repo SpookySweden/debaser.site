@@ -22,7 +22,7 @@ const round = (value: number): number => Math.round(value * 1000) / 1000;
 export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
   // Every spelling of each word, with how often it appears, so the shown spelling is the commonest one.
   const spellings = new Map<string, Map<string, number>>();
-  const parsed = rows.map(({ item, claudeWords }) => {
+  const parsed = rows.map(({ item, claudeWords, seenOnly }) => {
     const found = new Map<string, { claude: boolean; platform: boolean }>();
     const note = (raw: unknown, source: 'claude' | 'platform') => {
       const word = cleanWord(raw);
@@ -38,7 +38,7 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
     };
     claudeWords.forEach((word) => note(word, 'claude'));
     (item.tags ?? []).forEach((word) => note(word, 'platform'));
-    return { item, found: [...found.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).slice(0, MAX_WORDS_PER_ITEM) };
+    return { item, seenOnly, found: [...found.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).slice(0, MAX_WORDS_PER_ITEM) };
   });
 
   const nameOf = new Map<string, string>();
@@ -48,7 +48,7 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
   }
 
   const items: StationItem[] = parsed
-    .map(({ item, found }) => {
+    .map(({ item, seenOnly, found }) => {
       const words: ItemWord[] = found.map(([key, source]) => ({ word: nameOf.get(key) as string, ...source }));
       // Named one by one, not spread: only what a row's page needs reaches the answer, and nothing else a row may ever carry.
       const station: StationItem = {
@@ -68,6 +68,7 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
         ...(item.licenseUrl ? { licenseUrl: item.licenseUrl } : {}),
         ...(item.durationSeconds !== undefined ? { durationSeconds: item.durationSeconds } : {}),
         ...(item.language ? { language: item.language } : {}),
+        ...(seenOnly ? { seenOnly: true } : {}),
         words,
       };
       return station;
