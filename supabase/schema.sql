@@ -1302,6 +1302,18 @@ alter table public.profiles add column if not exists current_song_version_id uui
 -- The opt-out from counting a person's listening (migration 20261031130000_music_listens).
 alter table public.profiles add column if not exists hide_listening boolean not null default false;
 
+-- Privacy plan, phase 1 (20261105135310_privacy_tab_and_new_account_defaults.sql): new accounts start private.
+alter table public.profiles add column if not exists show_online boolean not null default true;
+alter table public.profiles alter column show_online set default false;
+alter table public.profiles add column if not exists show_name_to_visitors boolean not null default true;
+alter table public.profiles alter column show_name_to_visitors set default false;
+alter table public.profiles add column if not exists credit_me_in_art boolean not null default true;
+alter table public.profiles add column if not exists privacy_seen boolean not null default false;
+alter table public.profiles alter column hide_listening set default true;
+alter table public.profiles alter column show_profile_comments set default false;
+alter table public.profiles alter column show_avatar_comments set default false;
+alter table public.profiles alter column show_song_comments set default false;
+
 -- Comments on by default, for the databases that were created when they were off.
 --
 -- The defaults above only decide what a *new* profile row gets, and every row that already

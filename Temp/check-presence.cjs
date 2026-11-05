@@ -97,6 +97,10 @@ assert.equal(
   assert.equal(presenceStatus(await repository.getPresence('user-a'), Date.now()), 'offline');
 
   await repository.markSeen('user-b');
+  // (2026-11-05, SPEC-privacy-phase-1.md) New people start with the lamp off, and the list holds only the ones who switched it on.
+  assert.deepEqual(await repository.listPresence(), [], 'lamps off: nobody is listed');
+  await repository.saveProfile('user-a', { visibility: { showOnline: true } });
+  await repository.saveProfile('user-b', { visibility: { showOnline: true } });
   const all = await repository.listPresence();
   assert.deepEqual(all.map((record) => record.userId), ['user-a', 'user-b']);
   const onlyB = await repository.listPresence(['user-b']);

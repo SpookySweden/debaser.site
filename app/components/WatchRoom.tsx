@@ -56,6 +56,7 @@ import { detectLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import { archiveFileOf, useArchiveSubtitles } from '../lib/web/subtitles-client';
 import { archiveSubtitles, streamSubtitles, type VideoSubtitles } from '../lib/watch/subtitle-tracks';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
@@ -533,6 +534,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /* --- the [ TV ] key's line ------------------------------------------------------------------- */
 
+  const { profile: myProfile } = usePublicProfile(user?.id ?? null);
   const hostMember = accounts.find((member) => member.userId === hostId);
   const hostName = hostMember?.name ?? room.originalHostLabel;
   const title = entryTitle ?? '';
@@ -541,8 +543,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       repository.setWatching(null);
       return;
     }
-    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost });
-  }, [repository, user, live, roomId, hostName, title, amHost]);
+    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline });
+  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */

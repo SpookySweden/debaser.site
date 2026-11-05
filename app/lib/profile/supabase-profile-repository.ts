@@ -72,7 +72,7 @@ const PRESENCE_TABLE = 'profile_presence';
  */
 const PROFILE_COLUMNS_FOR_ANYONE =
   'id, display_name, name_colour, bio, status, show_tags, show_profile_comments, show_avatar_comments, show_song_comments, hide_listening, current_version_id, avatar_crop, avatar_crop_x, avatar_crop_y, current_song_version_id';
-const PROFILE_COLUMNS_WITH_A_SESSION = 'country_code, updated_at';
+const PROFILE_COLUMNS_WITH_A_SESSION = 'country_code, updated_at, show_online, privacy_seen';
 const PROFILE_CHILDREN = `${VERSIONS_TABLE}(*), ${SONGS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
 
 const PRESENCE_COLUMNS = 'user_id, last_seen_at, is_online';
@@ -151,6 +151,9 @@ type ProfileRow = {
   show_song_comments: boolean;
   /** 20261031130000_music_listens.sql; optional so a database without it reads as listening shown. */
   hide_listening?: boolean | null;
+  /** Only with a session, like `country_code`. A visitor's read leaves them out, and gets no lamp anyway. */
+  show_online?: boolean | null;
+  privacy_seen?: boolean | null;
   current_version_id: string | null;
   /**
    * The picture's crop (20261030120000_profile_avatar_crop.sql). Optional for the same reason
@@ -236,6 +239,7 @@ function toProfile(row: ProfileRow): PublicProfile {
       showAvatarComments: row.show_avatar_comments,
       showSongComments: row.show_song_comments,
       showListening: row.hide_listening !== true,
+      showOnline: row.show_online === true,
     }),
     tags: (row.profile_tags ?? []).map(toTag).sort((a, b) => Date.parse(a.givenAt) - Date.parse(b.givenAt)),
     comments: (row.profile_comments ?? [])
@@ -263,6 +267,7 @@ function toProfile(row: ProfileRow): PublicProfile {
       })
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
     updatedAt: row.updated_at ?? '',
+    privacySeen: row.privacy_seen === true,
   };
 }
 
@@ -364,7 +369,10 @@ class SupabaseProfileRepository implements ProfileRepository {
       update.show_avatar_comments = visibility.showAvatarComments;
       update.show_song_comments = visibility.showSongComments;
       update.hide_listening = !visibility.showListening;
+      update.show_online = visibility.showOnline;
     }
+
+    if (patch.privacySeen !== undefined) update.privacy_seen = patch.privacySeen;
 
     if (patch.avatarCrop !== undefined) {
       // Merged onto what is stored, like visibility: dragging the square leaves the switch alone.

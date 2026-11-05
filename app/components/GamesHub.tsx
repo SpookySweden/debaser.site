@@ -282,7 +282,8 @@ export default function GamesHub({ focus = { kind: 'floor' } }: GamesHubProps) {
           viewerId: userId,
           targetId: challengeOpponent.id,
           targetName: challengeOpponent.displayName,
-          status: presence.statusFor(challengeOpponent.id),
+          // A lamp that is off says nothing about whether they are here, so it does not refuse the invitation.
+          status: presence.recordFor(challengeOpponent.id) === undefined ? 'away' : presence.statusFor(challengeOpponent.id),
         });
 
   return (

@@ -708,7 +708,7 @@ class MockWatchRepository implements WatchRepository {
       clearInterval(watchingBeat);
       watchingBeat = null;
     }
-    if (entry === null) {
+    if (entry === null || entry.unlisted === true) {
       if (was !== null) send({ type: 'watching-bye', key: tabKey });
     } else {
       send({ type: 'watching', key: tabKey, entry });

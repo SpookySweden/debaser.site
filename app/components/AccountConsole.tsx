@@ -1,18 +1,30 @@
 'use client';
 
+import { useState } from 'react';
+import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import AccountDetails from './AccountDetails';
 import AccountForms from './AccountForms';
 import { useAuth } from './AuthProvider';
+import PrivacySwitches from './PrivacySwitches';
+
+type AccountTab = 'account' | 'privacy';
+
+/** `/account?tab=privacy` opens the PRIVACY tab. Read once, as the page arrives; nothing draws from it before sign-in has been read. */
+function tabAsked(): AccountTab {
+  if (typeof window === 'undefined') return 'account';
+  return new URLSearchParams(window.location.search).get('tab') === 'privacy' ? 'privacy' : 'account';
+}
 
 /**
  * The account page body.
  *
  * One line says who is signed in, then the page itself: account creation and log in for a guest, the
- * account's own sections once signed in. The contents list that used to sit between them is gone
+ * account's own tabs once signed in. The contents list that used to sit between them is gone
  * (SPEC-efficiency.md, 2026-10-23): it named the four sections that were right below it.
  */
 export default function AccountConsole() {
   const { user, status } = useAuth();
+  const [tab, setTab] = useState<AccountTab>(tabAsked);
 
   if (status === 'loading') {
     return (
@@ -22,10 +34,44 @@ export default function AccountConsole() {
     );
   }
 
+  if (user === null) {
+    return (
+      <div className="space-y-3">
+        <AccountForms />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-1 px-3 pt-3" role="tablist" aria-label="Account">
+        {(['account', 'privacy'] as const).map((entry) => (
+          <button
+            key={entry}
+            type="button"
+            role="tab"
+            aria-selected={tab === entry}
+            onClick={() => setTab(entry)}
+            className={tab === entry ? `${PLATE_PRESSED} cursor-pointer` : PLATE}
+          >
+            [ {entry.toUpperCase()} ]
+          </button>
+        ))}
+      </div>
+
       {/* No "SIGNED IN AS" line: the name is shown once, in ACCOUNT DETAILS below. */}
-      {user === null ? <AccountForms /> : <AccountDetails />}
+      {tab === 'account' ? (
+        <AccountDetails />
+      ) : (
+        <section id="privacy">
+          <div className="title-line text-accent-ink">
+            <span>PRIVACY</span>
+          </div>
+          <div className="p-3">
+            <PrivacySwitches userId={user.id} />
+          </div>
+        </section>
+      )}
     </div>
   );
 }

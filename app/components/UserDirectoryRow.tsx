@@ -92,6 +92,8 @@ export default function UserDirectoryRow({
   const asked = showMessage || actions !== undefined;
   const { profile } = usePublicProfile(row.account.id);
   const glow = glowStyle(profileNameColour(profile));
+  // No stamp to read is a lamp switched off: no dot and no time for that person.
+  const known = lamp && (row.you || row.record !== undefined);
 
   /**
    * The panel's row: one line, and only the parts a glance needs.
@@ -109,7 +111,7 @@ export default function UserDirectoryRow({
         className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}
         style={glow}
       >
-        {lamp ? <StatusDot status={row.status} record={row.record} /> : null}
+        {known ? <StatusDot status={row.status} record={row.record} /> : null}
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
 
@@ -134,7 +136,7 @@ export default function UserDirectoryRow({
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
             reading that could not be taken says `--` rather than inventing one; yellow says `AWAY`. */}
-        {lamp ? (
+        {known ? (
           <span className="glow-text shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
             {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
           </span>
@@ -155,12 +157,16 @@ export default function UserDirectoryRow({
       {lamp ? (
         <span
           className="inline-flex w-12 shrink-0 items-center gap-1"
-          title={presenceLine(row.status, row.record)}
+          title={known ? presenceLine(row.status, row.record) : undefined}
         >
-          <StatusDot status={row.status} record={row.record} />
-          <span className="glow-text text-ink">
-            {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
-          </span>
+          {known ? (
+            <>
+              <StatusDot status={row.status} record={row.record} />
+              <span className="glow-text text-ink">
+                {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+              </span>
+            </>
+          ) : null}
         </span>
       ) : null}
 

@@ -393,7 +393,9 @@ function fakeStore() {
   // (2026-10-25, SPEC-less-text.md) `[ SEND INVITATION ]` -> `[ INVITE ]`.
   assert.match(drawnText, /\[ INVITE \]/, 'one press sends it, and it is the only press left');
   assert.doesNotMatch(drawnText, /\[ SEND INVITATION \]/, 'under its short name');
-  assert.match(drawnText, /BO IS OFFLINE/, 'an account that is not on is told why, not hidden');
+  // (2026-11-05, SPEC-privacy-phase-1.md) BO has no presence stamp here, which now means a lamp switched off. That says nothing about
+  // whether BO is around, so the invitation is not refused. An account whose stamp says offline still is (`reason('offline')`, above).
+  assert.doesNotMatch(drawnText, /BO IS OFFLINE/, 'a lamp that is off does not claim the account is offline');
 
   const plate = (props = {}) =>
     renderToStaticMarkup(

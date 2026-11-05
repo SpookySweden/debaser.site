@@ -137,13 +137,12 @@ assert.equal(canCommentOnPicture(true, closed), true, 'owner can comment on thei
 assert.equal(canCommentOnPicture(false, open), true, 'visitors can while picture comments show');
 assert.equal(canCommentOnPicture(false, closed), false, 'and get no button when they are switched off');
 
-// The defaults a profile starts with: a place to talk, with only somebody else's tags held
-// back - and a profile row that has never said anything about it opens them.
-assert.equal(withVisibilityDefaults(undefined).showProfileComments, true, 'comments are open by default');
-assert.equal(withVisibilityDefaults(undefined).showAvatarComments, true, 'the drawing is open to them too');
-assert.equal(withVisibilityDefaults(undefined).showSongComments, true, 'and so is the track');
-assert.equal(withVisibilityDefaults(undefined).showTags, false, 'only tags start closed');
-assert.equal(withVisibilityDefaults({ showProfileComments: false }).showProfileComments, false, 'a switch off still wins');
+// The defaults a profile starts with (changed on purpose, 2026-11-05, SPEC-privacy-phase-1.md): everything closed until its owner opens it.
+assert.equal(withVisibilityDefaults(undefined).showProfileComments, false, 'comments start closed');
+assert.equal(withVisibilityDefaults(undefined).showAvatarComments, false, 'on the drawing too');
+assert.equal(withVisibilityDefaults(undefined).showSongComments, false, 'and on the track');
+assert.equal(withVisibilityDefaults(undefined).showTags, false, 'and tags');
+assert.equal(withVisibilityDefaults({ showProfileComments: true }).showProfileComments, true, 'a switch on still wins');
 
 // 4. The picture comment box is offered to the owner, and titled as their own.
 const profile = {

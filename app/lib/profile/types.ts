@@ -37,9 +37,11 @@ export type ProfileVisibility = {
   /**
    * Your listening (SPEC-vanity.md): on, your plays count towards public play counts and your face can
    * show beside songs in other people's picks; off, you are left out of both. Stored inverted, as
-   * `profiles.hide_listening`, so every account is in until it opts out (Luke's decision).
+   * `profiles.hide_listening`. Off for a new account, like every switch here (SPEC-privacy-phase-1.md).
    */
   showListening: boolean;
+  /** Your lamp, your last-seen time and your `[ TV ]` key, to other accounts. */
+  showOnline: boolean;
 };
 
 /**
@@ -175,6 +177,8 @@ export type PublicProfile = {
   tags: GivenTag[];
   comments: ProfileComment[];
   updatedAt: string;
+  /** Whether the account has been shown the PRIVACY window (SPEC-privacy-phase-1.md). */
+  privacySeen: boolean;
   /**
    * Set while the house account has the account banned (supabase/schema.sql,
    * section 12). A banned account can read and write nothing, and its posts and
@@ -196,6 +200,7 @@ export type ProfilePatch = {
   /** A swatch hex from name-colours.ts; an empty string clears it to the default. */
   nameColour?: string;
   visibility?: Partial<ProfileVisibility>;
+  privacySeen?: boolean;
   /** Crop on or off, and where the square sits; positions are 0-100. */
   avatarCrop?: Partial<AvatarCrop>;
 };

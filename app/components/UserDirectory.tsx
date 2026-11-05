@@ -136,7 +136,8 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                   compact ? undefined : (
                     <ChallengeControl
                       author={{ id: row.account.id, displayName: row.account.displayName }}
-                      status={row.status}
+                      // A lamp that is off says nothing about whether they are here, so it does not refuse the invitation.
+                      status={row.record === undefined && !row.you ? 'away' : row.status}
                       viewerId={user?.id ?? null}
                     />
                   )

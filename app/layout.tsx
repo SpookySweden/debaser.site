@@ -17,6 +17,7 @@ import MusicWindow from './components/MusicWindow';
 import QueueWindow from './components/QueueWindow';
 import NotificationsProvider from './components/NotificationsProvider';
 import PreferencesWindow from './components/PreferencesWindow';
+import PrivacyFirstLook from './components/PrivacyFirstLook';
 import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
@@ -123,6 +124,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           make. It is not behind the Suspense boundary with the other two, because it
                           reads no address and has nothing to catch up on. */}
                       <PreferencesWindow />
+
+                      {/* The PRIVACY window, once per account (SPEC-privacy-phase-1.md). */}
+                      <PrivacyFirstLook />
 
                       {/* Saved characters: also addressless, and for a stronger reason - a saved figure
                           is one account's own work in one browser, so there is nobody for a link to

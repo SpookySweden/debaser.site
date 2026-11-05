@@ -50,6 +50,7 @@ const SWITCH_LABELS: Record<keyof ProfileVisibility, string> = {
   showAvatarComments: 'PICTURE COMMENTS',
   showSongComments: 'TRACK COMMENTS',
   showListening: 'MY LISTENING',
+  showOnline: 'ONLINE LAMP',
 };
 
 /**

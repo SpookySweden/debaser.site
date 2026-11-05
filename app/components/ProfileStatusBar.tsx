@@ -39,7 +39,7 @@ export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
   // through `TimeStamp` rather than an invented date. Every account, so a test account's page has one too.
   const joinedAt = allAccounts.find((account) => account.id === userId)?.createdAt ?? null;
 
-  const line = presence.status === undefined ? 'CHECKING...' : presenceLine(presence.status, presence.record, now);
+  const line = presence.noLamp ? '' : presence.status === undefined ? 'CHECKING...' : presenceLine(presence.status, presence.record, now);
 
   return (
     <div className={STATUS_BAR}>
@@ -52,7 +52,7 @@ export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
           height={24}
           title="A pixel sprite loops here once assets/sprites/profile.gif is drawn"
         />
-        <StatusDot status={presence.status ?? 'offline'} record={presence.record} />
+        {presence.noLamp ? null : <StatusDot status={presence.status ?? 'offline'} record={presence.record} />}
         {/* The server and the browser read the clock at render and agree to the second, and the label
             is minute-resolution, so the only way the two can differ is a request that crosses a
             minute - which is what this suppresses (see lib/ui/use-now.ts). */}

@@ -11,6 +11,8 @@ export type UsePublicProfileResult = {
   /** Never null once ready: an untouched profile renders as an empty shell. */
   profile: PublicProfile;
   ready: boolean;
+  /** The store answered. False for a read that failed, where `profile` is only the empty shell and says nothing about the account. */
+  read: boolean;
   source: ProfileDataSource;
   repository: ReturnType<typeof getProfileRepository>;
   /** Re-reads the stored row (used after the owner saves in the customiser). */
@@ -78,5 +80,5 @@ export function usePublicProfile(userId: string | null): UsePublicProfileResult 
 
   const profile = cached.profile ?? emptyProfile(userId ?? 'anonymous', 'Anonymous');
 
-  return { profile, ready: userId === null || cached.status !== 'unread', source: repository.source, repository, refresh };
+  return { profile, ready: userId === null || cached.status !== 'unread', read: cached.status === 'read', source: repository.source, repository, refresh };
 }

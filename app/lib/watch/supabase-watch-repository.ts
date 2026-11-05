@@ -201,9 +201,15 @@ let stopWatchingSession: (() => void) | null = null;
 /** A leave still in flight: the client hands back a channel it still holds, and re-using one on its way out throws. */
 let watchingLeaving: Promise<unknown> = Promise.resolve();
 
+/** What the wire says, plus this tab's own line while its lamp is off: it told nobody, but it still knows where it is. */
+function watchingView(): WatchingMap | null {
+  if (watchingTracked?.unlisted !== true) return watchingSnapshot;
+  return { ...watchingSnapshot, [watchingTracked.userId]: watchingTracked };
+}
+
 function emitWatching(next: WatchingMap | null): void {
   watchingSnapshot = next;
-  for (const listener of watchingListeners) listener(next);
+  for (const listener of watchingListeners) listener(watchingView());
 }
 
 function readWatchingEntry(meta: unknown): WatchingEntry | null {
@@ -275,7 +281,7 @@ function joinWatchingChannel(client: NonNullable<ReturnType<typeof getSupabaseBr
     if (channel !== watchingChannel) return;
     if (status === 'SUBSCRIBED') {
       watchingJoined = true;
-      if (watchingTracked !== null) void channel.track(trackPayload(watchingTracked)).catch(() => undefined);
+      if (watchingTracked !== null && watchingTracked.unlisted !== true) void channel.track(trackPayload(watchingTracked)).catch(() => undefined);
       return;
     }
     watchingJoined = false;
@@ -939,7 +945,7 @@ class SupabaseWatchRepository implements WatchRepository {
   subscribeWatching(listener: (watching: WatchingMap | null) => void): () => void {
     watchingListeners.add(listener);
     openWatchingChannel();
-    listener(watchingSnapshot);
+    listener(watchingView());
 
     return () => {
       watchingListeners.delete(listener);
@@ -951,14 +957,19 @@ class SupabaseWatchRepository implements WatchRepository {
     const was = watchingTracked;
     watchingTracked = entry;
 
+    const told = entry !== null && entry.unlisted !== true;
+    if (!told && was !== null && was.unlisted !== true && watchingJoined && watchingChannel !== null) {
+      void watchingChannel.untrack().catch(() => undefined);
+    }
+    emitWatching(watchingSnapshot);
+
     if (entry === null) {
-      if (was !== null && watchingJoined && watchingChannel !== null) void watchingChannel.untrack().catch(() => undefined);
       if (watchingListeners.size === 0) scheduleWatchingClose();
       return;
     }
 
     openWatchingChannel();
-    if (watchingJoined && watchingChannel !== null) void watchingChannel.track(trackPayload(entry)).catch(() => undefined);
+    if (told && watchingJoined && watchingChannel !== null) void watchingChannel.track(trackPayload(entry)).catch(() => undefined);
   }
 }
 

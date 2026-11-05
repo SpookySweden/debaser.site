@@ -24,20 +24,16 @@ import type {
 /**
  * Profile privacy defaults and the selectors that enforce them.
  *
- * Tags given by other users stay off by default, because a profile's tags are somebody else's
- * writing about you. Comments are the opposite: a profile is a place to talk, and a reader who
- * cannot comment without being told to go and switch something on has been given a page that
- * looks broken. So profile comments - and the picture's, and the track's, which sit beside them
- * and are the point of the page - are on by default, and the owner switches off whatever they
- * would rather not read (`showProfileComments` in the customiser, and the same switch in
- * `supabase/schema.sql` with matching column defaults).
+ * Everything is off for a new account until its owner switches it on (SPEC-privacy-phase-1.md, Luke's privacy plan), and
+ * the database's column defaults say the same. Accounts from before that keep what they had.
  */
 export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showTags: false,
-  showProfileComments: true,
-  showAvatarComments: true,
-  showSongComments: true,
-  showListening: true,
+  showProfileComments: false,
+  showAvatarComments: false,
+  showSongComments: false,
+  showListening: false,
+  showOnline: false,
 };
 
 export function withVisibilityDefaults(visibility: Partial<ProfileVisibility> | undefined): ProfileVisibility {

@@ -156,6 +156,8 @@ export type WatchingEntry = {
   /** The file on screen, for the key's tip. */
   title: string;
   hosting: boolean;
+  /** The account's lamp is off: this tab knows where it is, and tells nobody else. */
+  unlisted?: boolean;
 };
 
 /** The site-wide watching room: account id -> what they are watching. */

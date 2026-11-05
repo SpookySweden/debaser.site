@@ -146,6 +146,7 @@ function normaliseProfile(userId: string, value: unknown): PublicProfile | null 
       currentVersionId: typeof song.currentVersionId === 'string' ? song.currentVersionId : null,
     },
     visibility: withVisibilityDefaults(row.visibility),
+    privacySeen: row.privacySeen === true,
     // A profile saved before the crop existed starts cropped to the middle, like a new one.
     avatarCrop: normalizeAvatarCrop(row.avatarCrop),
     tags: Array.isArray(row.tags) ? row.tags.filter(isTagShaped) : [],
@@ -240,6 +241,7 @@ export function emptyProfile(userId: string, displayName: string): PublicProfile
     tags: [defaultProfileTag(now)],
     comments: [],
     updatedAt: now,
+    privacySeen: false,
   };
 }
 /* Presence ------------------------------------------------------------------ */
@@ -391,6 +393,7 @@ class MockProfileRepository implements ProfileRepository {
             ? { nameColour: undefined }
             : { nameColour: patch.nameColour }),
         visibility: withVisibilityDefaults({ ...profile.visibility, ...patch.visibility }),
+        privacySeen: patch.privacySeen ?? profile.privacySeen,
         avatarCrop: patch.avatarCrop === undefined ? profile.avatarCrop : mergeAvatarCrop(profile.avatarCrop, patch.avatarCrop),
       };
     });
@@ -673,12 +676,17 @@ class MockProfileRepository implements ProfileRepository {
     return ensurePresence()[userId] ?? null;
   }
 
-  /** No ids means everything this store knows, which is what the board wants. */
+  /**
+   * No ids means everything this store knows, which is what the board wants. A person with their lamp off is left out, as the
+   * database's rule leaves them out (the provider holds the reader's own lamp itself, so nothing here needs to know who is asking).
+   */
   async listPresence(userIds?: string[]): Promise<PresenceRecord[]> {
-    if (userIds === undefined || userIds.length === 0) return presenceSnapshot();
+    const profiles = ensureState();
+    const shown = presenceSnapshot().filter((record) => profiles[record.userId]?.visibility.showOnline === true);
+    if (userIds === undefined || userIds.length === 0) return shown;
 
     const wanted = new Set(userIds);
-    return presenceSnapshot().filter((record) => wanted.has(record.userId));
+    return shown.filter((record) => wanted.has(record.userId));
   }
 
   subscribePresence(listener: (records: PresenceRecord[]) => void): () => void {

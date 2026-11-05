@@ -14,11 +14,14 @@ import {
 } from '../lib/profile/presence';
 import { rereadProfiles } from '../lib/profile/profile-cache';
 import { getProfileRepository } from '../lib/profile/repository';
+import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useAuth } from './AuthProvider';
 
 export type PresenceContextValue = {
   /** False until the first read lands: names draw no lamp before that. */
   ready: boolean;
+  /** The account signed in here, which always has a lamp of its own. */
+  selfId: string | null;
   recordFor: (userId: string) => PresenceRecord | undefined;
   statusFor: (userId: string) => PresenceStatus;
 };
@@ -41,7 +44,7 @@ const INPUT_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchst
  * no lamp (`ready` stays false). A signed-in tab listens to the live room
  * (`subscribeLive`), which is what the lamps are judged on, and this provider also:
  *
- *   - tells the room whether this tab is in use: active, or away once it has sat
+ *   - while the account's lamp switch is on (SPEC-privacy-phase-1.md), tells the room whether this tab is in use: active, or away once it has sat
  *     in the background for PRESENCE_AWAY_HIDDEN_MS or gone untouched for
  *     PRESENCE_AWAY_IDLE_MS, and active again on the first touch or look back;
  *   - writes "seen" as soon as they sign in, every minute after that, and every
@@ -65,6 +68,12 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
   const [now, setNow] = useState(() => Date.now());
   const [live, setLive] = useState<LivePresence | null>(null);
   const [liveWaitOver, setLiveWaitOver] = useState(false);
+  const { profile } = usePublicProfile(accountId);
+  const shareOnline = accountId !== null && profile.visibility.showOnline;
+  /** What this tab last said about itself. With the lamp off it says it to nobody, and this draws the account's own lamp. */
+  const [ownState, setOwnState] = useState<LiveState | null>(null);
+  const shareRef = useRef(shareOnline);
+  const saidRef = useRef<LiveState | null>(null);
 
   const signedIn = accountId !== null;
 
@@ -103,27 +112,52 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
       setReady(true);
     };
 
+    const reread = () =>
+      repository
+        .listPresence()
+        .then(apply)
+        .catch(() => {
+          if (!cancelled) setReady(true);
+        });
     const unsubscribe = repository.subscribePresence(apply);
-
-    void repository
-      .listPresence()
-      .then(apply)
-      .catch(() => {
-        if (!cancelled) setReady(true);
+    // A lamp switched off sends no goodbye (its stamp simply stops being readable), so the switch itself is what is heard.
+    const unsubscribeSwitches = repository.subscribe((next) => {
+      if (next.userId === accountId) return;
+      if (next.visibility.showOnline) {
+        void reread();
+        return;
+      }
+      setRecords((held) => {
+        if (held[next.userId] === undefined) return held;
+        const { [next.userId]: gone, ...rest } = held;
+        void gone;
+        return rest;
       });
+    });
+
+    void reread();
 
     return () => {
       cancelled = true;
       unsubscribe();
+      unsubscribeSwitches();
       setRecords({});
       setReady(false);
     };
-  }, [repository, signedIn]);
+  }, [repository, signedIn, accountId]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), PRESENCE_TICK_MS);
     return () => window.clearInterval(timer);
   }, []);
+
+  // The lamp switch, as it is pressed: into the room with what this tab last said, or out of it.
+  useEffect(() => {
+    shareRef.current = shareOnline;
+    if (accountId === null) return;
+    if (!shareOnline) repository.untrackLive();
+    else if (saidRef.current !== null) repository.trackLive(accountId, saidRef.current);
+  }, [repository, accountId, shareOnline]);
 
   useEffect(() => {
     if (accountId === null) return;
@@ -139,7 +173,9 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     const say = (next: LiveState) => {
       if (next === state) return;
       state = next;
-      repository.trackLive(accountId, next);
+      saidRef.current = next;
+      setOwnState(next);
+      if (shareRef.current) repository.trackLive(accountId, next);
     };
     const visible = () => document.visibilityState === 'visible';
 
@@ -192,6 +228,8 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
       window.removeEventListener('pageshow', onPageShow);
       // Signing out, or closing the tab: leave the room and say goodbye either way.
       repository.untrackLive();
+      saidRef.current = null;
+      setOwnState(null);
       goodbye();
     };
   }, [repository, accountId]);
@@ -199,10 +237,15 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
   const value = useMemo<PresenceContextValue>(
     () => ({
       ready: ready && (live !== null || liveWaitOver),
+      selfId: accountId,
       recordFor: (userId) => records[userId],
-      statusFor: (userId) => presenceStatus(records[userId], now, live, userId),
+      statusFor: (userId) => {
+        if (userId === accountId && !shareOnline) return ownState === 'active' ? 'online' : ownState === 'away' ? 'away' : 'offline';
+        // No stamp to read is a lamp switched off, whatever anybody says on the live wire.
+        return records[userId] === undefined && userId !== accountId ? 'offline' : presenceStatus(records[userId], now, live, userId);
+      },
     }),
-    [ready, records, now, live, liveWaitOver],
+    [ready, accountId, shareOnline, ownState, records, now, live, liveWaitOver],
   );
 
   return <PresenceContext.Provider value={value}>{children}</PresenceContext.Provider>;
@@ -227,6 +270,8 @@ export type UsePresenceResult = {
   /** Undefined until the first read lands, and for anybody without an account. */
   status: PresenceStatus | undefined;
   record: PresenceRecord | undefined;
+  /** True when no lamp is coming: the reader has no session, or this person's lamp is off. */
+  noLamp: boolean;
 };
 
 /**
@@ -239,10 +284,14 @@ export function usePresence(userId: string | null): UsePresenceResult {
   const value = useContext(PresenceContext);
   if (value === null) throw new Error('usePresence must be used inside <PresenceProvider>.');
 
-  if (userId === null) return { status: undefined, record: undefined };
+  if (userId === null) return { status: undefined, record: undefined, noLamp: true };
+
+  const record = value.recordFor(userId);
+  const noLamp = value.selfId === null || (value.ready && record === undefined && userId !== value.selfId);
 
   return {
-    status: value.ready ? value.statusFor(userId) : undefined,
-    record: value.recordFor(userId),
+    status: value.ready && !noLamp ? value.statusFor(userId) : undefined,
+    record,
+    noLamp,
   };
 }

@@ -993,5 +993,9 @@ only adds things; `20261105125422_profile_columns_and_authors.sql` went in once 
                         lore:<slug>: anyone listens, accounts send. match:<invite>: its two players.
                         A private channel and a public one of the same name are separate: a client must ask for `private`.
 
+`20261105135310_privacy_tab_and_new_account_defaults.sql` (phase 1, SPEC-privacy-phase-1.md): new accounts start with lamp, listening and
+comments off, by column default; existing rows keep their values. A presence stamp is readable by its owner, and by other accounts only
+while `show_online` is on. `show_name_to_visitors` and `credit_me_in_art` do nothing until phase 5. `privacy_seen`: the PRIVACY window.
+
 `Temp/check-visitor-limits.cjs` is the proof, live. A tab left open from before a change like this keeps its old code until
 it is reloaded.

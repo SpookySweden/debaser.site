@@ -44,7 +44,10 @@ const STATUS = {
   'debaser-site': 'offline',
 };
 
+// (2026-11-05, SPEC-privacy-phase-1.md) A row with no stamp is a lamp switched off, so the people lit up here need one.
 const RECORDS = {
+  'user-zoe': { userId: 'user-zoe', lastSeenAt: '2026-09-21T04:00:00.000Z', online: true },
+  'user-bob': { userId: 'user-bob', lastSeenAt: '2026-09-21T04:00:00.000Z', online: true },
   'user-amy': { userId: 'user-amy', lastSeenAt: '2026-09-21T04:00:00.000Z', online: false },
   'debaser-site': { userId: 'debaser-site', lastSeenAt: '2026-09-20T12:00:00.000Z', online: false },
 };

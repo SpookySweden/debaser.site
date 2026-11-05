@@ -242,6 +242,7 @@ export function ProfilePrivacyTab({ profile, draft, onToggle, onSave, busy }: Pr
 
   // A note only where the rule is not visible from the switch, and then behind a [ ? ] (SPEC-less-text.md).
   const rows: { key: keyof ProfileVisibility; label: string; note?: string }[] = [
+    { key: 'showOnline', label: 'ONLINE LAMP', note: 'OTHERS SEE YOUR LAMP, WHEN YOU WERE LAST HERE, AND WHICH STREAM YOU ARE IN.' },
     {
       key: 'showTags',
       label: 'TAGS',
