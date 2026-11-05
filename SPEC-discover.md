@@ -62,6 +62,18 @@ Don't let the pool grow without a plan. What to store is the design to get right
 - **Not on the table:** extra free accounts or anything else that dodges a provider's limits or terms. If paid space is the
   honest answer, tell Luke the price and let him choose.
 
+## Data rules from the sources' own terms (checked 2026-11-05)
+- **Nothing from TMDB goes to Claude.** TMDB's API terms exclude use with machine-learning or AI applications, and exclude
+  derivatives. So KINO titles and media-server details never enter tagging, the word pass, the sweep or the pool, and they
+  aren't used as the basis of recommendations. As of today none has: `web_items` holds no `kino` or server rows. Add a check
+  that fails if a platform carrying TMDB text can reach a batch.
+- **Internet Archive:** a descriptive User-Agent with no personal address, delays between requests, honour 429 and
+  `Retry-After`, prefer batch calls, cache. No stated number, so start gently.
+- **Openverse:** its documents give no numbers for rates or paging depth, so measure and back off. Authenticate only if Luke
+  sets up a key himself.
+- **Candidates for films (needs Luke's choice):** Wikidata's structured data is CC0, with cast, director and composer links.
+  MusicBrainz's core data is CC0, but its tags and genres are CC BY-NC-SA, so keep those out unless he OKs that licence.
+
 ## Rules for building
 - Every database change goes to the main session first in plain English, for Luke's OK. Only the job can write pool tables.
 - Mock and Supabase stores both, with checks that fail before the fix. Whole `npm run checks`, code review, live proof.
