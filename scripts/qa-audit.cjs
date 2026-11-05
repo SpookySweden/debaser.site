@@ -62,7 +62,7 @@ const ROUTES = [
   ['profile', '/profile/qa-visitor'],
   // The search page (WEB at /web, then ARCHIVE at /archive, until 2026-11-04) and the catalogue (MEDIA at /media until then).
   ['media', '/media'],
-  ['tag-station', '/tag-station'],
+  ['discover', '/discover'],
   ['files', '/files'],
   // Watching and listening together (SPEC-cytube.md, 2026-11-03); signed-in only, so a capture is its sign-in check.
   ['cytube', '/stream'],

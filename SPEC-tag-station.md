@@ -1,5 +1,8 @@
 # TAG STATION (Luke, 2026-11-05)
 
+Renamed DISCOVER at `/discover` the same day (SPEC-discover.md); `/tag-station` redirects there for good. The code keeps the name:
+`app/lib/tag-station/`, `app/components/TagStation*`, `/api/tag-station/*`, the `tagstation` nav key and the checks.
+
 A map of the words on MEDIA's saved items, in the spirit of a map of genres you can wander: pick something, see the words
 around it, walk outward. The research and the plan are Luke's doc "Tag Station - research & build plan".
 

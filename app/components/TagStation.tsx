@@ -23,7 +23,7 @@ import TagStationMap from './TagStationMap';
 import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip, WordFacets } from './TagStationParts';
 import TagStationSearch from './TagStationSearch';
 
-const PAGE_PATH = '/tag-station';
+const PAGE_PATH = '/discover';
 const ITEMS_STEP = 12;
 const RELATED_SHOWN = 12;
 
@@ -74,7 +74,7 @@ function useGraph(): { index: StationIndex | null; error: string | null } {
     void (async () => {
       try {
         const headers = await webSessionHeaders();
-        if (headers === null) throw new Error('Sign in to use Tag Station.');
+        if (headers === null) throw new Error('Sign in to use Discover.');
         const response = await fetch('/api/tag-station/graph', { headers });
         const body = (await response.json()) as StationGraph & { error?: string };
         if (!response.ok) throw new Error(body.error ?? 'The map could not be loaded.');
@@ -107,7 +107,7 @@ function useExtraHosts(items: readonly StationItem[]): ExtraHosts {
   return useMemo(() => ({ peertube: hosts }), [hosts]);
 }
 
-const WHERE = { origin: 'shelf', href: PAGE_PATH, where: 'TAG STATION' } as const;
+const WHERE = { origin: 'shelf', href: PAGE_PATH, where: 'DISCOVER' } as const;
 
 /** PLAY: audio goes to the site's music bar as on MEDIA; anything else the platform's own player, only once it's asked for. */
 function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHosts }) {
@@ -329,7 +329,7 @@ export function Station({ index }: { index: StationIndex }) {
         <button type="button" onClick={copyLink} onBlur={() => setCopied(false)} className={STATION_KEY}>
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
-        <InfoFold topic="Tag Station">
+        <InfoFold topic="Discover">
           C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED OR SHOWN.
         </InfoFold>
       </div>

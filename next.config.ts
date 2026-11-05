@@ -42,6 +42,8 @@ const nextConfig: NextConfig = {
     return [
       { source: '/web', destination: '/media', permanent: true },
       { source: '/archive', destination: '/media', permanent: true },
+      // DISCOVER was TAG STATION until 2026-11-05 (SPEC-discover.md). A shared search keeps its address's query.
+      { source: '/tag-station', destination: '/discover', permanent: true },
       { source: '/cytube', destination: '/stream', permanent: true },
       ...['kind', 'cat', 'tag'].map((key) => ({ source: '/media', has: [{ type: 'query' as const, key }], destination: '/files', permanent: true })),
     ];

@@ -52,7 +52,7 @@ export function linkMapWords(index: StationIndex, answer: LinkAnswer | null): { 
 }
 
 const REFUSALS: Record<Exclude<LinkAnswer['outcome'], 'found'>, string> = {
-  unknown: "TAG STATION DOESN'T KNOW LINKS FROM THERE.",
+  unknown: "DISCOVER DOESN'T KNOW LINKS FROM THERE.",
   'not-found': 'NOTHING AT THAT LINK.',
   'no-answer': 'THE PLATFORM DID NOT ANSWER. TRY AGAIN.',
 };

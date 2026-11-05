@@ -170,8 +170,8 @@ const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'web', label: 'MEDIA', href: '/media' },
-  // A map of the words on MEDIA's items (SPEC-tag-station.md): this key is its only way in besides its own address.
-  { key: 'tagstation', label: 'TAGS', href: '/tag-station' },
+  // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md): this key is its only way in besides its own address.
+  { key: 'tagstation', label: 'DISCOVER', href: '/discover' },
   { key: 'cytube', label: 'STREAM', href: '/stream' },
 ];
 

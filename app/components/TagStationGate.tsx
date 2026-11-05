@@ -25,7 +25,7 @@ export default function TagStationGate({ children }: { children: ReactNode }) {
   return (
     <section aria-labelledby="tag-station-sign-in-title" className="flex flex-col items-start gap-3 py-2">
       <h2 id="tag-station-sign-in-title" className="text-headline font-bold text-ink">
-        SIGN IN TO USE TAG STATION
+        SIGN IN TO USE DISCOVER
       </h2>
       <Link href="/account" className={PLATE_MAIN}>
         [ SIGN IN ]

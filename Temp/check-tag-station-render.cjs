@@ -46,7 +46,7 @@ const draw = (query) => {
 const inside = () => el('p', null, 'INSIDE');
 authStatus = 'signed-out';
 const out = renderToStaticMarkup(el(Gate, null, el(inside)));
-assert.ok(out.includes('SIGN IN TO USE TAG STATION'));
+assert.ok(out.includes('SIGN IN TO USE DISCOVER'));
 assert.ok(!out.includes('INSIDE'), 'nothing of the page, signed out');
 authStatus = 'loading';
 assert.ok(renderToStaticMarkup(el(Gate, null, el(inside))).includes('CHECKING'));
@@ -134,6 +134,10 @@ assert.ok(renderToStaticMarkup(el(TagStation.Station, { index: withFacts })).inc
 
 // 10. The one header key, and nothing else outside the page.
 const nav = fs.readFileSync(path.join(__dirname, '..', 'app/components/SiteNav.tsx'), 'utf8');
-assert.equal((nav.match(/href: '\/tag-station'/g) ?? []).length, 1, 'one nav entry');
+assert.equal((nav.match(/href: '\/discover'/g) ?? []).length, 1, 'one nav entry');
+assert.ok(nav.includes("label: 'DISCOVER'"), 'reads DISCOVER');
+assert.ok(!/TAG STATION|Tag Station/.test(fs.readdirSync(path.join(__dirname, '..', 'app/components')).filter((name) => name.startsWith('TagStation')).map((name) => fs.readFileSync(path.join(__dirname, '..', 'app/components', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')).join('\n')), 'no reader-visible old name');
+const config = fs.readFileSync(path.join(__dirname, '..', 'next.config.ts'), 'utf8');
+assert.ok(/source: '\/tag-station', destination: '\/discover', permanent: true/.test(config), 'the old address redirects for good');
 
 console.log('check-tag-station-render: all passed');
