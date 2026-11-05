@@ -196,6 +196,10 @@ let watchingJoined = false;
 let watchingSnapshot: WatchingMap | null = null;
 let watchingTracked: WatchingEntry | null = null;
 let watchingCloseTimer: ReturnType<typeof setTimeout> | null = null;
+/** The auth listener that follows the session while anybody wants this channel; null when nobody does. */
+let stopWatchingSession: (() => void) | null = null;
+/** A leave still in flight: the client hands back a channel it still holds, and re-using one on its way out throws. */
+let watchingLeaving: Promise<unknown> = Promise.resolve();
 
 function emitWatching(next: WatchingMap | null): void {
   watchingSnapshot = next;
@@ -219,17 +223,44 @@ function trackPayload(entry: WatchingEntry) {
   return { user_id: entry.userId, room_id: entry.roomId, host_name: entry.hostName, title: entry.title, hosting: entry.hosting };
 }
 
+/**
+ * Asks for the channel. It is private, for accounts only (20261105124800_presence_table_and_private_wires.sql), so it follows the
+ * session: a visitor's tab never knocks, and signing in or out joins or leaves it without a reload.
+ */
 function openWatchingChannel(): void {
   if (watchingCloseTimer !== null) {
     clearTimeout(watchingCloseTimer);
     watchingCloseTimer = null;
   }
-  if (watchingChannel !== null) return;
+  if (stopWatchingSession !== null) return;
 
   const client = getSupabaseBrowserClient();
   if (client === null) return;
 
-  const channel = client.channel(WATCHING_TOPIC);
+  const { data } = client.auth.onAuthStateChange((_event, session) => {
+    // Out of the auth callback: Supabase holds its lock while these run, and leaving a channel can wait on it.
+    setTimeout(() => {
+      if (stopWatchingSession === null) return;
+      if (session !== null) {
+        void watchingLeaving.then(() => {
+          if (stopWatchingSession !== null) joinWatchingChannel(client);
+        });
+      } else if (watchingChannel !== null) {
+        const leaving = watchingChannel;
+        watchingChannel = null;
+        watchingJoined = false;
+        watchingLeaving = client.removeChannel(leaving).catch(() => undefined);
+        emitWatching(null);
+      }
+    }, 0);
+  });
+  stopWatchingSession = () => data.subscription.unsubscribe();
+}
+
+function joinWatchingChannel(client: NonNullable<ReturnType<typeof getSupabaseBrowserClient>>): void {
+  if (watchingChannel !== null) return;
+
+  const channel = client.channel(WATCHING_TOPIC, { config: { private: true } });
   channel.on('presence', { event: 'sync' }, () => {
     if (channel !== watchingChannel) return;
     const map: WatchingMap = {};
@@ -259,9 +290,13 @@ function scheduleWatchingClose(): void {
   watchingCloseTimer = setTimeout(() => {
     watchingCloseTimer = null;
     const client = getSupabaseBrowserClient();
-    if (client === null || watchingChannel === null || watchingListeners.size > 0 || watchingTracked !== null) return;
+    if (client === null || watchingListeners.size > 0 || watchingTracked !== null) return;
 
-    void client.removeChannel(watchingChannel);
+    stopWatchingSession?.();
+    stopWatchingSession = null;
+    if (watchingChannel === null) return;
+
+    watchingLeaving = client.removeChannel(watchingChannel).catch(() => undefined);
     watchingChannel = null;
     watchingJoined = false;
     watchingSnapshot = null;
@@ -843,7 +878,9 @@ class SupabaseWatchRepository implements WatchRepository {
     // still in its list, and re-using one on its way out throws or never joins.
     const join = () => {
       if (left) return;
-      const joined = client.channel(topic, { config: { presence: { key: self.key } } });
+      // Private: while the room is live, and open to a signed-out watcher until private rooms exist
+      // (20261105124800_presence_table_and_private_wires.sql).
+      const joined = client.channel(topic, { config: { presence: { key: self.key }, private: true } });
       channel = joined;
       joined.on('presence', { event: 'sync' }, () => {
       if (left) return;

@@ -228,7 +228,8 @@ class SupabaseLoreRepository implements LoreRepository {
     let joined = false;
 
     if (client !== null) {
-      channel = client.channel(name, { config: { broadcast: { self: false } } });
+      // Private: a reader can listen, only an account can send (20261105124800_presence_table_and_private_wires.sql).
+      channel = client.channel(name, { config: { broadcast: { self: false }, private: true } });
 
       channel.on('broadcast', { event: BROADCAST_EVENT }, ({ payload }) => {
         const message = payload as LoreChannelMessage | undefined;

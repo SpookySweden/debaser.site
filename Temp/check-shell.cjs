@@ -409,7 +409,10 @@ assert.match(compactDirectory, /href="\/users"/, 'it hands over to the full dire
 // (plus the game sentence for an account) to `Green: on. Yellow: under 1h. Red: away.`, on both versions.
 const fullDirectory = withProviders(element(UserDirectory, null));
 // (2026-10-27, Luke: "far more reactive" lamps) Yellow is AWAY now, red is not on the site: the tip says so.
-assert.match(fullDirectory, /title="Green: in use\. Yellow: away\. Red: not on the site\."/, 'the page version carries the legend as a tip');
+// (2026-11-05, the privacy plan's phase 0) Lamps are for people with a session. This render has none, so it draws no lamp and
+// no tip about lamps; the tip's words are checked in the source, for the signed-in render.
+assert.doesNotMatch(fullDirectory, /title="Green: in use/, 'a visitor is not told about lamps they cannot see');
+assert.match(readShellFile('app/components/UserDirectory.tsx'), /Green: in use\. Yellow: away\. Red: not on the site\./, 'the page version carries the legend as a tip');
 assert.doesNotMatch(fullDirectory, /The lamp: green|A game is asked for from the arcade/, 'in a few words');
 
 // 4. Google: the button, the retro mark, and the backend's honest answer.

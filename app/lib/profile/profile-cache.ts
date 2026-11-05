@@ -81,6 +81,15 @@ export function forgetProfiles(): void {
 }
 
 /**
+ * Reads again everything this tab holds. For a visitor who has just signed in: what they were sent with no session
+ * leaves some columns out (the country), and the owner's customiser saves what it was drawn from, so a stale read of
+ * their own row must not stand. The old rows stay on screen until the new ones land.
+ */
+export function rereadProfiles(repository: ProfileRepository): void {
+  for (const userId of records.keys()) void readProfile(repository, userId, { force: true });
+}
+
+/**
  * Reads an account, once.
  *
  * A row already read is handed straight back, and a request already running is shared rather
@@ -105,6 +114,8 @@ export function readProfile(
     // an exception thrown through this call.
     .then(() => repository.getProfile(userId))
     .then((profile) => {
+      // A later read has taken over (`rereadProfiles`, the customiser), and this one may have been asked with an older session.
+      if (inFlight.has(userId) && inFlight.get(userId) !== request) return profile;
       // `null` is an answer worth keeping: it stops every later mount asking again, and it is
       // what the empty shell is drawn from.
       setRecord(userId, { profile, status: 'read' });

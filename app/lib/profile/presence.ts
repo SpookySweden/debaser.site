@@ -10,7 +10,7 @@ import { relativeTime } from '../ui/relative-time';
  *   - the live room (`LivePresence`): every open tab of the site joins one Supabase Realtime Presence
  *     channel and says whether it is in use. Joining and leaving reach every other tab in a second or
  *     two, so this is what turns a lamp green, yellow or red;
- *   - the stored record (`PresenceRecord`, `profiles.last_seen_at` + `is_online`): a heartbeat once a
+ *   - the stored record (`PresenceRecord`, a `profile_presence` row): a heartbeat once a
  *     minute while a tab is open. It dates "LAST ONLINE 12 MINUTES AGO", and it stands in for the room
  *     while the room is not connected (the clock rule in `presenceStatus`).
  */

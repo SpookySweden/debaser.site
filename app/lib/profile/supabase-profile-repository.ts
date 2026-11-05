@@ -64,9 +64,18 @@ const VERSIONS_TABLE = 'profile_avatar_versions';
 const SONGS_TABLE = 'profile_song_versions';
 const TAGS_TABLE = 'profile_tags';
 const COMMENTS_TABLE = 'profile_comments';
+const PRESENCE_TABLE = 'profile_presence';
 
-/** One read per profile: the row plus everything that hangs off it. */
-const PROFILE_SELECT = `*, ${VERSIONS_TABLE}(*), ${SONGS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
+/**
+ * One read per profile: the row plus everything that hangs off it. The columns are named, because a visitor with no session
+ * is granted fewer of them and a read naming one it may not have fails whole (20261105*_profile_columns_and_authors.sql).
+ */
+const PROFILE_COLUMNS_FOR_ANYONE =
+  'id, display_name, name_colour, bio, status, show_tags, show_profile_comments, show_avatar_comments, show_song_comments, hide_listening, current_version_id, avatar_crop, avatar_crop_x, avatar_crop_y, current_song_version_id';
+const PROFILE_COLUMNS_WITH_A_SESSION = 'country_code, updated_at';
+const PROFILE_CHILDREN = `${VERSIONS_TABLE}(*), ${SONGS_TABLE}(*), ${TAGS_TABLE}(*), ${COMMENTS_TABLE}(*)`;
+
+const PRESENCE_COLUMNS = 'user_id, last_seen_at, is_online';
 
 type SongRow = {
   id: string;
@@ -151,9 +160,8 @@ type ProfileRow = {
   avatar_crop_x?: number | null;
   avatar_crop_y?: number | null;
   current_song_version_id: string | null;
-  last_seen_at: string | null;
-  is_online: boolean;
-  updated_at: string;
+  /** Only with a session, like `country_code`: a visitor's read leaves it out. */
+  updated_at?: string | null;
   profile_avatar_versions?: VersionRow[] | null;
   profile_song_versions?: SongRow[] | null;
   profile_tags?: TagRow[] | null;
@@ -161,7 +169,7 @@ type ProfileRow = {
 };
 
 type PresenceRow = {
-  id: string;
+  user_id: string;
   last_seen_at: string | null;
   is_online: boolean;
 };
@@ -254,13 +262,13 @@ function toProfile(row: ProfileRow): PublicProfile {
         };
       })
       .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt)),
-    updatedAt: row.updated_at,
+    updatedAt: row.updated_at ?? '',
   };
 }
 
 function toPresence(row: PresenceRow): PresenceRecord {
   return {
-    userId: row.id,
+    userId: row.user_id,
     lastSeenAt: row.last_seen_at ?? new Date().toISOString(),
     online: row.is_online,
   };
@@ -292,15 +300,18 @@ class SupabaseProfileRepository implements ProfileRepository {
   }
 
   async getProfile(userId: string): Promise<PublicProfile | null> {
-    const { data, error } = await this.client()
+    const client = this.client();
+    const { data: session } = await client.auth.getSession();
+    const columns = session.session === null ? PROFILE_COLUMNS_FOR_ANYONE : `${PROFILE_COLUMNS_FOR_ANYONE}, ${PROFILE_COLUMNS_WITH_A_SESSION}`;
+    const { data, error } = await client
       .from(PROFILES_TABLE)
-      .select(PROFILE_SELECT)
+      .select(`${columns}, ${PROFILE_CHILDREN}`)
       .eq('id', userId)
       .maybeSingle();
 
     if (error !== null) this.fail(error.message);
 
-    return data === null ? null : toProfile(data as ProfileRow);
+    return data === null ? null : toProfile(data as unknown as ProfileRow);
   }
 
   /**
@@ -737,9 +748,9 @@ class SupabaseProfileRepository implements ProfileRepository {
    */
   async markSeen(userId: string): Promise<PresenceRecord> {
     const { data, error } = await this.client()
-      .from(PROFILES_TABLE)
-      .upsert({ id: userId, last_seen_at: new Date().toISOString(), is_online: true }, { onConflict: 'id' })
-      .select('id, last_seen_at, is_online')
+      .from(PRESENCE_TABLE)
+      .upsert({ user_id: userId, last_seen_at: new Date().toISOString(), is_online: true }, { onConflict: 'user_id' })
+      .select(PRESENCE_COLUMNS)
       .single();
 
     if (error !== null) this.fail(error.message);
@@ -757,16 +768,16 @@ class SupabaseProfileRepository implements ProfileRepository {
     const previous = await this.getPresence(userId);
 
     const { data, error } = await this.client()
-      .from(PROFILES_TABLE)
+      .from(PRESENCE_TABLE)
       .upsert(
         {
-          id: userId,
+          user_id: userId,
           is_online: false,
           last_seen_at: previous === null || previous.online ? new Date().toISOString() : previous.lastSeenAt,
         },
-        { onConflict: 'id' },
+        { onConflict: 'user_id' },
       )
-      .select('id, last_seen_at, is_online')
+      .select(PRESENCE_COLUMNS)
       .single();
 
     if (error !== null) this.fail(error.message);
@@ -776,9 +787,9 @@ class SupabaseProfileRepository implements ProfileRepository {
 
   async getPresence(userId: string): Promise<PresenceRecord | null> {
     const { data, error } = await this.client()
-      .from(PROFILES_TABLE)
-      .select('id, last_seen_at, is_online')
-      .eq('id', userId)
+      .from(PRESENCE_TABLE)
+      .select(PRESENCE_COLUMNS)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (error !== null) this.fail(error.message);
@@ -792,10 +803,9 @@ class SupabaseProfileRepository implements ProfileRepository {
    * and the lists of who is online are drawn from `listedAccounts` (app/lib/auth/hidden.ts), not from here.
    */
   async listPresence(userIds?: string[]): Promise<PresenceRecord[]> {
-    const columns = 'id, last_seen_at, is_online';
-    const query = this.client().from(PROFILES_TABLE).select(columns);
+    const query = this.client().from(PRESENCE_TABLE).select(PRESENCE_COLUMNS);
     const { data, error } =
-      userIds === undefined || userIds.length === 0 ? await query : await query.in('id', userIds);
+      userIds === undefined || userIds.length === 0 ? await query : await query.in('user_id', userIds);
 
     if (error !== null) this.fail(error.message);
 
@@ -873,38 +883,6 @@ function changedProfileId(table: string, payload: unknown): string | null {
   return typeof candidate === 'string' ? candidate : null;
 }
 
-/** Columns the once-a-minute presence stamp writes: a change to these alone changes nothing on a profile. */
-const PRESENCE_ONLY_COLUMNS = new Set(['last_seen_at', 'is_online', 'updated_at']);
-
-/** Each account's profile row as last heard, without the presence columns: what the page draws from it. */
-const lastFaces = new Map<string, string>();
-
-/**
- * Whether a change to the profiles row is only the presence stamp.
- *
- * Every open tab stamps its account once a minute, and each stamp reaches every tab on this channel. A
- * full profile read per stamp per tab grows with the square of the people online, for a change the
- * presence channel already carries. Realtime sends no old row (the table's default replica identity),
- * so the row is compared with the one heard last; the first change heard for an account is read.
- */
-function presenceOnly(table: string, id: string, payload: unknown): boolean {
-  if (table !== PROFILES_TABLE) return false;
-
-  const change = payload as { eventType?: string; new?: Record<string, unknown> };
-  if (change.eventType !== 'UPDATE' || change.new === undefined) return false;
-
-  const face = JSON.stringify(
-    Object.keys(change.new)
-      .filter((column) => !PRESENCE_ONLY_COLUMNS.has(column))
-      .sort()
-      .map((column) => [column, change.new?.[column]]),
-  );
-  const same = lastFaces.get(id) === face;
-  lastFaces.set(id, face);
-
-  return same;
-}
-
 function openProfileChannel(repository: SupabaseProfileRepository): void {
   if (profileChannel !== null) return;
 
@@ -913,7 +891,7 @@ function openProfileChannel(repository: SupabaseProfileRepository): void {
 
   const respond = (table: string) => (payload: unknown) => {
     const id = changedProfileId(table, payload);
-    if (id === null || presenceOnly(table, id, payload)) return;
+    if (id === null) return;
 
     void repository
       .getProfile(id)
@@ -950,7 +928,7 @@ function openPresenceChannel(repository: SupabaseProfileRepository): void {
 
   presenceChannel = client
     .channel('profile-presence')
-    .on('postgres_changes', { event: '*', schema: 'public', table: PROFILES_TABLE }, () => {
+    .on('postgres_changes', { event: '*', schema: 'public', table: PRESENCE_TABLE }, () => {
       void repository
         .listPresence()
         .then((records) => {
@@ -972,14 +950,14 @@ function closePresenceChannel(): void {
 /**
  * The live room: one Realtime Presence channel for the whole site.
  *
- * Every tab joins it, guests included, so every tab hears who comes and goes; a signed-in tab also
- * `track`s itself as `{ user_id, state }`. Realtime keeps one entry per tab and drops it the moment
- * that tab's connection closes (a dropped network takes the server's own timeout, about a minute),
+ * Every signed-in tab joins it (`PresenceProvider` opens it only with a session), so every such tab hears who
+ * comes and goes, and `track`s itself as `{ user_id, state }`. Realtime keeps one entry per tab and drops it the
+ * moment that tab's connection closes (a dropped network takes the server's own timeout, about a minute),
  * which is what makes a closed tab's lamp turn red in a second or two rather than ageing out.
  *
- * The channel is public, like the arcade's game rooms, so a determined visitor could put a fake
- * entry in it; the stored record is still writable only by its owner. A rejoin after a dropped
- * connection starts with nothing tracked, so the tab says its state again on every SUBSCRIBED.
+ * The channel is private: the realtime.messages rules in 20261105124800_presence_table_and_private_wires.sql
+ * let accounts in and nobody else. A rejoin after a dropped connection starts with nothing tracked, so the
+ * tab says its state again on every SUBSCRIBED.
  */
 const LIVE_TOPIC = 'site-presence';
 /** A last listener leaving waits this long before closing, so a remount (Strict Mode) reuses it. */
@@ -1011,7 +989,7 @@ function openLiveChannel(): void {
   const client = getSupabaseBrowserClient();
   if (client === null) return;
 
-  const channel = client.channel(LIVE_TOPIC);
+  const channel = client.channel(LIVE_TOPIC, { config: { private: true } });
   channel.on('presence', { event: 'sync' }, () => {
     if (channel !== liveChannel) return;
     const entries = Object.values(channel.presenceState())

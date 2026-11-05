@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import {
   PRESENCE_AWAY_HIDDEN_MS,
   PRESENCE_AWAY_IDLE_MS,
@@ -12,6 +12,7 @@ import {
   type PresenceRecord,
   type PresenceStatus,
 } from '../lib/profile/presence';
+import { rereadProfiles } from '../lib/profile/profile-cache';
 import { getProfileRepository } from '../lib/profile/repository';
 import { useAuth } from './AuthProvider';
 
@@ -36,8 +37,9 @@ const INPUT_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchst
  * signed-in account's own record fresh.
  *
  * Mounted in `app/layout.tsx` under the auth provider, so it knows who is signed
- * in. Every tab listens to the live room (`subscribeLive`), which is what the
- * lamps are judged on. While somebody is signed in, this provider also:
+ * in. Lamps are for people with a session: a visitor's tab hears nothing and draws
+ * no lamp (`ready` stays false). A signed-in tab listens to the live room
+ * (`subscribeLive`), which is what the lamps are judged on, and this provider also:
  *
  *   - tells the room whether this tab is in use: active, or away once it has sat
  *     in the background for PRESENCE_AWAY_HIDDEN_MS or gone untouched for
@@ -51,7 +53,7 @@ const INPUT_EVENTS = ['pointerdown', 'pointermove', 'keydown', 'wheel', 'touchst
  * drawn, so a stale stored record does not flash green first.
  */
 export default function PresenceProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, status: authStatus } = useAuth();
   // The id, not the object: auth hands over a fresh `user` on every token refresh and tab focus, and
   // re-running the heartbeat for each would leave the room and rejoin it (a red flash for everyone).
   const accountId = user?.id ?? null;
@@ -64,14 +66,35 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
   const [live, setLive] = useState<LivePresence | null>(null);
   const [liveWaitOver, setLiveWaitOver] = useState(false);
 
-  useEffect(() => repository.subscribeLive(setLive), [repository]);
+  const signedIn = accountId !== null;
 
   useEffect(() => {
+    if (!signedIn) return;
+    const unsubscribe = repository.subscribeLive(setLive);
+    return () => {
+      unsubscribe();
+      setLive(null);
+    };
+  }, [repository, signedIn]);
+
+  useEffect(() => {
+    if (!signedIn) return;
     const timer = window.setTimeout(() => setLiveWaitOver(true), LIVE_WAIT_MS);
-    return () => window.clearTimeout(timer);
-  }, []);
+    return () => {
+      window.clearTimeout(timer);
+      setLiveWaitOver(false);
+    };
+  }, [signedIn]);
+
+  // A visitor who signs in without a reload: the profiles this tab read with no session are read again, with one.
+  const wasVisitor = useRef(false);
+  useEffect(() => {
+    if (accountId !== null && wasVisitor.current) rereadProfiles(repository);
+    wasVisitor.current = accountId === null && authStatus !== 'loading';
+  }, [repository, accountId, authStatus]);
 
   useEffect(() => {
+    if (!signedIn) return;
     let cancelled = false;
 
     const apply = (snapshot: PresenceRecord[]) => {
@@ -92,8 +115,10 @@ export default function PresenceProvider({ children }: { children: React.ReactNo
     return () => {
       cancelled = true;
       unsubscribe();
+      setRecords({});
+      setReady(false);
     };
-  }, [repository]);
+  }, [repository, signedIn]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), PRESENCE_TICK_MS);

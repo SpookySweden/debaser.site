@@ -59,6 +59,8 @@ type UserDirectoryRowProps = {
    * each stands for), and how long ago they were last here in one character (`22s`).
    */
   compact?: boolean;
+  /** Off for a visitor with no session, who is not told who is around. */
+  lamp?: boolean;
 };
 
 /**
@@ -83,6 +85,7 @@ export default function UserDirectoryRow({
   onMessage,
   actions,
   compact = false,
+  lamp = true,
 }: UserDirectoryRowProps) {
   const author = { id: row.account.id, displayName: row.account.displayName };
   const showMessage = onMessage !== undefined && viewerId !== null && !row.you;
@@ -106,7 +109,7 @@ export default function UserDirectoryRow({
         className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}
         style={glow}
       >
-        <StatusDot status={row.status} record={row.record} />
+        {lamp ? <StatusDot status={row.status} record={row.record} /> : null}
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
 
@@ -131,9 +134,11 @@ export default function UserDirectoryRow({
 
         {/* How long ago, in one character. `ONLINE NOW` is the lamp's green and needs no number; a
             reading that could not be taken says `--` rather than inventing one; yellow says `AWAY`. */}
-        <span className="glow-text shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
-          {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
-        </span>
+        {lamp ? (
+          <span className="glow-text shrink-0 text-ink" title={presenceLine(row.status, row.record)}>
+            {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+          </span>
+        ) : null}
       </li>
     );
   }
@@ -147,15 +152,17 @@ export default function UserDirectoryRow({
     >
       {/* The lamp and its age, as the side panel's rows draw them: `NOW` while the lamp is green, `AWAY` while it is yellow, else
           how long ago in one character (`3w`). A fixed narrow column, so the names still line up. */}
-      <span
-        className="inline-flex w-12 shrink-0 items-center gap-1"
-        title={presenceLine(row.status, row.record)}
-      >
-        <StatusDot status={row.status} record={row.record} />
-        <span className="glow-text text-ink">
-          {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+      {lamp ? (
+        <span
+          className="inline-flex w-12 shrink-0 items-center gap-1"
+          title={presenceLine(row.status, row.record)}
+        >
+          <StatusDot status={row.status} record={row.record} />
+          <span className="glow-text text-ink">
+            {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+          </span>
         </span>
-      </span>
+      ) : null}
 
       <span className="inline-flex min-w-0 flex-wrap items-center gap-1">
         <ProfileAvatarLink author={author} size={28} showName={false} />
