@@ -3,10 +3,10 @@
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import GoLiveWindow from './GoLiveWindow';
 import { useCatalogue } from '../lib/media/catalogue';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
-import { goLiveEmpty } from '../lib/watch/go-live';
 import { roomIsLive } from '../lib/watch/rules';
 import { getCanvasRepository } from '../lib/watch/canvas-repository';
 import { enterRoom } from '../lib/watch/use-music-room';
@@ -122,41 +122,25 @@ function SignedIn({ user }: { user: AccountUser }) {
 
 /**
  * GO LIVE: your room, empty, its screen black (SPEC-cytube.md). Already hosting a live room: back to it, never a
- * second one. One press opens the room; it is the page's one main action.
+ * second one. One press opens the WHO CAN JOIN window, and START in it opens the room; it is the page's one main action.
  */
 function GoLiveKey({ user }: { user: AccountUser }) {
   const forum = useForum();
   const watching = useWatching(user.id);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
   const hosting = watching !== null && watching.hosting ? watching.roomId : null;
 
-  async function goLive() {
-    if (hosting !== null) {
-      openWatch({ kind: 'room', roomId: hosting });
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await goLiveEmpty(user, forum.createThread);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');
-    } finally {
-      setBusy(false);
-    }
+  function goLive() {
+    if (hosting !== null) openWatch({ kind: 'room', roomId: hosting });
+    else setAsking(true);
   }
 
   return (
     <>
-      <button type="button" onClick={() => void goLive()} disabled={busy} className={PLATE_MAIN} data-cytube-go-live={hosting === null ? 'new' : 'back'}>
-        {busy ? '[ GOING LIVE... ]' : hosting === null ? '[ GO LIVE ]' : '[ BACK TO YOUR ROOM ]'}
+      <button type="button" onClick={goLive} className={PLATE_MAIN} data-cytube-go-live={hosting === null ? 'new' : 'back'}>
+        {hosting === null ? '[ GO LIVE ]' : '[ BACK TO YOUR ROOM ]'}
       </button>
-      {error === null ? null : (
-        <span className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-          {error}
-        </span>
-      )}
+      {asking ? <GoLiveWindow user={user} createThread={forum.createThread} onClose={() => setAsking(false)} /> : null}
     </>
   );
 }

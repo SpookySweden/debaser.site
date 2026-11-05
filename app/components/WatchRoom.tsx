@@ -543,8 +543,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       repository.setWatching(null);
       return;
     }
-    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline });
-  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline]);
+    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
+  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */
@@ -1084,7 +1084,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           {fault}
         </p>
       )}
-      {room.forumThreadId === null && live && !music ? (
+      {room.forumThreadId === null && live && !music && room.privacy === 'open' ? (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">NOT ON THE BOARD</p>
       ) : null}
     </div>

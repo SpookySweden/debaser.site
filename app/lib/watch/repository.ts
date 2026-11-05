@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { LiveRoom, QueueMove, RoomAddMode, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, QueueMove, RoomAddMode, RoomDoor, RoomMemberRow, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -24,6 +24,10 @@ export type OpenRoomInput = {
   /** Made by the caller, so the forum thread can name the room before either is written. */
   id: string;
   host: { id: string; label: string };
+  /** WHO CAN JOIN. Left out, the database makes it private. */
+  privacy?: RoomPrivacy;
+  /** With `privacy: 'password'`. */
+  password?: string;
   /** The first file, as play 0; null opens the room empty, its screen black (GO LIVE on CYTUBE, SPEC-cytube.md). */
   mediaItemId: string | null;
 };
@@ -101,8 +105,20 @@ export type RoomMembership = {
 
 export type WatchRepository = {
   readonly source: WatchDataSource;
-  /** The room with its queue and chat, or null if there is no such room. Throws on a failed read. */
+  /** The room with its queue and chat, or null if there is no such room or this person may not read it. Throws on a failed read. */
   readRoom(roomId: string): Promise<WatchRoomRead | null>;
+  /** What the room's link may be told before anybody is in. Never throws for a room that is not there: `found` says so. */
+  readDoor(roomId: string): Promise<RoomDoor>;
+  /** Joining: a member from here on, or why not. The password only counts for a room that has one. */
+  enterRoom(roomId: string, password: string | null): Promise<JoinAnswer>;
+  /** WHO CAN JOIN and CHANGE PASSWORD: the host's. A null password keeps the one already set. Throws with a sentence fit to show. */
+  setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void>;
+  /** REMOVE: the host's and a crown's. Throws with a sentence fit to show. */
+  removeFromRoom(roomId: string, userId: string): Promise<void>;
+  /** Everybody who joined, for the cog. */
+  listRoomMembers(roomId: string): Promise<RoomMemberRow[]>;
+  /** Fires when somebody joins or is removed. */
+  subscribeRoomMembers(roomId: string, listener: (row: RoomMemberRow) => void): () => void;
   /** GO LIVE: the room, with its first file as play 0 on screen and playing, or empty. Throws with a sentence fit to show. */
   openRoom(input: OpenRoomInput): Promise<WatchRoomRead>;
   /** The host's one music room, kept whether or not it is public; null when they never went public. */

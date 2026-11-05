@@ -1,8 +1,9 @@
 import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { queueRefusal } from './links';
+import { getMockAuthRepository } from '../auth/mock-auth';
 import { goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
-import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, QueueMove, RoomDoor, RoomMemberRow, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -21,9 +22,21 @@ const BEAT_MS = 1500;
 const GONE_MS = 5000;
 const STALE_MS = 3 * 60 * 1000;
 
-type Tables = { rooms: WatchRoom[]; queue: WatchQueueEntry[]; messages: WatchMessage[]; crowns: WatchCrown[] };
+/** The privacy side of a room, kept by hand as the database's rules and functions keep it (SPEC-privacy-phase-2.md). */
+type Attempt = { roomId: string; userId: string; tries: number; lockedUntil: string | null };
+type Tables = {
+  rooms: WatchRoom[];
+  queue: WatchQueueEntry[];
+  messages: WatchMessage[];
+  crowns: WatchCrown[];
+  members: RoomMemberRow[];
+  passwords: Record<string, string>;
+  attempts: Attempt[];
+  /** Ids of messages and queue rows made while their room was not open: the mock's `privacy_at_write`. */
+  privateRows: string[];
+};
 
-let memory: Tables = { rooms: [], queue: [], messages: [], crowns: [] };
+let memory: Tables = { rooms: [], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] };
 
 function hasStorage(): boolean {
   try {
@@ -44,12 +57,16 @@ function load(): Tables {
     return {
       // Rooms stored before music rooms were all public streams, never cleared.
       rooms: Array.isArray(parsed.rooms)
-        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, clearedAt: room.clearedAt ?? null, name: room.name ?? null, topic: room.topic ?? null, addMode: room.addMode ?? 'anyone' }))
+        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, privacy: room.privacy ?? 'open', clearedAt: room.clearedAt ?? null, name: room.name ?? null, topic: room.topic ?? null, addMode: room.addMode ?? 'anyone' }))
         : [],
       // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
       queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true, series: entry.series ?? null })) : [],
       messages: Array.isArray(parsed.messages) ? parsed.messages : [],
       crowns: Array.isArray(parsed.crowns) ? parsed.crowns : [],
+      members: Array.isArray(parsed.members) ? parsed.members : [],
+      passwords: parsed.passwords ?? {},
+      attempts: Array.isArray(parsed.attempts) ? parsed.attempts : [],
+      privateRows: Array.isArray(parsed.privateRows) ? parsed.privateRows : [],
     };
   } catch {
     return memory;
@@ -61,6 +78,35 @@ let lastStamp = 0;
 function stamp(): string {
   lastStamp = Math.max(Date.now(), lastStamp + 1);
   return new Date(lastStamp).toISOString();
+}
+
+/** Who is reading, as the database's `auth.uid()` would know. */
+async function currentAccountOrNull() {
+  return getMockAuthRepository().getCurrentUser();
+}
+
+async function viewerId(): Promise<string | null> {
+  return (await currentAccountOrNull())?.id ?? null;
+}
+
+const memberListeners = new Set<(row: RoomMemberRow) => void>();
+
+/** The database's `room_may_talk`: nobody removed, and nobody from outside a room that is not open. */
+function refuseOutsider(tables: Tables, room: WatchRoom, userId: string): void {
+  const mine = tables.members.find((row) => row.roomId === room.id && row.userId === userId);
+  if (mine !== undefined && mine.removedAt !== null) throw new Error(NOT_ALLOWED);
+  if (room.privacy !== 'open' && mine === undefined && room.hostId !== userId) throw new Error(NOT_ALLOWED);
+}
+
+/** The database's `watch_rooms_member_host`: whoever hosts belongs. */
+function addMember(tables: Tables, roomId: string, userId: string): void {
+  if (tables.members.some((row) => row.roomId === roomId && row.userId === userId)) return;
+  save({ ...tables, members: [...tables.members, { roomId, userId, label: 'SOMEBODY', removedAt: null }] }, null);
+}
+
+/** The mock's `privacy_at_write`: what is made while a room is not open stays its members'. */
+function stampedRows(tables: Tables, room: WatchRoom, id: string): string[] {
+  return room.privacy === 'open' ? tables.privateRows : [...tables.privateRows, id];
 }
 
 function newId(): string {
@@ -223,15 +269,111 @@ function wireWatching(): void {
 class MockWatchRepository implements WatchRepository {
   readonly source = 'mock' as const;
 
+  async readDoor(roomId: string): Promise<RoomDoor> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    if (room === undefined) return { found: false, live: false, privacy: null, title: null, member: false, removed: false, lockedUntil: null };
+    const me = await viewerId();
+    const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me);
+    const attempt = tables.attempts.find((row) => row.roomId === roomId && row.userId === me);
+    const locked = attempt?.lockedUntil !== null && attempt?.lockedUntil !== undefined && Date.parse(attempt.lockedUntil) > Date.now();
+    return {
+      found: true,
+      live: room.endedAt === null && room.isPublic,
+      privacy: room.privacy,
+      title: me === null ? null : (room.name ?? 'THIS ROOM'),
+      member: mine !== undefined && mine.removedAt === null,
+      removed: mine !== undefined && mine.removedAt !== null,
+      lockedUntil: locked ? (attempt?.lockedUntil ?? null) : null,
+    };
+  }
+
+  async enterRoom(roomId: string, password: string | null): Promise<JoinAnswer> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await currentAccountOrNull();
+    if (room === undefined || me === null) return 'refused';
+    const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me.id);
+    if (mine?.removedAt !== null && mine !== undefined) return 'removed';
+    if (mine !== undefined) return 'joined';
+    if (room.endedAt !== null || !room.isPublic) return 'ended';
+
+    if (room.privacy === 'password') {
+      const attempt = tables.attempts.find((row) => row.roomId === roomId && row.userId === me.id) ?? { roomId, userId: me.id, tries: 0, lockedUntil: null };
+      if (attempt.lockedUntil !== null && Date.parse(attempt.lockedUntil) > Date.now()) return 'locked';
+      const others = tables.attempts.filter((row) => row !== attempt);
+      if (password === null || tables.passwords[roomId] !== password) {
+        const tries = attempt.tries + 1;
+        const lockedUntil = tries >= 5 ? new Date(Date.now() + 10 * 60 * 1000).toISOString() : null;
+        save({ ...tables, attempts: [...others, { ...attempt, tries: lockedUntil === null ? tries : 0, lockedUntil }] }, null);
+        return lockedUntil === null ? 'wrong' : 'locked';
+      }
+      tables.attempts = others;
+    }
+
+    save({ ...tables, members: [...tables.members, { roomId, userId: me.id, label: me.displayName, removedAt: null }] }, null);
+    return 'joined';
+  }
+
+  async setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await viewerId();
+    if (room === undefined || room.hostId !== me || room.endedAt !== null || room.origin !== 'stream') throw new Error('ONLY THE HOST CAN CHANGE THAT.');
+    const passwords = { ...tables.passwords };
+    if (privacy === 'password') {
+      if (password !== null && password.length > 0) passwords[roomId] = password;
+      else if (passwords[roomId] === undefined) throw new Error('THAT NEEDS A PASSWORD.');
+    } else {
+      delete passwords[roomId];
+    }
+    save({ ...tables, passwords, attempts: tables.attempts.filter((row) => row.roomId !== roomId) }, null);
+    changeRoom(roomId, (current) => ({ ...current, privacy }));
+  }
+
+  async removeFromRoom(roomId: string, userId: string): Promise<void> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await viewerId();
+    const allowed = room !== undefined && room.endedAt === null && room.hostId !== userId && (room.hostId === me || tables.crowns.some((crown) => crown.roomId === roomId && crown.userId === me));
+    if (!allowed) throw new Error('ONLY THE HOST OR A CROWN CAN REMOVE SOMEBODY.');
+    const at = stamp();
+    const known = tables.members.find((row) => row.roomId === roomId && row.userId === userId);
+    const members = known === undefined
+      ? [...tables.members, { roomId, userId, label: 'SOMEBODY', removedAt: at }]
+      : tables.members.map((row) => (row === known ? { ...row, removedAt: at } : row));
+    save({ ...tables, members, crowns: tables.crowns.filter((crown) => !(crown.roomId === roomId && crown.userId === userId)) }, roomId);
+    for (const listener of memberListeners) listener({ roomId, userId, label: known?.label ?? 'SOMEBODY', removedAt: at });
+  }
+
+  async listRoomMembers(roomId: string): Promise<RoomMemberRow[]> {
+    return load().members.filter((row) => row.roomId === roomId);
+  }
+
+  subscribeRoomMembers(roomId: string, listener: (row: RoomMemberRow) => void): () => void {
+    const heard = (row: RoomMemberRow) => {
+      if (row.roomId === roomId) listener(row);
+    };
+    memberListeners.add(heard);
+    return () => {
+      memberListeners.delete(heard);
+    };
+  }
+
   async readRoom(roomId: string): Promise<WatchRoomRead | null> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
     if (room === undefined) return null;
+    const me = await viewerId();
+    const member = tables.members.some((row) => row.roomId === roomId && row.userId === me && row.removedAt === null);
+    // The database's rules: a room that is not open is its members', and so is whatever was made while it was not.
+    if (room.privacy !== 'open' && !member && room.hostId !== me) return null;
+    const hidden = member ? new Set<string>() : new Set(tables.privateRows);
 
     return {
       room,
-      queue: tables.queue.filter((entry) => entry.roomId === roomId),
-      messages: tables.messages.filter((message) => message.roomId === roomId).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+      queue: tables.queue.filter((entry) => entry.roomId === roomId && !hidden.has(entry.id)),
+      messages: tables.messages.filter((message) => message.roomId === roomId && !hidden.has(message.id)).sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
       crowns: tables.crowns.filter((crown) => crown.roomId === roomId),
     };
   }
@@ -267,6 +409,8 @@ class MockWatchRepository implements WatchRepository {
       endedAt: null,
       origin: 'stream',
       isPublic: true,
+      // Left out by the older checks, which read rooms with nobody signed in. Everything on the site says which it wants.
+      privacy: input.privacy ?? 'open',
       clearedAt: null,
       name: null,
       topic: null,
@@ -274,6 +418,8 @@ class MockWatchRepository implements WatchRepository {
     };
     const crown = crownFor(room.id, input.host.id, input.host.id);
     const queue = entry === null ? [] : [entry];
+    tables.members = [...tables.members, { roomId: room.id, userId: input.host.id, label: input.host.label, removedAt: null }];
+    if (input.privacy === 'password' && input.password !== undefined) tables.passwords = { ...tables.passwords, [room.id]: input.password };
     save({ ...tables, rooms: [...tables.rooms, room], queue: [...tables.queue, ...queue], crowns: withCrown(tables.crowns, crown) }, room.id);
 
     return { room, queue, messages: [], crowns: [crown] };
@@ -307,6 +453,7 @@ class MockWatchRepository implements WatchRepository {
         endedAt: null,
         origin: 'music',
         isPublic: true,
+        privacy: 'open',
         clearedAt: null,
         name: null,
         topic: null,
@@ -345,7 +492,7 @@ class MockWatchRepository implements WatchRepository {
   }
 
   async setRoomPublic(roomId: string, isPublic: boolean): Promise<void> {
-    changeRoom(roomId, (room) => (room.origin !== 'music' ? null : { ...room, isPublic, isPlaying: isPublic && room.isPlaying }));
+    changeRoom(roomId, (room) => (room.origin !== 'music' ? null : { ...room, isPublic, privacy: isPublic ? 'open' : 'private', isPlaying: isPublic && room.isPlaying }));
   }
 
   async saveRoomSettings(input: RoomSettingsInput): Promise<void> {
@@ -414,6 +561,9 @@ class MockWatchRepository implements WatchRepository {
   }
 
   async handOver(roomId: string, toUserId: string): Promise<void> {
+    const tables = load();
+    if (tables.members.some((row) => row.roomId === roomId && row.userId === toUserId && row.removedAt !== null)) return;
+    addMember(tables, roomId, toUserId);
     changeRoom(roomId, (room) => ({ ...room, hostId: toUserId }));
   }
 
@@ -422,6 +572,13 @@ class MockWatchRepository implements WatchRepository {
     // A music room is its owner's: never taken over.
     if (room === undefined || room.origin === 'music' || room.endedAt !== null || room.hostId !== goneHostId || room.hostId === callerId) return false;
     if (Date.now() - Date.parse(room.updatedAt) < TAKE_OVER_QUIET_MS) return false;
+    const tables = load();
+    try {
+      refuseOutsider(tables, room, callerId);
+    } catch {
+      return false;
+    }
+    addMember(tables, roomId, callerId);
 
     changeRoom(roomId, (current) => ({ ...current, hostId: callerId }));
     return true;
@@ -466,7 +623,8 @@ class MockWatchRepository implements WatchRepository {
       playedAt: null,
       playIndex: null,
     };
-    save({ ...tables, queue: [...tables.queue, entry] }, input.roomId);
+    refuseOutsider(tables, room, input.addedBy);
+    save({ ...tables, queue: [...tables.queue, entry], privateRows: stampedRows(tables, room, entry.id) }, input.roomId);
     return entry;
   }
 
@@ -475,6 +633,7 @@ class MockWatchRepository implements WatchRepository {
     const { room, crowns } = liveRoom(tables, input.roomId);
     refuseIfShut(room, input.addedBy);
     refuseIfCrownsOnly(room, crowns, input.addedBy);
+    refuseOutsider(tables, room, input.addedBy);
     for (const link of input.links) {
       const refusal = queueRefusal(link);
       if (refusal !== null) throw new Error(refusal);
@@ -580,7 +739,8 @@ class MockWatchRepository implements WatchRepository {
       mediaSeconds: Math.max(0, input.mediaSeconds),
       createdAt: stamp(),
     };
-    save({ ...tables, messages: [...tables.messages, message] }, input.roomId);
+    refuseOutsider(tables, room, input.author.id);
+    save({ ...tables, messages: [...tables.messages, message], privateRows: stampedRows(tables, room, message.id) }, input.roomId);
     return message;
   }
 
@@ -729,6 +889,6 @@ export function getMockWatchRepository(): WatchRepository {
 
 /** Test helper: forgets every room this browser (or process) holds. */
 export function resetMockWatch(): void {
-  memory = { rooms: [], queue: [], messages: [], crowns: [] };
+  memory = { rooms: [], queue: [], messages: [], crowns: [], members: [], passwords: {}, attempts: [], privateRows: [] };
   if (hasStorage()) window.localStorage.removeItem(KEY);
 }

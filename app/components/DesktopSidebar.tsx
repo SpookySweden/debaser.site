@@ -31,8 +31,8 @@ import {
 import type { AccountUser } from '../lib/auth/types';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { ICON_LIVE } from '../lib/ui/icons';
-import { goLiveEmpty } from '../lib/watch/go-live';
 import { useWatching } from '../lib/watch/use-watching';
+import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
 
 /**
@@ -138,44 +138,27 @@ function ShelfKey({
 function GoLiveKey({ user }: { user: AccountUser }) {
   const forum = useForum();
   const watching = useWatching(user.id);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [asking, setAsking] = useState(false);
   const hosting = watching !== null && watching.hosting ? watching.roomId : null;
 
-  async function goLive() {
-    if (hosting !== null) {
-      openWatch({ kind: 'room', roomId: hosting });
-      return;
-    }
-    setBusy(true);
-    setError(null);
-    try {
-      await goLiveEmpty(user, forum.createThread);
-    } catch (failure) {
-      setError(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');
-    } finally {
-      setBusy(false);
-    }
+  function goLive() {
+    if (hosting !== null) openWatch({ kind: 'room', roomId: hosting });
+    else setAsking(true);
   }
 
   return (
     <>
       <button
         type="button"
-        onClick={() => void goLive()}
-        disabled={busy}
+        onClick={goLive}
         data-side-go-live={hosting === null ? 'new' : 'back'}
         className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label"
       >
         <span className="min-w-0 flex-1 truncate text-left">
-          [ <span aria-hidden="true">{ICON_LIVE}</span> {busy ? 'GOING LIVE...' : hosting === null ? 'GO LIVE' : 'BACK TO YOUR ROOM'} ]
+          [ <span aria-hidden="true">{ICON_LIVE}</span> {hosting === null ? 'GO LIVE' : 'BACK TO YOUR ROOM'} ]
         </span>
       </button>
-      {error === null ? null : (
-        <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" role="alert">
-          {error}
-        </p>
-      )}
+      {asking ? <GoLiveWindow user={user} createThread={forum.createThread} onClose={() => setAsking(false)} /> : null}
     </>
   );
 }
