@@ -55,7 +55,7 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
   assert.equal(request.params.model, 'claude-haiku-5-5');
   assert.equal(request.params.output_config.format.type, 'json_schema');
   assert.deepEqual(request.params.output_config.format.schema.properties.words.items.properties.facet.enum, ['genre', 'mood', 'place', 'era', 'form', 'subject']);
-  assert.ok(request.params.max_tokens <= 4000, 'the answer is capped');
+  assert.ok(request.params.max_tokens <= 8000, 'the answer is capped');
 
   // 3. The job.
   const fake = (over = {}) => {
@@ -135,7 +135,7 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
   const edgeResult = await pass.runWordPass(edge.client, edge.store);
   assert.equal(edgeResult.sent, 100, 'near the limit only what fits goes');
   assert.equal(edgeResult.stopped, 'spending limit');
-  assert.ok(pass.worstCaseForWords(words.slice(0, 100), Array.from({ length: 2000 }, () => 'a twelve letter')) * 10 < 0.03, "a whole run's worst case is inside what the tagging job leaves room for");
+  assert.ok(pass.worstCaseForWords(words.slice(0, 100), Array.from({ length: 2000 }, () => 'a twelve letter')) * 10 < 0.1, "a whole run's worst case is inside what the tagging job leaves room for");
 
   // 6. Joins: any order, any direction, one word; a chain is one group; a run of bad joins stops at six.
   const rules = buildWordRules([fact('modernism', 'subject', 'modernist'), fact('modernist', 'subject', 'modernism'), fact('modernity', null, 'modernism')]);
@@ -193,6 +193,14 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
   const read = await createSupabaseTagRepository({ from: () => pages(ok) }).wordFacts();
   assert.deepEqual(read, [fact('dub', 'genre'), fact('odd', null, 'dub', false)], 'a bad type is not trusted');
   assert.deepEqual(await createSupabaseTagRepository({ from: () => pages({ data: null, error: { message: 'gone' } }) }).wordFacts(), []);
+  // Past one page it keeps reading; a failed later page means no answers at all, never half a set.
+  const fullPage = Array.from({ length: 1000 }, (_, i) => ({ word: `w${i}`, facet: 'subject', same_as: null, vague: false }));
+  const paged = (second) => {
+    const self = { select: () => self, not: () => self, order: () => self, range: async (from) => (from === 0 ? { data: fullPage, error: null } : second) };
+    return self;
+  };
+  assert.equal((await createSupabaseTagRepository({ from: () => paged({ data: [{ word: 'last', facet: 'mood', same_as: null, vague: false }], error: null }) }).wordFacts()).length, 1001, 'every page is read');
+  assert.deepEqual(await createSupabaseTagRepository({ from: () => paged({ data: null, error: { message: 'gone' } }) }).wordFacts(), [], 'no half sets');
   assert.ok((await getMockTagRepository().wordFacts()).length > 5, 'the mock has answers too');
 
   // 10. Nothing rewrites the words MEDIA reads; the migration only adds, and the job's failure stays out of the tagging's answer.

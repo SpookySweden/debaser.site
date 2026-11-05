@@ -25,7 +25,7 @@ export const MAX_OUTPUT_TOKENS = 300;
 /** The shared prompt, and the wrapping around an item's text. */
 const INPUT_OVERHEAD_TOKENS = 200;
 /** What a word-pass batch still out could cost at worst (word-pass.ts). This job never spends what that might need. */
-const WORD_PASS_IN_FLIGHT_USD = 0.03;
+const WORD_PASS_IN_FLIGHT_USD = 0.1;
 const MAX_WORDS = 8;
 const MAX_WORD_LENGTH = 24;
 const MAX_TEXT = 600;

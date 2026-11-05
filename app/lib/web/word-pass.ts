@@ -14,8 +14,8 @@ export const WORDS_PER_RUN = 1000;
 const WORDS_PER_REQUEST = 100;
 /** Every request sees this many words in use, so it can spot a duplicate of a word that isn't in its own small list. */
 const VOCABULARY_SIZE = 2000;
-/** Room for about 30 tokens an answer. */
-const MAX_OUTPUT_TOKENS = 4000;
+/** Room for about 80 tokens an answer, so a list of long words is never cut off mid-answer and lost. */
+const MAX_OUTPUT_TOKENS = 8000;
 const INPUT_OVERHEAD_TOKENS = 300;
 /** What a tagging batch still out could cost at worst. This pass never spends what that might need. */
 const TAGGING_IN_FLIGHT_USD = 0.5;

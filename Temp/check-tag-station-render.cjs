@@ -128,6 +128,7 @@ assert.ok(typed.includes('WORD TYPE'), 'the filter is there');
 const listed = typed.slice(typed.indexOf('aria-label="Words, closest first"'), typed.indexOf('id="ts-near"'));
 assert.ok(listed.includes('Go to reggae, a genre') && !listed.includes('Go to bristol, a place'), 'and the list of words leaves out other types');
 assert.ok(!draw('tag=dub&view=list').includes('WORD TYPE'), 'no answers yet, no filter');
+assert.ok(draw('tag=dub&view=list&facet=genre').includes('WORD TYPE'), 'unless a link set one, so it can be cleared');
 address = new URLSearchParams('tag=bristol&view=list');
 assert.ok(renderToStaticMarkup(el(TagStation.Station, { index: withFacts })).includes('Go to dub, a genre'));
 

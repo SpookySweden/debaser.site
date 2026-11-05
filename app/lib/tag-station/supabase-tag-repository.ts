@@ -18,6 +18,9 @@ export const MAX_ITEMS = 1000;
 
 type RowWithWords = WebItemRow & { web_item_tags: { words: string[] | null } | { words: string[] | null }[] | null };
 
+/** Far more different words than a tagged item could bring for a long time, and a limit on the reads of one build. */
+const MAX_WORD_PAGES = 20;
+
 /** The columns of a seen row anyone may read (supabase/migrations/*_web_seen_items.sql). */
 const SEEN_COLUMNS = 'id, platform, kind, title, creator, published_at, words';
 const KINDS: readonly WebItem['kind'][] = ['audio', 'video', 'image', 'text', 'other'];
@@ -70,18 +73,21 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       return [...savedRows, ...seenRows];
     },
     async wordFacts(): Promise<WordFact[]> {
-      // PostgREST's cap is 1,000 rows an answer, so a fixed few pages; a failed page is only fewer answers, and the map still draws.
-      const pages = await Promise.all(
-        [0, 1, 2, 3, 4].map((page) =>
-          client
-            .from('web_word_facts')
-            .select('word, facet, same_as, vague')
-            .not('facet', 'is', null)
-            .order('word')
-            .range(page * MAX_ITEMS, (page + 1) * MAX_ITEMS - 1),
-        ),
-      );
-      return pages.flatMap(({ data, error }) => (error ? [] : ((data ?? []) as { word: string; facet: string | null; same_as: string | null; vague: boolean | null }[]))).map((row) => ({
+      // PostgREST's cap is 1,000 rows an answer, so page by page, usually just one. Any failed page means no answers at all this time:
+      // half a set would split joined words, and the map keeps what it builds for an hour.
+      const rows: { word: string; facet: string | null; same_as: string | null; vague: boolean | null }[] = [];
+      for (let page = 0; page < MAX_WORD_PAGES; page += 1) {
+        const { data, error } = await client
+          .from('web_word_facts')
+          .select('word, facet, same_as, vague')
+          .not('facet', 'is', null)
+          .order('word')
+          .range(page * MAX_ITEMS, (page + 1) * MAX_ITEMS - 1);
+        if (error) return [];
+        rows.push(...((data ?? []) as typeof rows));
+        if ((data ?? []).length < MAX_ITEMS) break;
+      }
+      return rows.map((row) => ({
         word: row.word,
         facet: FACETS.includes(row.facet as Facet) ? (row.facet as Facet) : null,
         sameAs: row.same_as,

@@ -181,12 +181,12 @@ export default function TagStationFilters({ index, recipe, onChange }: { index: 
               options={[{ value: '', label: 'ANY' }, ...index.eras.map((era) => ({ value: era, label: era.toUpperCase() }))]}
             />
             {/* Only once the word pass has said something. */}
-            {index.facets.length > 0 ? (
+            {index.facets.length > 0 || recipe.facet !== null ? (
               <Pick
                 label="WORD TYPE"
                 value={recipe.facet ?? ''}
                 onChange={(facet) => onChange({ ...recipe, facet: facet === '' ? null : (facet as Facet) })}
-                options={[{ value: '', label: 'ANY' }, ...index.facets.map((facet) => ({ value: facet, label: facet.toUpperCase() }))]}
+                options={[{ value: '', label: 'ANY' }, ...[...new Set([...index.facets, ...(recipe.facet !== null ? [recipe.facet] : [])])].map((facet) => ({ value: facet, label: facet.toUpperCase() }))]}
               />
             ) : null}
             <Pick
