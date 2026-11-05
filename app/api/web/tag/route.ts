@@ -46,8 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     const reason = error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}${said}` : error instanceof Error ? error.name : 'unknown';
     // Yes or no only, nothing of the key: a stray character in a pasted key is a TypeError before anything is sent.
     const keyPlain = /^[\x21-\x7e]+$/.test(process.env.ANTHROPIC_API_KEY ?? '');
-    // Where, as code locations. The first line of a stack is the message, which is left out for the reason above.
-    const at = error instanceof Error ? (error.stack ?? '').split('\n').slice(1, 4).map((line) => line.trim().slice(-90)) : [];
-    return json({ error: 'The tagging could not run.', reason, keyPlain, at }, 500);
+    // Never an error's message or stack: a bad header's message repeats the key, and can run over several lines of a stack.
+    return json({ error: 'The tagging could not run.', reason, keyPlain }, 500);
   }
 }
