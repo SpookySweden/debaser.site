@@ -24,7 +24,7 @@ import { LIBRARY_HREF } from '../lib/audio/music-window';
  * the home page is what opens it. Pages under a project (or otherwise off the taskbar) pass no
  * `active` key, which leaves every key unlit rather than lighting one that does not own the page.
  */
-export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'cytube' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
+export type NavKey = 'home' | 'forum' | 'media' | 'web' | 'tagstation' | 'cytube' | 'games' | 'music' | 'queues' | 'users' | 'comms' | 'account';
 
 /**
  * A key: a glyph, and the word a screen reader reads it as.
@@ -169,6 +169,8 @@ const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects' },
   { key: 'forum', label: 'FORUM', href: '/forum' },
   { key: 'web', label: 'MEDIA', href: '/media' },
+  // A map of the words on MEDIA's items (SPEC-tag-station.md): this key is its only way in besides its own address.
+  { key: 'tagstation', label: 'TAGS', href: '/tag-station' },
   { key: 'cytube', label: 'STREAM', href: '/stream' },
 ];
 
