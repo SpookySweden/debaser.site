@@ -71,8 +71,27 @@ Don't let the pool grow without a plan. What to store is the design to get right
   `Retry-After`, prefer batch calls, cache. No stated number, so start gently.
 - **Openverse:** its documents give no numbers for rates or paging depth, so measure and back off. Authenticate only if Luke
   sets up a key himself.
-- **Candidates for films (needs Luke's choice):** Wikidata's structured data is CC0, with cast, director and composer links.
-  MusicBrainz's core data is CC0, but its tags and genres are CC BY-NC-SA, so keep those out unless he OKs that licence.
+- **MusicBrainz:** core data is CC0. Its tags and genres are CC BY-NC-SA, so keep those out unless Luke OKs that licence.
+
+## Film and show data without TMDB (Luke, 2026-11-05)
+"Find a way to use the same data TMDB would have through any means, not illegal", and "only change the way tmdb stuff is
+used for tagging, leave the current kino search as is". KINO search stays exactly as it is, showing TMDB's details and
+posters to readers, with its logo and notice. For tags, links and recommendations, use these instead:
+- **Wikidata (CC0, no attribution needed):** films and shows, cast, directors, writers, composers, genres, dates, runtimes,
+  and series. Use it first. It also holds TMDB's film and show numbers (properties P4947 and P4983), so a KINO row can be
+  matched to its Wikidata entry and tagged from Wikidata's facts, without any TMDB text. That brings KINO titles into DISCOVER.
+  Rules: a real User-Agent with a project address, never a personal one; 60 seconds of query time a minute; stop on 429; use
+  the dumps rather than the query service if a sweep needs the bulk.
+- **TVmaze (CC BY-SA, may be used for any purpose with credit and share-alike):** shows' summaries, cast, crew and genres, at
+  no more than 20 calls every 10 seconds. Credit it with a link wherever its words appear. Images may be hotlinked.
+- **Wikipedia (CC BY-SA 4.0):** a film's plot text, to give Claude something to read. Don't show it or store it unless it's
+  credited; keep only the words Claude picks. Tell Luke that share-alike may reach those words, which is a question for a
+  lawyer rather than something the code can settle.
+- **Not usable, by their own terms:** IMDb's datasets (personal and non-commercial), MovieLens and its Tag Genome (research,
+  no public redistribution), OMDb (personal use, no derivatives). Scraping TMDB or IMDb pages is out too: CLAUDE.md forbids
+  parsing HTML, and it would dodge terms that are the reason for this section.
+- **What this can't replace:** posters for most films. Free ones on Wikimedia Commons are few, so DISCOVER shows a film's
+  picture only where a source allows it; KINO's own rows keep TMDB's.
 
 ## Rules for building
 - Every database change goes to the main session first in plain English, for Luke's OK. Only the job can write pool tables.

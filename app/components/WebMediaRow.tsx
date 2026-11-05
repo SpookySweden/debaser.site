@@ -241,8 +241,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
           {part ? <p className="text-label font-bold text-ink wrap-anywhere">{`NOW PICKED: ${part.title}`}</p> : null}
           {description ? <p className="mt-0.5 line-clamp-3 text-prose text-ink wrap-anywhere">{description}</p> : null}
           {details ? (
-            // TMDB's terms ask for this notice wherever its details appear.
-            <p className="mt-0.5 text-label text-ink-quiet">DETAILS AND POSTER FROM TMDB. THIS SITE USES THE TMDB API BUT IS NOT ENDORSED OR CERTIFIED BY TMDB.</p>
+            <TmdbCredit />
           ) : null}
         </div>
       </div>
@@ -378,6 +377,20 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
 }
 
 /**
+ * TMDB's terms ask for its logo and this notice, in these words, wherever its details appear (Luke's OK for the logo,
+ * 2026-11-05). The logo is TMDB's own file, made into a PNG because the asset route never serves .svg.
+ */
+function TmdbCredit() {
+  return (
+    <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-label text-ink-quiet" data-tmdb-credit>
+      {/* eslint-disable-next-line @next/next/no-img-element -- a fixed mark from our own assets route */}
+      <img src="/assets/icons/tmdb.png" alt="TMDB" width={92} height={12} className="h-3 w-auto shrink-0" />
+      <span>DETAILS AND POSTER FROM TMDB. THIS WEBSITE USES TMDB AND THE TMDB APIS BUT IS NOT ENDORSED, CERTIFIED, OR OTHERWISE APPROVED BY TMDB.</span>
+    </p>
+  );
+}
+
+/**
  * One KINO title (kino.ts): TMDB's details, with no player. A show lists its seasons with their episode counts. A
  * title a media server holds is drawn by `WebMediaRow` instead (its row replaces this one, live-merge.ts). A stream
  * room's IMDB lookup never reads the servers, so it cannot say none has it: `action` takes that line's place.
@@ -439,7 +452,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
               ))}
             </ul>
           ) : null}
-          <p className="mt-0.5 text-label text-ink-quiet">DETAILS AND POSTER FROM TMDB. THIS SITE USES THE TMDB API BUT IS NOT ENDORSED OR CERTIFIED BY TMDB.</p>
+          <TmdbCredit />
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">

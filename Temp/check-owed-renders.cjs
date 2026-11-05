@@ -991,7 +991,7 @@ test('WebMediaRow: a film says what it is and offers each server, and nothing fr
   const html = row(FILM);
   const words = visible(html);
   assert.match(html, /id="row-title"/);
-  for (const word of ['A Long Film', '2014 · 169 MIN · SCIENCE FICTION', 'Prelinger', 'THIS SITE USES THE TMDB API', '[ OWED ONE ]', '[ OWED TWO ]', '[ ▶ PLAY ]']) assert.ok(words.includes(word), word);
+  for (const word of ['A Long Film', '2014 · 169 MIN · SCIENCE FICTION', 'Prelinger', 'THIS WEBSITE USES TMDB AND THE TMDB APIS', '[ OWED ONE ]', '[ OWED TWO ]', '[ ▶ PLAY ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OWED ONE ]'), /aria-pressed="true"/);
   assert.match(openingTag(html, '[ OWED TWO ]'), /aria-pressed="false"/);
   assert.ok(!html.includes('<iframe'));
@@ -1086,7 +1086,7 @@ test('WebMediaRow: a show picks season and episode; a server without that episod
 test('WebMediaRow: KinoRow, TMDB\'s details and its link, its real seasons only, and says no server has it', () => {
   const html = draw(el(KinoRow, { item: KINO, titleId: 'kino-title' }));
   const words = visible(html);
-  for (const word of ['A Film Nobody Holds', 'SHOW', 'DRAMA', 'S1: 8 EP', 'NO SERVER HAS THIS.', '[ ON TMDB ↗ ]', 'NOT ENDORSED OR CERTIFIED BY TMDB']) assert.ok(words.includes(word), word);
+  for (const word of ['A Film Nobody Holds', 'SHOW', 'DRAMA', 'S1: 8 EP', 'NO SERVER HAS THIS.', '[ ON TMDB ↗ ]', 'NOT ENDORSED, CERTIFIED, OR OTHERWISE APPROVED BY TMDB.']) assert.ok(words.includes(word), word);
   assert.ok(!words.includes('S0:'), 'the specials are not a season here');
   assert.match(openingTag(html, '[ ON TMDB ↗ ]'), /href="https:\/\/www\.themoviedb\.org\/movie\/603"/);
   assert.equal(isKinoRow(KINO), true);
