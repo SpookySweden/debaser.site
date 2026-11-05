@@ -17,6 +17,7 @@ import { loadWebItem } from '../lib/web/web-track-lookup';
 import InfoFold from './InfoFold';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import TagStationFilters from './TagStationFilters';
+import { linkMapWords, LinkInput, useLinkAnswer } from './TagStationLink';
 import TagStationList from './TagStationList';
 import TagStationMap from './TagStationMap';
 import { ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip } from './TagStationParts';
@@ -269,7 +270,16 @@ export function Station({ index }: { index: StationIndex }) {
   const pickItem = useCallback((id: string) => go({ ...recipe, item: id, tag: null, link: null }, 'push'), [go, recipe]);
   const addWord = useCallback((word: string) => go(withWordIn(recipe, word, listOf(recipe, word) ?? 'must')), [go, recipe]);
 
-  const linkWords: readonly string[] = useMemo(() => [], []);
+  const link = useLinkAnswer(recipe.link);
+  const linkWords = useMemo(() => {
+    const { matched, fromText } = linkMapWords(index, link?.answer ?? null);
+    return [...matched, ...fromText];
+  }, [index, link]);
+  // A link to something already saved is that saved item: its Claude words, its place on the map.
+  const savedId = link?.answer?.item?.id ?? null;
+  useEffect(() => {
+    if (savedId !== null && index.itemById.has(savedId)) go({ ...recipe, item: savedId, link: null, tag: null });
+  }, [savedId, index, go, recipe]);
   const { focus, matched, results } = useMemo(() => neighbourhood(index, recipe, linkWords), [index, recipe, linkWords]);
   const related = useMemo(() => relatedTags(index, recipe, focus, 60), [index, recipe, focus]);
   const visibleNames = useMemo(
@@ -316,7 +326,7 @@ export function Station({ index }: { index: StationIndex }) {
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Tag Station">
-          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE OF THIS SITE&apos;S SAVED ITEMS ONLY.
+          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE OF THIS SITE&apos;S SAVED ITEMS ONLY.
         </InfoFold>
       </div>
 
@@ -340,6 +350,16 @@ export function Station({ index }: { index: StationIndex }) {
                 [ + ADD TO RECIPE ]
               </button>
             </div>
+          ) : link !== null ? (
+            <LinkInput
+              key={link.link}
+              index={index}
+              state={link}
+              extraHosts={extraHosts}
+              onPick={pickTag}
+              onAdd={addWord}
+              play={(item) => <PlayKeys item={{ ...item, words: [] }} extraHosts={extraHosts} />}
+            />
           ) : recipe.tag !== null ? (
             <div className="flex flex-col gap-2">
               <p className="w-fit break-words bg-bubble-pale px-1 text-label text-ink-bar">NO SUCH WORD: {recipe.tag}</p>
@@ -354,7 +374,7 @@ export function Station({ index }: { index: StationIndex }) {
           ) : recipe.item !== null ? (
             <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">THAT ITEM IS GONE.</p>
           ) : (
-            <p className="text-prose text-ink">PICK A WORD OR AN ITEM.</p>
+            <p className="text-prose text-ink">PICK A WORD OR AN ITEM, OR PASTE A LINK.</p>
           )}
         </section>
 
