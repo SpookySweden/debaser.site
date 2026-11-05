@@ -261,9 +261,9 @@ export type ProfileCommentEntry = {
  *                            (`user_id = auth.uid()`, and the guard trigger in supabase/schema.sql
  *                            section 19 refuses any change to the words themselves)
  *   `subscribe`           -> `supabase.channel('profiles').on('postgres_changes', ...)`
- *   `markSeen`            -> `update profiles set last_seen_at = now(), is_online = true where id = auth.uid()`
- *   `markOffline`         -> `update profiles set is_online = false where id = auth.uid()`
- *   `getPresence`         -> `select id, last_seen_at, is_online from profiles where id = $1`
+ *   `markSeen`            -> `upsert into profile_presence (user_id, last_seen_at, is_online)`
+ *   `markOffline`         -> the same, with `is_online = false`
+ *   `getPresence`         -> `select user_id, last_seen_at, is_online from profile_presence where user_id = $1`
  *   `listPresence`        -> the same, `where id in (...)` (or every row for `[]`)
  *   `subscribePresence`   -> `supabase.channel('presence')`, ideally Realtime Presence itself:
  *                            connect/disconnect events there are exact, and `is_online` then only

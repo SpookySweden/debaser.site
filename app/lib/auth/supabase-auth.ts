@@ -251,16 +251,12 @@ class SupabaseAuthRepository implements AuthRepository {
   /**
    * Every account the site can see, for the user directory and the comms picker.
    *
-   * Read from `profiles`, not from `auth.users`: the auth table is not readable
-   * with the public key (and should not be), while a profile row is exactly what
-   * the board already prints next to every post. Addresses are not part of it, so
-   * `email` comes back empty - nothing on the site shows one anyway.
+   * Asked of the database (`account_list`), not read off `auth.users` or the profile rows: the auth table is not
+   * readable with the public key, and neither is the marker on a test account. Addresses are not part of the
+   * answer, so `email` comes back empty - nothing on the site shows one anyway.
    */
   async listAccounts(): Promise<AccountUser[]> {
-    const { data, error } = await this.client()
-      .from('profiles')
-      .select('id, display_name, created_at, banned_at, is_hidden')
-      .order('created_at', { ascending: true });
+    const { data, error } = await this.client().rpc('account_list');
 
     if (error !== null) throw new Error(error.message.toUpperCase());
 
@@ -270,7 +266,7 @@ class SupabaseAuthRepository implements AuthRepository {
         display_name: string;
         created_at: string;
         banned_at: string | null;
-        is_hidden: boolean;
+        hidden: boolean;
       }[]
     ).map((row) => ({
       id: row.id,
@@ -279,8 +275,9 @@ class SupabaseAuthRepository implements AuthRepository {
       createdAt: row.created_at,
       backend: 'supabase',
       ...(row.banned_at === null ? {} : { banned: true }),
-      // The test accounts: still answered, so their names resolve, and left out of lists by `listedAccounts`.
-      ...(row.is_hidden ? { hidden: true } : {}),
+      // A test account or the house account is answered the test accounts too, so their names resolve for it, and
+      // `listedAccounts` leaves them out of its lists. Anybody else is never told about them at all.
+      ...(row.hidden ? { hidden: true } : {}),
     }));
   }
 

@@ -93,7 +93,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
         {/* In the panel the title is DIRECTORY, short enough for `[ ALL ]` to share its line rather than
             hang alone on a second row (Luke, 2026-11-03); it is also the header's old DIRECTORY key's word. */}
         <div className={TITLE_BAR_INACTIVE}>
-          <span title={LAMP_TIP}>{compact ? 'DIRECTORY' : 'ACCOUNT DIRECTORY'}</span>
+          <span title={user === null ? undefined : LAMP_TIP}>{compact ? 'DIRECTORY' : 'ACCOUNT DIRECTORY'}</span>
           <span>
             {/* Said once and short (SPEC-efficiency.md): the panel's key to the whole list, and the page's
                 one count. `n SEEN THIS HOUR :: n ELSEWHERE` and the account total were the lamps again in
@@ -103,7 +103,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 [ ALL ]
               </Link>
             ) : accountsReady ? (
-              `${counts.online} ONLINE`
+              user === null ? null : `${counts.online} ONLINE`
             ) : (
               'READING...'
             )}
@@ -125,6 +125,7 @@ export default function UserDirectory({ compact = false }: UserDirectoryProps) {
                 key={row.account.id}
                 row={row}
                 compact={compact}
+                lamp={user !== null}
                 viewerId={user?.id ?? null}
                 busy={busyId === row.account.id}
                 onMessage={(otherId) => void startConversation(otherId)}

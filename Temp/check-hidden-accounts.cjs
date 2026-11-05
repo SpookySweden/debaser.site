@@ -8,13 +8,14 @@
  * against the real project. Its writes: A's own presence (online for the run, then offline), A's bio
  * written back unchanged, and the refused attempts on the marker.
  *
- *   1. As a visitor with no session, and signed in as A, with A online: the account store still answers
- *      for A-D (so their names resolve) and flags all four hidden; `listedAccounts` - what the directory,
- *      every name picker and every who's-online list draw from - holds none of them; the directory built
- *      from it the way /users builds it (`buildUserDirectory`, with the live lamps) has no A-D row, so its
- *      ONLINE count cannot include A. Everybody else is still listed (the house account among them), so
- *      "empty" cannot pass for "filtered". And A-D's lamps still answer by id - a test account's own lamp,
- *      a `?challenge=<id>` link - because presence itself is not filtered.
+ *   1. Signed in as A, with A online: the account store answers for A-D (so their names resolve for a test
+ *      account) and flags all four hidden; `listedAccounts` - what the directory, every name picker and every
+ *      who's-online list draw from - holds none of them; the directory built from it the way /users builds it
+ *      (`buildUserDirectory`, with the live lamps) has no A-D row, so its ONLINE count cannot include A. Everybody
+ *      else is still listed (the house account among them), so "empty" cannot pass for "filtered". And A-D's lamps
+ *      still answer by id - a test account's own lamp, a `?challenge=<id>` link - because presence is not filtered.
+ *      As a visitor with no session (updated on purpose, the privacy plan's phase 0): the store answers everybody
+ *      else, with no word of A-D and no marker on anybody, and lamps are not for visitors at all.
  *   2. Signed in as A: un-hiding itself is refused (an update and an upsert), deleting its own hidden row is
  *      refused (the heartbeat would re-create it unmarked), and so is hiding the house account or un-hiding B; afterwards all four are still hidden and the house account is not. An
  *      ordinary write to A's own row still goes through (the bio, written back unchanged), so the refusal is
@@ -74,6 +75,24 @@ async function lists(viewer, client, testIds, viewerId) {
   const { auth, profiles } = repositoriesFor(client);
 
   const accounts = await auth.listAccounts();
+
+  if (viewerId === null) {
+    check('the account store says nothing about A-D', accounts.every((account) => !testIds.includes(account.id)), `${accounts.length} answered`);
+    check('and marks nobody hidden', accounts.every((account) => account.hidden !== true));
+    check(
+      'and still holds everybody else - the house account among them',
+      accounts.length > 0 && accounts.some((account) => account.displayName === HOUSE_NAME),
+      `${accounts.length} answered`,
+    );
+    const refused = await profiles.listPresence().then(
+      () => false,
+      () => true,
+    );
+    check('lamps are refused to a visitor', refused);
+
+    return accounts;
+  }
+
   const answered = testIds.filter((id) => accounts.some((account) => account.id === id));
   const flagged = accounts.filter((account) => testIds.includes(account.id) && account.hidden === true);
   check('the account store answers for A-D, so their names resolve', answered.length === 4, `${answered.length}/4`);
@@ -170,13 +189,13 @@ async function guard(a, testIds, houseId) {
     ordinary.error?.message ?? `${ordinary.data?.length} row(s), bio unchanged`,
   );
 
-  const after = await a.client.from('profiles').select('id, is_hidden').in('id', [...testIds, houseId]);
-  const stillHidden = (after.data ?? []).filter((row) => testIds.includes(row.id) && row.is_hidden).length;
+  const after = await a.client.rpc('account_list');
+  const stillHidden = (after.data ?? []).filter((row) => testIds.includes(row.id) && row.hidden).length;
   const house = (after.data ?? []).find((row) => row.id === houseId);
   check('afterwards A-D are all still hidden', stillHidden === 4, `${stillHidden}/4`);
-  check('and the house account is not', house !== undefined && house.is_hidden === false, String(house?.is_hidden));
+  check('and the house account is not', house !== undefined && house.hidden === false, String(house?.hidden));
 
-  if (stillHidden !== 4 || house?.is_hidden !== false) {
+  if (stillHidden !== 4 || house?.hidden !== false) {
     console.log('');
     console.log('  !!! THE MARKER MOVED ON THE LIVE PROJECT. A test account may now be listed on /users (or the house');
     console.log('  !!! account hidden). Putting it back is a database write - re-run the marking statement at the end of');

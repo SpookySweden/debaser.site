@@ -5,11 +5,9 @@ import type { DuelSide, DuelState } from './paddle-duel';
 /**
  * The wire a match runs on: two browsers, one channel, no server of our own.
  *
- * An invitation names a game, and the two accounts who own it are the only ones who know the
- * channel's name (`match:<invite id>`), so the match is private by obscurity of an id rather than by
- * a rule - which is the right trade here, because nothing written on this wire is kept. Realtime
- * broadcast is exactly that: messages passed between the clients that are in the room, with no row
- * written and no read policy to get wrong.
+ * An invitation names a game, and the channel is named after it (`match:<invite id>`). It is private: the
+ * realtime.messages rules in 20261105124800_presence_table_and_private_wires.sql let in the two accounts on the
+ * invitation and nobody else. Realtime broadcast passes messages between the clients in the room and writes no row.
  *
  * Two games, two shapes of traffic, one message type:
  *
@@ -61,7 +59,7 @@ export function createGameChannel(inviteId: string, onStatus?: (status: string) 
 
   if (client === null) return createLocalChannel(topic);
 
-  const channel = client.channel(topic, { config: { broadcast: { self: false } } });
+  const channel = client.channel(topic, { config: { broadcast: { self: false }, private: true } });
   const listeners = new Set<(message: GameMessage) => void>();
 
   channel.on('broadcast', { event: EVENT }, (message) => {
