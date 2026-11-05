@@ -87,6 +87,25 @@ export function playCount(): number {
   return plays;
 }
 
+/** The layer's one player, for the keys that put it in fullscreen. */
+let playerElement: HTMLElement | null = null;
+
+export function notePlayerElement(element: HTMLElement | null): void {
+  playerElement = element;
+}
+
+/**
+ * Fullscreen, or back. The player goes into the browser's top layer where it stands, so it is not moved and never reloads,
+ * and a float comes back exactly as it was.
+ */
+export function togglePlayerFullscreen(): void {
+  if (document.fullscreenElement !== null) {
+    void document.exitFullscreen().catch(() => undefined);
+    return;
+  }
+  void playerElement?.requestFullscreen().catch(() => undefined);
+}
+
 /** Stops the video. Its place stays for the visit; `places` was kept up as it played. */
 export function closeFloating(): void {
   revealWanted = false;

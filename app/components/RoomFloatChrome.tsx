@@ -62,7 +62,7 @@ export default function RoomFloatChrome({
 
   return (
     <>
-      <div {...drag.bar} className={`${WINDOW_TITLE_BAR} absolute inset-x-0 top-0 z-40 cursor-move touch-none select-none bg-sun-pale`} title="Drag to move. Pull an edge to resize." data-room-float>
+      <div {...drag.bar} className={`${WINDOW_TITLE_BAR} absolute inset-x-0 top-0 z-40 cursor-move touch-none select-none bg-sun-pale [:fullscreen_&]:hidden`} title="Drag to move. Pull an edge to resize. Double press for fullscreen." data-room-float>
         <span className="truncate">{title}</span>
         <span className="flex shrink-0 items-center gap-1">
           <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={onBack} aria-label="Back to the room" className={PLATE}>

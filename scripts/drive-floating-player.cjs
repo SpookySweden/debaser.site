@@ -135,6 +135,7 @@ async function mediaRun(page) {
   // A row with a YouTube player.
   await page.waitForFunction(() => [...document.querySelectorAll('li')].some((row) => /YOUTUBE/.test(row.innerText) && /\[ ▶ PLAY \]/.test(row.innerText)), null, { timeout: 45000 });
   await sleep(1500);
+  // (Stream rooms are driven with --room, on the mock site only.)
   const before = await page.evaluate(() => document.querySelector('[data-floating-player]'));
   assert.equal(before, null, 'nothing from a platform loads until PLAY');
   assert.equal(await page.locator('iframe').count(), 0, 'no frame on the page before PLAY');
@@ -155,6 +156,8 @@ async function mediaRun(page) {
   assert.match(state.src, /youtube-nocookie\.com\/embed\/.*autoplay=1/);
   assert.match(state.src, /enablejsapi=1/);
   pass('the platform\'s own embed, asked to autoplay');
+  assert.ok((await row.innerText()).includes('[ ADD TO ROOM ]') && !(await row.innerText()).includes('[ WATCH ]'), 'the key reads ADD TO ROOM');
+  pass('the key on the row reads [ ADD TO ROOM ]');
   await page.screenshot({ path: join(SHOTS, 'float-in-box.png') });
 
   // Scrolled past.
@@ -248,6 +251,36 @@ async function mediaRun(page) {
   await paneScroll(page, place);
   await untilState(page, 'in-box', 'after scrolling up');
 
+  // A double press on the picture itself: fullscreen, then back, the video carrying on (Luke, 2026-11-05).
+  const fullIs = () => page.evaluate(() => document.fullscreenElement?.tagName ?? 'none');
+  const dbl = async (x, y) => {
+    await page.mouse.move(x, y);
+    await sleep(200);
+    await page.mouse.dblclick(x, y, { delay: 30 });
+    await sleep(1500);
+  };
+  const pictureAt = await page.evaluate((key) => {
+    const b = document.querySelector(`[data-player-box="${key}"]`).getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: Math.max(b.top, 130) + 150 };
+  }, id);
+  await dbl(pictureAt.x, pictureAt.y);
+  assert.equal(await fullIs(), 'IFRAME', 'a double press on YouTube\'s picture goes fullscreen');
+  await stillTheSame(page, 'a double press: in');
+  await page.screenshot({ path: join(SHOTS, 'float-fullscreen.png') });
+  await dbl(720, 400);
+  assert.equal(await fullIs(), 'none', 'another comes back');
+  await stillTheSame(page, 'a double press: back');
+  pass('a double press on YouTube\'s picture goes fullscreen, and another comes back');
+  await page.getByRole('button', { name: /^Fullscreen:/ }).first().click();
+  await sleep(800);
+  assert.equal(await fullIs(), 'IFRAME', '[ FULL ] goes fullscreen');
+  await page.evaluate(() => document.exitFullscreen());
+  await sleep(800);
+  await stillTheSame(page, '[ FULL ]');
+  pass('[ FULL ] beside [ PIP ] does the same');
+  await paneScroll(page, place);
+  await sleep(200);
+
   // PIP.
   const pip = page.getByRole('button', { name: /^PIP:/ });
   await pip.click();
@@ -262,6 +295,28 @@ async function mediaRun(page) {
   await page.getByRole('button', { name: /^Back here/ }).click();
   await untilState(page, 'in-box', 'BACK HERE');
   await stillTheSame(page, 'BACK HERE');
+
+  // A float in fullscreen comes back as it was: by a double press on the picture, and on its title line.
+  await pip.click();
+  await untilState(page, 'floating', 'for fullscreen');
+  await sleep(200);
+  const floatBefore = (await layerState(page)).rect;
+  await dbl(floatBefore.x + 40, floatBefore.y + 15);
+  assert.equal(await fullIs(), 'IFRAME', 'a double press on the float\'s title line goes fullscreen');
+  await page.evaluate(() => document.exitFullscreen());
+  await sleep(800);
+  const floatTitleBack = (await layerState(page)).rect;
+  assert.deepEqual(floatTitleBack, floatBefore, 'back as it was');
+  await dbl(floatBefore.x + floatBefore.w / 2, floatBefore.y + floatBefore.h / 2 + 20);
+  assert.equal(await fullIs(), 'IFRAME', 'a double press on the floating picture goes fullscreen');
+  await dbl(720, 400);
+  assert.equal(await fullIs(), 'none', 'another comes back');
+  await sleep(300);
+  assert.deepEqual((await layerState(page)).rect, floatBefore, 'back as it was');
+  await stillTheSame(page, 'a float in fullscreen and back');
+  pass('a float goes fullscreen and comes back exactly as it was');
+  await pip.click();
+  await untilState(page, 'in-box', 'after the float\'s fullscreen');
 
   // Drag and resize.
   await pip.click();
@@ -500,6 +555,20 @@ async function filesRun(page) {
   const media = await layerState(page);
   if (media.paused) note('the video did not start by itself here');
 
+  // A double press on our own file: the browser's own player does it, both ways.
+  const fileAt = await page.evaluate(() => {
+    const b = document.querySelector('[data-floating-player] video').getBoundingClientRect();
+    return { x: b.left + b.width / 2, y: b.top + b.height / 2 - 30 };
+  });
+  await page.mouse.dblclick(fileAt.x, fileAt.y, { delay: 30 });
+  await sleep(1200);
+  assert.equal(await page.evaluate(() => document.fullscreenElement?.tagName ?? 'none'), 'VIDEO', 'a double press on our own file goes fullscreen');
+  await page.mouse.dblclick(720, 500, { delay: 30 });
+  await sleep(1200);
+  assert.equal(await page.evaluate(() => document.fullscreenElement?.tagName ?? 'none'), 'none', 'another comes back');
+  await stillTheSame(page, 'FILES: a double press');
+  pass('FILES: a double press goes fullscreen, and another comes back');
+
   await page.getByRole('button', { name: /^PIP:/ }).click();
   await untilState(page, 'floating', 'FILES PIP');
   await stillTheSame(page, 'FILES [ PIP ]');
@@ -537,6 +606,114 @@ async function filesRun(page) {
   await page.getByRole('button', { name: /^Close the player/ }).first().click();
 }
 
+/** A stream room on the mock site only: going live on the real one would leave a stream on the board. */
+async function roomRun(page) {
+  console.log('A stream room');
+  const fullIs = () => page.evaluate(() => document.fullscreenElement?.tagName ?? 'none');
+  const clock = () => page.evaluate(() => Number(document.querySelector('[data-watch-clock]')?.getAttribute('data-watch-clock') ?? 'NaN'));
+  const dbl = async (x, y) => {
+    await page.mouse.move(x, y);
+    await sleep(200);
+    await page.mouse.dblclick(x, y, { delay: 30 });
+    await sleep(1200);
+  };
+  const addLink = async (link) => {
+    await page.getByRole('button', { name: '[ QUEUE ]' }).last().click();
+    await sleep(500);
+    const field = page.getByPlaceholder('SEARCH MEDIA OR PASTE A VIDEO LINK');
+    await field.fill(link);
+    await field.press('Enter');
+    await sleep(5000);
+    const expand = page.locator('button:has-text("[+]")').last();
+    if ((await expand.count()) > 0) await expand.click().catch(() => undefined);
+    await sleep(300);
+    await page.locator('button:has-text("←")').first().click();
+    await sleep(500);
+    await page.getByRole('button', { name: 'Close window' }).last().click();
+    await sleep(500);
+  };
+  await page.goto(`${BASE}/stream`, { waitUntil: 'domcontentloaded' });
+  await sleep(2500);
+  await page.getByRole('button', { name: /GO LIVE|BACK TO YOUR ROOM/ }).first().click();
+  await page.waitForSelector('[data-room-picture]');
+  await sleep(1500);
+  await addLink('https://www.youtube.com/watch?v=aqz-KE-bpKQ');
+  await page.waitForSelector('[data-room-picture] iframe');
+  await sleep(6000);
+  await page.evaluate(() => {
+    window.__room = { frame: document.querySelector('[data-room-picture] iframe'), loads: 0 };
+    window.__room.src = window.__room.frame.src;
+    window.__room.frame.addEventListener('load', () => (window.__room.loads += 1));
+  });
+  const stillRoom = async (what) => {
+    const same = await page.evaluate(() => {
+      const now = document.querySelector('[data-room-picture] iframe');
+      return now === window.__room.frame && now.src === window.__room.src && window.__room.loads === 0;
+    });
+    assert.equal(same, true, `${what}: the same player, not reloaded`);
+  };
+  const stage = await page.evaluate(() => {
+    const r = document.querySelector('[data-room-picture]').getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+  });
+  const t0 = await clock();
+  await dbl(stage.x, stage.y);
+  assert.notEqual(await fullIs(), 'none', 'a double press on the room\'s YouTube picture goes fullscreen');
+  await page.screenshot({ path: join(SHOTS, 'float-room-full.png') });
+  await dbl(stage.x, stage.y);
+  assert.equal(await fullIs(), 'none', 'another comes back');
+  await stillRoom('the room, in and out of fullscreen');
+  const t1 = await clock();
+  assert.ok(t1 > t0, `the room's clock carries on: ${t0} then ${t1}`);
+  pass(`a room's YouTube picture: a double press goes fullscreen and comes back, in step (${t0}s, then ${t1}s)`);
+
+  await page.getByRole('button', { name: 'Fullscreen', exact: true }).first().click();
+  await sleep(800);
+  assert.notEqual(await fullIs(), 'none', 'the room\'s FULL key still works');
+  await page.keyboard.press('Escape').catch(() => undefined);
+  await page.evaluate(() => document.exitFullscreen().catch(() => undefined));
+  await sleep(800);
+  pass('the room\'s own FULL key still works');
+
+  await page.getByRole('button', { name: /^Picture in picture: floats/ }).first().click();
+  await page.waitForSelector('[data-room-picture="floating"]');
+  await sleep(800);
+  const float = await page.evaluate(() => document.querySelector('[data-room-picture]').getBoundingClientRect().toJSON());
+  await dbl(float.left + float.width / 2, float.top + float.height / 2 + 20);
+  assert.equal(await fullIs(), 'DIV', 'a double press on the floating room picture goes fullscreen');
+  const full = await page.evaluate(() => document.querySelector('[data-room-picture]').getBoundingClientRect().toJSON());
+  assert.ok(full.width > 1000, `it fills the screen: ${full.width}`);
+  await page.screenshot({ path: join(SHOTS, 'float-room-float-full.png') });
+  await dbl(720, 500);
+  assert.equal(await fullIs(), 'none', 'another comes back');
+  await sleep(300);
+  const back = await page.evaluate(() => document.querySelector('[data-room-picture]').getBoundingClientRect().toJSON());
+  assert.ok(near(back.left, float.left) && near(back.top, float.top) && near(back.width, float.width) && near(back.height, float.height), `back as it was: ${JSON.stringify([float, back])}`);
+  await dbl(float.left + 40, float.top + 15);
+  assert.equal(await fullIs(), 'DIV', 'a double press on its title line goes fullscreen');
+  await page.evaluate(() => document.exitFullscreen());
+  await sleep(600);
+  await stillRoom('the room\'s float, in and out of fullscreen');
+  pass('a room\'s floating picture goes fullscreen and comes back exactly as it was');
+  await page.locator('[data-room-float]').getByRole('button', { name: 'Back to the room' }).click();
+  await sleep(800);
+
+  // A plain file on the stage: our own <video> with no controls of its own.
+  await addLink('https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm');
+  await page.getByRole('button', { name: 'Skip to the next video' }).first().click();
+  await page.waitForSelector('[data-room-picture] video');
+  await sleep(1500);
+  await page.evaluate(() => {
+    window.__video = document.querySelector('[data-room-picture] video');
+  });
+  await dbl(stage.x, stage.y);
+  assert.notEqual(await fullIs(), 'none', 'a double press on the room\'s own <video> goes fullscreen');
+  await dbl(stage.x, stage.y);
+  assert.equal(await fullIs(), 'none', 'another comes back');
+  assert.equal(await page.evaluate(() => window.__video === document.querySelector('[data-room-picture] video')), true, 'the same element');
+  pass('a room\'s own video file: a double press goes fullscreen and comes back');
+}
+
 (async () => {
   if (!MOCK) {
     loadEnv();
@@ -563,6 +740,11 @@ async function filesRun(page) {
     assert.equal(await fresh.getByRole('button', { name: 'Forward', exact: true }).isDisabled(), true, 'first page: forward is quiet');
     pass('the first page of a tab: both arrows quiet');
     await fresh.close();
+    if (flag('--room')) {
+      if (!MOCK) throw new Error('--room goes live, so it runs on the mock site only');
+      await roomRun(page);
+      return;
+    }
     if (!flag('--files-only')) await mediaRun(page);
     if (!flag('--media-only')) await filesRun(page);
     // Phone width: the site gives a phone its 1280 layout, zoomed out.

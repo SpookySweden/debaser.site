@@ -20,9 +20,11 @@ import {
   floatingState,
   notePlace,
   noteFloating,
+  notePlayerElement,
   placeOf,
   setFloatAsked,
   subscribeToFloating,
+  togglePlayerFullscreen,
   wantBoxShown,
   type FloatingEntry,
 } from '../lib/ui/floating-player';
@@ -156,8 +158,31 @@ export default function FloatingPlayer() {
     const element = frame.current;
     if (element === null || entry === null || frameSource === null) return;
     const id = entry.id;
-    return listenForTime(element, frameSource, (seconds) => notePlace(id, seconds));
+    // A press inside the frame counts for our page too, so the browser allows fullscreen from here. Some players may go
+    // fullscreen by themselves one day: anything that has changed by the time this looks is left alone.
+    let wait = 0;
+    const stop = listenForTime(
+      element,
+      frameSource,
+      (seconds) => notePlace(id, seconds),
+      () => {
+        const before = document.fullscreenElement;
+        window.clearTimeout(wait);
+        wait = window.setTimeout(() => {
+          if (document.fullscreenElement === before) togglePlayerFullscreen();
+        }, 300);
+      },
+    );
+    return () => {
+      window.clearTimeout(wait);
+      stop();
+    };
   }, [playKey, frameSource]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    notePlayerElement(frame.current ?? video.current);
+    return () => notePlayerElement(null);
+  }, [playKey]);
 
   // Signing out closes it: MEDIA is for signed-in people, and its rows have just gone.
   const { user } = useAuth();
@@ -223,18 +248,30 @@ export default function FloatingPlayer() {
       {floating ? (
         <div
           {...drag.bar}
+          onDoubleClick={togglePlayerFullscreen}
           className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}
-          title="Drag to move. Pull an edge to resize."
+          title="Drag to move. Pull an edge to resize. Double press for fullscreen."
         >
           <span className="truncate">{entry.title}</span>
           <span className="flex shrink-0 items-center gap-1">
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={goBack} aria-label={`Back to where "${entry.title}" came from`} className={PLATE}>
+            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={goBack} onDoubleClick={(event) => event.stopPropagation()} aria-label={`Back to where "${entry.title}" came from`} className={PLATE}>
               [ BACK ]
+            </button>
+            <button
+              type="button"
+              onPointerDown={(event) => event.stopPropagation()}
+              onDoubleClick={(event) => event.stopPropagation()}
+              onClick={togglePlayerFullscreen}
+              aria-label={`Fullscreen: "${entry.title}"`}
+              className={PLATE}
+            >
+              [ FULL ]
             </button>
             {canPopOut ? (
               <button
                 type="button"
                 onPointerDown={(event) => event.stopPropagation()}
+                onDoubleClick={(event) => event.stopPropagation()}
                 onClick={() => void video.current?.requestPictureInPicture().catch(() => undefined)}
                 aria-label={`Pop out "${entry.title}" above other apps`}
                 title="The browser's own pop-out: stays above other apps"
@@ -243,7 +280,7 @@ export default function FloatingPlayer() {
                 [ POP OUT ]
               </button>
             ) : null}
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={closeFloating} aria-label={`Close "${entry.title}"`} className={PLATE}>
+            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={closeFloating} onDoubleClick={(event) => event.stopPropagation()} aria-label={`Close "${entry.title}"`} className={PLATE}>
               [ × ]
             </button>
           </span>
