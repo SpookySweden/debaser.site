@@ -25,10 +25,14 @@ export type SweepSource = (typeof SWEEP_SOURCES)[number];
 
 /** Luke's split of the $60: the sweep stops here, so what people really see in MEDIA keeps getting tagged. */
 export const SWEEP_LIMIT_USD = 50;
-/** The most one batch holds, which `web_pool_out` must be able to return. */
-const MAX_BATCH = 5500;
-/** How long a run spends reading, so the batch still goes out inside the route's minute. */
-const READ_BUDGET_MS = 25_000;
+/** The most one batch holds, which `web_pool_out` must be able to return, and more than a run can read, so no read item is cut. */
+const MAX_BATCH = 6000;
+/**
+ * A run lives inside the route's 60 seconds, and a batch created but not yet marked is paid for and forgotten if it's cut off, so reading stops
+ * this long after the run began, and a run that spent long collecting doesn't read at all. It reads next time.
+ */
+const READ_UNTIL_MS = 30_000;
+const COLLECTING_TOO_LONG_MS = 20_000;
 const AGENT = 'DebaserSiteSweep/1.0 (+https://github.com/SpookySweden/debaser.site)';
 
 /** Named collections only (Luke, 2026-11-05): the open upload areas can hold adult or copied material, and these rows get offered to people. */
@@ -107,13 +111,23 @@ async function each(calls: number, deadline: number, deps: SweepDeps, gapMs: num
 /** Internet Archive's scrape API, in order with its own cursor: its preferred way to read many rows. */
 export async function readArchive(state: Record<string, unknown>, deadline: number, deps: SweepDeps): Promise<Read> {
   const items: PoolCandidate[] = [];
+  if (state.done === true) return { items, state };
   let cursor = typeof state.cursor === 'string' ? state.cursor : null;
+  let rows = typeof state.rows === 'number' ? state.rows : ARCHIVE_ROWS;
+  let done = false;
   const q = `collection:(${ARCHIVE_COLLECTIONS.join(' OR ')})`;
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(ARCHIVE_CALLS, deadline, deps, 1000, async () => {
-    const query: [string, string][] = [['q', q], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(ARCHIVE_ROWS)]];
+    const query: [string, string][] = [['q', q], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(rows)]];
     if (cursor) query.push(['cursor', cursor]);
-    const answer = (await getJson(buildUrl('archive.org', ['services', 'search', 'v1', 'scrape'], query), ['archive.org'], deps)) as { items?: unknown[]; cursor?: unknown };
+    let answer: { items?: unknown[]; cursor?: unknown };
+    try {
+      answer = (await getJson(buildUrl('archive.org', ['services', 'search', 'v1', 'scrape'], query), ['archive.org'], deps)) as { items?: unknown[]; cursor?: unknown };
+    } catch (error) {
+      // Too big or too slow: ask for fewer next run, so one heavy page can't stop this source for good. A 429 just stops for now.
+      if (!(error instanceof SafeFetchError && error.status === 429)) rows = Math.max(100, Math.floor(rows / 2));
+      return false;
+    }
     for (const doc of answer.items ?? []) {
       const item = archiveItem(doc, fetchedAt);
       if (item === null) continue;
@@ -122,36 +136,48 @@ export async function readArchive(state: Record<string, unknown>, deadline: numb
       items.push({ ...fromWebItem(item, 'internet_archive', null), tags });
     }
     cursor = typeof answer.cursor === 'string' ? answer.cursor : null;
+    rows = ARCHIVE_ROWS;
+    // The end of the collections. It stops here rather than going round: rows past the newest 100,000 are gone, so a second lap would pay again.
+    if (cursor === null) done = true;
     return cursor !== null;
   });
-  return { items, state: { cursor } };
+  return { items, state: done ? { done: true } : { cursor, rows } };
 }
 
 /** PeerTube through Sepia Search, newest first, safe-for-work only, on instances in the public index. */
 export async function readPeertube(state: Record<string, unknown>, deadline: number, deps: SweepDeps): Promise<Read> {
   const items: PoolCandidate[] = [];
+  if (state.done === true) return { items, state };
   let start = typeof state.start === 'number' ? state.start : 0;
+  let done = false;
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(PEERTUBE_CALLS, deadline, deps, 500, async () => {
     const url = buildUrl('sepiasearch.org', ['api', 'v1', 'search', 'videos'], [['count', String(PEERTUBE_ROWS)], ['start', String(start)], ['sort', '-publishedAt'], ['nsfw', 'false']]);
-    const answer = (await getJson(url, ['sepiasearch.org'], deps)) as { data?: unknown[] };
-    const docs = answer.data ?? [];
+    let docs: unknown[];
+    try {
+      docs = ((await getJson(url, ['sepiasearch.org'], deps)) as { data?: unknown[] }).data ?? [];
+    } catch (error) {
+      if (error instanceof SafeFetchError && error.status === 400) done = true;
+      return false;
+    }
     for (const doc of docs) {
       const item = peertubeItem(doc, deps.peertubeHosts, fetchedAt);
       if (item !== null) items.push(fromWebItem(item, 'peertube', new URL(item.url).hostname));
     }
     start += docs.length;
-    if (docs.length === 0) start = 0;
+    if (docs.length === 0) done = true;
     return docs.length > 0;
   });
-  return { items, state: { start } };
+  return { items, state: done ? { done: true } : { start } };
 }
 
 /** Openverse states 200 requests a day without a key, which MEDIA's searches share, so a few pages a run. */
 export async function readOpenverse(state: Record<string, unknown>, deadline: number, deps: SweepDeps): Promise<Read> {
   const items: PoolCandidate[] = [];
+  if (state.done === true) return { items, state };
   let page = typeof state.page === 'number' ? state.page : 1;
   let media: 'audio' | 'images' = state.media === 'images' ? 'images' : 'audio';
+  let done = false;
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(OPENVERSE_CALLS, deadline, deps, 3000, async () => {
     const url = buildUrl('api.openverse.org', ['v1', media, ''], [['page_size', '20'], ['page', String(page)]]);
@@ -161,7 +187,8 @@ export async function readOpenverse(state: Record<string, unknown>, deadline: nu
     } catch (error) {
       // Past the last page it may read: start the other kind from the top next time. A 429 stops here.
       if (error instanceof SafeFetchError && error.status === 429) return false;
-      media = media === 'audio' ? 'images' : 'audio';
+      if (media === 'images') done = true;
+      media = 'images';
       page = 1;
       return false;
     }
@@ -172,7 +199,7 @@ export async function readOpenverse(state: Record<string, unknown>, deadline: nu
     page += 1;
     return docs.length > 0;
   });
-  return { items, state: { page, media } };
+  return { items, state: done ? { done: true } : { page, media } };
 }
 
 type Binding = Record<string, { value?: string } | undefined>;
@@ -182,6 +209,7 @@ const list = (row: Binding, name: string, most: number): string[] => text(row, n
 /** Films and shows that Wikidata lists a TMDB number for: their facts from Wikidata, a plot from Wikipedia to give Claude something to read. */
 export async function readWikidata(state: Record<string, unknown>, deadline: number, deps: SweepDeps): Promise<Read> {
   const items: PoolCandidate[] = [];
+  if (state.done === true) return { items, state };
   const property = state.property === 'P4983' ? 'P4983' : 'P4947';
   let offset = typeof state.offset === 'number' ? state.offset : 0;
   const hosts = ['query.wikidata.org'];
@@ -197,8 +225,8 @@ export async function readWikidata(state: Record<string, unknown>, deadline: num
     return { items, state: { property, offset } };
   }
   if (listed.length === 0) {
-    // The end of films: on to shows, and round again.
-    return { items, state: { property: property === 'P4947' ? 'P4983' : 'P4947', offset: 0 } };
+    // The end of films: on to shows, then finished.
+    return { items, state: property === 'P4947' ? { property: 'P4983', offset: 0 } : { done: true } };
   }
 
   const kind = property === 'P4947' ? 'movie' : 'tv';
@@ -226,7 +254,13 @@ export async function readWikidata(state: Record<string, unknown>, deadline: num
         facts: [`${kind === 'movie' ? 'Film' : 'Show'}${year}.`, genres.length ? `Genres: ${genres.join(', ')}.` : '', directors.length ? `Directed by ${directors.join(', ')}.` : '', cast.length ? `Starring ${cast.join(', ')}.` : '', music.length ? `Music by ${music.join(', ')}.` : ''].filter(Boolean).join(' '),
       });
       const article = text(row, 'article');
-      if (article.startsWith('https://en.wikipedia.org/wiki/')) articles.set(qid, decodeURIComponent(article.slice('https://en.wikipedia.org/wiki/'.length)));
+      if (article.startsWith('https://en.wikipedia.org/wiki/')) {
+        try {
+          articles.set(qid, decodeURIComponent(article.slice('https://en.wikipedia.org/wiki/'.length)));
+        } catch {
+          // A strange address: that film just goes without a plot.
+        }
+      }
     }
     done = at + 1;
     return true;
@@ -275,14 +309,16 @@ export async function readWikidata(state: Record<string, unknown>, deadline: num
 /** TVmaze's index, 250 shows a page. Its summaries go to Claude; the page credits it, and its words are not shown. */
 export async function readTvmaze(state: Record<string, unknown>, deadline: number, deps: SweepDeps): Promise<Read> {
   const items: PoolCandidate[] = [];
+  if (state.done === true) return { items, state };
   let page = typeof state.page === 'number' ? state.page : 0;
+  let done = false;
   await each(1, deadline, deps, 0, async () => {
     let shows: unknown[];
     try {
       shows = (await getJson(buildUrl('api.tvmaze.com', ['shows'], [['page', String(page)]]), ['api.tvmaze.com'], deps)) as unknown[];
     } catch (error) {
-      // A 404 is the end of the index: round again next run. Anything else is tried again.
-      if (error instanceof SafeFetchError && error.status === 404) page = 0;
+      // A 404 is the end of the index. Anything else is tried again.
+      if (error instanceof SafeFetchError && error.status === 404) done = true;
       return false;
     }
     if (!Array.isArray(shows)) return false;
@@ -308,7 +344,7 @@ export async function readTvmaze(state: Record<string, unknown>, deadline: numbe
     page += 1;
     return true;
   });
-  return { items, state: { page } };
+  return { items, state: done ? { done: true } : { page } };
 }
 
 const READERS: Record<SweepSource, (state: Record<string, unknown>, deadline: number, deps: SweepDeps) => Promise<Read>> = {
@@ -320,8 +356,7 @@ const READERS: Record<SweepSource, (state: Record<string, unknown>, deadline: nu
 };
 
 /** Reads every source at once, each stopping at the deadline. One source failing costs only its own rows. */
-export async function readSources(state: SweepState, deps: SweepDeps): Promise<{ items: PoolCandidate[]; state: SweepState }> {
-  const deadline = (deps.now ?? Date.now)() + READ_BUDGET_MS;
+export async function readSources(state: SweepState, deadline: number, deps: SweepDeps): Promise<{ items: PoolCandidate[]; state: SweepState }> {
   const reads = await Promise.all(
     SWEEP_SOURCES.map(async (source) => {
       try {
@@ -378,10 +413,12 @@ export type SweepStore = {
 
 export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full' };
 
-const COLLECT_CHUNK = 400;
+const COLLECT_CHUNK = 150;
+const SMALLEST_CHUNK = 25;
 
 /** One run: collect what has finished, then read and send the next items, unless a batch is still out. */
-export async function runSweep(client: Pick<Anthropic, 'messages'>, store: SweepStore, read: (state: SweepState) => Promise<{ items: PoolCandidate[]; state: SweepState }>): Promise<SweepResult> {
+export async function runSweep(client: Pick<Anthropic, 'messages'>, store: SweepStore, read: (state: SweepState, deadline: number) => Promise<{ items: PoolCandidate[]; state: SweepState }>, now: () => number = Date.now): Promise<SweepResult> {
+  const startedAt = now();
   let collected = 0;
   let waiting = 0;
   let inputTokens = 0;
@@ -411,10 +448,18 @@ export async function runSweep(client: Pick<Anthropic, 'messages'>, store: Sweep
     inputTokens += batchInput;
     outputTokens += batchOutput;
     await store.recordSpend(batchId, batchInput, batchOutput, batchCost(batchInput, batchOutput));
-    for (let start = 0; start < rows.length; start += COLLECT_CHUNK) {
-      const chunk = rows.slice(start, start + COLLECT_CHUNK);
-      await store.collect(batchId, chunk, countWords(chunk));
-    }
+    // A chunk the database's short time limit refuses is tried in halves, so one big chunk can't stop the job for good.
+    const collectChunk = async (chunk: typeof rows): Promise<void> => {
+      try {
+        await store.collect(batchId, chunk, countWords(chunk));
+      } catch (error) {
+        if (chunk.length <= SMALLEST_CHUNK) throw error;
+        const middle = Math.floor(chunk.length / 2);
+        await collectChunk(chunk.slice(0, middle));
+        await collectChunk(chunk.slice(middle));
+      }
+    };
+    for (let start = 0; start < rows.length; start += COLLECT_CHUNK) await collectChunk(rows.slice(start, start + COLLECT_CHUNK));
     await store.release(batchId);
     collected += rows.length;
   }
@@ -425,7 +470,9 @@ export async function runSweep(client: Pick<Anthropic, 'messages'>, store: Sweep
   if (spent >= SWEEP_LIMIT_USD) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens, stopped: 'spending limit' };
   if (!(await store.room())) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens, stopped: 'database full' };
 
-  const found = await read(await store.state());
+  if (now() - startedAt > COLLECTING_TOO_LONG_MS) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens };
+
+  const found = await read(await store.state(), startedAt + READ_UNTIL_MS);
   // Once each, however many sources or pages it came from, and nothing the site already holds.
   const unique = [...new Map(found.items.map((item) => [item.id, item])).values()].slice(0, MAX_BATCH);
   const fresh = new Set(unique.length === 0 ? [] : await store.unknown(unique.map((item) => item.id)));
@@ -448,7 +495,8 @@ export async function runSweep(client: Pick<Anthropic, 'messages'>, store: Sweep
     for (const [source, state] of Object.entries(found.state)) await store.saveState(source, state);
   };
   if (items.length === 0) {
-    await saveAll();
+    // Held back by the limit means these items weren't sent, so the place stays where it was.
+    if (!heldBack) await saveAll();
     return { collected, sent: 0, waiting: 0, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
   }
 
@@ -461,7 +509,7 @@ export async function runSweep(client: Pick<Anthropic, 'messages'>, store: Sweep
     await client.messages.batches.cancel(batch.id).catch(() => undefined);
     throw error;
   }
-  await saveAll();
+  if (!heldBack) await saveAll();
   return { collected, sent: items.length, waiting: 1, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
 }
 

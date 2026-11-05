@@ -40,7 +40,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     const hosts = await peertubeHosts(cachedFetch);
     // Plain fetch, not the day-long cache: a sweep's whole point is the next page, and its answers aren't worth keeping.
-    return json(await runSweep(new Anthropic(), makeSweepStore(db, lock), (state) => readSources(state, { peertubeHosts: hosts })), 200);
+    return json(await runSweep(new Anthropic(), makeSweepStore(db, lock), (state, deadline) => readSources(state, deadline, { peertubeHosts: hosts })), 200);
   } catch (error) {
     if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);
     // Never an error's message or stack: a bad header's message repeats the key. Claude's own status and type say what went wrong.

@@ -17,7 +17,10 @@ export async function stationGraph(read: () => Promise<readonly StationRow[]>, n
   // Two readers at once share one build.
   building ??= Promise.all([read(), limitReached(), wordFacts(), pool()])
     .then(([rows, reached, facts, swept]) => {
-      const graph: StationGraph = { ...buildStationGraph([...rows, ...swept.rows], facts, swept.swept), ...(reached ? { limitReached: true } : {}) };
+      // A swept item saved since is the saved item: listed once.
+      const saved = new Set(rows.map((row) => row.item.id));
+      const listed = swept.rows.filter((row) => !saved.has(row.item.id));
+      const graph: StationGraph = { ...buildStationGraph([...rows, ...listed], facts, swept.swept), ...(reached ? { limitReached: true } : {}) };
       held = { graph, at: now };
       return graph;
     })

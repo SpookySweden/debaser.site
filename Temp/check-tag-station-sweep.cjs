@@ -24,8 +24,7 @@ function network(routes) {
     const url = new URL(String(input));
     for (const [pattern, answer] of routes) {
       if (pattern.test(`${url.hostname}${url.pathname}`)) {
-        const response = typeof answer === 'function' ? answer(url) : answer;
-        return response.clone ? response.clone() : response;
+        return answer(url);
       }
     }
     return new Response('nope', { status: 404 });
@@ -35,6 +34,7 @@ function network(routes) {
 const later = () => Date.now() + 60_000;
 const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, peertubeHosts: new Set(['video.blender.org']) });
 
+let finished = false;
 (async () => {
   // 1. Internet Archive: named collections only, its own cursor, and restricted items never.
   const archive = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [
@@ -52,9 +52,13 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   assert.equal(fromArchive.items.filter((one) => one.externalId === 'hidden' || one.externalId === '../bad').length, 0, 'restricted and bad ids are dropped');
   assert.deepEqual(fromArchive.items[0].tags, ['Trains', 'Jazz']);
   assert.deepEqual(fromArchive.items[1].tags, ['a', ' b']);
-  assert.deepEqual(fromArchive.state, { cursor: 'next' });
+  assert.deepEqual(fromArchive.state, { cursor: 'next', rows: 1000 });
   const stopped = network([[/^archive\.org/, () => json({}, 429)]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(stopped))).state, { cursor: 'kept' }, 'a 429 stops it and keeps its place');
+  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(stopped))).state, { cursor: 'kept', rows: 1000 }, 'a 429 stops it and keeps its place');
+  const heavy = network([[/^archive\.org/, () => json({}, 500)]]);
+  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(heavy))).state, { cursor: 'kept', rows: 500 }, 'a page too heavy to read asks for less next run');
+  const lastPage = network([[/^archive\.org/, () => json({ items: [] })]]);
+  assert.deepEqual((await sweep.readArchive({ cursor: 'x' }, later(), deps(lastPage))).state, { done: true }, 'the end of the collections: finished');
   assert.equal(stopped.asked.length, 1, 'with no second try');
 
   // 2. A fixed agent naming the project, on every source. Never a person.
@@ -66,6 +70,9 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   const sepia = new URL(peertube.asked[0].url);
   assert.equal(sepia.searchParams.get('nsfw'), 'false');
   assert.equal(sepia.searchParams.get('start'), '300');
+  assert.deepEqual((await sweep.readPeertube({ start: 300 }, later(), deps(peertube))).state, { done: true }, 'nothing more: finished');
+  const refused = network([[/^sepiasearch\.org/, () => json({}, 400)]]);
+  assert.deepEqual((await sweep.readPeertube({ start: 900000 }, later(), deps(refused))).state, { done: true }, 'a refused deep page: finished, not stuck');
   const openverse = network([[/^api\.openverse\.org/, () => json({ results: [{}] })]]);
   const fromOpenverse = await sweep.readOpenverse({}, later(), deps(openverse));
   assert.equal(openverse.asked.length, 3, 'three calls a run: its stated allowance is 200 a day, shared with MEDIA');
@@ -93,18 +100,24 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   assert.deepEqual([...hosts].sort(), ['en.wikipedia.org', 'query.wikidata.org']);
   const end = network([[/^query\.wikidata\.org/, () => json({ results: { bindings: [] } })]]);
   assert.deepEqual((await sweep.readWikidata({ property: 'P4947', offset: 9000 }, later(), deps(end))).state, { property: 'P4983', offset: 0 }, 'films done, on to shows');
+  assert.deepEqual((await sweep.readWikidata({ property: 'P4983', offset: 9000 }, later(), deps(end))).state, { done: true }, 'shows done, finished');
   const noPlot = network([[/^query\.wikidata\.org/, (url) => json({ results: { bindings: url.searchParams.get('query').includes('VALUES') ? [{ ...facts, article: undefined }] : [row] } })]]);
   assert.ok(!(await sweep.readWikidata({}, later(), deps(noPlot))).items[0].description.includes('plot'), 'no plot is fine');
   const wdDown = network([[/^query\.wikidata\.org/, () => json({}, 429)]]);
   assert.deepEqual((await sweep.readWikidata({ offset: 200 }, later(), deps(wdDown))), { items: [], state: { property: 'P4947', offset: 200 } }, 'stops on a 429 and keeps its place');
 
   // 5. Shows from TVmaze; a page past the end goes round.
-  const tvmaze = network([[/^api\.tvmaze\.com\/shows$/, () => json([{ id: 5, name: 'The Show', summary: '<p>About <b>trains</b>.</p>', genres: ['Drama'], premiered: '2001-02-03', type: 'Scripted', language: 'English', network: { name: 'A Network' } }])]]);
+  const tvmaze = network([[/^api\.tvmaze\.com\/shows$/, () => json([{ id: 5, name: 'The Show', summary: '<p>About trains.</p>', genres: ['Drama'], premiered: '2001-02-03', type: 'Scripted', language: 'English', network: { name: 'A Network' } }])]]);
   const fromTvmaze = await sweep.readTvmaze({ page: 3 }, later(), deps(tvmaze));
   assert.equal(fromTvmaze.items[0].id, 'tvmaze:5');
   assert.equal(fromTvmaze.items[0].description, 'Show (Scripted). Genres: Drama. In English. About trains.', 'plain text');
   assert.deepEqual(fromTvmaze.state, { page: 4 });
-  assert.deepEqual((await sweep.readTvmaze({ page: 99 }, later(), deps(network([])))).state, { page: 0 }, 'past the end, round again');
+  assert.deepEqual((await sweep.readTvmaze({ page: 99 }, later(), deps(network([])))).state, { done: true }, 'past the end, finished: a second lap would pay again');
+  const notAsked = network([[/.*/, () => json({})]]);
+  for (const reader of [sweep.readArchive, sweep.readPeertube, sweep.readOpenverse, sweep.readWikidata, sweep.readTvmaze]) {
+    assert.deepEqual((await reader({ done: true }, later(), deps(notAsked))).items, [], 'a finished source stays finished');
+  }
+  assert.deepEqual(notAsked.asked, [], 'and is not asked');
 
   // 6. Nothing from TMDB can reach a batch. The sources are fixed, this file names no TMDB host, and no provider of KINO's is imported.
   assert.deepEqual([...sweep.SWEEP_SOURCES].sort(), ['internet_archive', 'openverse', 'peertube', 'tvmaze', 'wikidata']);
@@ -176,6 +189,20 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   assert.deepEqual(running.log.sent, [['batch-new', ['a', 'b']]]);
   assert.deepEqual(running.log.states, [['internet_archive', { cursor: 'x' }]], 'its place is only saved once the batch is marked');
 
+  const everything = fake({ items: Array.from({ length: 5810 }, (_, i) => candidate(`z${i}`)) });
+  assert.equal((await sweep.runSweep(everything.client, everything.store, everything.read)).sent, 5810, 'a full run is sent whole, so no read item is skipped');
+  let tick = 0;
+  const slowCollect = fake({ pending: ['b1'], out: ['a'], results: [] });
+  assert.deepEqual(await sweep.runSweep(slowCollect.client, slowCollect.store, slowCollect.read, () => (tick += 21000)), { collected: 0, sent: 0, waiting: 0, inputTokens: 0, outputTokens: 0 }, 'a long collect means no reading this run');
+  assert.equal(slowCollect.reads(), 0);
+  let deadlineGiven = 0;
+  const timed = fake({});
+  await sweep.runSweep(timed.client, timed.store, async (state, deadline) => ((deadlineGiven = deadline), { items: [], state: {} }), () => 1000);
+  assert.equal(deadlineGiven, 31000, 'reading stops 30 seconds after the run began');
+  const heldBackRun = fake({ spent: 50 - worstCaseCost(candidate('a')) * 1.5, items: [candidate('a'), candidate('b')] });
+  await sweep.runSweep(heldBackRun.client, heldBackRun.store, heldBackRun.read);
+  assert.deepEqual(heldBackRun.log.states, [], 'items held back by the limit keep their place');
+
   const stuck = fake({ pending: ['b1'], status: 'in_progress', items: [candidate('a')] });
   assert.equal((await sweep.runSweep(stuck.client, stuck.store, stuck.read)).waiting, 1);
   assert.equal(stuck.reads(), 0, 'one batch out at a time: nothing is even read');
@@ -190,12 +217,20 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   const collecting = fake({ pending: ['b1'], out: many, results: [...many.map((id) => answer(id, ['jazz'])), answer('already-collected', ['not counted'])] });
   const collected = await sweep.runSweep(collecting.client, collecting.store, collecting.read);
   assert.equal(collected.collected, 900, 'what was already collected is not counted again');
-  assert.equal(collecting.log.collected.length, 3, 'in small chunks, inside the API statement time');
-  assert.equal(collecting.log.collected[0].rows.length, 400);
-  assert.equal(collecting.log.collected[0].stats.find((one) => one.word === 'jazz').items, 400, 'each chunk with its own counts');
-  assert.equal(collecting.log.collected[2].stats.find((one) => one.word === sweep.TOTAL_ROW).items, 100);
+  assert.equal(collecting.log.collected.length, 6, 'in small chunks, inside the API statement time');
+  assert.equal(collecting.log.collected[0].rows.length, 150);
+  assert.equal(collecting.log.collected[0].stats.find((one) => one.word === 'jazz').items, 150, 'each chunk with its own counts');
+  assert.equal(collecting.log.collected[5].stats.find((one) => one.word === sweep.TOTAL_ROW).items, 150);
   assert.deepEqual(collecting.log.spend, [['b1', 450500, 27030, batchCost(450500, 27030)]], 'and everything paid for is counted');
   assert.deepEqual(collecting.log.released, ['b1']);
+  const refusing = fake({ pending: ['b1'], out: many.slice(0, 150), results: many.slice(0, 150).map((id) => answer(id, ['jazz'])) });
+  const realCollect = refusing.store.collect;
+  refusing.store.collect = async (batchId, rows, stats) => {
+    if (rows.length > 40) throw new Error('TAGGING_DATABASE');
+    return realCollect(batchId, rows, stats);
+  };
+  await sweep.runSweep(refusing.client, refusing.store, refusing.read);
+  assert.equal(refusing.log.collected.reduce((sum, one) => sum + one.rows.length, 0), 150, 'a chunk the database refuses is tried in halves, and nothing is lost');
 
   // 10. The $50 stop, and the size stop.
   assert.equal(sweep.SWEEP_LIMIT_USD, 50);
@@ -295,7 +330,15 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
   assert.ok(route.includes('LOCK_HEADER') && route.indexOf('lock.length') < route.indexOf('new Anthropic'), 'the lock before anything else');
 
   console.log(`check-tag-station-sweep: all passed (a full map built in ${took}ms)`);
+  finished = true;
 })().catch((error) => {
   console.error(error);
   process.exit(1);
+});
+// A promise that never settles empties the event loop and exits 0 with nothing run: that must fail, not look like a pass.
+process.on('exit', (code) => {
+  if (code === 0 && !finished) {
+    console.error('check-tag-station-sweep stopped before its end');
+    process.exitCode = 1;
+  }
 });
