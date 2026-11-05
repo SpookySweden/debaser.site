@@ -4,7 +4,7 @@ import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
-import type { JoinAnswer, LiveRoom, QueueMove, RoomDoor, RoomMemberRow, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, OutlineLine, OutlineSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
@@ -354,6 +354,39 @@ class SupabaseWatchRepository implements WatchRepository {
   async removeFromRoom(roomId: string, userId: string): Promise<void> {
     const { error } = await requireClient().rpc('watch_remove_member', { room: roomId, person: userId });
     if (error) throw new Error('ONLY THE HOST OR A CROWN CAN REMOVE SOMEBODY.');
+  }
+
+  async readRoomOutline(roomId: string): Promise<RoomOutline | null> {
+    const { data, error } = await requireClient().rpc('watch_room_outline', { room: roomId });
+    if (error) throw new Error('THE STREAM COULD NOT BE READ.');
+    return (data ?? null) as RoomOutline | null;
+  }
+
+  async listPrivateRooms(): Promise<PrivateRoomLine[]> {
+    const { data, error } = await requireClient().rpc('watch_private_rooms');
+    if (error) throw new Error('THE ROOMS COULD NOT BE READ.');
+    return ((data ?? []) as { joined: number | string; messages: number | string; strokes: number | string }[]).map((row) => ({
+      joined: Number(row.joined),
+      messages: Number(row.messages),
+      strokes: Number(row.strokes),
+    }));
+  }
+
+  async readRecordOutline(threadId: string): Promise<OutlineLine[]> {
+    const { data, error } = await requireClient().rpc('stream_record_outline', { thread: threadId });
+    if (error) throw new Error('THE RECORD COULD NOT BE READ.');
+    return (data ?? []) as OutlineLine[];
+  }
+
+  async listPrivateFolds(mediaItemIds: string[]): Promise<PrivateFold[]> {
+    if (mediaItemIds.length === 0) return [];
+    const { data, error } = await requireClient().rpc('private_stream_folds', { media_ids: mediaItemIds });
+    if (error) throw new Error('THE STREAM CHAT COULD NOT BE READ.');
+    return ((data ?? []) as { media_item_id: string; rooms: number | string; sizes: OutlineSize[] }[]).map((row) => ({
+      mediaItemId: row.media_item_id,
+      rooms: Number(row.rooms),
+      sizes: row.sizes,
+    }));
   }
 
   async listRoomMembers(roomId: string): Promise<RoomMemberRow[]> {

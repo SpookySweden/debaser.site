@@ -44,6 +44,10 @@ The board's private rows are drawn from those. The thread itself stays unreadabl
 
 Both stores change together.
 
+## The house account (decision 8)
+It moderates only what was made in the open: it can't read, change, delete or pin a private record or a reply to one. Only a thread made in the open can be pinned, because pins are public.
+A record whose room no longer exists stays its author's to read and delete; somebody removed from a room that still exists gets nothing from that.
+
 ## Left out, said plainly
 - **The `[ TV ]` key for fellow members.** The plan shows it to fellow members of a private room. Today it is shown to nobody for a private room, which is the safe
   side. Showing it needs a list of "which of my rooms is this person in", and it can come later if Luke wants it.
@@ -52,5 +56,6 @@ Both stores change together.
 
 ## Proof
 A drive on the live site: as test account C (locked out) and as a signed-out visitor, with every network response recorded, none of the test message's words,
-the host's name, the room's name, or the queue's title appears anywhere. Screenshots of each outsider view at desktop and phone width, and the screen-reader
+the host's name or the queue's title appears anywhere. The room's name appears only for somebody signed in with the link, who sees `JOIN <ROOM NAME>?` as the plan
+says (Luke's OK); a signed-out visitor is never told it. Screenshots of each outsider view at desktop and phone width, and the screen-reader
 label checked. Also `npm run verify`, the whole `npm run checks`, capture and audit, the code review, and `npm run read`.

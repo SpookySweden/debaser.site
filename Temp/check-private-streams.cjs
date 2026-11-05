@@ -105,6 +105,7 @@ async function live() {
   const visitor = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   const room = randomUUID();
   const password = randomUUID();
+  let threadId = null;
   const rowsOf = async (client, table, column = 'room_id') => {
     const { data, error } = await client.from(table).select(column).eq(column, room);
     assert.equal(error, null, `${table} answers`);
@@ -167,6 +168,8 @@ async function live() {
     const first = await say(b, 'said while private');
     assert.equal(first.error, null, 'B talks');
     assert.equal(await rowsOf(a.client, 'watch_messages'), 1, 'A reads it');
+    const before = await rowsOf(a.client, 'watch_messages');
+    assert.equal(before, 1);
     assert.equal(await canJoinWire(b.client, `watch:${room}`), true, 'B hears who is there');
     assert.equal(await canJoinWire(b.client, `canvas:${room}`), true, 'B sees strokes');
 
@@ -187,6 +190,54 @@ async function live() {
     assert.equal((await b.client.rpc('watch_join', { room, password })).data, 'removed', 'B cannot rejoin');
     assert.equal(await canJoinWire(b.client, `watch:${room}`), false, 'B cannot rejoin the wire');
 
+    // What outsiders get: tags, times, sizes and counts. C is outside, and B was removed.
+    const secret = 'zebra-marmalade-outline';
+    const words = await say(a, secret);
+    assert.equal(words.error, null);
+    await a.client.from('watch_queue').insert({ room_id: room, position: 0, source_url: 'https://example.com/queue-title-secret.mp4', source_kind: 'file', source_title: 'queue-title-secret', added_by: a.id, in_queue: false });
+    const thread = randomUUID();
+    const filed = await a.client.from('forum_threads').insert({ id: thread, title: 'host-title-secret', body: '', author_id: a.id, author_label: a.displayName, anchor_kind: 'board', anchor_id: `watch:${room}`, anchor_label: 'STREAM' });
+    assert.equal(filed.error, null, 'the host files the record');
+    threadId = thread;
+    for (const [name, client] of [['C', c.client], ['a visitor', visitor]]) {
+      const outline = (await client.rpc('watch_room_outline', { room })).data;
+      const told = JSON.stringify(outline);
+      assert.ok(!told.includes(secret) && !told.includes('said while private') && !told.includes(a.displayName) && !told.includes('queue-title-secret') && !told.includes(a.id), `${name}: the outline holds no words, names or titles`);
+      assert.match(outline.people[0], /^ANON-\d+$/, `${name} is told ANON tags`);
+      assert.equal(outline.messages.length, 2, `${name} is told how many lines`);
+      assert.deepEqual(Object.keys(outline.messages[0]).sort(), ['seconds', 'size', 'tag'], `${name} gets a tag, a time and a size, and nothing else`);
+      assert.ok(['short', 'medium', 'long'].includes(outline.messages[0].size), 'in three sizes');
+      assert.equal((await client.from('forum_threads').select('id').eq('id', thread)).data.length, 0, `${name} cannot read the record`);
+      const listed = (await client.rpc('stream_record_outlines')).data.find((row) => row.thread_id === thread);
+      assert.ok(listed !== undefined, `${name} is told it exists`);
+      assert.deepEqual(Object.keys(listed).sort(), ['messages', 'on_day', 'thread_id'], 'and only that');
+      const bars = JSON.stringify((await client.rpc('stream_record_outline', { thread })).data);
+      assert.ok(!bars.includes(secret) && bars.includes('ANON-'), `${name}: the record comes in bars`);
+      const rooms = (await client.rpc('watch_private_rooms')).data;
+      assert.ok(rooms.length > 0 && rooms.every((row) => row.id === undefined && Object.keys(row).sort().join() === 'joined,messages,strokes'), `${name}: the ROOM tab gets counts, and no link`);
+    }
+    assert.equal((await a.client.from('forum_threads').select('title').eq('id', thread)).data[0]?.title, 'host-title-secret', 'the host reads the record');
+    assert.equal((await a.client.rpc('stream_record_outlines')).data.some((row) => row.thread_id === thread), false, 'and is not told about their own as a stranger');
+
+    // Nobody outside replies, or is told.
+    const reply = (who) => who.client.from('forum_comments').insert({ thread_id: thread, body: 'reply-secret', author_id: who.id, author_label: who.displayName });
+    assert.equal((await reply(c)).error?.code, REFUSED, 'C cannot reply under it');
+    assert.equal((await reply(b)).error?.code, REFUSED, 'nor can B, removed');
+    assert.equal((await reply(a)).error, null, 'the host can');
+    assert.equal((await c.client.from('forum_comments').select('id').eq('thread_id', thread)).data.length, 0, 'C cannot read the reply');
+    assert.equal((await visitor.from('forum_comments').select('id').eq('thread_id', thread)).data.length, 0, 'nor can a visitor');
+    const told = await a.client.from('forum_notifications').insert({ user_id: c.id, actor_id: a.id, actor_name: a.displayName, kind: 'reply', thread_id: thread, thread_title: 'host-title-secret', body: 'reply-secret' });
+    assert.equal(told.error?.code, REFUSED, 'and nobody outside can be sent a notification about it');
+
+    // A record can't be claimed by somebody else, or moved by its author.
+    const fake = randomUUID();
+    await c.client.from('forum_threads').insert({ id: fake, title: 'fake record', body: '', author_id: c.id, author_label: c.displayName, anchor_kind: 'board', anchor_id: `watch:${room}`, anchor_label: 'STREAM' });
+    const claimed = (await c.client.from('forum_threads').select('watch_room_id, privacy_at_write').eq('id', fake).single()).data;
+    assert.equal(claimed.watch_room_id, null, "C's thread is not tied to A's room");
+    await c.client.from('forum_threads').delete().eq('id', fake);
+    await a.client.from('forum_threads').update({ privacy_at_write: 'open', watch_room_id: null }).eq('id', thread);
+    assert.equal((await a.client.from('forum_threads').select('privacy_at_write').eq('id', thread).single()).data.privacy_at_write, 'private', 'a record stays private, even for its author');
+
     // A drawing: nobody out of the room can save one, and a saved picture's file follows its own row.
     const canvas = randomUUID();
     const opened = await a.client.from('room_canvases').insert({ id: canvas, room_id: room, host_id: a.id, host_label: a.displayName, title: 'CHECK', opened_by: a.id });
@@ -203,12 +254,14 @@ async function live() {
     assert.equal(second.error, null);
     const seen = (await visitor.from('watch_messages').select('id').eq('room_id', room)).data.map((row) => row.id);
     assert.deepEqual(seen, [second.data.id], 'a visitor reads what came after, and nothing before');
+    assert.equal((await visitor.from('forum_threads').select('id').eq('id', threadId)).data.length, 0, 'and the record that started private stays private');
     assert.equal(await rowsOf(visitor, 'watch_rooms', 'id'), 1, 'and sees the room');
     assert.equal((await visitor.from('watch_messages').select('body').eq('id', first.data.id)).data.length, 0);
     assert.ok((await say(b, 'and now?')).error !== null, 'removed still means removed in an open room');
 
     console.log('  ok    the real database');
   } finally {
+    if (threadId !== null) await a.client.from('forum_threads').delete().eq('id', threadId);
     await a.client.from('watch_rooms').update({ is_playing: false, ended_at: new Date().toISOString() }).eq('id', room);
   }
 }

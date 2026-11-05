@@ -1084,7 +1084,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           {fault}
         </p>
       )}
-      {room.forumThreadId === null && live && !music && room.privacy === 'open' ? (
+      {room.forumThreadId === null && live && !music ? (
         <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">NOT ON THE BOARD</p>
       ) : null}
     </div>

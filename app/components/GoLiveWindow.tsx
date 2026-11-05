@@ -54,10 +54,10 @@ export default function GoLiveWindow({
         <RoomPrivacyPicker value={privacy} onChange={setPrivacy} password={password} onPassword={setPassword} autoFocus />
         <p>
           {privacy === 'open'
-            ? 'ANYONE CAN WATCH AND TALK. IT IS LISTED AND GETS A THREAD ON THE BOARD.'
+            ? 'ANYONE CAN WATCH AND TALK. IT IS LISTED WITH NAMES, AND ITS THREAD IS ON THE BOARD.'
             : privacy === 'password'
-              ? 'PEOPLE NEED THE ROOM LINK AND THE PASSWORD. NOT LISTED, AND NOTHING ON THE BOARD.'
-              : 'PEOPLE NEED THE ROOM LINK. NOT LISTED, AND NOTHING ON THE BOARD.'}
+              ? 'PEOPLE NEED THE ROOM LINK AND THE PASSWORD. EVERYONE ELSE SEES ONLY THAT IT IS ON: NO NAMES AND NO WORDS.'
+              : 'PEOPLE NEED THE ROOM LINK. EVERYONE ELSE SEES ONLY THAT IT IS ON: NO NAMES AND NO WORDS.'}
         </p>
         <div className="flex flex-wrap items-center gap-2">
           <button type="submit" className={PLATE_MAIN} disabled={waiting || busy} data-go-live-start>

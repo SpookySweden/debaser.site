@@ -17,7 +17,7 @@ import type { AccountUser } from '../lib/auth/types';
 import { useAuth } from './AuthProvider';
 import CytubeLayout from './CytubeLayout';
 import { useForum } from './ForumProvider';
-import { useLiveStreams, type LiveStreamRow } from './CytubeLiveStreams';
+import { useLiveStreams, usePrivateRoomLines, type LiveStreamRow } from './CytubeLiveStreams';
 import StreamArtShelf from './StreamArtShelf';
 import StreamQueueWindow from './StreamQueueWindow';
 
@@ -205,10 +205,11 @@ function AboutPart({ title, children }: { title: string; children: React.ReactNo
  */
 function LiveRooms() {
   const rooms = useLiveStreams();
+  const privateRooms = usePrivateRoomLines();
   const [queueFor, setQueueFor] = useState<string | null>(null);
 
   if (rooms === null) return <p className="text-label font-bold text-ink">READING THE ROOMS...</p>;
-  if (rooms.length === 0) return <p className="text-label font-bold text-ink">NOBODY IS LIVE.</p>;
+  if (rooms.length === 0 && privateRooms.length === 0) return <p className="text-label font-bold text-ink">NOBODY IS LIVE.</p>;
 
   return (
     <>
@@ -230,6 +231,14 @@ function LiveRooms() {
                 [ QUEUE ]
               </button>
             </span>
+          </li>
+        ))}
+        {/* No key: the link is the key (decision 1). */}
+        {privateRooms.map((line, index) => (
+          <li key={index} className="rule-pixel flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5 text-label text-ink" data-cytube-private>
+            <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">LIVE</span>
+            <span className="font-bold">PRIVATE ROOM :: {line.joined} JOINED</span>
+            <span className="min-w-0 flex-1 truncate">{line.messages} MESSAGES :: {line.strokes} STROKES</span>
           </li>
         ))}
       </ul>

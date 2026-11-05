@@ -3,6 +3,7 @@ import { ANONYMOUS_AUTHOR } from '../auth/author';
 import { AUTO_FILED_BODY, autoThreadTitle } from './anchors';
 import { deriveTags, mergeTags } from './tags';
 import { pinExpiry } from './pins';
+import { privateRecordThread } from './private-record';
 import type {
   AddCommentResult,
   CommentPatch,
@@ -318,6 +319,13 @@ class SupabaseForumRepository implements ForumRepository {
     return new Set(((data ?? []) as { id: string }[]).map((row) => row.id));
   }
 
+  /** Private streams' records this reader can't read, as the database hands them out: a day and a count. A failed read leaves them out. */
+  private async privateRecords(): Promise<ForumThread[]> {
+    const { data, error } = await this.client().rpc('stream_record_outlines');
+    if (error !== null) return [];
+    return ((data ?? []) as { thread_id: string; on_day: string; messages: number | string }[]).map((row) => privateRecordThread(row.thread_id, row.on_day, Number(row.messages)));
+  }
+
   async listThreads(): Promise<ForumThread[]> {
     const banned = await this.bannedAuthorIds();
 
@@ -328,7 +336,8 @@ class SupabaseForumRepository implements ForumRepository {
 
     if (error !== null) throw new Error(`forum thread select failed: ${error.message}`);
 
-    return ((data ?? []) as ThreadRow[]).map((row) => toThread(row, banned));
+    const threads = ((data ?? []) as ThreadRow[]).map((row) => toThread(row, banned));
+    return [...threads, ...(await this.privateRecords())].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {

@@ -150,6 +150,10 @@ export type ForumThread = {
   track?: ForumTrack;
   /** 'seed' rows ship with the mock board, 'user' rows were filed in the browser. */
   origin: 'seed' | 'user';
+  /** A private stream's record, for somebody outside it: this row was built from counts, and holds no title, author or words (SPEC-privacy-phase-3.md). */
+  privateRecord?: { messages: number };
+  /** The mock store's `privacy_at_write`. The database keeps its own. */
+  stampedPrivate?: boolean;
 };
 
 export type CreateThreadInput = {

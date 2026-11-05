@@ -23,6 +23,28 @@ export type RoomDoor = {
 /** The way in: `watch_join`'s answer. */
 export type JoinAnswer = 'joined' | 'wrong' | 'locked' | 'removed' | 'ended' | 'refused';
 
+/** Three sizes of bar, never the real length (decision 13). */
+export type OutlineSize = 'short' | 'medium' | 'long';
+
+/** One message as an outsider gets it: no words (SPEC-privacy-phase-3.md). */
+export type OutlineLine = { tag: string; seconds: number; size: OutlineSize };
+
+/** A private room as somebody with its link and no way in gets it (`watch_room_outline`). */
+export type RoomOutline = {
+  live: boolean;
+  people: string[];
+  messages: OutlineLine[];
+  queue: number;
+  strokes: number;
+  strokePeople: number;
+};
+
+/** A line on the ROOM tab: counts, and no link. */
+export type PrivateRoomLine = { joined: number; messages: number; strokes: number };
+
+/** `1 PRIVATE STREAM`, in bars, under a file. */
+export type PrivateFold = { mediaItemId: string; rooms: number; sizes: OutlineSize[] };
+
 /** Somebody who joined a room, for the cog's list. */
 export type RoomMemberRow = {
   roomId: string;

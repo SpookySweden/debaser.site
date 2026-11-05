@@ -3,7 +3,7 @@ import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
-import type { JoinAnswer, LiveRoom, QueueMove, RoomDoor, RoomMemberRow, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, OutlineLine, OutlineSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -102,6 +102,29 @@ function refuseOutsider(tables: Tables, room: WatchRoom, userId: string): void {
 function addMember(tables: Tables, roomId: string, userId: string): void {
   if (tables.members.some((row) => row.roomId === roomId && row.userId === userId)) return;
   save({ ...tables, members: [...tables.members, { roomId, userId, label: 'SOMEBODY', removedAt: null }] }, null);
+}
+
+/** The database's three sizes. */
+function sizeOf(words: string): OutlineSize {
+  return words.length <= 20 ? 'short' : words.length <= 80 ? 'medium' : 'long';
+}
+
+/** A tag for one person in one room: the same every time, and different in the next room. */
+function anonTag(roomId: string, userId: string): string {
+  let hash = 7;
+  for (const ch of `${roomId}:${userId}`) hash = (hash * 31 + ch.charCodeAt(0)) % 999;
+  return `ANON-${hash + 1}`;
+}
+
+function outlineLines(tables: Tables, room: WatchRoom): OutlineLine[] {
+  return tables.messages
+    .filter((message) => message.roomId === room.id)
+    .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+    .map((message) => ({
+      tag: anonTag(room.id, message.authorId),
+      seconds: Math.max(0, Math.floor((Date.parse(message.createdAt) - Date.parse(room.startedAt)) / 1000)),
+      size: sizeOf(message.body),
+    }));
 }
 
 /** The mock's `privacy_at_write`: what is made while a room is not open stays its members'. */
@@ -344,6 +367,52 @@ class MockWatchRepository implements WatchRepository {
       : tables.members.map((row) => (row === known ? { ...row, removedAt: at } : row));
     save({ ...tables, members, crowns: tables.crowns.filter((crown) => !(crown.roomId === roomId && crown.userId === userId)) }, roomId);
     for (const listener of memberListeners) listener({ roomId, userId, label: known?.label ?? 'SOMEBODY', removedAt: at });
+  }
+
+  async readRoomOutline(roomId: string): Promise<RoomOutline | null> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    if (room === undefined || room.privacy === 'open') return null;
+    return {
+      live: room.endedAt === null,
+      people: tables.members.filter((row) => row.roomId === roomId && row.removedAt === null).map((row) => anonTag(roomId, row.userId)),
+      messages: outlineLines(tables, room),
+      queue: tables.queue.filter((entry) => entry.roomId === roomId && entry.inQueue && entry.playedAt === null).length,
+      strokes: 0,
+      strokePeople: 0,
+    };
+  }
+
+  async listPrivateRooms(): Promise<PrivateRoomLine[]> {
+    const tables = load();
+    const me = await viewerId();
+    return tables.rooms
+      .filter((room) => room.endedAt === null && room.origin === 'stream' && room.privacy !== 'open')
+      .filter((room) => !tables.members.some((row) => row.roomId === room.id && row.userId === me && row.removedAt === null))
+      .map((room) => ({
+        joined: tables.members.filter((row) => row.roomId === room.id && row.removedAt === null).length,
+        messages: tables.messages.filter((message) => message.roomId === room.id).length,
+        strokes: 0,
+      }));
+  }
+
+  async readRecordOutline(threadId: string): Promise<OutlineLine[]> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.forumThreadId === threadId);
+    return room === undefined ? [] : outlineLines(tables, room);
+  }
+
+  async listPrivateFolds(mediaItemIds: string[]): Promise<PrivateFold[]> {
+    const tables = load();
+    const me = await viewerId();
+    const hidden = new Set(tables.privateRows);
+    const outside = (roomId: string) => !tables.members.some((row) => row.roomId === roomId && row.userId === me && row.removedAt === null);
+    return mediaItemIds.flatMap((mediaItemId) => {
+      const plays = tables.queue.filter((entry) => entry.mediaItemId === mediaItemId && entry.playedAt !== null && hidden.has(entry.id) && outside(entry.roomId));
+      if (plays.length === 0) return [];
+      const sizes = tables.messages.filter((message) => message.mediaItemId === mediaItemId && hidden.has(message.id) && outside(message.roomId)).map((message) => sizeOf(message.body));
+      return [{ mediaItemId, rooms: new Set(plays.map((entry) => entry.roomId)).size, sizes }];
+    });
   }
 
   async listRoomMembers(roomId: string): Promise<RoomMemberRow[]> {

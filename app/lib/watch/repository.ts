@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { JoinAnswer, LiveRoom, QueueMove, RoomAddMode, RoomDoor, RoomMemberRow, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, OutlineLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -115,6 +115,14 @@ export type WatchRepository = {
   setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void>;
   /** REMOVE: the host's and a crown's. Throws with a sentence fit to show. */
   removeFromRoom(roomId: string, userId: string): Promise<void>;
+  /** What an outsider gets of a private room, built by the database; null for a room that has no need of one. */
+  readRoomOutline(roomId: string): Promise<RoomOutline | null>;
+  /** The ROOM tab's lines for private rooms this person isn't in. */
+  listPrivateRooms(): Promise<PrivateRoomLine[]>;
+  /** A private record on the board, in bars. */
+  readRecordOutline(threadId: string): Promise<OutlineLine[]>;
+  /** STREAM CHAT under a file, for private streams this person isn't in. */
+  listPrivateFolds(mediaItemIds: string[]): Promise<PrivateFold[]>;
   /** Everybody who joined, for the cog. */
   listRoomMembers(roomId: string): Promise<RoomMemberRow[]>;
   /** Fires when somebody joins or is removed. */

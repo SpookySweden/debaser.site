@@ -24,6 +24,7 @@ import { makeUserTag } from '../lib/forum/tag-vocabulary';
 import TagWindow from './TagWindow';
 import type { ForumThread } from '../lib/forum/types';
 import ForumThreadCard from './ForumThreadCard';
+import PrivateRecordRow from './PrivateRecordRow';
 import ForumPinPanel from './ForumPinPanel';
 import NewsTicker from './NewsTicker';
 import NewPostForm from './NewPostForm';
@@ -891,15 +892,19 @@ export default function ForumBoard() {
               id="forum-thread-list"
               className="text-ink"
             >
-              {pageThreads.map((thread) => (
-                <ForumThreadCard
-                  key={thread.id}
-                  thread={thread}
-                  isOpen={openThreadIds.includes(thread.id)}
-                  tagFilter={tagFilters}
-                  onToggle={handleToggle}
-                />
-              ))}
+              {pageThreads.map((thread) =>
+                thread.privateRecord === undefined ? (
+                  <ForumThreadCard
+                    key={thread.id}
+                    thread={thread}
+                    isOpen={openThreadIds.includes(thread.id)}
+                    tagFilter={tagFilters}
+                    onToggle={handleToggle}
+                  />
+                ) : (
+                  <PrivateRecordRow key={thread.id} thread={thread} isOpen={openThreadIds.includes(thread.id)} onToggle={handleToggle} />
+                ),
+              )}
             </div>
           )}
 

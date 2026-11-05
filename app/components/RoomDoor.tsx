@@ -9,6 +9,7 @@ import { ROOM_PASSWORD_MAX } from '../lib/watch/rules';
 import type { JoinAnswer, RoomDoor as Door } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
+import PrivateOutline from './PrivateOutline';
 
 const line = 'text-label font-bold text-ink';
 
@@ -60,31 +61,52 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
 
   if (door === null) return <p className={line}>READING THE STREAM...</p>;
   if (!door.found) return <p className={line}>NO SUCH STREAM.</p>;
-  if (door.removed || answer === 'removed') return <p className={line} data-room-door="removed">YOU WERE REMOVED FROM THIS STREAM.</p>;
-  if (!door.live) return <p className={line} data-room-door="ended">THIS STREAM HAS ENDED.</p>;
+  if (door.removed || answer === 'removed') {
+    return (
+      <>
+        <p className={line} data-room-door="removed">YOU WERE REMOVED FROM THIS STREAM.</p>
+        <PrivateOutline roomId={roomId} />
+      </>
+    );
+  }
+  if (!door.live) {
+    return (
+      <>
+        <p className={line} data-room-door="ended">THIS STREAM HAS ENDED.</p>
+        {door.member ? null : <PrivateOutline roomId={roomId} />}
+      </>
+    );
+  }
   if (userId === null) {
     return (
-      <p className={line} data-room-door="signed-out">
-        THIS STREAM IS PRIVATE.{' '}
-        <Link href="/account" className="key px-1 py-1 text-label">
-          [ LOG IN ]
-        </Link>{' '}
-        TO JOIN
-      </p>
+      <>
+        <p className={line} data-room-door="signed-out">
+          THIS STREAM IS PRIVATE.{' '}
+          <Link href="/account" className="key px-1 py-1 text-label">
+            [ LOG IN ]
+          </Link>{' '}
+          TO JOIN
+        </p>
+        <PrivateOutline roomId={roomId} />
+      </>
     );
   }
   if (door.lockedUntil !== null) {
-    const minutes = Math.max(1, Math.ceil((Date.parse(door.lockedUntil) - now) / 60000));
+    const minutes = Math.min(10, Math.max(1, Math.ceil((Date.parse(door.lockedUntil) - now) / 60000)));
     return (
-      <p className={line} role="alert" data-room-door="locked">
-        TOO MANY WRONG TRIES. TRY AGAIN IN {minutes} {minutes === 1 ? 'MINUTE' : 'MINUTES'}.
-      </p>
+      <>
+        <p className={line} role="alert" data-room-door="locked">
+          TOO MANY WRONG TRIES. TRY AGAIN IN {minutes} {minutes === 1 ? 'MINUTE' : 'MINUTES'}.
+        </p>
+        <PrivateOutline roomId={roomId} />
+      </>
     );
   }
 
   const needsPassword = door.privacy === 'password';
 
   return (
+    <>
     <form
       noValidate
       className="flex max-w-prose flex-col gap-2 text-label text-ink"
@@ -130,5 +152,7 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
         ) : null}
       </div>
     </form>
+    <PrivateOutline roomId={roomId} />
+    </>
   );
 }

@@ -9,9 +9,9 @@ import type { RoomPrivacy } from './types';
 
 /**
  * GO LIVE, from the window behind the CYTUBE page's and the side panel's keys (SPEC-cytube.md; SPEC-privacy-phase-2.md): the
- * host's room opens **empty**, no file needed, its screen black with the three keys. An open room's forum record is filed as it
- * starts; a room that could not be filed is still a room (it says NOT ON THE BOARD). A private room files nothing, so nothing
- * of it reaches the board. The room window opens over the page.
+ * host's room opens **empty**, no file needed, its screen black with the three keys. Its forum record is filed as it starts; a room
+ * that could not be filed is still a room (it says NOT ON THE BOARD). A private room's record is its members' (the database
+ * stamps the thread), and everybody else gets it in bars. The room window opens over the page.
  *
  * Returns the room's id. Throws with a sentence fit to show.
  */
@@ -24,11 +24,6 @@ export async function goLiveEmpty(
   const repository = getWatchRepository();
   const read = await repository.openRoom({ id, host: { id: host.id, label: host.displayName }, mediaItemId: null, privacy: choice.privacy, ...(choice.password === undefined ? {} : { password: choice.password }) });
   primeRoom(read);
-
-  if (choice.privacy !== 'open') {
-    openWatch({ kind: 'room', roomId: id });
-    return id;
-  }
 
   try {
     const thread = await createThread({ title: streamThreadTitle(host.displayName, read.room.startedAt), body: '', anchor: streamAnchor(id) });
