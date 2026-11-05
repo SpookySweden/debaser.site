@@ -38,7 +38,9 @@ same([plan('alien').source, plan('alien').vibe, plan('alien').sort], ['all', fal
 const youtube = plan('alien in:youtube');
 same([youtube.words, youtube.source, youtube.site], ['alien', 'youtube', { videos: false, songs: false }], 'one source: the words, that source, none of the site\'s files');
 same(plan('alien in:archive').source, 'internet_archive', "the archive page's short words work here too");
-for (const unplayable of ['kino', 'wikimedia-commons', 'openverse', 'podcast']) {
+// (2026-11-05) KINO came off this list on purpose: Luke asked for the IMDB key inside the stream UI, so `in:kino` now
+// reads as a lookup, tested under "the IMDB key" below. It still has no SOURCE key, and a room still cannot play it.
+for (const unplayable of ['wikimedia-commons', 'openverse', 'podcast']) {
   const read = plan(`alien in:${unplayable}`);
   same([read.source, read.words, read.site], ['all', 'alien', { videos: true, songs: true }], `in:${unplayable}: a room cannot play from it, so it reads as ALL`);
 }
@@ -74,8 +76,8 @@ same(press('alien', 'sort', 'popular'), 'alien sort:popular', 'POPULAR');
 same(press('alien sort:popular', 'sort', 'newest'), 'alien sort:newest', 'DATE replaces POPULAR');
 same(press('alien sort:newest', 'sort', 'oldest'), 'alien sort:oldest', 'the flip key');
 same(press('alien sort:oldest', 'sort', 'best'), 'alien', 'BEST MATCH takes it out');
-same(press('alien type:image in:kino', 'type', 'video'), 'type:video alien', 'what the queue cannot read is tidied away');
-same(press('alien type:image in:kino', 'vibe', 'on'), 'alien vibe:on', 'and by any key');
+same(press('alien type:image in:podcast', 'type', 'video'), 'type:video alien', 'what the queue cannot read is tidied away');
+same(press('alien type:image in:podcast', 'vibe', 'on'), 'alien vibe:on', 'and by any key');
 same(press('from:"rick prelinger" alien', 'in', 'youtube'), 'alien in:youtube from:"rick prelinger"', 'a creator is kept, quoted');
 same(press('', 'in', 'youtube'), 'in:youtube', 'an empty bar');
 
@@ -96,6 +98,34 @@ for (const source of blank.QUEUE_SOURCES.map((option) => option.value)) {
     }
   }
 }
+
+/* ---------------------------------------------------------------- the IMDB key: posters and details, nothing to add */
+ok(!blank.QUEUE_SOURCES.some((option) => option.value === blank.QUEUE_LOOKUP_SOURCE), 'KINO has the IMDB key, not a SOURCE key: a room cannot play it');
+const lookup = plan('alien in:kino');
+same([lookup.source, lookup.words, lookup.preset, lookup.site, lookup.ask], ['kino', 'alien', null, { videos: false, songs: false }, { words: 'alien', type: 'video', keep: 'video' }], "IMDB: TMDB's films and shows for the words, none of the site's files");
+same(plan('in:tmdb alien').source, 'kino', "the archive page's other word for it");
+same(plan('in:kino').ask, null, 'IMDB with no words: nothing to ask, so the bar asks for words');
+same(plan('in:kino from:prelinger').ask, null, 'and a creator is no help: TMDB is asked about words');
+same([plan('type:music alien in:kino').preset, plan('type:music alien in:kino').ask.words, plan('type:books alien in:kino').ask.words], [null, 'alien', 'alien'], 'a typed TYPE changes nothing, and BOOKS adds no word');
+same(press('alien', 'in', blank.QUEUE_LOOKUP_SOURCE), 'alien in:kino', 'pressing IMDB writes its word, the words untouched');
+same(press('alien in:kino', 'in', 'all'), 'alien', 'pressing it again takes it out');
+same(press('type:books alien', 'in', blank.QUEUE_LOOKUP_SOURCE), 'alien in:kino', 'it drops the TYPE, which it has no use for');
+same(press('alien in:kino', 'in', 'youtube'), 'alien in:youtube', 'a SOURCE key leaves the lookup');
+same(press('alien in:kino', 'type', 'video'), 'type:video alien', 'and so does a TYPE key');
+same(press('alien in:kino', 'sort', 'popular'), 'alien in:kino sort:popular', 'SORT stays in the lookup');
+same(press('alien in:kino', 'vibe', 'on'), 'alien in:kino vibe:on', 'and so does VIBE');
+same(plan('alien').source, 'all', 'FIND TO PLAY: a title on its own in the bar is a search of what a room can play');
+
+// The window: the key is drawn over the SOURCE row, and a looked-up title is listed with a way on, never an ADD.
+const read = (file) => require('node:fs').readFileSync(path.join(__dirname, '..', 'app', 'components', file), 'utf8');
+const filters = read('QueueSearchFilters.tsx');
+ok(filters.indexOf('data-imdb-key') !== -1 && filters.indexOf('data-imdb-key') < filters.indexOf('aria-label="Source"'), 'the IMDB key is above the SOURCE row');
+ok(/flex justify-center">\s*<button[\s\S]{0,120}pick\('in', lookingUp \? 'all' : QUEUE_LOOKUP_SOURCE\)/.test(filters), 'centred, and it turns the lookup on and off');
+const queueWindow = read('StreamQueueWindow.tsx');
+ok(/type\(`\$\{next\} `\);\s*searchBar\.current\?\.focus\(\);/.test(queueWindow), 'a key with nothing typed leaves a space before the caret, so the next word is not glued to the filter (in:kinoalien)');
+ok(/if \(lookingUp\) return true;\s*if \(playsInBar\(item\)\) return true;/.test(queueWindow), 'looked-up titles pass the "can a room play this" test, and only those');
+ok(/isKinoRow\(item\) \? \(\s*<KinoRow[\s\S]{0,400}data-imdb-find/.test(queueWindow), 'a title is drawn with its poster and details, with FIND TO PLAY');
+ok(!/<KinoRow[\s\S]{0,500}AddKey/.test(queueWindow), 'and no ADD');
 
 /* ---------------------------------------------------------------- the site's songs */
 const track = (title, credit, extra = {}) => ({ src: `/assets/${title}.mp3`, title, credit, shelf: 'bucket', ...extra });

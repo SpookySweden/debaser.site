@@ -66,25 +66,25 @@ const { BATCH_SIZE, TAGGING_MODEL, cleanWords, customIdFor, requestFor, runTaggi
     return { store, client, log };
   };
   const item = (id) => ({ id, kind: 'video', title: id, creator: null, description: null, tags: null });
-  const ok = (id, text, stop = 'end_turn') => ({ custom_id: customIdFor(id), result: { type: 'succeeded', message: { stop_reason: stop, content: [{ type: 'text', text }] } } });
+  const ok = (id, text, stop = 'end_turn') => ({ custom_id: customIdFor(id), result: { type: 'succeeded', message: { stop_reason: stop, usage: { input_tokens: 100, output_tokens: 10 }, content: [{ type: 'text', text }] } } });
 
   // 3. Sends what has no words, once.
   {
     const { store, client, log } = fake({ items: [item('a'), item('b')] });
-    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 2, waiting: 1 });
+    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 2, waiting: 1, inputTokens: 0, outputTokens: 0 });
     assert.equal(log.created.length, 1, 'one batch');
     assert.deepEqual(log.sentIds, [{ batchId: 'batch-new', ids: ['a', 'b'] }], 'and the items are marked as out');
   }
   // 4. Nothing new costs nothing.
   {
     const { store, client, log } = fake();
-    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 0, waiting: 0 });
+    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 0, waiting: 0, inputTokens: 0, outputTokens: 0 });
     assert.equal(log.created.length, 0, 'no batch is sent for nothing');
   }
   // 5. A batch still out: nothing more is sent, so cost cannot pile up.
   {
     const { store, client, log } = fake({ pending: ['batch-old'], status: 'in_progress', items: [item('a')] });
-    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 0, waiting: 1 });
+    assert.deepEqual(await runTagging(client, store), { collected: 0, sent: 0, waiting: 1, inputTokens: 0, outputTokens: 0 });
     assert.equal(log.created.length, 0, 'nothing more is sent');
     assert.equal(log.released.length, 0, 'and the batch is not forgotten');
   }
@@ -105,6 +105,8 @@ const { BATCH_SIZE, TAGGING_MODEL, cleanWords, customIdFor, requestFor, runTaggi
     });
     const result = await runTagging(client, store);
     assert.equal(result.collected, 3, 'the good ones, a long id among them');
+    // (2026-11-05) Every answer that came back is billed, refusals and unusable ones too; a request that errored is not.
+    assert.deepEqual([result.inputTokens, result.outputTokens], [600, 60], 'the tokens the batch was billed for are reported');
     assert.deepEqual(log.saved, [{ id: longId, words: ['serial'] }, { id: 'youtube:b', words: ['jazz'] }, { id: 'youtube:a', words: ['trains', 'steam'] }], 'matched by id, and an answer for an item not in the batch is dropped');
     assert.deepEqual(log.released, ['batch-old'], 'the batch is released, so the rest go round again');
   }

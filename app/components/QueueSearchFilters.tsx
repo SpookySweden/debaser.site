@@ -1,7 +1,7 @@
 'use client';
 
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
-import { QUEUE_SOURCES, QUEUE_TYPES, queueSearchPlan, withQueueFilter } from '../lib/watch/blank-screen';
+import { QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_TYPES, queueSearchPlan, withQueueFilter } from '../lib/watch/blank-screen';
 import type { FilterKey } from '../lib/web/web-filters';
 import { SORT_OPTIONS, type SortChoice } from '../lib/web/web-sort';
 
@@ -26,9 +26,26 @@ export default function QueueSearchFilters({
   const pick = (key: FilterKey, value: string) => onPick(withQueueFilter(bar, key, value));
   const pickSort = (choice: SortChoice) => pick('sort', choice.sort === 'date' ? (choice.dir === 'asc' ? 'oldest' : 'newest') : choice.sort);
   const { sort } = plan;
+  const lookingUp = plan.source === QUEUE_LOOKUP_SOURCE;
 
   return (
     <div className="space-y-1" data-queue-filters>
+      {/* Luke, 2026-11-05: posters and info inside the stream UI, placed as on the MEDIA page. The titles and details are
+          TMDB's, and the hover text says so, since the key's word is IMDB's. */}
+      <div className="flex justify-center">
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => pick('in', lookingUp ? 'all' : QUEUE_LOOKUP_SOURCE)}
+          aria-pressed={lookingUp}
+          aria-label="IMDB: look up posters and details of films and shows"
+          title="Posters and details of films and shows, from TMDB. A room cannot play these."
+          className={lookingUp ? PLATE_PRESSED : PLATE}
+          data-imdb-key
+        >
+          [ IMDB ]
+        </button>
+      </div>
       <div role="group" aria-label="Source" className="flex flex-wrap items-center gap-1">
         <span className="text-label font-bold text-ink-quiet">SOURCE:</span>
         {QUEUE_SOURCES.map((option) => (

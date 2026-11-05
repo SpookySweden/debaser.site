@@ -46,7 +46,7 @@ export type QueueSearchPlan = {
   site: { videos: boolean; songs: boolean };
   /** The archive search to run, or null: nothing to look for, so only the site's own files (BOOKS always asks). */
   ask: QueueAsk | null;
-  /** `in:`, one of `QUEUE_SOURCES`; a source a room cannot play from reads as ALL. */
+  /** `in:`, one of `QUEUE_SOURCES` or `QUEUE_LOOKUP_SOURCE`; any other source a room cannot play from reads as ALL. */
   source: SourceValue;
   /** `from:` creators as typed (the live search asks about the first, as the archive page's does). */
   authors: readonly string[];
@@ -86,6 +86,12 @@ function isQueueSource(value: SourceValue): boolean {
   return QUEUE_SOURCES.some((option) => option.value === value);
 }
 
+/**
+ * The IMDB key's source (Luke, 2026-11-05: posters and info inside the stream UI). KINO, TMDB's films and shows: a room
+ * cannot play them, so it has no SOURCE key and its rows have no ADD. They are for looking a title up.
+ */
+export const QUEUE_LOOKUP_SOURCE: SourceValue = 'kino';
+
 /** The bar's `type:` word (the last wins) and the rest of the bar. */
 function takePreset(bar: string): { preset: BlankKey | null; rest: string } {
   let preset: BlankKey | null = null;
@@ -118,9 +124,12 @@ export function queueSearchPlan(bar: string): QueueSearchPlan {
   const typed = parseWebSearch(rest);
   const words = typed.text;
   const authors = authorsOf(typed);
-  const source = isQueueSource(typed.source) ? typed.source : 'all';
+  const lookup = typed.source === QUEUE_LOOKUP_SOURCE;
+  const source = isQueueSource(typed.source) || lookup ? typed.source : 'all';
   const anywhere = source === 'all';
   const filters = { source, authors, vibe: typed.vibe === true, sort: sortOf(typed) };
+  // Films and shows, whatever TYPE was typed: nothing of the site's, and words are the only thing TMDB can look for.
+  if (lookup) return { words, preset: null, site: { videos: false, songs: false }, ask: words.length === 0 ? null : { words, type: 'video', keep: 'video' }, ...filters };
   // A creator is something to look for, with no words at all.
   const empty = words.length === 0 && authors.length === 0;
   if (preset === 'video') return { words, preset, site: { videos: anywhere, songs: false }, ask: empty ? null : { words, type: 'video', keep: 'video' }, ...filters };
@@ -134,14 +143,17 @@ export function queueSearchPlan(bar: string): QueueSearchPlan {
 
 /**
  * A filter key pressed: the bar with that filter set (or taken out, for ALL and the defaults), its words untouched,
- * and any filter the queue does not read (`type:image`, `in:kino`) tidied away. The bar stays the one truth, as on the
- * archive page. `type:` goes first, where a blank screen's key puts it.
+ * and any filter the queue does not read (`type:image`, `in:podcast`) tidied away. The bar stays the one truth, as on the
+ * archive page. `type:` goes first, where a blank screen's key puts it. IMDB's lookup has no TYPE: pressing IMDB drops
+ * the TYPE, and pressing a TYPE leaves the lookup for a search of what a room can play.
  */
 export function withQueueFilter(bar: string, key: FilterKey, value: string): string {
   const { preset, rest } = takePreset(bar);
-  const chosen = key === 'type' ? (QUEUE_TYPES.find((option) => option.value === value && option.value !== 'all')?.value as BlankKey | undefined) ?? null : preset;
   const typed = parseWebSearch(key === 'type' ? rest : withFilter(rest, key, value));
-  const others = formatWebSearch({ ...typed, type: 'all', source: isQueueSource(typed.source) ? typed.source : 'all' });
+  const lookup = typed.source === QUEUE_LOOKUP_SOURCE && key !== 'type';
+  const typeKey = key === 'type' ? (QUEUE_TYPES.find((option) => option.value === value && option.value !== 'all')?.value as BlankKey | undefined) ?? null : preset;
+  const chosen = lookup ? null : typeKey;
+  const others = formatWebSearch({ ...typed, type: 'all', source: isQueueSource(typed.source) || lookup ? typed.source : 'all' });
   return [chosen === null ? '' : `type:${chosen}`, others].filter((part) => part.length > 0).join(' ');
 }
 

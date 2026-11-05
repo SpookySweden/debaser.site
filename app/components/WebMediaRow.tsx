@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useRef, useState, type ReactNode } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
@@ -8,7 +8,7 @@ import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media
 import { seasonsLine } from '../lib/web/kino';
 import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../lib/web/media-titles';
 import { rowAddresses } from '../lib/web/row-addresses';
-import { PLATFORM_LABELS } from '../lib/web/types';
+import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
@@ -331,9 +331,10 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
 
 /**
  * One KINO title (kino.ts): TMDB's details, with no player. A show lists its seasons with their episode counts. A
- * title a media server holds is drawn by `WebMediaRow` instead (its row replaces this one, live-merge.ts).
+ * title a media server holds is drawn by `WebMediaRow` instead (its row replaces this one, live-merge.ts). A stream
+ * room's IMDB lookup never reads the servers, so it cannot say none has it: `action` takes that line's place.
  */
-export function KinoRow({ item, titleId }: { item: WebStreamItem & { media: MediaInfo }; titleId: string }) {
+export function KinoRow({ item, titleId, action }: { item: WebItem & { media: MediaInfo }; titleId: string; action?: ReactNode }) {
   const [thumbFailed, setThumbFailed] = useState(false);
   const details = item.media.details;
   const addresses = rowAddresses(item);
@@ -394,7 +395,7 @@ export function KinoRow({ item, titleId }: { item: WebStreamItem & { media: Medi
         </div>
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>
+        {action ?? <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>}
         {addresses.link ? (
           <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
             [ ON TMDB ↗ ]
@@ -406,7 +407,7 @@ export function KinoRow({ item, titleId }: { item: WebStreamItem & { media: Medi
 }
 
 /** Whether a row is a KINO title: TMDB's details, held by no media server (and so drawn by `KinoRow`). */
-export function isKinoRow(item: WebStreamItem): item is WebStreamItem & { media: MediaInfo } {
+export function isKinoRow<T extends WebItem>(item: T): item is T & { media: MediaInfo } {
   return item.media !== undefined && item.media.copies.length === 0;
 }
 

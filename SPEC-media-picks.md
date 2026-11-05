@@ -29,6 +29,23 @@
   teach that visit's order. The token is used for one request from the person's own browser, and stored by neither us
   nor the server; the answer is kept in their browser for a week.
 
+## What the tagging costs (Luke's cost plan, 2026-11-05)
+Prices from the Claude API notes: Haiku 5.5 is $0.10 in, $0.50 out per million tokens, half that in a batch.
+- **Stripped input:** already so. Only the title, creator, tags and a description cut to 600 characters go out. We never
+  fetch or parse HTML pages for this (CLAUDE.md), so no BeautifulSoup or Playwright step.
+- **Batches at half price:** already so.
+- **Haiku unless a real job needs more:** already so. Nothing here needs Sonnet, so no second layer until a job does.
+- **Prompt caching: left out on purpose.** Haiku 5.5 only caches a shared prompt of 512 tokens or more, and ours is about
+  100, so a cache marker would do nothing. Padding it to qualify saves a fraction of a cent a batch, and hits in a batch
+  are best-effort. Look again if the shared prompt ever passes 512 tokens.
+- **Measured, not guessed:** each run's answer has `inputTokens` and `outputTokens` for the batch it collected.
+- **The ceiling:** at most 200 items every three hours.
+
+## The IMDB key in STREAM (Luke, 2026-11-05)
+The room's queue search has the same `[ IMDB ]` key, centred above SOURCE. It lists TMDB's films and shows with their
+posters and details. A room cannot play these, so a title has `[ FIND TO PLAY ]`, which searches its name among what a
+room can play, rather than an ADD. Each viewer's own search: nothing is shown to the room or saved.
+
 ## Luke's steps (Claude can't do these; they involve his keys)
 1. **Claude key:** Vercel, Project Settings, Environment Variables, `ANTHROPIC_API_KEY`, Production. Use a newly made key,
    then redeploy. Without it the job does nothing and the page sorts on the platforms' own tags.

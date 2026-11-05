@@ -111,12 +111,18 @@ export function cleanWords(text: string): string[] | null {
   return clean.length > 0 ? clean : null;
 }
 
-export type TaggingResult = { collected: number; sent: number; waiting: number };
+/**
+ * `inputTokens` and `outputTokens`: what the batch collected this run was billed for, so what tagging really costs can be
+ * read from the cron's saved answers instead of estimated. Only token counts; nothing of any item.
+ */
+export type TaggingResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number };
 
 /** One run: collect what has finished, then send the next items, unless a batch is still out. */
 export async function runTagging(client: Pick<Anthropic, 'messages'>, store: TaggingStore, limit = BATCH_SIZE): Promise<TaggingResult> {
   let collected = 0;
   let waiting = 0;
+  let inputTokens = 0;
+  let outputTokens = 0;
 
   for (const batchId of await store.pending()) {
     const batch = await client.messages.batches.retrieve(batchId);
@@ -127,6 +133,10 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
     const idFor = new Map((await store.outIn(batchId)).map((id) => [customIdFor(id), id]));
     const rows: { id: string; words: string[] }[] = [];
     for await (const result of await client.messages.batches.results(batchId)) {
+      if (result.result.type === 'succeeded') {
+        inputTokens += result.result.message.usage.input_tokens;
+        outputTokens += result.result.message.usage.output_tokens;
+      }
       if (result.result.type !== 'succeeded' || result.result.message.stop_reason === 'refusal') continue;
       const text = result.result.message.content.find((block) => block.type === 'text');
       const words = text?.type === 'text' ? cleanWords(text.text) : null;
@@ -140,10 +150,10 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
   }
 
   // One batch out at a time, so a stuck one cannot pile up cost.
-  if (waiting > 0) return { collected, sent: 0, waiting };
+  if (waiting > 0) return { collected, sent: 0, waiting, inputTokens, outputTokens };
 
   const items = await store.untagged(limit);
-  if (items.length === 0) return { collected, sent: 0, waiting: 0 };
+  if (items.length === 0) return { collected, sent: 0, waiting: 0, inputTokens, outputTokens };
   const batch = await client.messages.batches.create({ requests: items.map(requestFor) });
   const ids = items.map((item) => item.id);
   try {
@@ -153,7 +163,7 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
     await client.messages.batches.cancel(batch.id).catch(() => undefined);
     throw error;
   }
-  return { collected, sent: items.length, waiting: 1 };
+  return { collected, sent: items.length, waiting: 1, inputTokens, outputTokens };
 }
 
 /** The store, through the lock-checking database functions (20261104120000_web_item_tags.sql): no server key needed. */

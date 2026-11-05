@@ -11,7 +11,7 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
-import { keepsKind, QUEUE_SOURCES, queueSearchPlan } from '../lib/watch/blank-screen';
+import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, queueSearchPlan } from '../lib/watch/blank-screen';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   additionUnits,
@@ -50,6 +50,7 @@ import { listLinks, playedSinceCleared, storedListItems, storedListName } from '
 import type { Playlist } from '../lib/audio/library';
 import { isBarAudioPlatform, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem, webTrackNow } from '../lib/web/web-track-lookup';
+import { isKinoRow, KinoRow } from './WebMediaRow';
 import ArtMark from './ArtMark';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -483,11 +484,14 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
         order: searchOrder(plan.sort),
       });
       if (run !== searchRun.current) return;
+      const lookingUp = plan.source === QUEUE_LOOKUP_SOURCE;
       // A source a room cannot play from is still asked in an ALL search; its rows are never listed, so nor is its line.
-      const problems = page.problems.filter((line) => QUEUE_SOURCES.some((option) => option.value === line.platform));
-      // Videos a room can play, and audio the music bar streams from its platform (a song row).
+      const problems = page.problems.filter((line) => lookingUp || QUEUE_SOURCES.some((option) => option.value === line.platform));
+      // Videos a room can play, and audio the music bar streams from its platform (a song row). IMDB's films and shows
+      // play nowhere and are listed anyway: they are looked up, not added.
       const web = page.items.filter((item) => {
         if (!keepsKind(ask.keep, item.kind)) return false;
+        if (lookingUp) return true;
         if (playsInBar(item)) return true;
         const link = watchLinkForItem(item);
         return link !== null && isQueueableWebLink(link);
@@ -519,9 +523,13 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   function pickFilter(next: string) {
     type(next);
     void find(next);
-    // A source with nothing typed has nothing to search yet: the caret goes where the words go.
+    // A source with nothing typed has nothing to search yet: the caret goes where the words go, after a space, so what
+    // is typed next is not read as part of the filter (`in:kinoalien`).
     const plan = queueSearchPlan(next);
-    if (plan.ask === null && !plan.site.videos && !plan.site.songs) searchBar.current?.focus();
+    if (plan.ask === null && !plan.site.videos && !plan.site.songs) {
+      type(`${next} `);
+      searchBar.current?.focus();
+    }
   }
 
   // A blank screen's key opened the window with its search filled in: it runs once, as if it had been typed.
@@ -982,6 +990,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   onAddSeries={(item, links, straight) => void addSeriesResult(item, links, straight)}
                   onAddSong={(track, straight) => void addSong(track, straight)}
                   onMore={(words, cursor) => void find(words, cursor)}
+                  onFindToPlay={pickFilter}
                   onBack={backToAdditions}
                 />
               ) : rights.sees === 'people' ? (
@@ -1362,6 +1371,7 @@ function Results({
   onAddSeries,
   onAddSong,
   onMore,
+  onFindToPlay,
   onBack,
 }: {
   search: Exclude<Search, { kind: 'none' }>;
@@ -1374,6 +1384,8 @@ function Results({
   /** One of the site's own songs. */
   onAddSong: (track: AudioTrack, straight: boolean) => void;
   onMore: (words: string, cursor: string) => void;
+  /** An IMDB title's key: its name searched for among what a room can play. */
+  onFindToPlay: (title: string) => void;
   onBack: () => void;
 }) {
   const added = (key: string) => (justAdded !== null && justAdded.key === key ? justAdded.words : null);
@@ -1418,16 +1430,29 @@ function Results({
               <AddKey crowned={crowned} added={added(`song:${track.src}`)} onAdd={(straight) => onAddSong(track, straight)} label={track.title} />
             </li>
           ))}
-          {search.web.map((item) => (
-            <WebResult
-              key={item.id}
-              item={item}
-              crowned={crowned}
-              added={added(`web:${item.id}`)}
-              onAdd={(straight) => onAddWeb(item, straight)}
-              onAddSeries={(links, straight) => onAddSeries(item, links, straight)}
-            />
-          ))}
+          {search.web.map((item) =>
+            isKinoRow(item) ? (
+              <KinoRow
+                key={item.id}
+                item={item}
+                titleId={`queue-title-${item.externalId}`}
+                action={
+                  <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find>
+                    [ FIND TO PLAY ]
+                  </button>
+                }
+              />
+            ) : (
+              <WebResult
+                key={item.id}
+                item={item}
+                crowned={crowned}
+                added={added(`web:${item.id}`)}
+                onAdd={(straight) => onAddWeb(item, straight)}
+                onAddSeries={(links, straight) => onAddSeries(item, links, straight)}
+              />
+            ),
+          )}
         </ul>
       )}
       {search.kind === 'found' && search.problems.length > 0 ? (

@@ -6,7 +6,7 @@ import { makeTaggingStore, runTagging } from '../../../lib/web/tagging';
  * Claude's words for MEDIA's saved items (lib/web/tagging.ts). Called every three hours by pg_cron + pg_net with the same lock
  * as the ingest (20261031190000_web_ingest_lock.sql): the database made it and keeps it in Vault.
  *
- *   POST /api/web/tag   header  x-web-ingest-secret: <the lock>   ->  { collected, sent, waiting }
+ *   POST /api/web/tag   header  x-web-ingest-secret: <the lock>   ->  { collected, sent, waiting, inputTokens, outputTokens }
  *
  * ANTHROPIC_API_KEY is a server-only setting in Vercel. Without it the route does nothing and says so, so the page still
  * orders its list by the platforms' own tags. The key never reaches an answer.
