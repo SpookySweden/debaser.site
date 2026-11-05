@@ -214,6 +214,40 @@ async function mediaRun(page) {
   await paneScroll(page, place);
   await sleep(200);
 
+  // Scrolling up past the point where the video goes back in its box (Luke, 2026-11-05: it stuck there, pushed back each
+  // time). The wheel, then the keyboard, then the wheel with the pointer on the float.
+  const scrollsThrough = async (what, step) => {
+    await paneScroll(page, place + 1400);
+    await untilState(page, 'floating', `${what}: scrolled past`);
+    const seen = [await paneTop(page)];
+    for (let i = 0; i < 28; i += 1) {
+      await step();
+      await sleep(80);
+      seen.push(await paneTop(page));
+    }
+    const backwards = seen.filter((value, i) => i > 0 && value > seen[i - 1] + 2);
+    assert.deepEqual(backwards, [], `${what}: it never jumps back: ${seen.join(' ')}`);
+    assert.ok(seen.at(-1) < seen[0] - 800, `${what}: it gets up the page: ${seen.join(' ')}`);
+    pass(`${what}: scrolling up runs straight through (${seen[0]}px to ${seen.at(-1)}px)`);
+  };
+  await page.mouse.move(overBox.x + 120, 500);
+  await scrollsThrough('the wheel on the page', () => page.mouse.wheel(0, -100));
+  await stillTheSame(page, 'scrolling up');
+  await page.mouse.click(overBox.x + 120, 500);
+  await scrollsThrough('the keyboard', () => page.keyboard.press('PageUp').then(() => sleep(250)));
+  await paneScroll(page, place + 1400);
+  await untilState(page, 'floating', 'for the wheel on the float');
+  await sleep(100);
+  const floatAt = (await layerState(page)).rect;
+  const beforeFloatWheel = await paneTop(page);
+  await page.mouse.move(floatAt.x + floatAt.w / 2, floatAt.y + floatAt.h / 2);
+  await page.mouse.wheel(0, -100);
+  await sleep(400);
+  assert.ok((await paneTop(page)) < beforeFloatWheel, 'the wheel on the float scrolls the page');
+  pass('the wheel on the float scrolls the page');
+  await paneScroll(page, place);
+  await untilState(page, 'in-box', 'after scrolling up');
+
   // PIP.
   const pip = page.getByRole('button', { name: /^PIP:/ });
   await pip.click();

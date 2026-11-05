@@ -48,14 +48,17 @@ pip seamlessly."
 - **Resuming** works for the site's own files, YouTube and Vimeo. YouTube's and Vimeo's time comes from messages to their
   frame (`app/lib/web/embed-time.ts`), not their scripts, so nothing of theirs runs in our page. Internet Archive, PeerTube and
   media servers can't say, so they start again from the top. Places last for the visit, in memory, and go on a full reload.
-- **The wheel over a video** still scrolls the page: the layer is outside every pane, so the player sits in a small scrolling
-  room of its own and hands what lands there to the row's pane (`passScrollToPane`).
+- **The wheel over a video or the float** still scrolls the page: the layer is outside every pane, so the player sits in a
+  small scrolling room of its own and hands what lands there to the page's pane (`passScrollToPane`). That room must never move
+  by itself, or the page gets scrolled: its anchoring is off and it re-centres at each switch between box and float.
 - **A book's reader** (kind `text`) and anything else not video or audio keeps its frame in its row and doesn't float.
 - **FILES:** opening a fold no longer loads the player; it has its own `[ ▶ PLAY ]`, so reading a file's details never replaces
   the video playing. A catalogue search isn't in the address, so a video started from one floats until the search is typed again.
 
 ## Part 3, held: `[ WATCH IN ROOM ]`
 Luke chose to build privacy first, so don't add this key until the privacy plan's private stream phases (2 and 3) are live.
+Today's `[ WATCH ]` key on a video reads `[ ADD TO ROOM ]` since 2026-11-05 (Luke; `WebWatchKey`), and does what it did. Where
+this part says `[ WATCH ]`, it means that key.
 - It replaces today's `[ WATCH ]` and `[ ▶ STREAM ]` go-live route on every video, from wherever it's being watched.
 - One press opens the room settings menu (`RoomSettingsWindow.tsx`): name, topic, who can add, and WHO CAN JOIN from the
   plan, with PRIVATE already picked. A second press starts the room, so a stray press never posts a thread.

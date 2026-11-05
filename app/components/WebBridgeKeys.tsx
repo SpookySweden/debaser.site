@@ -19,7 +19,7 @@ import { useForum } from './ForumProvider';
  * The two bridges on a /web row (SPEC-web.md, Phase 5).
  *
  * DISCUSS opens the item's own comment window, exactly as a track or a concept sheet does: the first
- * comment files the thread (one per item, by anchor), later ones answer it. WATCH puts the item in the
+ * comment files the thread (one per item, by anchor), later ones answer it. ADD TO ROOM (WATCH until Luke renamed it, 2026-11-05) puts the item in the
  * stream room the reader hosts, as the platform's own player: one press opens the panel, a second
  * commits, as everything started from the board does.
  */
@@ -52,7 +52,7 @@ export function WebDiscussKey({ item, onOpen }: { item: WebItem; onOpen?: () => 
   );
 }
 
-/** Whether a row offers WATCH at all: video or audio, on a platform with a fitting player. */
+/** Whether a row offers ADD TO ROOM at all: video or audio, on a platform with a fitting player. */
 export function canWatch(item: WebItem): boolean {
   const link = watchLinkForItem(item);
   return link !== null && isQueueableWebLink(link);
@@ -64,10 +64,10 @@ export function WebWatchKey({ item, open, onToggle }: { item: WebItem; open: boo
       type="button"
       onClick={onToggle}
       aria-expanded={open}
-      aria-label={open ? `Close the stream room panel for "${item.title}"` : `Watch "${item.title}" in your stream room`}
+      aria-label={open ? `Close the add to room panel for "${item.title}"` : `Add "${item.title}" to your stream room`}
       className={open ? PLATE_PRESSED : PLATE}
     >
-      {open ? '[ ■ WATCH ]' : '[ WATCH ]'}
+      {open ? '[ ■ ADD TO ROOM ]' : '[ ADD TO ROOM ]'}
     </button>
   );
 }

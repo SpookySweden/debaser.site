@@ -207,6 +207,12 @@ ok(!/\{floating \? <(iframe|video)/.test(layer) && !/createPortal/.test(layer), 
 ok(/\[ BACK \]/.test(layer) && /\[ × \]/.test(layer) && /\[ POP OUT \]/.test(layer), 'the float\'s keys');
 ok(/player\.kind === 'file' && document\.pictureInPictureEnabled/.test(layer), 'POP OUT is offered only for our own files');
 ok(/sticky top-0/.test(layer) && /passScrollToPane/.test(layer) && /pane\.scrollTop \+= moved/.test(layer), 'the wheel over a video in its row still scrolls the page');
+// Luke, 2026-11-05: scrolling up stuck where the video goes back in its box. The video's size change moved the wheel room,
+// which reached the page as a scroll and flipped it back. scripts/drive-floating-player.cjs proves the real behaviour.
+ok(/\[overflow-anchor:none\]/.test(layer), 'the wheel room is never moved by the browser\'s scroll anchoring');
+ok(/if \(floats !== wasFloating\) \{[\s\S]*?scrollTop = ROOM_MIDDLE;[\s\S]*?roomSeen\.current = ROOM_MIDDLE;/.test(layer), 'and is back in the middle at every switch, so a switch never reaches the page as a scroll');
+ok(/const moved = room\.scrollTop - roomSeen\.current;/.test(layer) && /setTimeout\(\(\) => \{\s*room\.scrollTop = ROOM_MIDDLE;/.test(layer), 'it goes back only once scrolling stops, so a real wheel\'s glide is not cut short');
+ok(/overflow-y-scroll \[overflow-anchor:none\]/.test(layer) && !/overflow-hidden/.test(layer), 'the wheel works over the float too');
 ok(/playCount\(\) !== playsBefore/.test(read('app/components/WebMediaRow.tsx')), 'a slow server\'s answer never replaces a newer PLAY');
 const app = read('app/layout.tsx');
 ok(/<FloatingPlayer \/>/.test(app) && /<SiteHistoryKeeper \/>/.test(app), 'both are drawn once, above every page');

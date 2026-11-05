@@ -931,15 +931,17 @@ test('WebBridgeKeys: DISCUSS counts the item\'s own thread and opens a window fi
   assert.ok(html.includes(`data-comments="${anchor.id}"`));
   assert.ok(html.includes(`data-comments-label="${anchor.label}"`));
 });
-test('WebBridgeKeys: WATCH is offered for a video on a platform with a player, never for a picture, and shows when it is open', () => {
+// Renamed on purpose 2026-11-05 (Luke): the key reads ADD TO ROOM, which is what it does.
+test('WebBridgeKeys: ADD TO ROOM is offered for a video on a platform with a player, never for a picture, and shows when it is open', () => {
   assert.equal(canWatch(VIDEO), true);
   assert.equal(canWatch(PICTURE), false);
   assert.equal(canWatch(FILM), false, 'a media server plays on its own row only');
   const shut = draw(el(WebWatchKey, { item: VIDEO, open: false, onToggle: () => say('toggled') }));
-  assert.match(openingTag(shut, '[ WATCH ]'), /aria-expanded="false"/);
-  press('[ WATCH ]');
+  assert.match(openingTag(shut, '[ ADD TO ROOM ]'), /aria-expanded="false"/);
+  assert.match(openingTag(shut, '[ ADD TO ROOM ]'), /aria-label="Add &quot;/);
+  press('[ ADD TO ROOM ]');
   assert.deepEqual(said('toggled'), [['toggled']]);
-  assert.match(openingTag(draw(el(WebWatchKey, { item: VIDEO, open: true, onToggle: () => undefined })), '[ ■ WATCH ]'), /aria-expanded="true"/);
+  assert.match(openingTag(draw(el(WebWatchKey, { item: VIDEO, open: true, onToggle: () => undefined })), '[ ■ ADD TO ROOM ]'), /aria-expanded="true"/);
 });
 test('WebBridgeKeys: the panel sends a visitor to sign in, and anybody without a room of theirs to CYTUBE', () => {
   auth = { status: 'signed-out', user: null };
@@ -1230,7 +1232,7 @@ test('WebStream: a row names its source, its words as text, and links only where
   const also = { ...VIDEO, id: 'vimeo:123', platform: 'vimeo', externalId: '123', url: 'https://vimeo.com/123', title: 'A Train Film' };
   const html = draw(el(WebStream), arrived([{ ...VIDEO, alsoOn: [also] }]));
   const words = visible(html);
-  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', 'YOUTUBE', '[ OPEN ↗ ]', '[ ▶ PLAY ]', '[ DISCUSS ]', '[ WATCH ]', 'ALSO ON', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', 'YOUTUBE', '[ OPEN ↗ ]', '[ ▶ PLAY ]', '[ DISCUSS ]', '[ ADD TO ROOM ]', 'ALSO ON', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OPEN ↗ ]'), new RegExp(`href="https://youtu\\.be/${YT_ID}"`));
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));
   assert.ok(html.includes('&lt;b&gt;not markup&lt;/b&gt;') && !html.includes('<b>not markup'));

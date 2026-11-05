@@ -45,9 +45,18 @@ import { GRIPS } from './DockWindow';
 /**
  * The wheel over a video in its row. In the page, a frame's unused scrolling passes to the pane around it. This layer is
  * outside every pane, so the player sits in a little scrolling room of its own, held still by `sticky`: its scrolling
- * lands there, is handed to the row's pane, and the room goes back to the middle.
+ * lands there and is handed to the page's pane. Over the float too, so a float in the way never stops the page scrolling.
+ * The room goes back to the middle only once the scrolling has stopped: setting a scroll position cuts short the glide of
+ * a real mouse wheel, which a simulated wheel doesn't show.
+ *
+ * The room must never move by itself: anything that moved it would reach the page as if the reader had scrolled. The
+ * video changes size as it goes between its box and the corner, and the browser's scroll anchoring moved the room to
+ * match, which pushed the page back and flipped the video again, so scrolling up stuck at that spot (Luke, 2026-11-05).
+ * So anchoring is off (`[overflow-anchor:none]`), and the room goes back to the middle at every switch.
  */
-const SPARE_SCROLL = 4000;
+const SPARE_SCROLL = 40000;
+const ROOM_MIDDLE = SPARE_SCROLL / 2;
+const ROOM_REST_MS = 200;
 
 /** Where the reader last left the float, for this visit. Null: the corner. */
 let placed: FloatRect | null = null;
@@ -82,6 +91,9 @@ export default function FloatingPlayer() {
   const video = useRef<HTMLVideoElement>(null);
   const frame = useRef<HTMLIFrameElement>(null);
   const wheelRoom = useRef<HTMLDivElement>(null);
+  /** Where the room was last seen, so only what really moved is handed on. */
+  const roomSeen = useRef(ROOM_MIDDLE);
+  const roomRest = useRef(0);
   const router = useRouter();
   const playKey = entry === null ? null : `${entry.id}:${entry.play}`;
 
@@ -91,6 +103,7 @@ export default function FloatingPlayer() {
     if (element === null || entry === null) return;
     let panes: { box: HTMLElement; list: HTMLElement[] } | null = null;
     let raf = 0;
+    let wasFloating: boolean | null = null;
     const place = () => {
       const box = boxOf(entry.id);
       const asked = floatingState().asked;
@@ -122,14 +135,17 @@ export default function FloatingPlayer() {
         const cut = [part.top - boxRect.top, boxRect.right - part.right, boxRect.bottom - part.bottom, part.left - boxRect.left];
         style.clipPath = cut.every((side) => side <= 0) ? 'none' : `inset(${cut.map((side) => `${Math.max(0, side)}px`).join(' ')})`;
       }
+      if (floats !== wasFloating) {
+        wasFloating = floats;
+        if (wheelRoom.current !== null) wheelRoom.current.scrollTop = ROOM_MIDDLE;
+        roomSeen.current = ROOM_MIDDLE;
+      }
     };
     const tick = () => {
       place();
       raf = window.requestAnimationFrame(tick);
     };
     tick();
-    // After the first placing: until the layer has its size, the room is as tall as what is in it, with nowhere to scroll.
-    if (wheelRoom.current !== null) wheelRoom.current.scrollTop = SPARE_SCROLL / 2;
     return () => window.cancelAnimationFrame(raf);
     // `entry` changes only with a new PLAY; a re-render for floating or asked must not restart anything.
   }, [playKey]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -162,13 +178,20 @@ export default function FloatingPlayer() {
   const passScrollToPane = () => {
     const room = wheelRoom.current;
     if (room === null || entry === null) return;
-    const moved = room.scrollTop - SPARE_SCROLL / 2;
+    const moved = room.scrollTop - roomSeen.current;
     if (moved === 0) return;
-    room.scrollTop = SPARE_SCROLL / 2;
+    roomSeen.current = room.scrollTop;
+    window.clearTimeout(roomRest.current);
+    roomRest.current = window.setTimeout(() => {
+      room.scrollTop = ROOM_MIDDLE;
+      roomSeen.current = ROOM_MIDDLE;
+    }, ROOM_REST_MS);
     const box = boxOf(entry.id);
-    if (box === undefined || floatingState().floating) return;
-    const pane = clippingPanes(box).find((candidate) => ['auto', 'scroll'].includes(window.getComputedStyle(candidate).overflowY));
-    if (pane !== undefined) pane.scrollTop += moved;
+    const pane =
+      box === undefined || floatingState().floating
+        ? document.querySelector('main [data-scroll-pane="page"]')
+        : clippingPanes(box).find((candidate) => ['auto', 'scroll'].includes(window.getComputedStyle(candidate).overflowY));
+    if (pane !== undefined && pane !== null) pane.scrollTop += moved;
   };
 
   const goBack = useCallback(() => {
@@ -233,7 +256,7 @@ export default function FloatingPlayer() {
         onScroll={passScrollToPane}
         tabIndex={-1}
         data-floating-wheel
-        className={`relative min-h-0 flex-1 [scrollbar-width:none] ${floating ? 'overflow-hidden' : 'overflow-y-scroll'}`}
+        className="relative min-h-0 flex-1 overflow-y-scroll [overflow-anchor:none] [scrollbar-width:none]"
       >
         <div className="sticky top-0 h-full w-full">
         {player.kind === 'frame' ? (
