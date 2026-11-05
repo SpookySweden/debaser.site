@@ -130,6 +130,11 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
     assert.equal(result.stopped, 'spending limit', `at ${spent}`);
     assert.deepEqual(stopped.log.created, [], `nothing goes out at ${spent}`);
   }
+  const atLimit = fake({ words, spent: 60 });
+  let readAtLimit = false;
+  atLimit.store.waiting = async () => ((readAtLimit = true), []);
+  assert.equal((await pass.runWordPass(atLimit.client, atLimit.store)).stopped, 'spending limit');
+  assert.equal(readAtLimit, false, 'at the limit nothing is even read');
   const room = pass.worstCaseForWords(words.slice(0, 100), []);
   const edge = fake({ words, spent: 60 - 0.5 - room * 1.5 });
   const edgeResult = await pass.runWordPass(edge.client, edge.store);
