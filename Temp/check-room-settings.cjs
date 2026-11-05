@@ -37,6 +37,27 @@ const room = { hostId: 'host', endedAt: null, addMode: 'anyone' };
   assert.equal(queueRights(shut, [], 'host', true).add, true, 'nor the host');
   assert.equal(queueRights(shut, crowns, 'viewer', true).sees, 'mine', 'a viewer still sees what they added before');
 
+  // 3b. Who can be crowned (Luke, 2026-11-05: a crown only showed on his own name): a queue window opened outside the room has
+  // no room presence, so the site-wide channel says who is there. Each person once, and nobody counted twice.
+  {
+    const read = { room: { hostId: 'host' }, queue: [], crowns: [] };
+    const ids = (list) => list.map((person) => person.userId);
+    assert.deepEqual(ids(rules.additionsPeople(read, [])), ['host'], 'with nobody known, only the host, which was the bug');
+    const seen = rules.additionsPeople(read, [], ['ada', 'host', 'bob']);
+    assert.deepEqual(ids(seen), ['host', 'ada', 'bob'], 'everybody the site-wide channel has in the room');
+    assert.ok(seen.every((person) => person.present), 'and they count as here');
+    const member = { key: 'k', userId: 'ada', name: 'ADA', joinedAt: 1 };
+    assert.deepEqual(rules.additionsPeople(read, [member], ['ada']).map((person) => [person.userId, person.name]), [['host', ''], ['ada', 'ADA']], "the room's own presence keeps the name, once");
+    const queueFile = fs.readFileSync('app/components/StreamQueueWindow.tsx', 'utf8');
+    assert.match(queueFile, /additionsPeople\(read, members, watchingHere\)/, 'the window asks both');
+    assert.match(queueFile, /<Crown held=\{person\.crowned\}[^\n]*\n\s*<ProfileAvatarLink author=\{author\}/, "each person's picture sits by their crown");
+    assert.match(queueFile, /data-person-status/, 'with their status line');
+    assert.doesNotMatch(queueFile, /<ProfileName author=\{author\} lamp=\{false\}/, 'and the lamp that says they are around');
+    const watching = fs.readFileSync('app/lib/watch/use-watching.ts', 'utf8');
+    assert.match(watching, /export function useWatchingIn/, 'the hook');
+    assert.doesNotMatch(queueFile, /joinRoom\(/, 'a look from outside never joins the room');
+  }
+
   // 4. The mock store does what the database does.
   const repo = getMockWatchRepository();
   const opened = await repo.openRoom({ id: 'room-settings-1', host: { id: 'host', label: 'HOST' }, mediaItemId: null });

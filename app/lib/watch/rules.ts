@@ -380,9 +380,10 @@ export type AdditionsPerson = {
  * Who the right half lists for the host and the crowned: everybody in the room now, and anybody with an
  * addition waiting or a crown even after leaving, so anybody present can be crowned and any crown taken off.
  * The host first, then the room in the order people came in, then those who have left, by when their first
- * waiting addition or their crown arrived.
+ * waiting addition or their crown arrived. `alsoHere`: accounts the site-wide channel says are in the room, for a window
+ * opened outside it, which has no room presence and would otherwise list only its host (Luke, 2026-11-05).
  */
-export function additionsPeople(read: Pick<WatchRoomRead, 'room' | 'queue' | 'crowns'>, members: WatchMember[]): AdditionsPerson[] {
+export function additionsPeople(read: Pick<WatchRoomRead, 'room' | 'queue' | 'crowns'>, members: WatchMember[], alsoHere: readonly string[] = []): AdditionsPerson[] {
   const waiting = waitingAdditions(read.queue);
   const people = new Map<string, AdditionsPerson>();
   const list = (userId: string, name: string, present: boolean) => {
@@ -399,8 +400,9 @@ export function additionsPeople(read: Pick<WatchRoomRead, 'room' | 'queue' | 'cr
 
   const here = accountsPresent(members);
   const host = here.find((member) => member.userId === read.room.hostId);
-  list(read.room.hostId, host?.name ?? '', host !== undefined);
+  list(read.room.hostId, host?.name ?? '', host !== undefined || alsoHere.includes(read.room.hostId));
   for (const member of here) if (member.userId !== null) list(member.userId, member.name, true);
+  for (const userId of alsoHere) list(userId, '', true);
 
   const since = new Map<string, string>();
   for (const entry of waiting) if (entry.addedBy !== null && !since.has(entry.addedBy)) since.set(entry.addedBy, entry.addedAt);

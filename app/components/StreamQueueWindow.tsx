@@ -7,6 +7,7 @@ import { lookClass, type LookId } from '../lib/cytube/looks';
 import { useCatalogue } from '../lib/media/catalogue';
 import type { MediaItem } from '../lib/media/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { useWatchingIn } from '../lib/watch/use-watching';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
@@ -57,6 +58,7 @@ import { useMusicPlayer } from './MusicPlayerProvider';
 import InfoFold from './InfoFold';
 import { EntryLanguageFlags, EpisodeLanguageFlag, SeriesLanguageFlags, WithSeriesAudio } from './QueueLanguageFlags';
 import PopoutWindow from './PopoutWindow';
+import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 import QueueSearchFilters from './QueueSearchFilters';
 import SpriteSlot from './SpriteSlot';
@@ -174,6 +176,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
   const catalogue = useCatalogue();
   const roomId = read.room.id;
   const rights = queueRights(read.room, read.crowns, userId, live);
+  const watchingHere = useWatchingIn(read.room.id);
   // Since the last STORE AND START BLANK (SPEC-music-queues.md); a room never cleared shows every play.
   const played = playedSinceCleared(read);
   const waiting = upcoming(read.queue);
@@ -1010,7 +1013,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                     </InfoFold>
                   </div>
                   <ul className="md:max-h-[60vh] md:overflow-y-auto" aria-label="Everybody's additions" data-watch-additions="people">
-                    {additionsPeople(read, members).map((person) => (
+                    {additionsPeople(read, members, watchingHere).map((person) => (
                       <PersonFold
                         key={person.userId}
                         person={person}
@@ -1298,7 +1301,7 @@ function useShownName(userId: string, name: string): string {
   return profile.displayName.length > 0 ? profile.displayName : ready ? 'SOMEBODY' : '...';
 }
 
-/** One person on the right for the host and the crowned: crown, name in its colour, how many, and their fold. */
+/** One person on the right for the host and the crowned: crown, picture, lamp and name in its colour, how many, their status line, and their fold. */
 function PersonFold({
   person,
   mine,
@@ -1317,13 +1320,18 @@ function PersonFold({
   children: ReactNode;
 }) {
   const name = useShownName(person.userId, person.name);
+  const { profile } = usePublicProfile(person.userId);
+  const status = profile.status.trim();
+  const author = { id: person.userId, displayName: name };
 
   return (
     <li className="rule-pixel py-1" data-person={person.userId} data-crowned={person.crowned ? 'yes' : 'no'}>
       <div className="flex items-center gap-1">
         <Crown held={person.crowned} name={name} mine={mine} canPress={canCrown} onPress={onCrown} />
-        <button type="button" onClick={onToggle} aria-expanded={open} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
-          {open ? '[-]' : '[+]'} <ProfileName author={{ id: person.userId, displayName: name }} lamp={false} /> ({additionUnits(person.additions).length})
+        <ProfileAvatarLink author={author} size={20} showName={false} variant="plain" className="shrink-0" />
+        <button type="button" onClick={onToggle} aria-expanded={open} title={status.length > 0 ? status : undefined} className="min-w-0 flex-1 cursor-pointer truncate text-left hover:underline max-sm:min-h-tap">
+          {open ? '[-]' : '[+]'} <ProfileName author={author} /> ({additionUnits(person.additions).length})
+          {status.length > 0 ? <span className="ml-1 text-ink-quiet" data-person-status>{status}</span> : null}
         </button>
         {person.host ? <span className="shrink-0 bg-acid px-1 font-bold text-ink-plate">HOST</span> : null}
       </div>

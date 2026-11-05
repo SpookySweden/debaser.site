@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useMemo, useSyncExternalStore } from 'react';
 import { getWatchRepository } from './repository';
 import type { WatchingEntry, WatchingMap } from './types';
 
@@ -32,6 +32,28 @@ function subscribe(listener: () => void): () => void {
       snapshot = null;
     }
   };
+}
+
+/**
+ * Everybody the site-wide channel says is in this room. A queue window opened from outside the room (the ROOM tab, QUEUES)
+ * has no room presence of its own, and must not join it just to look, or the looker would count as being there. Read as one
+ * string, so a change elsewhere on the site does not redraw the window.
+ */
+export function useWatchingIn(roomId: string): string[] {
+  const read = useCallback(
+    () =>
+      snapshot === null
+        ? ''
+        : Object.values(snapshot)
+            .filter((entry) => entry.roomId === roomId)
+            .map((entry) => entry.userId)
+            .sort()
+            .join(' '),
+    [roomId],
+  );
+  const ids = useSyncExternalStore(subscribe, read, () => '');
+
+  return useMemo(() => (ids.length === 0 ? [] : ids.split(' ')), [ids]);
 }
 
 /** What this account is watching, or null. */
