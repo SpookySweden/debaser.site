@@ -15,6 +15,9 @@ export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; no
   { key: 'showTags', label: 'TAGS', note: 'TAGS PEOPLE GAVE YOU SHOW ON YOUR PROFILE. EACH TAG ALSO HAS ITS OWN SWITCH.' },
 ];
 
+/** Not a switch, because there's nothing to turn off but the key itself: pressing it is the choice. */
+export const RECOMMEND_NOTE = 'WHEN YOU RECOMMEND SOMETHING ON MEDIA, SIGNED-IN PEOPLE SEE YOUR NAME, PICTURE AND STATUS NEXT TO IT. PRESS IT AGAIN TO TAKE IT BACK.';
+
 /**
  * The switches, in large type, each saved the moment it is pressed (SPEC-privacy-phase-1.md).
  *
@@ -68,6 +71,7 @@ export default function PrivacySwitches({ userId }: { userId: string }) {
       <p className="text-prose">YOU STAY LISTED IN THE DIRECTORY. YOUR COUNTRY FLAG SHOWS ONLY TO PEOPLE WHO ARE SIGNED IN: SET IT IN EDIT PROFILE.</p>
 
       {fault === null ? null : <p className="text-prose font-bold">{fault}</p>}
+      <p className="text-prose text-ink">{RECOMMEND_NOTE}</p>
     </div>
   );
 }

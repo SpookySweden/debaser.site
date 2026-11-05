@@ -188,11 +188,21 @@ export async function runWordPass(client: Pick<Anthropic, 'messages'>, store: Wo
   return { collected, sent: out.length, waiting: 1, inputTokens, outputTokens, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
 }
 
+/**
+ * Which call failed, for the lock's holder in the cron's saved answers: the function's own name, the HTTP status and the database's error code, all of
+ * them fixed words we chose or short codes. Never the database's message.
+ */
+export function databaseFailure(step: string, status: number, code: unknown): Error {
+  const failure = new Error('TAGGING_DATABASE');
+  failure.name = `database ${step} ${status} ${typeof code === 'string' && /^[A-Z0-9]{1,8}$/.test(code) ? code : 'no code'}`;
+  return failure;
+}
+
 /** The store, through the lock-checking database functions (supabase/migrations/*_web_word_facts.sql): no server key needed. */
 export function makeWordStore(db: SupabaseClient, lock: string): WordStore {
   const call = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
-    const { data, error } = await db.rpc(name, { p_secret: lock, ...args });
-    if (error) throw new Error('TAGGING_DATABASE');
+    const { data, error, status } = await db.rpc(name, { p_secret: lock, ...args });
+    if (error) throw databaseFailure(name, status, error.code);
     return data as T;
   };
   return {

@@ -50,6 +50,8 @@ import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useCatalogue } from '../lib/media/catalogue';
 import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import { canRecommend, toggleRecommendation, useMyRecommendations } from '../lib/web/recommendations';
+import WebPickedList from './WebPickedList';
 import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
@@ -223,10 +225,21 @@ function withWords(box: string, words: string): string {
   return formatWebSearch({ ...parseWebSearch(box), text: words });
 }
 
+/** The SORT keys on RECOMMENDED and DISCOVER, read from the box as everywhere (web-sort.ts). */
+function pickSortOf(filters: Parameters<typeof sortOf>[0]): 'best' | 'newest' | 'oldest' | 'popular' {
+  const { sort, dir } = sortOf(filters);
+  return sort === 'popular' ? 'popular' : sort === 'date' ? (dir === 'asc' ? 'oldest' : 'newest') : 'best';
+}
+
 export default function WebStream() {
   const params = useSearchParams();
   /** STREAM ART (SPEC-stream-art.md): the saved room canvases instead of the stream (`?art=1`). Any search leaves it. */
   const [art, setArt] = useState(() => params.get('art') === '1');
+  // RECOMMENDED and DISCOVER (SPEC-discover.md): lists in their own right, blank until the pool is large enough.
+  const [picked, setPicked] = useState<'recommended' | 'discover' | null>(() => {
+    const list = params.get('list');
+    return list === 'recommended' || list === 'discover' ? list : null;
+  });
   /** What is in the field (the one truth for the filters too), and what the list shows. */
   const [draft, setDraft] = useState(() => boxFromAddress(params));
   const [shown, setShown] = useState<Shown>(() => requestFor(boxFromAddress(params)));
@@ -721,7 +734,24 @@ export default function WebStream() {
       <div className="mb-2 space-y-1">
         {/* Luke, 2026-11-04: a way into films and shows above the choices, centred. It is the KINO source, so its
             titles and details are TMDB's; the title says so, since the key's word is IMDB's. */}
-        <div className="flex justify-center">
+        <div className="flex flex-wrap justify-center gap-1">
+          {(['recommended', 'discover'] as const).map((list) => (
+            <button
+              key={list}
+              type="button"
+              aria-pressed={picked === list}
+              onClick={() => {
+                const next = picked === list ? null : list;
+                setPicked(next);
+                setArt(false);
+                window.history.replaceState(window.history.state, '', next === null ? window.location.pathname : `?list=${next}`);
+              }}
+              className={picked === list ? PLATE_PRESSED : PLATE}
+              data-list-key={list}
+            >
+              {picked === list ? list.toUpperCase() : `[ ${list.toUpperCase()} ]`}
+            </button>
+          ))}
           <button
             type="button"
             onClick={() => pickFilter('in', 'kino')}
@@ -827,7 +857,7 @@ export default function WebStream() {
         </div>
       </div>
 
-      {art ? <StreamArtShelf /> : <>
+      {picked !== null && !art ? <WebPickedList list={picked} sort={pickSortOf(boxFilters)} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : art ? <StreamArtShelf /> : <>
       {/* DEBASER.SITE first: the site's own files the search finds. Keyed by the search, so ALL n FILES starts shut. */}
       {shown.kind === 'search' ? <WebSiteFiles key={searchAddress({ ...shown.filters, text: shown.query })} matches={siteFiles} /> : null}
 
@@ -1273,6 +1303,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
+            {canRecommend(item) ? <WebRecommendKey item={item} onOpen={opened} /> : null}
             {canWatch(item) ? (
               <WebWatchKey
                 item={item}
@@ -1307,6 +1338,38 @@ ${item.description}` : item.title)} className="ml-1.5" />
         />
       ) : null}
     </li>
+  );
+}
+
+/**
+ * `[ RECOMMEND ]`: one press, and again to take it back, with no note. It counts towards the reader's own taste (SPEC-discover.md). Saying so plainly
+ * when it's on, in words as well as a filled key.
+ */
+function WebRecommendKey({ item, onOpen }: { item: WebItem; onOpen: () => void }) {
+  const mine = useMyRecommendations();
+  const on = mine.has(item.id);
+  const [fault, setFault] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        aria-pressed={on}
+        aria-label={on ? `Take back your recommendation of "${item.title}"` : `Recommend "${item.title}"`}
+        onClick={() => {
+          setFault(false);
+          if (!on) onOpen();
+          void toggleRecommendation(item).catch(() => setFault(true));
+        }}
+        className={on ? PLATE_PRESSED : PLATE}
+      >
+        {on ? 'RECOMMENDED' : '[ RECOMMEND ]'}
+      </button>
+      {fault ? (
+        <span role="status" className="bg-bubble-pale px-1 text-label text-ink-bar">
+          NOT SAVED. TRY AGAIN.
+        </span>
+      ) : null}
+    </>
   );
 }
 

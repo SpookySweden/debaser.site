@@ -103,6 +103,14 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **Wikipedia and TVmaze words:** they go to Claude and aren't stored or shown; the page's `[ ? ]` credits all three with links.
   CC BY-SA's share-alike may reach the words Claude picks, which is a question for a lawyer rather than something the code can settle.
 
+## What was built for recommending, the filters and presets
+- `web_recommendations` holds only a person, a platform and an id; the row itself comes from the saved stream, because `web_recommend_set` also asks for the item
+  to be saved through `web_request_add`. So it can take up to an hour for a search result's recommendation to show.
+- `[ RECOMMEND ]` isn't on KINO or media-server rows: their text is TMDB's. To plan for: a KINO title matched through Wikidata's TMDB number
+  (`web_pool_items.tmdb_ref`) could be recommended from Wikidata's facts.
+- RECOMMENDED and DISCOVER are keys above SOURCE on MEDIA, `?list=recommended` and `?list=discover`. POPULAR on them means how common an item's words are on this site.
+- Presets: `discover_presets`, the settings being the page's address query, read back through the same checks. The active one is what DISCOVER applies.
+
 ## Rules for building
 - Every database change goes to the main session first in plain English, for Luke's OK. Only the job can write pool tables.
 - Mock and Supabase stores both, with checks that fail before the fix. Whole `npm run checks`, code review, live proof.
