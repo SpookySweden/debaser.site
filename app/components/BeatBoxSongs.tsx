@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SavedSong } from '../features/beatbox';
 import { smallKey } from '../features/beatbox/ui/looks';
 import { getBeatBoxSongRepository } from '../lib/beatbox/repository';
@@ -53,10 +53,12 @@ function OwnSongs({
   const [armed, setArmed] = useState<string | null>(null);
 
   const say = useCallback((text: string) => setMessage(text), []);
+  // A save or delete made while the list is still arriving waits for it, or the old list would land on top of the change.
+  const listArrived = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     let current = true;
-    getBeatBoxSongRepository()
+    listArrived.current = getBeatBoxSongRepository()
       .list(owner)
       .then((list) => {
         if (current) setSongs(list);
@@ -88,7 +90,8 @@ function OwnSongs({
     if (text === null) return;
     try {
       const saved = await getBeatBoxSongRepository().add(me, name, text);
-      setSongs((list) => [saved, ...list]);
+      await listArrived.current;
+      setSongs((list) => [saved, ...list.filter((other) => other.id !== saved.id)]);
       setTitle('');
       say(`Saved: ${saved.title}.`);
     } catch (error) {
@@ -101,6 +104,7 @@ function OwnSongs({
     if (text === null) return;
     try {
       const saved = await getBeatBoxSongRepository().update(me, entry.id, text);
+      await listArrived.current;
       setSongs((list) => [saved, ...list.filter((other) => other.id !== saved.id)]);
       say(`Saved over ${saved.title}.`);
     } catch (error) {
@@ -112,6 +116,7 @@ function OwnSongs({
     setArmed(null);
     try {
       await getBeatBoxSongRepository().remove(me, entry.id);
+      await listArrived.current;
       setSongs((list) => list.filter((other) => other.id !== entry.id));
       say(`Deleted: ${entry.title}.`);
     } catch (error) {
