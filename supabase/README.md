@@ -975,3 +975,23 @@ Reads degrade instead: without the column /web shows the stream ungrouped, and s
 
 It adds one helper function, `web_tags_text` (tags as one line of text, which a generated column needs),
 executable by the service role only. RLS, the policy and the select-only grants are unchanged.
+
+Privacy: profile columns and live channels
+------------------------------------------
+
+The privacy plan, phase 0 (Luke's OK 2026-11-05). `20261105124800_presence_table_and_private_wires.sql` went in first and
+only adds things; `20261105125422_profile_columns_and_authors.sql` went in once the code using them was live.
+
+    profiles            SELECT is granted by column, so a new column is readable by nobody until a migration says so.
+                        A read naming a column the reader lacks fails whole, and `select *` always does.
+                        Nobody reads banned_reason, banned_by or is_hidden through the site; last_seen_at and is_online
+                        are unused leftovers. updated_at, location and country_code are for accounts only.
+    profile_presence    the online stamp, for accounts only. On a table of its own because anybody may listen to row
+                        changes on profiles: a stamp there says who is around even with its columns hidden.
+    account_list()      the directory and name pickers. Test accounts are answered only to test accounts and the house.
+    realtime.messages   site-presence and site-watching: accounts. watch:<room>: while live, signed-out watchers too.
+                        lore:<slug>: anyone listens, accounts send. match:<invite>: its two players.
+                        A private channel and a public one of the same name are separate: a client must ask for `private`.
+
+`Temp/check-visitor-limits.cjs` is the proof, live. A tab left open from before a change like this keeps its old code until
+it is reloaded.
