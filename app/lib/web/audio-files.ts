@@ -5,7 +5,8 @@
  * file route answers with.
  *
  *   Internet Archive  the public metadata API (archive.org/metadata/{id}): the item's audio files, one
- *                     format only (VBR MP3 first), in track order. A LibriVox book is its chapters.
+ *                     format only (VBR MP3 first), in track order. A LibriVox book is its chapters; a one-file
+ *                     audiobook (.m4b) is that one file.
  *   Podcast           the hand-picked feed again (hosts.ts): the episode's own audio enclosure.
  *   Openverse         the public audio API (api.openverse.org/v1/audio/{id}/): the work's file address.
  *
@@ -35,7 +36,14 @@ const MAX_SECONDS = 7 * 24 * 60 * 60;
  * LibriVox book has VBR, 64 kbps and Ogg copies of every chapter), so only the best one present is used,
  * or every chapter would be queued three times.
  */
-const IA_FORMATS = ['VBR MP3', '320Kbps MP3', '256Kbps MP3', '192Kbps MP3', '160Kbps MP3', '128Kbps MP3', 'MP3', '96Kbps MP3', '64Kbps MP3', 'Ogg Vorbis', 'Flac'];
+const IA_FORMATS = ['VBR MP3', '320Kbps MP3', '256Kbps MP3', '192Kbps MP3', '160Kbps MP3', '128Kbps MP3', 'MP3', 'Audiobook', '96Kbps MP3', '64Kbps MP3', 'Ogg Vorbis', 'Flac'];
+
+/**
+ * An item whose audio carries a label not listed above (Luke, 2026-11-05: an .m4b labelled "Audiobook" was refused, and the
+ * Archive has other labels): its uploads are recognised by their file endings, so no item is refused over a word. A browser
+ * that can't play one says so as it plays. Not a sample, and not a copy the Archive made, which would double every chapter.
+ */
+const IA_AUDIO_ENDING = /.(mp3|m4a|m4b|aac|ogg|oga|opus|flac|wav)$/i;
 
 /** An https address the browser may be sent to: no credentials, no odd port, nothing but a plain file URL. */
 function playableUrl(value: unknown): string | null {
@@ -79,10 +87,12 @@ export function parseArchiveMetadata(id: string, body: unknown): WebAudioItem | 
       !!file && typeof file === 'object' && typeof (file as Record<string, unknown>).name === 'string' && str((file as Record<string, unknown>).private) !== 'true',
   );
   const format = IA_FORMATS.find((wanted) => files.some((file) => file.format === wanted));
-  if (!format) return null;
+  const playable = format
+    ? files.filter((file) => file.format === format)
+    : files.filter((file) => IA_AUDIO_ENDING.test(String(file.name)) && str(file.source) !== 'derivative' && !/sample/i.test(str(file.format) ?? ''));
+  if (playable.length === 0) return null;
 
-  const chosen = files
-    .filter((file) => file.format === format)
+  const chosen = playable
     .map((file) => ({ file, track: Number.parseInt(str(file.track) ?? '', 10) }))
     // The Archive's own track numbers when it has them, the file name otherwise ("01", "02", ...).
     .sort((a, b) =>

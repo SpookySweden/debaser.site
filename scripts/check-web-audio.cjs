@@ -61,6 +61,22 @@ ok(only64 && only64.files.map((f) => f.url.slice(-8)).join('|') === 'z_01.mp3|z_
 const untitled = web.webTracks('internet_archive', 'x', { ...files.answerFor(only64), title: 'A Book' });
 ok(untitled.map((t) => t.title).join('|') === 'A Book (1)|A Book (2)', 'an untitled chapter is named after the book and its number, never the file');
 
+// (2026-11-05) A one-file audiobook: the Archive labels an .m4b "Audiobook", which was missing, so it "couldn't play in a room".
+const m4b = files.parseArchiveMetadata('dune-book', { metadata: { title: 'A Book' }, files: [{ name: 'A Book [Reader].m4b', format: 'Audiobook', source: 'original' }, { name: 'cover.png', format: 'PNG' }] });
+ok(m4b && m4b.files.length === 1 && m4b.files[0].url === 'https://archive.org/download/dune-book/A%20Book%20%5BReader%5D.m4b', 'an .m4b audiobook gives its one file, its name encoded');
+ok(m4b.files[0].seconds === null, 'with no length listed, which the player finds out');
+const both = files.parseArchiveMetadata('x', { metadata: {}, files: [{ name: 'p1.m4b', format: 'Audiobook' }, { name: 'p1.mp3', format: 'VBR MP3', length: '20' }] });
+ok(both.files.length === 1 && both.files[0].url.endsWith('/p1.mp3'), 'an item with both uses the MP3 once, never both');
+const unknown = files.parseArchiveMetadata('x', { metadata: {}, files: [
+  { name: 'b.m4a', format: 'Some New Label', source: 'original' },
+  { name: 'a.opus', format: 'Another Label', source: 'original' },
+  { name: 'a_copy.opus', format: 'Another Label', source: 'derivative' },
+  { name: 'clip.mp3', format: 'MP3 Sample', source: 'original' },
+  { name: 'notes.pdf', format: 'Text PDF', source: 'original' },
+  { name: 'film.mp4', format: 'Unknown Video', source: 'original' },
+] });
+ok(unknown && unknown.files.map((f) => f.url.split('/').pop()).join('|') === 'a.opus|b.m4a', 'an unknown label still plays by its file ending: uploads only, no sample, no document, no video');
+
 /* ------------------------------------------------------------------ podcast */
 const feed = PODCAST_FEEDS[0];
 const rss = `<?xml version="1.0"?><rss version="2.0"><channel><title>Show</title>
