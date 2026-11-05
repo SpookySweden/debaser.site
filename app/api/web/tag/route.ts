@@ -44,6 +44,10 @@ export async function POST(request: Request): Promise<Response> {
     // wrong; any other error is named but its message is dropped, since a bad header's message can repeat the key.
     const said = error instanceof Anthropic.APIError && error.status === 400 ? ` ${(error.apiMessage ?? '').replace(/sk-ant-\S+/g, '[key]').slice(0, 160)}` : '';
     const reason = error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}${said}` : error instanceof Error ? error.name : 'unknown';
-    return json({ error: 'The tagging could not run.', reason }, 500);
+    // Yes or no only, nothing of the key: a stray character in a pasted key is a TypeError before anything is sent.
+    const keyPlain = /^[\x21-\x7e]+$/.test(process.env.ANTHROPIC_API_KEY ?? '');
+    // Where, as code locations. The first line of a stack is the message, which is left out for the reason above.
+    const at = error instanceof Error ? (error.stack ?? '').split('\n').slice(1, 4).map((line) => line.trim().slice(-90)) : [];
+    return json({ error: 'The tagging could not run.', reason, keyPlain, at }, 500);
   }
 }
