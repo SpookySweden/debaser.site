@@ -18,6 +18,7 @@ import { getMediaRepository } from '../lib/media/repository';
 import { STORAGE_CEILING_BYTES, formatBytes } from '../lib/media/rules';
 import type { CatalogueEntry, MediaItem, MediaKind } from '../lib/media/types';
 import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { closeFloatingIfMine, floatingState, playFloating } from '../lib/ui/floating-player';
 import AudioTagChooser from './AudioTagChooser';
 import AudioTagPill from './AudioTagPill';
 import { useAuth } from './AuthProvider';
@@ -26,6 +27,7 @@ import MediaUploadWindow from './MediaUploadWindow';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import NewArchiveFileWindow from './NewArchiveFileWindow';
 import NewArchiveFolderWindow from './NewArchiveFolderWindow';
+import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import ProfileLink from './ProfileLink';
 import SheetImage from './SheetImage';
 import { useMusicLibrary } from './MusicLibraryProvider';
@@ -170,6 +172,14 @@ export default function MediaCatalogue() {
 
   const folderPaths = useMemo(() => folders.folders.map((folder) => folder.path), [folders.folders]);
   const categories = useMemo(() => categorise(sorted, folderPaths), [sorted, folderPaths]);
+  /** The video playing as the reader arrived: its shelf and its fold start open, so its row can take the video back. */
+  const [arrivedPlaying] = useState(() => floatingState().entry?.id ?? null);
+  /** Until the reader presses a fold: after that, shutting one is their choice, and the video floats. */
+  const [arrivalFolds, setArrivalFolds] = useState(true);
+  const arrivalShelf = useMemo(() => {
+    const holding = categories.find((candidate) => candidate.entries.some(({ item }) => `file:${item.id}` === arrivedPlaying));
+    return holding === undefined ? null : `cat:${holding.id}`;
+  }, [categories, arrivedPlaying]);
   const tags = useMemo(() => tagCounts(catalogue.entries, audioTagKey), [catalogue.entries]);
 
   /** A search or a tag: the matches, grouped under their categories. Null when neither is asked for. */
@@ -225,6 +235,7 @@ export default function MediaCatalogue() {
   const rowFor = (entry: CatalogueEntry, shelf?: { key: string; number?: number; source: boolean }) => {
     const rowId = `${shelf?.key ?? ''}|${entry.item.id}`;
     const track = entry.item.kind === 'audio' ? catalogueTrack(entry.item, player.queue) : undefined;
+    const rowOpen = openId === rowId || (arrivalFolds && openId === null && arrivedPlaying === `file:${entry.item.id}`);
 
     return (
       <CatalogueRow
@@ -232,8 +243,11 @@ export default function MediaCatalogue() {
         entry={entry}
         number={shelf?.number}
         source={shelf?.source ?? false}
-        open={openId === rowId}
-        onToggle={() => setOpenId((current) => (current === rowId ? null : rowId))}
+        open={rowOpen}
+        onToggle={() => {
+          setArrivalFolds(false);
+          setOpenId(rowOpen ? null : rowId);
+        }}
         viewerId={user?.id ?? null}
         onChanged={(message) => {
           setNotice(message);
@@ -256,7 +270,8 @@ export default function MediaCatalogue() {
 
   /** A fold: a title line whose name opens and shuts what is under it. Starts shut. */
   const fold = (key: string, title: string, count: string, body: () => ReactNode, extra?: ReactNode) => {
-    const open = openShelves.has(key);
+    // Pressing it flips it, whichever way it started.
+    const open = openShelves.has(key) !== (key === arrivalShelf);
     return (
       <section key={key} aria-label={title} className="mt-1">
         <div className={TITLE_BAR}>
@@ -636,6 +651,8 @@ function CatalogueRow({
   const [editing, setEditing] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const barred = useMusicLibrary().barredSrcs.has(item.src);
+  const playId = `file:${item.id}`;
+  const playingHere = usePlayingHere(playId);
   const canEdit = viewerId !== null && item.uploadedBy === viewerId && item.source !== 'sheet';
 
   return (
@@ -730,11 +747,29 @@ function CatalogueRow({
           ) : null}
 
           {item.kind === 'video' ? (
-            /* A plain player: what was uploaded is what plays (SPEC-media-catalogue.md, out of scope:
-               transcoding). */
-            <video controls preload="metadata" src={item.src} className="w-full max-w-md rounded-none border border-ink bg-ink-plate">
-              <track kind="captions" />
-            </video>
+            /* A plain player: what was uploaded is what plays (SPEC-media-catalogue.md, out of scope: transcoding). It
+               is the site's one floating player (FloatingPlayer.tsx), so opening a fold never stops another video;
+               only PLAY does. */
+            playingHere ? (
+              <>
+                <PlayerBox id={playId} title={item.title} className="aspect-video w-full max-w-md border border-ink bg-ink-plate" />
+                <div className="mt-1 flex flex-wrap items-center gap-1">
+                  <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${item.title}"`} className={PLATE_PRESSED}>
+                    [ ■ CLOSE ]
+                  </button>
+                  <PipKey id={playId} title={item.title} />
+                </div>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => playFloating({ id: playId, title: item.title, shape: 'video', player: { kind: 'file', src: item.src } })}
+                aria-label={`Play "${item.title}" here`}
+                className={PLATE}
+              >
+                [ ▶ PLAY ]
+              </button>
+            )
           ) : null}
 
           <p className="mt-1 text-label text-ink-quiet wrap-anywhere">

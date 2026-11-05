@@ -242,7 +242,10 @@ assert.deepEqual(
   HEADER_ITEMS.map(({ href, label }) => ({ href, label })),
   'and all of them are drawn together, each a word that goes to its page',
 );
-assert.equal((nav.match(/<button/g) ?? []).length, 0, 'each key is a link wearing its own chrome, not a button inside one');
+// Updated on purpose 2026-11-05 (SPEC-floating-player.md): the band now starts with the site's two arrows, which go
+// nowhere of their own and so are buttons. Every page key is still a link.
+assert.equal((nav.match(/<button/g) ?? []).length, 2, 'each page key is a link wearing its own chrome; the only buttons are the two arrows');
+assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forward"') > nav.indexOf('aria-label="Back"') && nav.indexOf('aria-label="Forward"') < nav.indexOf('<a '), 'the arrows sit left of the first page key');
 // "Pressed in" is a filled pill now (`key-fill`, SPEC-readability.md) rather than the inverted Win95 bevel
 // this used to count, and it is held to the tab that says it is the page - not just to a count of one.
 assert.equal((nav.match(/(?<=[" ])key-fill(?=[" ])/g) ?? []).length, 1, "the open page's tab is the one pressed in");

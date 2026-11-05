@@ -80,6 +80,7 @@ const LAYERS = [
   ['z-menu', 'the start menu'],
   ['z-dock', 'a docked window'],
   ['z-banner', "the guest's alarm banner"],
+  ['z-float', 'the floating video'],
   ['z-popout', 'a pop-out window and its scrim'],
   ['z-overlay', 'a pop-up over a pop-out'],
   ['z-cursor', 'the CAT cursor, above everything'],

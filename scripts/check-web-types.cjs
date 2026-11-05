@@ -141,12 +141,14 @@ const iframe = stream.match(/<iframe\b[\s\S]*?\/>/);
 // One exception, live-checked 2026-10-31 in Edge: YouTube's player shows "Error 153" and will not play with no
 // referrer, and plays with the origin only. So YouTube alone gets strict-origin (never the path); every other
 // player still sends nothing.
+// Updated on purpose 2026-11-05 (SPEC-floating-player.md): a video or a sound plays in the site's one layer, and only a
+// book's reader keeps a frame in its row, so the rules moved to one place both use. The rules themselves are unchanged.
 ok(
-  iframe && /sandbox="[^"]*"/.test(iframe[0]) && /referrerPolicy=\{item\.platform === 'youtube' \? 'strict-origin' : 'no-referrer'\}/.test(iframe[0]),
+  /function embedReferrer[\s\S]*?platform === 'youtube' \? 'strict-origin' : 'no-referrer'/.test(stream) && /referrerPolicy: embedReferrer\(item\.platform\)/.test(stream) && iframe && /referrerPolicy=\{embedReferrer\(item\.platform\)\}/.test(iframe[0]),
   'the player is sandboxed and sends no referrer (YouTube: its origin only)',
 );
-ok(iframe && !/unsafe-url|no-referrer-when-downgrade|origin-when-cross-origin/.test(iframe[0]), 'no player is ever sent the page path');
-ok(iframe && /sandbox="allow-scripts allow-same-origin"/.test(iframe[0]), 'the player sandbox is exactly allow-scripts allow-same-origin (live-checked; widen only with evidence)');
-ok(/\{playing && embed \?/.test(stream), 'the player exists only after PLAY');
+ok(!/unsafe-url|no-referrer-when-downgrade|origin-when-cross-origin/.test(stream), 'no player is ever sent the page path');
+ok(/const EMBED_SANDBOX = 'allow-scripts allow-same-origin'/.test(stream) && /sandbox: EMBED_SANDBOX/.test(stream) && iframe && /sandbox=\{EMBED_SANDBOX\}/.test(iframe[0]), 'the player sandbox is exactly allow-scripts allow-same-origin (live-checked; widen only with evidence)');
+ok(/\{playing && embed && !floats \?/.test(stream) && /\{playing && embed && floats \?/.test(stream), 'the player exists only after PLAY');
 
 console.log(`ok: ${passed} assertions (WEB types, server-only fetching, page safety)`);

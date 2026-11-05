@@ -92,6 +92,7 @@ export default function SiteWindow({ title, active, tip, children }: SiteWindowP
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">
           <div
+            data-scroll-pane="page"
             className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 text-ink select-text sm:p-6"
           >
             <GuestPrompt />

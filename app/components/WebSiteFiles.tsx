@@ -9,8 +9,10 @@ import { PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/controls';
 import { ICON_MEDIA } from '../lib/ui/icons';
 import { WEB_HREF } from '../lib/web/bridges';
 import { SITE_FILES_SHOWN, SITE_SERVER_LABEL, siteFileHref } from '../lib/web/site-server';
+import { closeFloatingIfMine, playFloating } from '../lib/ui/floating-player';
 import { useAuth } from './AuthProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
+import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SheetImage from './SheetImage';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
 import SpriteSlot from './SpriteSlot';
@@ -60,8 +62,10 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
   const { item } = entry;
   const player = useMusicPlayer();
   const { user } = useAuth();
-  /** A picture opened larger, or a video's own player loaded. */
+  /** A picture opened larger. A video's player is the site's one floating player (FloatingPlayer.tsx). */
   const [open, setOpen] = useState(false);
+  const playId = `file:${item.id}`;
+  const playing = usePlayingHere(playId);
   const [menuOpen, setMenuOpen] = useState(false);
   const track = item.kind === 'audio' ? catalogueTrack(item, player.queue) : undefined;
   const who = item.credit.length > 0 ? item.credit : item.uploadedByLabel;
@@ -129,14 +133,18 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
             {item.kind === 'video' ? (
               <button
                 type="button"
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                aria-label={open ? `Close the player for "${item.title}"` : `Play "${item.title}" here`}
-                className={open ? PLATE_PRESSED : PLATE}
+                onClick={() => {
+                  if (playing) closeFloatingIfMine(playId);
+                  else playFloating({ id: playId, title: item.title, shape: 'video', player: { kind: 'file', src: item.src } });
+                }}
+                aria-expanded={playing}
+                aria-label={playing ? `Close the player for "${item.title}"` : `Play "${item.title}" here`}
+                className={playing ? PLATE_PRESSED : PLATE}
               >
-                {open ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
+                {playing ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
               </button>
             ) : null}
+            {item.kind === 'video' && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* Streamed the way the catalogue does it (SPEC-cytube.md): into the room you host or hold a crown in, or to CYTUBE to go live. */}
             {item.kind === 'video' && user !== null ? <StreamAddKey mediaItemId={item.id} title={item.title} /> : null}
             {item.kind === 'image' ? (
@@ -165,11 +173,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
           <SheetImage src={item.src} alt={item.title} width={item.width ?? 352} height={item.height ?? 352} sizes="(max-width: 640px) 90vw, 448px" />
         </div>
       ) : null}
-      {open && item.kind === 'video' ? (
-        <video controls preload="metadata" src={item.src} className="mt-2 block w-full max-w-md border border-ink bg-ink-plate">
-          <track kind="captions" />
-        </video>
-      ) : null}
+      {playing && item.kind === 'video' ? <PlayerBox id={playId} title={item.title} className="mt-2 aspect-video w-full max-w-md border border-ink bg-ink-plate" /> : null}
     </li>
   );
 }

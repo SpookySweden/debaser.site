@@ -54,6 +54,11 @@ type DockWindowProps = {
    */
   minimized?: boolean;
   /**
+   * Folded away with one thing inside still on screen (a stream room's floating picture): the window stays invisible,
+   * which already keeps the rest out of reach, but it can't be inert, or nothing inside could be pressed.
+   */
+  pictureOut?: boolean;
+  /**
    * Drawn no lower than the top of the music player in whichever shape it is in (`--music-top`: the bar, the phone
    * card, the folded tile), whatever its box says: the stream room, whose keys are on that bar while it shows the
    * stream, and whose way back is on the tile. Its saved box is left as it is.
@@ -75,7 +80,7 @@ const isDesktop = () => window.matchMedia(DESKTOP).matches;
 const onServer = () => false;
 
 /** The eight grips: four edges, four corners. Each says which edges it moves and what the pointer becomes. */
-const GRIPS: { edges: ResizeEdges; className: string }[] = [
+export const GRIPS: { edges: ResizeEdges; className: string }[] = [
   { edges: { top: true }, className: '-top-1 left-2 right-2 h-2 cursor-ns-resize' },
   { edges: { bottom: true }, className: '-bottom-1 left-2 right-2 h-2 cursor-ns-resize' },
   { edges: { left: true }, className: '-left-1 top-2 bottom-2 w-2 cursor-ew-resize' },
@@ -125,6 +130,7 @@ export default function DockWindow({
   fill,
   onMinimize,
   minimized = false,
+  pictureOut = false,
   aboveBottomBar = false,
   children,
 }: DockWindowProps) {
@@ -189,7 +195,8 @@ export default function DockWindow({
         zIndex: 90 + Math.min(live.z, 8),
       }
     : {
-        transform: `translate(${offset.x}px, ${offset.y}px)`,
+        // Not while folded: a transform would make the window, not the screen, what a floating picture is placed in.
+        transform: minimized ? undefined : `translate(${offset.x}px, ${offset.y}px)`,
         // The sheet's foot sits on the player's top rather than at its usual 5rem.
         ...(aboveBottomBar ? { bottom: 'calc(var(--music-top, 4.75rem) + 0.25rem)' } : {}),
       };
@@ -205,7 +212,7 @@ export default function DockWindow({
       // `invisible` rather than unmounted: taken out of the page, the video would stop and the room would be
       // left. Invisible keeps its box, its sound and its timers, and lets the pointer through to the board.
       className={`${placement}${minimized ? ' invisible' : ''}`}
-      inert={minimized}
+      inert={minimized && !pictureOut}
       onPointerDownCapture={managed ? () => bringToFront(id) : undefined}
       data-dock-window={id}
       data-grouped={grouped ? 'true' : undefined}

@@ -124,6 +124,11 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
   const { read, error } = useWatchRoom(roomId);
   const [closing, setClosing] = useState(false);
   const { profile } = usePublicProfile(read?.room.hostId ?? null);
+  /** `[ PIP ]` on an embedded picture: the room folds, and its picture floats (SPEC-floating-player.md). */
+  const [pictureOut, setPictureOut] = useState(false);
+  // Back in the room, by whichever way: the next fold is an ordinary one unless `[ PIP ]` asks again.
+  if (!collapsed && pictureOut) setPictureOut(false);
+  const pictureFloats = collapsed && pictureOut;
   const now = useNow(5000);
   const live = read !== undefined && read !== null && roomIsLive(read.room, now);
   const hostName = profile?.displayName ?? read?.room.originalHostLabel ?? '';
@@ -138,8 +143,16 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
         // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
         onClose={() => void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft()))}
-        onMinimize={read ? onCollapse : undefined}
+        onMinimize={
+          read
+            ? () => {
+                setPictureOut(false);
+                onCollapse();
+              }
+            : undefined
+        }
         minimized={collapsed}
+        pictureOut={pictureFloats}
         aboveBottomBar
         dock="top"
         defaultSize={ROOM_SIZE}
@@ -156,7 +169,19 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         ) : read === null ? (
           <p className="text-label font-bold text-ink">NO SUCH STREAM.</p>
         ) : (
-          <WatchRoom read={read} closing={closing} onStay={() => setClosing(false)} onLeft={onLeft} />
+          <WatchRoom
+            read={read}
+            closing={closing}
+            onStay={() => setClosing(false)}
+            onLeft={onLeft}
+            pictureFloats={pictureFloats}
+            onFloatPicture={() => {
+              setPictureOut(true);
+              onCollapse();
+            }}
+            onBackFromFloat={expandWatch}
+            onHidePicture={() => setPictureOut(false)}
+          />
         )}
       </DockWindow>
       {collapsed ? <UpBox live={live} hostName={hostName} /> : null}

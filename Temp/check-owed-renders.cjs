@@ -1,6 +1,6 @@
 /*
  * Scratch check for the ten components that arrived with no render (check-structure's OWED_RENDERS), run from the root:
- *   npx tsc app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/StreamAddKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/StreamAddKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-owed-renders.cjs
  *
  * What it is for: a server render shows a component's first paint and nothing else, and most of these read their data in
@@ -172,6 +172,7 @@ function fakeBrowser({ fine = true, still = false } = {}) {
       setInterval: () => 0,
       clearInterval: () => undefined,
       history: { state: null, replaceState: (_state, _title, address) => addresses.push(address) },
+      location: { origin: 'https://debaser.site', href: 'https://debaser.site/media', pathname: '/media', search: '' },
     },
     document: {
       ...target('document'),
@@ -368,6 +369,9 @@ const WebMediaRowModule = require('./owed-render/components/WebMediaRow.js');
 const WebSignInGate = require('./owed-render/components/WebSignInGate.js').default;
 const WebSiteFiles = require('./owed-render/components/WebSiteFiles.js').default;
 const WebStream = require('./owed-render/components/WebStream.js').default;
+const FloatingPlayer = require('./owed-render/components/FloatingPlayer.js').default;
+const SiteHistoryKeeper = require('./owed-render/components/SiteHistoryKeeper.js').default;
+const floating = require('./owed-render/lib/ui/floating-player.js');
 const WebMediaRow = WebMediaRowModule.default;
 const { KinoRow, isKinoRow, isMediaRow } = WebMediaRowModule;
 
@@ -1015,18 +1019,51 @@ test('WebMediaRow: PLAY asks our own route whether that server answers, before a
     global.fetch = realFetch;
   }
   assert.deepEqual(seen, ['/api/web/media/ping?server=owed_one']);
+  floating.closeFloating();
 });
-test('WebMediaRow: playing, the server\'s own player in a sandboxed frame that sends no referrer, with CLOSE in place of PLAY', () => {
-  const html = row(FILM, rowPhase('playing'));
+/** Presses a server row's PLAY with its server answering, as far as the player starting. */
+async function playRow(item) {
+  const realFetch = global.fetch;
+  global.fetch = async () => ({ ok: true, json: async () => ({ up: true }) });
+  try {
+    row(item);
+    press('[ ▶ PLAY ]');
+    await tick();
+    await tick();
+  } finally {
+    global.fetch = realFetch;
+  }
+}
+// Updated on purpose 2026-11-05 (SPEC-floating-player.md): the row keeps a reserved box and the player is in the site's
+// one layer, FloatingPlayer.tsx, so it never reloads as the reader walks the site. The frame's rules are unchanged.
+test('WebMediaRow: playing, the server\'s own player in a sandboxed frame that sends no referrer, with CLOSE in place of PLAY', async () => {
+  await playRow(FILM);
+  const html = row(FILM);
   const src = mediaPlayUrl(mediaServer('owed_one'), FILM.media, {});
   assert.equal(src, 'https://owed-one.test/play/movie/157336');
-  const frame = /<iframe[^>]*>/.exec(html)?.[0];
+  assert.ok(!html.includes('<iframe'), 'the row draws a box, not a frame');
+  assert.ok(html.includes('data-player-box="media:owed_one-film-1"') || html.includes('data-player-box="media:'), 'the reserved box');
+  assert.ok(visible(html).includes('[ PIP ]'));
+  const frame = /<iframe[^>]*>/.exec(draw(el(FloatingPlayer)))?.[0];
   assert.ok(frame, 'the player frame');
   assert.ok(frame.includes(`src="${src}"`));
   assert.ok(frame.includes('referrerPolicy="no-referrer"'));
   assert.ok(frame.includes(`sandbox="${mediaServers.playerSandbox(SERVER_ONE)}"`));
   assert.ok(mediaServers.playerSandbox(SERVER_ONE).length > 0);
   assert.ok(visible(html).includes('[ ■ CLOSE ]') && !visible(html).includes('[ ▶ PLAY ]'));
+  row(FILM);
+  press(`Close the player for "${FILM.title}"`);
+  assert.equal(floating.floatingState().entry, null, 'CLOSE stops it');
+  assert.equal(draw(el(FloatingPlayer)), '', 'and nothing of the server is left on the page');
+  assert.ok(visible(row(FILM)).includes('[ ▶ PLAY ]'));
+});
+test('WebMediaRow: back on the page with its video still playing, it draws what it had picked', async () => {
+  await playRow(SHOW);
+  const entry = floating.floatingState().entry;
+  floating.closeFloating();
+  floating.playFloating({ ...entry, details: { ...entry.details, season: 2, episode: 1 } });
+  assert.ok(visible(row(SHOW)).includes('PLAYING: SEASON 2 · EPISODE 1'));
+  floating.closeFloating();
 });
 test('WebMediaRow: a server not answering says so in plain words and offers the next, or says there is none', () => {
   let html = row(FILM, rowPhase('down'));
@@ -1037,12 +1074,14 @@ test('WebMediaRow: a server not answering says so in plain words and offers the 
   assert.ok(visible(html).includes('COULD NOT REACH OWED ONE. TRY AGAIN.'));
   assert.ok(visible(html).includes('NO OTHER SERVER HAS IT.'));
 });
-test('WebMediaRow: a show picks season and episode; a server without that episode cannot be pressed, and says why', () => {
+test('WebMediaRow: a show picks season and episode; a server without that episode cannot be pressed, and says why', async () => {
   const html = row(SHOW);
   const words = visible(html);
   for (const word of ['SEASON 1', 'SEASON 2', 'EPISODE 1', 'EPISODE 2', 'PLAYING: SEASON 1 · EPISODE 1', '[ OWED ONE ]', '[ OWED TWO: NOT THIS EPISODE ]', '[ ▶ WHOLE SERIES ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OWED TWO: NOT THIS EPISODE ]'), /disabled=""/);
-  assert.equal(row(SHOW, rowPhase('playing')).match(/<iframe[^>]*src="([^"]*)"/)[1], 'https://owed-one.test/play/tv/1399/1/1');
+  await playRow(SHOW);
+  assert.equal(floating.floatingState().entry.player.src, 'https://owed-one.test/play/tv/1399/1/1');
+  floating.closeFloating();
 });
 test('WebMediaRow: KinoRow, TMDB\'s details and its link, its real seasons only, and says no server has it', () => {
   const html = draw(el(KinoRow, { item: KINO, titleId: 'kino-title' }));
@@ -1078,9 +1117,15 @@ test('WebSiteFiles: a video loads no player until asked, and only a signed-in re
   let html = draw(el(WebSiteFiles, { matches: [video] }));
   assert.ok(!html.includes('<video'));
   assert.ok(html.includes(`href="${CYTUBE_HREF}"`), 'signed in, not hosting: to the page where a room is started');
-  html = draw(el(WebSiteFiles, { matches: [video] }), { SiteFileRow: slots(true) });
-  assert.match(html, new RegExp(`<video[^>]*src="${video.item.src}"`));
-  assert.ok(visible(html).includes('[ ■ CLOSE ]'));
+  // Updated on purpose 2026-11-05 (SPEC-floating-player.md): a box in the row, the <video> in the one layer.
+  press(`Play "${video.item.title}" here`);
+  html = draw(el(WebSiteFiles, { matches: [video] }));
+  assert.ok(!html.includes('<video') && html.includes(`data-player-box="file:${video.item.id}"`));
+  assert.ok(visible(html).includes('[ ■ CLOSE ]') && visible(html).includes('[ PIP ]'));
+  assert.match(draw(el(FloatingPlayer)), new RegExp(`<video[^>]*src="${video.item.src}"`));
+  draw(el(WebSiteFiles, { matches: [video] }));
+  press(`Close the player for "${video.item.title}"`);
+  assert.equal(floating.floatingState().entry, null);
   auth = { status: 'signed-out', user: null };
   assert.ok(!draw(el(WebSiteFiles, { matches: [video] })).includes(`href="${CYTUBE_HREF}"`));
 });
@@ -1198,18 +1243,65 @@ test('WebStream: a hostile address is dropped: no link, no picture and no player
   assert.ok(!html.includes('evil.invalid') && !html.includes('javascript:'));
   assert.ok(!visible(html).includes('[ OPEN ↗ ]') && !visible(html).includes('[ ▶ PLAY ]'));
 });
-test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube is told our origin', () => {
-  let html = draw(el(WebStream), { ...arrived([VIDEO]), WebRow: slots(true) });
-  let frame = /<iframe[^>]*>/.exec(html)?.[0];
-  assert.ok(frame, 'the player frame');
-  assert.ok(frame.includes(`src="https://www.youtube-nocookie.com/embed/${YT_ID}?autoplay=1"`));
-  assert.ok(frame.includes('sandbox="allow-scripts allow-same-origin"'));
-  assert.ok(frame.includes('referrerPolicy="strict-origin"'));
-  assert.ok(visible(html).includes('[ ■ CLOSE ]'));
-  const archive = { ...VIDEO, id: 'internet_archive:train', platform: 'internet_archive', externalId: 'train', url: 'https://archive.org/details/train', thumbnailUrl: undefined, embedUrl: 'https://archive.org/embed/train' };
-  html = draw(el(WebStream), { ...arrived([archive]), WebRow: slots(true) });
-  frame = /<iframe[^>]*>/.exec(html)?.[0];
-  assert.ok(frame.includes('referrerPolicy="no-referrer"'));
+// Updated on purpose 2026-11-05 (SPEC-floating-player.md): the player is in the site's one layer, and YouTube is also asked
+// to say where it has got to (enablejsapi, origin). The sandbox, referrer and autoplay rules are unchanged.
+test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube is told our origin', async () => {
+  await inBrowser(fakeBrowser(), async () => {
+    draw(el(WebStream), arrived([VIDEO]));
+    press(`Play "${VIDEO.title}" (loads the YOUTUBE player)`);
+    let html = draw(el(WebStream), arrived([VIDEO]));
+    assert.ok(!html.includes('<iframe'), 'the row draws a box, not a frame');
+    assert.ok(visible(html).includes('[ ■ CLOSE ]') && visible(html).includes('[ PIP ]'));
+    assert.ok(html.includes(`data-player-box="web:${VIDEO.id}"`));
+    let frame = /<iframe[^>]*>/.exec(draw(el(FloatingPlayer)))?.[0];
+    assert.ok(frame, 'the player frame');
+    assert.ok(frame.includes(`src="https://www.youtube-nocookie.com/embed/${YT_ID}?autoplay=1&amp;enablejsapi=1&amp;origin=https%3A%2F%2Fdebaser.site"`), frame);
+    assert.ok(frame.includes('sandbox="allow-scripts allow-same-origin"'));
+    assert.ok(frame.includes('referrerPolicy="strict-origin"'));
+    floating.closeFloating();
+    const archive = { ...VIDEO, id: 'internet_archive:train', platform: 'internet_archive', externalId: 'train', url: 'https://archive.org/details/train', thumbnailUrl: undefined, embedUrl: 'https://archive.org/embed/train' };
+    draw(el(WebStream), arrived([archive]));
+    press(`Play "${archive.title}" (loads the INTERNET ARCHIVE player)`);
+    html = draw(el(FloatingPlayer));
+    frame = /<iframe[^>]*>/.exec(html)?.[0];
+    assert.ok(frame.includes('referrerPolicy="no-referrer"'));
+    assert.ok(frame.includes('src="https://archive.org/embed/train?autoplay=1"'), 'a player that cannot say its time is framed exactly as before');
+    floating.closeFloating();
+  });
+});
+test('WebStream: a book\'s reader stays in its row', () => {
+  const book = { ...VIDEO, id: 'internet_archive:book', kind: 'text', platform: 'internet_archive', externalId: 'book', url: 'https://archive.org/details/book', thumbnailUrl: undefined, embedUrl: 'https://archive.org/embed/book' };
+  draw(el(WebStream), arrived([book]));
+  press(`Play "${book.title}" (loads the INTERNET ARCHIVE player)`);
+  assert.equal(floating.floatingState().entry, null, 'it does not take over the one video');
+});
+test('FloatingPlayer: nothing until PLAY; then one player, its keys only while floating, POP OUT only for our own file', async () => {
+  assert.equal(draw(el(FloatingPlayer)), '', 'nothing loads until the reader asks');
+  await inBrowser(fakeBrowser(), async () => {
+    global.document.pictureInPictureEnabled = true;
+    floating.playFloating({ id: 'file:one', title: 'One', shape: 'video', player: { kind: 'file', src: '/one.mp4' } });
+    let html = draw(el(FloatingPlayer));
+    assert.match(html, /data-floating-player="in-box"/);
+    assert.match(html, /<video[^>]*src="\/one\.mp4"/);
+    assert.ok(!visible(html).includes('[ BACK ]'), 'in its box it has no bar of its own');
+    floating.noteFloating(true);
+    html = draw(el(FloatingPlayer));
+    assert.match(html, /data-floating-player="floating"/);
+    for (const key of ['[ BACK ]', '[ POP OUT ]', '[ × ]']) assert.ok(visible(html).includes(key), key);
+    assert.ok(html.includes('z-float'));
+    press('Close "One"');
+    assert.equal(floating.floatingState().entry, null);
+    floating.playFloating({ id: 'web:two', title: 'Two', shape: 'video', player: { kind: 'frame', src: 'https://www.youtube-nocookie.com/embed/x', frameTitle: 'Two', referrerPolicy: 'strict-origin', sandbox: 'allow-scripts allow-same-origin', allow: 'autoplay', allowFullScreen: false, timeFrom: null } });
+    floating.noteFloating(true);
+    html = draw(el(FloatingPlayer));
+    assert.ok(!visible(html).includes('[ POP OUT ]'), 'an outside player cannot be lifted out');
+    press('Back to where "Two" came from');
+    assert.deepEqual(said('push').at(-1), ['push', floating.floatingState().entry.home], 'BACK goes to the address it came from');
+    floating.closeFloating();
+  });
+});
+test('SiteHistoryKeeper: draws nothing', () => {
+  assert.equal(draw(el(SiteHistoryKeeper)), '');
 });
 test('WebStream: each row is drawn by its kind: a server\'s title with its keys, a KINO title with no player', () => {
   const html = draw(el(WebStream), arrived([FILM, KINO]));

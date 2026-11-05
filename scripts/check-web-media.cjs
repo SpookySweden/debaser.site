@@ -286,9 +286,13 @@ same(
 );
 ok(openServers.serverListText(openServers.MEDIA_SERVERS.filter((s) => s.id === 'open_server')).endsWith('|unsandboxed\n'), 'the switch is part of the fingerprint, so publishing it is waited for');
 const row = require('node:fs').readFileSync(join(ROOT, 'app', 'components', 'WebMediaRow.tsx'), 'utf8');
-const frame = row.match(/<iframe\b[\s\S]*?\/>/);
-ok(frame && /sandbox=\{playerSandbox\(mediaServer\(server\)\)\}/.test(frame[0]), 'the media player frame takes its sandbox from playerSandbox for the server playing');
-ok(frame && /referrerPolicy="no-referrer"/.test(frame[0]) && /\ballowFullScreen\b/.test(frame[0]), 'the media player frame sends no referrer and may go fullscreen, sandboxed or not');
+// Updated on purpose 2026-11-05 (SPEC-floating-player.md): the frame is drawn in the site's one layer, FloatingPlayer.tsx,
+// so the row now hands these over with playFloating; the layer sets them on the frame as they are.
+const frame = row.match(/playFloating\(\{[\s\S]*?\n {6}\}\);/);
+ok(frame && /sandbox: playerSandbox\(mediaServer\(to\)\)/.test(frame[0]), 'the media player frame takes its sandbox from playerSandbox for the server playing');
+ok(frame && /referrerPolicy: 'no-referrer'/.test(frame[0]) && /allowFullScreen: true/.test(frame[0]), 'the media player frame sends no referrer and may go fullscreen, sandboxed or not');
+const layerFile = require('node:fs').readFileSync(join(ROOT, 'app', 'components', 'FloatingPlayer.tsx'), 'utf8');
+ok(/sandbox=\{player\.sandbox\}/.test(layerFile) && /referrerPolicy=\{player\.referrerPolicy\}/.test(layerFile) && /allowFullScreen=\{player\.allowFullScreen\}/.test(layerFile), 'the layer draws the frame with exactly what the row asked for');
 
 /* ---------------------------------------------------------------- Luke's real list */
 // What the Debaser Servers program (or a hand edit) saved: a mistake here stops `npm run verify`, so it never

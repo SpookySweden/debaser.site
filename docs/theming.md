@@ -70,7 +70,7 @@ To change one size rather than all: edit its token (`--text-label: calc(13px * v
 - **Lines:** `border-line` (and `border-t-line`, ...), `border-thick`, plain `border` for a hairline.
 - **Colours:** see `ThemeTokens` in `themes.ts` for what each job is for. `ink-plate` is Black and
   `ink-bar` is White in both themes (they replaced `black` and `white`).
-- **Layers:** `z-menu` 70, `z-dock` 90, `z-banner` 95, `z-popout` 100, `z-overlay` 120, `z-cursor` 130 (the CAT cursor). Small stacking
+- **Layers:** `z-menu` 70, `z-dock` 90, `z-banner` 95, `z-float` 99, `z-popout` 100, `z-overlay` 120, `z-cursor` 130 (the CAT cursor). Small stacking
   inside one component keeps `z-10`..`z-50`.
 - **The press:** `translate-y-press` (1px).
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { PLATE } from '../lib/ui/controls';
+import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { useComms } from './CommsProvider';
 import SpriteSlot from './SpriteSlot';
 import StartMenu from './StartMenu';
@@ -28,9 +29,11 @@ export default function Taskbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   // The menu's COMMS row carries the unread count, which is the only place it is listed in a menu.
   const { unreadTotal } = useComms();
+  const strip = useRef<HTMLDivElement>(null);
+  useEdgeReserve(strip, '--start-bar', true);
 
   return (
-    <div className="relative order-last flex flex-wrap items-center gap-1 border-t-line border-ink px-1 py-0.75 text-label text-ink max-sm:hidden">
+    <div ref={strip} className="relative order-last flex flex-wrap items-center gap-1 border-t-line border-ink px-1 py-0.75 text-label text-ink max-sm:hidden">
       <button
         type="button"
         onClick={() => setMenuOpen((open) => !open)}

@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from 'next';
 import { Suspense } from 'react';
 import ArcadeWindow from './components/ArcadeWindow';
+import FloatingPlayer from './components/FloatingPlayer';
 import ForYouRadio from './components/ForYouRadio';
 import MusicRoomKeeper from './components/MusicRoomKeeper';
+import SiteHistoryKeeper from './components/SiteHistoryKeeper';
 import AuthProvider from './components/AuthProvider';
 import CharacterBrowserWindow from './components/CharacterBrowserWindow';
 import CommsNotifier from './components/CommsNotifier';
@@ -127,6 +129,12 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           name. It reads the character store, which is why it is drawn here rather than
                           inside the customiser: the shelf outlives the window that opened it. */}
                       <CharacterBrowserWindow />
+
+                      {/* The one video playing (SPEC-floating-player.md): above every page, so it never reloads as
+                          the reader walks the site. It sits over its row's box, or floats in a corner. */}
+                      <FloatingPlayer />
+                      {/* Your place on each page, for the arrows in the nav. Draws nothing. */}
+                      <SiteHistoryKeeper />
                     </MusicLibraryProvider>
                   </MusicPlayerProvider>
                 </NotificationsProvider>

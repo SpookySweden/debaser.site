@@ -17,11 +17,12 @@ import { useLayoutEffect, type RefObject } from 'react';
  *
  * `--music-top` is the third: how far up the screen the music player reaches in whichever shape it is in
  * (the bar, the phone card or the folded tile), so the stream's TV box can sit just above its ♪. And
- * `--stream-box` is how far up that TV box reaches, so the page window's foot clears it too.
+ * `--stream-box` is how far up that TV box reaches, so the page window's foot clears it too. `--start-bar`
+ * is how far up the window's START bar reaches, which the floating player keeps clear of.
  */
 export function useEdgeReserve(
   strip: RefObject<HTMLElement | null>,
-  name: '--top-bar' | '--bottom-bar' | '--music-top' | '--stream-box',
+  name: '--top-bar' | '--bottom-bar' | '--music-top' | '--stream-box' | '--start-bar',
   drawn: boolean,
 ): void {
   useLayoutEffect(() => {
@@ -31,7 +32,8 @@ export function useEdgeReserve(
     const root = document.documentElement;
     const publish = () => {
       const box = element.getBoundingClientRect();
-      const covered = name === '--top-bar' ? box.bottom : window.innerHeight - box.top;
+      // A strip the page has hidden (the START bar on a phone) has no size, and covers nothing.
+      const covered = box.height === 0 ? 0 : name === '--top-bar' ? box.bottom : window.innerHeight - box.top;
       root.style.setProperty(name, `${Math.ceil(Math.max(0, covered))}px`);
     };
 

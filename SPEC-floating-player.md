@@ -41,6 +41,19 @@ pip seamlessly."
   `app/lib/watch/*-player.ts`. Others, such as an Internet Archive embed or a media server's own player, can't. Say so
   rather than pretend, and don't store any of this on the server.
 
+## As built (2026-11-05)
+- **Rooms float too:** `[ PIP ]` on an embedded room picture folds the room, and the picture's box goes `position: fixed`
+  where it stands, so the player never moves in the page and the sync never notices. A room's `<video>` keeps the browser's
+  own pop-out. A room's picture floats bottom-left, MEDIA's bottom-right, so they don't start on top of each other.
+- **Resuming** works for the site's own files, YouTube and Vimeo. YouTube's and Vimeo's time comes from messages to their
+  frame (`app/lib/web/embed-time.ts`), not their scripts, so nothing of theirs runs in our page. Internet Archive, PeerTube and
+  media servers can't say, so they start again from the top. Places last for the visit, in memory, and go on a full reload.
+- **The wheel over a video** still scrolls the page: the layer is outside every pane, so the player sits in a small scrolling
+  room of its own and hands what lands there to the row's pane (`passScrollToPane`).
+- **A book's reader** (kind `text`) and anything else not video or audio keeps its frame in its row and doesn't float.
+- **FILES:** opening a fold no longer loads the player; it has its own `[ ▶ PLAY ]`, so reading a file's details never replaces
+  the video playing. A catalogue search isn't in the address, so a video started from one floats until the search is typed again.
+
 ## Part 3, held: `[ WATCH IN ROOM ]`
 Luke chose to build privacy first, so don't add this key until the privacy plan's private stream phases (2 and 3) are live.
 - It replaces today's `[ WATCH ]` and `[ ▶ STREAM ]` go-live route on every video, from wherever it's being watched.

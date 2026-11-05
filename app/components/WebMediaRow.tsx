@@ -1,6 +1,7 @@
 'use client';
 
-import { useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
 import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
@@ -13,6 +14,7 @@ import { webSessionHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
+import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 
 /**
@@ -33,7 +35,11 @@ const BIG_KEY = `${PLATE_LARGE} min-h-tap`;
 const BIG_KEY_ON = `${PLATE_LARGE} min-h-tap key-fill key-on [--key-fill:var(--color-ink)] text-paper`;
 const PICKER = `${FIELD_TIGHT} min-h-tap text-title`;
 
-type Phase = 'closed' | 'asking' | 'playing' | 'down' | 'unasked';
+/** Before the player: the video itself is the site's one floating player (FloatingPlayer.tsx), which the row only asks about. */
+type Phase = 'closed' | 'asking' | 'down' | 'unasked';
+
+/** What the row had picked, kept with the playing video so the row can draw itself again when the reader comes back. */
+type RowPicks = { server: MediaServerId; partIndex: number; season: number | undefined; episode: number | undefined; whole: boolean };
 
 /** Asks our route whether a server answers. null: our own route could not be asked (signed out, offline). */
 async function serverAnswers(server: MediaServerId): Promise<boolean | null> {
@@ -56,31 +62,46 @@ function yearOf(date: string | undefined): string | null {
 export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & { media: MediaInfo }; titleId: string }) {
   const media = item.media;
   const details = media.details;
+  const playId = `media:${item.id}`;
+  const playing = usePlayingHere(playId);
+  /** Back on the page with this row's video still playing: its picks, as they were. */
+  const [kept] = useState<RowPicks | undefined>(() => {
+    const entry = floatingState().entry;
+    return entry?.id === playId ? (entry.details as RowPicks | undefined) : undefined;
+  });
   // A film series row (media-collections.ts): the FILM picker chooses which of its films plays.
   const parts = media.parts && media.parts.length > 1 ? media.parts : null;
-  const [partIndex, setPartIndex] = useState(0);
+  const [partIndex, setPartIndex] = useState(kept?.partIndex ?? 0);
   const part = parts ? parts[Math.min(partIndex, parts.length - 1)] : null;
   /** What PLAY plays: the picked film of a series, or the row's own title. */
   const target: Pick<MediaInfo, 'type' | 'tmdbId' | 'copies'> = part ? { type: 'movie', tmdbId: part.tmdbId, copies: part.copies } : media;
 
   const seasons = heldEpisodes(media);
   const firstSeason = seasons.keys().next().value;
-  const [season, setSeason] = useState<number | undefined>(firstSeason);
-  const [episode, setEpisode] = useState<number | undefined>(firstSeason === undefined ? undefined : seasons.get(firstSeason)?.[0]);
+  const [season, setSeason] = useState<number | undefined>(kept ? kept.season : firstSeason);
+  const [episode, setEpisode] = useState<number | undefined>(kept ? kept.episode : firstSeason === undefined ? undefined : seasons.get(firstSeason)?.[0]);
   // WHOLE SERIES: offered when some server holding the show has a whole-series player; the only choice for a show
   // listed only as a whole (no episodes to pick).
   const wholeOffered = media.type === 'tv' && media.copies.some((copy) => mediaPlayUrl(mediaServer(copy.server), media, { whole: true }) !== null);
-  const [whole, setWhole] = useState(media.type === 'tv' && seasons.size === 0);
+  const [whole, setWhole] = useState(kept?.whole ?? (media.type === 'tv' && seasons.size === 0));
   const choice: PlayChoice = media.type === 'tv' ? (whole ? { whole: true } : { season, episode }) : {};
   const canPlay = (id: MediaServerId, at: PlayChoice) => mediaPlayUrl(mediaServer(id), target, at) !== null;
   const holders = media.copies.filter((copy) => canPlay(copy.server, choice)).map((copy) => copy.server);
-  const [server, setServer] = useState<MediaServerId>(holders[0] ?? media.copies[0].server);
+  const [server, setServer] = useState<MediaServerId>(kept?.server ?? holders[0] ?? media.copies[0].server);
   const [phase, setPhase] = useState<Phase>('closed');
   /** Bumped by every load, so a slow answer about an earlier server or episode is dropped. */
   const load = useRef(0);
+  // Gone from the page: a server answering now must not start a video the reader has walked away from.
+  useEffect(
+    () => () => {
+      load.current += 1;
+    },
+    [],
+  );
   const [thumbFailed, setThumbFailed] = useState(false);
 
   const label = (id: MediaServerId) => PLATFORM_LABELS[id];
+  const open = phase !== 'closed' || playing;
   const playUrl = mediaPlayUrl(mediaServer(server), target, choice);
   const thumb = thumbFailed ? null : rowAddresses(item).thumb;
   const nextServer = holders.find((id) => id !== server) ?? null;
@@ -101,7 +122,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
     const able = media.copies.filter((copy) => mediaPlayUrl(mediaServer(copy.server), nextTarget, at) !== null).map((copy) => copy.server);
     const to = able.includes(server) ? server : (able[0] ?? server);
     setServer(to);
-    if (phase !== 'closed') start(to, at, nextTarget);
+    if (open) start(to, at, nextTarget);
   };
 
   /** Ask the server, then load its player: on PLAY, and again on every switch while the player is open. */
@@ -109,17 +130,56 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
     const url = mediaPlayUrl(mediaServer(to), what, at);
     load.current += 1;
     const mine = load.current;
+    // The row's own video stops while the next one is asked for; another row's plays on until this one answers.
+    closeFloatingIfMine(playId);
     if (url === null) {
       setPhase('unasked');
       return;
     }
     setPhase('asking');
+    const playsBefore = playCount();
     void serverAnswers(to).then((up) => {
-      if (load.current === mine) setPhase(up === true ? 'playing' : up === false ? 'down' : 'unasked');
+      if (load.current !== mine) return;
+      // The reader pressed PLAY on something else while this server was asked: the later press wins.
+      if (playCount() !== playsBefore) {
+        setPhase('closed');
+        return;
+      }
+      if (up !== true) {
+        setPhase(up === false ? 'down' : 'unasked');
+        return;
+      }
+      setPhase('closed');
+      const picks: RowPicks = {
+        server: to,
+        partIndex: parts ? Math.max(0, parts.findIndex((film) => film.tmdbId === what.tmdbId)) : 0,
+        season: at.season ?? season,
+        episode: at.episode ?? episode,
+        whole: at.whole === true,
+      };
+      playFloating({
+        id: playId,
+        title: item.title,
+        shape: 'video',
+        details: picks,
+        player: {
+          kind: 'frame',
+          src: url,
+          frameTitle: `${label(to)} player: ${item.title}`,
+          // No referrer: the friend's server is never sent which page of ours asked.
+          referrerPolicy: 'no-referrer',
+          // The server's own player page: its scripts on its own origin, never ours. No popups, forms or top navigation,
+          // unless the server is marked `unsandboxed` in media-servers.ts (a player that refuses to start sandboxed).
+          sandbox: playerSandbox(mediaServer(to)),
+          allow: 'autoplay; fullscreen',
+          allowFullScreen: true,
+          // A server's own player cannot say where it has got to, so playing it again starts from the top.
+          timeFrom: null,
+        },
+      });
     });
   };
 
-  const open = phase !== 'closed';
   const pickServer = (id: MediaServerId) => {
     setServer(id);
     if (open) start(id, choice);
@@ -271,6 +331,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
             onClick={() => {
               load.current += 1;
               setPhase('closed');
+              closeFloatingIfMine(playId);
             }}
             aria-label={`Close the player for "${item.title}"`}
             className={BIG_KEY}
@@ -288,6 +349,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
             [ ▶ PLAY ]
           </button>
         )}
+        {playing ? <PipKey id={playId} title={item.title} /> : null}
       </div>
 
       {/* Plain words for every state, large, in one fixed place (Luke's eyesight). */}
@@ -310,21 +372,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
       ) : null}
 
       {/* Nothing from the server loads until the reader asks and the server answers. */}
-      {phase === 'playing' && playUrl !== null ? (
-        <iframe
-          key={`${server}:${playUrl}`}
-          src={playUrl}
-          title={`${label(server)} player: ${item.title}`}
-          // No referrer: the friend's server is never sent which page of ours asked.
-          referrerPolicy="no-referrer"
-          // The server's own player page: its scripts on its own origin, never ours. No popups, forms or top navigation,
-          // unless the server is marked `unsandboxed` in media-servers.ts (a player that refuses to start sandboxed).
-          sandbox={playerSandbox(mediaServer(server))}
-          allow="autoplay; fullscreen"
-          allowFullScreen
-          className="mt-2 block aspect-video w-full border border-ink-plate bg-paper"
-        />
-      ) : null}
+      {playing ? <PlayerBox id={playId} title={item.title} className="mt-2 aspect-video w-full border border-ink-plate bg-paper" /> : null}
     </li>
   );
 }

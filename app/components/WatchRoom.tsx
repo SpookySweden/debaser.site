@@ -67,6 +67,7 @@ import MarqueeText from './MarqueeText';
 import ProfileName from './ProfileName';
 import { QualityKey, SpeakerKey, SubsKey } from './StreamBarKeys';
 import StreamCrawl from './StreamCrawl';
+import RoomFloatChrome from './RoomFloatChrome';
 import RoomSettingsWindow from './RoomSettingsWindow';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
@@ -103,6 +104,14 @@ type WatchRoomProps = {
   closing: boolean;
   onStay: () => void;
   onLeft: () => void;
+  /** The room is folded with its picture floating (SPEC-floating-player.md). */
+  pictureFloats: boolean;
+  /** Folds the room with its picture floating. */
+  onFloatPicture: () => void;
+  /** Back to the room, from the floating picture. */
+  onBackFromFloat: () => void;
+  /** The picture stops floating; the room stays folded and keeps playing. */
+  onHidePicture: () => void;
 };
 
 /**
@@ -118,7 +127,7 @@ type WatchRoomProps = {
  * and jumps (off by more than two seconds) or nudges its speed (a little off). A browser that refuses to
  * start the sound gets one key, `[ ▶ JOIN PLAYBACK ]`, rather than playing on silently out of step.
  */
-export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomProps) {
+export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats, onFloatPicture, onBackFromFloat, onHidePicture }: WatchRoomProps) {
   const { user } = useAuth();
   const catalogue = useCatalogue();
   const player = useMusicPlayer();
@@ -759,6 +768,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       void document.exitFullscreen().catch(() => undefined);
       return;
     }
+    // Fullscreen is the whole stage, so a floating picture goes back to it first.
+    if (pictureFloats) onBackFromFloat();
     if (typeof box.requestFullscreen === 'function') {
       void box.requestFullscreen().catch(() => undefined);
       return;
@@ -768,7 +779,9 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     video?.webkitEnterFullscreen?.();
   }
 
-  // Picture-in-picture is a <video>'s alone: an embedded site's player cannot be lifted out from here.
+  // The browser's own picture-in-picture is a <video>'s alone: an embedded site's player cannot be lifted out of the
+  // tab. It floats inside the site instead (SPEC-floating-player.md): its box goes `position: fixed`, staying where it
+  // is in the page, so the player never reloads and the sync never notices.
   const canPip = videoElement instanceof HTMLVideoElement && typeof document !== 'undefined' && document.pictureInPictureEnabled;
   function togglePip() {
     if (!(videoElement instanceof HTMLVideoElement)) return;
@@ -877,7 +890,13 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
       [ ▶▶ ]
     </button>
   ) : null;
-  const pictureKeys = hasTransport && song === null ? (
+  const floatKey =
+    link !== null && (officialOn || isEmbedKind(link.kind)) && song === null ? (
+      <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture: floats over the site" title="Floats over the site" onClick={pictureFloats ? onBackFromFloat : onFloatPicture}>
+        [ PIP ]
+      </button>
+    ) : null;
+  const pictureKeys = officialOn ? floatKey : hasTransport && song === null ? (
     <>
       <SpeakerKey muted={muted} volume={volume} onMuted={setMuted} onVolume={setVolume} />
       <QualityKey source={qualitySource} />
@@ -893,7 +912,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label="Picture in picture" onClick={togglePip}>
           [ PIP ]
         </button>
-      ) : null}
+      ) : floatKey}
       <button type="button" className={`${PLATE_ON_BLACK} shrink-0`} aria-label={fullscreen ? 'Leave fullscreen' : 'Fullscreen'} onClick={toggleFullscreen}>
         {fullscreen ? '[ EXIT ]' : '[ FULL ]'}
       </button>
@@ -923,7 +942,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
 
   // Under the picture, left to right: play/pause (host), where it is and the time, skip (host), the sound, QUALITY,
   // PIP, FULL, END STREAM (host). The chat column's strip names the video.
-  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys) ? (
+  const playerBar = !keysOnMusicBar && (hasTransport || hostKeys || floatKey !== null) ? (
     // `relative`: on a phone the SUBS list opens as a sheet across the bar, just above it.
     <div className="relative flex shrink-0 flex-wrap items-center gap-x-2 gap-y-1 bg-ink-plate px-2 py-1 text-label text-sun max-sm:gap-x-1" data-watch-bar="shown">
       {playKey}
@@ -944,7 +963,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
   ) : null;
 
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
-  const pictureFit = fullscreen ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
+  const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
+  const pictureBox = useRef<HTMLDivElement>(null);
 
   // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
   // song plays the canvas is the default; with a video, the picture.
@@ -967,7 +987,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
     <div className="flex min-w-0 flex-col gap-1 sm:min-h-0 sm:flex-1">
       {/* The picture with its bar under it: the two go fullscreen together. */}
       <div ref={stageRef} className={`flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1 ${look === null ? '' : `frame ${lookLines}`}`}>
-      <div className="relative flex min-h-0 flex-1 items-center justify-center">
+      {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. */}
+      <div ref={pictureBox} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10' : 'relative'} flex min-h-0 flex-1 items-center justify-center`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (
@@ -1044,6 +1065,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft }: WatchRoomPr
         ) : null}
         <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />
         <CanvasToggle roomId={roomId} audio={canvasAudio} className="absolute right-1 top-1 z-30" />
+        {pictureFloats ? <RoomFloatChrome host={pictureBox} title={entryTitle ?? 'STREAM'} onBack={onBackFromFloat} onHide={onHidePicture} /> : null}
       </div>
       {playerBar}
       </div>

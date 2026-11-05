@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import SiteArrows from './SiteArrows';
 import {
   ICON_ACCOUNT,
   ICON_ARCADE,
@@ -189,6 +190,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
       // `hidden` below `md`: the profile picture in the title bar is the only door on a phone.
       className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
+      <SiteArrows />
       {HEADER_ITEMS.map((item) => (
         <Link
           key={item.key}

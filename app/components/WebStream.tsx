@@ -17,6 +17,9 @@ import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { arrive, compareIn, EMPTY_LIVE, emptyLive, freeze, heldBack, lanesToAsk, release, type ListOrder, type LiveList } from '../lib/web/live-merge';
 import { getWebRepository } from '../lib/web/repository';
 import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-addresses';
+import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
+import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
+import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
 import { authorWords, searchText } from '../lib/web/search';
 import { splitYear } from '../lib/web/search-intent';
@@ -1064,6 +1067,22 @@ function RelatedSection({
   );
 }
 
+/**
+ * YouTube's player refuses to start without knowing which site embeds it ("Error 153: video player configuration
+ * error", live-checked 2026-10-31 with no-referrer), so it alone is told our origin - strict-origin: the site's address
+ * only, never the page path, and nothing over plain http.
+ */
+function embedReferrer(platform: WebItem['platform']): 'strict-origin' | 'no-referrer' {
+  return platform === 'youtube' ? 'strict-origin' : 'no-referrer';
+}
+
+/**
+ * Live-checked 2026-10-31: the Archive's player needs its scripts, and its own origin to fetch the files it plays; it
+ * drew and played with exactly these two. allow-same-origin keeps it on archive.org's origin, never ours (it is
+ * cross-origin). No popups, forms or top navigation. Autoplay: the player starts on the reader's own press of PLAY.
+ */
+const EMBED_SANDBOX = 'allow-scripts allow-same-origin';
+
 /** The id of a row's title, which takes focus after LOAD MORE. Item ids are `platform:identifier`. */
 function rowTitleId(itemId: string): string {
   return `web-row-${itemId.replace(/[^A-Za-z0-9_-]/g, '-')}`;
@@ -1086,7 +1105,12 @@ function WebRow({
   /** The creator's name is a key: everything from them (`from:`), like a name on the forum. */
   onCreator: (name: string) => void;
 }) {
-  const [playing, setPlaying] = useState(false);
+  /** A reader (a book's page-turner) stays in its row; a video or a sound is the site's one floating player. */
+  const floats = item.kind === 'video' || item.kind === 'audio';
+  const playId = `web:${item.id}`;
+  const playingHere = usePlayingHere(playId);
+  const [readerOpen, setReaderOpen] = useState(false);
+  const playing = floats ? playingHere : readerOpen;
   const [thumbFailed, setThumbFailed] = useState(false);
   const [watchOpen, setWatchOpen] = useState(false);
   const opened = () => {
@@ -1103,6 +1127,35 @@ function WebRow({
   // An Archive item with two or more videos is a series (SPEC-stream-series.md): marked here, ticked in a room's queue.
   const seriesCount = useSeriesCount(item);
   const archiveSubtitles = useArchiveRowSubtitles(item);
+
+  /** Starts the platform's own player: the reader has just pressed PLAY, and only then does anything of theirs load. */
+  const startPlayer = () => {
+    if (embed === null) return;
+    if (!floats) {
+      setReaderOpen(true);
+      return;
+    }
+    const timeFrom = timeSourceOf(item.platform);
+    playFloating({
+      id: playId,
+      title: item.title,
+      shape: item.kind === 'audio' ? 'audio' : 'video',
+      player: {
+        kind: 'frame',
+        src: embedWithPlace(startingEmbed(embed, item.platform, contentLanguage(item)), timeFrom, placeOf(playId), window.location.origin),
+        frameTitle: `${source} player: ${item.title}`,
+        referrerPolicy: embedReferrer(item.platform),
+        sandbox: EMBED_SANDBOX,
+        allow: item.kind === 'video' ? 'autoplay; fullscreen' : 'autoplay',
+        allowFullScreen: false,
+        timeFrom,
+      },
+    });
+  };
+  const stopPlayer = () => {
+    if (floats) closeFloatingIfMine(playId);
+    else setReaderOpen(false);
+  };
 
   return (
     <li className="rule-pixel py-2">
@@ -1197,13 +1250,17 @@ ${item.description}` : item.title)} className="ml-1.5" />
             ) : null}
             {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. */}
             {inBar && !playing ? (
-              <WebBarPlayKey item={item} onOpen={opened} onFallback={embed ? () => setPlaying(true) : null} />
+              <WebBarPlayKey item={item} onOpen={opened} onFallback={embed ? startPlayer : null} />
             ) : embed ? (
               <button
                 type="button"
                 onClick={() => {
-                  if (!playing) opened();
-                  setPlaying((current) => !current);
+                  if (playing) {
+                    stopPlayer();
+                    return;
+                  }
+                  opened();
+                  startPlayer();
                 }}
                 aria-expanded={playing}
                 // The visible word leads the name (PLAY / CLOSE), so a voice command for what is on screen works.
@@ -1213,6 +1270,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 {playing ? '[ ■ CLOSE ]' : '[ ▶ PLAY ]'}
               </button>
             ) : null}
+            {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
             {canWatch(item) ? (
@@ -1232,25 +1290,20 @@ ${item.description}` : item.title)} className="ml-1.5" />
         </div>
       </div>
 
-      {/* Nothing from the platform loads until the reader asks: the iframe exists only while open. */}
-      {playing && embed ? (
+      {/* Nothing from the platform loads until the reader asks: the player exists only while open. A video or a sound
+          plays in the site's one layer, which sits over this box (FloatingPlayer.tsx); a reader stays in its row. */}
+      {playing && embed && floats ? (
+        <PlayerBox id={playId} title={item.title} className={`mt-2 w-full border border-ink-plate bg-paper ${item.kind === 'video' ? 'aspect-video' : 'h-[44px]'}`} />
+      ) : null}
+      {playing && embed && !floats ? (
         <iframe
           src={startingEmbed(embed, item.platform, contentLanguage(item))}
           title={`${source} player: ${item.title}`}
           loading="lazy"
-          // YouTube's player refuses to start without knowing which site embeds it ("Error 153: video player
-          // configuration error", live-checked 2026-10-31 with no-referrer), so it alone is told our origin -
-          // strict-origin: the site's address only, never the page path, and nothing over plain http.
-          referrerPolicy={item.platform === 'youtube' ? 'strict-origin' : 'no-referrer'}
-          // Live-checked 2026-10-31: the Archive's player needs its scripts, and its own origin to fetch the
-          // files it plays; it drew and played with exactly these two. allow-same-origin keeps it on
-          // archive.org's origin, never ours (it is cross-origin). No popups, forms or top navigation.
-          sandbox="allow-scripts allow-same-origin"
-          // autoplay: the player starts on the reader's own press of PLAY (`startingEmbed`).
-          allow={item.kind === 'video' ? 'autoplay; fullscreen' : 'autoplay'}
-          className={`mt-2 block w-full border border-ink-plate bg-paper ${
-            item.kind === 'video' ? 'aspect-video' : item.kind === 'text' ? 'h-[360px]' : 'h-[44px]'
-          }`}
+          referrerPolicy={embedReferrer(item.platform)}
+          sandbox={EMBED_SANDBOX}
+          allow="autoplay"
+          className={`mt-2 block w-full border border-ink-plate bg-paper ${item.kind === 'text' ? 'h-[360px]' : 'h-[44px]'}`}
         />
       ) : null}
     </li>

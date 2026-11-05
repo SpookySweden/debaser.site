@@ -19,6 +19,7 @@ Guidelines that came from real bugs. Bend them if there's a good reason, but tel
 - **Starting something from the board takes two presses**: one to open, one to commit.
 - **Reveals take their space in both states.** Anything that appears on hover, focus or tap must not move what you're pointing at or push other content around. Either position it absolutely, or reserve its box and swap only what's inside. Never turn a `hidden` element visible on hover inside a row. A keyboard reveal uses `:focus-visible`, never `:focus-within`, because a mouse click leaves focus behind and the panel stays stuck open.
 - **Colours and sizes come from the tokens.** Every value lives in `app/theme/tokens.css`, `app/theme/fonts.ts` and `app/lib/ui/themes.ts` (`docs/theming.md`); components ask for names (`text-label`, `bg-paper`, `border-line`) and `npm run tokens` refuses raw values. Text must stay readable (4.5:1 contrast) in every theme. Motion stops under `prefers-reduced-motion`.
+- **A video is never drawn in its row** (SPEC-floating-player.md). A cross-origin iframe restarts if it moves in the page, so a row calls `playFloating` and draws a `PlayerBox`; the one layer in `app/layout.tsx` (`FloatingPlayer.tsx`) holds the player, over the box or floating. A stream room keeps its own player and floats by its box going `position: fixed` where it stands.
 - **A profile shows a person, not a console**: no ids, counts or settings read back at visitors.
 
 ## Also

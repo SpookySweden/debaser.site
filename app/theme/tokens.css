@@ -202,6 +202,8 @@
   --z-index-menu: 70;
   --z-index-dock: 90;
   --z-index-banner: 95;
+  /* The floating video: over the docked windows and the banner, under a dialogue. */
+  --z-index-float: 99;
   --z-index-popout: 100;
   --z-index-overlay: 120;
   /* The CAT cursor: above everything, because it is the pointer. */
