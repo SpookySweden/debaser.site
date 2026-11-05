@@ -57,6 +57,7 @@ assert.ok(renderToStaticMarkup(el(Gate, null, el(inside))).includes('INSIDE'));
 const home = draw('view=list');
 for (const words of ['WORD, ITEM OR LINK', 'INPUT', 'WORDS', 'NEIGHBOURHOOD', 'MOST USED WORDS', 'PICK A WORD']) assert.ok(home.includes(words), words);
 assert.ok(/role="combobox"/.test(home), 'the box is a combobox');
+assert.ok(draw('link=https%3A%2F%2Fexample.org%2Fx&view=list').includes('READING THE LINK'), 'a link says so while it is read');
 assert.ok(home.includes('aria-label="Text size S"') && home.includes('aria-label="Text size XL"'), 'S to XL');
 
 // 3. A word chosen: said out loud with its closest words, its related words with a reason, and its facts.
