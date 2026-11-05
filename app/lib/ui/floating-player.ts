@@ -63,12 +63,18 @@ let plays = 0;
 const boxes = new Map<string, HTMLElement>();
 /** Show the box when it next arrives: just pressed PLAY, or `[ BACK ]` from another page. */
 let revealWanted = false;
+/** The video was in its box when its row left the page, so it goes back there in view. */
+let leftInBox = false;
+/** That box, back on the page: put ahead of a saved scroll position, because MEDIA's rows can come back in another order. */
+let kept: HTMLElement | null = null;
 /** How far each video got this visit, for a row that plays it again. Memory only: never stored, never sent. */
 const places = new Map<string, number>();
 
 /** Starts a video, replacing whatever was playing. Asked for by the reader's own press of PLAY, always. */
 export function playFloating(next: Omit<FloatingEntry, 'play' | 'home'>): void {
   plays += 1;
+  leftInBox = false;
+  kept = null;
   const home = typeof window === 'undefined' ? '/' : `${window.location.pathname}${window.location.search}`;
   slot.set({ entry: { ...next, play: plays, home }, asked: false, floating: false });
   const box = boxes.get(next.id);
@@ -84,6 +90,8 @@ export function playCount(): number {
 /** Stops the video. Its place stays for the visit; `places` was kept up as it played. */
 export function closeFloating(): void {
   revealWanted = false;
+  leftInBox = false;
+  kept = null;
   if (slot.state().entry !== null) slot.set(EMPTY);
 }
 
@@ -118,18 +126,32 @@ export function registerBox(id: string, element: HTMLElement): () => void {
   boxes.set(id, element);
   if (slot.state().entry?.id === id) {
     setFloatAsked(false);
-    if (revealWanted) {
-      revealWanted = false;
-      element.scrollIntoView({ block: 'nearest' });
-    }
+    if (leftInBox) kept = element;
+    if (revealWanted || leftInBox) element.scrollIntoView({ block: 'nearest' });
+    revealWanted = false;
+    leftInBox = false;
   }
   return () => {
-    if (boxes.get(id) === element) boxes.delete(id);
+    if (boxes.get(id) !== element) return;
+    boxes.delete(id);
+    if (kept === element) kept = null;
+    const state = slot.state();
+    if (state.entry?.id === id && !state.floating) leftInBox = true;
   };
 }
 
 export function boxOf(id: string): HTMLElement | undefined {
   return boxes.get(id);
+}
+
+/** The box a video came back to, while the page is being put back as it was. */
+export function keptBox(): HTMLElement | null {
+  return kept;
+}
+
+/** The page is settled, or the reader has done something: from here the box goes wherever the page takes it. */
+export function letKeptBoxGo(): void {
+  kept = null;
 }
 
 /** Where this row's video had got to, or null. Only players that report their time ever have one. */
