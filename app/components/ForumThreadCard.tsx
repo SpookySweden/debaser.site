@@ -18,7 +18,7 @@ import type { ForumThread, ForumTrack } from '../lib/forum/types';
 import { useCatalogue } from '../lib/media/catalogue';
 import { previewFor, recordUses, replyUse } from '../lib/media/uses';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
-import { SONG_POST_WORDS, songHrefIn } from '../lib/forum/song-link';
+import { bodyWords, songHrefIn } from '../lib/forum/song-link';
 import { PLATE, ROW_READ, ROW_UNREAD } from '../lib/ui/controls';
 import CommentComposer from './CommentComposer';
 import CommentThreadList from './CommentThreadList';
@@ -384,10 +384,7 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                 line away from wrapping under themselves. 360px is a comfortable reading measure. */}
             <div className="relative hidden w-2/5 min-w-0 shrink-0 sm:flex">
               {isOpen ? null : (
-                <PostRowDetails
-                  body={songHrefIn(layout.right.body) === null ? layout.right.body : SONG_POST_WORDS}
-                  comments={thread.comments}
-                />
+                <PostRowDetails body={bodyWords(layout.right.body)} comments={thread.comments} />
               )}
             </div>
           </div>

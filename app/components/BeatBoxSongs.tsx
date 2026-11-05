@@ -28,7 +28,25 @@ export default function BeatBoxSongs({
   onOpen: (song: string) => void;
 }) {
   const { status, user } = useAuth();
-  const owner = user?.id ?? null;
+  if (status !== 'signed-in' || !user) {
+    return (
+      <Link href="/account" className={smallKey()}>
+        Sign in to save songs
+      </Link>
+    );
+  }
+  return <OwnSongs key={user.id} owner={user.id} getSong={getSong} onOpen={onOpen} />;
+}
+
+function OwnSongs({
+  owner,
+  getSong,
+  onOpen,
+}: {
+  owner: string;
+  getSong: () => SavedSong;
+  onOpen: (song: string) => void;
+}) {
   const [songs, setSongs] = useState<SavedBeatBoxSong[]>([]);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
@@ -37,7 +55,6 @@ export default function BeatBoxSongs({
   const say = useCallback((text: string) => setMessage(text), []);
 
   useEffect(() => {
-    if (owner === null) return;
     let current = true;
     getBeatBoxSongRepository()
       .list(owner)
@@ -52,13 +69,6 @@ export default function BeatBoxSongs({
     };
   }, [owner, say]);
 
-  if (status !== 'signed-in' || owner === null) {
-    return (
-      <Link href="/account" className={smallKey()}>
-        Sign in to save songs
-      </Link>
-    );
-  }
   const me = owner;
 
   function textToSave(): string | null {

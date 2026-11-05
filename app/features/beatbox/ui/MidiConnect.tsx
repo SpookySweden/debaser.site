@@ -16,11 +16,23 @@ export function MidiConnect({ live }: { live: LiveNotes }) {
   const [connected, setConnected] = useState(false);
   const connection = useRef<MidiConnection | null>(null);
 
-  useEffect(() => () => connection.current?.disconnect(), []);
+  const here = useRef(true);
+
+  useEffect(() => {
+    here.current = true;
+    return () => {
+      here.current = false;
+      connection.current?.disconnect();
+    };
+  }, []);
 
   async function connect() {
     setMessage("Waiting for your browser. It may ask you to allow MIDI.");
     const result = await connectMidi(live.stream.emit, navigator as unknown as MidiNavigator);
+    if (!here.current) {
+      if (result.status === "connected") result.connection.disconnect();
+      return;
+    }
     if (result.status === "unsupported") {
       setMessage(
         "This browser can't use MIDI keyboards. Chrome and Edge can, as can Firefox on a computer and Chrome on Android. The pads and computer keys still work here.",

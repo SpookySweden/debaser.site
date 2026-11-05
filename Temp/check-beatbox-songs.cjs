@@ -83,6 +83,10 @@ async function refused(promise, words) {
   assert.equal((await mock.list('a')).length, 1);
   assert.equal((await mock.update('a', first.id, 'x')).song, 'x');
   assert.equal((await mock.list('a'))[0].song, 'x');
+  await assert.rejects(mock.add('a', '', SONG), 'the mock refuses an empty title');
+  await assert.rejects(mock.add('a', 'x'.repeat(61), SONG), 'and a long one');
+  await assert.rejects(mock.add('a', 'LONG', 'x'.repeat(100001)), 'and a long song');
+  await assert.rejects(mock.update('a', first.id, 'x'.repeat(100001)), 'and saving over with one');
   await mock.remove('a', first.id);
   for (let index = 0; index < 100; index += 1) await mock.add('a', `S${index}`, SONG);
   await assert.rejects(mock.add('a', 'ONE TOO MANY', SONG), /100 saved songs/);

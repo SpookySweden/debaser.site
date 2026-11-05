@@ -223,6 +223,8 @@ export function BeatBox({
       if (event.metaKey || event.altKey) return;
       // The help panel has its own keys. Esc closes it, by itself.
       if (document.querySelector("dialog[open]")) return;
+      // On a page shared with other windows, a key pressed in one of them is for that window.
+      if (event.target instanceof Element && event.target !== document.body && !page.current?.contains(event.target)) return;
       const inTextBox = event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]");
       const onControl = event.target instanceof Element && event.target.closest(CONTROL_ELEMENTS);
       if (event.key === "Escape") {

@@ -14,6 +14,7 @@ import SheetImage from './SheetImage';
 import TagStrip from './TagStrip';
 import ThreadSubjectRow from './ThreadSubjectRow';
 import TimeStamp from './TimeStamp';
+import { bodyWords } from '../lib/forum/song-link';
 
 type ForumGalleryTileProps = {
   thread: ForumThread;
@@ -133,7 +134,7 @@ export default function ForumGalleryTile({ thread, onOpen, tagFilter = [], read 
         </div>
 
         {layout.right.isAnchorPost ? null : (
-          <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{layout.right.body}</p>
+          <p className="whitespace-pre-line text-prose leading-normal wrap-anywhere text-ink">{bodyWords(layout.right.body)}</p>
         )}
 
         <TagStrip tags={layout.left.tags} limit={5} emptyLabel="NO TAGS" className="mt-1" />

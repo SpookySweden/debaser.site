@@ -2,6 +2,7 @@ import { displayTitle } from './site-author';
 import { threadDomId } from './anchors';
 import { livePins, pinLabel } from './pins';
 import type { ForumAuthor, ForumComment, ForumThread, ThreadPin } from './types';
+import { bodyWords } from './song-link';
 
 /**
  * A wire as a list of rows.
@@ -102,7 +103,7 @@ export function buildNewsFeed(
       kind: 'post',
       tag: 'POST',
       author: thread.author,
-      text: clipForNews(thread.body.length === 0 ? displayTitle(thread) : thread.body),
+      text: clipForNews(thread.body.length === 0 ? displayTitle(thread) : bodyWords(thread.body)),
       createdAt: thread.createdAt,
       href: newsHref(thread.id),
       hrefTitle: `Open "${displayTitle(thread)}"`,

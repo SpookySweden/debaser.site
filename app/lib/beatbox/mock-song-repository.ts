@@ -1,4 +1,15 @@
-import { SONGS_PER_PERSON_MAX, TOO_MANY_SONGS, type BeatBoxSongRepository, type SavedBeatBoxSong } from './types';
+import {
+  SONG_TEXT_MAX,
+  SONG_TITLE_MAX,
+  SONGS_PER_PERSON_MAX,
+  TOO_MANY_SONGS,
+  type BeatBoxSongRepository,
+  type SavedBeatBoxSong,
+} from './types';
+
+function checkSong(song: string): void {
+  if (song.length < 1 || song.length > SONG_TEXT_MAX) throw new Error('That song could not be saved.');
+}
 
 /** The same rules as the table, held in memory for the signed-out-of-Supabase site: each person sees only their own. */
 export function createMockSongRepository(): BeatBoxSongRepository {
@@ -15,6 +26,8 @@ export function createMockSongRepository(): BeatBoxSongRepository {
       return [...of(owner)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(plain);
     },
     async add(owner, title, song) {
+      if (title.length < 1 || title.length > SONG_TITLE_MAX) throw new Error('That song could not be saved.');
+      checkSong(song);
       if (of(owner).length >= SONGS_PER_PERSON_MAX) throw new Error(TOO_MANY_SONGS);
       const row = { id: `mock-song-${nextId++}`, owner, title, song, updatedAt: now() };
       songs.set(owner, [...of(owner), row]);
@@ -23,6 +36,7 @@ export function createMockSongRepository(): BeatBoxSongRepository {
     async update(owner, id, song) {
       const row = of(owner).find((entry) => entry.id === id);
       if (!row) throw new Error('That song is not there any more.');
+      checkSong(song);
       row.song = song;
       row.updatedAt = now();
       return plain(row);

@@ -68,7 +68,7 @@ export interface Engine {
   /** Silences everything sounding right now. A playing song carries on with its next notes. */
   stopAllNotes(): void;
   /** Makes the whole song as samples, without playing it out loud. Reports from 0 to 1 as it goes. */
-  renderAudio(onProgress?: (done: number) => void): Promise<RenderedAudio>;
+  renderAudio(onProgress?: (done: number) => void, stop?: AbortSignal): Promise<RenderedAudio>;
   /** A link to the song that opens on beepbox.co. */
   getSongLink(): string;
   /** The song in BeepBox's JSON format. */
@@ -360,7 +360,7 @@ export function createEngine(): Engine {
       synth.resetEffects();
     },
 
-    async renderAudio(onProgress) {
+    async renderAudio(onProgress, stopSignal) {
       // A second synth, so this doesn't disturb what's playing.
       const renderer = new Synth(requireSong());
       renderer.samplesPerSecond = RENDER_SAMPLE_RATE;
@@ -373,6 +373,7 @@ export function createEngine(): Engine {
         renderer.synthesize(left.subarray(done, end), right.subarray(done, end), end - done);
         onProgress?.(end / length);
         await new Promise((resolve) => setTimeout(resolve));
+        stopSignal?.throwIfAborted();
       }
       return { left, right, sampleRate: RENDER_SAMPLE_RATE };
     },

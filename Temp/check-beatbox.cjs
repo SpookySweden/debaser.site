@@ -11,7 +11,7 @@ const { commitTake } = require('./beatbox-out/features/beatbox/recorder/merge.js
 const { createHistory, pushHistory, undoHistory } = require('./beatbox-out/features/beatbox/recorder/history.js');
 const { foldIntoLoop } = require('./beatbox-out/features/beatbox/recorder/clock.js');
 const { createLoopRecorder } = require('./beatbox-out/features/beatbox/recorder/loopRecorder.js');
-const { songHrefIn } = require('./beatbox-out/lib/forum/song-link.js');
+const { bodyWords, songHrefIn, SONG_POST_WORDS } = require('./beatbox-out/lib/forum/song-link.js');
 
 const ROOT = path.join(__dirname, '..');
 const BAR = 192;
@@ -109,6 +109,8 @@ assert.equal(songHrefIn('listen to this https://debaser.site/beatbox#9n31'), nul
 assert.equal(songHrefIn('https://debaser.site/forum#9n31'), null);
 assert.equal(songHrefIn('https://debaser.site/beatbox#<script>'), null);
 assert.equal(songHrefIn('https://debaser.site/beatbox'), null);
+assert.equal(bodyWords('https://debaser.site/beatbox#9n31'), SONG_POST_WORDS, 'a list shows words, not the long link');
+assert.equal(bodyWords('an ordinary post'), 'an ordinary post');
 
 // The source keeps to the beat box's own rules.
 const read = (file) => fs.readFileSync(path.join(ROOT, file), 'utf8');

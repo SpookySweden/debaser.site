@@ -6,6 +6,7 @@ import { pluralise } from '../lib/forum/format';
 import { displayTitle } from '../lib/forum/site-author';
 import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import TimeStamp from './TimeStamp';
+import { bodyWords } from '../lib/forum/song-link';
 
 /** Results are not paged until there are more than this; then `[ MORE ]` shows the next lot. */
 const RESULTS_PAGE = 25;
@@ -69,7 +70,7 @@ export default function ForumSearchResults({ hits, terms, sort, onSort, onOpen, 
           <ol className="mt-2">
             {visible.map((hit) => {
               const title = displayTitle(hit.thread);
-              const words = hit.body.trim().length > 0 ? hit.body : title;
+              const words = hit.body.trim().length > 0 ? bodyWords(hit.body) : title;
 
               return (
                 <li key={hit.comment?.id ?? hit.thread.id} className="rule-pixel">

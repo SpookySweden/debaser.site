@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type KeyboardEvent, type ReactNode } from "react";
 import type { Engine } from "../engine";
 import { audioToWav, songToMidi } from "../engine/exportFiles";
 import { bigKey, focusOnly, mainKey, smallKey, titleLine } from "./looks";
@@ -44,6 +44,9 @@ export function InOut({
   const [shareLink, setShareLink] = useState("");
   const [renderProgress, setRenderProgress] = useState<number | null>(null);
   const filePicker = useRef<HTMLInputElement>(null);
+  const renderStop = useRef<AbortController | null>(null);
+
+  useEffect(() => () => renderStop.current?.abort(), []);
 
   function submit(event: FormEvent) {
     event.preventDefault();
@@ -83,10 +86,14 @@ export function InOut({
     if (renderProgress !== null) return;
     onAnnounce("Making the sound file. The music keeps playing while it does.");
     setRenderProgress(0);
+    const stop = new AbortController();
+    renderStop.current = stop;
     try {
-      const audio = await engine.renderAudio(setRenderProgress);
+      const audio = await engine.renderAudio(setRenderProgress, stop.signal);
       saveFile(audioToWav(audio), "wav", "audio/wav");
       onAnnounce("Sound file saved to your downloads.");
+    } catch (error) {
+      if (!stop.signal.aborted) throw error;
     } finally {
       setRenderProgress(null);
     }

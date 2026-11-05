@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { BeatBox, type BeatBoxArt, type SavedSong } from '../features/beatbox';
 import BeatBoxSongs from './BeatBoxSongs';
 import ShareSongToForum from './ShareSongToForum';
@@ -27,6 +27,23 @@ export default function BeatBoxRoom() {
 
   const openSaved = useCallback((song: string) => {
     setOpened((current) => ({ number: current.number + 1, song: `#${song}` }));
+  }, []);
+
+  // Coming from the forum's [ OPEN SONG ], the address only changes once this page has been drawn. A hand-edited
+  // address changes it while the page is open.
+  useEffect(() => {
+    const follow = () => {
+      const song = songInAddress();
+      if (song !== undefined) {
+        setOpened((current) => (current.song === song ? current : { number: current.number + 1, song }));
+      }
+    };
+    const timer = setTimeout(follow);
+    window.addEventListener('hashchange', follow);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener('hashchange', follow);
+    };
   }, []);
 
   const extras = useCallback(

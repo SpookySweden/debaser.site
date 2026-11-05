@@ -11,5 +11,10 @@ export function songHrefIn(body: string): string | null {
   return match === null ? null : `/beatbox${match[1]}`;
 }
 
-/** What the board's folded row says in place of the long link. */
+/** What the board says in place of the long link. */
 export const SONG_POST_WORDS = 'A SONG FROM THE BEAT BOX';
+
+/** A post's words as a list or preview should show them. */
+export function bodyWords(body: string): string {
+  return songHrefIn(body) === null ? body : SONG_POST_WORDS;
+}
