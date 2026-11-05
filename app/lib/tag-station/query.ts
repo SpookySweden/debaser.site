@@ -1,3 +1,4 @@
+import { PLATFORM_LABELS, type WebPlatform } from '../web/types';
 import { strength } from './closeness';
 import { FACETS, type Facet } from './word-facts';
 import type { Niche, Recipe } from './recipe';
@@ -87,6 +88,13 @@ export function tagPassesFacet(tag: StationTag, recipe: Recipe): boolean {
 /** The map's own spelling of each word in a list, dropping any it doesn't have. */
 function known(index: StationIndex, words: readonly string[]): string[] {
   return words.map((word) => findTag(index, word)?.name).filter((name): name is string => name !== undefined);
+}
+
+const SWEPT_SOURCE_LABELS: Readonly<Record<string, string>> = { wikidata: 'WIKIDATA', tvmaze: 'TVMAZE' };
+
+/** An item's source, as named beside it: MEDIA's platforms, and the two the sweep reads for films and shows. */
+export function sourceLabel(platform: string): string {
+  return PLATFORM_LABELS[platform as WebPlatform] ?? SWEPT_SOURCE_LABELS[platform] ?? platform.toUpperCase();
 }
 
 export type Focus = {
@@ -254,11 +262,9 @@ export function relatedTags(index: StationIndex, recipe: Recipe, focus: Focus, l
     if (entry.hop !== null) {
       reason = `VIA ${entry.hop}`;
     } else {
-      const named = [...entry.through].sort((a, b) => b.shared - a.shared || (a.word < b.word ? -1 : 1)).slice(0, 2);
-      const carrying = index.itemsByWord.get(name) ?? new Set<string>();
-      const backing = new Set<string>();
-      for (const { word } of named) for (const id of index.itemsByWord.get(word) ?? []) if (carrying.has(id)) backing.add(id);
-      reason = `WITH ${named.map(({ word }) => word).join(' AND ')} ON ${itemsWord(backing.size)}`;
+      // The count from the closest pair, which covers items that were counted and dropped, not just the ones loaded here.
+      const named = [...entry.through].sort((a, b) => b.shared - a.shared || (a.word < b.word ? -1 : 1));
+      reason = `WITH ${named[0].word} ON ${itemsWord(named[0].shared)}`;
     }
     list.push({ tag, score: entry.score, close: entry.close, reason });
   }

@@ -1,7 +1,7 @@
 import { MOCK_WEB_ITEMS } from '../web/mock-web-repository';
 import type { WebItem } from '../web/types';
 import type { TagStationRepository } from './repository';
-import type { StationRow } from './types';
+import type { StationRow, SweptCounts } from './types';
 import type { WordFact } from './word-facts';
 
 /**
@@ -110,6 +110,23 @@ export const MOCK_WORD_FACTS: readonly WordFact[] = [
   fact('mock platform tag', 'subject', null, true),
 ];
 
+/** A swept film and a swept recording, as `web_pool_items` holds them, with the counts they went into. */
+export const MOCK_POOL_ROWS: readonly StationRow[] = [
+  { item: { id: 'wikidata:Q1000', platform: 'wikidata' as WebItem['platform'], externalId: 'Q1000', kind: 'video', url: '', canonicalUrl: '', title: 'MOCK SWEPT FILM', creator: 'Mock Director', publishedAt: '1994-01-01T00:00:00.000Z', fetchedAt: '' }, claudeWords: ['science fiction', 'space', 'melancholy'], seenOnly: true, listOnly: true },
+  { item: { id: 'internet_archive:mock-swept', platform: 'internet_archive', externalId: 'mock-swept', kind: 'audio', url: 'https://archive.org/details/mock-swept', canonicalUrl: 'https://archive.org/details/mock-swept', title: 'MOCK SWEPT RECORDING', publishedAt: '2001-01-01T00:00:00.000Z', fetchedAt: '' }, claudeWords: ['ambient', 'tape', 'calm'], listOnly: true },
+];
+export const MOCK_SWEPT: SweptCounts = {
+  counted: 2,
+  words: [
+    { word: 'science fiction', items: 1, partners: { space: 1, melancholy: 1 } },
+    { word: 'space', items: 1, partners: { 'science fiction': 1, melancholy: 1 } },
+    { word: 'melancholy', items: 1, partners: { 'science fiction': 1, space: 1 } },
+    { word: 'ambient', items: 1, partners: { tape: 1, calm: 1 } },
+    { word: 'tape', items: 1, partners: { ambient: 1, calm: 1 } },
+    { word: 'calm', items: 1, partners: { ambient: 1, tape: 1 } },
+  ],
+};
+
 const MOCK: TagStationRepository = {
   source: 'mock',
   async rows() {
@@ -117,6 +134,9 @@ const MOCK: TagStationRepository = {
   },
   async wordFacts() {
     return MOCK_WORD_FACTS;
+  },
+  async pool() {
+    return { rows: MOCK_POOL_ROWS, swept: MOCK_SWEPT };
   },
   async limitReached() {
     return false;

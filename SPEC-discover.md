@@ -93,6 +93,16 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **What this can't replace:** posters for most films. Free ones on Wikimedia Commons are few, so DISCOVER shows a film's
   picture only where a source allows it; KINO's own rows keep TMDB's.
 
+## What was built for the sweep (2026-11-05; Luke's OKs in the main chat)
+- **Size:** 20 MB used of a free plan's 500 MB. `web_pool_items` keeps the newest 100,000 rows with no description (about 40 MB), and
+  `web_word_stats` a word's count and top 100 partners (about 25 MB, 50,000 words at most). The job sends nothing past 300 MB.
+- **A run:** `/api/web/sweep`, every three hours at minute 11, `app/lib/web/sweep.ts`: up to 4,000 from Internet Archive's named
+  collections (450,308 items in them on the day), 1,000 from PeerTube, 60 from Openverse, 500 films and shows from Wikidata, 250 shows from
+  TVmaze. Reading stops at 25 seconds, and it sends what it has.
+- **Money:** $50 for the sweep, and the $60 stop overall. About 3.5 cents per 1,000 items, measured on the last real batch.
+- **Wikipedia and TVmaze words:** they go to Claude and aren't stored or shown; the page's `[ ? ]` credits all three with links.
+  CC BY-SA's share-alike may reach the words Claude picks, which is a question for a lawyer rather than something the code can settle.
+
 ## Rules for building
 - Every database change goes to the main session first in plain English, for Luke's OK. Only the job can write pool tables.
 - Mock and Supabase stores both, with checks that fail before the fix. Whole `npm run checks`, code review, live proof.

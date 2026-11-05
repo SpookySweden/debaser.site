@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { canonicalIso, rowToItem, WEB_ITEM_COLUMNS, WEB_ITEMS_TABLE, type WebItemRow } from '../web/rows';
 import type { WebItem } from '../web/types';
 import type { TagStationRepository } from './repository';
-import type { StationRow } from './types';
+import type { StationRow, SweptCounts, SweptWord } from './types';
 import { FACETS, type Facet, type WordFact } from './word-facts';
 
 /**
@@ -20,6 +20,43 @@ type RowWithWords = WebItemRow & { web_item_tags: { words: string[] | null } | {
 
 /** Far more different words than a tagged item could bring for a long time, and a limit on the reads of one build. */
 const MAX_WORD_PAGES = 20;
+
+/** A row of `web_word_stats` holding how many items have been counted (word sweep's `TOTAL_ROW`). */
+const TOTAL_ROW = '#total';
+const POOL_COLUMNS = 'id, platform, external_id, host, kind, title, creator, published_at, words';
+type PoolRow = { id: string; platform: string; external_id: string; host: string | null; kind: string; title: string; creator: string | null; published_at: string | null; words: string[] | null };
+
+/** A swept row as a row of the map. Its addresses are built from its id by each platform's fixed shape, and checked again when they're drawn. */
+function poolToRow(row: PoolRow): StationRow {
+  const id = row.external_id;
+  const addresses: Partial<WebItem> =
+    row.platform === 'internet_archive'
+      ? { url: `https://archive.org/details/${id}`, canonicalUrl: `https://archive.org/details/${id}`, thumbnailUrl: `https://archive.org/services/img/${id}`, embedUrl: `https://archive.org/embed/${id}` }
+      : row.platform === 'peertube' && row.host
+        ? { url: `https://${row.host}/videos/watch/${id}`, canonicalUrl: `https://${row.host}/videos/watch/${id}`, embedUrl: `https://${row.host}/videos/embed/${id}` }
+        : row.platform === 'openverse'
+          ? { url: `https://openverse.org/${row.kind === 'audio' ? 'audio' : 'image'}/${id}`, canonicalUrl: `https://openverse.org/${row.kind === 'audio' ? 'audio' : 'image'}/${id}`, thumbnailUrl: `https://api.openverse.org/v1/${row.kind === 'audio' ? 'audio' : 'images'}/${id}/thumb/` }
+          : {};
+  const playable = addresses.url !== undefined;
+  return {
+    item: {
+      id: row.id,
+      platform: row.platform as WebItem['platform'],
+      externalId: id,
+      kind: KINDS.includes(row.kind as WebItem['kind']) ? (row.kind as WebItem['kind']) : 'other',
+      url: '',
+      canonicalUrl: '',
+      title: row.title,
+      ...(row.creator ? { creator: row.creator } : {}),
+      publishedAt: row.published_at ? canonicalIso(row.published_at) : '',
+      fetchedAt: '',
+      ...addresses,
+    },
+    claudeWords: row.words ?? [],
+    listOnly: true,
+    ...(playable ? {} : { seenOnly: true }),
+  };
+}
 
 /** The columns of a seen row anyone may read (supabase/migrations/*_web_seen_items.sql). */
 const SEEN_COLUMNS = 'id, platform, kind, title, creator, published_at, words';
@@ -71,6 +108,22 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       const savedIds = new Set(savedRows.map((row) => row.item.id));
       const seenRows = ((seen.data ?? []) as unknown as SeenRow[]).filter((row) => !savedIds.has(row.id)).map(seenToRow);
       return [...savedRows, ...seenRows];
+    },
+    async pool(): Promise<{ rows: StationRow[]; swept: SweptCounts }> {
+      const [items, words] = await Promise.all([
+        client.from('web_pool_items').select(POOL_COLUMNS).order('published_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).limit(MAX_ITEMS),
+        // The commonest words only: this read costs the free plan's monthly allowance, and the map can't show more.
+        client.from('web_word_stats').select('word, items, partners').order('items', { ascending: false }).order('word').limit(MAX_ITEMS),
+      ]);
+      const rows = items.error ? [] : ((items.data ?? []) as unknown as PoolRow[]).map(poolToRow);
+      const all = words.error ? [] : ((words.data ?? []) as unknown as SweptWord[]);
+      return {
+        rows,
+        swept: {
+          counted: all.find((one) => one.word === TOTAL_ROW)?.items ?? 0,
+          words: all.filter((one) => one.word !== TOTAL_ROW),
+        },
+      };
     },
     async wordFacts(): Promise<WordFact[]> {
       // PostgREST's cap is 1,000 rows an answer, so page by page, usually just one. Any failed page means no answers at all this time:
