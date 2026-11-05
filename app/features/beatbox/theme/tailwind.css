@@ -1,0 +1,24 @@
+/* Tailwind names for the tokens, all starting bb- so they can't clash with a host page's names.
+   The values stay in tokens.css. */
+@theme inline {
+  --color-bb-nigrosine: var(--nigrosine);
+  --color-bb-white: var(--white);
+  --color-bb-daffodil: var(--daffodil);
+  --color-bb-flavine: var(--flavine);
+  --color-bb-emerald: var(--emerald);
+  --color-bb-pink: var(--pink);
+  --color-bb-rose: var(--rose);
+  --color-bb-royal-blue: var(--royal-blue);
+  --color-bb-black: var(--black);
+  --font-beatbox: var(--font-mono);
+  --text-bb-title: var(--text-title);
+  --text-bb-large: var(--text-large);
+  --text-bb-cell-s: var(--text-s);
+  --text-bb-cell-m: var(--text-m);
+  --text-bb-cell-l: var(--text-l);
+  --text-bb-cell-xl: var(--text-xl);
+  --spacing-bb-target-min: var(--target-min);
+  --spacing-bb-target-large: var(--target-large);
+  --spacing-bb-gutter: var(--gutter);
+  --spacing-bb-gap: var(--gap);
+}

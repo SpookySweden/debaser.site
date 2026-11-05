@@ -1,6 +1,10 @@
 @import "tailwindcss";
 /* Every value the look is drawn with: sizes, lines, colours, faces, layers, motion. docs/theming.md. */
 @import "./theme/tokens.css";
+/* The beat box (/beatbox). Scoped to its own class and its own bb- names, and only those names reach Tailwind. */
+@import "./features/beatbox/theme/tokens.css";
+@import "./features/beatbox/theme/beatbox.css";
+@import "./features/beatbox/theme/tailwind.css";
 
 /* The fallback theme is dark (`FALLBACK_THEME` in app/lib/ui/themes.ts; its colours are the generated block
    in app/theme/tokens.css), so the browser's own parts - a select's popup, the caret - are drawn dark before

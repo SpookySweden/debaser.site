@@ -1,0 +1,86 @@
+/* The DEBASER_OS look: bracket keys, title lines and stepped frames, as in the site's docs/design.md.
+   Colours and sizes come from tokens.css. Scoped so nothing leaks into the site's pages. */
+.debaser-beatbox {
+  font-synthesis: none; /* one weight is loaded, so emphasis comes from colour and size */
+}
+
+/* A bracket key: its label in brackets, with no outline. The brackets are for the eye only. */
+.debaser-beatbox .bb-key::before {
+  content: "[\00a0" / "";
+}
+.debaser-beatbox .bb-key::after {
+  content: "\00a0]" / "";
+}
+
+/* High contrast has no room for subtle: every key gets a thick outline too. */
+.debaser-beatbox[data-theme="high-contrast"] .bb-key {
+  border: var(--border-width) solid var(--white);
+}
+
+/* A title line: the name set between two rules. */
+.debaser-beatbox .bb-title-line {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--gutter);
+}
+.debaser-beatbox .bb-title-line::before,
+.debaser-beatbox .bb-title-line::after {
+  content: "";
+  flex: 1 1 var(--gutter);
+  min-width: var(--gutter);
+  height: var(--frame-width);
+  background: currentColor;
+}
+
+/* A field wears the frame: an outline whose four corners step in by one pixel. It's drawn as
+   stripes, not a clipped shape, so the focus box around it is never cut off. */
+.debaser-beatbox .bb-field {
+  border: var(--frame-width) solid transparent;
+  background-image:
+    linear-gradient(var(--white), var(--white)), linear-gradient(var(--white), var(--white)),
+    linear-gradient(var(--white), var(--white)), linear-gradient(var(--white), var(--white));
+  background-origin: border-box;
+  background-clip: border-box;
+  background-position:
+    var(--frame-width) 0,
+    var(--frame-width) 100%,
+    0 var(--frame-width),
+    100% var(--frame-width);
+  background-size:
+    calc(100% - 2 * var(--frame-width)) var(--frame-width),
+    calc(100% - 2 * var(--frame-width)) var(--frame-width),
+    var(--frame-width) calc(100% - 2 * var(--frame-width)),
+    var(--frame-width) calc(100% - 2 * var(--frame-width));
+  background-repeat: no-repeat;
+}
+
+/* A contact closing: sunk in while it's hit. */
+.debaser-beatbox .bb-sunk,
+.debaser-beatbox .bb-sinks:active {
+  box-shadow: inset 0 var(--press-depth) 0 0 var(--black);
+}
+
+/* The lines of the note grid and the bars. */
+.debaser-beatbox .bb-note-cell {
+  border-top: var(--cell-line) solid var(--grid-line);
+  border-right: var(--cell-line) solid var(--grid-line);
+}
+.debaser-beatbox .bb-note-cell.bb-note-runs-on {
+  border-right: none;
+}
+.debaser-beatbox .bb-note-cell.bb-beat-line {
+  border-left: var(--beat-line) solid var(--white);
+}
+.debaser-beatbox .bb-bar-cell {
+  border: var(--cell-line) solid var(--white);
+}
+
+/* Windows High Contrast takes away background colours, so notes ask for its own highlight. */
+@media (forced-colors: active) {
+  .debaser-beatbox .bb-note {
+    background: Highlight;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+}
