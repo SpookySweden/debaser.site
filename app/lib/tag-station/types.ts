@@ -1,4 +1,5 @@
 import type { WebItem } from '../web/types';
+import type { Facet } from './word-facts';
 
 /**
  * TAG STATION's data (SPEC-tag-station.md). Metadata only, as everywhere in WEB: the counts here are how many of OUR saved
@@ -35,6 +36,8 @@ export type StationTag = {
   platform: number;
   /** The era it names ("1920s"), or null. */
   era: string | null;
+  /** What type of word it is (the word pass), or null until the pass has answered. */
+  facet: Facet | null;
   /** The first and latest publish dates among its items (ISO), or null. */
   first: string | null;
   latest: string | null;
@@ -49,6 +52,8 @@ export type StationTag = {
 export type StationGraph = {
   tags: StationTag[];
   items: StationItem[];
+  /** Other spellings the word pass joined to a word: a word's key, then its name on the map. So an old link or a typed spelling still lands. */
+  aliases?: Record<string, string>;
   /** True when the $60 tagging limit has stopped the batches: a person has to decide (SPEC-tag-station.md). */
   limitReached?: boolean;
 };

@@ -3,6 +3,7 @@ import { canonicalIso, rowToItem, WEB_ITEM_COLUMNS, WEB_ITEMS_TABLE, type WebIte
 import type { WebItem } from '../web/types';
 import type { TagStationRepository } from './repository';
 import type { StationRow } from './types';
+import { FACETS, type Facet, type WordFact } from './word-facts';
 
 /**
  * TAG STATION's read of the live data: `web_items` with each item's row from `web_item_tags`, and the tagged results nobody saved
@@ -67,6 +68,25 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       const savedIds = new Set(savedRows.map((row) => row.item.id));
       const seenRows = ((seen.data ?? []) as unknown as SeenRow[]).filter((row) => !savedIds.has(row.id)).map(seenToRow);
       return [...savedRows, ...seenRows];
+    },
+    async wordFacts(): Promise<WordFact[]> {
+      // PostgREST's cap is 1,000 rows an answer, so a fixed few pages; a failed page is only fewer answers, and the map still draws.
+      const pages = await Promise.all(
+        [0, 1, 2, 3, 4].map((page) =>
+          client
+            .from('web_word_facts')
+            .select('word, facet, same_as, vague')
+            .not('facet', 'is', null)
+            .order('word')
+            .range(page * MAX_ITEMS, (page + 1) * MAX_ITEMS - 1),
+        ),
+      );
+      return pages.flatMap(({ data, error }) => (error ? [] : ((data ?? []) as { word: string; facet: string | null; same_as: string | null; vague: boolean | null }[]))).map((row) => ({
+        word: row.word,
+        facet: FACETS.includes(row.facet as Facet) ? (row.facet as Facet) : null,
+        sameAs: row.same_as,
+        vague: row.vague === true,
+      }));
     },
     async limitReached(): Promise<boolean> {
       const { data, error } = await client.rpc('web_tag_limit_reached');

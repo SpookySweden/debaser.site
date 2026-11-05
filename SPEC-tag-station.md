@@ -34,8 +34,8 @@ A word is marked with where it came from: `C` Claude's, `P` the platform's own, 
 - **Closeness:** NPMI, a score from -1 to 1 for how much more often two words meet than chance. A pair only counts as
   close once it shares at least 3 items (`MIN_SHARED`); until then the page says how many items a pair shares rather than
   claiming closeness it can't back. Each word keeps its 30 closest partners.
-- **Era** is spotted from the word itself ("1920s", "19th century"). There are no other facets and no confidence scores
-  yet: the tagger does not record them.
+- **Era** is spotted from the word itself ("1920s", "19th century"). Other types come from the word pass, below. There are no
+  confidence scores: the tagger does not record them.
 - **Layout:** UMAP (`umap-js`, MIT) with a fixed seed over each word's row of NPMI scores, so the same data always draws
   the same map. The same code runs in the route and in `npm run tags:build`, which runs it on the mock for checks.
   The doc says umap-js is Apache-2.0; the package itself says MIT, which is at least as free.
@@ -55,9 +55,10 @@ Three panels side by side, stacked when narrow.
 - **Search box:** one box for words, item names and links, with typo-forgiving suggestions.
 
 ## Filters, all in the address
-`/tag-station?tag=&item=&link=&must=&any=&not=&strict=&niche=&near=&src=&era=&kind=&site=&from=&to=&sort=&view=`
+`/tag-station?tag=&item=&link=&must=&any=&not=&strict=&niche=&near=&src=&era=&facet=&kind=&site=&from=&to=&sort=&view=`
 - `must`, `any`, `not` (each may repeat); `strict` all, most or any of the must-haves; `niche` mainstream to obscure;
-  `near` near, wider, far; `src` Claude's words, the platform's or both; `era`; `kind` and `site` (type and source);
+  `near` near, wider, far; `src` Claude's words, the platform's or both; `era`; `facet` (word type, once the word pass has
+  answered); `kind` and `site` (type and source);
   `from` and `to` (years); `sort` closest, rarest, newest, most words.
 - An empty or tiny result says which filter to loosen and how many more it would find.
 
@@ -79,12 +80,16 @@ can be spent until this branch is on `main`, and each needs a database change, s
 
 Prices: Haiku 5.5 in a batch is $0.05 in and $0.25 out per million tokens. The costs are estimates from the last real batch
 (161 items: 83,553 in, 5,461 out, about half a cent).
-1. **The word pass (recommended).** Claude reads the list of distinct words, not the items, and says for each: its facet
-   (genre, mood, place, era, medium, theme), which other word it duplicates, and whether it's too vague to mean anything
-   ("video"). Helps most: 368 of the 494 words sit on one item, and merging duplicates ("modernist"/"modernism", "animated
-   short"/"short film") is what gives pairs enough shared items to count as close. Unlocks facet badges and a facet filter.
-   Each word is asked once. First run about a cent or less; capped at 1,000 new words per run, one run every three hours, so at
-   most about $0.05 a day even if words arrived at that rate, which they won't. Needs one new table (one row per word).
+1. **The word pass (Luke: "lets build it next", 2026-11-05).** `app/lib/web/word-pass.ts`, run by `/api/web/tag` after the tagging.
+   Claude reads the list of different words, not the items, and says for each: its type (genre, mood, place, era, form, subject),
+   which other word it means exactly the same as, and whether it's too vague to mean anything ("video"). Helps most because 368 of
+   the 494 words sit on one item, and joining true duplicates gives pairs enough shared items to count as close. Each word is
+   asked once, up to three tries. First run about a cent or less; capped at 1,000 new words a run, so at most about 11 cents a day
+   even if words arrived at that rate, which they won't. One new table, `web_word_facts`. It counts towards the $60 stop.
+   **Nothing is rewritten:** `web_item_tags` isn't touched and MEDIA reads the same words. The answers are applied only when the map is
+   built (`app/lib/tag-station/word-facts.ts`), so a bad merge is one row to change. Joined spellings still find their word. A
+   group is capped at 6 words, so a run of bad joins can't swallow the map. Letters on the chips: G genre, M mood, W place, E era, F
+   form, S subject.
 2. **Confidence per word (later).** Asks again for each item's words with a score. Rough cost about a cent per 161 items, capped
    by the existing 200 items a run. Helps the strictness setting a little; less than (1), and it changes MEDIA's tagging job.
 3. **Pasted links through the batch (later).** A link is shown at once with what's known, and Claude's words arrive within three
@@ -131,8 +136,8 @@ readable axes, plain-English search, saved searches, listening data, sound-based
 not tagged and are not on the map.
 
 ## Handoff
-What's on the live site: everything above but the word pass, confidence scores and pasted links through the batch.
+What's on the live site: everything above but confidence scores and pasted links through the batch.
 - **Proof:** `npm run checks -- --only check-tag-station` runs the five checks; each was proved able to fail by breaking the code.
 - **First real batch:** read the `web-tag` cron's answers and `web_tag_spend`. Report the real cost per item to Luke.
 - **Watch:** when `web_seen_items` passes 1,000 tagged rows the map only reads the newest 1,000.
-- **Not done (each needs Luke's OK):** the word pass (one more table), confidence scores, pasted links through the batch.
+- **Not done (each needs Luke's OK):** confidence scores, pasted links through the batch.

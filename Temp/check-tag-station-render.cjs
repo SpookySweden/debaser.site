@@ -33,7 +33,7 @@ stub(path.join(__dirname, 'tag-station-render-out/components/MusicPlayerProvider
 const TagStation = require('./tag-station-render-out/components/TagStation.js');
 const Gate = require('./tag-station-render-out/components/TagStationGate.js').default;
 const { buildStationGraph } = require('./tag-station-render-out/lib/tag-station/graph.js');
-const { MOCK_STATION_ROWS } = require('./tag-station-render-out/lib/tag-station/mock-tag-repository.js');
+const { MOCK_STATION_ROWS, MOCK_WORD_FACTS } = require('./tag-station-render-out/lib/tag-station/mock-tag-repository.js');
 const { buildIndex } = require('./tag-station-render-out/lib/tag-station/query.js');
 
 const index = buildIndex(buildStationGraph(MOCK_STATION_ROWS));
@@ -119,7 +119,19 @@ assert.ok(!draw('tag=dub&view=list').includes('[ CLEAR ]'), 'nothing set, nothin
 assert.ok(draw('tag=dub&must=nothing+like+it&view=list').includes('NOTHING FOUND'), 'an empty result says so');
 assert.ok(/DROP MUST-HAVE nothing like it: \d+ MORE/.test(draw('tag=dub&must=nothing+like+it&view=list')), 'and what to loosen, with what it gains');
 
-// 9. The one header key, and nothing else outside the page.
+// 9. The word pass on the page: a letter and a word for each type, the filter, and nothing of either before it has answered.
+const withFacts = buildIndex(buildStationGraph(MOCK_STATION_ROWS, MOCK_WORD_FACTS));
+address = new URLSearchParams('tag=dub&view=list&facet=genre');
+const typed = renderToStaticMarkup(el(TagStation.Station, { index: withFacts }));
+assert.ok(typed.includes('aria-label="Go to dub, a genre"'), 'a word says its type');
+assert.ok(typed.includes('WORD TYPE'), 'the filter is there');
+const listed = typed.slice(typed.indexOf('aria-label="Words, closest first"'), typed.indexOf('id="ts-near"'));
+assert.ok(listed.includes('Go to reggae, a genre') && !listed.includes('Go to bristol, a place'), 'and the list of words leaves out other types');
+assert.ok(!draw('tag=dub&view=list').includes('WORD TYPE'), 'no answers yet, no filter');
+address = new URLSearchParams('tag=bristol&view=list');
+assert.ok(renderToStaticMarkup(el(TagStation.Station, { index: withFacts })).includes('Go to dub, a genre'));
+
+// 10. The one header key, and nothing else outside the page.
 const nav = fs.readFileSync(path.join(__dirname, '..', 'app/components/SiteNav.tsx'), 'utf8');
 assert.equal((nav.match(/href: '\/tag-station'/g) ?? []).length, 1, 'one nav entry');
 

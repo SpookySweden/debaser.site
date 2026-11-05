@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { clearedFilters, suggest, type StationIndex } from '../lib/tag-station/query';
 import { hasFilters, listOf, withWordIn, type Near, type Niche, type Recipe, type Strict, type WordSourceFilter } from '../lib/tag-station/recipe';
+import type { Facet } from '../lib/tag-station/word-facts';
 import { FIELD_TIGHT } from '../lib/ui/controls';
 import { PLATFORM_LABELS, type WebItemKind, type WebPlatform } from '../lib/web/types';
 import { KeyGroup, presentChoices, STATION_KEY, STATION_KEY_ON, STATION_RING } from './TagStationParts';
@@ -179,6 +180,15 @@ export default function TagStationFilters({ index, recipe, onChange }: { index: 
               onChange={(era) => onChange({ ...recipe, era: era === '' ? null : era })}
               options={[{ value: '', label: 'ANY' }, ...index.eras.map((era) => ({ value: era, label: era.toUpperCase() }))]}
             />
+            {/* Only once the word pass has said something. */}
+            {index.facets.length > 0 ? (
+              <Pick
+                label="WORD TYPE"
+                value={recipe.facet ?? ''}
+                onChange={(facet) => onChange({ ...recipe, facet: facet === '' ? null : (facet as Facet) })}
+                options={[{ value: '', label: 'ANY' }, ...index.facets.map((facet) => ({ value: facet, label: facet.toUpperCase() }))]}
+              />
+            ) : null}
             <Pick
               label="TYPE"
               value={recipe.kind ?? ''}

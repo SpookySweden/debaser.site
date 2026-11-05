@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, type ReactNode } from 'react';
+import { createContext, useContext, useState, type ReactNode } from 'react';
 import { artSlot } from '../lib/ui/art/slots';
 import type { StationIndex } from '../lib/tag-station/query';
 import type { ItemWord, StationItem } from '../lib/tag-station/types';
+import { FACET_LETTERS, type Facet } from '../lib/tag-station/word-facts';
 import { eraOf } from '../lib/tag-station/words';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS } from '../lib/web/types';
@@ -51,6 +52,9 @@ export function sourceLetters(word: Pick<ItemWord, 'claude' | 'platform'>): { le
   return word.claude ? { letters: 'C', label: "Claude's word" } : { letters: 'P', label: "the platform's own word" };
 }
 
+/** What type a word is, from wherever the page is drawn, so every chip can wear its letter without being told each time. */
+export const WordFacets = createContext<(word: string) => Facet | null>(() => null);
+
 /** A word: press it to go there, `+` to add it to the recipe. `from` is its source when known. */
 export function WordChip({
   word,
@@ -71,18 +75,18 @@ export function WordChip({
   onAdd: (word: string) => void;
 }) {
   const source = from ? sourceLetters(from) : letter && letterLabel ? { letters: letter, label: letterLabel } : null;
-  const era = eraOf(word) !== null;
+  const facet = useContext(WordFacets)(word) ?? (eraOf(word) !== null ? 'era' : null);
   return (
     <span className="inline-flex items-center">
       <button
         type="button"
         onClick={() => onPick(word)}
         aria-pressed={active ?? false}
-        aria-label={`Go to ${word}${source ? `, ${source.label}` : ''}${era ? ', an era' : ''}`}
+        aria-label={`Go to ${word}${source ? `, ${source.label}` : ''}${facet ? `, ${facet === 'form' ? 'a form' : facet === 'era' ? 'an era' : `a ${facet}`}` : ''}`}
         className={active ? STATION_KEY_ON : STATION_KEY}
       >
-        {source ? <span className="mr-1 text-ink-quiet">{source.letters}</span> : null}
-        {era ? <span className="mr-1 text-ink-quiet">E</span> : null}
+        {source ? <span className={active ? 'mr-1' : 'mr-1 text-ink-quiet'}>{source.letters}</span> : null}
+        {facet ? <span className={active ? 'mr-1' : 'mr-1 text-ink-quiet'}>{FACET_LETTERS[facet]}</span> : null}
         {word}
       </button>
       <button type="button" onClick={() => onAdd(word)} aria-label={`Add ${word} to the recipe`} className={STATION_KEY}>

@@ -240,7 +240,7 @@ export default function TagStationMap({
               onFocus={() => setActive(name)}
               style={{ left: label.left, top: label.top, width: label.width, height: label.height }}
               aria-pressed={chosen}
-              aria-label={`${name}, ${label.tag.count === 1 ? '1 item' : `${label.tag.count} items`}${chosen ? ', chosen' : near ? ', close to the choice' : ''}${list ? `, in the recipe as ${list}` : ''}`}
+              aria-label={`${name}${label.tag.facet ? `, ${label.tag.facet}` : ''}, ${label.tag.count === 1 ? '1 item' : `${label.tag.count} items`}${chosen ? ', chosen' : near ? ', close to the choice' : ''}${list ? `, in the recipe as ${list}` : ''}`}
               className={`absolute inline-flex items-center justify-center overflow-hidden whitespace-nowrap text-label ${STATION_RING} ${
                 chosen ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : near ? 'key not-hover:bg-paper underline decoration-2 underline-offset-2' : 'key not-hover:bg-paper'
               }`}

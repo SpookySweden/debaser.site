@@ -33,7 +33,7 @@ export async function GET(request: Request): Promise<Response> {
   const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : null;
   try {
     const repository = getTagRepository(token);
-    const graph = await stationGraph(() => repository.rows(), Date.now(), () => repository.limitReached());
+    const graph = await stationGraph(() => repository.rows(), Date.now(), () => repository.limitReached(), () => repository.wordFacts());
     return json(graph, 200);
   } catch {
     return json({ error: 'The map could not be built. Try again in a minute.' }, 503);

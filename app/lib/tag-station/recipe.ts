@@ -1,5 +1,6 @@
 import { looksLikeLink } from '../web/link-shape';
 import { PLATFORM_LABELS, type WebItemKind, type WebPlatform } from '../web/types';
+import { FACETS, type Facet } from './word-facts';
 import { cleanWord, eraOf } from './words';
 
 /**
@@ -27,6 +28,7 @@ export type Recipe = {
   near: Near;
   src: WordSourceFilter;
   era: string | null;
+  facet: Facet | null;
   kind: WebItemKind | null;
   site: WebPlatform | null;
   from: number | null;
@@ -47,6 +49,7 @@ export const EMPTY_RECIPE: Recipe = {
   near: 'wider',
   src: 'both',
   era: null,
+  facet: null,
   kind: null,
   site: null,
   from: null,
@@ -79,6 +82,7 @@ export function parseRecipe(params: Params): Recipe {
   const link = params.get('link');
   const era = cleanWord(params.get('era'));
   const kind = params.get('kind');
+  const facet = params.get('facet');
   const site = params.get('site');
   return {
     tag: cleanWord(params.get('tag')),
@@ -92,6 +96,7 @@ export function parseRecipe(params: Params): Recipe {
     near: oneOf(params.get('near'), ['near', 'wider', 'far'], 'wider'),
     src: oneOf(params.get('src'), ['both', 'claude', 'platform'], 'both'),
     era: era !== null && eraOf(era) !== null ? eraOf(era) : null,
+    facet: FACETS.includes(facet as Facet) ? (facet as Facet) : null,
     kind: KINDS.includes(kind as WebItemKind) ? (kind as WebItemKind) : null,
     site: site !== null && Object.prototype.hasOwnProperty.call(PLATFORM_LABELS, site) ? (site as WebPlatform) : null,
     from: year(params.get('from')),
@@ -110,7 +115,7 @@ export function recipeQuery(recipe: Recipe): string {
   for (const name of ['strict', 'niche', 'near', 'src', 'sort', 'view'] as const) {
     if (recipe[name] !== EMPTY_RECIPE[name]) query.set(name, recipe[name]);
   }
-  for (const name of ['era', 'kind', 'site'] as const) {
+  for (const name of ['era', 'facet', 'kind', 'site'] as const) {
     const value = recipe[name];
     if (value !== null) query.set(name, value);
   }
@@ -130,6 +135,7 @@ export function hasFilters(recipe: Recipe): boolean {
     recipe.near !== 'wider' ||
     recipe.src !== 'both' ||
     recipe.era !== null ||
+    recipe.facet !== null ||
     recipe.kind !== null ||
     recipe.site !== null ||
     recipe.from !== null ||

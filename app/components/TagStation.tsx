@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { buildIndex, edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, suggest, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
+import { buildIndex, edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
 import type { StationGraph, StationItem } from '../lib/tag-station/types';
 import { eraOf } from '../lib/tag-station/words';
@@ -20,7 +20,7 @@ import TagStationFilters from './TagStationFilters';
 import { linkMapWords, LinkInput, useLinkAnswer } from './TagStationLink';
 import TagStationList from './TagStationList';
 import TagStationMap from './TagStationMap';
-import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip } from './TagStationParts';
+import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip, WordFacets } from './TagStationParts';
 import TagStationSearch from './TagStationSearch';
 
 const PAGE_PATH = '/tag-station';
@@ -287,7 +287,7 @@ export function Station({ index }: { index: StationIndex }) {
     () =>
       new Set(
         index.graph.tags
-          .filter((tag) => tagPassesNiche(tag, recipe, index.total) && (recipe.src === 'both' || (recipe.src === 'claude' ? tag.claude > 0 : tag.platform > 0)) && !recipe.not.includes(tag.name))
+          .filter((tag) => tagPassesNiche(tag, recipe, index.total) && tagPassesFacet(tag, recipe) && (recipe.src === 'both' || (recipe.src === 'claude' ? tag.claude > 0 : tag.platform > 0)) && !recipe.not.includes(tag.name))
           .map((tag) => tag.name),
       ),
     [index, recipe],
@@ -308,11 +308,14 @@ export function Station({ index }: { index: StationIndex }) {
   const spoken = chosenTag !== null ? `${chosenTag.name}.` : chosenItem !== null ? `${chosenItem.title}.` : '';
   const announcement = spoken === '' ? '' : `${spoken}${closest.length > 0 ? ` CLOSEST: ${closest.join(', ')}.` : ''}`;
 
+  const facetOf = useCallback((word: string) => index.tagByName.get(word)?.facet ?? null, [index]);
+
   const copyLink = () => {
     void navigator.clipboard?.writeText(window.location.href).then(() => setCopied(true));
   };
 
   return (
+    <WordFacets.Provider value={facetOf}>
     <div style={TEXT_SIZES[textSize] as CSSProperties} className="flex min-w-0 flex-col gap-3">
       <div className="flex flex-wrap items-end gap-2">
         <TagStationSearch index={index} inputRef={searchBox} onTag={pickTag} onItem={pickItem} onLink={(link) => go({ ...recipe, link, tag: null, item: null }, 'push')} />
@@ -327,7 +330,7 @@ export function Station({ index }: { index: StationIndex }) {
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Tag Station">
-          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE, E AN ERA. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED OR SHOWN.
+          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED OR SHOWN.
         </InfoFold>
       </div>
 
@@ -491,6 +494,7 @@ export function Station({ index }: { index: StationIndex }) {
         </section>
       </div>
     </div>
+    </WordFacets.Provider>
   );
 }
 

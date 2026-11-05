@@ -2,6 +2,7 @@ import { MOCK_WEB_ITEMS } from '../web/mock-web-repository';
 import type { WebItem } from '../web/types';
 import type { TagStationRepository } from './repository';
 import type { StationRow } from './types';
+import type { WordFact } from './word-facts';
 
 /**
  * Invented words over MEDIA's mock items, plus some link-only items, for building and checking TAG STATION without a
@@ -87,10 +88,35 @@ const MOCK_SEEN_ROWS: readonly StationRow[] = [
   seenOnly: true,
 }));
 
+/** Invented answers from the word pass: types, one join, one vague word. */
+const fact = (word: string, facet: WordFact['facet'], sameAs: string | null = null, vague = false): WordFact => ({ word, facet, sameAs, vague });
+export const MOCK_WORD_FACTS: readonly WordFact[] = [
+  fact('dub', 'genre'),
+  fact('reggae', 'genre'),
+  fact('ambient', 'genre'),
+  fact('classical', 'genre'),
+  fact('science fiction', 'genre'),
+  fact('melancholy', 'mood'),
+  fact('calm', 'mood'),
+  fact('romantic', 'mood'),
+  fact('bristol', 'place'),
+  fact('audiobook', 'form'),
+  fact('podcast', 'form'),
+  fact('short film', 'form'),
+  fact('radio drama', 'form', 'radio play'),
+  fact('radio play', 'form'),
+  fact('linux', 'subject'),
+  fact('trains', 'subject'),
+  fact('mock platform tag', 'subject', null, true),
+];
+
 const MOCK: TagStationRepository = {
   source: 'mock',
   async rows() {
     return [...MOCK_STATION_ROWS, ...MOCK_SEEN_ROWS];
+  },
+  async wordFacts() {
+    return MOCK_WORD_FACTS;
   },
   async limitReached() {
     return false;

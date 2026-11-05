@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
 import { readSeenItems } from '../../../lib/web/seen-items';
 import { makeTaggingStore, runTagging } from '../../../lib/web/tagging';
+import { makeWordStore, runWordPass } from '../../../lib/web/word-pass';
 
 /**
  * Claude's words for MEDIA's saved items (lib/web/tagging.ts). Called every three hours by pg_cron + pg_net with the same lock
@@ -20,6 +21,15 @@ export const maxDuration = 60;
 const LOCK_HEADER = 'x-web-ingest-secret';
 const MIN_LOCK_LENGTH = 32;
 const MAX_LOCK_LENGTH = 200;
+
+/**
+ * Why something failed, for the lock's holder in the cron's saved answers. Claude's own status and error type say what went wrong; any
+ * other error is named but its message is dropped, since a bad header's message can repeat the key.
+ */
+function whyFailed(error: unknown): string {
+  const said = error instanceof Anthropic.APIError && error.status === 400 ? ` ${(error.apiMessage ?? '').replace(/sk-ant-\S+/g, '[key]').slice(0, 160)}` : '';
+  return error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}${said}` : error instanceof Error ? error.name : 'unknown';
+}
 
 function json(body: Record<string, unknown>, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -41,13 +51,19 @@ export async function POST(request: Request): Promise<Response> {
   try {
     // No YouTube key on purpose: thousands of reads through it would spend the quota MEDIA's searches need (keyless oEmbed instead).
     const reader = (names: Parameters<typeof readSeenItems>[0]) => readSeenItems(names, { fetch: cachedFetch });
-    return json(await runTagging(new Anthropic(), makeTaggingStore(db, lock, reader)), 200);
+    const client = new Anthropic();
+    const tagged = await runTagging(client, makeTaggingStore(db, lock, reader));
+    // After the tagging, and on its own: nothing that goes wrong here reaches the tagging's answer or MEDIA.
+    let words: Record<string, unknown>;
+    try {
+      words = await runWordPass(client, makeWordStore(db, lock));
+    } catch (error) {
+      words = { failed: whyFailed(error) };
+    }
+    return json({ ...tagged, words }, 200);
   } catch (error) {
     if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);
-    // Only the lock's holder reads this, in the cron's saved answers. Claude's own status and error type say what went
-    // wrong; any other error is named but its message is dropped, since a bad header's message can repeat the key.
-    const said = error instanceof Anthropic.APIError && error.status === 400 ? ` ${(error.apiMessage ?? '').replace(/sk-ant-\S+/g, '[key]').slice(0, 160)}` : '';
-    const reason = error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}${said}` : error instanceof Error ? error.name : 'unknown';
+    const reason = whyFailed(error);
     // Yes or no only, nothing of the key: a stray character in a pasted key is a TypeError before anything is sent.
     const keyPlain = /^[\x21-\x7e]+$/.test(process.env.ANTHROPIC_API_KEY ?? '');
     // Never an error's message or stack: a bad header's message repeats the key, and can run over several lines of a stack.

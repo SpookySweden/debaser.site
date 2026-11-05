@@ -1,6 +1,7 @@
 import { comparePartners, MIN_SHARED, npmi } from './closeness';
 import { layoutTags } from './layout';
 import type { ItemWord, Partner, StationGraph, StationItem, StationRow, StationTag } from './types';
+import { buildWordRules, type WordFact } from './word-facts';
 import { cleanWord, eraOf, wordKey } from './words';
 
 /**
@@ -19,7 +20,9 @@ const MAX_DESCRIPTION = 400;
 
 const round = (value: number): number => Math.round(value * 1000) / 1000;
 
-export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
+export function buildStationGraph(rows: readonly StationRow[], facts: readonly WordFact[] = []): StationGraph {
+  const rules = buildWordRules(facts);
+  const allKeys = new Set<string>();
   // Every spelling of each word, with how often it appears, so the shown spelling is the commonest one.
   const spellings = new Map<string, Map<string, number>>();
   const parsed = rows.map(({ item, claudeWords, seenOnly }) => {
@@ -27,8 +30,10 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
     const note = (raw: unknown, source: 'claude' | 'platform') => {
       const word = cleanWord(raw);
       if (word === null) return;
-      const key = wordKey(word);
-      if (key.length === 0) return;
+      const own = wordKey(word);
+      if (own.length === 0 || rules.isVague(own)) return;
+      const key = rules.canonical(own);
+      allKeys.add(own);
       const known = spellings.get(key) ?? new Map<string, number>();
       known.set(word, (known.get(word) ?? 0) + 1);
       spellings.set(key, known);
@@ -121,6 +126,7 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
       claude: stat.claude,
       platform: stat.platform,
       era: eraOf(name),
+      facet: eraOf(name) !== null ? 'era' : rules.facet(wordKey(name)),
       first: stat.first,
       latest: stat.latest,
       x: place.x,
@@ -129,5 +135,17 @@ export function buildStationGraph(rows: readonly StationRow[]): StationGraph {
     };
   });
 
-  return { tags, items };
+  // Every spelling that isn't the shown one but lands on it: joined words, and any ever seen in the answers.
+  const aliases: Record<string, string> = {};
+  const shown = new Set(names.map((name) => wordKey(name)));
+  for (const key of allKeys) {
+    const name = nameOf.get(rules.canonical(key));
+    if (name !== undefined && !shown.has(key)) aliases[key] = name;
+  }
+  for (const fact of facts) {
+    const own = wordKey(fact.word);
+    const name = nameOf.get(rules.canonical(own));
+    if (own.length > 0 && name !== undefined && !shown.has(own) && !rules.isVague(own)) aliases[own] = name;
+  }
+  return { tags, items, ...(Object.keys(aliases).length > 0 ? { aliases } : {}) };
 }

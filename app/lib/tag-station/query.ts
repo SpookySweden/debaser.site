@@ -1,4 +1,5 @@
 import { strength } from './closeness';
+import { FACETS, type Facet } from './word-facts';
 import type { Niche, Recipe } from './recipe';
 import { EMPTY_RECIPE } from './recipe';
 import type { StationGraph, StationItem, StationTag } from './types';
@@ -17,6 +18,7 @@ export type StationIndex = {
   itemById: Map<string, StationItem>;
   itemsByWord: Map<string, Set<string>>;
   eras: string[];
+  facets: Facet[];
 };
 
 export function buildIndex(graph: StationGraph): StationIndex {
@@ -32,10 +34,18 @@ export function buildIndex(graph: StationGraph): StationIndex {
     graph,
     total: graph.items.length,
     tagByName: new Map(graph.tags.map((tag) => [tag.name, tag])),
-    tagByKey: new Map(graph.tags.map((tag) => [wordKey(tag.name), tag])),
+    // Spellings the word pass joined land on the word too. `byName` isn't ready yet, so found here.
+    tagByKey: new Map([
+      ...Object.entries(graph.aliases ?? {}).flatMap(([key, name]): [string, StationTag][] => {
+        const tag = graph.tags.find((one) => one.name === name);
+        return tag === undefined ? [] : [[key, tag]];
+      }),
+      ...graph.tags.map((tag): [string, StationTag] => [wordKey(tag.name), tag]),
+    ]),
     itemById: new Map(graph.items.map((item) => [item.id, item])),
     itemsByWord,
     eras: [...new Set(graph.tags.map((tag) => tag.era).filter((era): era is string => era !== null))].sort(),
+    facets: FACETS.filter((facet) => graph.tags.some((tag) => tag.facet === facet)),
   };
 }
 
@@ -67,6 +77,11 @@ export function itemCommonness(index: StationIndex, item: StationItem): number {
 
 export function tagPassesNiche(tag: StationTag, recipe: Recipe, total: number): boolean {
   return recipe.niche === 'all' || nicheOfCount(tag.count, total) === recipe.niche;
+}
+
+/** Whether the recipe's word-type filter leaves a word on the map and in the lists. */
+export function tagPassesFacet(tag: StationTag, recipe: Recipe): boolean {
+  return recipe.facet === null || tag.facet === recipe.facet;
 }
 
 /** The map's own spelling of each word in a list, dropping any it doesn't have. */
@@ -126,6 +141,7 @@ export function matchItems(index: StationIndex, recipe: Recipe, focus: Focus): S
   const focusSet = new Set(focus.words);
   const around = recipe.near === 'far' ? partnersOfFocus(index, focus.words) : null;
   const eraWords = recipe.era === null ? null : new Set(index.graph.tags.filter((tag) => tag.era === recipe.era).map((tag) => tag.name));
+  const facetWords = recipe.facet === null ? null : new Set(index.graph.tags.filter((tag) => tag.facet === recipe.facet).map((tag) => tag.name));
 
   return index.graph.items.filter((item) => {
     if (item.id === recipe.item) return false;
@@ -144,6 +160,7 @@ export function matchItems(index: StationIndex, recipe: Recipe, focus: Focus): S
     if (any.length > 0 && !any.some((word) => has.has(word))) return false;
     if (words.some((word) => not.has(word))) return false;
     if (eraWords !== null && !words.some((word) => eraWords.has(word))) return false;
+    if (facetWords !== null && !words.some((word) => facetWords.has(word))) return false;
     if (focusSet.size > 0) {
       const shared = words.filter((word) => focusSet.has(word)).length;
       if (recipe.near === 'near' && shared < Math.min(2, focusSet.size)) return false;
@@ -196,7 +213,7 @@ const itemsWord = (count: number) => (count === 1 ? '1 ITEM' : `${count} ITEMS`)
 
 /** Words near the focus, closest first, each with a reason. With no focus, the commonest words. */
 export function relatedTags(index: StationIndex, recipe: Recipe, focus: Focus, limit = 30): RelatedTag[] {
-  const usable = (tag: StationTag) => tagHasSource(tag, recipe.src) && tagPassesNiche(tag, recipe, index.total);
+  const usable = (tag: StationTag) => tagHasSource(tag, recipe.src) && tagPassesNiche(tag, recipe, index.total) && tagPassesFacet(tag, recipe);
   const not = new Set(known(index, recipe.not));
   if (focus.words.length === 0) {
     return [...index.graph.tags]
@@ -299,6 +316,7 @@ export function loosenings(index: StationIndex, recipe: Recipe, focus: Focus, fo
   if (recipe.near === 'wider' && focus.words.length > 0) options.push({ label: 'LOOK FAR', recipe: { ...recipe, near: 'far' } });
   if (recipe.src !== 'both') options.push({ label: 'BOTH WORD SOURCES', recipe: { ...recipe, src: 'both' } });
   if (recipe.era !== null) options.push({ label: `ANY ERA, NOT JUST ${recipe.era}`, recipe: { ...recipe, era: null } });
+  if (recipe.facet !== null) options.push({ label: 'ANY WORD TYPE', recipe: { ...recipe, facet: null } });
   if (recipe.kind !== null) options.push({ label: 'ANY TYPE', recipe: { ...recipe, kind: null } });
   if (recipe.site !== null) options.push({ label: 'ANY SOURCE', recipe: { ...recipe, site: null } });
   if (recipe.from !== null || recipe.to !== null) options.push({ label: 'ANY YEAR', recipe: { ...recipe, from: null, to: null } });
@@ -327,12 +345,14 @@ export function suggest(index: StationIndex, text: string, limits = { tags: 6, i
     const limit = key.length <= 3 ? 0 : key.length <= 5 ? 1 : 2;
     return limit > 0 && editDistance(key, tagKey, limit) <= limit ? 4 : null;
   };
-  const tags = index.graph.tags
+  const joined = index.tagByKey.get(key);
+  const found = index.graph.tags
     .map((tag) => ({ tag, tier: tierOf(tag) }))
     .filter((entry): entry is { tag: StationTag; tier: number } => entry.tier !== null)
     .sort((a, b) => a.tier - b.tier || b.tag.count - a.tag.count || (a.tag.name < b.tag.name ? -1 : 1))
-    .slice(0, limits.tags)
     .map((entry) => entry.tag);
+  // A spelling joined to another word finds that word first, whatever it looks like.
+  const tags = (joined !== undefined ? [joined, ...found.filter((tag) => tag !== joined)] : found).slice(0, limits.tags);
 
   const words = typed.split(/\s+/).filter(Boolean);
   const items = index.graph.items

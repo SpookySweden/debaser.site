@@ -127,13 +127,13 @@ const withToken = new Request('https://x.example/', { headers: { authorization: 
   assert.equal(readAtLimit, false, 'nothing is even read');
 
   const one = worstCaseCost(item('x'));
-  const near = fake({ spent: 60 - one * 2.5, saved: [item('a1'), item('a2'), item('a3'), item('a4')] });
+  const near = fake({ spent: 60 - 0.03 - one * 2.5, saved: [item('a1'), item('a2'), item('a3'), item('a4')] });
   const nearResult = await runTagging(near.client, near.store);
   assert.equal(nearResult.sent, 2, 'only what fits the worst case goes');
   assert.equal(nearResult.stopped, 'spending limit');
   assert.ok(near.log.created[0].length === 2);
 
-  const justOver = fake({ spent: 60 - one / 2, saved: [item('a1')] });
+  const justOver = fake({ spent: 60 - 0.03 - one / 2, saved: [item('a1')] });
   const overResult = await runTagging(justOver.client, justOver.store);
   assert.equal(overResult.sent, 0);
   assert.equal(overResult.stopped, 'spending limit');

@@ -24,6 +24,8 @@ const USD_PER_OUTPUT_TOKEN = 0.25 / 1_000_000;
 export const MAX_OUTPUT_TOKENS = 300;
 /** The shared prompt, and the wrapping around an item's text. */
 const INPUT_OVERHEAD_TOKENS = 200;
+/** What a word-pass batch still out could cost at worst (word-pass.ts). This job never spends what that might need. */
+const WORD_PASS_IN_FLIGHT_USD = 0.03;
 const MAX_WORDS = 8;
 const MAX_WORD_LENGTH = 24;
 const MAX_TEXT = 600;
@@ -207,7 +209,7 @@ export async function runTagging(client: Pick<Anthropic, 'messages'>, store: Tag
   const seen = await store.seen(SEEN_PER_RUN);
   const seenIds = new Set(seen.map((item) => item.id));
   const items: TaggableItem[] = [];
-  let worst = spent;
+  let worst = spent + WORD_PASS_IN_FLIGHT_USD;
   for (const item of [...saved, ...seen]) {
     worst += worstCaseCost(item);
     if (worst > SPEND_LIMIT_USD) break;
