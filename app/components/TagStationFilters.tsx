@@ -7,6 +7,7 @@ import type { Facet } from '../lib/tag-station/word-facts';
 import { FIELD_TIGHT } from '../lib/ui/controls';
 import { PLATFORM_LABELS, type WebItemKind, type WebPlatform } from '../lib/web/types';
 import { KeyGroup, presentChoices, STATION_KEY, STATION_KEY_ON, STATION_RING } from './TagStationParts';
+import TagStationPresets from './TagStationPresets';
 
 type WordList = 'must' | 'any' | 'not';
 const LISTS: readonly { list: WordList; label: string; title: string }[] = [
@@ -101,6 +102,8 @@ export default function TagStationFilters({ index, recipe, onChange }: { index: 
           {LISTS.flatMap(({ list, title }) => recipe[list].map((word) => <li key={`${list}:${word}`}>{`${title}: ${word}`}</li>))}
         </ul>
       </div>
+
+      <TagStationPresets recipe={recipe} onPick={onChange} />
 
       {open ? (
         <div className="flex flex-col gap-2">
