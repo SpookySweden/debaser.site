@@ -112,6 +112,8 @@ async function addresses() {
     [
       { source: '/web', destination: '/media', permanent: true },
       { source: '/archive', destination: '/media', permanent: true },
+      // Updated on purpose 2026-11-05: TAG STATION became DISCOVER at /discover (Luke, SPEC-discover.md).
+      { source: '/tag-station', destination: '/discover', permanent: true },
       // Updated on purpose 2026-11-04: CYTUBE became STREAM at /stream (Luke).
       { source: '/cytube', destination: '/stream', permanent: true },
       ...['kind', 'cat', 'tag'].map((key) => ({ source: '/media', has: [{ type: 'query', key }], destination: '/files', permanent: true })),
