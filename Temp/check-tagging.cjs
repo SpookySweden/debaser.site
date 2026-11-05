@@ -124,6 +124,11 @@ const { BATCH_SIZE, TAGGING_MODEL, cleanWords, customIdFor, requestFor, runTaggi
 
   // 7. The route and the migration: the key stays on the server and the lock guards every write.
   const route = fs.readFileSync('app/api/web/tag/route.ts', 'utf8');
+  // (2026-11-05) Returning stack lines put part of the key into the cron's saved answer: a bad header's error repeats the
+  // key, over several lines. Comments aside, the route never reads a stack, or a message beyond the store's own marker.
+  const routeCode = route.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+  assert.doesNotMatch(routeCode, /\.stack\b/, 'a stack can repeat the key, so the route never reads one');
+  assert.doesNotMatch(routeCode, /error\.message(?! === 'TAGGING_DATABASE')/, 'nor an error message');
   assert.match(route, /if \(!process\.env\.ANTHROPIC_API_KEY\) return json\(\{ skipped/, 'with no key the route does nothing');
   assert.ok(route.indexOf('LOCK_HEADER) ??') < route.indexOf('process.env.ANTHROPIC_API_KEY'), 'the lock is looked at before anything else');
   assert.doesNotMatch(route, /json\([^)]*error\.message/, 'errors are plain words');
