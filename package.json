@@ -27,6 +27,7 @@
     "checks:web": "node scripts/run-checks.cjs --only check-web-",
     "checks:changed": "node scripts/run-checks.cjs --changed",
     "web:fetch": "node scripts/web-fetch.cjs",
+    "tags:build": "node scripts/tags-build.cjs",
     "db": "node scripts/db.cjs",
     "db:sweep:review": "node scripts/sweep-throwaways.cjs --review",
     "db:sweep": "node scripts/sweep-throwaways.cjs",
@@ -56,6 +57,7 @@
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "three": "^0.186.1",
+    "umap-js": "^1.4.0",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.32",
     "zustand": "^5.0.15"

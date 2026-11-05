@@ -1,0 +1,25 @@
+import { createClient } from '@supabase/supabase-js';
+import type { StationRow } from './types';
+import { getMockTagRepository } from './mock-tag-repository';
+import { createSupabaseTagRepository } from './supabase-tag-repository';
+
+/**
+ * Where TAG STATION reads its items and words, by MEDIA's own switch (`NEXT_PUBLIC_WEB_DATA_SOURCE`): the mock unless the
+ * site is reading the live stream. SERVER ONLY: the route calls it with the session token it has already checked.
+ */
+export type TagStationRepository = {
+  readonly source: 'mock' | 'supabase';
+  rows(): Promise<readonly StationRow[]>;
+};
+
+const USES_SUPABASE =
+  process.env.NEXT_PUBLIC_WEB_DATA_SOURCE === 'supabase' && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+
+export function getTagRepository(token: string | null): TagStationRepository {
+  if (!USES_SUPABASE || token === null) return getMockTagRepository();
+  const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
+    auth: { persistSession: false, autoRefreshToken: false },
+    global: { headers: { Authorization: `Bearer ${token}` } },
+  });
+  return createSupabaseTagRepository(client);
+}
