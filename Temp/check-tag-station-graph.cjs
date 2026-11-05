@@ -158,7 +158,7 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   for (const file of walk(path.join(__dirname, '..', 'app')).filter((name) => /\.tsx?$/.test(name))) {
     const source = fs.readFileSync(file, 'utf8');
     if (!source.startsWith("'use client'")) continue;
-    assert.ok(!/tag-station\/(graph|layout|repository|graph-cache|supabase-tag-repository|mock-tag-repository)'/.test(source), `${file} must not import the server's build`);
+    assert.ok(!/lib\/tag-station\/(graph|layout|repository|graph-cache|supabase-tag-repository|mock-tag-repository)'/.test(source), `${file} must not import the server's build`);
     assert.ok(!source.includes("'umap-js'"), `${file} must not import UMAP`);
   }
 
