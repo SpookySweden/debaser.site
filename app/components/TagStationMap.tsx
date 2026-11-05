@@ -242,7 +242,7 @@ export default function TagStationMap({
               aria-pressed={chosen}
               aria-label={`${name}, ${label.tag.count === 1 ? '1 item' : `${label.tag.count} items`}${chosen ? ', chosen' : near ? ', close to the choice' : ''}${list ? `, in the recipe as ${list}` : ''}`}
               className={`absolute inline-flex items-center justify-center overflow-hidden whitespace-nowrap text-label ${STATION_RING} ${
-                chosen ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : near ? 'key underline decoration-2 underline-offset-2' : 'key'
+                chosen ? 'key key-fill key-on [--key-fill:var(--color-ink)] text-paper' : near ? 'key not-hover:bg-paper underline decoration-2 underline-offset-2' : 'key not-hover:bg-paper'
               }`}
             >
               {mark}
