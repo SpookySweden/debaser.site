@@ -17,6 +17,8 @@ const LABEL_HEIGHT = 44;
 const LETTER_EM = 0.6;
 /** Room for the padding around the word. */
 const LABEL_PADDING = 18;
+/** Room for a recipe mark ("+ dub"), so a word never changes size when it joins the recipe. */
+const MARK_LETTERS = 2;
 
 export function zoomed(scale: number, direction: 1 | -1): number {
   const at = ZOOMS.findIndex((zoom) => zoom >= scale);
@@ -25,7 +27,7 @@ export function zoomed(scale: number, direction: 1 | -1): number {
 }
 
 export function labelBox(name: string, fontPx: number): { width: number; height: number } {
-  return { width: Math.ceil(name.length * LETTER_EM * fontPx + LABEL_PADDING), height: Math.max(LABEL_HEIGHT, Math.ceil(fontPx * 1.5)) };
+  return { width: Math.ceil((name.length + MARK_LETTERS) * LETTER_EM * fontPx + LABEL_PADDING), height: Math.max(LABEL_HEIGHT, Math.ceil(fontPx * 1.5)) };
 }
 
 /** A word's centre on the map, in pixels. */
