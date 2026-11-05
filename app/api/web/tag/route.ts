@@ -40,6 +40,10 @@ export async function POST(request: Request): Promise<Response> {
     return json(await runTagging(new Anthropic(), makeTaggingStore(db, lock)), 200);
   } catch (error) {
     if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);
-    return json({ error: 'The tagging could not run.' }, 500);
+    // Only the lock's holder reads this, in the cron's saved answers. Claude's own status and error type say what went
+    // wrong; any other error is named but its message is dropped, since a bad header's message can repeat the key.
+    const said = error instanceof Anthropic.APIError && error.status === 400 ? ` ${(error.apiMessage ?? '').replace(/sk-ant-\S+/g, '[key]').slice(0, 160)}` : '';
+    const reason = error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}${said}` : error instanceof Error ? error.name : 'unknown';
+    return json({ error: 'The tagging could not run.', reason }, 500);
   }
 }
