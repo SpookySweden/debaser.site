@@ -108,8 +108,14 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 overnight, all inside the stops: tagging at minute 41, the word pass, the sweep. At most about $1.40 a day for the sweep; it stops at $50, everything at $60.
 
 **Not live, finished but unproved:** branch `feature/discover-recommending` holds `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters, presets, and DISCOVER's videos through
-the floating player. Its migration `supabase/migrations/20261105153646_web_recommendations.sql` is **not applied**. Luke OK'd those tables. Still owed, in order: read that branch's code review
-(a fresh review is cheap), run verify and the whole `npm run checks`, rebase on main, apply the migration, push, confirm live. `check-tag-station-picks` covers it.
+the floating player. Its migration `supabase/migrations/20261105153646_web_recommendations.sql` is **not applied**. Luke OK'd those tables. Still owed, in order: fix what its review found (below), run verify and the whole `npm run checks`, rebase on main, apply the migration, push, confirm live. `check-tag-station-picks` covers it.
+
+**That branch's code review came back. Fix these before it goes live:**
+1. `WebStream.tsx`: a search does nothing visible while RECOMMENDED or DISCOVER is on, because `start()` never clears `picked`, and the list reappears over a search after STREAM ART. Clear it in `start()`, keeping it for sort-only changes.
+2. `recommendations.ts`: the reader's own list is kept for the page load and survives signing out, so a second account on the same page sees the first one's keys as on, and pressing one sends a removal. Key it to the user id.
+3. Consider saying at the `[ RECOMMEND ]` key or on the list that a name, picture and status show; today only the PRIVACY tab says so.
+4. Two caps meet: `web_request_add` allows 50 a day and quietly skips the rest, so a recommendation past that can exist without its item ever being saved, and it never shows.
+The review found the migration safe to apply and nothing from TMDB reachable. The branch's verify and whole-suite run was not read before stopping.
 
 **To check first tomorrow:**
 1. First real costs: `web_tag_spend`, and the cron's answers in `net._http_response`. The 15:41 batch (257 items) is collected at 18:41 UTC, the first sweep (18:11) at 21:11.
