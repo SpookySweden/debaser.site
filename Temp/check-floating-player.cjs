@@ -11,7 +11,7 @@
  * - the arrows: quiet at either end of the site's own entries; a place is saved per entry
  * - no row draws its own frame or <video> (a cross-origin iframe restarts if it moves), and the layer does
  *
- * The real "never reloads" proof needs a browser: Temp/drive-floating-player.cjs.
+ * The real "never reloads" proof needs a browser: scripts/drive-floating-player.cjs.
  */
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');

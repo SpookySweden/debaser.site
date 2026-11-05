@@ -127,6 +127,15 @@ SQL editor is, with a personal access token read from `.env.local`. This is the 
 can ask the *database* a question rather than asking what a visitor would see, and it is what the
 database rules in `.claude/rules/core.md` (Safety) run on. The write guard is deliberate: leave it alone.
 
+drive-floating-player.cjs
+-------------------------
+    node scripts/drive-floating-player.cjs --base http://localhost:3001 --mock      on the dev-mock server
+    node scripts/drive-floating-player.cjs --base <site> --env-test <path>          live, as kept test account A
+
+The floating player and the arrows in a real browser (SPEC-floating-player.md): that a playing video stays the same
+element with the same address through scrolling, PIP, dragging, other pages and the arrows, which a server render can't
+show. Not in `npm run checks`: it needs a running site and a network. It writes screenshots to `Temp/browse/float-*.png`.
+
 drive-queue-filters.cjs
 -----------------------
     node scripts/drive-queue-filters.cjs [base]   the stream queue's filters, MEDIA and FILES, in a real browser
