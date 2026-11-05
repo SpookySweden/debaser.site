@@ -68,6 +68,9 @@ async function refused(promise, words) {
     }
     assert.equal((await songs.list(a.id)).length, 100);
     await assert.rejects(songs.add(a.id, 'ONE TOO MANY', SONG), /100 saved songs/);
+    // Trying to save as A says the same whether A is full or not, so it gives nothing away.
+    const asFull = await b.client.from('beatbox_songs').insert({ owner: a.id, title: 'FORGED', song: SONG });
+    assert.equal(asFull.error?.code, '42501', "saving as someone full is the plain refusal, not the limit's message");
     assert.deepEqual(await others.list(b.id), [], "A's limit is not B's list");
   } finally {
     await a.client.from('beatbox_songs').delete().eq('owner', a.id);
