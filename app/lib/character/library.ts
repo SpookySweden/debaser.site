@@ -21,6 +21,10 @@ import { readFigure, type Figure } from './figure';
  * because a value in `localStorage` is a value a user can edit. Swapping in a table later means reimplementing
  * five functions against the same signatures, and nothing in the UI changes.
  *
+ * **The account as well, since 2026-11-06 (`library-sync.ts`, `user_characters`).** One browser turned out to be the only copy of somebody's
+ * work. The browser still draws the shelf at once and is all a signed-out reader has; signing in brings the two together. Each kept figure
+ * says whose it is, so two people on one browser don't see or take each other's; one with no owner joins whoever signs in next.
+ *
  * **Everything read back is validated, and an invalid figure is dropped rather than repaired.** A hand-edited
  * `localStorage` entry is the one input this module cannot trust: a shape id that is not in the vocabulary, a
  * joint with no position, a colour that is not one of the dyes. Repairing one would need a rule for every field
@@ -51,15 +55,46 @@ export type SavedCharacter = {
   figure: Figure;
   /** Newest first in the browser: an ISO timestamp. */
   savedAt: string;
+  /** Whose it is, once somebody signed in has held it. */
+  owner?: string;
 };
+
+/** A character as the account holds it. A removed one stays, marked, so another browser's copy doesn't come back. */
+export type ShelfRow = Omit<SavedCharacter, 'owner'> & { deletedAt: string | null };
+
+/** Who the shelf is being drawn for. */
+let viewer: string | null = null;
+let afterPersist: ((next: readonly SavedCharacter[]) => void) | null = null;
+const listeners = new Set<() => void>();
+
+const mine = (character: SavedCharacter): boolean => character.owner === undefined || character.owner === viewer;
+
+export function setLibraryHook(hook: (next: readonly SavedCharacter[]) => void): void {
+  afterPersist = hook;
+}
+
+export function subscribeToLibrary(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+export function setLibraryViewer(person: string | null): void {
+  if (viewer === person) return;
+  viewer = person;
+  listeners.forEach((listener) => listener());
+}
 
 /** True for the shape of storage this module can use. */
 function hasStorage(): boolean {
   return typeof window !== 'undefined' && typeof window.localStorage !== 'undefined';
 }
 
-/** Every saved figure, newest first. Never throws: a corrupt store reads as an empty one. */
+/** Every saved figure this reader may see, newest first. Never throws: a corrupt store reads as an empty one. */
 export function readLibrary(): SavedCharacter[] {
+  return readStored().filter(mine);
+}
+
+function readStored(): SavedCharacter[] {
   if (!hasStorage()) return [];
 
   try {
@@ -92,6 +127,7 @@ export function readLibrary(): SavedCharacter[] {
         presetId: typeof record.presetId === 'string' ? record.presetId : 'base',
         figure,
         savedAt: typeof record.savedAt === 'string' ? record.savedAt : new Date(0).toISOString(),
+        ...(typeof record.owner === 'string' ? { owner: record.owner } : {}),
       });
     }
 
@@ -105,7 +141,10 @@ function writeLibrary(characters: readonly SavedCharacter[]): void {
   if (!hasStorage()) return;
 
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(characters));
+    // Somebody else's on this browser stay where they are.
+    const others = readStored().filter((character) => !mine(character));
+    const owned = viewer === null ? characters : characters.map((character) => ({ ...character, owner: viewer as string }));
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...owned, ...others]));
   } catch {
     // Storage disabled or full: the shelf still works for this session, it just will not survive a reload.
   }
@@ -172,5 +211,42 @@ export function removeCharacter(existing: readonly SavedCharacter[], id: string)
 /** Persist a shelf that `saveCharacter` / `removeCharacter` have already computed. */
 export function persistLibrary(characters: readonly SavedCharacter[]): void {
   writeLibrary(characters);
+  afterPersist?.(characters);
+}
+
+/** The shelf as a sign-in left it: saved here and redrawn, with nothing to send back. */
+export function writeSyncedShelf(characters: readonly SavedCharacter[]): void {
+  writeLibrary(characters);
+  listeners.forEach((listener) => listener());
+}
+
+/**
+ * This browser's shelf and the account's brought together. Pure. The later save wins; a removal on the account beats a copy saved before it,
+ * so a removed figure doesn't come back from another browser; `upload` is what the account lacks or holds an older copy of.
+ */
+export function mergeShelf(local: readonly SavedCharacter[], rows: readonly ShelfRow[]): { shelf: SavedCharacter[]; upload: SavedCharacter[] } {
+  const held = new Map(rows.map((row) => [row.id, row]));
+  const shelf = new Map<string, SavedCharacter>();
+  const upload: SavedCharacter[] = [];
+  for (const character of local) {
+    const row = held.get(character.id);
+    if (row === undefined) {
+      shelf.set(character.id, character);
+      upload.push(character);
+    } else if (row.deletedAt !== null) {
+      if (character.savedAt > row.deletedAt) {
+        shelf.set(character.id, character);
+        upload.push(character);
+      }
+    } else if (character.savedAt > row.savedAt) {
+      shelf.set(character.id, character);
+      upload.push(character);
+    }
+  }
+  for (const row of rows) {
+    if (row.deletedAt !== null || shelf.has(row.id)) continue;
+    shelf.set(row.id, { id: row.id, name: row.name, presetId: row.presetId, figure: row.figure, savedAt: row.savedAt });
+  }
+  return { shelf: [...shelf.values()].sort((a, b) => b.savedAt.localeCompare(a.savedAt)), upload };
 }
 

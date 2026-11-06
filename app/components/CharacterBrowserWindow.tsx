@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   characterBrowserState,
   closeCharacterBrowser,
@@ -12,13 +12,16 @@ import {
   removeCharacter,
   persistLibrary,
   saveCharacter,
+  subscribeToLibrary,
   type SavedCharacter,
 } from '../lib/character/library';
+import { charactersSaveFailed, serverCharactersSaveFailed, subscribeToCharactersSaveFailed, syncCharacters } from '../lib/character/library-sync';
 import type { Figure } from '../lib/character/figure';
 import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
 import { useCharacterStore, type Placing } from '../lib/character/store';
 import { saveRefusal } from '../lib/character/structure';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { useAuth } from './AuthProvider';
 import InfoFold from './InfoFold';
 import PopoutWindow from './PopoutWindow';
 
@@ -69,6 +72,14 @@ export default function CharacterBrowserWindow() {
    * next shelf and hands the same array to both.
    */
   const [shelf, setShelf] = useState<SavedCharacter[]>(readLibrary);
+  const { user, status } = useAuth();
+  const person = status === 'signed-in' && user !== null ? user.id : null;
+  const saveFailed = useSyncExternalStore(subscribeToCharactersSaveFailed, charactersSaveFailed, serverCharactersSaveFailed);
+  // Signing in brings this browser's figures and the account's together. It's why this window, drawn on every page, says who is signed in.
+  useEffect(() => subscribeToLibrary(() => setShelf(readLibrary())), []);
+  useEffect(() => {
+    if (status !== 'loading') void syncCharacters(person);
+  }, [person, status]);
   const [name, setName] = useState('');
   /**
    * The bench as it was when SAVE was pressed and refused. The reason shows only while the bench is still exactly that
@@ -123,6 +134,11 @@ export default function CharacterBrowserWindow() {
       onClose={closeCharacterBrowser}
       maxWidth="max-w-3xl"
     >
+      {saveFailed ? (
+        <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
+          COULD NOT SAVE TO YOUR ACCOUNT. KEPT IN THIS BROWSER.
+        </p>
+      ) : null}
       <div className="space-y-2 text-label text-ink">
         <div className="frame bg-sun-pale p-2">
           <p className="font-bold">SAVE FIGURE</p>
@@ -154,7 +170,7 @@ export default function CharacterBrowserWindow() {
           {/* The one rule the controls do not show (SPEC-less-text.md): the shelf's limit. */}
           <InfoFold topic="the shelf limit" className="mt-1">
             UP TO {MAX_SAVED_LABEL} FIGURES; SAVING ONE MORE DROPS THE OLDEST. AN EMPTY NAME IS NUMBERED. FIGURES
-            LIVE IN THIS BROWSER, PER ACCOUNT.
+            SAVED TO YOUR ACCOUNT WHEN SIGNED IN, AND ALWAYS IN THIS BROWSER.
           </InfoFold>
         </div>
 

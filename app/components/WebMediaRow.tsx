@@ -106,7 +106,6 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
 
   const label = (id: MediaServerId) => PLATFORM_LABELS[id];
   const open = phase !== 'closed' || playing;
-  const playUrl = mediaPlayUrl(mediaServer(server), target, choice);
   const thumb = thumbFailed ? null : rowAddresses(item).thumb;
   const nextServer = holders.find((id) => id !== server) ?? null;
   const shown = part?.details ?? details;

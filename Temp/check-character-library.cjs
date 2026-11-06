@@ -126,6 +126,9 @@ assert.match(library, /function removeCharacter/, 'and a figure can be forgotten
  */
 const { renderToStaticMarkup } = require('react-dom/server');
 const { createElement } = require('react');
+// Updated on purpose 2026-11-06: the window says who is signed in, so its figures can follow the account (library-sync.ts). Signed out here.
+const authPath = require.resolve('./character-browser/components/AuthProvider.js');
+require.cache[authPath] = { id: authPath, filename: authPath, loaded: true, exports: { useAuth: () => ({ user: null, status: 'anonymous' }) } };
 const CharacterBrowserWindow = require('./character-browser/components/CharacterBrowserWindow.js').default;
 const {
   openCharacterBrowser,
