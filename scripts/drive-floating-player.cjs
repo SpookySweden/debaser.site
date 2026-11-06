@@ -156,8 +156,8 @@ async function mediaRun(page) {
   assert.match(state.src, /youtube-nocookie\.com\/embed\/.*autoplay=1/);
   assert.match(state.src, /enablejsapi=1/);
   pass('the platform\'s own embed, asked to autoplay');
-  assert.ok((await row.innerText()).includes('[ ADD TO ROOM ]') && !(await row.innerText()).includes('[ WATCH ]'), 'the key reads ADD TO ROOM');
-  pass('the key on the row reads [ ADD TO ROOM ]');
+  assert.ok((await page.locator('[data-player-box]').first().locator('xpath=ancestor::li[1]').innerText()).includes('[ WATCH IN ROOM ]'), 'the key reads WATCH IN ROOM');
+  pass('the key on the row reads [ WATCH IN ROOM ]');
   await page.screenshot({ path: join(SHOTS, 'float-in-box.png') });
 
   // Scrolled past.
@@ -635,6 +635,9 @@ async function roomRun(page) {
   await page.goto(`${BASE}/stream`, { waitUntil: 'domcontentloaded' });
   await sleep(2500);
   await page.getByRole('button', { name: /GO LIVE|BACK TO YOUR ROOM/ }).first().click();
+  await sleep(500);
+  const startKey = page.locator('[data-go-live-start]');
+  if ((await startKey.count()) > 0) await startKey.click();
   await page.waitForSelector('[data-room-picture]');
   await sleep(1500);
   await addLink('https://www.youtube.com/watch?v=aqz-KE-bpKQ');

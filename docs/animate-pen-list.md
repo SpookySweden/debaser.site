@@ -37,3 +37,9 @@ Make a layer and give it the FIGURE tag (the TAG list in the layer panel). INK (
 6. Bucket: hover over areas. Is the tinted preview quick? Press to fill.
 7. FILL BRUSH: drag across several areas in one go. FILL ERASER does the same in reverse.
 8. On a detailed drawing, does painting ever stutter just after inking a line? Reading the lines happens in the background, and the 8 pixel gap is set per tag.
+
+## Phase 4: tags
+1. `CTRL + 1` to `9` make a new layer with that tag (`SHIFT + T` lists them). Chrome may keep some of those for switching tabs: tell me if it does on your machine, and move them with SETTINGS, KEYS.
+2. Do the mix you'd really use: a ROUGH sketch (dims blue, leaves renders), a FIGURE, a SHADE over it (multiplies, stays on the figure), a BACKGROUND (on every frame).
+3. Make a tag of your own in `[ TAGS ]`: start from a copy of FIGURE, change the gap, turn one behaviour off. Do its switches do what they say?
+4. Save your tags to a file with `[ SAVE TAGS ]`, make a new project, load them.

@@ -34,7 +34,7 @@ import { useMusicLibrary } from './MusicLibraryProvider';
 import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
-import StreamAddKey from './StreamAddKey';
+import WatchInRoomKey from './WatchInRoomKey';
 
 type Sort = 'newest' | 'title' | 'used';
 
@@ -700,11 +700,10 @@ function CatalogueRow({
           </div>
         </div>
 
-        {/* A video's key (SPEC-cytube.md): GO LIVE is only on the CYTUBE page, so this adds the video to the room
-            you host or hold a crown in, or points you to STREAM. Accounts only. */}
+        {/* A video's way into a room (SPEC-floating-player.md, part 3). Accounts only. */}
         {item.kind === 'video' && viewerId !== null ? (
           <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
-            <StreamAddKey mediaItemId={item.id} title={item.title} />
+            <WatchInRoomKey source={{ mediaItemId: item.id }} playId={playId} title={item.title} />
           </span>
         ) : null}
 
@@ -763,7 +762,7 @@ function CatalogueRow({
             ) : (
               <button
                 type="button"
-                onClick={() => playFloating({ id: playId, title: item.title, shape: 'video', player: { kind: 'file', src: item.src } })}
+                onClick={() => playFloating({ id: playId, title: item.title, shape: 'video', room: { mediaItemId: item.id }, player: { kind: 'file', src: item.src } })}
                 aria-label={`Play "${item.title}" here`}
                 className={PLATE}
               >

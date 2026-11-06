@@ -273,6 +273,13 @@ export default function AnimateSettings() {
         <Check label="LEANING THE PEN WIDENS THE LINE" on={settings.tilt} onChange={(tilt) => updateSettings({ tilt })} />
         <Check label="LOW-LATENCY DRAWING (TURN OFF IF LINES FLICKER)" on={settings.lowLatency} onChange={(lowLatency) => updateSettings({ lowLatency })} />
       </Group>
+      <Group title="SMART TAGS">
+        <AnimateSlider label="A NEW TAG'S GAP SIZE" min={1} max={40} step={1} value={settings.defaultGap} unit=" PX" onChange={(defaultGap) => updateSettings({ defaultGap })} />
+        <Check label="BIG SMART OFF BADGE" on={settings.bigBadge} onChange={(bigBadge) => updateSettings({ bigBadge })} />
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })}>
+          [ EDIT TAGS ]
+        </button>
+      </Group>
       <Group title="DRAWINGS">
         <AnimateSlider label="NEW DRAWINGS HOLD FOR" min={1} max={4} step={1} value={settings.defaultHold} unit=" FRAMES" onChange={(defaultHold) => updateSettings({ defaultHold })} />
         <Check label="LITTLE PICTURES ON THE TIMELINE" on={settings.showThumbnails} onChange={(showThumbnails) => updateSettings({ showThumbnails })} />

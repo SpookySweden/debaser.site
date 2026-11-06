@@ -7,6 +7,7 @@ import { planeKey } from '../../lib/animate/planes';
 import { selectRow } from '../../lib/animate/layers';
 import { depthOf, moveCel, setExposure, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
+import { tagOf } from '../../lib/animate/tags';
 import { clearRange, cycleMark, deleteDrawing, duplicateDrawing, holdsOn, newDrawing, setOnion, setPlayMode, setRangeEnd } from '../../lib/animate/timeline';
 import type { Cel, CelMark, LayerNode, PlayMode } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
@@ -235,6 +236,7 @@ function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; d
   void depth;
   const frame = useStudio((state) => state.frame);
   const isActive = useStudio((state) => state.layerId === node.id);
+  const tagColour = useStudio((state) => tagOf(state.project, node)?.colour ?? null);
   const here = node.cels.find((c) => c.frame <= frame && frame < c.frame + c.length)?.id ?? null;
 
   return (
@@ -254,6 +256,7 @@ function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; d
         getEngine().goToFrame(picked);
       }}
     >
+      {tagColour !== null && <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: tagColour }} />}
       {node.cels.map((cel) => (
         <CelBox key={cel.id} cel={cel} layerId={node.id} cellWidth={cellWidth} active={cel.id === here && isActive} />
       ))}

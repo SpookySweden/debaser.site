@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef } from 'react';
-import { keptBox, letKeptBoxGo } from '../lib/ui/floating-player';
+import { keptBox } from '../lib/ui/floating-player';
 import {
   arrivedWithPlace,
   currentEntryKey,
@@ -67,7 +67,6 @@ export default function SiteHistoryKeeper() {
         window.cancelAnimationFrame(raf);
         for (const name of THE_READER_ACTS) document.removeEventListener(name, stop, { capture: true });
         restoring = null;
-        letKeptBoxGo();
       };
       restoring = stop;
       for (const name of THE_READER_ACTS) document.addEventListener(name, stop, { capture: true, passive: true });
@@ -81,12 +80,10 @@ export default function SiteHistoryKeeper() {
           return;
         }
         let there = true;
-        // A video that was in its box when the reader left: the box in view, ahead of a scroll position. MEDIA's rows
-        // can come back in another order, and the same number would land somewhere else.
-        const video = keptBox();
-        if (video !== null) video.scrollIntoView({ block: 'nearest' });
+        // A video that was in its box when the reader left: the layer keeps the box in view, ahead of a scroll position
+        // (FloatingPlayer.tsx). MEDIA's rows can come back in another order, and the same number would land somewhere else.
+        if (keptBox() !== null) delete place.page;
         for (const [name, top] of Object.entries(place)) {
-          if (video !== null && name === 'page') continue;
           const pane = scrollerOf(name);
           if (pane === null) {
             there = false;
@@ -110,7 +107,7 @@ export default function SiteHistoryKeeper() {
     const onTraverse = () => {
       restoring?.();
       const place = placeFor(currentEntryKey());
-      if (place !== null) restore(place);
+      if (place !== null) restore({ ...place });
     };
 
     document.addEventListener('scroll', onScroll, { capture: true, passive: true });

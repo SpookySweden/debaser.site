@@ -18,6 +18,8 @@ import {
   boxOf,
   closeFloating,
   floatingState,
+  keptBox,
+  letKeptBoxGo,
   notePlace,
   noteFloating,
   notePlayerElement,
@@ -32,6 +34,7 @@ import { footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
 import { listenForTime } from '../lib/web/embed-time';
 import { useAuth } from './AuthProvider';
 import { GRIPS } from './DockWindow';
+import WatchInRoomKey from './WatchInRoomKey';
 
 /**
  * The site's one video (SPEC-floating-player.md, `app/lib/ui/floating-player.ts`), drawn once in `layout.tsx`, so it
@@ -59,6 +62,8 @@ import { GRIPS } from './DockWindow';
 const SPARE_SCROLL = 40000;
 const ROOM_MIDDLE = SPARE_SCROLL / 2;
 const ROOM_REST_MS = 200;
+
+const READER_ACTS = ['wheel', 'touchstart', 'pointerdown', 'keydown'] as const;
 
 /** Where the reader last left the float, for this visit. Null: the corner. */
 let placed: FloatRect | null = null;
@@ -117,6 +122,8 @@ export default function FloatingPlayer() {
         boxRect = rectOf(box);
         clips = [...panes.list.map(rectOf), { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight }];
         share = shownShare(boxRect, clips);
+        // Back on the page with the video having been in its box: it stays in view while the page settles.
+        if (share < 1 && keptBox() === box) box.scrollIntoView({ block: 'nearest' });
       }
       const floats = shouldFloat(boxRect !== null, asked, share);
       noteFloating(floats);
@@ -148,7 +155,11 @@ export default function FloatingPlayer() {
       raf = window.requestAnimationFrame(tick);
     };
     tick();
-    return () => window.cancelAnimationFrame(raf);
+    for (const name of READER_ACTS) document.addEventListener(name, letKeptBoxGo, { capture: true, passive: true });
+    return () => {
+      window.cancelAnimationFrame(raf);
+      for (const name of READER_ACTS) document.removeEventListener(name, letKeptBoxGo, { capture: true });
+    };
     // `entry` changes only with a new PLAY; a re-render for floating or asked must not restart anything.
   }, [playKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -246,32 +257,24 @@ export default function FloatingPlayer() {
       className={`fixed flex flex-col ${floating ? 'z-float frame bg-sun-pale' : 'z-1'}`}
     >
       {floating ? (
-        <div
-          {...drag.bar}
-          onDoubleClick={togglePlayerFullscreen}
-          className={`${WINDOW_TITLE_BAR} cursor-move touch-none select-none`}
-          title="Drag to move. Pull an edge to resize. Double press for fullscreen."
-        >
-          <span className="truncate">{entry.title}</span>
-          <span className="flex shrink-0 items-center gap-1">
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={goBack} onDoubleClick={(event) => event.stopPropagation()} aria-label={`Back to where "${entry.title}" came from`} className={PLATE}>
+        <div {...drag.bar} onDoubleClick={togglePlayerFullscreen} className="cursor-move touch-none select-none" title="Drag to move. Pull an edge to resize. Double press for fullscreen.">
+          <div className={WINDOW_TITLE_BAR}>
+            <span className="truncate">{entry.title}</span>
+            <button type="button" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()} onClick={closeFloating} aria-label={`Close "${entry.title}"`} className={`${PLATE} shrink-0`}>
+              [ × ]
+            </button>
+          </div>
+          {/* The key's window is drawn through it, so what happens in the window must not reach the bar's drag either. */}
+          <div className="flex flex-wrap items-center gap-1 px-2 pb-1" onPointerDown={(event) => event.stopPropagation()} onDoubleClick={(event) => event.stopPropagation()}>
+            <button type="button" onClick={goBack} aria-label={`Back to where "${entry.title}" came from`} className={PLATE}>
               [ BACK ]
             </button>
-            <button
-              type="button"
-              onPointerDown={(event) => event.stopPropagation()}
-              onDoubleClick={(event) => event.stopPropagation()}
-              onClick={togglePlayerFullscreen}
-              aria-label={`Fullscreen: "${entry.title}"`}
-              className={PLATE}
-            >
+            <button type="button" onClick={togglePlayerFullscreen} aria-label={`Fullscreen: "${entry.title}"`} className={PLATE}>
               [ FULL ]
             </button>
             {canPopOut ? (
               <button
                 type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onDoubleClick={(event) => event.stopPropagation()}
                 onClick={() => void video.current?.requestPictureInPicture().catch(() => undefined)}
                 aria-label={`Pop out "${entry.title}" above other apps`}
                 title="The browser's own pop-out: stays above other apps"
@@ -280,10 +283,8 @@ export default function FloatingPlayer() {
                 [ POP OUT ]
               </button>
             ) : null}
-            <button type="button" onPointerDown={(event) => event.stopPropagation()} onClick={closeFloating} onDoubleClick={(event) => event.stopPropagation()} aria-label={`Close "${entry.title}"`} className={PLATE}>
-              [ × ]
-            </button>
-          </span>
+            {entry.room === undefined ? null : <WatchInRoomKey key={entry.play} source={entry.room} playId={entry.id} title={entry.title} />}
+          </div>
         </div>
       ) : null}
 

@@ -1,4 +1,4 @@
-import { stationFacts, stationGraph } from '../../../lib/tag-station/graph-cache';
+import { sharedStationMap } from '../../../lib/tag-station/graph-shared';
 import { moreItems, spellingsOf } from '../../../lib/tag-station/pool-more';
 import { getTagRepository } from '../../../lib/tag-station/repository';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
@@ -39,8 +39,8 @@ export async function GET(request: Request): Promise<Response> {
   const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : null;
   try {
     const repository = getTagRepository(token);
-    const graph = await stationGraph(() => repository.rows(), Date.now(), () => repository.limitReached(), () => repository.wordFacts(), () => repository.pool());
-    const rows = await repository.poolFiles(spellingsOf(words, stationFacts(), graph), seed);
+    const { graph, facts } = await sharedStationMap(repository);
+    const rows = await repository.poolFiles(spellingsOf(words, facts, graph), seed);
     return json({ items: moreItems(rows, graph) }, 200);
   } catch {
     return json({ error: 'That could not be read. Try again in a minute.' }, 503);

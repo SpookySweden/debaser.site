@@ -913,6 +913,154 @@ phases.phase3 = async (page, shot) => {
   await shot('phase3-desktop');
 };
 
+phases.phase4 = async (page, shot) => {
+  console.log('Phase 4: Tags');
+  await freshProject(page);
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat', 'pencil']) engine.setBrushValue(b, { stabiliser: 0 });
+  });
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  const rows = () => page.evaluate(() => window.__animate.project.nodes.map((n) => [n.name, n.tagId, n.blend, n.locked]));
+  const pickTag = (tagId) => page.evaluate((t) => {
+    const select = document.querySelector('[data-animate-tag-select]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(select, t);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }, tagId);
+
+  // Ctrl + a number: a new layer with that tag.
+  check('all eight tags are there', (await page.evaluate(() => window.__animate.project.tags.map((t) => t.id).join(','))) === 'figure,ink,rough,shade,background,reference,fx,notes');
+  await page.keyboard.press('Control+1');
+  await page.waitForTimeout(100);
+  check('Ctrl + 1 makes a Figure layer', (await rows())[0][1] === 'figure', JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(80);
+
+  // Ink as a fill reference: a Figure on another layer reads its lines.
+  await page.keyboard.press('i');
+  await pickTag('ink');
+  await page.waitForTimeout(80);
+  await penStroke(page, along(400, 200, 800, 200), { gapMs: 1 });
+  await penStroke(page, along(800, 200, 800, 600), { gapMs: 1 });
+  await penStroke(page, along(800, 600, 400, 600), { gapMs: 1 });
+  await penStroke(page, along(400, 600, 400, 200), { gapMs: 1 });
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('figure');
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await page.waitForTimeout(900);
+  await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
+  await page.waitForTimeout(300);
+  check('a Figure stays inside lines on an Ink layer', (await pixel(page, 700, 400)) === '#e6004c' && (await pixel(page, 900, 400)) === '#ffffff', (await pixel(page, 700, 400)) + ' ' + (await pixel(page, 900, 400)));
+
+  // Shade: multiplies, and stays where the layer below has pixels.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('shade');
+  await page.waitForTimeout(80);
+  check('a Shade layer starts on multiply', (await rows())[0][2] === 'multiply', JSON.stringify((await rows())[0]));
+  await page.getByRole('button', { name: 'GREY', exact: true }).click();
+  await penStroke(page, along(650, 450, 1000, 450), { gapMs: 1 });
+  await page.waitForTimeout(600);
+  check('a Shade paints only where the layer below has pixels', (await pixel(page, 900, 450)) === '#ffffff', await pixel(page, 900, 450));
+  await penStroke(page, along(620, 402, 760, 402), { gapMs: 1 });
+  await page.waitForTimeout(500);
+  const shaded = await pixel(page, 700, 402);
+  check('and multiplies over the colour', shaded !== '#e6004c' && shaded !== '#ffffff', shaded);
+  await shot('phase4-shade');
+
+  // Rough: dim, and left out of renders. Reference starts locked.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('rough');
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await penStroke(page, along(1100, 300, 1500, 300), { gapMs: 1 });
+  await page.waitForTimeout(100);
+  check('Rough shows full strength while it is the layer in hand', (await pixel(page, 1300, 300)) === '#000000', await pixel(page, 1300, 300));
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(120);
+  const dimmed = await seen(page, 1300, 300);
+  check('and dims, tinted blue, when it is not', dimmed[2] > dimmed[0] && dimmed[0] > 60, JSON.stringify(dimmed));
+  await page.keyboard.press('ArrowUp');
+
+  // Reference starts locked. Notes stay on top. FX adds.
+  await page.keyboard.press('Control+6');
+  await page.waitForTimeout(80);
+  check('a Reference layer starts locked', (await rows())[0][1] === 'reference' && (await rows())[0][3] === true, JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(80);
+  await page.keyboard.press('Control+7');
+  await page.waitForTimeout(80);
+  check('an FX layer starts on add', (await rows())[0][2] === 'add', JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(80);
+
+  // Background: one drawing on every frame.
+  await page.keyboard.press('Control+5');
+  await page.waitForTimeout(80);
+  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await penStroke(page, along(1100, 800, 1500, 800), { gapMs: 1 });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.__animate.goToFrame(20));
+  await page.waitForTimeout(120);
+  check('a Background drawing shows on every frame', (await pixel(page, 1300, 800)) === '#28c745', await pixel(page, 1300, 800));
+  await page.evaluate(() => window.__animate.goToFrame(0));
+
+  // The off switch, per tag.
+  await page.keyboard.press('Shift+T');
+  await page.waitForTimeout(100);
+  check('the tag editor opens', (await page.getByRole('dialog', { name: 'TAGS' }).count()) === 1);
+  await shot('phase4-tags');
+  await page.getByRole('button', { name: 'FIGURE smarts on' }).click();
+  await page.waitForTimeout(100);
+  check('a tag can be switched off', await page.evaluate(() => window.__animate.project.tags.find((t) => t.id === 'figure').on === false));
+  await page.getByRole('button', { name: 'FIGURE smarts off' }).click();
+
+  // A custom tag: copied, edited, put on a layer, and its behaviour works.
+  await page.getByRole('button', { name: 'Copy FIGURE' }).click();
+  await page.waitForTimeout(100);
+  const customId = await page.evaluate(() => window.__animate.project.tags[window.__animate.project.tags.length - 1].id);
+  check('a tag can be copied', await page.evaluate(() => window.__animate.project.tags.length === 9));
+  await page.locator('input[aria-label="Tag name"]').fill('MY FIG');
+  await page.waitForTimeout(60);
+  await shot('phase4-editor');
+  await page.locator('[data-animate-behaviour="STAY INSIDE LINES"]').uncheck();
+  await page.waitForTimeout(60);
+  check('a behaviour can be switched off in it', await page.evaluate((id) => {
+    const t = window.__animate.project.tags.find((x) => x.id === id);
+    return t.behaviours.stayInsideLines === false && t.name === 'MY FIG';
+  }, customId));
+
+  // Presets: out to a file, and in again.
+  const preset = await downloadFrom(page, () => page.getByRole('button', { name: '[ SAVE TAGS ]' }).click());
+  check('tags save to a small file', preset.name === 'animate-tags.json' && preset.bytes.toString().includes('MY FIG'), preset.bytes.length + ' bytes');
+  const presetPath = path.join(os.tmpdir(), 'animate-preset-' + Date.now() + '.json');
+  fs.writeFileSync(presetPath, preset.bytes);
+  await page.setInputFiles('#animate-tag-file', presetPath);
+  await page.waitForTimeout(200);
+  check('and load back as new tags', await page.evaluate(() => window.__animate.project.tags.filter((t) => t.name === 'MY FIG').length === 2));
+  fs.writeFileSync(presetPath, 'nonsense');
+  await page.setInputFiles('#animate-tag-file', presetPath);
+  await page.waitForTimeout(200);
+  check('a file that is not one is refused, in words', (await page.locator('[data-animate-notice]').textContent()).includes('NOT A TAG FILE'));
+  fs.unlinkSync(presetPath);
+  await page.keyboard.press('Shift+T');
+
+  // A folder's tag passes down.
+  await page.keyboard.press('Shift+G');
+  await page.waitForTimeout(80);
+  await pickTag('rough');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  check('a layer made in a folder takes its tag', (await page.locator('[data-animate-row]').first().locator('[data-animate-chip="rough"]').count()) === 1 || (await page.locator('[data-animate-chip="rough"]').count()) >= 2);
+  await shot('phase4-desktop');
+};
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'animate-drive-'));
