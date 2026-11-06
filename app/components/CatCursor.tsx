@@ -130,7 +130,8 @@ export default function CatCursor() {
 
     /** What is under the pointer decides the cat: hidden over a field or an embed, paw up over a control. */
     const look = (target: Element | null) => {
-      if (target === null || target.closest('iframe, embed, object') !== null || target.closest(FIELD) !== null) {
+      // `data-no-cat`: ANIMATE's sheet, where a ring the size of the brush is the pointer.
+      if (target === null || target.closest('iframe, embed, object, [data-no-cat]') !== null || target.closest(FIELD) !== null) {
         show(false);
         return;
       }

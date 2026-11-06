@@ -20,8 +20,8 @@
  *   6. a generated colour block that no longer matches `themes.ts` (run with `--write`).
  *
  * People's own colours are data, not the site's look, and are not checked: a name's swatch
- * (`app/lib/profile/name-colours.ts`), a tag's hue (`app/lib/forum/tag-vocabulary.ts`), and the character
- * workbench's figure paint (`app/lib/character/`). A known exception is listed in `EXCEPTIONS` below with
+ * (`app/lib/profile/name-colours.ts`), a tag's hue (`app/lib/forum/tag-vocabulary.ts`), the character
+ * workbench's figure paint (`app/lib/character/`), and ANIMATE's paint and sheet marks (`app/lib/animate/`). A known exception is listed in `EXCEPTIONS` below with
  * its reason - one place, so the list is read rather than scattered through comments.
  *
  * Comments are skipped (the scan reads string literals through the TypeScript parser), because a comment
@@ -39,7 +39,7 @@ const THEMES_TS = 'app/lib/ui/themes.ts';
 const TOKEN_FILES = new Set([TOKENS_CSS, 'app/theme/fonts.ts', THEMES_TS]);
 
 /** People's colours and the figure's paint: data, not the look. */
-const DATA_FILES = [/^app\/lib\/profile\/name-colours\.ts$/, /^app\/lib\/forum\/tag-vocabulary\.ts$/, /^app\/lib\/character\//];
+const DATA_FILES = [/^app\/lib\/profile\/name-colours\.ts$/, /^app\/lib\/forum\/tag-vocabulary\.ts$/, /^app\/lib\/character\//, /^app\/lib\/animate\//];
 
 /** Known exceptions, each with its reason. `file` and the exact `value` found there. */
 const EXCEPTIONS = [

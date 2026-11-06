@@ -1,0 +1,152 @@
+/**
+ * Everything the studio can do from a key, in one list: the keyboard handler, the remap screen and the cheat sheet all read it, so a
+ * new action is on all three by being written here.
+ */
+import { MAX_BRUSH_SIZE } from './brushes';
+import { getEngine } from './engine';
+import { keys } from './pointer';
+import { UI_SCALES, updateSettings, useStudio, type Panel, type ToolId } from './store';
+
+export type Action = {
+  id: string;
+  label: string;
+  group: string;
+  key: string;
+  run: () => void;
+};
+
+function tool(id: string, label: string, key: string, which: ToolId): Action {
+  return { id: `tool.${id}`, label, group: 'TOOLS', key, run: () => getEngine().setTool(which) };
+}
+
+function toggleFull(): void {
+  updateSettings({ full: !useStudio.getState().settings.full });
+}
+
+export function stepUiScale(direction: -1 | 1): void {
+  const { uiScale } = useStudio.getState().settings;
+  const at = UI_SCALES.indexOf(uiScale);
+  const next = UI_SCALES[Math.max(0, Math.min(UI_SCALES.length - 1, (at < 0 ? 0 : at) + direction))];
+  updateSettings({ uiScale: next });
+}
+
+function togglePanel(panel: Panel): void {
+  const state = useStudio.getState();
+  useStudio.setState({ panel: state.panel === panel ? 'none' : panel });
+}
+
+function brushSizeBy(factor: number): void {
+  const state = useStudio.getState();
+  const brush = getEngine().brushForTool(state.tool);
+  if (brush === null) return;
+  const size = state.brushes[brush].size;
+  const next = factor > 1 ? Math.max(size + 1, size * factor) : Math.min(size - 1, size * factor);
+  getEngine().setBrushSize(brush, Math.min(MAX_BRUSH_SIZE, next));
+}
+
+/** Actions other modules bring (timeline, layers, smarts). */
+const extra: Action[] = [];
+
+export function addActions(list: Action[]): void {
+  for (const action of list) {
+    if (!extra.some((other) => other.id === action.id)) extra.push(action);
+  }
+}
+
+export function allActions(): Action[] {
+  return [
+    tool('pencil', 'PENCIL', 'p', 'pencil'),
+    tool('ink', 'INK', 'i', 'ink'),
+    tool('flat', 'FLAT COLOUR', 'f', 'flat'),
+    tool('eraser', 'ERASER', 'e', 'eraser'),
+    tool('hand', 'HAND', 'h', 'hand'),
+    tool('pick', 'COLOUR PICKER', 'k', 'pick'),
+    { id: 'edit.undo', label: 'UNDO', group: 'EDIT', key: 'ctrl+z', run: () => getEngine().undo() },
+    { id: 'edit.redo', label: 'REDO', group: 'EDIT', key: 'ctrl+y', run: () => getEngine().redo() },
+    { id: 'edit.redo2', label: 'REDO (2ND KEY)', group: 'EDIT', key: 'ctrl+shift+z', run: () => getEngine().redo() },
+    { id: 'edit.cancel', label: 'DROP THE STROKE', group: 'EDIT', key: 'escape', run: () => getEngine().cancelStroke() },
+    { id: 'brush.bigger', label: 'BRUSH BIGGER', group: 'TOOLS', key: ']', run: () => brushSizeBy(1.2) },
+    { id: 'brush.smaller', label: 'BRUSH SMALLER', group: 'TOOLS', key: '[', run: () => brushSizeBy(1 / 1.2) },
+    { id: 'view.in', label: 'ZOOM IN', group: 'VIEW', key: '=', run: () => getEngine().zoomAt(1.25) },
+    { id: 'view.out', label: 'ZOOM OUT', group: 'VIEW', key: '-', run: () => getEngine().zoomAt(1 / 1.25) },
+    { id: 'view.fit', label: 'FIT THE SHEET', group: 'VIEW', key: '0', run: () => getEngine().fitView() },
+    { id: 'view.left', label: 'TURN LEFT', group: 'VIEW', key: 'shift+r', run: () => getEngine().rotateBy(-15) },
+    { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
+    { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
+    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: 'tab', run: toggleFull },
+    { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: 'ctrl+.', run: () => stepUiScale(1) },
+    { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+,', run: () => stepUiScale(-1) },
+    { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
+    { id: 'file.open', label: 'OPEN A FILE', group: 'FILE', key: 'ctrl+o', run: () => document.getElementById('animate-open-file')?.click() },
+    { id: 'help.keys', label: 'THESE KEYS', group: 'HELP', key: '?', run: () => togglePanel('help') },
+    { id: 'help.close', label: 'CLOSE THE PANEL', group: 'HELP', key: 'shift+escape', run: () => useStudio.setState({ panel: 'none' }) },
+    ...extra,
+  ];
+}
+
+/** The key an action answers to, counting the person's own remap. */
+export function keyOf(action: Action): string {
+  return useStudio.getState().settings.shortcuts[action.id] ?? action.key;
+}
+
+/** A key press as a name: `ctrl+shift+z`, `q`, `[`. */
+export function keyName(event: KeyboardEvent): string {
+  const key = event.key.toLowerCase();
+  const parts: string[] = [];
+  if (event.ctrlKey || event.metaKey) parts.push('ctrl');
+  if (event.altKey) parts.push('alt');
+  // Shift is part of a symbol's own name (`?`), so it counts only on letters, digits and named keys.
+  if (event.shiftKey && (key.length > 1 || /[a-z0-9]/.test(key))) parts.push('shift');
+  parts.push(key === ' ' ? 'space' : key);
+  return parts.join('+');
+}
+
+/** How a key reads on screen. */
+export function keyLabel(key: string): string {
+  return key.toUpperCase().replace(/\+/g, ' + ');
+}
+
+function isTyping(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement) return true;
+  if (target instanceof HTMLInputElement) return !['checkbox', 'radio', 'button', 'range', 'color', 'file'].includes(target.type);
+  return false;
+}
+
+/** The studio's keyboard, for as long as the page is open. */
+export function attachKeys(): () => void {
+  const onDown = (event: KeyboardEvent) => {
+    if (isTyping(event.target)) return;
+    if (useStudio.getState().panel === 'keys') return; // The remap screen is listening for a key of its own.
+    const name = keyName(event);
+    if (name === 'space') {
+      keys.space = true;
+      // On a focused key, space still presses it.
+      if (!(event.target instanceof HTMLButtonElement)) event.preventDefault();
+      return;
+    }
+    if (event.repeat && !['=', '-', '[', ']', ',', '.', 'arrowleft', 'arrowright'].includes(name)) {
+      if (allActions().some((action) => keyOf(action) === name)) event.preventDefault();
+      return;
+    }
+    const action = allActions().find((candidate) => keyOf(candidate) === name);
+    if (action === undefined) return;
+    // Tab still walks the keys when something is focused; only with nothing focused does it mean full screen.
+    if (name === 'tab' && document.activeElement !== document.body) return;
+    // Enter and arrows belong to a focused key or slider.
+    if ((name === 'enter' || name.startsWith('arrow')) && document.activeElement !== document.body && !(document.activeElement instanceof HTMLCanvasElement)) return;
+    event.preventDefault();
+    action.run();
+  };
+  const onUp = (event: KeyboardEvent) => {
+    if (event.key === ' ') keys.space = false;
+  };
+  window.addEventListener('keydown', onDown);
+  window.addEventListener('keyup', onUp);
+  return () => {
+    window.removeEventListener('keydown', onDown);
+    window.removeEventListener('keyup', onUp);
+    keys.space = false;
+  };
+}
