@@ -174,7 +174,7 @@ export function BeatBox({
 
   function toggleFocusView() {
     setFocusView(!focusView);
-    setStatus(focusView ? "Focus view off." : "Focus view: only the notes. Press full stop to leave.");
+    setStatus(focusView ? "Focus view off." : "Focus view: the notes and little else. Press full stop to leave.");
   }
 
   function toggleTheme() {
@@ -544,9 +544,11 @@ export function BeatBox({
 
       <div className="contents print:hidden">
         <div className="contents">
-          <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
-            Go to the bars
-          </button>
+          {barsShowing && (
+            <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
+              Go to the bars
+            </button>
+          )}
           <button type="button" onClick={() => goToGrid("Notes")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
             Go to the notes
           </button>
@@ -576,10 +578,10 @@ export function BeatBox({
             )}
           </button>
           <BeatLight session={session} />
-          <button type="button" onClick={undo} title="Undo (Ctrl+Z)" aria-keyshortcuts="Control+Z" className={barKey()}>
+          <button type="button" onClick={undo} title="Undo (Ctrl+Z)" aria-keyshortcuts="Control+Z" className={focusView ? "hidden" : barKey()}>
             Undo
           </button>
-          <div role="group" aria-label="Speed" className="flex flex-wrap items-stretch gap-x-1">
+          <div role="group" aria-label="Speed" className={focusView ? "hidden" : "flex flex-wrap items-stretch gap-x-1"}>
             <span className="flex items-center px-1 text-bb-large font-bold whitespace-nowrap uppercase">Speed {song.tempo}</span>
             <button type="button" aria-label="Slower" title="Slower ([)" onClick={() => changeTempo(-TEMPO_STEP)} className={barKey()}>
               -
@@ -663,12 +665,14 @@ export function BeatBox({
               onCursorMoved={cursorMoved}
               onAnnounce={setStatus}
               footKeys={
-                <>
-                  {!barsShowing && sizeKeys}
-                  <button type="button" aria-pressed={!barsFolded} title="Show or hide the bars (')" onClick={toggleBars} className={stripKey(!barsFolded)}>
-                    Bars
-                  </button>
-                </>
+                focusView ? undefined : (
+                  <>
+                    {!barsShowing && sizeKeys}
+                    <button type="button" aria-pressed={!barsFolded} title="Show or hide the bars (')" onClick={toggleBars} className={stripKey(!barsFolded)}>
+                      Bars
+                    </button>
+                  </>
+                )
               }
             />
             {padsShown && <Pads song={song} channelIndex={pick.channel} live={live} />}

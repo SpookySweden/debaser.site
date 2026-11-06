@@ -22,7 +22,7 @@ export const KEY_HELP: readonly KeyGroup[] = [
       ["[ and ]", "Slower and faster"],
       ["B", "Notes follow the playing bar, on or off"],
       ["I", "Change audio mode: Practice, Sonify, Perform"],
-      [".", "Focus view: only the notes, on or off"],
+      [".", "Focus view: the notes and little else, on or off"],
       [",", "High contrast, on or off"],
       ["- and =", "Smaller and bigger grid"],
     ],

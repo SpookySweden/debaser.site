@@ -143,13 +143,13 @@ export function BarRow({
       onAnnounce(`Bars ${Math.min(pick.bar, end) + 1} to ${Math.max(pick.bar, end) + 1} picked. L loops them.`);
       return;
     }
-    if (key === "l" || key === "L") {
+    if ((key === "l" || key === "L") && !event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
       applyLoop();
       return;
     }
-    if (key === "f" || key === "F") {
+    if ((key === "f" || key === "F") && !event.ctrlKey) {
       event.preventDefault();
       event.stopPropagation();
       fillLoop();

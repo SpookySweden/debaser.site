@@ -431,8 +431,11 @@ const main = async () => {
       await expectStatus(page, mode, 'I');
     }
     await press('.');
-    await expectStatus(page, /Focus view: only/, '.');
+    await expectStatus(page, /Focus view: the notes/, '.');
     assert.equal(await page.locator(BARS).isVisible(), false, 'focus view hides the bars');
+    assert.equal(await page.getByRole('button', { name: 'Slower' }).isVisible(), false, 'and the speed');
+    assert.equal(await page.getByRole('button', { name: 'Bars', exact: true }).count(), 0, 'and the keys for the bars');
+    assert.equal(await page.getByRole('button', { name: /^Menu/ }).isVisible(), true, 'with the menu still there');
     await press('.');
     await expectStatus(page, /Focus view off/, '. again');
     assert.equal(await page.locator(BARS).isVisible(), true);
