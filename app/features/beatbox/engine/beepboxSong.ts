@@ -31,6 +31,7 @@ export function songToData(song: Song): SongData {
         octave: channel.octave,
         bars: [...channel.bars],
         patterns: channel.patterns.map(patternToData),
+        sounds: channel.instruments.map((instrument) => instrument.toJsonObject()),
       }),
     ),
   };
@@ -68,6 +69,11 @@ export function writeDataToSong(song: Song, previous: SongData, next: SongData):
       pattern.notes = patternData.notes.map(dataToNote);
       pattern.instruments.length = 0;
       pattern.instruments.push(...patternData.instruments);
+    });
+
+    channelData.sounds.forEach((sound, soundIndex) => {
+      if (previous.channels[channelIndex]?.sounds[soundIndex] === sound) return;
+      channel.instruments[soundIndex]?.fromJsonObject(sound, channelData.isDrum);
     });
   });
 

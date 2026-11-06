@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useRef } from "react";
-import { KEY_HELP } from "./keyHelp";
+import { keyHelp } from "./keyHelp";
+import type { Bindings } from "./keyBindings";
 import { bigKey } from "./looks";
 
 /** Every key, in a panel that can also be printed. */
-export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function HelpPanel({ open, bindings, onClose }: { open: boolean; bindings: Bindings; onClose: () => void }) {
   const dialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
@@ -34,7 +35,7 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
             Print
           </button>
         </div>
-        {KEY_HELP.map((group) => (
+        {keyHelp(bindings).map((group) => (
           <section key={group.title} className="flex w-full flex-col gap-bb-gutter">
             <h3 className="text-bb-large font-bold wrap-anywhere uppercase">{group.title}</h3>
             <dl className="flex flex-col gap-bb-gutter text-bb-large">

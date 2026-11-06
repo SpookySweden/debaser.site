@@ -5,7 +5,8 @@ import type { MetronomeMode } from "../engine";
 import { QUANTISE_OPTIONS } from "../recorder/convert";
 import type { RecordMode } from "../recorder/merge";
 import { ChoiceGroup } from "./ChoiceGroup";
-import { focusOnly, smallKey, titleLine } from "./looks";
+import { focusOnly, smallKey, stripKey } from "./looks";
+import type { KeyAction } from "./keyBindings";
 import type { RecordSession } from "./recordSession";
 
 const MODES: readonly { value: RecordMode; label: string }[] = [
@@ -31,31 +32,39 @@ export function BeatLight({ session }: { session: RecordSession }) {
   return (
     <div
       aria-hidden="true"
-      className={`flex w-[7ch] flex-none items-center justify-center self-stretch text-bb-large font-bold whitespace-nowrap uppercase ${beat?.lit ? "motion-safe:bg-bb-flavine motion-safe:text-bb-black" : ""}`}
+      className={`flex w-[7ch] flex-none items-center justify-center self-stretch font-bold whitespace-nowrap uppercase ${beat?.lit ? "motion-safe:bg-bb-flavine motion-safe:text-bb-black" : ""}`}
     >
       {text}
     </div>
   );
 }
 
-export function RecordPanel({ session }: { session: RecordSession }) {
+export function RecordPanel({
+  session,
+  keyFor,
+  onCapture,
+}: {
+  session: RecordSession;
+  /** The words for the key that does this, as it is now. */
+  keyFor: (action: KeyAction) => string;
+  onCapture: () => void;
+}) {
   const settings = useSyncExternalStore(session.subscribe, session.getSettings);
   const quantiseOptions = QUANTISE_OPTIONS.map((option, index) => ({ value: index, label: option.label }));
 
   return (
     <section aria-label="Loop recorder" className="flex w-full flex-col items-start gap-bb-gutter">
-      <h2 className={titleLine}>
-        <span>Loop recorder</span>
-      </h2>
-      <ChoiceGroup label="Mode" keyName="V" value={settings.mode} options={MODES} onChange={session.setMode} />
-      <ChoiceGroup label="Count-in" keyName="N" value={settings.countInBars} options={COUNT_INS} onChange={session.setCountIn} />
-      <ChoiceGroup label="Metronome" keyName="M" value={settings.metronome} options={METRONOMES} onChange={session.setMetronome} />
+      <ChoiceGroup label="Mode" keyName={keyFor("recordMode")} value={settings.mode} options={MODES} onChange={session.setMode} look={stripKey} stacked />
+      <ChoiceGroup label="Count-in" keyName={keyFor("countIn")} value={settings.countInBars} options={COUNT_INS} onChange={session.setCountIn} look={stripKey} stacked />
+      <ChoiceGroup label="Metronome" keyName={keyFor("metronome")} value={settings.metronome} options={METRONOMES} onChange={session.setMetronome} look={stripKey} stacked />
       <ChoiceGroup
         label="Quantise"
-        keyName="Q"
+        keyName={keyFor("quantise")}
         value={settings.quantiseIndex}
         options={quantiseOptions}
         onChange={session.setQuantise}
+        look={stripKey}
+        stacked
       />
       <label className="flex w-full flex-col gap-bb-gutter text-bb-large font-bold uppercase">
         Quantise strength {settings.strength}%
@@ -70,8 +79,8 @@ export function RecordPanel({ session }: { session: RecordSession }) {
         />
       </label>
       <div className="flex flex-wrap items-center gap-bb-gutter">
-        <button type="button" onClick={session.capture} className={smallKey()}>
-          Capture last pass (C)
+        <button type="button" onClick={onCapture} title={`Key: ${keyFor("capture")}`} className={smallKey()}>
+          Capture last pass
         </button>
         <button
           type="button"

@@ -143,13 +143,13 @@ export function BarRow({
       onAnnounce(`Bars ${Math.min(pick.bar, end) + 1} to ${Math.max(pick.bar, end) + 1} picked. L loops them.`);
       return;
     }
-    if ((key === "l" || key === "L") && !event.ctrlKey) {
+    if ((key === "l" || key === "L") && !event.ctrlKey && !event.shiftKey) {
       event.preventDefault();
       event.stopPropagation();
       applyLoop();
       return;
     }
-    if ((key === "f" || key === "F") && !event.ctrlKey) {
+    if ((key === "f" || key === "F") && !event.ctrlKey && !event.shiftKey) {
       event.preventDefault();
       event.stopPropagation();
       fillLoop();
@@ -235,11 +235,11 @@ export function BarRow({
           </button>
           <button
             type="button"
-            title={`The loop is bars ${song.loopStart + 1} to ${loopEnd + 1}. Shift+click picks bars, this loops them (L, in the bars)`}
+            title={`The loop is bars ${song.loopStart + 1} to ${loopEnd + 1}. Shift+click picks bars, this makes them the loop (L, in the bars)`}
             onClick={applyLoop}
             className={stripKey()}
           >
-            Loop
+            Set loop
           </button>
         </div>
         {footKeys}

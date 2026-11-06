@@ -50,6 +50,10 @@ export interface Engine {
   play(options?: PlayOptions): void;
   /** Stops the song and goes back to its start. */
   stop(): void;
+  /** Stops the song where it is, for play() with no bar to carry on from. Says if it did: a count-in has nowhere to carry on from, so that's a stop. */
+  pause(): boolean;
+  /** On, the loop repeats until stopped. Off, the song plays through to its end once and stops by itself. */
+  setLooping(on: boolean): void;
   isPlaying(): boolean;
   /** Where the song is, in bars from the start of the song. */
   getPosition(): number;
@@ -121,6 +125,7 @@ function songHasNotes(song: Song): boolean {
 interface SynthInternals {
   audioCtx: AudioContext | null;
   audioProcessCallback: (event: AudioProcessingEvent) => void;
+  warmUpSynthesizer: (song: Song) => void;
 }
 
 function readAudioClock(context: AudioContext): Pick<AudioTiming, "clock" | "outputLatency"> {
@@ -264,9 +269,12 @@ export function createEngine(): Engine {
 
     updateSong(next) {
       const loopMoved = next.loopStart !== song.loopStart || next.loopLength !== song.loopLength;
+      const soundsChanged = next.channels.some((channel, index) => channel.sounds !== song.channels[index]?.sounds);
       writeDataToSong(requireSong(), song, next);
       song = next;
       if (loopMoved) synth.jumpIntoLoop();
+      // A new sound's waves are made ahead of time, or it would be silent until the next Play.
+      if (soundsChanged) internals.warmUpSynthesizer(requireSong());
     },
 
     play({ fromBar, countInBars = 0 } = {}) {
@@ -283,6 +291,20 @@ export function createEngine(): Engine {
     },
 
     stop,
+
+    pause() {
+      if (countInFlag) {
+        stop();
+        return false;
+      }
+      synth.pause();
+      anchor = null;
+      return true;
+    },
+
+    setLooping(on) {
+      synth.loopRepeatCount = on ? -1 : 0;
+    },
 
     isPlaying() {
       return synth.playing;
