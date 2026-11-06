@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { clearedFilters, suggest, type StationIndex } from '../lib/tag-station/query';
+import { clearedFilters, findTag, suggest, wordToLookUp, type StationIndex } from '../lib/tag-station/query';
 import { hasFilters, listOf, withWordIn, type Near, type Niche, type Recipe, type Strict, type WordSourceFilter } from '../lib/tag-station/recipe';
 import type { Facet } from '../lib/tag-station/word-facts';
 import { FIELD_TIGHT } from '../lib/ui/controls';
@@ -16,13 +16,20 @@ const LISTS: readonly { list: WordList; label: string; title: string }[] = [
   { list: 'not', label: 'NOT', title: 'EXCLUDE' },
 ];
 
-/** A word in the recipe: three keys say which list it's in, and one takes it out. */
-function RecipeWord({ recipe, word, onChange }: { recipe: Recipe; word: string; onChange: (next: Recipe) => void }) {
+/**
+ * A word the map doesn't show can be asked for but not excluded: a list's rows only carry the map's words and the ones asked for, so an exclusion would quietly let
+ * through everything that has it.
+ */
+const listsFor = (onMap: boolean): typeof LISTS => (onMap ? LISTS : LISTS.filter(({ list }) => list !== 'not'));
+
+/** A word in the recipe: keys say which list it's in, and one takes it out. A word off the map says how its lookup went. */
+function RecipeWord({ recipe, word, onMap, found, looking, onChange }: { recipe: Recipe; word: string; onMap: boolean; found: boolean; looking: boolean; onChange: (next: Recipe) => void }) {
   const current = listOf(recipe, word);
   return (
     <li className="flex flex-wrap items-center gap-1">
       <span className="min-w-0 break-words text-prose text-ink">{word}</span>
-      {LISTS.map(({ list, label }) => (
+      {!found && current !== 'not' ? <span className="text-label text-ink">{looking ? 'LOOKING...' : 'NO SUCH WORD'}</span> : null}
+      {(current === 'not' ? LISTS : listsFor(onMap)).map(({ list, label }) => (
         <button key={list} type="button" aria-pressed={current === list} aria-label={`${word}: ${label}`} onClick={() => onChange(withWordIn(recipe, word, list))} className={current === list ? STATION_KEY_ON : STATION_KEY}>
           {current === list ? label : `[ ${label} ]`}
         </button>
@@ -77,10 +84,11 @@ function Pick({ label, value, options, onChange }: { label: string; value: strin
  * The recipe (SPEC-tag-station.md): what results must have, may have and must not have, how strict, how obscure, how far out.
  * Every change goes straight into the address. Folded until it's asked for or something is already set.
  */
-export default function TagStationFilters({ index, recipe, onChange }: { index: StationIndex; recipe: Recipe; onChange: (next: Recipe) => void }) {
+export default function TagStationFilters({ index, mapIndex, recipe, looking, onChange }: { index: StationIndex; mapIndex: StationIndex; recipe: Recipe; looking: boolean; onChange: (next: Recipe) => void }) {
   const [open, setOpen] = useState(hasFilters(recipe));
   const [typed, setTyped] = useState('');
   const offers = useMemo(() => (typed.trim().length === 0 ? [] : suggest(index, typed, { tags: 5, items: 0 }).tags), [index, typed]);
+  const lookUp = wordToLookUp(typed, offers.map((tag) => tag.name));
   const { platforms, kinds } = useMemo(() => presentChoices(index), [index]);
   const addWord = (word: string, list: WordList) => {
     setTyped('');
@@ -109,7 +117,7 @@ export default function TagStationFilters({ index, recipe, onChange }: { index: 
         <div className="flex flex-col gap-2">
           <ul className="flex flex-col gap-1">
             {[...recipe.must, ...recipe.any, ...recipe.not].map((word) => (
-              <RecipeWord key={word} recipe={recipe} word={word} onChange={onChange} />
+              <RecipeWord key={word} recipe={recipe} word={word} onMap={findTag(mapIndex, word) !== null} found={findTag(index, word) !== null} looking={looking} onChange={onChange} />
             ))}
           </ul>
           <div>
@@ -117,18 +125,29 @@ export default function TagStationFilters({ index, recipe, onChange }: { index: 
               ADD A WORD
               <input type="text" value={typed} autoComplete="off" spellCheck={false} maxLength={40} onChange={(event) => setTyped(event.target.value)} className={`${FIELD_TIGHT} min-h-tap min-w-0 flex-1 basis-40`} />
             </label>
-            {offers.length > 0 ? (
+            {offers.length > 0 || lookUp !== null ? (
               <ul aria-label="Words to add" className="flex flex-col gap-1 pt-1">
                 {offers.map((tag) => (
                   <li key={tag.name} className="flex flex-wrap items-center gap-1">
                     <span className="min-w-0 break-words text-prose text-ink">{tag.name}</span>
-                    {LISTS.map(({ list, label }) => (
+                    {listsFor(findTag(mapIndex, tag.name) !== null).map(({ list, label }) => (
                       <button key={list} type="button" aria-label={`Add ${tag.name}: ${label}`} onClick={() => addWord(tag.name, list)} className={STATION_KEY}>
                         [ {label} ]
                       </button>
                     ))}
                   </li>
                 ))}
+                {lookUp !== null ? (
+                  <li className="flex flex-wrap items-center gap-1">
+                    <span className="min-w-0 break-words text-prose text-ink">{lookUp}</span>
+                    <span className="text-label text-ink-quiet">LOOK IN THE CATALOGUE</span>
+                    {listsFor(false).map(({ list, label }) => (
+                      <button key={list} type="button" aria-label={`Add ${lookUp}: ${label}`} onClick={() => addWord(lookUp, list)} className={STATION_KEY}>
+                        [ {label} ]
+                      </button>
+                    ))}
+                  </li>
+                ) : null}
               </ul>
             ) : typed.trim().length > 0 ? (
               <p className="pt-1 text-label text-ink">NO SUCH WORD.</p>
