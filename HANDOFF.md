@@ -15,7 +15,7 @@ The main session answers side sessions from the specs and asks Luke only what is
 ## State
 - MEDIA tagging's Claude key went into Vercel on 2026-11-05. Its first real batch is being watched: read `web_item_tags`
   and the `web-tag` cron's answers (`inputTokens`, `outputTokens`). Details and the cost reasoning: SPEC-media-picks.md.
-- **Privacy plan:** phases 0 and 1 are live (`supabase/README.md`, "Privacy", `SPEC-privacy-phase-1.md`, `Temp/check-visitor-limits.cjs`, `Temp/check-privacy-defaults.cjs`). Phases need
+- **Privacy plan:** phases 0 to 3 are live (`supabase/README.md`, "Privacy", `SPEC-privacy-phase-1.md` to `-3.md`, `Temp/check-visitor-limits.cjs`, `Temp/check-privacy-defaults.cjs`, `Temp/check-private-streams.cjs`). The live drives `Temp/private-streams-drive.cjs` and `Temp/private-outsiders-drive.cjs` each leave a private thread by TEST ACCOUNT A: delete them after (`supabase/cleanup/` has the pattern). Phases need
   `SPEC-privacy-decisions.md`, and each starts when Luke says. Profile reads must name their columns: `select *` on `profiles` fails.
 - Nothing else is half-done. Live: music rooms, the canvas + STREAM ART, CYTUBE, the MEDIA (/media) and FILES (/files) rename.
 - Fewer checks per task (Luke's rule): every task runs `npm run checks:changed`; the whole `npm run checks` runs before a
