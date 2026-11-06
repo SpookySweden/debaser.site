@@ -1,5 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { decodePoolFile, POOL_BUCKET, type PoolFileRow } from '../web/pool-files';
+import { poolStore, type PoolFileStore } from '../web/pool-store';
 import { canonicalIso, rowToItem, WEB_ITEM_COLUMNS, WEB_ITEMS_TABLE, type WebItemRow } from '../web/rows';
 import type { WebItem } from '../web/types';
 import { heldFile } from './pool-file-cache';
@@ -95,6 +96,28 @@ const fileRowToRow = (row: PoolFileRow): StationRow =>
   poolToRow({ id: `${row.platform}:${row.externalId}`, platform: row.platform, external_id: row.externalId, host: row.host, kind: row.kind, title: row.title, creator: row.creator, published_at: row.publishedAt, words: [...row.words] });
 
 export function createSupabaseTagRepository(client: SupabaseClient): TagStationRepository {
+  // The reader's own session reads Supabase Storage; Cloudflare R2, if set up, is read by the server once the route has checked that session (pool-store.ts). Reads only.
+  const refuseWrite = async () => {
+    throw new Error('POOL_READ_ONLY');
+  };
+  const files: PoolFileStore = poolStore({
+    put: refuseWrite,
+    remove: refuseWrite,
+    get: async (path) => {
+      const answer = await client.storage.from(POOL_BUCKET).download(path);
+      if (answer.error) {
+        if ((answer.error as { statusCode?: string }).statusCode === '404') return null;
+        throw new Error('POOL_FILE');
+      }
+      return new Uint8Array(await answer.data.arrayBuffer());
+    },
+  });
+  const readFile = (path: string) =>
+    heldFile(path, async () => {
+      const file = await files.get(path);
+      if (file === null) throw new Error('POOL_FILE');
+      return decodePoolFile(file);
+    }).catch((): PoolFileRow[] => []);
   return {
     source: 'supabase',
     async rows(): Promise<StationRow[]> {
@@ -120,22 +143,14 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       return [...savedRows, ...seenRows];
     },
     async pool(): Promise<{ rows: StationRow[]; swept: SweptCounts; incomplete?: boolean }> {
-      const [files, total, words] = await Promise.all([
+      const [sample, total, words] = await Promise.all([
         client.from('web_pool_shards').select('path').order('id', { ascending: false }).limit(SAMPLE_FILES),
         // On its own, and quick: a list opening doesn't wait on the rest.
         client.from('web_word_stats').select('items').eq('word', TOTAL_ROW).maybeSingle(),
         // The commonest words only: this read costs the free plan's monthly allowance, and the map can't show more.
         client.from('web_word_stats').select('word, items, partners').order('items', { ascending: false }).order('word').limit(MAX_ITEMS),
       ]);
-      const opened = await Promise.all(
-        ((files.data ?? []) as { path: string }[]).map(({ path }) =>
-          heldFile(path, async () => {
-            const answer = await client.storage.from(POOL_BUCKET).download(path);
-            if (answer.error) throw new Error('POOL_FILE');
-            return decodePoolFile(new Uint8Array(await answer.data.arrayBuffer()));
-          }).catch((): PoolFileRow[] => []),
-        ),
-      );
+      const opened = await Promise.all(((sample.data ?? []) as { path: string }[]).map(({ path }) => readFile(path)));
       const held = opened.flat();
       const every = Math.max(1, Math.ceil(held.length / MAX_ITEMS));
       const rows = held.filter((_, at) => at % every === 0).map(fileRowToRow);
@@ -146,24 +161,16 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
           counted: (total.data as { items?: number } | null)?.items ?? all.find((one) => one.word === TOTAL_ROW)?.items ?? 0,
           words: all.filter((one) => one.word !== TOTAL_ROW),
         },
-        ...(files.error || total.error || words.error ? { incomplete: true } : {}),
+        ...(sample.error || total.error || words.error ? { incomplete: true } : {}),
       };
     },
     async poolFiles(words, seed): Promise<StationRow[]> {
       if (words.length === 0) return [];
       const { data, error } = await client.rpc('web_pool_shards_for', { p_words: [...words], p_limit: FILES_PER_ASK, p_seed: seed });
       if (error) return [];
-      const files = await Promise.all(
-        ((data ?? []) as string[]).map((path) =>
-          heldFile(path, async () => {
-            const answer = await client.storage.from(POOL_BUCKET).download(path);
-            if (answer.error) throw new Error('POOL_FILE');
-            return decodePoolFile(new Uint8Array(await answer.data.arrayBuffer()));
-          }).catch((): PoolFileRow[] => []),
-        ),
-      );
+      const held = await Promise.all(((data ?? []) as string[]).map(readFile));
       const wanted = new Set(words);
-      const scored = files.flat().flatMap((row) => {
+      const scored = held.flat().flatMap((row) => {
         const score = row.words.filter((word) => wanted.has(word)).length;
         return score === 0 ? [] : [{ row, score }];
       });
