@@ -29,6 +29,7 @@
     "web:fetch": "node scripts/web-fetch.cjs",
     "tags:build": "node scripts/tags-build.cjs",
     "db": "node scripts/db.cjs",
+    "db:backup": "node scripts/db-backup.cjs",
     "db:sweep:review": "node scripts/sweep-throwaways.cjs --review",
     "db:sweep": "node scripts/sweep-throwaways.cjs",
     "db:link": "supabase link",

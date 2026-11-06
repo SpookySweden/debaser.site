@@ -130,6 +130,10 @@ qa-audit.cjs
 audited - so neither works from the gitignored folder. Its *input* is the snapshot in `Temp/qa/`;
 what it holds is the route list and the rules.
 
+db-backup.cjs
+    npm run db:backup
+    A copy of every table to Documents/debaser-backups, the 14 newest kept. Reads only. A Windows task runs it daily at 04:00.
+
 db.cjs
 ------
     npm run db -- "select count(*) from public.profiles;"

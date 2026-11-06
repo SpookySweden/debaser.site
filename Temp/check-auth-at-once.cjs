@@ -34,7 +34,8 @@ const session = () => ({
     id: '00000000-0000-4000-8000-00000000a7ce',
     aud: 'authenticated',
     email: 'at-once-check@example.test',
-    created_at: '2026-01-01T00:00:00Z',
+    // Updated on purpose 2026-11-06: an account from before the loss is a lost one now (lost-account.ts), so this reader's is after it.
+    created_at: '2026-12-01T00:00:00Z',
     user_metadata: { display_name: 'AT ONCE CHECK' },
   },
 });
