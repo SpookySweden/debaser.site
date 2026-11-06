@@ -311,7 +311,7 @@ for (const s of list) {
   let url = null;
   try { url = new URL(s.base); } catch { /* reported below */ }
   ok(url !== null && url.protocol === 'https:' && url.origin === s.base && url.port === '', `${s.id}: address "${s.base}" is https and nothing after the host`);
-  ok(/^\/(?!.*\.\.)[A-Za-z0-9._~/-]{1,200}$/.test(s.listPath), `${s.id}: list file path "${s.listPath}" is a plain path`);
+  ok(s.listPath === '*' || /^\/(?!.*\.\.)[A-Za-z0-9._~/-]{1,200}$/.test(s.listPath), `${s.id}: list file path "${s.listPath}" is a plain path, or * for no list file`);
   ok(s.unsandboxed === undefined || s.unsandboxed === true, `${s.id}: unsandboxed is true or left out`);
   const film = realTitles.mediaPlayUrl(s, { type: 'movie', tmdbId: 157336, copies: [{ server: s.id }] });
   ok(film !== null, `${s.id}: its film pattern makes an address on its own host`);

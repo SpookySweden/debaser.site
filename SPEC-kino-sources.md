@@ -4,26 +4,31 @@ Luke, 2026-11-06: "yes continue with all of these... forget the illegal sources.
 leave spaces for the servers and their series links too". KINO search itself stays as it is: the extra part arrives after
 the rows are drawn, and a failure just leaves the row as it was.
 
+Luke, 2026-11-06, later the same day, on the free copies: "remove the rule, but keep that feature as an openable tab which
+shows the free copies". And on servers: "remove the rule because it doesnt make any sense in the current spec with how we are
+handling tagging and media serving".
+
 ## On a KINO row (/media only, not a stream room's lookup)
-- **`[ ▶ FREE ON ARCHIVE ]` / `[ ▶ FREE ON YOUTUBE ]`**, marked `PUBLIC DOMAIN`. Plays in the floating
-  player, from the platform's own player. `NO SERVER HAS THIS.` goes when one is there.
+- **`[ FREE COPIES ▾ ]`** (`[ FREE COPY ▾ ]` for one), shut until pressed. Open, it shows **`[ ▶ FREE ON ARCHIVE ]` /
+  `[ ▶ FREE ON YOUTUBE ]`**, marked `PUBLIC DOMAIN` only when Wikidata says the film is, and not also copyrighted. The keys
+  keep their space while shut, so opening moves nothing. Plays in the floating player, from the platform's own player. Shutting
+  it while a video plays sends the video floating. `NO SERVER HAS THIS.` goes when a copy is there.
 - **`WHERE TO WATCH IN <COUNTRY>`**: STREAM, FREE, FREE WITH ADS, RENT OR BUY, by name, from TMDB's watch providers. Credited
   `LISTINGS FROM JUSTWATCH`, which TMDB's terms require, or it can revoke API access. `[ SEE WHERE ↗ ]` goes to TMDB's page,
   which holds the real links: TMDB gives no deep links. Service names only: no logos (asset rules, and plain words read better).
 - The country is Vercel's reading of the address, used to choose the answer and never kept. Nothing here is saved.
 
-## What counts as a plainly legal copy
-Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (P724) or YouTube id (P1651). A link proves
-nothing: plenty are stranger's uploads, so unsure means not offered.
+## What is offered
+Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (P724) or YouTube id (P1651).
 - **Either site:** not a trailer or clip (a role on the link, or under half the running time). Links Wikidata ranks as wrong are skipped.
 - **Archive:** a public video item (not dark, not restricted, not a book scan), a film being one video (the Archive's player stops
   after one, so a DVD rip plays a 10-second menu), and not called copyrighted by Wikidata, and
   either Wikidata says public domain or dedicated to it, or the Archive's own mark says public domain or CC0. A CC licence
   with terms doesn't count: those are mostly someone's upload of someone else's film.
-- **YouTube:** public, embeddable, not age-locked, not blocked in the country, and Wikidata says public domain and not also
-  copyrighted. Needs `YOUTUBE_API_KEY`; without it nothing from YouTube is offered, because nothing can be checked. One unit of
-  quota per page of rows. Official uploads of films under copyright aren't offered: YouTube's `licensedContent` flag can't tell
-  a studio's own upload from a stranger's upload the studio has claimed. Matching the video's channel to the film's own could.
+- **YouTube:** public, embeddable, not age-locked, not blocked in the country, and either Wikidata says public domain and not
+  also copyrighted, or YouTube marks the upload licensed (`licensedContent`, added back 2026-11-06). That flag means a rights
+  holder's own upload or one it has claimed; it can't tell which. An upload with neither is not offered. Needs
+  `YOUTUBE_API_KEY`; without it nothing from YouTube is offered, because nothing can be checked. One unit of quota per page of rows.
 
 ## Limits, said plainly
 - Public domain on Wikidata mostly means in the US (about 87% of the Archive-linked ones say so). A viewer elsewhere may be in a country where a film is still under copyright. The site links and never hosts, but it is a real limit.
@@ -43,11 +48,12 @@ nothing: plenty are stranger's uploads, so unsure means not offered.
 Already built (SPEC-media-servers.md). Proven end to end 2026-11-06 with three fake https servers: the real hourly update read
 their list files, the real rows drew, the real ping route ran, and their player pages loaded in frames, desktop and phone. See
 `docs/media-server-fill-in.md` for what to ask each friend.
-- No code refuses a host (Luke, 2026-11-06, removed as a waste of code). The rule stays in the docs: a server must hold what it
-  lists, and one that finds films elsewhere can't be added.
+- No code refuses a host (Luke, 2026-11-06, removed as a waste of code). The rule that a server must hold what it lists is gone
+  too (his words at the top), and a `listPath: '*'` server is allowed, though none uses it. Still out: no session adds vidsrc,
+  2embed or similar public lookup hosts, or builds film lookups on them.
 - **Not fixed, needs a database change:** a list that gives a show BOTH a whole-show line and episode lines is saved as just
   those episodes. The docs say to pick one.
 
 ## Code
 `app/lib/web/kino-sources.ts` (server), `kino-sources-client.ts` (page; one request per page of rows), `/api/web/kino/sources`,
-`app/components/KinoSources.tsx`, `scripts/check-web-kino-sources.cjs`.
+`app/components/KinoSources.tsx`, `scripts/check-web-kino-one-video.cjs`.

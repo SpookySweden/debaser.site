@@ -10,9 +10,9 @@ import { detailsWithWatchUrl, tmdbJson, toDetails, toWatchOffer, withTmdbToken }
  *
  * - **Where to watch:** TMDB's watch-providers for the viewer's country, read in one answer with the title's details.
  *   The data is JustWatch's: the row credits them (TMDB's rule) and links to TMDB's page.
- * - **Free legal copies:** Wikidata (CC0) holds a title's TMDB number (P4947 film, P4983 show) and, often, its Internet
- *   Archive id (P724) or YouTube id (P1651). A link alone proves nothing: plenty of them are unlicensed uploads, so a
- *   copy is offered only with evidence (`archiveVerdict`, `youtubeVerdict`). Unsure means not offered.
+ * - **Free copies:** Wikidata (CC0) holds a title's TMDB number (P4947 film, P4983 show) and, often, its Internet
+ *   Archive id (P724) or YouTube id (P1651). What is offered: `archiveVerdict`, `youtubeVerdict`. A copy says PUBLIC
+ *   DOMAIN only when Wikidata does.
  *
  * Asking Wikidata names the project and never a person. Failures say nothing: the row just has fewer choices.
  */
@@ -118,7 +118,7 @@ export function longEnough(seconds: number, runtimeMinutes: number | undefined):
 const ARCHIVE_NO_RIGHTS = /^https?:\/\/(?:www\.)?creativecommons\.org\/(?:publicdomain\/(?:mark|zero)\/|licenses\/publicdomain\/?)/;
 
 /**
- * Whether one Archive item is a plainly legal copy of the title. Pure. It must be a public video item (not dark, not
+ * Whether one Archive item is offered as a free copy of the title. Pure. It must be a public video item (not dark, not
  * access-restricted, not a book scan of the novel), long enough to be the title, and not called copyrighted by Wikidata,
  * with evidence of the public domain from Wikidata or the Archive's own licence mark.
  */
@@ -136,7 +136,7 @@ export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeC
   // The Archive lists a length for nearly every video. One it doesn't is still public-domain and playable.
   const seconds = read.episodes[0].seconds ?? 0;
   if (seconds > 0 && !longEnough(seconds, runtimeMinutes)) return null;
-  return { platform: 'internet_archive', id };
+  return { platform: 'internet_archive', id, publicDomain: candidates.publicDomain };
 }
 
 /** An ISO 8601 length (`PT1H24M3S`, `P1DT2H`) in seconds, or null. */
@@ -156,9 +156,9 @@ export function youtubeStatusUrl(ids: readonly string[], key: string): string {
 }
 
 /**
- * Whether one `videos.list` entry is a plainly legal copy of the title. Pure. Public, embeddable, not age-locked, not
- * blocked in the viewer's country, long enough to be the title, and the film is public domain (Wikidata, and not also
- * called copyrighted). YouTube's `licensedContent` is no evidence: a stranger's upload a studio has claimed has it too.
+ * Whether one `videos.list` entry is offered as a free copy of the title. Pure. Public, embeddable, not age-locked, not
+ * blocked in the viewer's country, long enough to be the title, and either the film is public domain (Wikidata, and not
+ * also called copyrighted) or YouTube marks the upload licensed (`licensedContent`: a rights holder's own or claimed).
  */
 export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined, country: string): FreeCopy | null {
   const item = (typeof doc === 'object' && doc !== null ? doc : {}) as Record<string, unknown>;
@@ -174,7 +174,8 @@ export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'p
   if (Array.isArray(region.allowed) && !region.allowed.includes(country)) return null;
   const seconds = isoSeconds(details.duration);
   if (seconds === null || !longEnough(seconds, runtimeMinutes)) return null;
-  return candidates.publicDomain && !candidates.copyrighted ? { platform: 'youtube', id } : null;
+  const publicDomain = candidates.publicDomain && !candidates.copyrighted;
+  return publicDomain || details.licensedContent === true ? { platform: 'youtube', id, publicDomain } : null;
 }
 
 const FALLBACK_COUNTRY = 'US';

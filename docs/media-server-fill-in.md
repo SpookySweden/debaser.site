@@ -19,8 +19,8 @@ One copy per friend. Their side of it, with the details, is `docs/media-server-s
 
 **5. ASK THEM TO CONFIRM:**
 
-- [ ] It only plays what is on their own server. A site that finds films elsewhere can't be added.
-- [ ] Each show in their list is either one line per episode, or one line for the whole show (only if they hold every episode).
+- [ ] It is a server they run, not a public film-lookup site.
+- [ ] Each show in their list is either one line per episode, or one line for the whole show (their player then needs to answer every episode).
 - [ ] Their player pages send the frame line in step 4 of `docs/media-server-setup.md`.
 - [ ] Their player starts inside a sandbox. If it won't, tick here and the sandbox gets turned off for that server alone: ___
 

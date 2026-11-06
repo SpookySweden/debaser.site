@@ -34,7 +34,8 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   /media until 2026-11-04 (its `key` in the nav and `app/lib/media/` keep that name), and its old `/media?kind=`, `?cat=`
   and `?tag=` addresses redirect to /files. A search with SOURCE ALL lists the site's own files it finds first, playing as the catalogue does
   (`app/lib/web/site-server.ts`, `WebSiteFiles.tsx`); read in the browser, never saved into the WEB stream.
-- A KINO row also offers plainly legal free copies and TMDB's where-to-watch, credited to JustWatch (SPEC-kino-sources.md).
+- A KINO row also offers free copies, behind a key that opens and closes, and TMDB's where-to-watch, credited to JustWatch
+  (SPEC-kino-sources.md). A copy is marked PUBLIC DOMAIN only when Wikidata says so (Luke, 2026-11-06).
 - Luke's own and his friends' media servers are allowed sources, read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
   server's own player; the site never stores, copies or transcodes video, and holds only images and audio as

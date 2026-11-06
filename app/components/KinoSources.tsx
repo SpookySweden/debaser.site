@@ -11,8 +11,9 @@ import { startingEmbed } from '../lib/web/row-addresses';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 
 /**
- * A KINO row's ways to watch beyond this site (SPEC-kino-sources.md): a plainly legal free copy, played from the
- * platform's own player, and TMDB's where-to-watch for the viewer's country, with JustWatch's credit (TMDB's rule).
+ * A KINO row's ways to watch beyond this site (SPEC-kino-sources.md): free copies behind a key that opens and closes,
+ * played from the platform's own player, and TMDB's where-to-watch for the viewer's country, with JustWatch's credit
+ * (TMDB's rule).
  */
 
 /** Where-to-watch names are listed in full up to here; the rest are behind TMDB's page. */
@@ -46,8 +47,11 @@ function countryName(code: string): string {
 
 const SITE_NAMES: Readonly<Record<FreeCopy['platform'], string>> = { internet_archive: 'ARCHIVE', youtube: 'YOUTUBE' };
 
-/** One free copy: PLAY, or CLOSE and PIP while it plays, in the site's one floating player. */
-export function FreeCopyKeys({ copy, title, audio }: { copy: FreeCopy; title: string; audio: string | null }) {
+/**
+ * One free copy: PLAY, or CLOSE and PIP while it plays, in the site's one floating player. Closed, its keys keep their
+ * space, so opening moves nothing. A playing video's box goes with them, and the video floats on over the site.
+ */
+function FreeCopyKeys({ copy, title, audio, open }: { copy: FreeCopy; title: string; audio: string | null; open: boolean }) {
   const playId = `kino-free:${copy.platform}:${copy.id}`;
   const playing = usePlayingHere(playId);
   const embed = officialEmbedUrl(freeCopyEmbed(copy));
@@ -75,8 +79,8 @@ export function FreeCopyKeys({ copy, title, audio }: { copy: FreeCopy; title: st
   };
 
   return (
-    <div className="flex w-full flex-col gap-1" data-free-copy={copy.platform}>
-      <div className="flex flex-wrap items-center gap-2">
+    <>
+      <div className={`flex flex-wrap items-center gap-2 ${open ? '' : 'invisible'}`} data-free-copy={copy.platform}>
         {playing ? (
           <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
             [ ■ CLOSE ]
@@ -86,10 +90,25 @@ export function FreeCopyKeys({ copy, title, audio }: { copy: FreeCopy; title: st
             {`[ ▶ FREE ON ${site} ]`}
           </button>
         )}
-        <span className="text-label font-bold text-ink">PUBLIC DOMAIN</span>
+        {copy.publicDomain ? <span className="text-label font-bold text-ink">PUBLIC DOMAIN</span> : null}
         {playing ? <PipKey id={playId} title={title} /> : null}
       </div>
-      {playing ? <PlayerBox id={playId} title={title} className="aspect-video w-full border border-ink-plate bg-paper" /> : null}
+      {playing && open ? <PlayerBox id={playId} title={title} className="order-last aspect-video w-full border border-ink-plate bg-paper" /> : null}
+    </>
+  );
+}
+
+/** The row's free copies, behind a key that opens and closes. Shut until asked for. */
+export function FreeCopies({ copies, title, audio }: { copies: readonly FreeCopy[]; title: string; audio: string | null }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-2" data-free-copies>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Free copies of "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
+        {`[ ${copies.length === 1 ? 'FREE COPY' : 'FREE COPIES'} ${open ? '▴' : '▾'} ]`}
+      </button>
+      {copies.map((copy) => (
+        <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} />
+      ))}
     </div>
   );
 }

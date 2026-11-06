@@ -63,8 +63,8 @@ export type KinoTitle = { type: 'movie' | 'tv'; tmdbId: number };
 /** TMDB's where-to-watch for one country (the data is JustWatch's: every place it shows must credit them). Service names only. */
 export type WatchOffer = { country: string; stream: string[]; free: string[]; ads: string[]; rent: string[]; buy: string[] };
 
-/** A plainly legal free copy: a public-domain title on the platform's own player (kino-sources.ts). */
-export type FreeCopy = { platform: 'internet_archive' | 'youtube'; id: string };
+/** A free copy on the platform's own player (kino-sources.ts). `publicDomain`: Wikidata says so, the one thing that earns the label. */
+export type FreeCopy = { platform: 'internet_archive' | 'youtube'; id: string; publicDomain: boolean };
 
 export type KinoSources = { watch: WatchOffer | null; free: FreeCopy[] };
 
