@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { getWatchRepository, type RoomChange } from './repository';
+import { whenRoomClientChanges } from './room-client';
 import { STALE_CLOSE_SECONDS, calibrateWatchClock, roomAgeSeconds } from './rules';
 import type { WatchRoomRead } from './types';
 
@@ -146,6 +147,8 @@ export function refollowRooms(): void {
     if (entry.state.read !== undefined) read(roomId);
   }
 }
+
+whenRoomClientChanges(refollowRooms);
 
 /** Puts a write this tab just made into the shared copy at once, before its echo arrives. */
 export function applyLocalChange(roomId: string, change: RoomChange): void {

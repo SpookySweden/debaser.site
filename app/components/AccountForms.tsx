@@ -174,7 +174,7 @@ export default function AccountForms({ stacked = false }: { stacked?: boolean })
         </form>
       </section>
 
-      <section>
+      <section className={stacked ? 'order-first' : undefined}>
         <div className="title-line text-accent-ink">
           <span>LOG IN</span>
         </div>

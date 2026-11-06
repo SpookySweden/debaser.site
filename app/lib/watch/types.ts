@@ -200,6 +200,8 @@ export type WatchMember = {
   key: string;
   userId: string | null;
   name: string;
+  /** A guest's own id (SPEC-guests.md): only so their strokes are heard on the canvas wire. `userId` stays null, so nobody can crown them or hand them the room. */
+  guestId?: string | null;
   /** When this tab joined, on its own clock: the handover order. */
   joinedAt: number;
 };

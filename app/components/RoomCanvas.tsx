@@ -98,7 +98,11 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
   };
 
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (!canDraw || event.button !== 0) return;
+    if (event.button !== 0) return;
+    if (!canDraw) {
+      context.askName?.();
+      return;
+    }
     event.currentTarget.setPointerCapture(event.pointerId);
     stroke.current = { pointerId: event.pointerId, input: fresh(pointAt(event)), sent: 0, last: 0 };
     push(false);
@@ -144,9 +148,11 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
   useEffect(() => {
     const element = surface.current;
     if (!visible || !canDraw || element === null) return;
+    // Pictures and chat lines on the canvas are for accounts (SPEC-guests.md).
+    if (context.guest === true) return;
     setCanvasDropTarget({ element, onDrop: (payload, x, y) => drop(payload, x, y) });
     return () => setCanvasDropTarget(null);
-  }, [visible, canDraw]);
+  }, [visible, canDraw, context.guest]);
 
   const saved = view.saved;
 
@@ -161,7 +167,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
         onPointerMove={onPointerMove}
         onPointerUp={onPointerEnd}
         onPointerCancel={onPointerEnd}
-        cursor={canDraw ? 'crosshair' : 'default'}
+        cursor={canDraw || context.askName !== undefined ? 'crosshair' : 'default'}
         label="The room's canvas"
       />
       <CanvasSaveAsk roomId={roomId} reason="view" />
@@ -197,7 +203,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
             <ArtMark src={UNDO_SRC} size={MARK_SIZE} fallback={<span>[ UNDO ]</span>} />
           </button>
           <span className="flex-1" />
-          <button
+          {context.guest === true ? null : <button
             type="button"
             className={saved ? PLATE_ON_BLACK_PRESSED : PLATE_ON_BLACK}
             disabled={saved || view.saving}
@@ -208,7 +214,7 @@ export default function RoomCanvas({ roomId, context, visible }: RoomCanvasProps
             data-canvas-save={saved ? 'saved' : 'unsaved'}
           >
             <ArtMark src={SAVE_SRC} size={MARK_SIZE} fallback={<span>{saved ? '[ SAVED ]' : view.saving ? '[ SAVING... ]' : '[ SAVE ]'}</span>} />
-          </button>
+          </button>}
         </div>
       ) : null}
       {view.error === null || !visible ? null : (

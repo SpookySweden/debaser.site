@@ -36,6 +36,18 @@ export function guestClient(): SupabaseClient | null {
   return guest;
 }
 
+const changes = new Set<() => void>();
+
+/** For what holds a live connection (a room's feed, a canvas's wire): it has to move when the connection does. */
+export function whenRoomClientChanges(listener: () => void): void {
+  changes.add(listener);
+}
+
+/** Somebody became a guest, or a guest logged in or out. */
+export function announceRoomClientChange(): void {
+  for (const listener of changes) listener();
+}
+
 export function roomClient(): SupabaseClient | null {
   const site = getSupabaseBrowserClient();
   if (stored(supabaseAuthStorageKey()) || !hasStoredGuest()) return site;
