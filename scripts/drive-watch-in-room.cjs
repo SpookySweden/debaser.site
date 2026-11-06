@@ -53,7 +53,7 @@ async function person(browser, letter) {
 
 /** Past the one-time PRIVACY window a new browser is shown, if it comes. */
 async function clearPrivacyWindow(page) {
-  const close = page.getByRole('dialog', { name: 'PRIVACY' }).getByRole('button', { name: 'Close window' });
+  const close = page.locator('[data-dock-window="privacy-first-look"]').getByRole('button', { name: /^Close / });
   if ((await close.count()) > 0) await close.click();
 }
 
@@ -230,6 +230,36 @@ async function endRoom(page) {
       await endRoom(a);
       pass('the room ended');
     }
+    console.log('FILES: one of the site\'s own videos');
+    if (MOCK) {
+      await a.evaluate(() => {
+        const item = { id: 'drive-video', kind: 'video', bucket: 'x', path: 'x', src: 'https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.webm', sha256: 'x', bytes: 1000, mime: 'video/webm', length: '0:05', title: 'A Driven Video', credit: '', tags: [], source: 'upload', uploadedBy: 'drive-user', uploadedByLabel: 'TEST DRIVE', createdAt: new Date().toISOString() };
+        localStorage.setItem('debaser.media.items.v1', JSON.stringify([item]));
+      });
+    }
+    await a.goto(`${BASE}/files?kind=video`, { waitUntil: 'domcontentloaded' });
+    await sleep(4000);
+    await clearPrivacyWindow(a);
+    const shelf = a.locator('main button', { hasText: '[+]' }).first();
+    if ((await shelf.count()) > 0) await shelf.click();
+    await sleep(500);
+    const fileKey = a.locator('main li [data-watch-in-room="start"]').first();
+    if ((await fileKey.count()) === 0) console.log('  NOTE no video in the catalogue here');
+    else if (MOCK) {
+      await a.locator('main li button', { hasText: '[+]' }).first().click();
+      await sleep(300);
+      await a.getByRole('button', { name: /^Play ".*" here$/ }).first().click();
+      await a.waitForSelector('[data-floating-player] video');
+      await sleep(3000);
+      await fileKey.click();
+      await a.getByRole('dialog', { name: 'WATCH IN ROOM' }).locator('[data-go-live-start]').click();
+      await a.waitForSelector('[data-room-picture] video', { timeout: 30000 });
+      assert.equal(await a.locator('[data-floating-player]').count(), 0, 'the old player has stopped');
+      await sleep(600);
+      const at = await a.evaluate(() => document.querySelector('[data-room-picture] video').currentTime);
+      assert.ok(at >= 2, `our own file carries on from where it had got to: ${at}`);
+      pass(`FILES: [ WATCH IN ROOM ] starts the room with our own file, from where it had got to (${at.toFixed(1)}s)`);
+    } else pass('FILES: the row has the key (not pressed live: it would leave another room)');
     finished = true;
     await a.context().close();
     console.log(`\n${passed} proved.${rooms.length > 0 ? ` Rooms left to list for deletion: ${rooms.join(' ')}` : ''}`);
