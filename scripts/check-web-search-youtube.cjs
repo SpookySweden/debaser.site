@@ -182,6 +182,8 @@ async function problem(work) {
     'app/lib/web/search/types.ts',
     'app/api/web/series/route.ts',
     'app/lib/web/series-files.ts',
+    // Added on purpose 2026-11-06 (SPEC-kino-sources.md): checks a free copy's status and length; server only, never in an answer.
+    'app/api/web/kino/sources/route.ts',
   ]);
   const walk = (dir, out = []) => {
     for (const name of readdirSync(dir)) {
