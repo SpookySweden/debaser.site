@@ -181,25 +181,14 @@ async function measure(page) {
       presses += 1;
       await page.waitForTimeout(120);
       const popup = page.locator('[data-animate-popup]');
-      // The ring keeps some of its words behind MORE: one press further.
-      if ((await popup.getByRole('button', { name: word, exact: true }).count()) === 0) {
-        await popup.getByRole('button', { name: '[ MORE ]' }).click();
-        presses += 1;
-        await page.waitForTimeout(120);
-      }
       await popup.getByRole('button', { name: word, exact: true }).click();
       presses += 1;
       await page.waitForTimeout(120);
     };
     const stepOn = async (frame) => {
-      // A frame on the timeline: the ruler, or the time sheet's numbers.
-      const ruler = page.locator('[data-animate-ruler]');
-      if ((await ruler.count()) > 0) {
-        const box = await ruler.boundingBox();
-        await page.mouse.click(box.x + frame * 24 + 12, box.y + box.height / 2);
-      } else {
-        await page.getByRole('button', { name: `Go to frame ${frame + 1}`, exact: true }).click();
-      }
+      // A frame on the timeline, by its ruler.
+      const box = await page.locator('[data-animate-ruler]').boundingBox();
+      await page.mouse.click(box.x + frame * 24 + 12, box.y + box.height / 2);
       presses += 1;
       await page.waitForTimeout(80);
     };

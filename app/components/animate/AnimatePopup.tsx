@@ -1,54 +1,22 @@
 'use client';
 
-import { useLayoutEffect, useRef, useState } from 'react';
+import { useLayoutEffect, useRef, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { toggleFull, toggleMenu } from '../../lib/animate/actions';
 import { inkOn } from '../../lib/animate/colours';
 import { getEngine } from '../../lib/animate/engine';
 import { newRow } from '../../lib/animate/layers';
 import { toggleSmarts } from '../../lib/animate/smart';
-import { updateSettings, useStudio, type ToolId } from '../../lib/animate/store';
+import { updateSettings, useStudio } from '../../lib/animate/store';
 import { setOnion } from '../../lib/animate/timeline';
-
-type Item = { label: string; run: () => void; on?: boolean; stay?: boolean };
-
-const WORD = 'key cursor-pointer whitespace-nowrap px-2 py-1.5 text-center text-heading leading-tight';
-const WORD_ON = `${WORD} key-fill key-on [--key-fill:var(--color-ink)] text-paper`;
-
-function toolItems(tool: ToolId): Item[] {
-  const engine = getEngine();
-  const pick = (id: ToolId, label: string): Item => ({ label, on: tool === id, run: () => engine.setTool(id) });
-  return [
-    pick('ink', 'INK'),
-    pick('pencil', 'PENCIL'),
-    pick('flat', 'FLAT'),
-    pick('eraser', 'ERASER'),
-    pick('fill', 'BUCKET'),
-    pick('fillbrush', 'FILL BRUSH'),
-    pick('filleraser', 'FILL ERASER'),
-    pick('lasso', 'LASSO'),
-    pick('rect', 'BOX'),
-    pick('shift', 'TRACE'),
-    pick('pick', 'PICK COLOUR'),
-    pick('hand', 'HAND'),
-  ];
-}
-
-function actionItems(onionOn: boolean, smartOn: boolean): Item[] {
-  const engine = getEngine();
-  return [
-    { label: 'UNDO', run: () => engine.undo() },
-    { label: 'REDO', run: () => engine.redo() },
-    { label: 'NEW LAYER', run: () => newRow('layer') },
-    { label: onionOn ? 'ONION OFF' : 'ONION ON', run: () => setOnion(!onionOn) },
-    { label: smartOn ? 'SMART OFF' : 'SMART ON', run: toggleSmarts },
-  ];
-}
+import { MAX_BRUSH_SIZE, MIN_BRUSH_SIZE } from '../../lib/animate/brushes';
+import { Stepper, TileGrid, useTileColumns, type TileItem } from './AnimateTiles';
 
 const close = () => useStudio.setState({ popup: null });
 
-function press(item: Item): void {
+function press(item: TileItem): void {
   updateSettings({ hintSeen: true });
+  close();
   item.run();
-  if (item.stay !== true) close();
 }
 
 function Colours() {
@@ -77,150 +45,132 @@ function Colours() {
   );
 }
 
-function SizeKeys() {
+const STEP = 0.1;
+const nearest = (value: number) => Math.round(value * 100) / 100;
+
+/** The brush in hand: its size, how solid it is and how steady. Only for a tool that has a brush. */
+function BrushSteps() {
   const tool = useStudio((state) => state.tool);
   const brushes = useStudio((state) => state.brushes);
   const engine = getEngine();
   const brush = engine.brushForTool(tool);
   if (brush === null) return null;
-  const size = brushes[brush].size;
-  const step = (factor: number) => engine.setBrushSize(brush, factor > 1 ? Math.max(size + 1, size * factor) : Math.min(size - 1, size * factor));
+  const { size, opacity, stabiliser } = brushes[brush];
   return (
-    <div className="flex items-center justify-center gap-2 text-heading">
-      <button type="button" className={WORD} aria-label="Brush smaller" onClick={() => step(1 / 1.25)}>
-        [ - ]
-      </button>
-      <span aria-live="polite">SIZE {Math.round(size)}</span>
-      <button type="button" className={WORD} aria-label="Brush bigger" onClick={() => step(1.25)}>
-        [ + ]
-      </button>
+    <div className="flex flex-col gap-1">
+      <Stepper
+        label="SIZE"
+        value={String(Math.round(size))}
+        canLess={size > MIN_BRUSH_SIZE}
+        canMore={size < MAX_BRUSH_SIZE}
+        less={() => engine.setBrushSize(brush, Math.max(MIN_BRUSH_SIZE, Math.min(size - 1, size / 1.25)))}
+        more={() => engine.setBrushSize(brush, Math.min(MAX_BRUSH_SIZE, Math.max(size + 1, size * 1.25)))}
+      />
+      <Stepper
+        label="OPACITY"
+        value={`${Math.round(opacity * 100)}%`}
+        canLess={opacity > 0.1}
+        canMore={opacity < 1}
+        less={() => engine.setBrushValue(brush, { opacity: nearest(Math.max(0.1, opacity - STEP)) })}
+        more={() => engine.setBrushValue(brush, { opacity: nearest(Math.min(1, opacity + STEP)) })}
+      />
+      <Stepper
+        label="STEADY"
+        value={`${Math.round(stabiliser * 100)}%`}
+        canLess={stabiliser > 0}
+        canMore={stabiliser < 1}
+        less={() => engine.setBrushValue(brush, { stabiliser: nearest(Math.max(0, stabiliser - STEP)) })}
+        more={() => engine.setBrushValue(brush, { stabiliser: nearest(Math.min(1, stabiliser + STEP)) })}
+      />
     </div>
   );
 }
 
-function Word({ item }: { item: Item }) {
-  return (
-    <button type="button" className={item.on === true ? WORD_ON : WORD} aria-pressed={item.on === true} onClick={() => press(item)}>
-      {item.label}
-    </button>
-  );
-}
-
-/** A: one column of big words, reading down from the pen. */
-function ListBody({ tools, actions }: { tools: Item[]; actions: Item[] }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex flex-col">
-        {tools.map((item) => (
-          <Word key={item.label} item={item} />
-        ))}
-      </div>
-      <div className="grid grid-cols-2 border-t-line border-ink pt-1">
-        {actions.map((item) => (
-          <Word key={item.label} item={item} />
-        ))}
-      </div>
-      <SizeKeys />
-      <Colours />
-    </div>
-  );
-}
-
-/** B: a wide block of tiles, everything at a glance with no reading down. */
-function GridBody({ tools, actions }: { tools: Item[]; actions: Item[] }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="grid grid-cols-4 gap-1">
-        {tools.map((item) => (
-          <Word key={item.label} item={item} />
-        ))}
-      </div>
-      <div className="grid grid-cols-5 gap-1 border-t-line border-ink pt-1">
-        {actions.map((item) => (
-          <Word key={item.label} item={item} />
-        ))}
-      </div>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <Colours />
-        <SizeKeys />
-      </div>
-    </div>
-  );
-}
-
-const RING_RADIUS = 170;
-
-/** C: eight words in a ring round the pen, each a short move away in its own direction; the rest behind MORE. */
-function RingBody({ tools, actions }: { tools: Item[]; actions: Item[] }) {
-  const [more, setMore] = useState(false);
-  if (more) return <GridBody tools={tools} actions={actions} />;
-  const ring = [tools[0], tools[1], tools[2], tools[3], tools[4], tools[7], tools[10], actions[0]];
-  return (
-    <div className="relative" style={{ width: RING_RADIUS * 2 + 170, height: RING_RADIUS * 2 + 70 }}>
-      {ring.map((item, i) => {
-        const angle = -Math.PI / 2 + (i / ring.length) * Math.PI * 2;
-        return (
-          <div
-            key={item.label}
-            className="absolute -translate-x-1/2 -translate-y-1/2 bg-paper"
-            style={{ left: `calc(50% + ${Math.round(Math.cos(angle) * RING_RADIUS)}px)`, top: `calc(50% + ${Math.round(Math.sin(angle) * (RING_RADIUS - 25))}px)` }}
-          >
-            <Word item={item} />
-          </div>
-        );
-      })}
-      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 bg-paper">
-        <button type="button" className={WORD} onClick={() => setMore(true)}>
-          [ MORE ]
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** The tool pop-up: at the pen, big words, one press to pick, and it closes itself. Pressing anywhere else just closes it. */
+/** The tool pop-up: at the pen, a block of big words, one press to pick, and it closes itself. Pressing anywhere else just closes it. */
 export default function AnimatePopup() {
   const popup = useStudio((state) => state.popup);
-  const layout = useStudio((state) => state.settings.layout);
   const uiScale = useStudio((state) => state.settings.uiScale);
+  const leftHanded = useStudio((state) => state.settings.leftHanded);
+  const full = useStudio((state) => state.settings.full);
   const tool = useStudio((state) => state.tool);
   const onionOn = useStudio((state) => state.project.onion.on);
   const smartOn = useStudio((state) => state.smartOn);
+  const canUndo = useStudio((state) => state.canUndo);
+  const canRedo = useStudio((state) => state.canRedo);
+  const showLayers = useStudio((state) => state.settings.showLayers);
+  const columns = useTileColumns(4);
   const box = useRef<HTMLDivElement>(null);
 
-  // Kept fully on the sheet, however near an edge the pen was.
+  // Kept fully on the sheet, however near an edge the pen was; and scrolled inside itself if the sheet is smaller than it is.
   useLayoutEffect(() => {
     const el = box.current;
     if (el === null || popup === null) return;
     const parent = el.parentElement?.getBoundingClientRect();
-    const rect = el.getBoundingClientRect();
     if (parent === undefined) return;
-    const centred = layout === 'c';
-    const wantX = centred ? popup.x - rect.width / 2 : popup.x + 12;
-    const wantY = centred ? popup.y - rect.height / 2 : popup.y - 12;
+    const rect = el.getBoundingClientRect();
+    const wantX = leftHanded ? popup.x - rect.width - 12 : popup.x + 12;
     const x = Math.max(4, Math.min(parent.width - rect.width - 4, wantX));
-    const y = Math.max(4, Math.min(parent.height - rect.height - 4, wantY));
+    const y = Math.max(4, Math.min(parent.height - rect.height - 4, popup.y - 12));
     el.style.transform = `translate(${x}px, ${y}px)`;
     el.style.visibility = 'visible';
-  }, [popup, layout, uiScale]);
+    // The keyboard starts on the tool in hand. A pen just presses what it wants.
+    (el.querySelector<HTMLButtonElement>('button[aria-pressed="true"]') ?? el.querySelector('button'))?.focus({ preventScroll: true });
+  }, [popup, leftHanded, uiScale, columns]);
 
   if (popup === null) return null;
-  const tools = toolItems(tool);
-  const actions = actionItems(onionOn, smartOn);
+  const engine = getEngine();
+  const pick = (id: typeof tool, label: string): TileItem => ({ label, on: tool === id, run: () => engine.setTool(id) });
+  const tools: TileItem[] = [
+    pick('ink', 'INK'),
+    pick('pencil', 'PENCIL'),
+    pick('flat', 'FLAT'),
+    pick('eraser', 'ERASER'),
+    pick('fill', 'BUCKET'),
+    pick('fillbrush', 'FILL BRUSH'),
+    pick('filleraser', 'FILL ERASER'),
+    pick('pick', 'PICK COLOUR'),
+    pick('lasso', 'LASSO'),
+    pick('rect', 'BOX'),
+    pick('shift', 'TRACE'),
+    pick('hand', 'HAND'),
+  ];
+  const actions: TileItem[] = [
+    { label: 'UNDO', disabled: !canUndo, run: () => engine.undo() },
+    { label: 'REDO', disabled: !canRedo, run: () => engine.redo() },
+    { label: 'NEW LAYER', run: () => newRow('layer') },
+    { label: onionOn ? 'ONION OFF' : 'ONION ON', run: () => setOnion(!onionOn) },
+    { label: smartOn ? 'SMART OFF' : 'SMART ON', run: toggleSmarts },
+    { label: 'LAYERS', on: showLayers, run: () => updateSettings({ showLayers: !showLayers }) },
+    // In full screen this is the way back for a pen with no keyboard to hand.
+    { label: full ? 'LEAVE FULL' : 'FULL SCREEN', run: toggleFull },
+    { label: 'MENU', run: toggleMenu },
+    { label: 'COLOURS', run: () => useStudio.setState({ panel: 'palette' }) },
+  ];
+
+  // Arrows walk the block, for a person on the keyboard.
+  const walk = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    const by = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -columns, ArrowDown: columns }[event.key];
+    if (by === undefined) return;
+    event.preventDefault();
+    const keys = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('button:not(:disabled)')];
+    const at = keys.indexOf(document.activeElement as HTMLButtonElement);
+    keys[Math.max(0, Math.min(keys.length - 1, at + by))]?.focus();
+  };
+
   return (
     <div className="absolute inset-0 z-30 overflow-hidden" data-animate-popup-layer>
       <button type="button" aria-label="Close the tools" tabIndex={-1} className="absolute inset-0 h-full w-full cursor-default" onPointerDown={close} />
-      <div
-        ref={box}
-        role="dialog"
-        aria-label="Tools"
-        data-animate-popup
-        className={layout === 'c' ? 'absolute left-0 top-0 text-ink' : 'absolute left-0 top-0 frame bg-paper p-2 text-ink'}
-        style={{ visibility: 'hidden', zoom: uiScale }}
-      >
-        {layout === 'a' && <ListBody tools={tools} actions={actions} />}
-        {layout === 'b' && <GridBody tools={tools} actions={actions} />}
-        {layout === 'c' && <RingBody tools={tools} actions={actions} />}
+      <div ref={box} role="dialog" aria-label="Tools" data-animate-popup onKeyDown={walk} className="absolute left-0 top-0 overflow-auto frame bg-paper text-ink" style={{ visibility: 'hidden', maxWidth: 'calc(100% - 8px)', maxHeight: 'calc(100% - 8px)' }}>
+        <div className="flex flex-col gap-2 p-2" style={{ zoom: uiScale }}>
+          <TileGrid items={tools} columns={columns} onPress={press} />
+          <div className="border-t-line border-ink pt-2">
+            <TileGrid items={actions} columns={columns} onPress={press} />
+          </div>
+          <div className="flex flex-wrap items-start justify-between gap-3 border-t-line border-ink pt-2">
+            <Colours />
+            <BrushSteps />
+          </div>
+        </div>
       </div>
     </div>
   );

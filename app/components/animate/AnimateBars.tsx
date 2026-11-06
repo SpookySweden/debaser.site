@@ -1,25 +1,17 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { toggleFramesMenu, toggleMenu, toggleTools } from '../../lib/animate/actions';
 import { BRUSH_LABELS } from '../../lib/animate/brushes';
 import { getEngine } from '../../lib/animate/engine';
 import { togglePlaying } from '../../lib/animate/playback';
-import { visibleRows } from '../../lib/animate/project';
+import { importPicture } from '../../lib/animate/picture';
+import { FILE_EXTENSION } from '../../lib/animate/project-file';
+import { makeSmart } from '../../lib/animate/smart';
 import { updateSettings, useStudio, type ToolId } from '../../lib/animate/store';
+import { snapBack } from '../../lib/animate/trace';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
-import { CelBox, Playhead, Row, RowName, Ruler, SoundRow, THIN_ROW } from './AnimateTimeline';
-
-const NAME_WIDTH = 128;
-const RULER = 24;
 
 const TOOL_WORD: Record<ToolId, string> = { ...BRUSH_LABELS, lasso: 'LASSO', rect: 'BOX', pick: 'PICK', hand: 'HAND', shift: 'TRACE' };
-
-/** Open the tools by the pen, or in the middle of the sheet if the pen isn't over it. */
-export function openToolsHere(): void {
-  const stage = getEngine().stageSize();
-  useStudio.setState({ popup: useStudio.getState().popup !== null ? null : (getEngine().hoverScreen ?? { x: stage.w / 2, y: stage.h / 3 }) });
-  updateSettings({ hintSeen: true });
-}
 
 /** The current tool, colour and size, and the quiet word about saving: read, not pressed. */
 export function StatusWords() {
@@ -35,7 +27,7 @@ export function StatusWords() {
       <span aria-label={`Colour ${colour}`} className="inline-block h-4 w-4 border-line border-ink" style={{ backgroundColor: colour }} />
       {brush !== null && <span>{Math.round(brushes[brush].size)}</span>}
       {!smartOn && <span className="bg-bubble-pale px-1 text-ink-bar">SMART OFF</span>}
-      <span className={saveState === 'failed' ? 'bg-bubble-pale px-1 text-ink-bar' : 'text-ink'} data-animate-save={saveState}>
+      <span role="status" className={saveState === 'failed' ? 'bg-bubble-pale px-1 text-ink-bar' : 'text-ink'} data-animate-save={saveState}>
         {saveState === 'failed' ? 'NOT SAVING' : saveState === 'saved' ? 'SAVED HERE' : ''}
       </span>
     </span>
@@ -51,15 +43,27 @@ export function PlayKey() {
   );
 }
 
+/** Where we are, and for a long shot, how far along getting it ready is. */
 export function FrameWords() {
   const frame = useStudio((state) => state.frame);
   const frames = useStudio((state) => state.project.frames);
+  const readying = useStudio((state) => state.readying);
+  if (readying !== null) return <span role="status" className="whitespace-nowrap text-key text-ink">{Math.round(readying * 100)}%</span>;
   return <span className="whitespace-nowrap text-key text-ink" data-animate-frame={frame}>{`${frame + 1}/${frames}`}</span>;
+}
+
+export function FramesKey() {
+  const open = useStudio((state) => state.panel === 'frames');
+  return (
+    <button type="button" className={open ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={open} title="SHIFT + F" onClick={toggleFramesMenu} data-animate-frames-key>
+      [ FRAMES ]
+    </button>
+  );
 }
 
 export function ToolsKey() {
   return (
-    <button type="button" className={PLATE_MEDIUM} title="X, OR THE PEN'S RIGHT BUTTON" onClick={openToolsHere} data-animate-tools-key>
+    <button type="button" className={PLATE_MEDIUM} title="X, OR THE PEN'S RIGHT BUTTON" onClick={toggleTools} data-animate-tools-key>
       [ TOOLS ]
     </button>
   );
@@ -76,142 +80,79 @@ export function LayersKey() {
 
 export function MenuKey() {
   return (
-    <button
-      type="button"
-      className={PLATE_MEDIUM}
-      title="?"
-      data-animate-menu-key
-      onClick={() => {
-        updateSettings({ hintSeen: true });
-        useStudio.setState({ panel: useStudio.getState().panel === 'menu' ? 'none' : 'menu' });
-      }}
-    >
+    <button type="button" className={PLATE_MEDIUM} title="?" onClick={toggleMenu} data-animate-menu-key>
       [ MENU ]
     </button>
   );
 }
 
-/** The thin timeline: a ruler and a row per layer, nothing else. How many rows show depends on the layout. */
-export function ThinTimeline({ leading, maxRows = 2 }: { leading: React.ReactNode; maxRows?: number }) {
-  const project = useStudio((state) => state.project);
-  const frame = useStudio((state) => state.frame);
+/** Keys that only mean something now: Shift and Trace's options with its tool in hand, MAKE SMART with something selected. */
+export function WhenItApplies() {
+  const tool = useStudio((state) => state.tool);
+  const hasSelection = useStudio((state) => state.hasSelection);
+  const mode = useStudio((state) => state.traceMode);
+  const side = useStudio((state) => state.traceSide);
+  const on = useStudio((state) => state.shiftTraceOn);
   const uiScale = useStudio((state) => state.settings.uiScale);
-  const scroller = useRef<HTMLDivElement>(null);
-  const rows = visibleRows(project);
-  const count = Math.max(project.frames + 24, frame + 24);
-  const cellWidth = 24;
-  // The playhead stays in view, on playback as well as on stepping.
-  useEffect(() => {
-    const box = scroller.current;
-    if (box === null) return;
-    const x = NAME_WIDTH + frame * cellWidth;
-    if (x < box.scrollLeft + NAME_WIDTH || x + cellWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = x - NAME_WIDTH - box.clientWidth / 3;
-  }, [frame]);
+  if (tool !== 'shift' && !hasSelection) return null;
   return (
-    <section aria-label="Timeline" className="border-t-line border-ink bg-sun-pale" style={{ zoom: uiScale }}>
-      <div ref={scroller} className="overflow-auto bg-paper" style={{ maxHeight: RULER + maxRows * THIN_ROW + 20 }}>
-        <div className="flex" style={{ width: NAME_WIDTH + count * cellWidth }}>
-          <div className="sticky left-0 z-20 shrink-0 border-r-line border-ink bg-sun-pale" style={{ width: NAME_WIDTH }}>
-            <div className="sticky top-0 z-10 flex items-center justify-between gap-1 border-b-line border-ink bg-sun-pale px-1" style={{ height: RULER }}>
-              {leading}
-            </div>
-            {rows.map((node) => (
-              <RowName key={node.id} node={node} height={THIN_ROW} />
-            ))}
-          </div>
-          <div className="relative min-w-0 flex-1">
-            <Ruler cellWidth={cellWidth} count={count} />
-            <div className="relative">
-              <Playhead cellWidth={cellWidth} />
-              <SoundRow cellWidth={cellWidth} count={count} />
-              {rows.map((node) => (
-                <div key={node.id} className="border-b border-ink">
-                  <Row node={node} cellWidth={cellWidth} height={THIN_ROW} />
-                </div>
-              ))}
-            </div>
-          </div>
+    <div className="absolute bottom-1 left-1 z-20 flex max-w-full flex-wrap gap-x-1 bg-paper" style={{ zoom: uiScale }}>
+      {tool === 'shift' && (
+        <div role="group" aria-label="Shift and Trace" className="flex flex-wrap gap-x-1" data-animate-trace-keys>
+          {(['prev', 'next'] as const).map((value) => (
+            <button key={value} type="button" className={side === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={side === value} onClick={() => useStudio.setState({ traceSide: value })}>
+              [ {value === 'prev' ? 'BEFORE' : 'AFTER'} ]
+            </button>
+          ))}
+          {(['move', 'turn', 'scale'] as const).map((value) => (
+            <button key={value} type="button" className={mode === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={mode === value} onClick={() => useStudio.setState({ traceMode: value })}>
+              [ {value.toUpperCase()} ]
+            </button>
+          ))}
+          <button type="button" className={PLATE_MEDIUM} disabled={!on} onClick={snapBack} title="SHIFT + J">
+            [ SNAP BACK ]
+          </button>
         </div>
-      </div>
-    </section>
+      )}
+      {hasSelection && (
+        <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart>
+          [ MAKE SMART ]
+        </button>
+      )}
+    </div>
   );
 }
 
-const SHEET_FRAME = 24;
-const SHEET_COLUMN = 70;
-
-/** C: the timeline as an animator's time sheet: frames run down, layers across, down the side of the screen rather than under the drawing. */
-export function TimeSheet() {
-  const project = useStudio((state) => state.project);
-  const frame = useStudio((state) => state.frame);
-  const layerId = useStudio((state) => state.layerId);
-  const uiScale = useStudio((state) => state.settings.uiScale);
-  const scroller = useRef<HTMLDivElement>(null);
-  const rows = visibleRows(project).filter((node) => node.kind === 'layer');
-  const count = Math.max(project.frames + 24, frame + 24);
-  useEffect(() => {
-    const box = scroller.current;
-    if (box === null) return;
-    const y = frame * SHEET_FRAME;
-    if (y < box.scrollTop || y + SHEET_FRAME > box.scrollTop + box.clientHeight - 24) box.scrollTop = y - box.clientHeight / 3;
-  }, [frame]);
+/** The browser's file pickers, which OPEN A FILE and IMPORT A PICTURE press from the menu or the keyboard. */
+export function FilePickers() {
   return (
-    <section aria-label="Time sheet" className="flex min-h-0 flex-col border-l-line border-ink bg-sun-pale" style={{ zoom: uiScale, width: 44 + Math.max(2, rows.length) * SHEET_COLUMN }}>
-      <div className="flex flex-wrap items-center justify-between gap-1 border-b-line border-ink p-1">
-        <PlayKey />
-        <FrameWords />
-        <StatusWords />
-        <ToolsKey />
-        <LayersKey />
-        <MenuKey />
-      </div>
-      <div ref={scroller} className="min-h-0 flex-1 overflow-auto bg-paper">
-        <div className="relative flex" style={{ height: count * SHEET_FRAME + 26 }}>
-          <div className="sticky left-0 z-20 w-10 shrink-0 bg-sun-pale">
-            <div className="sticky top-0 z-10 h-6 border-b-line border-ink bg-sun-pale" />
-            {Array.from({ length: count }, (_, i) => (
-              <button
-                key={i}
-                type="button"
-                tabIndex={-1}
-                aria-label={`Go to frame ${i + 1}`}
-                data-animate-frame-key
-                className={`block w-full cursor-pointer border-b border-ink text-right text-label leading-none ${i === frame ? 'bg-bubble text-ink-plate' : 'text-ink'}`}
-                style={{ height: SHEET_FRAME }}
-                onClick={() => getEngine().goToFrame(i)}
-              >
-                {(i + 1) % 2 === 1 || i === frame ? i + 1 : ''}
-              </button>
-            ))}
-          </div>
-          {rows.map((node) => (
-            <div key={node.id} className="relative shrink-0 border-r border-ink" style={{ width: SHEET_COLUMN }}>
-              <button
-                type="button"
-                className={`sticky top-0 z-10 block h-6 w-full cursor-pointer truncate border-b-line border-ink px-0.5 text-left text-label ${node.id === layerId ? 'bg-ink text-paper' : 'bg-sun-pale text-ink'}`}
-                onClick={() => useStudio.setState({ layerId: node.id })}
-                title={node.name}
-              >
-                {node.name}
-              </button>
-              <div
-                className="relative"
-                style={{ height: count * SHEET_FRAME, backgroundImage: `repeating-linear-gradient(to bottom, var(--color-ink) 0 1px, transparent 1px ${SHEET_FRAME}px)` }}
-                onPointerDown={(event) => {
-                  if (event.target !== event.currentTarget) return;
-                  const rect = event.currentTarget.getBoundingClientRect();
-                  useStudio.setState({ layerId: node.id });
-                  getEngine().goToFrame(Math.floor((event.clientY - rect.top) / (rect.height / count)));
-                }}
-              >
-                {node.cels.map((cel) => (
-                  <CelBox key={cel.id} cel={cel} layerId={node.id} cellWidth={SHEET_FRAME} active={cel.frame <= frame && frame < cel.frame + cel.length && node.id === layerId} vertical rowHeight={SHEET_COLUMN} />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
+    <>
+      <input
+        id="animate-open-file"
+        type="file"
+        accept={`${FILE_EXTENSION},.zip`}
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Open a project file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file !== undefined) void getEngine().openFile(file);
+        }}
+      />
+      <input
+        id="animate-import-picture"
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Import a picture"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file !== undefined) void importPicture(file);
+        }}
+      />
+    </>
   );
 }

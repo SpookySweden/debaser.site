@@ -29,12 +29,12 @@ export type Settings = {
   defaultGap: number;
   bigBadge: boolean;
   showLayers: boolean;
-  /** Everything but the sheet out of the way, for drawing at a big interface size. */
-  panelsHidden: boolean;
   /** Stepping through frames plays each one's slice of sound. */
   scrubSound: boolean;
-  /** Which trial layout (SPEC-animate-ui.md, Stage 1): local only. */
-  layout: 'a' | 'b' | 'c';
+  /** How wide a frame is on the timeline. */
+  frameWidth: number;
+  /** How many layers the timeline shows at once. */
+  timelineRows: number;
   /** The first-time hint has done its job. */
   hintSeen: boolean;
 };
@@ -55,9 +55,9 @@ export const DEFAULT_SETTINGS: Settings = {
   defaultGap: 8,
   bigBadge: true,
   showLayers: false,
-  panelsHidden: false,
   scrubSound: true,
-  layout: 'a',
+  frameWidth: 24,
+  timelineRows: 1,
   hintSeen: false,
 };
 
@@ -83,7 +83,7 @@ export function saveSettings(settings: Settings): void {
 }
 
 export type SaveState = 'saved' | 'saving' | 'failed' | 'waiting';
-export type Panel = 'none' | 'menu' | 'settings' | 'projects' | 'export' | 'tags' | 'help' | 'onion' | 'sound';
+export type Panel = 'none' | 'menu' | 'frames' | 'palette' | 'settings' | 'projects' | 'export' | 'tags' | 'onion' | 'sound';
 
 export type StudioState = {
   project: Project;

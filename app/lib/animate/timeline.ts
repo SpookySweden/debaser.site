@@ -18,7 +18,7 @@ import {
   setExposure,
   setHolds,
 } from './project';
-import { updateSettings, useStudio } from './store';
+import { useStudio } from './store';
 import type { Cel, CelMark, PlaneName, PlayMode } from './types';
 
 function here(): { layerId: string; frame: number; cel: Cel | null } | null {
@@ -198,18 +198,6 @@ addActions([
   { id: 'range.out', label: 'RANGE ENDS HERE', group: 'TIMELINE', key: 'n', run: () => setRangeEnd('out') },
   { id: 'range.clear', label: 'CLEAR THE RANGE', group: 'TIMELINE', key: 'shift+b', run: clearRange },
   { id: 'range.mode', label: 'LOOP / PING-PONG / ONCE', group: 'TIMELINE', key: 'shift+l', run: cyclePlayMode },
-  {
-    id: 'tools.popup',
-    label: 'THE TOOLS, BY THE PEN',
-    group: 'TOOLS',
-    key: 'x',
-    run: () => {
-      const engine = getEngine();
-      const stage = engine.stageSize();
-      useStudio.setState({ popup: useStudio.getState().popup !== null ? null : (engine.hoverScreen ?? { x: stage.w / 2, y: stage.h / 3 }) });
-      updateSettings({ hintSeen: true });
-    },
-  },
   { id: 'onion.toggle', label: 'ONION SKIN', group: 'ONION', key: 'o', run: () => setOnion(!useStudio.getState().project.onion.on) },
   { id: 'onion.panel', label: 'ONION SETTINGS', group: 'ONION', key: 'shift+o', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'onion' ? 'none' : 'onion' }) },
   { id: 'export.panel', label: 'EXPORT', group: 'FILE', key: 'ctrl+e', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'export' ? 'none' : 'export' }) },

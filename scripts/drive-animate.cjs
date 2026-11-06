@@ -115,6 +115,31 @@ async function waitSaved(page) {
   await page.waitForFunction(() => document.querySelector('[data-animate-save]')?.getAttribute('data-animate-save') === 'saved', null, { timeout: 15000 });
 }
 
+// Updated on purpose for SPEC-animate-ui.md: the strip, the tools and the timeline's keys moved into the pop-up, the menu and the timeline's menu.
+/** Open the tools with their key and press a swatch. */
+async function pickColour(page, name) {
+  await page.keyboard.press('x');
+  await page.locator('[data-animate-popup]').getByRole('button', { name, exact: true }).click();
+}
+
+/** Press a row of the menu, opened with its key. */
+async function menuItem(page, id) {
+  await page.keyboard.press('?');
+  await page.locator(`[data-animate-menu-item="${id}"]`).click();
+}
+
+/** Press a word in the timeline's menu, opened with its key. */
+async function framesTile(page, label) {
+  await page.keyboard.press('Shift+F');
+  await page.locator(`[data-animate-frames-menu] [data-animate-tile="${label}"]`).click();
+}
+
+/** The layer list folded out, if it isn't already. */
+async function layersOut(page) {
+  if ((await page.locator('[data-animate-layers-fold]').count()) === 0) await page.keyboard.press('l');
+  await page.waitForSelector('[data-animate-layers-fold]');
+}
+
 const phases = {};
 
 phases.phase0 = async (page, shot) => {
@@ -203,7 +228,7 @@ phases.phase0 = async (page, shot) => {
     delete window.showSaveFilePicker;
     window.showSaveFilePicker = undefined;
   });
-  await page.getByRole('button', { name: /SAVE FILE/ }).click();
+  await menuItem(page, 'file.save');
   const file = await download;
   const fileName = file.suggestedFilename();
   const savedPath = path.join(os.tmpdir(), `animate-${Date.now()}.zip`);
@@ -226,13 +251,15 @@ phases.phase0 = async (page, shot) => {
   fs.unlinkSync(notAProject);
 
   // Bigger interface.
-  await page.getByRole('button', { name: 'Interface bigger' }).click();
-  await page.getByRole('button', { name: 'Interface bigger' }).click();
+  await page.keyboard.press('?');
+  await page.locator('[data-animate-menu-item="ui.bigger"]').click();
+  await page.locator('[data-animate-menu-item="ui.bigger"]').click();
   const scale = await page.evaluate(() => window.__animate && JSON.parse(localStorage.getItem('debaser.animate.settings') ?? '{}').uiScale);
   check('the interface can be made bigger', scale === 1.5, `scale ${scale}`);
   await shot('phase0-ui150');
-  await page.getByRole('button', { name: 'Interface smaller' }).click();
-  await page.getByRole('button', { name: 'Interface smaller' }).click();
+  await page.locator('[data-animate-menu-item="ui.smaller"]').click();
+  await page.locator('[data-animate-menu-item="ui.smaller"]').click();
+  await page.keyboard.press('Escape');
 };
 
 /** What is really on screen at a sheet point, onions and all: red, green, blue. */
@@ -404,7 +431,7 @@ phases.phase1 = async (page, shot) => {
   check('Enter stops it', !(await state(page, () => window.__animate.project && document.querySelector('[aria-pressed="true"][title="ENTER"]') !== null)));
 
   await page.evaluate(() => window.__animate.goToFrame(0));
-  await page.getByRole('button', { name: '[ PING-PONG ]' }).click();
+  await framesTile(page, 'PING-PONG');
   await page.mouse.move(300, 300);
   await page.evaluate(() => document.activeElement?.blur?.());
   await page.keyboard.press('Enter');
@@ -416,7 +443,7 @@ phases.phase1 = async (page, shot) => {
   await page.keyboard.press('b');
   await page.evaluate(() => window.__animate.goToFrame(4));
   await page.keyboard.press('n');
-  await page.getByRole('button', { name: '[ LOOP ]' }).click();
+  await framesTile(page, 'LOOP');
   await page.evaluate(() => document.activeElement?.blur?.());
   await page.evaluate(() => window.__animate.goToFrame(2));
   await page.keyboard.press('Enter');
@@ -473,32 +500,33 @@ phases.phase1 = async (page, shot) => {
 
   // Saving to a file holds a stroke made a moment ago, not yet autosaved.
   await penStroke(page, mark(500, 500));
-  const zipNow = await downloadFrom(page, () => page.getByRole('button', { name: /SAVE FILE/ }).click());
+  const zipNow = await downloadFrom(page, () => menuItem(page, 'file.save'));
   check('SAVE FILE holds the latest stroke', zipNow.bytes.toString('latin1').includes('project.json') && zipNow.bytes.length > 400, `${zipNow.bytes.length} bytes`);
 
   // Full screen.
-  await page.keyboard.press('\\');
+  await page.keyboard.press('`');
   await page.waitForTimeout(300);
   check('FULL fills the window', await page.evaluate(() => document.querySelector('[aria-label="Animation studio"]').getBoundingClientRect().width === window.innerWidth));
   await page.keyboard.press('0');
   await page.waitForTimeout(100);
   await shot('phase1-full');
-  await page.keyboard.press('\\');
+  await page.keyboard.press('`');
 };
 
 phases.phase2 = async (page, shot) => {
   console.log('Phase 2: Organise');
+  await layersOut(page);
   await freshProject(page);
   await page.keyboard.press('f');
   const rowIds = () => page.evaluate(() => window.__animate.project.nodes.map((n) => n.name));
 
   // Colour on the bottom layer, a new layer above: the top one covers it.
-  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await pickColour(page, 'ROSE');
   await penStroke(page, Array.from({ length: 30 }, (_, i) => [300 + i * 10, 300, 0.9]));
   await page.keyboard.press('Shift+N');
   await page.waitForTimeout(100);
   check('a new layer goes above the active one', JSON.stringify(await rowIds()) === '["LAYER 2","LAYER 1"]', JSON.stringify(await rowIds()));
-  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await pickColour(page, 'EMERALD');
   await penStroke(page, Array.from({ length: 30 }, (_, i) => [300 + i * 10, 300, 0.9]));
   await page.waitForTimeout(100);
   check('the top layer covers the one below', (await pixel(page, 450, 300)) === '#28c745', await pixel(page, 450, 300));
@@ -601,18 +629,13 @@ phases.phase2 = async (page, shot) => {
   await page.waitForTimeout(150);
   await shot('phase2-ui300');
   await page.keyboard.press('Control+,');
-  await page.keyboard.press('\\');
+  await page.keyboard.press('`');
   await page.waitForTimeout(250);
   await shot('phase2-ui300-full');
   const stageTall = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().height);
   check('at 300% full screen the sheet still has room', stageTall >= 400, `${stageTall}px`);
   await page.keyboard.press('`');
-  await page.waitForTimeout(250);
-  await shot('phase2-panels-hidden');
-  const allStage = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().height);
-  check('hiding the panels gives the sheet the screen', allStage > stageTall, `${allStage}px`);
-  await page.keyboard.press('`');
-  await page.keyboard.press('\\');
+  await layersOut(page);
   await page.keyboard.press('Control+,');
   await page.waitForTimeout(100);
   check('the interface goes to 300%', await page.evaluate(() => JSON.parse(localStorage.getItem('debaser.animate.settings')).uiScale === 3));
@@ -624,7 +647,7 @@ phases.phase2 = async (page, shot) => {
 
   // The pressure curve changes the line. Same light pen, a soft curve makes it thicker.
   await freshProject(page);
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await page.keyboard.press('i');
   await penStroke(page, Array.from({ length: 30 }, (_, i) => [200 + i * 12, 200, 0.3]));
   await page.keyboard.press('Control+,');
@@ -687,6 +710,7 @@ phases.phase2 = async (page, shot) => {
   // The palette: add, remove.
   const paletteSize = () => page.evaluate(() => window.__animate.project.palette.length);
   const n0 = await paletteSize();
+  await menuItem(page, 'palette.panel');
   await page.evaluate(() => {
     const input = document.querySelector('input[aria-label="Colour"]');
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
@@ -699,6 +723,7 @@ phases.phase2 = async (page, shot) => {
   await page.getByRole('button', { name: 'Take this colour out of the palette' }).click();
   await page.waitForTimeout(60);
   check('and taken out', (await paletteSize()) === n0);
+  await page.keyboard.press('Escape');
 
   // Reorder by keyboard.
   await page.keyboard.press('Shift+N');
@@ -718,8 +743,9 @@ const along = (x0, y0, x1, y1, pressure = 0.9) => {
 
 phases.phase3 = async (page, shot) => {
   console.log('Phase 3: Smart Figure');
+  await layersOut(page);
   await freshProject(page);
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await page.evaluate(() => {
     const engine = window.__animate;
     engine.setBrushValue('ink', { stabiliser: 0 });
@@ -776,7 +802,7 @@ phases.phase3 = async (page, shot) => {
 
   // Flat colour starts inside and runs out over the line: it stops.
   await page.keyboard.press('f');
-  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await pickColour(page, 'ROSE');
   check('flat colour goes to the Colour plane', (await state(page, () => document.querySelector('[data-animate-plane="colour"]').getAttribute('aria-pressed'))) === 'true');
   await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
   await page.waitForTimeout(150);
@@ -811,7 +837,7 @@ phases.phase3 = async (page, shot) => {
   check('the master key turns smarts off', (await page.locator('[data-animate-badge]').count()) === 1);
   check('and a badge says so', (await page.locator('[data-animate-badge]').textContent()) === 'SMART OFF');
   await shot('phase3-smart-off');
-  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await pickColour(page, 'EMERALD');
   await penStroke(page, along(600, 300, 1000, 300), { gapMs: 1 });
   await page.waitForTimeout(150);
   check('a raw stroke goes past the line', (await pixel(page, 900, 300)) === '#28c745', await pixel(page, 900, 300));
@@ -831,7 +857,7 @@ phases.phase3 = async (page, shot) => {
 
   // Lines changed after colouring: a wall through the box. Smart colour moves; raw stays.
   await page.keyboard.press('i');
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await penStroke(page, along(650, 200, 650, 600), { gapMs: 1 });
   await page.waitForTimeout(1400);
   check('smart colour moves to the new lines', (await pixel(page, 620, 400)) === '#e6004c' && (await pixel(page, 700, 400)) === '#ffffff', (await pixel(page, 620, 400)) + ' ' + (await pixel(page, 700, 400)));
@@ -846,7 +872,7 @@ phases.phase3 = async (page, shot) => {
 
   // The bucket: a whole area, and it can be undone.
   await page.keyboard.press('g');
-  await page.getByRole('button', { name: 'ROYAL', exact: true }).click();
+  await pickColour(page, 'ROYAL');
   await page.waitForTimeout(100);
   await penStroke(page, [[720, 450, 0.5]], { gapMs: 1 });
   await page.waitForTimeout(400);
@@ -874,7 +900,7 @@ phases.phase3 = async (page, shot) => {
 
   // Fill brush: a drag across two areas fills both, in one undo step.
   await page.keyboard.press('y');
-  await page.getByRole('button', { name: 'DAFFODIL', exact: true }).click();
+  await pickColour(page, 'DAFFODIL');
   await penStroke(page, along(520, 450, 720, 450, 0.5), { gapMs: 1 });
   await page.waitForTimeout(400);
   check('the fill brush fills every area it crosses', (await pixel(page, 500, 590)) === '#fff000' && (await pixel(page, 700, 590)) === '#fff000', (await pixel(page, 500, 590)) + ' ' + (await pixel(page, 700, 590)));
@@ -906,7 +932,7 @@ phases.phase3 = async (page, shot) => {
   check('a reload brings the smart drawing back', opsCount >= 3 && (await pixel(page, 620, 400)) === '#fff000', opsCount + ' ' + (await pixel(page, 620, 400)));
   // Painting immediately after a reload, before anything has been read, is still held inside.
   await page.keyboard.press('f');
-  await page.getByRole('button', { name: 'CANDY', exact: true }).click();
+  await pickColour(page, 'CANDY');
   await penStroke(page, along(1000, 450, 700, 450), { gapMs: 1 });
   await page.waitForTimeout(1200);
   check('a stroke made before the lines are read still lands inside its area', (await pixel(page, 700, 450)) !== '#ffb7e6' && (await pixel(page, 900, 450)) === '#ffb7e6', (await pixel(page, 700, 450)) + ' ' + (await pixel(page, 900, 450)));
@@ -915,13 +941,14 @@ phases.phase3 = async (page, shot) => {
 
 phases.phase4 = async (page, shot) => {
   console.log('Phase 4: Tags');
+  await layersOut(page);
   await freshProject(page);
   await page.evaluate(() => {
     window.showSaveFilePicker = undefined;
     const engine = window.__animate;
     for (const b of ['ink', 'flat', 'pencil']) engine.setBrushValue(b, { stabiliser: 0 });
   });
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   const rows = () => page.evaluate(() => window.__animate.project.nodes.map((n) => [n.name, n.tagId, n.blend, n.locked]));
   const pickTag = (tagId) => page.evaluate((t) => {
     const select = document.querySelector('[data-animate-tag-select]');
@@ -950,7 +977,7 @@ phases.phase4 = async (page, shot) => {
   await page.waitForTimeout(80);
   await pickTag('figure');
   await page.keyboard.press('f');
-  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await pickColour(page, 'ROSE');
   await page.waitForTimeout(900);
   await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
   await page.waitForTimeout(300);
@@ -962,7 +989,7 @@ phases.phase4 = async (page, shot) => {
   await pickTag('shade');
   await page.waitForTimeout(80);
   check('a Shade layer starts on multiply', (await rows())[0][2] === 'multiply', JSON.stringify((await rows())[0]));
-  await page.getByRole('button', { name: 'GREY', exact: true }).click();
+  await pickColour(page, 'GREY');
   await penStroke(page, along(650, 450, 1000, 450), { gapMs: 1 });
   await page.waitForTimeout(600);
   check('a Shade paints only where the layer below has pixels', (await pixel(page, 900, 450)) === '#ffffff', await pixel(page, 900, 450));
@@ -977,7 +1004,7 @@ phases.phase4 = async (page, shot) => {
   await page.waitForTimeout(80);
   await pickTag('rough');
   await page.keyboard.press('i');
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await penStroke(page, along(1100, 300, 1500, 300), { gapMs: 1 });
   await page.waitForTimeout(100);
   check('Rough shows full strength while it is the layer in hand', (await pixel(page, 1300, 300)) === '#000000', await pixel(page, 1300, 300));
@@ -1002,7 +1029,7 @@ phases.phase4 = async (page, shot) => {
   // Background: one drawing on every frame.
   await page.keyboard.press('Control+5');
   await page.waitForTimeout(80);
-  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await pickColour(page, 'EMERALD');
   await penStroke(page, along(1100, 800, 1500, 800), { gapMs: 1 });
   await page.waitForTimeout(100);
   await page.evaluate(() => window.__animate.goToFrame(20));
@@ -1083,13 +1110,14 @@ function toneWav(seconds = 1, rate = 8000) {
 
 phases.phase5 = async (page, shot) => {
   console.log('Phase 5: Pro polish');
+  await layersOut(page);
   await freshProject(page);
   await page.evaluate(() => {
     window.showSaveFilePicker = undefined;
     const engine = window.__animate;
     for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
   });
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await page.keyboard.press('i');
   await penStroke(page, mark(300, 300), { gapMs: 1 });
   await page.keyboard.press('.');
@@ -1135,7 +1163,7 @@ phases.phase5 = async (page, shot) => {
 
   // Carry colour forward.
   await freshProject(page);
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await page.evaluate(() => {
     const engine = window.__animate;
     for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
@@ -1153,7 +1181,7 @@ phases.phase5 = async (page, shot) => {
   await box(300, 300, 700, 700);
   await page.waitForTimeout(800);
   await page.keyboard.press('g');
-  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await pickColour(page, 'ROSE');
   await page.waitForTimeout(100);
   await penStroke(page, [[500, 500, 0.5]], { gapMs: 1 });
   await page.waitForTimeout(300);
@@ -1161,7 +1189,7 @@ phases.phase5 = async (page, shot) => {
   await page.keyboard.press('.');
   await page.waitForTimeout(100);
   await page.keyboard.press('i');
-  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await pickColour(page, 'BLACK');
   await box(320, 320, 720, 720);
   await page.waitForTimeout(800);
   check('the next drawing has lines and no colour', (await pixel(page, 500, 500)) === '#ffffff');
@@ -1307,7 +1335,7 @@ phases.phase5 = async (page, shot) => {
 
   // The sound travels in the project file.
   await page.waitForTimeout(100);
-  const projectZip = await downloadFrom(page, () => page.getByRole('button', { name: /SAVE FILE/ }).click());
+  const projectZip = await downloadFrom(page, () => menuItem(page, 'file.save'));
   check('the project file holds the sound', projectZip.bytes.toString('latin1').includes('assets/a_'), projectZip.bytes.length + ' bytes');
 
   // A reference picture lands on its own locked layer, and stays out of renders.
@@ -1326,6 +1354,321 @@ phases.phase5 = async (page, shot) => {
   check('and is kept as data', await page.evaluate(() => Object.values(window.__animate.project.drawings).some((d) => d.planes.line.some((op) => op.kind === 'image'))));
   fs.unlinkSync(pngPath);
   await shot('phase5-desktop');
+};
+
+const ALL_KEYS = 'button, a[href], input:not(.sr-only), select, [role="button"]';
+
+/** The keys on screen, not counting the timeline's frames: in the studio, and the site's own around it. */
+const keysOnScreen = (page) =>
+  page.evaluate((selector) => {
+    const studio = document.querySelector('[aria-label="Animation studio"]');
+    const out = { studio: [], site: 0 };
+    for (const el of document.querySelectorAll(selector)) {
+      const style = getComputedStyle(el);
+      const r = el.getBoundingClientRect();
+      if (style.visibility === 'hidden' || style.display === 'none' || el.closest('nextjs-portal')) continue;
+      if (r.width < 2 || r.height < 1 || r.bottom <= 0 || r.right <= 0 || r.top >= innerHeight || r.left >= innerWidth) continue;
+      if (el.closest('[data-animate-cel]')) continue;
+      if (studio.contains(el)) out.studio.push((el.getAttribute('aria-label') || el.textContent).trim().slice(0, 20));
+      else out.site += 1;
+    }
+    return out;
+  }, ALL_KEYS);
+
+phases.phase6 = async (page, shot) => {
+  console.log('The interface (SPEC-animate-ui.md)');
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.evaluate(() => {
+    const settings = JSON.parse(localStorage.getItem('debaser.animate.settings') ?? '{}');
+    localStorage.setItem('debaser.animate.settings', JSON.stringify({ ...settings, hintSeen: false, full: false, showLayers: false, uiScale: 1 }));
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.stage != null, null, { timeout: 60000 });
+  await page.waitForTimeout(600);
+  await freshProject(page);
+
+  // Test 1 and 2: on opening, at both sizes.
+  for (const [w, h] of [[1280, 900], [1920, 1080]]) {
+    await page.setViewportSize({ width: w, height: h });
+    await page.waitForTimeout(400);
+    const sheet = await page.evaluate(() => {
+      const engine = window.__animate;
+      return { stage: document.querySelector('[data-animate-stage]').getBoundingClientRect().height / innerHeight, sheet: (engine.project.height * engine.view.zoom) / innerHeight };
+    });
+    check(`${w}x${h}: the sheet's area is at least 70% of the window's height`, sheet.stage >= 0.7, `stage ${Math.round(sheet.stage * 100)}%, sheet ${Math.round(sheet.sheet * 100)}%`);
+    const keys = await keysOnScreen(page);
+    check(`${w}x${h}: no more than 8 keys in the studio`, keys.studio.length <= 8, `${keys.studio.length}: ${keys.studio.join(' | ')}; the site's own: ${keys.site}`);
+  }
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.waitForTimeout(300);
+
+  // What folds: the side panel, title and START, with tabs still there and one key to bring the panel back.
+  const folded = await page.evaluate(() => ({ start: document.body.innerText.includes('[ START ]'), tabs: [...document.querySelectorAll('a[href="/animate"]')].some((a) => a.getBoundingClientRect().width > 0) }));
+  check('the START strip folds away on this page, the tabs stay', !folded.start && folded.tabs, JSON.stringify(folded));
+  const panelWas = await page.evaluate(() => document.body.innerText.includes('[ SIDE PANEL ]'));
+  await page.keyboard.press('\\');
+  await page.waitForTimeout(250);
+  const stageWithPanel = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().width);
+  await page.keyboard.press('\\');
+  await page.waitForTimeout(250);
+  const stageWithout = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().width);
+  check("the site's side panel comes and goes with one key, and gives its room to the sheet", panelWas && stageWithout > stageWithPanel, `${stageWithPanel}px, then ${stageWithout}px`);
+
+  // The first-time hint goes for good once used.
+  check('a new person gets the hint', (await page.locator('[data-animate-hint]').count()) === 1);
+  await shot('phase6-first-time');
+  const stageBox = await page.locator('[data-animate-stage]').boundingBox();
+  await page.mouse.click(stageBox.x + stageBox.width * 0.4, stageBox.y + stageBox.height * 0.3, { button: 'right' });
+  await page.waitForTimeout(150);
+  check('the right button opens the tools', (await page.locator('[data-animate-popup]').count()) === 1);
+  check('and the hint goes', (await page.locator('[data-animate-hint]').count()) === 0);
+  const popupBox = await page.locator('[data-animate-popup]').boundingBox();
+  check('they open at the pen', Math.abs(popupBox.x - (stageBox.x + stageBox.width * 0.4 + 12)) < 3 || popupBox.x + popupBox.width >= stageBox.x + stageBox.width - 6, `${Math.round(popupBox.x)}, ${Math.round(popupBox.y)}`);
+  await shot('phase6-tools');
+
+  // The brush's three values: stepped, watched, with the pop-up left open.
+  const brushValue = () => page.evaluate(() => window.__animate.brushes ?? null);
+  void brushValue;
+  const read = () => page.evaluate(() => {
+    const steppers = {};
+    for (const el of document.querySelectorAll('[data-animate-stepper]')) steppers[el.dataset.animateStepper] = el.querySelector('[aria-live]').textContent;
+    return steppers;
+  });
+  const before = await read();
+  await page.getByRole('button', { name: 'opacity down' }).click();
+  await page.getByRole('button', { name: 'steady up' }).click();
+  await page.getByRole('button', { name: 'size up' }).click();
+  await page.waitForTimeout(80);
+  const after = await read();
+  check('OPACITY, STEADY and SIZE are all back, and the pop-up stays to watch them', after.OPACITY !== before.OPACITY && after.STEADY !== before.STEADY && after.SIZE !== before.SIZE, `${JSON.stringify(before)} then ${JSON.stringify(after)}`);
+  const strokeOpacity = await page.evaluate(() => document.querySelector('[data-animate-popup]') !== null);
+  check('still open after stepping', strokeOpacity);
+
+  // One press to pick, and it closes itself.
+  await page.locator('[data-animate-popup]').getByRole('button', { name: 'FLAT', exact: true }).click();
+  await page.waitForTimeout(80);
+  check('one press picks a tool, and it closes itself', (await page.locator('[data-animate-popup]').count()) === 0 && (await page.locator('[data-animate-status]').textContent()).includes('FLAT'), await page.locator('[data-animate-status]').textContent());
+  // Pressing elsewhere just closes it, and draws nothing.
+  const opsNow = await frameOps(page);
+  await page.keyboard.press('x');
+  await page.waitForTimeout(80);
+  check('X opens them too', (await page.locator('[data-animate-popup]').count()) === 1);
+  check('the keyboard lands on the tool in hand', await page.evaluate(() => document.activeElement?.textContent === 'FLAT'));
+  await page.keyboard.press('ArrowRight');
+  check('arrows walk the block', await page.evaluate(() => document.activeElement?.textContent === 'ERASER'), await page.evaluate(() => document.activeElement?.textContent));
+  await page.mouse.click(stageBox.x + 6, stageBox.y + stageBox.height - 6);
+  await page.waitForTimeout(80);
+  check('pressing elsewhere closes them, and draws nothing', (await page.locator('[data-animate-popup]').count()) === 0 && (await frameOps(page)) === opsNow);
+  await page.keyboard.press('x');
+  await page.keyboard.press('i');
+  await page.waitForTimeout(80);
+  check('a tool key closes them too', (await page.locator('[data-animate-popup]').count()) === 0);
+  await page.evaluate(() => window.__animate.setBrushValue('ink', { stabiliser: 0, opacity: 1 }));
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.stage != null, null, { timeout: 60000 });
+  await page.waitForTimeout(500);
+  check('the hint stays gone after a reload', (await page.locator('[data-animate-hint]').count()) === 0);
+
+  // A big interface: the pop-up and the layers still fit, opened at the far corner.
+  await page.evaluate(() => {
+    const settings = JSON.parse(localStorage.getItem('debaser.animate.settings'));
+    localStorage.setItem('debaser.animate.settings', JSON.stringify({ ...settings, uiScale: 2 }));
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.stage != null, null, { timeout: 60000 });
+  await page.waitForTimeout(500);
+  const big = await page.locator('[data-animate-stage]').boundingBox();
+  await page.mouse.click(big.x + big.width - 10, big.y + big.height - 10, { button: 'right' });
+  await page.waitForTimeout(150);
+  const inBig = await page.evaluate(() => {
+    const stage = document.querySelector('[data-animate-stage]').getBoundingClientRect();
+    const box = document.querySelector('[data-animate-popup]');
+    const r = box.getBoundingClientRect();
+    return { inside: r.left >= stage.left - 1 && r.top >= stage.top - 1 && r.right <= stage.right + 1 && r.bottom <= stage.bottom + 1, scrolls: box.scrollHeight <= box.clientHeight + 1 || getComputedStyle(box).overflowY === 'auto' };
+  });
+  check('at 200% the pop-up stays on the sheet, scrolling if it has to', inBig.inside && inBig.scrolls, JSON.stringify(inBig));
+  await shot('phase6-tools-ui200');
+  await page.keyboard.press('Escape');
+  await page.evaluate(() => {
+    const settings = JSON.parse(localStorage.getItem('debaser.animate.settings'));
+    localStorage.setItem('debaser.animate.settings', JSON.stringify({ ...settings, uiScale: 1 }));
+  });
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.stage != null, null, { timeout: 60000 });
+  await page.waitForTimeout(500);
+
+  // The timeline's menu.
+  await page.keyboard.press('Shift+F');
+  await page.waitForTimeout(80);
+  check("the timeline's menu opens", (await page.locator('[data-animate-frames-menu]').count()) === 1);
+  await shot('phase6-frames-menu');
+  const fps0 = await state(page, () => window.__animate.project.fps);
+  await page.getByRole('button', { name: 'speed up' }).click();
+  check('SPEED steps, and the menu stays', (await state(page, () => window.__animate.project.fps)) === fps0 + 1 && (await page.locator('[data-animate-frames-menu]').count()) === 1);
+  await page.getByRole('button', { name: 'speed down' }).click();
+  const timelineWas = await page.locator('section[aria-label="Timeline"]').boundingBox();
+  await page.getByRole('button', { name: 'rows shown up' }).click();
+  await page.getByRole('button', { name: 'frame width up' }).click();
+  await page.waitForTimeout(100);
+  const timelineNow = await page.locator('section[aria-label="Timeline"]').boundingBox();
+  check('ROWS SHOWN steps', timelineNow !== null && timelineNow.height >= timelineWas.height, `${timelineWas.height} to ${timelineNow?.height}`);
+  await page.getByRole('button', { name: 'rows shown down' }).click();
+  await page.getByRole('button', { name: 'frame width down' }).click();
+  await page.locator('[data-animate-frames-menu] [data-animate-tile="NEW DRAWING"]').click();
+  await page.waitForTimeout(80);
+  check('NEW DRAWING works from it, and it closes itself', (await page.locator('[data-animate-frames-menu]').count()) === 0);
+  await page.keyboard.press('Control+z');
+
+  // Everything's in the menu.
+  await page.keyboard.press('?');
+  await page.waitForTimeout(80);
+  const rowsThere = await page.evaluate(() => [...document.querySelectorAll('[data-animate-menu-item]')].map((el) => el.dataset.animateMenuItem));
+  const owed = ['file.projects', 'file.open', 'file.save', 'picture.import', 'export.panel', 'view.fit', 'view.full', 'view.sidepanel', 'ui.bigger', 'ui.smaller', 'settings.panel', 'layer.panel', 'layer.folder', 'tag.panel', 'palette.panel', 'time.menu', 'sound.panel', 'onion.panel', 'view.lighttable', 'smart.carry', 'smart.make', 'trace.back', 'range.in', 'range.out', 'range.clear', 'range.mode', 'cel.new', 'cel.copy', 'cel.delete', 'cel.mark', 'cel.ones', 'cel.twos', 'cel.threes'];
+  const missing = owed.filter((id) => !rowsThere.includes(id));
+  check('every key that left the screen has a row in the menu', missing.length === 0, missing.join(', ') || `${rowsThere.length} rows`);
+  await shot('phase6-menu');
+  await page.keyboard.press('Escape');
+
+  // Test 3: the bouncing ball, with the sheet in view throughout. No panel to close.
+  await freshProject(page);
+  const panelsOpened = [];
+  const noteDialogs = async () => {
+    const dialogs = await page.evaluate(() => [...document.querySelectorAll('[role="dialog"]')].map((el) => el.getAttribute('aria-label')));
+    panelsOpened.push(...dialogs);
+  };
+  for (let f = 0; f < 6; f += 1) {
+    await page.keyboard.press(f === 0 ? 'i' : '.');
+    await penStroke(page, Array.from({ length: 24 }, (_, i) => [400 + f * 150 + Math.cos(i / 3.6) * 80, 200 + f * 90 + Math.sin(i / 3.6) * 80, 0.8]));
+    await noteDialogs();
+  }
+  await page.keyboard.press('x');
+  await page.locator('[data-animate-popup]').getByRole('button', { name: 'FLAT', exact: true }).click();
+  await noteDialogs();
+  await page.keyboard.press('Shift+N');
+  await page.keyboard.press('o');
+  await noteDialogs();
+  const ball = await page.evaluate(() => ({ drawings: Object.keys(window.__animate.project.drawings).length, layers: window.__animate.project.nodes.length, onion: window.__animate.project.onion.on }));
+  check('the ball: six drawings, a tool change, a new layer, the onion, and no panel to close', ball.drawings >= 6 && ball.layers === 2 && ball.onion && panelsOpened.length === 0, `${JSON.stringify(ball)}, panels: ${panelsOpened.join(',') || 'none'}`);
+  await page.keyboard.press('o');
+
+  // Test 4: full screen.
+  await page.keyboard.press('l');
+  await page.waitForTimeout(150);
+  const opsFull = await frameOps(page);
+  await page.keyboard.press('`');
+  await page.waitForTimeout(300);
+  const fullScreen = await page.evaluate((selector) => {
+    const stage = document.querySelector('[data-animate-stage]').getBoundingClientRect();
+    const timeline = document.querySelector('section[aria-label="Timeline"]');
+    const line = timeline.getBoundingClientRect();
+    const stray = [...document.querySelectorAll(selector)].filter((el) => {
+      if (timeline.contains(el) || el.closest('nextjs-portal')) return false;
+      const r = el.getBoundingClientRect();
+      if (getComputedStyle(el).visibility === 'hidden' || r.width < 2 || r.height < 1) return false;
+      const on = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+      return on === el || el.contains(on);
+    });
+    return { fills: Math.round(stage.height + line.height) === innerHeight && stage.width === innerWidth, stray: stray.map((el) => el.textContent.trim().slice(0, 16)), corners: [[2, 2], [innerWidth - 3, 2], [2, innerHeight - 3], [innerWidth - 3, innerHeight - 3]].every(([x, y]) => document.elementFromPoint(x, y)?.closest('[aria-label="Animation studio"]') != null) };
+  }, ALL_KEYS);
+  check('full screen: nothing but the sheet and the timeline', fullScreen.fills && fullScreen.corners && fullScreen.stray.length === 0, JSON.stringify(fullScreen));
+  await shot('phase6-full');
+  await penStroke(page, Array.from({ length: 20 }, (_, i) => [300 + i * 8, 700, 0.8]));
+  await page.waitForTimeout(60);
+  await page.keyboard.press('x');
+  await page.waitForTimeout(100);
+  check('the tools still open there', (await page.locator('[data-animate-popup]').getByRole('button', { name: 'LEAVE FULL', exact: true }).count()) === 1);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('`');
+  await page.waitForTimeout(300);
+  check('one key back, and the work is safe', (await frameOps(page)) === opsFull + 1 && (await page.locator('[data-animate-tools-key]').count()) === 1, `${opsFull} strokes then ${await frameOps(page)}`);
+  await waitSaved(page);
+  await page.keyboard.press('Control+z');
+
+  // A key that only means something now, shows only then.
+  check('MAKE SMART and the trace keys are away at rest', (await page.locator('[data-animate-trace-keys], [data-animate-make-smart]').count()) === 0);
+
+  // Test 6: strength of the text, and 400% zoom (a 1280 x 900 window at 400% lays out as 320 x 225).
+  const strength = await page.evaluate(() => {
+    const parts = (text) => text.match(/[\d.]+/g).map(Number);
+    const lum = ([r, g, b]) => {
+      const c = [r, g, b].map((v) => {
+        const s = v / 255;
+        return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+    };
+    const backOf = (el) => {
+      for (let at = el; at !== null; at = at.parentElement) {
+        const c = parts(getComputedStyle(at).backgroundColor);
+        if (c.length === 3 || c[3] > 0.9) return c.slice(0, 3);
+      }
+      return [255, 255, 255];
+    };
+    const studio = document.querySelector('[aria-label="Animation studio"]');
+    let smallest = 999;
+    let weakest = 99;
+    let weakestText = '';
+    const walker = document.createTreeWalker(studio, NodeFilter.SHOW_TEXT);
+    while (walker.nextNode()) {
+      const text = walker.currentNode.textContent.trim();
+      const el = walker.currentNode.parentElement;
+      if (text === '' || el.getBoundingClientRect().width < 1 || el.closest('.sr-only')) continue;
+      const style = getComputedStyle(el);
+      smallest = Math.min(smallest, Number.parseFloat(style.fontSize));
+      const a = lum(parts(style.color).slice(0, 3));
+      const b = lum(backOf(el));
+      const ratio = (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
+      if (ratio < weakest) {
+        weakest = ratio;
+        weakestText = text.slice(0, 20);
+      }
+    }
+    return { smallest, weakest: Math.round(weakest * 10) / 10, weakestText };
+  });
+  check('no text under 13px or under 4.5:1 at rest', strength.smallest >= 13 && strength.weakest >= 4.5, JSON.stringify(strength));
+
+  await page.setViewportSize({ width: 320, height: 225 });
+  await page.waitForTimeout(500);
+  await shot('phase6-zoom400');
+  const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check('400% zoom: no sideways scroll', wide <= 0, `${wide}px`);
+  const reachAll = (selector) =>
+    page.evaluate((sel) => {
+      const bad = [];
+      for (const el of document.querySelectorAll(sel)) {
+        el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+        const r = el.getBoundingClientRect();
+        if (r.left < -1 || r.right > innerWidth + 1 || r.top < -1 || r.bottom > innerHeight + 1) bad.push((el.getAttribute('aria-label') || el.textContent).trim().slice(0, 18) + ` ${Math.round(r.left)},${Math.round(r.top)},${Math.round(r.right)},${Math.round(r.bottom)}`);
+      }
+      return bad;
+    }, selector);
+  const barBad = await reachAll('[data-animate-menu-key], [data-animate-tools-key], [data-animate-layers-key], [data-animate-frames-key]');
+  check('400% zoom: the small keys can all be reached', barBad.length === 0, barBad.join(' | '));
+  await page.keyboard.press('x');
+  await page.waitForTimeout(150);
+  await shot('phase6-zoom400-tools');
+  const popupBad = await reachAll('[data-animate-popup] button');
+  check('400% zoom: every key in the pop-up can be reached', popupBad.length === 0, popupBad.slice(0, 5).join(' | '));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+F');
+  await page.waitForTimeout(150);
+  const framesBad = await reachAll('[data-animate-frames-menu] button');
+  check("400% zoom: every key in the timeline's menu can be reached", framesBad.length === 0, framesBad.slice(0, 5).join(' | '));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('?');
+  await page.waitForTimeout(150);
+  await shot('phase6-zoom400-menu');
+  const menuBad = await reachAll('[data-animate-menu-item]');
+  check('400% zoom: every row of the menu can be reached', menuBad.length === 0, menuBad.slice(0, 5).join(' | '));
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('l');
+  await page.waitForTimeout(150);
+  await shot('phase6-zoom400-layers');
+  const layersBad = await reachAll('[data-animate-layers-fold] button, [data-animate-layers-fold] select, [data-animate-layers-fold] input');
+  check('400% zoom: everything in the layers can be reached', layersBad.length === 0, layersBad.slice(0, 5).join(' | '));
+  await page.keyboard.press('l');
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.waitForTimeout(300);
 };
 
 (async () => {
