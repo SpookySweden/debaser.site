@@ -133,7 +133,7 @@ export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeC
   // The Archive lists a length for nearly every video. One it doesn't is still public-domain and playable.
   const seconds = read.episodes.reduce((sum, episode) => sum + (episode.seconds ?? 0), 0);
   if (seconds > 0 && !longEnough(seconds, runtimeMinutes)) return null;
-  return { platform: 'internet_archive', id, why: 'public_domain' };
+  return { platform: 'internet_archive', id };
 }
 
 /** An ISO 8601 length (`PT1H24M3S`, `P1DT2H`) in seconds, or null. */
@@ -154,9 +154,8 @@ export function youtubeStatusUrl(ids: readonly string[], key: string): string {
 
 /**
  * Whether one `videos.list` entry is a plainly legal copy of the title. Pure. Public, embeddable, not age-locked, not
- * blocked in the viewer's country, long enough to be the title. And either the film is public domain (Wikidata, and not
- * also called copyrighted), or YouTube says a rights partner uploaded and claimed it (`licensedContent`), which is the
- * official upload: a stranger's upload has neither.
+ * blocked in the viewer's country, long enough to be the title, and the film is public domain (Wikidata, and not also
+ * called copyrighted). YouTube's `licensedContent` is no evidence: a stranger's upload a studio has claimed has it too.
  */
 export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined, country: string): FreeCopy | null {
   const item = (typeof doc === 'object' && doc !== null ? doc : {}) as Record<string, unknown>;
@@ -172,8 +171,7 @@ export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'p
   if (Array.isArray(region.allowed) && !region.allowed.includes(country)) return null;
   const seconds = isoSeconds(details.duration);
   if (seconds === null || !longEnough(seconds, runtimeMinutes)) return null;
-  if (candidates.publicDomain && !candidates.copyrighted) return { platform: 'youtube', id, why: 'public_domain' };
-  return details.licensedContent === true ? { platform: 'youtube', id, why: 'official' } : null;
+  return candidates.publicDomain && !candidates.copyrighted ? { platform: 'youtube', id } : null;
 }
 
 const FALLBACK_COUNTRY = 'US';

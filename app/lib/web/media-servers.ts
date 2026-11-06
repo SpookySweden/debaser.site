@@ -21,10 +21,6 @@
  *   to start in one (Luke, 2026-11-01). It still gets no referrer. Leave it out unless a server needs it: without
  *   the sandbox, that server's page can open pop-ups and send the whole debaser.site tab to another page.
  *
- * A public streaming resolver (a site that finds films elsewhere, like vidsrc or 2embed) can never be a server, in any
- * form (Luke, 2026-11-06: "forget the illegal sources"): `isRefusedHost` drops one from the list, the Debaser Servers
- * program refuses to save one, and `scripts/check-web-media.cjs` fails if one is written here.
- *
  * Adding a server here has the next hourly update read its list. Servers are not SOURCE choices in the /web search
  * (Luke, 2026-11-02): their titles show in every search. A show listed as a whole (no season and episode) is offered
  * every season and episode TMDB lists for it (media-titles.ts `withTmdbEpisodes`). The friend's side of it is in docs/media-server-setup.md.
@@ -53,31 +49,13 @@ export type MediaServer = {
 // SERVERS markers, one server per line in exactly this shape. Edit by hand in the same shape, or use the program.
 // Typed as a plain list (not `as const`) so an empty list still builds; an id is then any string, checked by
 // `isMediaServerId` at run time.
-export const MEDIA_SERVERS_AS_WRITTEN: readonly MediaServer[] = [
+export const MEDIA_SERVERS: readonly MediaServer[] = [
   // SERVERS-START
   // (Placeholder slots)
 // SERVERS-END
 ];
 
 export type MediaServerId = string;
-
-/**
- * Public streaming resolvers: sites that play any film by its number, from wherever they find it. Whole words of a host
- * name, so `vidsrc.me`, `www.2embed.cc` and `vidsrc-embed.example` are all caught. Keep DebaserServers.cs `Refused` in step.
- */
-const REFUSED_HOST_WORDS = /(?:^|[.-])(?:vidsrc[a-z0-9]*|2embed[a-z0-9]*|autoembed|multiembed|superembed|moviesapi|vidlink|vidfast|vidplay|vidcloud|embedsu|smashystream|123embed|gomostream|fmovies|solarmovie|putlocker|soap2day)(?:[.-]|$)|(?:^|\.)embed\.su$/;
-
-/** Whether an address's host is a public streaming resolver, which can never be a media server. An unreadable address is refused too. */
-export function isRefusedHost(base: string): boolean {
-  try {
-    return REFUSED_HOST_WORDS.test(new URL(base).hostname.toLowerCase());
-  } catch {
-    return true;
-  }
-}
-
-/** The servers the site uses: everything written above but a refused host. `scripts/check-web-media.cjs` fails on one being written at all. */
-export const MEDIA_SERVERS: readonly MediaServer[] = MEDIA_SERVERS_AS_WRITTEN.filter((server) => !isRefusedHost(server.base));
 
 /** The servers' ids, for code that only needs to know whether a word names one. */
 export const MEDIA_SERVER_IDS: readonly MediaServerId[] = MEDIA_SERVERS.map((server) => server.id);

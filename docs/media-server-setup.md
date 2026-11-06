@@ -6,8 +6,7 @@ server. The site lists what your server holds and plays it **from your server**.
 stores your videos: only the titles and, for films and shows, details and posters from TMDB.
 
 Only your own media: things you made, or copies you own and are allowed to share with friends. A server that
-plays anything you give it a TMDB number for (a "streaming source" that finds films elsewhere) can't be added: the
-server list refuses public streaming sites such as vidsrc and 2embed by name.
+plays anything you give it a TMDB number for (a "streaming source" that finds films elsewhere) can't be added.
 
 ## What your server needs
 

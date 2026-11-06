@@ -45,7 +45,6 @@ function countryName(code: string): string {
 }
 
 const SITE_NAMES: Readonly<Record<FreeCopy['platform'], string>> = { internet_archive: 'ARCHIVE', youtube: 'YOUTUBE' };
-const WHY_WORDS: Readonly<Record<FreeCopy['why'], string>> = { public_domain: 'PUBLIC DOMAIN', official: 'OFFICIAL UPLOAD' };
 
 /** One free copy: PLAY, or CLOSE and PIP while it plays, in the site's one floating player. */
 export function FreeCopyKeys({ copy, title, audio }: { copy: FreeCopy; title: string; audio: string | null }) {
@@ -87,7 +86,7 @@ export function FreeCopyKeys({ copy, title, audio }: { copy: FreeCopy; title: st
             {`[ ▶ FREE ON ${site} ]`}
           </button>
         )}
-        <span className="text-label font-bold text-ink">{WHY_WORDS[copy.why]}</span>
+        <span className="text-label font-bold text-ink">PUBLIC DOMAIN</span>
         {playing ? <PipKey id={playId} title={title} /> : null}
       </div>
       {playing ? <PlayerBox id={playId} title={title} className="aspect-video w-full border border-ink-plate bg-paper" /> : null}

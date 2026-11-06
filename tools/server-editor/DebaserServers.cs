@@ -114,8 +114,6 @@ namespace DebaserServers
             return candidate;
         }
 
-        // A public streaming resolver can never be a server. Keep in step with REFUSED_HOST_WORDS in media-servers.ts.
-        static readonly Regex Refused = new Regex(@"(?:^|[.-])(?:vidsrc[a-z0-9]*|2embed[a-z0-9]*|autoembed|multiembed|superembed|moviesapi|vidlink|vidfast|vidplay|vidcloud|embedsu|smashystream|123embed|gomostream|fmovies|solarmovie|putlocker|soap2day)(?:[.-]|$)|(?:^|\.)embed\.su$", RegexOptions.IgnoreCase);
         static readonly Regex LabelShape = new Regex(@"^[A-Z0-9][A-Z0-9 ._-]{0,29}$");
         static readonly Regex PathShape = new Regex(@"^/(?!.*\.\.)[A-Za-z0-9._~/-]{1,200}$");
         static readonly Regex PatternShape = new Regex(@"^/(?!.*\.\.)[A-Za-z0-9._~/{}-]{1,200}$");

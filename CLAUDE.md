@@ -35,7 +35,6 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   and `?tag=` addresses redirect to /files. A search with SOURCE ALL lists the site's own files it finds first, playing as the catalogue does
   (`app/lib/web/site-server.ts`, `WebSiteFiles.tsx`); read in the browser, never saved into the WEB stream.
 - A KINO row also offers plainly legal free copies and TMDB's where-to-watch, credited to JustWatch (SPEC-kino-sources.md).
-  Public streaming resolvers (vidsrc, 2embed and the like) never go in, in any form: `isRefusedHost` in media-servers.ts.
 - Luke's own and his friends' media servers are allowed sources, read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
   server's own player; the site never stores, copies or transcodes video, and holds only images and audio as

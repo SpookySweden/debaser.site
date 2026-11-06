@@ -5,8 +5,8 @@
  * - where to watch: one country only, service names only, no logo, address, rating or vote; nothing there is null
  * - Wikidata: only checked numbers reach the question; a trailer or other side video is dropped; an impossible id is dropped
  * - an Archive copy needs a public video item, long enough, not called copyrighted, with public-domain evidence
- * - a YouTube copy needs to be public, embeddable, long enough, and public domain or YouTube's own rights-partner flag;
- *   a stranger's upload of a film under copyright is never offered, and without the key nothing is
+ * - a YouTube copy needs to be public, embeddable, long enough and public domain; a stranger's upload of a film under
+ *   copyright is never offered, YouTube's rights-partner flag or not, and without the key nothing is
  * - the reader: only the expected hosts; the project's name and no contact to Wikidata and the Archive; every failure
  *   leaves the row with fewer choices and no error; never a key in an answer
  * - the route: signed-out refused first; only well-formed titles; never kept at Vercel's edge; the JustWatch credit is drawn
@@ -103,7 +103,7 @@ const UNKNOWN = { publicDomain: false, copyrighted: false };
 const NAMED_COPYRIGHTED = { publicDomain: true, copyrighted: true };
 const item = (metadata, length = '6000', extra = {}) => ({ metadata: { mediatype: 'movies', ...metadata }, files: [{ name: 'film.mp4', format: 'h.264', length, source: 'original' }], ...extra });
 const MARK = { licenseurl: 'http://creativecommons.org/publicdomain/mark/1.0/' };
-same(k.archiveVerdict('a', item({}), PD, 100), { platform: 'internet_archive', id: 'a', why: 'public_domain' }, 'Wikidata says public domain, a public video item: offered');
+same(k.archiveVerdict('a', item({}), PD, 100), { platform: 'internet_archive', id: 'a' }, 'Wikidata says public domain, a public video item: offered');
 same(k.archiveVerdict('a', item(MARK), UNKNOWN, 100)?.id, 'a', "the Archive's own public-domain mark: offered");
 same(k.archiveVerdict('a', item({ licenseurl: 'https://creativecommons.org/publicdomain/zero/1.0/' }), UNKNOWN, 100)?.id, 'a', 'CC0: offered');
 same(k.archiveVerdict('a', item({ licenseurl: 'http://creativecommons.org/licenses/publicdomain/' }), UNKNOWN, 100)?.id, 'a', "the Archive's older public-domain mark: offered");
@@ -128,15 +128,14 @@ same(k.isoSeconds('PT1H24M3S'), 5043, 'a length reads');
 same(k.isoSeconds('P1DT2H'), 93600, 'a very long one reads');
 same(k.isoSeconds('soon'), null, 'junk is no length');
 same(k.isoSeconds('P'), null, 'an empty length is no length');
-same(k.youtubeVerdict(video(), PD, 100, 'SE')?.why, 'public_domain', 'a public-domain film, any uploader: offered');
+same(k.youtubeVerdict(video(), PD, 100, 'SE'), { platform: 'youtube', id: 'AAAAAAAAAAA' }, 'a public-domain film, any uploader: offered');
 same(k.youtubeVerdict(video(), UNKNOWN, 100, 'SE'), null, "a stranger's upload of a film with no status: NOT offered");
 same(k.youtubeVerdict(video(), NAMED_COPYRIGHTED, 100, 'SE'), null, "a stranger's upload of a copyrighted film: NOT offered");
-same(k.youtubeVerdict(video({}, { licensedContent: true }), UNKNOWN, 100, 'SE')?.why, 'official', "YouTube's rights-partner flag: offered, as official");
-same(k.youtubeVerdict(video({}, { licensedContent: true }), NAMED_COPYRIGHTED, 100, 'SE')?.why, 'official', 'an official upload of a copyrighted film is plainly legal');
+same(k.youtubeVerdict(video({}, { licensedContent: true }), UNKNOWN, 100, 'SE'), null, "YouTube's claimed flag is no evidence: a stranger's claimed upload has it too");
+same(k.youtubeVerdict(video({}, { licensedContent: true }), NAMED_COPYRIGHTED, 100, 'SE'), null, 'nor for a film called copyrighted');
 same(k.youtubeVerdict(video({ embeddable: false }), PD, 100, 'SE'), null, 'cannot be embedded: refused');
 same(k.youtubeVerdict(video({ privacyStatus: 'unlisted' }), PD, 100, 'SE'), null, 'not public: refused');
 same(k.youtubeVerdict(video({}, { duration: 'PT2M' }), PD, 100, 'SE'), null, 'a trailer: refused');
-same(k.youtubeVerdict(video({}, { duration: 'PT2M', licensedContent: true }), UNKNOWN, 100, 'SE'), null, 'an official trailer is still a trailer');
 same(k.youtubeVerdict(video({}, { contentRating: { ytRating: 'ytAgeRestricted' } }), PD, 100, 'SE'), null, 'age-locked (the embed refuses): refused');
 same(k.youtubeVerdict(video({}, { regionRestriction: { blocked: ['SE'] } }), PD, 100, 'SE'), null, 'blocked here: refused');
 same(k.youtubeVerdict(video({}, { regionRestriction: { allowed: ['US'] } }), PD, 100, 'SE'), null, 'not allowed here: refused');
@@ -173,7 +172,7 @@ async function main() {
   const titles = [{ type: 'movie', tmdbId: 603 }, { type: 'tv', tmdbId: 1399 }];
   const all = world();
   const full = await k.readKinoSources(titles, 'SE', { fetch: all.fetch, tmdbToken: 'tmdb-secret', youtubeKey: 'yt-secret' });
-  same(full['movie-603'].free, [{ platform: 'internet_archive', id: 'good_item', why: 'public_domain' }, { platform: 'youtube', id: 'AAAAAAAAAAA', why: 'public_domain' }], 'the restricted item is passed over; one copy per site');
+  same(full['movie-603'].free, [{ platform: 'internet_archive', id: 'good_item' }, { platform: 'youtube', id: 'AAAAAAAAAAA' }], 'the restricted item is passed over; one copy per site');
   same(full['movie-603'].watch.stream, ['First', 'Second'], 'the country asked for');
   same(full['tv-1399'].free, [], 'a title with no links: none');
   ok(!JSON.stringify(full).includes('secret'), 'no key in the answer');
