@@ -1,6 +1,6 @@
 /*
  * The catalogue sweep (SPEC-discover.md), offline with fakes: what each source is asked and how it's read, the $50 stop, that nothing is paid for or counted twice, and that the pool stays bounded. The migration only adds.
- *   npx tsc app/lib/web/sweep.ts app/lib/web/seen-items.ts app/lib/tag-station/graph.ts app/lib/tag-station/query.ts app/lib/tag-station/supabase-tag-repository.ts app/lib/tag-station/mock-tag-repository.ts --rootDir app/lib --outDir Temp/tag-station-sweep-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/lib/tag-station/pool-more.ts app/lib/web/sweep.ts app/lib/web/seen-items.ts app/lib/tag-station/graph.ts app/lib/tag-station/query.ts app/lib/tag-station/supabase-tag-repository.ts app/lib/tag-station/mock-tag-repository.ts --rootDir app/lib --outDir Temp/tag-station-sweep-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -58,7 +58,8 @@ let finished = false;
   const heavy = network([[/^archive\.org/, () => json({}, 500)]]);
   assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(heavy))).state, { cursor: 'kept', rows: 2500 }, 'a page too heavy to read asks for less next run');
   const lastPage = network([[/^archive\.org/, () => json({ items: [] })]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'x', wider: true }, later(), deps(lastPage))).state, { done: true }, 'the end of the wider list: finished, not going round');
+  const allLetters = Object.fromEntries([...'abcdefghijklmnopqrstuvwxyz0123456789'].map((one) => [one, false]));
+  assert.deepEqual((await sweep.readArchive({ wider: true, places: allLetters }, later(), deps(lastPage))).state, { done: true }, 'every letter finished: finished, not going round');
   assert.equal(stopped.asked.length, 1, 'with no second try');
 
   // 2. A fixed agent naming the project, on every source. Never a person.
@@ -81,6 +82,14 @@ let finished = false;
   assert.equal(new URL(deep.asked[1].url).searchParams.get('start'), '0');
   assert.ok(deep.asked.every((one) => Number(new URL(one.url).searchParams.get('start')) < 9000), 'and never asks past what it allows');
   assert.equal(rolled.state.before, '2024-05-05T00:00:00.000Z');
+  // What sat at exactly that date isn't read twice.
+  const video = (id, date) => ({ uuid: id, name: `V ${id}`, url: `https://video.blender.org/videos/watch/${id}`, publishedAt: date, createdAt: date, privacy: { id: 1 }, nsfw: false, account: { name: 'a', host: 'video.blender.org' }, channel: { name: 'c', host: 'video.blender.org' } });
+  const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
+  const edgeNet = network([[/^sepiasearch\.org/, (url) => json({ data: url.searchParams.get('endDate') ? [video(uuid(1), '2024-05-05T00:00:00.000Z'), video(uuid(2), '2024-05-04T00:00:00.000Z')] : Array.from({ length: 100 }, (_, i) => video(uuid(i < 99 ? i + 100 : 1), i < 99 ? '2024-06-01T00:00:00.000Z' : '2024-05-05T00:00:00.000Z')) })]]);
+  const edgeRead = await sweep.readPeertube({ start: 8900 }, later(), deps(edgeNet));
+  const edgeIds = edgeRead.items.map((one) => one.externalId);
+  assert.equal(edgeIds.filter((one) => one === uuid(1)).length, 1, 'the item at the edge is read once');
+  assert.ok(edgeIds.includes(uuid(2)), 'and what comes after it is read');
   const sameDate = network([[/^sepiasearch\.org/, () => page100('2024-05-05T00:00:00.000Z')]]);
   assert.deepEqual((await sweep.readPeertube({ start: 8900, before: '2024-05-05T00:00:00.000Z' }, later(), deps(sameDate))).state, { done: true }, 'stuck on one date: finished, not going round');
   const openverse = network([[/^api\.openverse\.org/, () => json({ results: [{}] })]]);
@@ -141,13 +150,34 @@ let finished = false;
   // 6. The sources. The "nothing from TMDB" guard was here until Luke removed that rule (2026-11-06): his decision, in SPEC-discover.md.
   assert.deepEqual([...sweep.SWEEP_SOURCES].sort(), ['internet_archive', 'openverse', 'peertube', 'tvmaze', 'wikidata']);
   // Wider than the named collections, and still never adult, restricted or dark.
-  for (const needed of ['licenseurl:*', 'NOT collection:(no-preview OR adult)', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
+  for (const needed of ['NOT collection:(no-preview OR adult OR ', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
+  for (const named of sweep.ARCHIVE_COLLECTIONS) assert.ok(sweep.ARCHIVE_WIDER.includes(` OR ${named}`), `and leaves out ${named}, already read and paid for`);
   const lastNamed = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [] })]]);
   const movedOn = await sweep.readArchive({ cursor: 'x' }, later(), deps(lastNamed));
-  assert.deepEqual(movedOn.state, { cursor: null, rows: 5000, wider: true }, 'the end of the named collections: on to the wider list');
+  assert.deepEqual(movedOn.state, { wider: true, rows: 5000, turn: 0, places: {} }, 'the end of the named collections: on to the wider list');
   assert.equal(lastNamed.asked.length, 1);
-  await sweep.readArchive(movedOn.state, later(), deps(lastNamed));
-  assert.equal(new URL(lastNamed.asked[1].url).searchParams.get('q'), sweep.ARCHIVE_WIDER, 'asking for the wider list');
+  // Takes turns through first letters, each with its own place, so what gets tagged is a spread and not only names starting with a digit.
+  const letterNet = network([[/^archive\.org\/services\/search\/v1\/scrape$/, (url) => {
+    const q = url.searchParams.get('q');
+    const letter = q.slice(-2, -1);
+    return json(letter === 'b' ? { items: [] } : { items: [{ identifier: `${letter}-item`, title: 'T', mediatype: 'movies', publicdate: '2020-01-01T00:00:00Z' }], cursor: `${letter}-next` });
+  }]]);
+  const letters = await sweep.readArchive({ wider: true, rows: 5000, turn: 0, places: { a: 'a-was' } }, later(), deps(letterNet));
+  const askedLetters = letterNet.asked.map((one) => new URL(one.url).searchParams);
+  assert.deepEqual(askedLetters.map((one) => one.get('q').slice(-2, -1)), ['a', 'b', 'c', 'd'], 'a different letter each call');
+  assert.ok(askedLetters.every((one) => one.get('q').startsWith(sweep.ARCHIVE_WIDER)), 'all on the wider list');
+  assert.equal(askedLetters[0].get('cursor'), 'a-was', "each from that letter's own place");
+  assert.equal(askedLetters[1].get('cursor'), null);
+  assert.equal(letters.state.places.a, 'a-next');
+  assert.equal(letters.state.places.b, false, "a letter's end stops that letter");
+  assert.equal(letters.state.turn, 4, 'and the next run carries on from the next letter');
+  const skipping = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [], cursor: 'z' })]]);
+  await sweep.readArchive({ wider: true, turn: 1, places: { b: false } }, later(), deps(skipping));
+  assert.equal(new URL(skipping.asked[0].url).searchParams.get('q').slice(-2, -1), 'c', 'a finished letter is passed over');
+  const stoppedLetter = network([[/^archive\.org/, () => json({}, 429)]]);
+  const held = await sweep.readArchive({ wider: true, turn: 3, places: { d: 'd-was' } }, later(), deps(stoppedLetter));
+  assert.equal(held.state.places.d, 'd-was', 'a 429 keeps its place');
+  assert.equal(held.state.turn, 3);
   const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations', fs.readdirSync(path.join(ROOT, 'supabase/migrations')).find((name) => name.endsWith('_web_pool.sql'))), 'utf8');
   const code = sql.replace(/--.*$/gm, '');
   assert.ok(/platform in \('internet_archive', 'peertube', 'openverse', 'wikidata', 'tvmaze'\)/.test(code), 'and the table takes no other source');
@@ -270,7 +300,11 @@ let finished = false;
   assert.equal(deadlineGiven, 61000, 'reading stops after 60 seconds');
   const heldBackRun = fake({ spent: 59.4 - worstCaseCost(candidate('a')) * 1.5, items: [candidate('a'), candidate('b')] });
   await sweep.runSweep(heldBackRun.client, heldBackRun.store, heldBackRun.read);
-  assert.deepEqual(heldBackRun.log.states, [], 'items held back by the limit keep their place');
+  assert.equal(heldBackRun.log.created[0].length, 1, 'the limit lets one through');
+  assert.deepEqual(heldBackRun.log.states, [['internet_archive', { cursor: 'x' }]], 'and the place moves on, or the next run would send that one again');
+  const allHeld = fake({ spent: 59.4 - worstCaseCost(candidate('a')) * 0.5, items: [candidate('a')] });
+  await sweep.runSweep(allHeld.client, allHeld.store, allHeld.read);
+  assert.deepEqual(allHeld.log.states, [], 'with nothing sent, the place stays');
 
   const stuck = fake({ pending: ['b1'], status: 'in_progress', items: [candidate('a')] });
   const stuckRun = await sweep.runSweep(stuck.client, stuck.store, stuck.read);
@@ -284,6 +318,7 @@ let finished = false;
   await assert.rejects(sweep.runSweep(lost.client, lost.store, lost.read));
   assert.deepEqual(lost.log.cancelled, ['batch-new'], 'a batch nothing remembers is cancelled');
   assert.deepEqual(lost.log.states, [], 'and the place is not moved');
+  assert.deepEqual(lost.log.unreserved, [7], 'and its worst case stops counting if it never got a row');
 
   // 9. Collecting: paid for first, chunks with their counts, only what's still out.
   const answer = (id, words) => ({ custom_id: customIdFor(id), result: { type: 'succeeded', message: { stop_reason: 'end_turn', usage: { input_tokens: 500, output_tokens: 30 }, content: [{ type: 'text', text: JSON.stringify({ words }) }] } } });
@@ -352,6 +387,9 @@ let finished = false;
   assert.deepEqual(reopened[0], { ...fileRow(twoFiles[poolFiles.ITEMS_PER_FILE]), words: ['jazz', 'w5'] }, 'a row comes back from its file as it went in');
   assert.equal(fileRun.log.files.has('out/b9.br'), false, 'the file sent is removed once collected');
   assert.deepEqual(fileRun.log.released, ['b9']);
+  const partial = fake({ pending: ['b8'], results: [answer('internet_archive:g1', ['jazz']), { custom_id: customIdFor('internet_archive:g2'), result: { type: 'expired' } }, answer('internet_archive:g3', ['not_valid!'])] });
+  partial.log.files.set('out/b8.br', poolFiles.encodePoolFile(['g1', 'g2', 'g3'].map(fileRow)));
+  assert.equal((await sweep.runSweep(partial.client, partial.store, partial.read)).noWords, 2, 'answers with no words are said, not lost quietly');
   assert.equal(fileRun.log.stats[0].stats.find((one) => one.word === 'jazz').items, twoFiles.length, 'counted once');
   // A row sent before the files moves over, and only then may it be removed.
   const unfiled = Array.from({ length: 1500 }, (_, i) => ({ ...fileRow(`old${i}`), words: ['jazz'] }));
@@ -360,6 +398,22 @@ let finished = false;
   assert.equal(moving.log.filed.length, 1500, 'rows sent before the files are copied in');
   assert.equal(moving.log.registered.reduce((sum, one) => sum + one.items, 0), 1500);
   assert.ok(moving.log.registered.every((one) => one.where.startsWith('b/')));
+
+  // A list's extra items: words as the files hold them, with their spaces, and no map drawn to get them.
+  const more = require('./tag-station-sweep-out/tag-station/pool-more.js');
+  const shownGraph = { tags: [{ name: 'science fiction' }, { name: 'jazz' }, { name: 'film' }], aliases: { scifi: 'science fiction' } };
+  const moreFacts = [{ word: 'sci-fi', facet: 'genre', sameAs: 'science fiction', vague: false }, { word: 'trains', facet: 'subject', sameAs: null, vague: false }];
+  const spelled = more.spellingsOf(['Science Fiction'], moreFacts, shownGraph);
+  assert.ok(spelled.includes('science fiction'), `a two-word word is asked for with its space: ${spelled}`);
+  assert.ok(spelled.includes('sci-fi'), 'and a spelling joined to it is asked for too');
+  assert.ok(!spelled.includes('trains'));
+  const fileRowsAsRows = Array.from({ length: 300 }, (_, i) => ({ item: { id: `peertube:v${i}`, platform: 'peertube', externalId: `v${i}`, kind: 'video', url: 'https://a.example/x', canonicalUrl: 'https://a.example/x', title: `V${i}`, publishedAt: '', fetchedAt: '', views: 99 }, claudeWords: ['sci-fi', 'science fiction', 'off the map', 'film'], listOnly: true }));
+  const startedMore = Date.now();
+  const moreOut = more.moreItems(fileRowsAsRows, shownGraph);
+  assert.ok(Date.now() - startedMore < 200, `no map is drawn to answer a list: ${Date.now() - startedMore} ms`);
+  assert.deepEqual(moreOut[0].words.map((one) => one.word), ['film', 'science fiction'], 'spelled as the map spells them, joined, and only those on the map');
+  assert.equal(moreOut[0].views, undefined, 'and only what a row needs reaches the answer');
+  assert.deepEqual(more.moreItems([{ ...fileRowsAsRows[0], claudeWords: ['off the map'] }], shownGraph), [], 'an item with no word on the map is left out');
 
   // The file format: small, and exact.
   const sample = Array.from({ length: 2000 }, (_, i) => ({ platform: i % 2 ? 'peertube' : 'internet_archive', externalId: `item-${i}-${(i * 7919).toString(36)}`, host: i % 2 ? 'video.example.org' : null, kind: i % 3 ? 'video' : 'audio', title: `A title for item ${i}`, creator: i % 5 ? `Maker ${i % 40}` : null, publishedAt: i % 7 ? '2019-03-04T05:06:07.000Z' : null, tmdbRef: i % 11 ? null : `movie:${i}`, words: ['jazz', `theme ${i % 50}`, `mood ${i % 9}`] }));

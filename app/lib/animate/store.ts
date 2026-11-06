@@ -28,6 +28,9 @@ export type Settings = {
   shortcuts: Record<string, string>;
   defaultGap: number;
   bigBadge: boolean;
+  showLayers: boolean;
+  /** Everything but the sheet out of the way, for drawing at a big interface size. */
+  panelsHidden: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   defaultGap: 8,
   bigBadge: true,
+  showLayers: true,
+  panelsHidden: false,
 };
 
 const SETTINGS_KEY = 'debaser.animate.settings';

@@ -19,7 +19,7 @@ this file holds what was decided for the build.
 - **Offline:** once the page is open it needs no network to draw, save or export. Opening it cold with no connection needs an
   installable web app (service worker), which the site does not have; left out of version 1 and said here so it isn't assumed.
 - **q-floodfill is not used.** The plan lists it for the basic fill, but the Phase 3 region map already answers "what would this
-  fill cover", and a raw fill on a plain layer is a short scanline in the background worker. One fewer package.
+  fill cover", with smarts on or off. One fewer package. A fill with smarts off keeps the exact rows it filled, so it never moves.
 - **Code draws no icons:** every tool is a word in a bracket key, so the plan's "tag icon" is a short text mark, and no art slots
   are needed. Tag and paint colours are people's data (`app/lib/animate/colours.ts`, skipped by the token guard like a name's
   swatch); the UI's own colours come from the tokens.

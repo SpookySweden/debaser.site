@@ -7,13 +7,14 @@
  * true place in the stack (a colour stroke shows under the lines while it's being drawn).
  */
 import { BRUSH_SHAPES, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE, Stabiliser, applyCurve, tiltPressure, type Rect } from './brushes';
+import { SAFE_AREA } from './colours';
 import { composite } from './composite';
 import { copyRect, History, restoreRect, type HistoryStep, type PlanePatch } from './history';
 import { fillStroke, paintStroke, strokeBounds, type PaintMask } from './paint';
 import { planeFile, planeKey, PlaneStore } from './planes';
 import { addDrawing, addOp, celAt, createProject, findNode, firstLayer, neighbourFrame } from './project';
 import { assetIdsOf, buildProjectFile, FILE_EXTENSION, readProjectFile, safeFileName, saveBlobAs } from './project-file';
-import { askToKeepStorage, deleteProjectData, getMeta, listProjects, loadProjectData, readFile, saveProjectData, setMeta, type ProjectListing } from './storage';
+import { askToKeepStorage, deleteProjectData, getMeta, listProjects, listFiles, loadProjectData, readFile, saveProjectData, setMeta, writeFile, deleteFile, type ProjectListing } from './storage';
 import { saveSettings, useStudio, type ToolId } from './store';
 import { isFigure, liveBehaviours, smartsForStroke, tagBehaviours } from './tags';
 import type { BrushId, Cel, LayerNode, PlaneName, PlaneOp, Project, Stroke, StrokePoint } from './types';
@@ -24,13 +25,14 @@ export type View = { zoom: number; x: number; y: number; rot: number; flip: bool
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 32;
+const VERSION_EVERY_MS = 5 * 60 * 1000;
 
 function newProjectId(): string {
   return `p_${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
 }
 
 /** A stroke in the hand: what `live` is drawing. */
-type LiveStroke = {
+export type LiveStroke = {
   layerId: string;
   plane: PlaneName;
   stroke: Stroke;
@@ -117,8 +119,24 @@ export class AnimateEngine {
     const [drawingId, plane] = key.split('.') as [string, PlaneName];
     const ops = this.project.drawings[drawingId]?.planes[plane];
     if (ops === undefined || ops.length === 0) return false;
+    const done = (await this.beforeRebuild?.(drawingId, plane)) ?? null;
     this.replayOps(canvas, ops);
+    done?.();
     return true;
+  }
+
+  /** Set by the smart module: gets ready to replay a plane, and says how to finish. */
+  beforeRebuild: ((drawingId: string, plane: PlaneName) => Promise<(() => void) | null>) | null = null;
+  /** Told when nothing is waiting in the undo queue any more. */
+  onIdle: (() => void) | null = null;
+
+  /** A stroke is in the hand, or an undo is waiting on a picture: not a moment to change a plane behind them. */
+  isBusy(): boolean {
+    return this.live !== null || this.queuedJobs > 0;
+  }
+
+  get swapCount(): number {
+    return this.generation;
   }
 
   /** Lay a list of operations onto a blank plane. Smart operations go through `maskForOp` (set by the smart module). */
@@ -354,6 +372,10 @@ export class AnimateEngine {
 
   /** Hand this a playback picture and the stage shows it instead of building the frame. */
   playbackPicture: ImageBitmap | null = null;
+  /** Working copies shown in place of planes while a selection is dragged. */
+  previewOverrides: Map<string, OffscreenCanvas> | null = null;
+  /** Told after a selection's move lands (the smart module re-reads the lines). */
+  afterMove: (() => void) | null = null;
   onionShift: ((celId: string) => DOMMatrixReadOnly | null) | null = null;
 
   private prepare(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
@@ -383,7 +405,7 @@ export class AnimateEngine {
     return {
       project: state.project,
       frame: state.frame,
-      planes: (key: string) => this.planes.peek(key),
+      planes: (key: string) => this.previewOverrides?.get(key) ?? this.planes.peek(key),
       activeLayerId: state.layerId,
       showOnion: !state.playing,
       lightTable: state.lightTable,
@@ -447,12 +469,23 @@ export class AnimateEngine {
     if (this.live !== null) return;
     const m = this.viewMatrix();
     ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    if (this.project.safeArea) this.paintSafeArea(ctx);
     for (const painter of this.uiPainters) {
       ctx.save();
       painter(ctx);
       ctx.restore();
     }
     this.paintRing(ctx);
+  }
+
+  /** The safe-area guide: 90% and 80% of the sheet. */
+  private paintSafeArea(ctx: CanvasRenderingContext2D): void {
+    const { width, height } = this.project;
+    ctx.save();
+    ctx.strokeStyle = SAFE_AREA;
+    ctx.lineWidth = 1.5 / this.view.zoom;
+    for (const share of [0.9, 0.8]) ctx.strokeRect((width * (1 - share)) / 2, (height * (1 - share)) / 2, width * share, height * share);
+    ctx.restore();
   }
 
   private paintRing(ctx: CanvasRenderingContext2D): void {
@@ -478,8 +511,19 @@ export class AnimateEngine {
     return tool === 'lasso' || tool === 'rect' || tool === 'pick' || tool === 'hand' || tool === 'shift' ? null : tool;
   }
 
+  /** Told where the pen is on the stage, so the badge can sit beside it. */
+  onHoverMove: ((screen: { x: number; y: number } | null) => void) | null = null;
+
   setHover(point: { x: number; y: number } | null): void {
     this.hover = point;
+    if (this.onHoverMove !== null) {
+      if (point === null) {
+        this.onHoverMove(null);
+      } else {
+        const p = this.viewMatrix(false).transformPoint(new DOMPoint(point.x, point.y));
+        this.onHoverMove({ x: p.x, y: p.y });
+      }
+    }
     if (this.stage !== null && this.live === null) this.paintUi();
   }
 
@@ -571,6 +615,8 @@ export class AnimateEngine {
 
   /** Set by the smart module: what mask, if any, the stroke just begun is held to. */
   liveMaskFor: ((live: LiveStroke, x: number, y: number) => PaintMask | null) | null = null;
+  /** Set by the smart module: a mask the stroke has to wait for as it lands, when the lines aren't read yet. */
+  commitMask: ((live: LiveStroke) => Promise<PaintMask | null> | null) | null = null;
 
   private prepareLiveMask(): void {
     const live = this.live;
@@ -672,8 +718,9 @@ export class AnimateEngine {
     }
     const bounds = strokeBounds(stroke, before.width, before.height);
     const key = planeKey(cel.drawingId, live.plane);
-    const mask = live.mask;
+    const generation = this.generation;
     const finish = (canvas: OffscreenCanvas) => {
+      const mask = live.mask;
       const ctx = canvas.getContext('2d');
       const patches: PlanePatch[] = [];
       if (ctx !== null && bounds !== null) {
@@ -689,17 +736,28 @@ export class AnimateEngine {
       this.clearLiveCanvas();
       this.afterStroke(live.layerId, cel.drawingId, live.plane);
     };
-    const canvas = this.planes.openNow(key);
-    if (canvas !== null) {
-      finish(canvas);
-    } else {
+    const land = () => {
+      const canvas = this.planes.openNow(key);
+      if (canvas !== null) {
+        finish(canvas);
+        return;
+      }
       // The picture is still coming from storage: the stroke lands the moment it arrives, unless the person has since dropped
       // it or moved to another project.
-      const generation = this.generation;
       void this.planes.open(key).then((opened) => {
         if (generation === this.generation && this.live === live) finish(opened);
       });
+    };
+    const waitFor = this.commitMask?.(live) ?? null;
+    if (waitFor === null) {
+      land();
+      return;
     }
+    void waitFor.then((mask) => {
+      if (generation !== this.generation || this.live !== live) return;
+      live.mask = mask;
+      land();
+    });
   }
 
   /** Told after every stroke lands (the smart module re-reads the lines). */
@@ -726,6 +784,7 @@ export class AnimateEngine {
     this.queuedJobs += 1;
     const run = () => job().finally(() => {
       this.queuedJobs -= 1;
+      if (this.queuedJobs === 0) this.onIdle?.();
     });
     this.queue = this.queue.then(run, run);
   }
@@ -768,6 +827,8 @@ export class AnimateEngine {
   // ── the timeline ───────────────────────────────────────────────────────────────────────
 
   goToFrame(frame: number): void {
+    // A stroke belongs to the frame it started on.
+    if (this.live !== null) return;
     const { project } = this;
     const next = Math.max(0, Math.round(frame));
     if (next === this.frame) return;
@@ -828,6 +889,7 @@ export class AnimateEngine {
         if (generation === this.generation) {
           await setMeta('current', project.id);
           this.lastSaved = project;
+          void this.keepVersion(project);
         }
       }
     } catch {
@@ -836,6 +898,45 @@ export class AnimateEngine {
     if (generation !== this.generation) return;
     useStudio.setState({ saveState: ok ? (this.needsSaving() ? 'waiting' : 'saved') : 'failed' });
     if (!ok) this.notify('COULD NOT SAVE IN THIS BROWSER. SAVE TO A FILE.', true);
+  }
+
+  private lastVersion = 0;
+
+  /** Every five minutes of work, an older version of the project, kept as a whole project file. */
+  private async keepVersion(project: Project): Promise<void> {
+    const keep = useStudio.getState().settings.keepVersions;
+    const now = Date.now();
+    if (keep <= 0 || now - this.lastVersion < VERSION_EVERY_MS) return;
+    if (this.lastVersion === 0) {
+      // A fresh visit starts its clock: nothing has changed yet that's worth a copy.
+      this.lastVersion = now;
+      return;
+    }
+    this.lastVersion = now;
+    try {
+      const blob = await buildProjectFile(project, (key) => readFile(project.id, planeFile(key)));
+      await writeFile(project.id, `versions/${now}.zip`, blob);
+      const names = (await listFiles(project.id, 'versions')).sort();
+      for (const old of names.slice(0, Math.max(0, names.length - keep))) await deleteFile(project.id, `versions/${old}`);
+    } catch {
+      // A version is a nicety: the save itself already landed.
+    }
+  }
+
+  /** The older versions of this project, newest first. */
+  async versions(): Promise<{ name: string; time: number }[]> {
+    const names = await listFiles(this.project.id, 'versions');
+    return names.map((name) => ({ name, time: Number(name.replace('.zip', '')) })).sort((a, b) => b.time - a.time);
+  }
+
+  /** An older version opens as a project of its own; the current one stays as it is. */
+  async openVersion(name: string): Promise<void> {
+    const blob = await readFile(this.project.id, `versions/${name}`);
+    if (blob === null) {
+      this.notify('THAT VERSION IS GONE', true);
+      return;
+    }
+    await this.openFile(blob);
   }
 
   /** Before leaving a project: true once it's safe. Refused, in words, if it isn't, so a swap never drops unsaved pictures. */

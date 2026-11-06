@@ -110,14 +110,15 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 out its worst case is reserved in `web_sweep_batches`, all at once in the database (`web_sweep_reserve`), against $59.40, leaving $0.60 for the tagging job and the word pass; all three read
 `web_tag_committed`, so what's in flight can't pass the $60. Measured: 3.3 cents per 1,000 items.
 
-**Sources:** the named collections first, then 3.26 million Internet Archive videos and recordings whose uploader states a licence, skipping adult, restricted and dark items. Stating a
-licence isn't proof the uploader may give it, so a copied item can still get through: the rows link to the Archive and nothing is copied here. PeerTube goes back by date past Sepia's 9,000-row limit.
+**Sources:** the named collections first, then everything public on the Internet Archive (Luke, 2026-11-06, "Everything public"), 74 million items, skipping adult-flagged, restricted and dark ones. The $60
+reaches about 2% of it, and the Archive lists by name, so it takes turns through first letters and what gets tagged is a spread. Copied items and junk can get through: the rows link to the Archive and nothing is
+copied here. PeerTube goes back by date past Sepia's 9,000-row limit.
 
 **Past the database limit (Luke, 2026-11-06: "find a way around the database limit"):** compressed files in Supabase Storage, the private bucket `web-pool` (`app/lib/web/pool-files.ts`): about 43 bytes an
 Archive item and 84 a PeerTube one, against about 520 for a database row. `web_pool_shards` lists which words are in which file, so a list reads the few files holding its words
 (`/api/tag-station/more`). Only a sample of each batch stays as rows. The stops still in code: 300 MB of database, because the plan goes read-only at 500 and the whole site needs it, and 800 MB of the 1 GB of files.
 
-**Bulk public dumps: looked at, and not needed to reach $60.** Wikidata's dump is 157 GB compressed, Wikipedia's 26 GB, Open Library's 17 GB. The APIs already supply more items than $60 can tag, so a
+**Bulk public dumps: looked at, and not needed to reach $60.** Wikidata's dump is 157 GB compressed, Wikipedia's 26 GB, Open Library's 17 GB. The APIs already supply far more items than $60 can tag, so a
 local job would add days of download and a Claude key on the PC without tagging one item sooner. Worth coming back to if more money is ever spent on this.
 
 **Known and left:**

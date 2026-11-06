@@ -5,6 +5,7 @@ import { stepUiScale } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
 import { updateSettings, useStudio, type SaveState } from '../../lib/animate/store';
 import { FILE_EXTENSION } from '../../lib/animate/project-file';
+import { toggleSmarts } from '../../lib/animate/smart';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 
 const SAVE_WORDS: Record<SaveState, string> = {
@@ -24,6 +25,7 @@ export default function AnimateTopBar() {
   const full = useStudio((state) => state.settings.full);
   const uiScale = useStudio((state) => state.settings.uiScale);
   const zoomPercent = useStudio((state) => state.zoomPercent);
+  const smartOn = useStudio((state) => state.smartOn);
   const openFile = useRef<HTMLInputElement>(null);
 
   return (
@@ -65,6 +67,10 @@ export default function AnimateTopBar() {
         {SAVE_WORDS[saveState]}
       </span>
 
+      <button type="button" className={smartOn ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={smartOn} onClick={toggleSmarts} title="Q (HOLD FOR ONE STROKE)" data-animate-smart-key>
+        [ SMART {smartOn ? 'ON' : 'OFF'} ]
+      </button>
+
       <span className="ml-auto flex flex-wrap items-center gap-x-2 gap-y-1">
         <button type="button" className={PLATE_MEDIUM} disabled={!canUndo} onClick={() => getEngine().undo()} title="CTRL + Z">
           [ UNDO ]
@@ -78,17 +84,23 @@ export default function AnimateTopBar() {
         <button type="button" className={PLATE_MEDIUM} onClick={() => getEngine().fitView()} title="0">
           [ FIT ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(-1)} aria-label="Interface smaller" title="CTRL + ,">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(-1)} aria-label="Interface smaller" title="CTRL + ;">
           [ UI - ]
         </button>
         <span className="text-ink" aria-label={`Interface ${Math.round(uiScale * 100)} percent`}>
           {Math.round(uiScale * 100)}%
         </span>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(1)} aria-label="Interface bigger" title="CTRL + .">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(1)} aria-label="Interface bigger" title="CTRL + '">
           [ UI + ]
         </button>
         <button type="button" className={full ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={full} onClick={() => updateSettings({ full: !full })} title="\">
           [ FULL ]
+        </button>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ panelsHidden: true })} title="`">
+          [ HIDE PANELS ]
+        </button>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'settings' })} title="CTRL + ,">
+          [ SETTINGS ]
         </button>
         <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'help' })} title="?">
           [ ? ]

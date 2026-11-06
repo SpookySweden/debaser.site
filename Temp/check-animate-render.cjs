@@ -101,4 +101,46 @@ assert.deepEqual(X.exportSize({ ...project, width: 101, height: 77 }, 1, true), 
 const rough = P.updateNode(project, layerId, { tagId: 'rough' });
 assert.deepEqual(X.runsOf(rough, 0, 6), [{ frame: 0, count: 7 }], 'a Rough layer never appears in a render');
 
+// Layers, and the settings.
+useStudio.setState({ project, layerId, panel: 'settings' });
+html = draw();
+assert.ok(html.includes('[ + LAYER ]') && html.includes('[ + FOLDER ]'), 'the layer list can make rows');
+assert.ok(html.includes('aria-label="Blend mode"') && html.includes('aria-label="Tag"'), 'a row has a blend and a tag');
+assert.ok(html.includes('[ 300% ]'), 'the interface goes to 300%');
+assert.ok(html.includes('Pressure curve'), 'the pen has a curve');
+assert.ok(html.includes('Change the key for PENCIL'), 'every action can be given a key');
+assert.ok(html.includes('COLOUR') && !html.includes('FAILED'), 'and it draws');
+useStudio.setState({ panel: 'none' });
+// Tag chips: a folder's passes down, and a Figure shows its planes.
+const figure = P.updateNode(project, layerId, { tagId: 'figure' });
+useStudio.setState({ project: figure });
+html = draw();
+assert.ok(html.includes('data-animate-chip="figure"'), 'a tag shows as a chip');
+assert.ok(html.includes('data-animate-plane="line"') && html.includes('data-animate-plane="colour"'), 'a Figure shows its two planes');
+useStudio.setState({ project });
+
+// The master toggle says where it stands, and the sheet says so too.
+useStudio.setState({ smartOn: true });
+html = draw();
+assert.ok(html.includes('[ SMART ON ]'), 'the smart key says on');
+assert.ok(!html.includes('data-animate-badge'), 'with no badge');
+useStudio.setState({ smartOn: false });
+html = draw();
+assert.ok(html.includes('[ SMART OFF ]'), 'and off');
+assert.match(html, /data-animate-badge[^>]*bg-bubble-pale[^>]*>SMART OFF/, 'with a high-contrast badge');
+useStudio.setState({ smartOn: true });
+useStudio.setState({ hasSelection: true });
+assert.ok(draw().includes('data-animate-make-smart'), 'MAKE SMART shows with a selection');
+useStudio.setState({ hasSelection: false });
+
+// Selection geometry and palette files.
+const Sel = require('./animate-render-out/lib/animate/selection.js');
+const square = [[0, 0], [10, 0], [10, 10], [0, 10]];
+assert.equal(Sel.pointInOutline(square, 5, 5), true);
+assert.equal(Sel.pointInOutline(square, 15, 5), false);
+const Colours = require('./animate-render-out/lib/animate/colours.js');
+assert.deepEqual(Colours.readPalette('{"swatches":[{"name":"A","colour":"#ABCDEF"},{"name":"bad","colour":"red"}]}'), [{ name: 'A', colour: '#abcdef' }], 'a palette file: good swatches kept, bad ones left out');
+assert.equal(Colours.readPalette('nonsense'), null);
+assert.equal(Colours.readPalette('{"swatches":[]}'), null);
+
 console.log('animate render: all passed');

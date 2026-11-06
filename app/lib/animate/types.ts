@@ -46,6 +46,8 @@ export type FillOp = {
   smartAtDrawTime: SmartName[];
   regionId?: number | null;
   maxGapPx?: number;
+  /** A fill made with smarts off keeps the exact rows it filled (row, from x, to x, ...), so it never moves. */
+  runs?: number[];
 };
 
 /** A selection moved: what the shape held is lifted and put down through the matrix. */
