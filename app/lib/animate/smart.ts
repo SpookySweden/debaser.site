@@ -673,30 +673,30 @@ function regionColours(map: RegionMap, plane: OffscreenCanvas): Map<number, stri
  * Carry colour forward: each area of the next drawing takes the colour that lies under most of it on this one. The lines have usually moved a little
  * between drawings, and most of an area still sits over the colour it should have.
  */
-export async function carryForward(): Promise<void> {
+export async function carryForward(): Promise<boolean> {
   const engine = getEngine();
   const state = useStudio.getState();
   const node = engine.activeLayer;
   if (node === null || node.kind !== 'layer' || !isFigure(state.project, node)) {
     engine.notify('CARRYING COLOUR NEEDS A FIGURE LAYER', true);
-    return;
+    return false;
   }
   const here = celFor(state.project, node, state.frame);
   const next = here === null ? undefined : node.cels.find((c) => c.frame > here.frame);
   if (here === null || next === undefined) {
     engine.notify('NO DRAWING AFTER THIS ONE', true);
-    return;
+    return false;
   }
   const entry = await readMap(node, next.frame, gapFor(state.project, node, true));
-  if (entry === null || engine.project.id !== state.project.id || engine.isBusy()) return;
+  if (entry === null || engine.project.id !== state.project.id || engine.isBusy()) return false;
   const source = await engine.planes.open(planeKey(here.drawingId, 'colour'));
   const target = await engine.planes.open(planeKey(next.drawingId, 'colour'));
   const ctx = target.getContext('2d');
-  if (ctx === null) return;
+  if (ctx === null) return false;
   const colours = regionColours(entry.map, source);
   if (colours.size === 0) {
     engine.notify('NO COLOUR TO CARRY', true);
-    return;
+    return false;
   }
 
   // A pixel inside each area to seed it from, so a re-lay can find it again.
@@ -724,6 +724,7 @@ export async function carryForward(): Promise<void> {
   engine.pushStep('CARRY COLOUR', before, after, [{ key, rect: full, before: copy, after: copyRect(target, full) }]);
   engine.goToFrame(next.frame);
   engine.notify(`CARRIED ${colours.size} COLOURS FORWARD`);
+  return true;
 }
 
 const smartActions: Action[] = [
@@ -752,6 +753,9 @@ const smartActions: Action[] = [
 ];
 addActions(smartActions);
 
+/** Drawings the Carry behaviour has already tried: once each, whatever came of it. */
+const carryTried = new Set<string>();
+
 function autoCarry(frame: number, from: number): void {
   const engine = getEngine();
   const { project, layerId } = useStudio.getState();
@@ -764,6 +768,8 @@ function autoCarry(frame: number, from: number): void {
   const had = project.drawings[old.drawingId]?.planes;
   const has = project.drawings[now.drawingId]?.planes;
   if (had === undefined || has === undefined || had.colour.length === 0 || has.colour.length > 0 || has.line.length === 0) return;
+  if (carryTried.has(now.id) || !isFigure(project, node)) return;
+  carryTried.add(now.id);
   // Carry from where the person just was: back a moment, then on again, would flash; the function goes to the next drawing itself.
   useStudio.setState({ frame: from });
   void carryForward().then(() => engine.goToFrame(frame));
@@ -865,6 +871,7 @@ export function installSmarts(): void {
     laidWith.clear();
     relaid.clear();
     relaysWaiting.clear();
+    carryTried.clear();
     fillTrail = null;
   });
   useStudio.subscribe((state, previous) => {

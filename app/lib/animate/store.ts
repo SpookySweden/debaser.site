@@ -112,6 +112,8 @@ export type StudioState = {
   shiftTraceOn: boolean;
   traceMode: 'move' | 'turn' | 'scale';
   traceSide: 'prev' | 'next';
+  /** An export under way, in words, or null. */
+  exportProgress: string | null;
   /** Counts up as sounds finish decoding, so what draws them can look again. */
   soundReady: number;
 };
@@ -142,6 +144,7 @@ export const useStudio = create<StudioState>(() => ({
   shiftTraceOn: false,
   traceMode: 'move',
   traceSide: 'prev',
+  exportProgress: null,
   soundReady: 0,
 }));
 

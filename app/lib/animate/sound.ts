@@ -28,6 +28,16 @@ export function soundBuffer(track: AudioTrack | null): AudioBuffer | null {
   return track === null ? null : (decoded.get(track.assetId) ?? null);
 }
 
+/** An asset's name, unique for good, so two projects (or an undo and a new file) can never share one. */
+export function newAssetId(): string {
+  return `a_${Date.now().toString(36)}${Math.floor(Math.random() * 46656).toString(36)}`;
+}
+
+/** The sound decoded, however long that takes: an export waits for it rather than leaving it out. */
+export function ensureSound(projectId: string, track: AudioTrack): Promise<AudioBuffer | null> {
+  return decode(projectId, track.assetId);
+}
+
 async function decode(projectId: string, assetId: string): Promise<AudioBuffer | null> {
   const known = decoded.get(assetId);
   if (known !== undefined) return known;
@@ -47,7 +57,8 @@ async function decode(projectId: string, assetId: string): Promise<AudioBuffer |
 export async function loadSound(file: File): Promise<void> {
   const engine = getEngine();
   const { project } = engine;
-  const assetId = `a_${project.nextId}`;
+  const swap = engine.swapCount;
+  const assetId = newAssetId();
   try {
     const buffer = await audio().decodeAudioData(await file.arrayBuffer());
     decoded.set(assetId, buffer);
@@ -56,7 +67,9 @@ export async function loadSound(file: File): Promise<void> {
     return;
   }
   await writeFile(project.id, `assets/${assetId}`, file);
-  engine.edit('SOUND', (p) => ({ ...p, nextId: p.nextId + 1, audio: { assetId, name: file.name.slice(0, 60), frame: 0, volume: 1 } }));
+  // The person may have moved to another project while the file was read.
+  if (engine.swapCount !== swap) return;
+  engine.edit('SOUND', (p) => ({ ...p, audio: { assetId, name: file.name.slice(0, 60), frame: 0, volume: 1 } }));
   useStudio.setState({ soundReady: useStudio.getState().soundReady + 1 });
   engine.notify('SOUND ADDED');
 }
@@ -124,6 +137,8 @@ function stopNode(node: AudioBufferSourceNode | null): void {
 export function stopSound(): void {
   stopNode(playing);
   playing = null;
+  stopNode(scrubbing);
+  scrubbing = null;
 }
 
 let installed = false;
@@ -152,7 +167,11 @@ export function installSound(): void {
   loadForProject(useStudio.getState().project);
 
   useStudio.subscribe((state, previous) => {
-    if (state.project.audio !== previous.project.audio && state.project.audio !== null) loadForProject(state.project);
+    if (state.project.audio !== previous.project.audio) {
+      // Removed, undone or swapped for another: what's playing was the old one.
+      if (state.project.audio?.assetId !== previous.project.audio?.assetId) stopSound();
+      if (state.project.audio !== null) loadForProject(state.project);
+    }
     // Stepping through frames plays each one's slice: this is what lip sync is timed by.
     if (state.frame === previous.frame || state.playing || !state.settings.scrubSound || state.project.audio === null) return;
     const buffer = soundBuffer(state.project.audio);

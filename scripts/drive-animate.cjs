@@ -1178,6 +1178,44 @@ phases.phase5 = async (page, shot) => {
   await page.waitForTimeout(100);
   check('undo takes the carried colour off', (await pixel(page, 500, 500)) === '#ffffff', await pixel(page, 500, 500));
 
+  // The Carry Colour Forward behaviour: stepping on from a coloured drawing carries once. With nothing to carry it doesn't loop.
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: true } } : t)) }));
+    engine.goToFrame(0);
+  });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('.');
+  await page.waitForTimeout(900);
+  check('the behaviour carries colour as you step on to a drawing with none', (await state(page, () => window.__animate.frame)) === 1 && (await pixel(page, 500, 500)) === '#e6004c', await pixel(page, 500, 500));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  const hops = await page.evaluate(async () => {
+    const engine = window.__animate;
+    engine.goToFrame(0);
+    let last = engine.frame;
+    let changes = 0;
+    const started = performance.now();
+    await new Promise((resolve) => {
+      const tick = () => {
+        if (engine.frame !== last) {
+          changes += 1;
+          last = engine.frame;
+        }
+        if (performance.now() - started < 800) requestAnimationFrame(tick);
+        else resolve();
+      };
+      engine.goToFrame(1);
+      tick();
+    });
+    return changes;
+  });
+  check('it tries once for each drawing: the frame does not hop back and forth', hops <= 3, hops + ' changes');
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: false } } : t)) }));
+  });
+
   // Sound: a file in, a row on the timeline, and it travels with the project.
   const wavPath = path.join(os.tmpdir(), 'animate-tone-' + Date.now() + '.wav');
   fs.writeFileSync(wavPath, toneWav());
@@ -1236,6 +1274,35 @@ phases.phase5 = async (page, shot) => {
   const webm = await downloadFrom(page, () => page.getByRole('button', { name: '[ WEBM ]' }).click());
   check('WebM export gives a real WebM', webm.name.endsWith('.webm') && webm.bytes[0] === 0x1a && webm.bytes[1] === 0x45 && webm.bytes[2] === 0xdf && webm.bytes[3] === 0xa3, webm.bytes.length + ' bytes');
   await shot('phase5-export');
+  // Closing the panel during an export keeps STOP: reopening shows it still running, and a second can't start.
+  // Hundreds of different drawings, so the export takes long enough to catch in the act. Undone afterwards.
+  await page.evaluate(() => {
+    window.__animate.edit('TEST', (p) => {
+      const drawings = { ...p.drawings };
+      const cels = [...p.nodes[0].cels];
+      for (let i = 0; i < 300; i += 1) {
+        const id = 'test_' + i;
+        drawings[id] = { id, planes: { line: [], colour: [] } };
+        cels.push({ id: 'testcel_' + i, frame: 20 + i, length: 1, drawingId: id, mark: 'key' });
+      }
+      return { ...p, frames: 330, drawings, nodes: p.nodes.map((n, at) => (at === 0 ? { ...n, cels } : n)) };
+    });
+  });
+  await page.getByRole('button', { name: '[ GIF ]' }).click();
+  await page.waitForFunction(() => document.body.textContent.includes('GIF 1 /') || document.body.textContent.includes('STARTING'), null, { timeout: 8000 });
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  await penStroke(page, mark(100, 100), { gapMs: 1 });
+  check('the pen waits while an export reads the pictures', (await page.locator('[data-animate-notice]').textContent()).includes('EXPORTING'));
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  check('reopening the panel shows it still running', (await page.getByRole('button', { name: '[ STOP ]' }).count()) === 1);
+  await page.getByRole('button', { name: '[ STOP ]' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-animate-notice]')?.textContent?.includes('EXPORT STOPPED'), null, { timeout: 20000 });
+  pass('STOP stops it');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, frames: 12 })));
   await page.keyboard.press('Control+e');
 
   // The sound travels in the project file.

@@ -8,6 +8,7 @@ import { PLATE_MEDIUM } from '../../lib/ui/controls';
 import '../../lib/animate/layers';
 import { installSelection } from '../../lib/animate/selection';
 import { installPictures } from '../../lib/animate/picture';
+import { stopPlaying } from '../../lib/animate/playback';
 import { installSmarts } from '../../lib/animate/smart';
 import { installSound } from '../../lib/animate/sound';
 import { installTrace } from '../../lib/animate/trace';
@@ -53,6 +54,8 @@ export default function AnimateStudio() {
     document.addEventListener('visibilitychange', hide);
     return () => {
       detachKeys();
+      // The sheet is gone: nothing keeps playing behind another page.
+      stopPlaying(engine);
       window.removeEventListener('beforeunload', guard);
       document.removeEventListener('visibilitychange', hide);
       void engine.autosave();

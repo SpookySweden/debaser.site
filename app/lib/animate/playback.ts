@@ -12,7 +12,7 @@ import type { PlaneName, Project } from './types';
 /** How much memory playback's pictures may take, in bytes, before they are made smaller. */
 const CACHE_BYTES = 900 * 1024 * 1024;
 
-type Cache = { project: Project; pictures: Map<string, ImageBitmap>; scale: number };
+type Cache = { project: Project; pictures: Map<string, ImageBitmap>; scale: number; layerId: string; lightTable: boolean };
 
 let cache: Cache | null = null;
 let running = 0;
@@ -51,7 +51,7 @@ export async function loadFramePlanes(engine: AnimateEngine, project: Project, f
 async function prepare(engine: AnimateEngine, token: number): Promise<boolean> {
   const state = useStudio.getState();
   const { project } = state;
-  if (cache !== null && cache.project === project) return true;
+  if (cache !== null && cache.project === project && cache.layerId === state.layerId && cache.lightTable === state.lightTable) return true;
   dropCache();
   const { start, end } = playRange(project);
   const distinct = new Set<string>();
@@ -90,7 +90,7 @@ async function prepare(engine: AnimateEngine, token: number): Promise<boolean> {
     // A short shot just starts; a long one says how far along it is.
     if (performance.now() - started > 150) useStudio.setState({ readying: done / distinct.size });
   }
-  cache = { project, pictures, scale };
+  cache = { project, pictures, scale, layerId: state.layerId, lightTable: state.lightTable };
   useStudio.setState({ readying: null });
   return true;
 }

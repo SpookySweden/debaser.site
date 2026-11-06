@@ -109,6 +109,45 @@ export function exportTagPreset(tags: Tag[]): string {
   return JSON.stringify({ animateTagPreset: 1, tags: tags.map((t) => ({ ...t, builtin: false })) }, null, 2);
 }
 
+const BLENDS: BlendMode[] = ['normal', 'multiply', 'screen', 'overlay', 'add'];
+
+/** Behaviours from a file, taken field by field: anything missing or the wrong shape keeps the blank's value. */
+function readBehaviours(raw: unknown): BehaviourSet {
+  const blank = blankBehaviours();
+  if (typeof raw !== 'object' || raw === null) return blank;
+  const r = raw as Record<string, unknown>;
+  const yes = (key: keyof BehaviourSet): boolean => (typeof r[key] === 'boolean' ? (r[key] as boolean) : (blank[key] as boolean));
+  const obj = (key: string): Record<string, unknown> => (typeof r[key] === 'object' && r[key] !== null ? (r[key] as Record<string, unknown>) : {});
+  const gap = obj('closeGaps');
+  const onion = obj('onionSkin');
+  const dim = obj('dimWhenInactive');
+  const defaults = obj('layerDefaults');
+  return {
+    paintBehindLines: yes('paintBehindLines'),
+    stayInsideLines: yes('stayInsideLines'),
+    closeGaps: { on: gap.on === true, maxGapPx: typeof gap.maxGapPx === 'number' && gap.maxGapPx > 0 ? Math.min(100, gap.maxGapPx) : blank.closeGaps.maxGapPx },
+    showClosures: yes('showClosures'),
+    tuckUnder: yes('tuckUnder'),
+    protectLines: yes('protectLines'),
+    isFillReference: yes('isFillReference'),
+    ignoredByFills: yes('ignoredByFills'),
+    skipOnExport: yes('skipOnExport'),
+    onionSkin: { on: onion.on !== false, mode: onion.mode === 'outline' ? 'outline' : 'tint' },
+    dimWhenInactive: { on: dim.on === true, tint: typeof dim.tint === 'string' && /^#[0-9a-fA-F]{6}$/.test(dim.tint) ? dim.tint : null },
+    holdWholeShot: yes('holdWholeShot'),
+    autoNewDrawing: yes('autoNewDrawing'),
+    clipToLayerBelow: yes('clipToLayerBelow'),
+    carryColourForward: yes('carryColourForward'),
+    alwaysOnTop: yes('alwaysOnTop'),
+    startLocked: yes('startLocked'),
+    layerDefaults: {
+      blend: BLENDS.includes(defaults.blend as BlendMode) ? (defaults.blend as BlendMode) : 'normal',
+      opacity: typeof defaults.opacity === 'number' ? Math.max(0, Math.min(1, defaults.opacity)) : 1,
+      stabiliser: typeof defaults.stabiliser === 'number' ? Math.max(0, Math.min(1, defaults.stabiliser)) : null,
+    },
+  };
+}
+
 /** Tags read from a shared file. Anything not shaped like a tag is left out, and missing behaviours take the blank's. */
 export function readTagPreset(text: string): Tag[] {
   let raw: unknown;
@@ -130,7 +169,7 @@ export function readTagPreset(text: string): Tag[] {
       mark: typeof t.mark === 'string' ? t.mark.slice(0, 4) : t.name.slice(0, 3).toUpperCase(),
       builtin: false,
       on: t.on !== false,
-      behaviours: { ...blankBehaviours(), ...(t.behaviours ?? {}) },
+      behaviours: readBehaviours(t.behaviours),
     });
   }
   return out;

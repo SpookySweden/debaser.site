@@ -7,7 +7,7 @@ import { getEngine, type AnimateEngine } from './engine';
 import { loadFramePlanes } from './playback';
 import { playRange } from './project';
 import { safeFileName, saveBlobAs } from './project-file';
-import { soundBuffer } from './sound';
+import { ensureSound } from './sound';
 import { useStudio } from './store';
 import type { Project } from './types';
 import { startWorker } from './workers';
@@ -175,7 +175,9 @@ export async function exportVideo(settings: ExportSettings, kind: 'mp4' | 'webm'
   let audioSource: InstanceType<typeof AudioBufferSource> | null = null;
   let silent = false;
   const track = project.audio;
-  const buffer = soundBuffer(track);
+  const buffer = track === null ? null : await ensureSound(project.id, track);
+  // A sound that can't be read means a video that says it has none, not one that quietly doesn't.
+  if (track !== null && buffer === null) silent = true;
   if (track !== null && buffer !== null) {
     const audioCodec = await getFirstEncodableAudioCodec(kind === 'mp4' ? ['aac', 'opus'] : ['opus', 'vorbis'], { numberOfChannels: 2, sampleRate: 48000 });
     if (audioCodec === null) {
@@ -226,7 +228,49 @@ export async function exportVideo(settings: ExportSettings, kind: 'mp4' | 'webm'
   return { blob: bytes === null ? null : new Blob([bytes], { type: kind === 'mp4' ? 'video/mp4' : 'video/webm' }), silent };
 }
 
-export async function saveExport(blob: Blob, extension: string, description: string): Promise<boolean> {
-  const { project } = useStudio.getState();
-  return saveBlobAs(blob, `${safeFileName(project.name)}${extension}`, description, [extension]);
+export type ExportKind = 'gif' | 'png' | 'mp4' | 'webm';
+
+let stopRequested = false;
+
+export function stopExport(): void {
+  stopRequested = true;
+}
+
+/**
+ * One export at a time, whatever the panel does: it can be closed and opened while this runs, and STOP still works. Leaving the project stops it. The pen
+ * waits, because an export reads the same pictures.
+ */
+export async function startExport(kind: ExportKind, options: Pick<ExportSettings, 'scale' | 'rangeOnly' | 'transparent'>): Promise<void> {
+  const state = useStudio.getState();
+  if (state.exportProgress !== null) return;
+  const engine = getEngine();
+  const projectId = state.project.id;
+  stopRequested = false;
+  useStudio.setState({ exportProgress: 'STARTING...' });
+  const label = kind.toUpperCase();
+  const settings: ExportSettings = {
+    ...options,
+    cancelled: () => stopRequested || engine.project.id !== projectId,
+    onProgress: (done, total) => useStudio.setState({ exportProgress: `${label} ${done} / ${total}` }),
+  };
+  const save = (blob: Blob, extension: string, description: string) => saveBlobAs(blob, `${safeFileName(useStudio.getState().project.name)}${extension}`, description, [extension]);
+  try {
+    let blob: Blob | null;
+    let silent = false;
+    if (kind === 'gif') blob = await exportGif(settings);
+    else if (kind === 'png') blob = await exportPngSequence(settings);
+    else ({ blob, silent } = await exportVideo(settings, kind));
+    if (blob === null) {
+      engine.notify('EXPORT STOPPED');
+    } else {
+      const saved = await save(blob, kind === 'png' ? '.png-frames.zip' : `.${kind}`, kind === 'png' ? 'PNG frames' : label);
+      if (!saved) engine.notify('NOT SAVED');
+      else if (silent) engine.notify('EXPORTED WITH NO SOUND: THIS BROWSER COULD NOT MAKE IT', true);
+      else engine.notify('EXPORTED');
+    }
+  } catch {
+    engine.notify(kind === 'mp4' || kind === 'webm' ? `THIS BROWSER CANNOT MAKE ${label}` : 'THE EXPORT FAILED', true);
+  }
+  useStudio.setState({ exportProgress: null });
+  engine.onIdle?.();
 }

@@ -8,6 +8,7 @@ import { copyRect } from './history';
 import { selectRow } from './layers';
 import { planeKey } from './planes';
 import { addDrawing, addNode, addOp, updateNode } from './project';
+import { newAssetId } from './sound';
 import { readFile, writeFile } from './storage';
 import { useStudio } from './store';
 import type { ImageOp, PlaneOp, Project } from './types';
@@ -33,15 +34,23 @@ export async function importPicture(file: File): Promise<void> {
     engine.notify('THIS BROWSER CANNOT READ THAT PICTURE', true);
     return;
   }
+  const swap = engine.swapCount;
+  const projectId = engine.project.id;
+  const assetId = newAssetId();
+  await writeFile(projectId, `assets/${assetId}`, file);
+  bitmaps.set(assetId, bitmap);
+  // Only now is the project read: a stroke made while the file was being stored has to stay.
+  if (engine.swapCount !== swap) return;
+  if (engine.isBusy()) {
+    engine.notify('ONE MOMENT', true);
+    return;
+  }
   const state = useStudio.getState();
   const before = state.project;
   const { frame } = state;
-  const assetId = `a_${before.nextId}`;
-  await writeFile(before.id, `assets/${assetId}`, file);
-  bitmaps.set(assetId, bitmap);
 
   const reference = before.tags.find((tag) => tag.id === 'reference');
-  const added = addNode({ ...before, nextId: before.nextId + 1 }, 'layer', state.layerId, `PICTURE ${before.nodes.length + 1}`);
+  const added = addNode(before, 'layer', state.layerId, `PICTURE ${before.nodes.length + 1}`);
   const tagged = updateNode(added.project, added.id, { tagId: reference?.id ?? null, locked: reference?.behaviours.startLocked ?? false });
   const made = addDrawing(tagged, added.id, frame, Math.max(1, tagged.frames - frame));
 
@@ -51,7 +60,8 @@ export async function importPicture(file: File): Promise<void> {
   const op: ImageOp = { kind: 'image', id: `i_${assetId}`, plane: 'line', assetId, x: (before.width - width) / 2, y: (before.height - height) / 2, width, height };
 
   const key = planeKey(made.cel.drawingId, 'line');
-  const canvas = await engine.planes.open(key);
+  const canvas = engine.planes.openNow(key);
+  if (canvas === null) return;
   const rect = { x: 0, y: 0, w: canvas.width, h: canvas.height };
   const copy = copyRect(canvas, rect);
   canvas.getContext('2d')?.drawImage(bitmap, op.x, op.y, op.width, op.height);
