@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, useRef, useSyncExternalStore } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
-import { floatingState, registerBox, setFloatAsked, subscribeToFloating } from '../lib/ui/floating-player';
+import { floatingState, registerBox, setFloatAsked, subscribeToFloating, togglePlayerFullscreen } from '../lib/ui/floating-player';
 
 /**
  * What a row draws for its video (SPEC-floating-player.md): a reserved box, and the `[ PIP ]` key. The video itself is in
@@ -54,19 +54,24 @@ export default function PlayerBox({ id, title, className }: { id: string; title:
   );
 }
 
-/** Beside a playing video's CLOSE: floats it, or brings it back. */
+/** Beside a playing video's CLOSE: floats it or brings it back, and fullscreen for a keyboard or a player with no way of its own. */
 export function PipKey({ id, title }: { id: string; title: string }) {
   const asked = useAskedHere(id);
   return (
-    <button
-      type="button"
-      onClick={() => setFloatAsked(!asked)}
-      aria-pressed={asked}
-      aria-label={`PIP: "${title}" floats over the site`}
-      title="Floats over the site, even on other pages"
-      className={asked ? PLATE_PRESSED : PLATE}
-    >
-      [ PIP ]
-    </button>
+    <>
+      <button
+        type="button"
+        onClick={() => setFloatAsked(!asked)}
+        aria-pressed={asked}
+        aria-label={`PIP: "${title}" floats over the site`}
+        title="Floats over the site, even on other pages"
+        className={asked ? PLATE_PRESSED : PLATE}
+      >
+        [ PIP ]
+      </button>
+      <button type="button" onClick={togglePlayerFullscreen} aria-label={`Fullscreen: "${title}"`} className={PLATE}>
+        [ FULL ]
+      </button>
+    </>
   );
 }

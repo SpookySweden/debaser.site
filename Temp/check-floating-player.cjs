@@ -168,6 +168,32 @@ const timeSource = read('app/lib/web/embed-time.ts');
 ok(/event\.source !== frame\.contentWindow/.test(timeSource) && /origins\.includes\(event\.origin\)/.test(timeSource), 'only the frame\'s own player, from its own address, is listened to');
 ok(!/createElement\('script'\)|loadScript|iframe_api/.test(timeSource), 'no script of theirs runs in our page for this');
 
+/* ---------------------------------------------------------------- a double press on YouTube's picture */
+let clock = 1000;
+const presses = time.doublePressWatcher(() => clock);
+const feed = (state, at) => {
+  clock = at;
+  return presses(state);
+};
+same(feed(1, 1000), false, 'playing: nothing');
+same(feed(2, 5000), false, 'paused by the first press: nothing yet');
+same(feed(3, 5100), false, 'loading again on the way back: nothing yet');
+same(feed(1, 5400), true, 'measured in a real Chrome: paused and straight back to playing is a double press');
+same(feed(1, 5450), false, 'YouTube saying playing again is not another');
+same(feed(2, 9000), false, 'somebody pausing');
+same(feed(1, 12000), false, 'and playing seconds later is not a double press');
+same(feed(3, 20000), false, 'it stalling');
+same(feed(1, 20100), false, 'and carrying on, with no pause, is not a double press');
+same(feed(2, 30000), false, '');
+same(feed(0, 30100), false, 'reaching the end is not a double press');
+same(feed(1, 30200), false, 'nor playing again straight after it');
+same(time.readYouTubeState(JSON.stringify({ event: 'infoDelivery', info: { playerState: 2 } })), 2, 'its state');
+for (const nonsense of ['', 'not json', '{"event":"other","info":{"playerState":2}}', '{"event":"infoDelivery","info":{"playerState":"2"}}', 'null', 5, null]) same(time.readYouTubeState(nonsense), null, `nonsense reads as nothing: ${String(nonsense)}`);
+ok(!/className="[^"]*inset-0[^"]*" onDoubleClick/.test(read('app/components/FloatingPlayer.tsx')), 'nothing is laid over a player to catch presses: its own controls keep working');
+ok(/onDoubleClick=\{togglePlayerFullscreen\}/.test(read('app/components/FloatingPlayer.tsx')), 'a double press on the float\'s title line');
+ok(/\[ FULL \]/.test(read('app/components/FloatingPlayer.tsx')) && /\[ FULL \]/.test(read('app/components/PlayerBox.tsx')), 'a [ FULL ] key on the float and beside every row\'s [ PIP ]');
+ok(/onDoubleClick=\{fullOnDoublePress\}/.test(read('app/components/WatchRoom.tsx')), 'in a room, a double press on the picture is the FULL key');
+
 /* ---------------------------------------------------------------- the arrows */
 same(history.waysFrom(0, 1), 'none', 'one page: both quiet');
 same(history.waysFrom(0, 3), 'forward', 'at the start: only forward');

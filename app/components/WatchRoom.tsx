@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState, useSyncExternalStore, type MouseEvent } from 'react';
 import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { stopFollowing } from '../lib/audio/follow';
@@ -543,8 +543,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       repository.setWatching(null);
       return;
     }
-    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline });
-  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline]);
+    repository.setWatching({ userId: user.id, roomId, hostName, title, hosting: amHost, unlisted: !myProfile.visibility.showOnline || room.privacy !== 'open' });
+  }, [repository, user, live, roomId, hostName, title, amHost, myProfile.visibility.showOnline, room.privacy]);
   useEffect(() => () => repository.setWatching(null), [repository]);
 
   /* --- leaving --------------------------------------------------------------------------------- */
@@ -763,6 +763,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     document.addEventListener('fullscreenchange', changed);
     return () => document.removeEventListener('fullscreenchange', changed);
   }, []);
+  const pictureBox = useRef<HTMLDivElement>(null);
   function toggleFullscreen() {
     const box = stageRef.current;
     if (box === null) return;
@@ -770,10 +771,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       void document.exitFullscreen().catch(() => undefined);
       return;
     }
-    // Fullscreen is the whole stage, so a floating picture goes back to it first.
-    if (pictureFloats) onBackFromFloat();
-    if (typeof box.requestFullscreen === 'function') {
-      void box.requestFullscreen().catch(() => undefined);
+    // A floating picture goes fullscreen alone, where it stands, and comes back as it was. Otherwise the stage, with its bar.
+    const target = pictureFloats ? (pictureBox.current ?? box) : box;
+    if (typeof target.requestFullscreen === 'function') {
+      void target.requestFullscreen().catch(() => undefined);
       return;
     }
     // An iPhone fullscreens only a <video>, in its own player.
@@ -966,7 +967,12 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
 
   /** On a desktop the picture takes the column's height; on a phone (and in fullscreen there) its own shape. */
   const pictureFit = fullscreen || pictureFloats ? 'h-full w-full' : 'aspect-video w-full sm:aspect-auto sm:h-full';
-  const pictureBox = useRef<HTMLDivElement>(null);
+  /** A double press on the picture is the FULL key (Luke, 2026-11-05). Keys on the picture and a canvas being drawn on keep theirs. */
+  const fullOnDoublePress = (event: MouseEvent<HTMLDivElement>) => {
+    if (blank || song !== null || screen === 'canvas') return;
+    if (event.target instanceof Element && event.target.closest('button, a, input, select, textarea') !== null) return;
+    toggleFullscreen();
+  };
 
   // The room canvas (SPEC-stream-art.md): each viewer's own screen shows the picture or the shared canvas. While a
   // song plays the canvas is the default; with a video, the picture.
@@ -990,7 +996,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       {/* The picture with its bar under it: the two go fullscreen together. */}
       <div ref={stageRef} className={`flex flex-col bg-ink-plate sm:min-h-0 sm:flex-1 ${look === null ? '' : `frame ${lookLines}`}`}>
       {/* Floating, the box leaves the folded window's invisible frame by staying in it: `visible` and `fixed`. */}
-      <div ref={pictureBox} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10' : 'relative'} flex min-h-0 flex-1 items-center justify-center`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
+      <div ref={pictureBox} onDoubleClick={fullOnDoublePress} className={`${pictureFloats ? 'fixed visible frame bg-ink-plate pt-10 fullscreen:pt-0' : 'relative'} flex min-h-0 flex-1 items-center justify-center`} data-room-picture={pictureFloats ? 'floating' : 'in-room'}>
         {blank ? (
           <BlankScreen fit={pictureFit} onPick={(key) => openQueue(key)} hidden={screen === 'canvas'} />
         ) : src === undefined ? (

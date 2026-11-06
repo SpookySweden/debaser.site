@@ -9,9 +9,10 @@ import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { useNow } from '../lib/ui/use-now';
 import { PLATE, PLATE_MAIN } from '../lib/ui/controls';
 import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
-import { roomIsLive, roomShownName } from '../lib/watch/rules';
+import { getWatchRepository } from '../lib/watch/repository';
+import { roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
-import { useWatchRoom } from '../lib/watch/use-watch-room';
+import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
   collapseWatch,
@@ -25,6 +26,7 @@ import {
 import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
+import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
 import { askToSaveCanvas } from '../lib/watch/use-room-canvas';
 
@@ -132,6 +134,27 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
   const now = useNow(5000);
   const live = read !== undefined && read !== null && roomIsLive(read.room, now);
   const hostName = profile?.displayName ?? read?.room.originalHostLabel ?? '';
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
+  const readable = read !== undefined && read !== null;
+  /** Taken out of this stream while in it (SPEC-privacy-phase-2.md): the room goes, and its wires with it. */
+  const [removedFor, setRemovedFor] = useState<string | null>(null);
+  const removed = removedFor === roomId;
+
+  // Somebody who can read the room and is signed in belongs to it from here (an open room going private keeps them).
+  // A room they cannot read waits for JOIN at its door.
+  useEffect(() => {
+    if (userId === null || !readable) return;
+    const repository = getWatchRepository();
+    void repository.enterRoom(roomId, null).then((said) => {
+      if (said === 'removed') setRemovedFor(roomId);
+    });
+    return repository.subscribeRoomMembers(roomId, (row) => {
+      if (row.userId !== userId || row.removedAt === null) return;
+      setRemovedFor(roomId);
+      applyLocalChange(roomId, { kind: 'refresh' });
+    });
+  }, [roomId, userId, readable]);
 
   return (
     <>
@@ -139,10 +162,10 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         // Was "watch" before the room filled the screen; a new id so a size saved for the old room does not stick.
         id="stream"
         fill
-        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${roomShownName(read.room, hostName).toUpperCase()}` : 'STREAM'}
+        title={read ? `${read.room.origin === 'music' ? 'MUSIC' : 'STREAM'} :: ${roomShownName(read.room, hostName).toUpperCase()}${read.room.privacy === 'open' ? '' : ` :: ${roomPrivacyLabel(read.room.privacy)}`}` : 'STREAM'}
         badge={read ? (live ? 'LIVE' : read.room.origin === 'music' ? 'OFF' : 'ENDED') : undefined}
         // Leaving with a changed canvas nobody saved asks "save this canvas?" first (SPEC-stream-art.md).
-        onClose={() => void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft()))}
+        onClose={() => (removed ? onLeft() : void askToSaveCanvas(roomId).then(() => (read && live ? setClosing(true) : onLeft())))}
         onMinimize={
           read
             ? () => {
@@ -167,7 +190,9 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
             </p>
           )
         ) : read === null ? (
-          <p className="text-label font-bold text-ink">NO SUCH STREAM.</p>
+          <RoomDoor roomId={roomId} />
+        ) : removed ? (
+          <p className="text-label font-bold text-ink" data-room-door="removed">YOU WERE REMOVED FROM THIS STREAM.</p>
         ) : (
           <WatchRoom
             read={read}
@@ -185,7 +210,7 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
         )}
       </DockWindow>
       {collapsed ? <UpBox live={live} hostName={hostName} /> : null}
-      {read === undefined || read === null ? <BarWaiting text={read === null ? 'NO SUCH STREAM.' : (error ?? 'READING THE STREAM...')} /> : null}
+      {read === undefined || read === null ? <BarWaiting text={read === null ? 'STREAM' : (error ?? 'READING THE STREAM...')} /> : null}
     </>
   );
 }

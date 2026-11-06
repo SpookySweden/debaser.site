@@ -55,6 +55,13 @@ pip seamlessly."
 - **FILES:** opening a fold no longer loads the player; it has its own `[ ▶ PLAY ]`, so reading a file's details never replaces
   the video playing. A catalogue search isn't in the address, so a video started from one floats until the search is typed again.
 
+- **Fullscreen by double press (Luke, 2026-11-05).** Nothing is put over a player, so its own controls keep working. Our own
+  files and PeerTube do it themselves, both ways. YouTube's embed only pauses and plays on a double press, so its messages are
+  read: paused and straight back to playing within `DOUBLE_PRESS_MS` is the double press, and our page fullscreens the frame.
+  Internet Archive goes in by itself but stays until Esc or its own key. A media server's player is up to that player. In a room,
+  YouTube's clear cover and our own `<video>` hand a double press to the existing FULL. Every row and the float have a
+  `[ FULL ]` key, and a double press on the float's title line does the same.
+
 ## Part 3, held: `[ WATCH IN ROOM ]`
 Luke chose to build privacy first, so don't add this key until the privacy plan's private stream phases (2 and 3) are live.
 Today's `[ WATCH ]` key on a video reads `[ ADD TO ROOM ]` since 2026-11-05 (Luke; `WebWatchKey`), and does what it did. Where

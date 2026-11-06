@@ -65,8 +65,55 @@ export function readTimeMessage(source: TimeSource, data: unknown): { seconds: n
   return typeof seconds === 'number' && Number.isFinite(seconds) ? { seconds } : null;
 }
 
+/** YouTube's own numbers for what its player is doing. */
+const YOUTUBE_PLAYING = 1;
+const YOUTUBE_PAUSED = 2;
+const YOUTUBE_BUFFERING = 3;
+/** Paused and playing again within this long is two presses, not somebody pausing to look. Measured: about 400ms. */
+export const DOUBLE_PRESS_MS = 800;
+
+/** What YouTube's player says it is doing, or null. Third-party text, so nothing is assumed of it. */
+export function readYouTubeState(data: unknown): number | null {
+  let message: unknown = data;
+  if (typeof data === 'string') {
+    try {
+      message = JSON.parse(data);
+    } catch {
+      return null;
+    }
+  }
+  if (typeof message !== 'object' || message === null) return null;
+  const said = message as { event?: unknown; info?: unknown };
+  if (said.event !== 'infoDelivery' && said.event !== 'initialDelivery') return null;
+  const state = (said.info as { playerState?: unknown } | null | undefined)?.playerState;
+  return typeof state === 'number' ? state : null;
+}
+
+/**
+ * A double press on YouTube's picture, seen from outside. Its embed doesn't go fullscreen on a double press (checked in a
+ * real Chrome, 2026-11-05): each press pauses and plays, and a press inside its frame never reaches our page. But the frame
+ * says when it pauses and plays, so paused and straight back to playing is the double press. Feed it each state; it answers
+ * true on the play that finishes one.
+ */
+export function doublePressWatcher(now: () => number): (state: number) => boolean {
+  let pausedAt: number | null = null;
+  let last: number | null = null;
+  return (state) => {
+    if (state === last) return false;
+    last = state;
+    if (state === YOUTUBE_PAUSED) {
+      pausedAt = now();
+      return false;
+    }
+    if (state === YOUTUBE_BUFFERING) return false;
+    const pressed = state === YOUTUBE_PLAYING && pausedAt !== null && now() - pausedAt <= DOUBLE_PRESS_MS;
+    pausedAt = null;
+    return pressed;
+  };
+}
+
 /** Listens to a frame's player. `onTime(null)`: it reached the end. Returns the way to stop listening. */
-export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTime: (seconds: number | null) => void): () => void {
+export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTime: (seconds: number | null) => void, onDoublePress?: () => void): () => void {
   const origins = source === 'youtube' ? YOUTUBE_FRAME_ORIGINS : VIMEO_FRAME_ORIGINS;
   const target = () => {
     try {
@@ -85,8 +132,13 @@ export function listenForTime(frame: HTMLIFrameElement, source: TimeSource, onTi
     }
   };
   let answered = false;
+  const watcher = doublePressWatcher(() => performance.now());
   const heard = (event: MessageEvent) => {
     if (event.source !== frame.contentWindow || !origins.includes(event.origin)) return;
+    if (source === 'youtube' && onDoublePress !== undefined) {
+      const state = readYouTubeState(event.data);
+      if (state !== null && watcher(state)) onDoublePress();
+    }
     const said = readTimeMessage(source, event.data);
     if (source === 'vimeo' && !answered && typeof event.data === 'string' && event.data.includes('"ready"')) hello();
     if (said === null) return;

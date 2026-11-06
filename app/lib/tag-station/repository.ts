@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { StationRow } from './types';
+import type { StationRow, SweptCounts } from './types';
 import type { WordFact } from './word-facts';
 import { getMockTagRepository } from './mock-tag-repository';
 import { createSupabaseTagRepository } from './supabase-tag-repository';
@@ -13,6 +13,8 @@ export type TagStationRepository = {
   rows(): Promise<readonly StationRow[]>;
   /** What the word pass has said so far. Empty, never an error, when it can't be read: the map just goes without. */
   wordFacts(): Promise<readonly WordFact[]>;
+  /** The sweep's rows to list and its word counts. Empty, never an error, when they can't be read. */
+  pool(): Promise<{ rows: readonly StationRow[]; swept: SweptCounts }>;
   /** Whether the $60 tagging limit has been reached. */
   limitReached(): Promise<boolean>;
 };

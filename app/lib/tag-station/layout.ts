@@ -11,7 +11,7 @@ import type { Partner } from './types';
  */
 
 /** Words laid out by UMAP; rarer ones past this are placed beside their strongest partner. Keeps the build to seconds. */
-const MAX_LAID_OUT = 1500;
+const MAX_LAID_OUT = 1000;
 const SEED = 20261105;
 /** Keeps labels off the very edge of the map. */
 const MARGIN = 0.04;

@@ -612,12 +612,13 @@ test('CytubePage: a tab key writes the address, and ABOUT clears it', () => {
     ['replace', '/here', { scroll: false }],
   ]);
 });
-test('CytubePage: GO LIVE starts your own empty room; hosting already, the same key goes back to it', async () => {
+// (2026-11-05, SPEC-privacy-phase-2.md) The key opens the WHO CAN JOIN window; START in that window starts the room.
+test('CytubePage: GO LIVE alone starts nothing; hosting already, the same key goes back to it', async () => {
   let html = draw(el(CytubePage));
   assert.match(openingTag(html, '[ GO LIVE ]'), /data-cytube-go-live="new"/);
   press('[ GO LIVE ]');
   await tick();
-  assert.deepEqual(said('goLiveEmpty'), [['goLiveEmpty', USER.id, true]]);
+  assert.deepEqual(said('goLiveEmpty'), [], 'one press is not a room');
 
   asked = [];
   watching = { userId: USER.id, roomId: 'mine', hosting: true };

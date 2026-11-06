@@ -3,6 +3,9 @@ import { locallyBannedAccountIds } from '../auth/mock-auth';
 import { isSiteAccount } from '../auth/builtin-account';
 import { createLocalId } from './ids';
 import { pinExpiry } from './pins';
+import { privateRecordThread } from './private-record';
+import { getMockWatchRepository } from '../watch/mock-watch-repository';
+import { streamRoomId } from '../watch/rules';
 import { canonicalTagLabel, collectTagLabels } from './tag-vocabulary';
 import { deriveTags, mergeTags } from './tags';
 import type {
@@ -236,14 +239,29 @@ class MockForumRepository implements ForumRepository {
   readonly source = 'mock' as const;
 
   async listThreads(): Promise<ForumThread[]> {
-    return snapshot();
+    // The database's rule, kept by hand: a private stream's record is its members'. Everybody else gets a day and a count.
+    return Promise.all(
+      snapshot().map(async (thread) => {
+        const roomId = streamRoomId(thread.anchor);
+        if (roomId === null || thread.stampedPrivate !== true) return thread;
+        const watch = getMockWatchRepository();
+        const door = await watch.readDoor(roomId);
+        if (door.member) return thread;
+        const outline = await watch.readRoomOutline(roomId);
+        return privateRecordThread(thread.id, thread.createdAt, outline?.messages.length ?? 0);
+      }),
+    );
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {
     assertNotBanned(input.author);
 
     const existing = ensureState();
+    // The database's stamp: a record is as private as its room was when it was filed, whatever the room does later.
+    const recordOf = streamRoomId(input.anchor);
+    const filedPrivate = recordOf !== null && (await getMockWatchRepository().readDoor(recordOf)).privacy !== 'open';
     const thread: ForumThread = {
+      ...(filedPrivate ? { stampedPrivate: true } : {}),
       id: createLocalId('thread'),
       title: input.title,
       body: input.body,

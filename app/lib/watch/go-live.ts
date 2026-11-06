@@ -5,22 +5,24 @@ import { streamAnchor, streamThreadTitle } from './rules';
 import { primeRoom } from './use-watch-room';
 import { openWatch } from './watch-window';
 import type { ForumAnchor } from '../forum/types';
+import type { RoomPrivacy } from './types';
 
 /**
- * GO LIVE, from the CYTUBE page and the side panel's GO LIVE key (SPEC-cytube.md; the key, Luke 2026-11-03): the
- * host's room opens **empty**, no file needed, its
- * screen black with the three keys. The forum record is filed as it starts, as GO LIVE always did; a room that
- * could not be filed is still a room (it says NOT ON THE BOARD). The room window opens over the page.
+ * GO LIVE, from the window behind the CYTUBE page's and the side panel's keys (SPEC-cytube.md; SPEC-privacy-phase-2.md): the
+ * host's room opens **empty**, no file needed, its screen black with the three keys. Its forum record is filed as it starts; a room
+ * that could not be filed is still a room (it says NOT ON THE BOARD). A private room's record is its members' (the database
+ * stamps the thread), and everybody else gets it in bars. The room window opens over the page.
  *
  * Returns the room's id. Throws with a sentence fit to show.
  */
 export async function goLiveEmpty(
   host: { id: string; displayName: string },
   createThread: (input: { title: string; body: string; anchor: ForumAnchor }) => Promise<{ id: string }>,
+  choice: { privacy: RoomPrivacy; password?: string },
 ): Promise<string> {
   const id = crypto.randomUUID();
   const repository = getWatchRepository();
-  const read = await repository.openRoom({ id, host: { id: host.id, label: host.displayName }, mediaItemId: null });
+  const read = await repository.openRoom({ id, host: { id: host.id, label: host.displayName }, mediaItemId: null, privacy: choice.privacy, ...(choice.password === undefined ? {} : { password: choice.password }) });
   primeRoom(read);
 
   try {

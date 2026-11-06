@@ -6,6 +6,8 @@ import { threadDomId } from '../lib/forum/anchors';
 import { useNow } from '../lib/ui/use-now';
 import { roomIsLive, streamFoldLabel } from '../lib/watch/rules';
 import type { StreamFold } from '../lib/watch/types';
+import { usePrivateFold } from '../lib/watch/use-private-folds';
+import { PrivateBar } from './PrivateOutline';
 import { TimedMessage } from './WatchRoom';
 
 /**
@@ -13,11 +15,29 @@ import { TimedMessage } from './WatchRoom';
  * the file, newest first, `<date> :: HOSTED BY <host> :: <n> MESSAGES`; open one and its lines read in
  * order, each stamped with where in the video it was said. Not drawn for a file never streamed.
  */
-export default function StreamChatFolds({ folds }: { folds: StreamFold[] | undefined }) {
+export default function StreamChatFolds({ folds, mediaId }: { folds: StreamFold[] | undefined; mediaId?: string }) {
   const [open, setOpen] = useState(false);
-  if (folds === undefined || folds.length === 0) return null;
+  const hidden = usePrivateFold(mediaId ?? '');
+  const privateLine =
+    mediaId === undefined || hidden === null ? null : (
+      <div className="mt-1 pl-14 text-label font-bold text-ink max-sm:pl-0" data-stream-chat-private>
+        <p>{hidden.rooms} PRIVATE {hidden.rooms === 1 ? 'STREAM' : 'STREAMS'}</p>
+        {hidden.sizes.length === 0 ? null : (
+          <ul>
+            {hidden.sizes.map((size, index) => (
+              <li key={index}>
+                <PrivateBar size={size} />
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    );
+  if (folds === undefined || folds.length === 0) return privateLine;
 
   return (
+    <>
+    {privateLine}
     <div className="mt-1 pl-14 max-sm:pl-0" data-stream-chat={folds.length}>
       <button type="button" onClick={() => setOpen((value) => !value)} aria-expanded={open} className="cursor-pointer text-left text-label font-bold text-ink hover:underline">
         {open ? '[-]' : '[+]'} STREAM CHAT ({folds.length})
@@ -30,6 +50,7 @@ export default function StreamChatFolds({ folds }: { folds: StreamFold[] | undef
         </ul>
       ) : null}
     </div>
+    </>
   );
 }
 

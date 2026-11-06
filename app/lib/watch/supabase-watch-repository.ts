@@ -4,7 +4,7 @@ import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
-import type { LiveRoom, QueueMove, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, OutlineLine, OutlineSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
@@ -27,7 +27,7 @@ const MESSAGES = 'watch_messages';
 const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
-  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode';
+  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy';
 const QUEUE_COLUMNS =
   'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
@@ -64,6 +64,7 @@ type RoomRow = {
   ended_at: string | null;
   origin?: string | null;
   is_public?: boolean | null;
+  privacy?: RoomPrivacy | null;
   cleared_at?: string | null;
   name?: string | null;
   topic?: string | null;
@@ -107,6 +108,12 @@ type MessageRow = {
   created_at: string;
 };
 
+type MemberRow = { room_id: string; user_id: string; label: string; removed_at: string | null };
+
+function toMember(row: MemberRow): RoomMemberRow {
+  return { roomId: row.room_id, userId: row.user_id, label: row.label, removedAt: row.removed_at };
+}
+
 function toRoom(row: RoomRow): WatchRoom {
   return {
     id: row.id,
@@ -122,6 +129,7 @@ function toRoom(row: RoomRow): WatchRoom {
     endedAt: row.ended_at,
     origin: row.origin === 'music' ? 'music' : 'stream',
     isPublic: row.is_public !== false,
+    privacy: row.privacy ?? 'private',
     clearedAt: row.cleared_at ?? null,
     name: row.name ?? null,
     topic: row.topic ?? null,
@@ -324,6 +332,83 @@ const leavingTopics = new Map<string, Promise<unknown>>();
 class SupabaseWatchRepository implements WatchRepository {
   readonly source = 'supabase' as const;
 
+  async readDoor(roomId: string): Promise<RoomDoor> {
+    const { data, error } = await requireClient().rpc('watch_room_door', { room: roomId });
+    if (error) throw new Error('THE STREAM COULD NOT BE READ.');
+    const row = ((data ?? []) as { found: boolean; live: boolean; privacy: RoomPrivacy | null; title: string | null; member: boolean; removed: boolean; locked_until: string | null }[])[0];
+    if (row === undefined) return { found: false, live: false, privacy: null, title: null, member: false, removed: false, lockedUntil: null };
+    return { found: row.found, live: row.live, privacy: row.privacy, title: row.title, member: row.member, removed: row.removed, lockedUntil: row.locked_until };
+  }
+
+  async enterRoom(roomId: string, password: string | null): Promise<JoinAnswer> {
+    const { data, error } = await requireClient().rpc('watch_join', { room: roomId, password });
+    if (error) return 'refused';
+    return data as JoinAnswer;
+  }
+
+  async setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void> {
+    const { error } = await requireClient().rpc('watch_room_set_privacy', { room: roomId, new_privacy: privacy, new_password: password });
+    if (error) throw new Error(error.code === '22023' ? 'THAT NEEDS A PASSWORD.' : 'ONLY THE HOST CAN CHANGE THAT.');
+  }
+
+  async removeFromRoom(roomId: string, userId: string): Promise<void> {
+    const { error } = await requireClient().rpc('watch_remove_member', { room: roomId, person: userId });
+    if (error) throw new Error('ONLY THE HOST OR A CROWN CAN REMOVE SOMEBODY.');
+  }
+
+  async readRoomOutline(roomId: string): Promise<RoomOutline | null> {
+    const { data, error } = await requireClient().rpc('watch_room_outline', { room: roomId });
+    if (error) throw new Error('THE STREAM COULD NOT BE READ.');
+    return (data ?? null) as RoomOutline | null;
+  }
+
+  async listPrivateRooms(): Promise<PrivateRoomLine[]> {
+    const { data, error } = await requireClient().rpc('watch_private_rooms');
+    if (error) throw new Error('THE ROOMS COULD NOT BE READ.');
+    return ((data ?? []) as { joined: number | string; messages: number | string; strokes: number | string }[]).map((row) => ({
+      joined: Number(row.joined),
+      messages: Number(row.messages),
+      strokes: Number(row.strokes),
+    }));
+  }
+
+  async readRecordOutline(threadId: string): Promise<OutlineLine[]> {
+    const { data, error } = await requireClient().rpc('stream_record_outline', { thread: threadId });
+    if (error) throw new Error('THE RECORD COULD NOT BE READ.');
+    return (data ?? []) as OutlineLine[];
+  }
+
+  async listPrivateFolds(mediaItemIds: string[]): Promise<PrivateFold[]> {
+    if (mediaItemIds.length === 0) return [];
+    const { data, error } = await requireClient().rpc('private_stream_folds', { media_ids: mediaItemIds });
+    if (error) throw new Error('THE STREAM CHAT COULD NOT BE READ.');
+    return ((data ?? []) as { media_item_id: string; rooms: number | string; sizes: OutlineSize[] }[]).map((row) => ({
+      mediaItemId: row.media_item_id,
+      rooms: Number(row.rooms),
+      sizes: row.sizes,
+    }));
+  }
+
+  async listRoomMembers(roomId: string): Promise<RoomMemberRow[]> {
+    const { data, error } = await requireClient().from('watch_members').select('room_id, user_id, label, removed_at').eq('room_id', roomId).order('joined_at').limit(500);
+    if (error) throw new Error('THE LIST COULD NOT BE READ.');
+    return ((data ?? []) as MemberRow[]).map(toMember);
+  }
+
+  subscribeRoomMembers(roomId: string, listener: (row: RoomMemberRow) => void): () => void {
+    const client = getSupabaseBrowserClient();
+    if (client === null) return () => undefined;
+    const heard = (payload: { new: unknown }) => listener(toMember(payload.new as MemberRow));
+    const channel = client
+      .channel(`watch-members:${roomId}:${(channelSerial += 1)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'watch_members', filter: `room_id=eq.${roomId}` }, heard)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'watch_members', filter: `room_id=eq.${roomId}` }, heard)
+      .subscribe();
+    return () => {
+      void client.removeChannel(channel);
+    };
+  }
+
   async readRoom(roomId: string): Promise<WatchRoomRead | null> {
     const client = requireClient();
     const [room, queue, messages, crowns] = await Promise.all([
@@ -370,10 +455,19 @@ class SupabaseWatchRepository implements WatchRepository {
         host_id: input.host.id,
         position_seconds: 0,
         is_playing: false,
+        ...(input.privacy === undefined ? {} : { privacy: input.privacy }),
       })
       .select(ROOM_COLUMNS)
       .single<RoomRow>();
     if (room.error) throw refused(room.error, 'THE STREAM COULD NOT START.');
+    if (input.privacy === 'password') {
+      // A room with this setting and no password yet lets nobody in, so a failure here leaves nothing open.
+      const set = await client.rpc('watch_room_set_privacy', { room: input.id, new_privacy: 'password', new_password: input.password ?? null });
+      if (set.error) {
+        await client.from(ROOMS).update({ is_playing: false, ended_at: new Date().toISOString() }).eq('id', input.id);
+        throw refused(set.error, 'THE PASSWORD WAS NOT SET.');
+      }
+    }
 
     // The database crowned the host as the room was written (`watch_rooms_crown_host`).
     const crown: WatchCrown = { roomId: input.id, userId: input.host.id, givenBy: input.host.id, givenAt: room.data.started_at };
@@ -429,6 +523,7 @@ class SupabaseWatchRepository implements WatchRepository {
           host_id: input.host.id,
           origin: 'music',
           is_public: true,
+          privacy: 'open',
           position_seconds: 0,
           is_playing: false,
         })

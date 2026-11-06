@@ -7,8 +7,8 @@ import type { StationIndex } from '../lib/tag-station/query';
 import type { ItemWord, StationItem } from '../lib/tag-station/types';
 import { FACET_LETTERS, type Facet } from '../lib/tag-station/word-facts';
 import { eraOf } from '../lib/tag-station/words';
+import { sourceLabel } from '../lib/tag-station/query';
 import { rowAddresses, type ExtraHosts } from '../lib/web/row-addresses';
-import { PLATFORM_LABELS } from '../lib/web/types';
 import SpriteSlot from './SpriteSlot';
 
 /**
@@ -126,7 +126,7 @@ export function FindInMedia({ item }: { item: Pick<StationItem, 'title'> }) {
 /** One item in a list: its name goes there, and its source is always named beside it. */
 export function ItemRow({ item, note, extraHosts, onPick }: { item: StationItem; note?: string; extraHosts: ExtraHosts; onPick: (id: string) => void }) {
   const { link, thumb } = rowAddresses(item, extraHosts);
-  const source = PLATFORM_LABELS[item.platform];
+  const source = sourceLabel(item.platform);
   const year = Number.isFinite(Date.parse(item.publishedAt)) ? ` · ${item.publishedAt.slice(0, 4)}` : '';
   return (
     <li className="rule-pixel flex items-start gap-2 py-2">

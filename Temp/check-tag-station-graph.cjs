@@ -131,14 +131,15 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.ok(asked[1][1].includes('web_item_tags(words)'));
   assert.ok(asked[2][1] <= 1000, 'a list has a limit');
   await assert.rejects(createSupabaseTagRepository(answer({ data: null, error: { message: 'secret detail' } })).rows(), /could not be read/);
-  for (const file of ['repository.ts', 'supabase-tag-repository.ts', 'mock-tag-repository.ts', 'graph-cache.ts', 'graph.ts']) {
+  assert.ok(!/client|supabase|\.rpc\(/i.test(fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station/graph.ts'), 'utf8')), 'the graph builder reaches no database');
+  for (const file of ['repository.ts', 'supabase-tag-repository.ts', 'mock-tag-repository.ts', 'graph-cache.ts']) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station', file), 'utf8');
     assert.ok(!/\.(insert|update|upsert|delete)\(/.test(source), `${file} writes nothing`);
     assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => name !== 'web_tag_limit_reached'), [], `${file} only asks whether the limit is reached`);
   }
   assert.ok(MOCK_STATION_ROWS.length >= 30, 'the mock has enough to draw');
 
-  // 10. The cache: an hour, shared by readers at once, and a failed read is not kept.
+  // 10. The cache: three hours, shared by readers at once, and a failed read is not kept.
   let reads = 0;
   const read = async () => {
     reads += 1;
@@ -150,9 +151,9 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   const [one, two] = await Promise.all([stationGraph(read, 1000), stationGraph(read, 1000)]);
   assert.equal(reads, 1, 'two readers share one build, and the failure above was not kept');
   assert.equal(one, two);
-  await stationGraph(read, 1000 + 59 * 60 * 1000);
-  assert.equal(reads, 1, 'kept within the hour');
-  await stationGraph(read, 1000 + 61 * 60 * 1000);
+  await stationGraph(read, 1000 + 179 * 60 * 1000);
+  assert.equal(reads, 1, 'kept for three hours, as the words change no faster');
+  await stationGraph(read, 1000 + 181 * 60 * 1000);
   assert.equal(reads, 2, 'read again after it');
 
   // 11. Browser code never brings in the UMAP library or the server's build.

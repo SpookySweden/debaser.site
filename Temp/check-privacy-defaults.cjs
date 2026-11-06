@@ -28,7 +28,7 @@ const { DEFAULT_VISIBILITY } = require(path.join(OUT, 'lib', 'profile', 'visibil
 for (const [key, value] of Object.entries(DEFAULT_VISIBILITY)) assert.equal(value, false, `${key} is off for a new account`);
 assert.ok('showOnline' in DEFAULT_VISIBILITY, 'the lamp is one of the switches');
 
-const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261105135310_privacy_tab_and_new_account_defaults.sql'), 'utf8');
+const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261105135310_privacy_tab_and_new_account_defaults.sql'), 'utf8').replace(/\r\n/g, '\n');
 for (const line of [
   'alter column hide_listening set default true',
   'alter column show_profile_comments set default false',

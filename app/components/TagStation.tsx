@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { buildIndex, edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
+import { buildIndex, edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
 import type { StationGraph, StationItem } from '../lib/tag-station/types';
 import { eraOf } from '../lib/tag-station/words';
@@ -10,7 +10,7 @@ import { FIELD_TIGHT } from '../lib/ui/controls';
 import { loadPeertubeHosts, needsPeertubeHosts } from '../lib/web/everywhere-client';
 import { contentLanguage } from '../lib/web/language';
 import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-addresses';
-import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
+import type { WebItem } from '../lib/web/types';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { loadWebItem } from '../lib/web/web-track-lookup';
@@ -116,7 +116,7 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
   const [playerFor, setPlayerFor] = useState<string | null>(null);
   const open = playerFor === item.id;
   const { link, embed } = rowAddresses(item as WebItem, extraHosts);
-  const source = PLATFORM_LABELS[item.platform];
+  const source = sourceLabel(item.platform);
   const onBar = player.track ? parseWebAudioSrc(player.track.src) : null;
   const mine = onBar !== null && onBar.platform === item.platform && onBar.externalId === item.externalId;
   const sounding = mine && player.playing;
@@ -188,7 +188,7 @@ function ItemInput({ item, extraHosts, onPick, onAdd }: { item: StationItem; ext
       <Thumb src={thumb} wide />
       <p className="break-words text-title font-bold text-ink">{item.title}</p>
       <p className="break-words text-label text-ink">
-        {PLATFORM_LABELS[item.platform]} · {item.kind.toUpperCase()}
+        {sourceLabel(item.platform)} · {item.kind.toUpperCase()}
         {Number.isFinite(Date.parse(item.publishedAt)) ? ` · ${item.publishedAt.slice(0, 10)}` : ''}
         {item.creator ? ` · ${item.creator}` : ''}
       </p>
@@ -330,7 +330,10 @@ export function Station({ index }: { index: StationIndex }) {
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Discover">
-          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED OR SHOWN.
+          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED, SHOWN OR READ FROM OPEN CATALOGUES. FILM AND SHOW FACTS:{' '}
+          <a href="https://www.wikidata.org" target="_blank" rel="noopener noreferrer nofollow" className="underline">WIKIDATA</a>,{' '}
+          <a href="https://www.tvmaze.com" target="_blank" rel="noopener noreferrer nofollow" className="underline">TVMAZE</a> AND{' '}
+          <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer nofollow" className="underline">WIKIPEDIA</a>.
         </InfoFold>
       </div>
 

@@ -54,12 +54,25 @@ export type StationGraph = {
   items: StationItem[];
   /** Other spellings the word pass joined to a word: a word's key, then its name on the map. So an old link or a typed spelling still lands. */
   aliases?: Record<string, string>;
+  /** How many items have been counted in all: what RECOMMENDED and DISCOVER on MEDIA wait for. */
+  tagged?: number;
   /** True when the $60 tagging limit has stopped the batches: a person has to decide (SPEC-tag-station.md). */
   limitReached?: boolean;
 };
 
 /** One saved item and Claude's words for it, as a repository reads them. */
-export type StationRow = { item: WebItem; claudeWords: readonly string[]; seenOnly?: boolean };
+export type StationRow = {
+  item: WebItem;
+  claudeWords: readonly string[];
+  seenOnly?: boolean;
+  /** A swept item (`web_pool_items`): listed, but its words are already in the word counts, so they aren't counted again. */
+  listOnly?: boolean;
+};
+
+/** What the sweep has counted (`web_word_stats`): most swept items are dropped once they're in here. */
+export type SweptWord = { word: string; items: number; partners: Readonly<Record<string, number>> };
+export type SweptCounts = { counted: number; words: readonly SweptWord[] };
+
 
 /** A word a pasted link came with, and who said so. Only ever matched to the map's words; nothing is added or saved. */
 export type LinkWord = { word: string; from: 'platform' | 'musicbrainz' };

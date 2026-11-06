@@ -1,5 +1,5 @@
 import type { ForumAnchor, ForumThread } from '../forum/types';
-import type { QueueMove, WatchCrown, WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchSeriesMark } from './types';
+import type { QueueMove, RoomPrivacy, WatchCrown, WatchMember, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchSeriesMark } from './types';
 
 /**
  * Watch together's rules, pure so each can be checked without two browsers (SPEC-watch-together.md).
@@ -346,6 +346,14 @@ export const ROOM_TOPIC_MAX = 120;
 /** The cog is for a live room's host and anybody holding a crown there, as `watch_room_settings` checks. */
 export function mayEditRoom(room: Pick<WatchRoom, 'hostId' | 'endedAt'>, crowns: WatchCrown[], userId: string | null, live: boolean): boolean {
   return live && room.endedAt === null && userId !== null && (room.hostId === userId || hasCrown(crowns, userId));
+}
+
+/** bcrypt reads no further. */
+export const ROOM_PASSWORD_MAX = 72;
+
+/** The words for a room's setting, everywhere it is said. */
+export function roomPrivacyLabel(privacy: RoomPrivacy): string {
+  return privacy === 'open' ? 'OPEN' : privacy === 'password' ? 'PRIVATE + PASSWORD' : 'PRIVATE';
 }
 
 /** A name or topic as it is saved: one line, trimmed, within its limit, and nothing at all as null. */

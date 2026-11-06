@@ -185,9 +185,12 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
   await ok('GO LIVE opens one shared empty room, and a host is sent back to theirs rather than given a second', () => {
     for (const file of ['app/components/CytubePage.tsx', 'app/components/DesktopSidebar.tsx']) {
       const source = require('node:fs').readFileSync(file, 'utf8');
-      assert.match(source, /goLiveEmpty\(/, `${file} starts a room through the shared call`);
+      // (2026-11-05, SPEC-privacy-phase-2.md) Through the WHO CAN JOIN window, which holds the shared call: two presses, PRIVATE picked.
+      assert.match(source, /<GoLiveWindow /, `${file} starts a room through the shared window`);
+      assert.doesNotMatch(source, /goLiveEmpty\(/, 'and not by itself');
       assert.match(source, /hosting === null \? '(\[ )?GO LIVE( \])?' : '(\[ )?BACK TO YOUR ROOM( \])?'/, `${file} offers a host the way back instead`);
     }
+    assert.match(require('node:fs').readFileSync('app/components/GoLiveWindow.tsx', 'utf8'), /goLiveEmpty\(user, createThread, \{ privacy/, 'the window starts the room, with the choice');
     assert.equal(windowStore.toggleGoLive, undefined, 'and the old toggle is gone from the window store');
     windowStore.closeWatch();
     assert.equal(windowStore.watchWindowState().open, false);

@@ -1,5 +1,16 @@
-# Handoff (2026-11-04)
+# Handoff (2026-11-05)
 Older notes: `docs/handoff-archive.md`, newest first. Search it when a past decision matters; don't read it all.
+
+## Tomorrow, from 2026-11-05 (Luke ran out of limit; he drives from a laptop, work runs on the desktop PC)
+The main session answers side sessions from the specs and asks Luke only what is his. Database changes and spending wait for his OK.
+- **Privacy:** phases 0, 1 and 2 pushed (`ef625a6` for 2: check its three-browser drive ran). Phase 3 next, then `[ WATCH IN ROOM ]` (`SPEC-floating-player.md` part 3). Decisions: `SPEC-privacy-decisions.md`. Phase 3 database changes need his OK.
+- **DISCOVER (`SPEC-discover.md`):** rename and sweep pushed. Recommending, the two filters (blank until 10,000 tagged) and presets are next. Check the first sweep's real cost and the $50 and $60 stops. TMDB text never goes to Claude; KINO search stays as it is.
+- **Beat box:** at /beatbox with saved songs. Left for Luke: listen to it, NVDA test (not installed, needs his OK), his art.
+- **Animator:** started on branch `animator` (`SPEC-animator.md`, Luke's Living Plan doc). Not on main unless a phase says so.
+- **Floating player:** live, with ADD TO ROOM and double-press fullscreen (`949a6b9`).
+- **Game (`G:gane project`):** three minds faults fixed or partly fixed; the conductor runs the minds test nightly, a paid run there untested.
+- **Security:** a Claude key fragment was printed in the session transcript on 2026-11-05; that key was deleted. Luke's current keys expire Dec 5, 2026: tagging stops then unless replaced in Vercel.
+- **Check:** did the privacy session's two extra drawing-rule fixes go beyond his Phase 2 OK? Report what they changed.
 
 ## State
 - MEDIA tagging's Claude key went into Vercel on 2026-11-05. Its first real batch is being watched: read `web_item_tags`

@@ -6,6 +6,53 @@
  * file from the catalogue and seeks to where the host is.
  */
 
+/** WHO CAN JOIN (SPEC-privacy-phase-2.md): new rooms are private unless their host picks otherwise. */
+export type RoomPrivacy = 'private' | 'password' | 'open';
+
+/** What a person with a room's link may know before they are in (`watch_room_door`). `title` is null with no session. */
+export type RoomDoor = {
+  found: boolean;
+  live: boolean;
+  privacy: RoomPrivacy | null;
+  title: string | null;
+  member: boolean;
+  removed: boolean;
+  lockedUntil: string | null;
+};
+
+/** The way in: `watch_join`'s answer. */
+export type JoinAnswer = 'joined' | 'wrong' | 'locked' | 'removed' | 'ended' | 'refused';
+
+/** Three sizes of bar, never the real length (decision 13). */
+export type OutlineSize = 'short' | 'medium' | 'long';
+
+/** One message as an outsider gets it: no words (SPEC-privacy-phase-3.md). */
+export type OutlineLine = { tag: string; seconds: number; size: OutlineSize };
+
+/** A private room as somebody with its link and no way in gets it (`watch_room_outline`). */
+export type RoomOutline = {
+  live: boolean;
+  people: string[];
+  messages: OutlineLine[];
+  queue: number;
+  strokes: number;
+  strokePeople: number;
+};
+
+/** A line on the ROOM tab: counts, and no link. */
+export type PrivateRoomLine = { joined: number; messages: number; strokes: number };
+
+/** `1 PRIVATE STREAM`, in bars, under a file. */
+export type PrivateFold = { mediaItemId: string; rooms: number; sizes: OutlineSize[] };
+
+/** Somebody who joined a room, for the cog's list. */
+export type RoomMemberRow = {
+  roomId: string;
+  userId: string;
+  label: string;
+  removedAt: string | null;
+};
+
 export type WatchRoom = {
   id: string;
   /** Who pressed GO LIVE: the forum record and the file folds name this account, whoever hosts later. */
@@ -29,8 +76,10 @@ export type WatchRoom = {
    * one per person, kept for good, its host always its owner, never on the board.
    */
   origin: RoomOrigin;
-  /** A music room's GO PUBLIC switch; a stream room is always public. */
+  /** A music room's GO PUBLIC switch; a stream room is always on. Who may join is `privacy`. */
   isPublic: boolean;
+  /** Changed only through `setRoomPrivacy`. A music room's follows its switch: on is open, off is its host's alone. */
+  privacy: RoomPrivacy;
   /** STORE AND START BLANK: what played before this is no longer shown in the queue window. */
   clearedAt: string | null;
   /** The settings cog (SPEC-room-settings.md). Null: the room goes by its host's name. */

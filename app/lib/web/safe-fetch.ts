@@ -87,6 +87,8 @@ export type SafeFetchOptions = {
   accept?: string;
   /** Send this as a JSON POST body instead of a GET. */
   postJson?: unknown;
+  /** Sent instead of `userAgent()`: the sweep names the project and never a person, as Archive's and Wikimedia's guidance ask. */
+  userAgent?: string;
   /** Hosts a redirect may also lead to (https, the same checks), for a platform that hands downloads to numbered file servers. */
   redirectHosts?: RegExp;
 };
@@ -114,7 +116,7 @@ export async function safeFetchText(url: string, options: SafeFetchOptions): Pro
 
     let response: Response;
     try {
-      const headers = { 'User-Agent': userAgent(), Accept: options.accept ?? 'application/json' };
+      const headers = { 'User-Agent': options.userAgent ?? userAgent(), Accept: options.accept ?? 'application/json' };
       response = await fetchImpl(
         current,
         options.postJson === undefined

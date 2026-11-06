@@ -736,7 +736,7 @@ function CatalogueRow({
         </div>
       ) : null}
 
-      {item.kind === 'video' ? <StreamChatFolds folds={folds} /> : null}
+      {item.kind === 'video' ? <StreamChatFolds folds={folds} mediaId={item.id} /> : null}
 
       {open ? (
         <div className="mt-2 pl-14 max-sm:pl-0">

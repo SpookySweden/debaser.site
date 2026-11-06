@@ -1,0 +1,57 @@
+/* The beat box's colours and sizes, reading the site's dyes (app/lib/ui/themes.ts).
+   Scoped to .debaser-beatbox so nothing leaks into the site's pages. */
+.debaser-beatbox {
+  /* Palette: Dyacid Dyes */
+  --nigrosine: var(--dye-nigrosine); /* background */
+  --white: var(--dye-white); /* main text */
+  --daffodil: var(--dye-daffodil); /* focus box, highlights */
+  --flavine: var(--dye-flavine); /* playhead */
+  --emerald: var(--dye-emerald); /* recording / on states */
+  --pink: var(--dye-brilliant-pink); /* notes, text OK */
+  --rose: var(--dye-rose); /* large shapes only, never small text (3.8:1) */
+  --royal-blue: var(--dye-royal-blue); /* fills only, with white text on top (1.9:1 as text) */
+  --black: var(--dye-black); /* high-contrast theme background */
+
+  /* Sizes */
+  --target-min: 44px; /* smallest button or pad */
+  --target-large: 64px; /* main buttons */
+  --focus-width: 8px; /* thicker than anything else on screen */
+  --border-width: 4px;
+  --press-depth: 8px; /* inset "pressed" look on hit */
+  --press-drop: 1px; /* a key's small drop when pressed */
+  --frame-width: 2px; /* the outline of a field */
+  --slot-light: 44px; /* art slot beside Record */
+  --slot-icon: 32px; /* art slot for a channel icon */
+  --slot-scene: 96px; /* art slot for an empty bar */
+  --playhead-width: 6px; /* thick outline, still thinner than the focus box */
+  --cell-line: 2px;
+  --grid-line: var(--royal-blue);
+  --beat-line: 4px;
+  --cell-s: 32px; /* note grid sizes: S is the only size below --target-min */
+  --cell-m: 44px;
+  --cell-l: 64px;
+  --cell-xl: 96px;
+  --text-s: 0.8125rem; /* note names inside S cells */
+  --text-m: 1rem;
+  --text-l: 1.375rem;
+  --text-xl: 2rem;
+  --target-swatch: 20px; /* channel shape beside its name, decoration only */
+  --gutter: 16px;
+  --gap: 32px;
+  --text-title: clamp(2rem, 8.5vw, 6rem);
+  --text-large: var(--text-headline);
+  --font-mono: var(--font-body);
+}
+
+/* High contrast: black background, white and daffodil ink, no thin lines. */
+.debaser-beatbox[data-theme="high-contrast"] {
+  --nigrosine: var(--dye-black);
+  --royal-blue: var(--dye-black);
+  --pink: var(--dye-white);
+  --rose: var(--dye-white);
+  --emerald: var(--dye-daffodil);
+  --flavine: var(--dye-daffodil);
+  --grid-line: var(--dye-white);
+  --cell-line: 4px;
+  --beat-line: 8px;
+}

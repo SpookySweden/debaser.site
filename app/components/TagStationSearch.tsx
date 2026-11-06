@@ -1,9 +1,8 @@
 'use client';
 
 import { useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react';
-import { suggest, type StationIndex } from '../lib/tag-station/query';
+import { sourceLabel, suggest, type StationIndex } from '../lib/tag-station/query';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
-import { PLATFORM_LABELS } from '../lib/web/types';
 import { FIELD } from '../lib/ui/controls';
 import { STATION_RING } from './TagStationParts';
 
@@ -41,7 +40,7 @@ export default function TagStationSearch({
     const found = suggest(index, typed);
     return [
       ...found.tags.map((tag): Choice => ({ key: `tag:${tag.name}`, kind: 'tag', name: tag.name, label: tag.name, detail: tag.count === 1 ? 'WORD · 1 ITEM' : `WORD · ${tag.count} ITEMS` })),
-      ...found.items.map((item): Choice => ({ key: `item:${item.id}`, kind: 'item', id: item.id, label: item.title, detail: PLATFORM_LABELS[item.platform] })),
+      ...found.items.map((item): Choice => ({ key: `item:${item.id}`, kind: 'item', id: item.id, label: item.title, detail: sourceLabel(item.platform) })),
     ];
   }, [index, text]);
 
