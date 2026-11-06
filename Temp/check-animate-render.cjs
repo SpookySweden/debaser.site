@@ -89,7 +89,7 @@ useStudio.setState({ settings: { ...useStudio.getState().settings, full: false, 
 
 // A fault is a Rose chip, not Rose words.
 useStudio.setState({ notice: { text: 'LAYER LOCKED', fault: true } });
-assert.match(draw(), /bg-bubble-pale px-1 text-ink-bar[^>]*>LAYER LOCKED/);
+assert.match(draw(), /bg-bubble-pale px-2 py-1 text-ink-bar[^>]*>LAYER LOCKED/);
 
 // The panels open.
 useStudio.setState({ notice: null, panel: 'projects' });
