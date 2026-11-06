@@ -355,18 +355,25 @@ const READERS: Record<SweepSource, (state: Record<string, unknown>, deadline: nu
   tvmaze: readTvmaze,
 };
 
+/**
+ * Where each source got to. The second round (2026-11-06): the first runs moved every source on while only the first 1,000 items of each run were sent, so
+ * each starts again from the top. What's already held is skipped without being paid for (`web_pool_unknown`).
+ */
+const stateKey = (source: SweepSource) => `${source}@2`;
+
 /** Reads every source at once, each stopping at the deadline. One source failing costs only its own rows. */
 export async function readSources(state: SweepState, deadline: number, deps: SweepDeps): Promise<{ items: PoolCandidate[]; state: SweepState }> {
   const reads = await Promise.all(
     SWEEP_SOURCES.map(async (source) => {
+      const place = state[stateKey(source)] ?? {};
       try {
-        return { source, read: await READERS[source](state[source] ?? {}, deadline, deps) };
+        return { source, read: await READERS[source](place, deadline, deps) };
       } catch {
-        return { source, read: { items: [], state: state[source] ?? {} } };
+        return { source, read: { items: [], state: place } };
       }
     }),
   );
-  return { items: reads.flatMap(({ read }) => read.items), state: Object.fromEntries(reads.map(({ source, read }) => [source, read.state])) };
+  return { items: reads.flatMap(({ read }) => read.items), state: Object.fromEntries(reads.map(({ source, read }) => [stateKey(source), read.state])) };
 }
 
 export type WordCount = { word: string; items: number; partners: Record<string, number> };
@@ -519,6 +526,7 @@ function digestFor(id: string): string {
 }
 
 const SENT_CHUNK = 1000;
+const API_ROWS = 1000;
 
 /** The store, through the lock-checking database functions (supabase/migrations/*_web_pool.sql): no server key needed. */
 export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
@@ -540,7 +548,12 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
     saveState: async (source, state) => {
       await call('web_sweep_state_write', { p_source: source, p_state: state });
     },
-    unknown: (ids) => call<string[]>('web_pool_unknown', { p_ids: [...ids] }),
+    // The API answers at most 1,000 rows a call, so each call asks about at most that many.
+    unknown: async (ids) => {
+      const out: string[] = [];
+      for (let start = 0; start < ids.length; start += API_ROWS) out.push(...(await call<string[]>('web_pool_unknown', { p_ids: ids.slice(start, start + API_ROWS) })));
+      return out;
+    },
     sent: async (batchId, rows) => {
       for (let start = 0; start < rows.length; start += SENT_CHUNK) {
         const part = rows.slice(start, start + SENT_CHUNK).map((row) => ({
@@ -558,7 +571,18 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
       }
     },
     pending: () => call<string[]>('web_pool_pending', {}),
-    outIn: (batchId) => call<string[]>('web_pool_out', { p_batch: batchId }),
+    // Likewise, a page at a time, for a batch bigger than one answer.
+    outIn: async (batchId) => {
+      const out: string[] = [];
+      for (let start = 0; start < MAX_BATCH; start += API_ROWS) {
+        const { data, error, status } = await db.rpc('web_pool_out', { p_secret: lock, p_batch: batchId }).range(start, start + API_ROWS - 1);
+        if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { name: `database web_pool_out ${status}` });
+        const rows = (data ?? []) as unknown as string[];
+        out.push(...rows);
+        if (rows.length < API_ROWS) break;
+      }
+      return [...new Set(out)];
+    },
     collect: async (batchId, rows, stats) => {
       await call('web_pool_collect', { p_batch: batchId, p_rows: rows, p_stats: stats });
     },
