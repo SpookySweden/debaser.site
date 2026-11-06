@@ -25,7 +25,7 @@ export async function POST(request: Request): Promise<Response> {
   if (!session) return json({ error: 'Sign in first.' }, 401);
   const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data, error } = await db.auth.getUser(session);
-  if (error || !data.user) return json({ error: 'Sign in first.' }, 401);
+  if (error || !data.user || data.user.is_anonymous === true) return json({ error: 'Sign in first.' }, 401);
 
   try {
     return json({ items: await readYouTubeMine(request.headers.get('x-google-token') ?? '') }, 200);

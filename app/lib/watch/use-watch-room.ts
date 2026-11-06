@@ -133,6 +133,20 @@ function follow(roomId: string): () => void {
   };
 }
 
+/**
+ * The connection to the database changed under this tab (somebody became a guest, or a guest logged in): every room followed moves to the new one and
+ * reads again, since what it may read has changed too.
+ */
+export function refollowRooms(): void {
+  for (const [roomId, entry] of rooms) {
+    if (entry.unsubscribe !== null) {
+      entry.unsubscribe();
+      entry.unsubscribe = getWatchRepository().subscribeRoom(roomId, (change) => apply(roomId, change));
+    }
+    if (entry.state.read !== undefined) read(roomId);
+  }
+}
+
 /** Puts a write this tab just made into the shared copy at once, before its echo arrives. */
 export function applyLocalChange(roomId: string, change: RoomChange): void {
   apply(roomId, change);

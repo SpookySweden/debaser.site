@@ -1,10 +1,11 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '../supabase/client';
+import { guestClient, hasStoredGuest, roomClient } from './room-client';
 import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput, PlayNowInput, PlaybackPatch, RoomChange, RoomMembership, RoomSettingsInput, SendMessageInput, WatchRepository } from './repository';
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
-import type { JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
@@ -27,7 +28,7 @@ const MESSAGES = 'watch_messages';
 const CROWNS = 'watch_crowns';
 
 const ROOM_COLUMNS =
-  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy';
+  'id, original_host_id, original_host_label, host_id, forum_thread_id, current_entry_id, position_seconds, is_playing, started_at, updated_at, ended_at, origin, is_public, cleared_at, name, topic, add_mode, privacy, guests_can_talk';
 const QUEUE_COLUMNS =
   'id, room_id, position, in_queue, media_item_id, source_url, source_kind, source_title, series_id, series_title, series_episode, added_by, added_at, played_at, play_index';
 const MESSAGE_COLUMNS = 'id, room_id, queue_entry_id, media_item_id, author_id, author_label, body, media_seconds, created_at';
@@ -69,6 +70,7 @@ type RoomRow = {
   name?: string | null;
   topic?: string | null;
   add_mode?: string | null;
+  guests_can_talk?: boolean | null;
 };
 
 type QueueRow = {
@@ -134,6 +136,7 @@ function toRoom(row: RoomRow): WatchRoom {
     name: row.name ?? null,
     topic: row.topic ?? null,
     addMode: row.add_mode === 'crowns' ? 'crowns' : 'anyone',
+    guestsCanTalk: row.guests_can_talk !== false,
   };
 }
 
@@ -188,7 +191,7 @@ function refused(error: { code?: string; message?: string } | null, fallback: st
 }
 
 function requireClient(): SupabaseClient {
-  const client = getSupabaseBrowserClient();
+  const client = roomClient();
   if (client === null) throw new Error('STREAMS ARE OFFLINE.');
   return client;
 }
@@ -346,6 +349,38 @@ class SupabaseWatchRepository implements WatchRepository {
     return data as JoinAnswer;
   }
 
+  async readGuest(): Promise<RoomGuest | null> {
+    if (!hasStoredGuest()) return null;
+    const client = guestClient();
+    if (client === null) return null;
+    const { data, error } = await client.rpc('guest_self');
+    if (error || data === null) return null;
+    return data as RoomGuest;
+  }
+
+  async becomeGuest(): Promise<RoomGuest> {
+    const client = guestClient();
+    if (client === null) throw new Error('STREAMS ARE OFFLINE.');
+    const { error } = await client.auth.signInAnonymously();
+    if (error) throw new Error(error.status === 429 ? 'TOO MANY NEW GUESTS FROM HERE. TRY AGAIN LATER.' : 'GUESTS CANNOT JOIN RIGHT NOW. TRY AGAIN LATER.');
+    const guest = await this.readGuest();
+    if (guest === null) throw new Error('GUESTS CANNOT JOIN RIGHT NOW. TRY AGAIN LATER.');
+    return guest;
+  }
+
+  async nameGuest(name: string): Promise<GuestNameAnswer> {
+    const client = guestClient();
+    if (client === null) return 'refused';
+    const { data, error } = await client.rpc('guest_set_name', { wanted: name });
+    if (error) return 'refused';
+    return data as GuestNameAnswer;
+  }
+
+  async setGuestsCanTalk(roomId: string, allowed: boolean): Promise<void> {
+    const { error } = await requireClient().rpc('watch_room_guests_talk', { room: roomId, allowed });
+    if (error) throw new Error('ONLY THE HOST OR A CROWN CAN CHANGE THAT.');
+  }
+
   async setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void> {
     const { error } = await requireClient().rpc('watch_room_set_privacy', { room: roomId, new_privacy: privacy, new_password: password });
     if (error) throw new Error(error.code === '22023' ? 'THAT NEEDS A PASSWORD.' : 'ONLY THE HOST CAN CHANGE THAT.');
@@ -396,7 +431,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   subscribeRoomMembers(roomId: string, listener: (row: RoomMemberRow) => void): () => void {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) return () => undefined;
     const heard = (payload: { new: unknown }) => listener(toMember(payload.new as MemberRow));
     const channel = client
@@ -633,7 +668,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   subscribeLiveRooms(listener: () => void): () => void {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) return () => undefined;
     // Every host's heartbeat is a room write, every few seconds: the list is told at most once a few seconds.
     let waiting: ReturnType<typeof setTimeout> | null = null;
@@ -832,6 +867,10 @@ class SupabaseWatchRepository implements WatchRepository {
       })
       .select(MESSAGE_COLUMNS)
       .single<MessageRow>();
+    // The database's own words for a guest's line (20261106194444_guests_in_streams.sql).
+    if (error?.code === 'GT401') throw new Error('PICK A NAME FIRST.');
+    if (error?.code === 'GT415') throw new Error('PICTURES NEED AN ACCOUNT.');
+    if (error?.code === 'GT429') throw new Error('SLOW DOWN. TRY AGAIN IN A MOMENT.');
     if (error) throw refused(error, 'THE MESSAGE WAS NOT SENT.');
     return toMessage(data);
   }
@@ -885,7 +924,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   subscribeRoom(roomId: string, onChange: (change: RoomChange) => void): () => void {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) return () => undefined;
 
     let reread: ReturnType<typeof setTimeout> | null = null;
@@ -946,7 +985,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   subscribeStreamActivity(listener: () => void): () => void {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) return () => undefined;
 
     // Plays and lines of chat, not the rooms: a live room is written every few seconds.
@@ -963,7 +1002,7 @@ class SupabaseWatchRepository implements WatchRepository {
   }
 
   joinRoom(roomId: string, me: Omit<WatchMember, 'joinedAt'>, onMembers: (members: WatchMember[]) => void): RoomMembership {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     const self: WatchMember = { ...me, joinedAt: Date.now() };
     if (client === null) {
       onMembers([self]);

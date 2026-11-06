@@ -2,8 +2,8 @@ import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput
 import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { goPublicPlan } from './music-rooms';
-import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
-import type { JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, guestNameLooksRight, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -57,7 +57,7 @@ function load(): Tables {
     return {
       // Rooms stored before music rooms were all public streams, never cleared.
       rooms: Array.isArray(parsed.rooms)
-        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, privacy: room.privacy ?? 'open', clearedAt: room.clearedAt ?? null, name: room.name ?? null, topic: room.topic ?? null, addMode: room.addMode ?? 'anyone' }))
+        ? parsed.rooms.map((room) => ({ ...room, origin: room.origin ?? 'stream', isPublic: room.isPublic ?? true, privacy: room.privacy ?? 'open', clearedAt: room.clearedAt ?? null, name: room.name ?? null, topic: room.topic ?? null, addMode: room.addMode ?? 'anyone', guestsCanTalk: room.guestsCanTalk ?? true }))
         : [],
       // Rows stored before links existed have no `link`; rows from before additions were all in the queue.
       queue: Array.isArray(parsed.queue) ? parsed.queue.map((entry) => ({ ...entry, link: entry.link ?? null, inQueue: entry.inQueue ?? true, series: entry.series ?? null })) : [],
@@ -86,7 +86,23 @@ async function currentAccountOrNull() {
 }
 
 async function viewerId(): Promise<string | null> {
-  return (await currentAccountOrNull())?.id ?? null;
+  return (await currentAccountOrNull())?.id ?? readMockGuest()?.id ?? null;
+}
+
+const MOCK_GUEST_KEY = 'debaser-mock-guest';
+
+/** A guest with the mock accounts: one per browser, as on the live site. The database's rules about other guests' and accounts' names and about floods have nobody to test against here. */
+function readMockGuest(): RoomGuest | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return JSON.parse(window.localStorage.getItem(MOCK_GUEST_KEY) ?? 'null') as RoomGuest | null;
+  } catch {
+    return null;
+  }
+}
+
+function saveMockGuest(guest: RoomGuest): void {
+  window.localStorage.setItem(MOCK_GUEST_KEY, JSON.stringify(guest));
 }
 
 const memberListeners = new Set<(row: RoomMemberRow) => void>();
@@ -304,7 +320,7 @@ class MockWatchRepository implements WatchRepository {
       found: true,
       live: room.endedAt === null && room.isPublic,
       privacy: room.privacy,
-      title: me === null ? null : (room.name ?? 'THIS ROOM'),
+      title: me === null || readMockGuest()?.id === me ? null : (room.name ?? 'THIS ROOM'),
       member: mine !== undefined && mine.removedAt === null,
       removed: mine !== undefined && mine.removedAt !== null,
       lockedUntil: locked ? (attempt?.lockedUntil ?? null) : null,
@@ -314,7 +330,9 @@ class MockWatchRepository implements WatchRepository {
   async enterRoom(roomId: string, password: string | null): Promise<JoinAnswer> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.id === roomId);
-    const me = await currentAccountOrNull();
+    const account = await currentAccountOrNull();
+    const guest = account === null ? readMockGuest() : null;
+    const me = account === null ? (guest === null ? null : { id: guest.id, displayName: guest.label }) : { id: account.id, displayName: account.displayName };
     if (room === undefined || me === null) return 'refused';
     const mine = tables.members.find((row) => row.roomId === roomId && row.userId === me.id);
     if (mine?.removedAt !== null && mine !== undefined) return 'removed';
@@ -336,6 +354,38 @@ class MockWatchRepository implements WatchRepository {
 
     save({ ...tables, members: [...tables.members, { roomId, userId: me.id, label: me.displayName, removedAt: null }] }, null);
     return 'joined';
+  }
+
+  async readGuest(): Promise<RoomGuest | null> {
+    return readMockGuest();
+  }
+
+  async becomeGuest(): Promise<RoomGuest> {
+    const id = newId();
+    const guest: RoomGuest = { id, label: `GUEST-${id.slice(0, 3).toUpperCase()}`, named: false };
+    saveMockGuest(guest);
+    return guest;
+  }
+
+  async nameGuest(name: string): Promise<GuestNameAnswer> {
+    const guest = readMockGuest();
+    if (guest === null || guest.named) return 'refused';
+    if (!guestNameLooksRight(name) || /^(guest|anon|admin|host|mod)/i.test(name.trim())) return 'bad';
+    const label = `${name.trim().replace(/\s+/g, ' ')} [GUEST]`;
+    saveMockGuest({ ...guest, label, named: true });
+    const tables = load();
+    save({ ...tables, members: tables.members.map((row) => (row.userId === guest.id ? { ...row, label } : row)) }, null);
+    return 'named';
+  }
+
+  async setGuestsCanTalk(roomId: string, allowed: boolean): Promise<void> {
+    const tables = load();
+    const room = tables.rooms.find((candidate) => candidate.id === roomId);
+    const me = await currentAccountOrNull();
+    if (room === undefined || me === null || room.endedAt !== null || (room.hostId !== me.id && !hasCrown(tables.crowns.filter((crown) => crown.roomId === roomId), me.id))) {
+      throw new Error('ONLY THE HOST OR A CROWN CAN CHANGE THAT.');
+    }
+    changeRoom(roomId, (current) => ({ ...current, guestsCanTalk: allowed }));
   }
 
   async setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void> {
@@ -484,6 +534,7 @@ class MockWatchRepository implements WatchRepository {
       name: null,
       topic: null,
       addMode: 'anyone',
+      guestsCanTalk: true,
     };
     const crown = crownFor(room.id, input.host.id, input.host.id);
     const queue = entry === null ? [] : [entry];
@@ -527,6 +578,7 @@ class MockWatchRepository implements WatchRepository {
         name: null,
         topic: null,
         addMode: 'anyone',
+        guestsCanTalk: true,
       };
       // The host is crowned as the room is written, as GO LIVE does it.
       crowns = withCrown(crowns, crownFor(room.id, input.host.id, input.host.id));
@@ -796,6 +848,7 @@ class MockWatchRepository implements WatchRepository {
     const room = tables.rooms.find((candidate) => candidate.id === input.roomId);
     if (room === undefined || room.endedAt !== null) throw new Error('THE STREAM HAS ENDED.');
     refuseIfShut(room, input.author.id);
+    if (room.guestsCanTalk === false && readMockGuest()?.id === input.author.id) throw new Error(NOT_ALLOWED);
 
     const message: WatchMessage = {
       id: newId(),

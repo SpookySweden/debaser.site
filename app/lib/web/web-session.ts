@@ -34,7 +34,8 @@ const checkWithSupabase: CheckToken = async (token) => {
   try {
     const client = createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
     const { data, error } = await client.auth.getUser(token);
-    return error === null && Boolean(data.user?.id);
+    // A guest is signed in only as far as stream rooms go (SPEC-guests.md).
+    return error === null && Boolean(data.user?.id) && data.user?.is_anonymous !== true;
   } catch {
     return false;
   }

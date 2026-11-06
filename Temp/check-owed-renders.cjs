@@ -588,12 +588,14 @@ test('CytubeLiveStreams: null until the first answer, then only live rooms, play
 });
 
 // --- CytubePage
-test('CytubePage: signed out or still checking, a prompt and no way to go live', () => {
+test('CytubePage: signed out, ABOUT and ROOM to join from and no way to go live (SPEC-guests.md); still checking, a prompt', () => {
   auth = { status: 'signed-out', user: null };
   let html = draw(el(CytubePage));
-  assert.match(visible(html), /SIGN IN TO USE \w+/);
-  assert.match(openingTag(html, '[ SIGN IN ]'), /href="\/account"/);
-  assert.ok(!html.includes('GO LIVE ]') && !html.includes('role="tablist"'));
+  assert.doesNotMatch(visible(html), /SIGN IN TO USE \w+/);
+  assert.match(visible(html), /YOU CAN JOIN A ROOM WITHOUT AN ACCOUNT/);
+  assert.match(openingTag(html, '[ LOG IN ]'), /href="\/account"/);
+  assert.ok(html.includes('role="tablist"') && visible(html).includes('[ ROOM ]') && visible(html).includes('[ ABOUT ]'));
+  assert.ok(!html.includes('GO LIVE ]') && !html.includes('data-cytube-layout-key') && !visible(html).includes('[ CANVASES ]'));
   auth = { status: 'loading', user: null };
   html = draw(el(CytubePage));
   assert.equal(visible(html), 'CHECKING YOUR SIGN-IN...');

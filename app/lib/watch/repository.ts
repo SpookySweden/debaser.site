@@ -1,7 +1,7 @@
 import { isSupabaseConfigured } from '../supabase/client';
 import { getMockWatchRepository } from './mock-watch-repository';
 import { getSupabaseWatchRepository } from './supabase-watch-repository';
-import type { JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { GuestNameAnswer, JoinAnswer, LiveRoom, PrivateLine, PrivateFold, PrivateRoomLine, QueueMove, RoomAddMode, RoomDoor, RoomGuest, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Where stream rooms live (SPEC-watch-together.md).
@@ -111,6 +111,14 @@ export type WatchRepository = {
   readDoor(roomId: string): Promise<RoomDoor>;
   /** Joining: a member from here on, or why not. The password only counts for a room that has one. */
   enterRoom(roomId: string, password: string | null): Promise<JoinAnswer>;
+  /** The guest in this browser, or null (SPEC-guests.md). Never makes one. */
+  readGuest(): Promise<RoomGuest | null>;
+  /** Makes this browser's guest. Throws with a sentence fit to show. */
+  becomeGuest(): Promise<RoomGuest>;
+  /** Picks the guest's name, once. */
+  nameGuest(name: string): Promise<GuestNameAnswer>;
+  /** GUESTS CAN TALK: the host's and a crown's. Throws with a sentence fit to show. */
+  setGuestsCanTalk(roomId: string, allowed: boolean): Promise<void>;
   /** WHO CAN JOIN and CHANGE PASSWORD: the host's. A null password keeps the one already set. Throws with a sentence fit to show. */
   setRoomPrivacy(roomId: string, privacy: RoomPrivacy, password: string | null): Promise<void>;
   /** REMOVE: the host's and a crown's. Throws with a sentence fit to show. */
