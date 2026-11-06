@@ -3,24 +3,29 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { allActions, keyLabel, keyOf } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
+import { DEFAULT_FPS, DEFAULT_HEIGHT, DEFAULT_WIDTH } from '../../lib/animate/project';
 import type { ProjectListing } from '../../lib/animate/storage';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
 import AnimateExportPanel from './AnimateExportPanel';
 import AnimateOnionPanel from './AnimateOnionPanel';
+import AnimateSettings from './AnimateSettings';
 
 /** The panel that floats over the studio. Esc-free: its key or `[ CLOSE ]` shuts it; the studio's keys still work behind it. */
 export function AnimatePanelFrame({ title, children }: { title: string; children: ReactNode }) {
   const uiScale = useStudio((state) => state.settings.uiScale);
   return (
-    <div role="dialog" aria-label={title} className="absolute right-2 top-12 z-40 flex max-h-[80%] w-[28rem] max-w-[92%] flex-col frame bg-paper p-3 text-key text-ink" style={{ zoom: uiScale }}>
-      <div className="mb-2 flex items-center justify-between gap-2">
-        <h2 className={TITLE_BAR}>{title}</h2>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'none' })}>
-          [ CLOSE ]
-        </button>
+    // Held inside the studio's own box, so at any interface size it's all reachable and nothing hides behind the site's strips.
+    <div className="pointer-events-none absolute inset-1 z-40 flex justify-end">
+      <div role="dialog" aria-label={title} className="pointer-events-auto flex h-fit max-h-full w-[28rem] max-w-full flex-col frame bg-paper p-3 text-key text-ink" style={{ zoom: uiScale }}>
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <h2 className={TITLE_BAR}>{title}</h2>
+          <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'none' })}>
+            [ CLOSE ]
+          </button>
+        </div>
+        <div className="min-h-0 overflow-y-auto">{children}</div>
       </div>
-      <div className="min-h-0 overflow-y-auto">{children}</div>
     </div>
   );
 }
@@ -52,10 +57,29 @@ function HelpPanel() {
   );
 }
 
+function SizeField({ label, value, min, max, onChange }: { label: string; value: number; min: number; max: number; onChange: (value: number) => void }) {
+  return (
+    <label className="flex flex-col gap-0.5">
+      {label}
+      <input
+        type="number"
+        value={value}
+        min={min}
+        max={max}
+        aria-label={label}
+        onChange={(event) => onChange(Math.max(min, Math.min(max, Math.round(Number(event.target.value)) || min)))}
+        className="frame w-20 bg-paper px-1 py-0.5 font-mono text-key text-ink outline-none focus:outline-2 focus:outline-dotted focus:outline-bubble"
+      />
+    </label>
+  );
+}
+
 function ProjectsPanel() {
   const currentId = useStudio((state) => state.project.id);
   const [list, setList] = useState<ProjectListing[] | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [versions, setVersions] = useState<{ name: string; time: number }[]>([]);
+  const [size, setSize] = useState({ width: DEFAULT_WIDTH, height: DEFAULT_HEIGHT, fps: DEFAULT_FPS });
 
   useEffect(() => {
     let live = true;
@@ -64,6 +88,11 @@ function ProjectsPanel() {
       .then(() => getEngine().listProjects())
       .then((rows) => {
         if (live) setList(rows);
+      });
+    void getEngine()
+      .versions()
+      .then((rows) => {
+        if (live) setVersions(rows);
       });
     return () => {
       live = false;
@@ -74,17 +103,20 @@ function ProjectsPanel() {
 
   return (
     <AnimatePanelFrame title="PROJECTS">
-      <div className="mb-2 flex flex-wrap gap-2">
-        <button
-          type="button"
-          className={PLATE_MEDIUM}
-          onClick={() => {
-            void getEngine().newProject().then(reload);
-          }}
-        >
+      <form
+        className="mb-2 flex flex-wrap items-end gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          void getEngine().newProject(undefined, size.width, size.height, size.fps).then(reload);
+        }}
+      >
+        <SizeField label="WIDE" value={size.width} min={16} max={7680} onChange={(width) => setSize({ ...size, width })} />
+        <SizeField label="TALL" value={size.height} min={16} max={7680} onChange={(height) => setSize({ ...size, height })} />
+        <SizeField label="FPS" value={size.fps} min={1} max={60} onChange={(fps) => setSize({ ...size, fps })} />
+        <button type="submit" className={PLATE_MEDIUM}>
           [ NEW ]
         </button>
-      </div>
+      </form>
       {list === null && <p>LOOKING...</p>}
       {list !== null && list.length === 0 && <p>NOTHING YET.</p>}
       <ul className="flex flex-col gap-1">
@@ -115,6 +147,21 @@ function ProjectsPanel() {
           </li>
         ))}
       </ul>
+      {versions.length > 0 && (
+        <>
+          <h3 className="mt-3 text-accent-ink">OLDER VERSIONS OF THIS ONE</h3>
+          <ul className="flex flex-col gap-1">
+            {versions.map((version) => (
+              <li key={version.name} className="flex items-center gap-2">
+                <span className="min-w-0 flex-1 truncate">{new Date(version.time).toLocaleString()}</span>
+                <button type="button" className={PLATE_MEDIUM} onClick={() => void getEngine().openVersion(version.name)}>
+                  [ OPEN A COPY ]
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </AnimatePanelFrame>
   );
 }
@@ -126,5 +173,6 @@ export default function AnimatePanels() {
   if (panel === 'projects') return <ProjectsPanel />;
   if (panel === 'onion') return <AnimateOnionPanel />;
   if (panel === 'export') return <AnimateExportPanel />;
+  if (panel === 'settings') return <AnimateSettings />;
   return null;
 }

@@ -20,3 +20,9 @@ If the pen gives no pressure at all: in the Huion driver, tick "Windows Ink". Ch
 2. Does the onion show enough of the last drawing to trace, without being in the way? Tints and opacities are behind `SHIFT + O`.
 3. Drag a drawing's end on the timeline with the pen. Is the grab handle wide enough to hit? (Hold Shift to push what follows.)
 4. Does 24 fps playback look even? It should start at once; a very long shot says READYING first.
+
+## Phase 2: organising
+1. Turn the interface up with `[ UI + ]`, up to 300%. Press `\` for full screen, and the backtick key to hide every panel and draw with only the sheet.
+2. Drag a layer's name with the pen to reorder it, and drop it on a folder. Is it easy to hit? Are the V, L and S keys on a row big enough?
+3. SETTINGS, PEN: try the SOFT and FIRM curves, or drag the two handles. Is there a curve that suits your hand? It's kept once set.
+4. Box-select (`SHIFT + W`) or lasso (`W`), then drag inside to move, a corner to scale, the top handle to turn. Are the handles big enough to hit? Move a drawing, then undo.

@@ -1,8 +1,10 @@
 'use client';
 
+import { useRef } from 'react';
 import { BRUSH_LABELS, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE } from '../../lib/animate/brushes';
-import { inkOn } from '../../lib/animate/colours';
+import { inkOn, readPalette } from '../../lib/animate/colours';
 import { getEngine } from '../../lib/animate/engine';
+import { saveBlobAs } from '../../lib/animate/project-file';
 import { useStudio, type ToolId } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
@@ -14,9 +16,71 @@ const TOOL_KEYS: ToolKey[] = [
   { tool: 'ink', label: BRUSH_LABELS.ink, key: 'I' },
   { tool: 'flat', label: BRUSH_LABELS.flat, key: 'F' },
   { tool: 'eraser', label: BRUSH_LABELS.eraser, key: 'E' },
+  { tool: 'lasso', label: 'LASSO', key: 'W' },
+  { tool: 'rect', label: 'BOX SELECT', key: 'SHIFT + W' },
   { tool: 'pick', label: 'PICK COLOUR', key: 'K' },
   { tool: 'hand', label: 'HAND', key: 'H' },
 ];
+
+/** Keep the current colour, drop it, and carry a palette between projects as a file. */
+function PaletteKeys() {
+  const colour = useStudio((state) => state.colour);
+  const palette = useStudio((state) => state.project.palette);
+  const file = useRef<HTMLInputElement>(null);
+  const has = palette.some((swatch) => swatch.colour === colour);
+  const engine = getEngine();
+  return (
+    <div role="group" aria-label="Palette keys" className="flex flex-wrap gap-x-1">
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        disabled={has}
+        aria-label="Keep this colour in the palette"
+        onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: [...project.palette, { name: colour.toUpperCase(), colour }] }))}
+      >
+        [ + ]
+      </button>
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        disabled={!has}
+        aria-label="Take this colour out of the palette"
+        onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: project.palette.filter((swatch) => swatch.colour !== colour) }))}
+      >
+        [ - ]
+      </button>
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        aria-label="Save the palette as a file"
+        onClick={() => void saveBlobAs(new Blob([JSON.stringify({ animatePalette: 1, swatches: palette }, null, 2)], { type: 'application/json' }), 'palette.json', 'Palette', ['.json'])}
+      >
+        [ SAVE ]
+      </button>
+      <button type="button" className={PLATE_MEDIUM} aria-label="Load a palette file" onClick={() => file.current?.click()}>
+        [ LOAD ]
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept=".json"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Palette file"
+        onChange={(event) => {
+          const chosen = event.target.files?.[0];
+          event.target.value = '';
+          if (chosen === undefined) return;
+          void chosen.text().then((text) => {
+            const swatches = readPalette(text);
+            if (swatches === null) engine.notify('THAT IS NOT A PALETTE FILE', true);
+            else engine.edit('PALETTE', (project) => ({ ...project, palette: swatches }));
+          });
+        }}
+      />
+    </div>
+  );
+}
 
 /** The tools, the brush's settings and the palette. Words, not pictures: the site draws no icons. */
 export default function AnimateTools() {
@@ -80,6 +144,7 @@ export default function AnimateTools() {
             </button>
           ))}
         </div>
+        <PaletteKeys />
       </div>
     </div>
   );

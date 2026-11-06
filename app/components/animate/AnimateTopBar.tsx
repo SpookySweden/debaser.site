@@ -78,17 +78,23 @@ export default function AnimateTopBar() {
         <button type="button" className={PLATE_MEDIUM} onClick={() => getEngine().fitView()} title="0">
           [ FIT ]
         </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(-1)} aria-label="Interface smaller" title="CTRL + ,">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(-1)} aria-label="Interface smaller" title="CTRL + ;">
           [ UI - ]
         </button>
         <span className="text-ink" aria-label={`Interface ${Math.round(uiScale * 100)} percent`}>
           {Math.round(uiScale * 100)}%
         </span>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(1)} aria-label="Interface bigger" title="CTRL + .">
+        <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(1)} aria-label="Interface bigger" title="CTRL + '">
           [ UI + ]
         </button>
         <button type="button" className={full ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={full} onClick={() => updateSettings({ full: !full })} title="\">
           [ FULL ]
+        </button>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => updateSettings({ panelsHidden: true })} title="`">
+          [ HIDE PANELS ]
+        </button>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'settings' })} title="CTRL + ,">
+          [ SETTINGS ]
         </button>
         <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'help' })} title="?">
           [ ? ]

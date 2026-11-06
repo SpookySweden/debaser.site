@@ -4,11 +4,13 @@ import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } f
 import { getEngine } from '../../lib/animate/engine';
 import { togglePlaying } from '../../lib/animate/playback';
 import { planeKey } from '../../lib/animate/planes';
-import { moveCel, setExposure, visibleRows } from '../../lib/animate/project';
+import { selectRow } from '../../lib/animate/layers';
+import { depthOf, moveCel, setExposure, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
 import { clearRange, cycleMark, deleteDrawing, duplicateDrawing, holdsOn, newDrawing, setOnion, setPlayMode, setRangeEnd } from '../../lib/animate/timeline';
 import type { Cel, CelMark, LayerNode, PlayMode } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
+import { TagChip } from './AnimateLayers';
 
 const ROW_HEIGHT = 44;
 const RULER_HEIGHT = 24;
@@ -308,6 +310,7 @@ export default function AnimateTimeline() {
   const project = useStudio((state) => state.project);
   const layerId = useStudio((state) => state.layerId);
   const frame = useStudio((state) => state.frame);
+  const uiScale = useStudio((state) => state.settings.uiScale);
   const [cellWidth, setCellWidth] = useState(24);
   const scroller = useRef<HTMLDivElement>(null);
   const rows = visibleRows(project);
@@ -324,7 +327,8 @@ export default function AnimateTimeline() {
   return (
     <section aria-label="Timeline" className="flex flex-col border-t-line border-ink bg-sun-pale">
       <Transport />
-      <div ref={scroller} className="max-h-[30vh] min-h-24 overflow-auto bg-paper">
+      {/* Its height stays a share of the screen at any interface size. */}
+      <div ref={scroller} className="min-h-24 overflow-auto bg-paper" style={{ maxHeight: `calc(30vh / ${uiScale})` }}>
         <div className="flex" style={{ width: NAME_WIDTH + count * cellWidth }}>
           <div className="sticky left-0 z-20 shrink-0 border-r-line border-ink bg-sun-pale" style={{ width: NAME_WIDTH }}>
             <div className="flex items-center gap-1 border-b-line border-ink px-1" style={{ height: RULER_HEIGHT }}>
@@ -342,9 +346,14 @@ export default function AnimateTimeline() {
                 aria-pressed={node.id === layerId}
                 className={`flex w-full cursor-pointer items-center truncate border-b border-ink px-1 text-left text-key ${node.id === layerId ? 'bg-ink text-paper' : 'text-ink'}`}
                 style={{ height: ROW_HEIGHT }}
-                onClick={() => useStudio.setState({ layerId: node.id })}
+                onClick={() => selectRow(node.id)}
               >
-                <span className="truncate">{node.name}</span>
+                <span className="truncate" style={{ paddingLeft: depthOf(project, node) * 10 }}>
+                  {node.kind === 'folder' ? `${node.name} /` : node.name}
+                </span>
+                <span className="ml-auto pl-1">
+                  <TagChip project={project} node={node} />
+                </span>
               </button>
             ))}
           </div>

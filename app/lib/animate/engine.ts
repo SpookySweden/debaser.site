@@ -7,13 +7,14 @@
  * true place in the stack (a colour stroke shows under the lines while it's being drawn).
  */
 import { BRUSH_SHAPES, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE, Stabiliser, applyCurve, tiltPressure, type Rect } from './brushes';
+import { SAFE_AREA } from './colours';
 import { composite } from './composite';
 import { copyRect, History, restoreRect, type HistoryStep, type PlanePatch } from './history';
 import { fillStroke, paintStroke, strokeBounds, type PaintMask } from './paint';
 import { planeFile, planeKey, PlaneStore } from './planes';
 import { addDrawing, addOp, celAt, createProject, findNode, firstLayer, neighbourFrame } from './project';
 import { assetIdsOf, buildProjectFile, FILE_EXTENSION, readProjectFile, safeFileName, saveBlobAs } from './project-file';
-import { askToKeepStorage, deleteProjectData, getMeta, listProjects, loadProjectData, readFile, saveProjectData, setMeta, type ProjectListing } from './storage';
+import { askToKeepStorage, deleteProjectData, getMeta, listProjects, listFiles, loadProjectData, readFile, saveProjectData, setMeta, writeFile, deleteFile, type ProjectListing } from './storage';
 import { saveSettings, useStudio, type ToolId } from './store';
 import { isFigure, liveBehaviours, smartsForStroke, tagBehaviours } from './tags';
 import type { BrushId, Cel, LayerNode, PlaneName, PlaneOp, Project, Stroke, StrokePoint } from './types';
@@ -24,6 +25,7 @@ export type View = { zoom: number; x: number; y: number; rot: number; flip: bool
 
 const MIN_ZOOM = 0.05;
 const MAX_ZOOM = 32;
+const VERSION_EVERY_MS = 5 * 60 * 1000;
 
 function newProjectId(): string {
   return `p_${Date.now().toString(36)}${Math.floor(Math.random() * 1296).toString(36)}`;
@@ -354,6 +356,10 @@ export class AnimateEngine {
 
   /** Hand this a playback picture and the stage shows it instead of building the frame. */
   playbackPicture: ImageBitmap | null = null;
+  /** Working copies shown in place of planes while a selection is dragged. */
+  previewOverrides: Map<string, OffscreenCanvas> | null = null;
+  /** Told after a selection's move lands (the smart module re-reads the lines). */
+  afterMove: (() => void) | null = null;
   onionShift: ((celId: string) => DOMMatrixReadOnly | null) | null = null;
 
   private prepare(ctx: CanvasRenderingContext2D, canvas: HTMLCanvasElement): void {
@@ -383,7 +389,7 @@ export class AnimateEngine {
     return {
       project: state.project,
       frame: state.frame,
-      planes: (key: string) => this.planes.peek(key),
+      planes: (key: string) => this.previewOverrides?.get(key) ?? this.planes.peek(key),
       activeLayerId: state.layerId,
       showOnion: !state.playing,
       lightTable: state.lightTable,
@@ -447,12 +453,23 @@ export class AnimateEngine {
     if (this.live !== null) return;
     const m = this.viewMatrix();
     ctx.setTransform(m.a, m.b, m.c, m.d, m.e, m.f);
+    if (this.project.safeArea) this.paintSafeArea(ctx);
     for (const painter of this.uiPainters) {
       ctx.save();
       painter(ctx);
       ctx.restore();
     }
     this.paintRing(ctx);
+  }
+
+  /** The safe-area guide: 90% and 80% of the sheet. */
+  private paintSafeArea(ctx: CanvasRenderingContext2D): void {
+    const { width, height } = this.project;
+    ctx.save();
+    ctx.strokeStyle = SAFE_AREA;
+    ctx.lineWidth = 1.5 / this.view.zoom;
+    for (const share of [0.9, 0.8]) ctx.strokeRect((width * (1 - share)) / 2, (height * (1 - share)) / 2, width * share, height * share);
+    ctx.restore();
   }
 
   private paintRing(ctx: CanvasRenderingContext2D): void {
@@ -828,6 +845,7 @@ export class AnimateEngine {
         if (generation === this.generation) {
           await setMeta('current', project.id);
           this.lastSaved = project;
+          void this.keepVersion(project);
         }
       }
     } catch {
@@ -836,6 +854,45 @@ export class AnimateEngine {
     if (generation !== this.generation) return;
     useStudio.setState({ saveState: ok ? (this.needsSaving() ? 'waiting' : 'saved') : 'failed' });
     if (!ok) this.notify('COULD NOT SAVE IN THIS BROWSER. SAVE TO A FILE.', true);
+  }
+
+  private lastVersion = 0;
+
+  /** Every five minutes of work, an older version of the project, kept as a whole project file. */
+  private async keepVersion(project: Project): Promise<void> {
+    const keep = useStudio.getState().settings.keepVersions;
+    const now = Date.now();
+    if (keep <= 0 || now - this.lastVersion < VERSION_EVERY_MS) return;
+    if (this.lastVersion === 0) {
+      // A fresh visit starts its clock: nothing has changed yet that's worth a copy.
+      this.lastVersion = now;
+      return;
+    }
+    this.lastVersion = now;
+    try {
+      const blob = await buildProjectFile(project, (key) => readFile(project.id, planeFile(key)));
+      await writeFile(project.id, `versions/${now}.zip`, blob);
+      const names = (await listFiles(project.id, 'versions')).sort();
+      for (const old of names.slice(0, Math.max(0, names.length - keep))) await deleteFile(project.id, `versions/${old}`);
+    } catch {
+      // A version is a nicety: the save itself already landed.
+    }
+  }
+
+  /** The older versions of this project, newest first. */
+  async versions(): Promise<{ name: string; time: number }[]> {
+    const names = await listFiles(this.project.id, 'versions');
+    return names.map((name) => ({ name, time: Number(name.replace('.zip', '')) })).sort((a, b) => b.time - a.time);
+  }
+
+  /** An older version opens as a project of its own; the current one stays as it is. */
+  async openVersion(name: string): Promise<void> {
+    const blob = await readFile(this.project.id, `versions/${name}`);
+    if (blob === null) {
+      this.notify('THAT VERSION IS GONE', true);
+      return;
+    }
+    await this.openFile(blob);
   }
 
   /** Before leaving a project: true once it's safe. Refused, in words, if it isn't, so a swap never drops unsaved pictures. */

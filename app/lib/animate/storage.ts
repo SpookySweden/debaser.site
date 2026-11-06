@@ -213,6 +213,30 @@ export async function readFile(projectId: string, file: string): Promise<Blob | 
   }
 }
 
+/** What's in one of a project's folders. Older versions live in private files only. */
+export async function listFiles(projectId: string, folder: string): Promise<string[]> {
+  try {
+    let dir = await navigator.storage.getDirectory();
+    for (const part of [ROOT, projectId, folder]) dir = await dir.getDirectoryHandle(part);
+    const names: string[] = [];
+    for await (const name of (dir as unknown as { keys: () => AsyncIterable<string> }).keys()) names.push(name);
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteFile(projectId: string, file: string): Promise<void> {
+  try {
+    let dir = await navigator.storage.getDirectory();
+    const path = opfsPath(projectId, file);
+    for (const part of path.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+    await dir.removeEntry(path[path.length - 1]);
+  } catch {
+    // Already gone.
+  }
+}
+
 /** Ask the browser not to clear this site's storage under pressure. It may say no; the work still saves. */
 export async function askToKeepStorage(): Promise<void> {
   try {

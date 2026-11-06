@@ -74,8 +74,9 @@ export function allActions(): Action[] {
     { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
     { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
     { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '\\', run: toggleFull },
-    { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: 'ctrl+.', run: () => stepUiScale(1) },
-    { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+,', run: () => stepUiScale(-1) },
+    { id: 'view.panels', label: 'HIDE / SHOW THE PANELS', group: 'VIEW', key: '`', run: () => updateSettings({ panelsHidden: !useStudio.getState().settings.panelsHidden }) },
+    { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: "ctrl+'", run: () => stepUiScale(1) },
+    { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+;', run: () => stepUiScale(-1) },
     { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
     { id: 'file.open', label: 'OPEN A FILE', group: 'FILE', key: 'ctrl+o', run: () => document.getElementById('animate-open-file')?.click() },
     { id: 'help.keys', label: 'THESE KEYS', group: 'HELP', key: '?', run: () => togglePanel('help') },
@@ -114,11 +115,17 @@ function isTyping(target: EventTarget | null): boolean {
   return false;
 }
 
+let capturingKey = false;
+
+/** The remap screen is listening for a key of its own. */
+export function setKeyCapture(on: boolean): void {
+  capturingKey = on;
+}
+
 /** The studio's keyboard, for as long as the page is open. */
 export function attachKeys(): () => void {
   const onDown = (event: KeyboardEvent) => {
-    if (isTyping(event.target)) return;
-    if (useStudio.getState().panel === 'keys') return; // The remap screen is listening for a key of its own.
+    if (isTyping(event.target) || capturingKey) return;
     const name = keyName(event);
     if (name === 'space') {
       keys.space = true;
