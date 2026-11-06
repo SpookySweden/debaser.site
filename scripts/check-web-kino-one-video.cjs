@@ -4,6 +4,8 @@
  *
  * - an Archive film must be one video: its player stops after one, so a DVD copy plays a 10-second menu and ends
  * - PUBLIC DOMAIN is said only when Wikidata says so
+ * - no evidence of the public domain is asked for, and YouTube's licensed mark decides nothing (Luke, 2026-11-06: "Remove the evidence thing and serve the YouTube videos that are found")
+ * - Wikidata calling a film copyrighted still keeps its Archive copy off, which he has not asked to change
  */
 const { join } = require('node:path');
 const { makeAsserts } = require('./web-search-check-kit.cjs');
@@ -29,10 +31,19 @@ same(k.archiveVerdict('a', archive([video('a-promo.mp4', '30'), video('e1.mp4', 
 same(k.archiveVerdict('a', archive([video('film.mp4', '6000')]), PD, 100)?.publicDomain, true, 'Archive, Wikidata says public domain: labelled');
 same(k.archiveVerdict('a', archive([video('film.mp4', '6000')], { licenseurl: 'http://creativecommons.org/publicdomain/mark/1.0/' }), UNSAID, 100)?.publicDomain, false, "Archive, only the uploader's mark: not labelled");
 
+same(k.archiveVerdict('a', archive([video('film.mp4', '6000')]), UNSAID, 100)?.id, 'a', 'Archive, one video and nothing said either way: offered');
+same(k.archiveVerdict('a', archive([video('film.mp4', '6000')]), UNSAID, 100)?.publicDomain, false, 'and not labelled');
+same(k.archiveVerdict('a', archive([video('film.mp4', '6000')], { licenseurl: 'https://creativecommons.org/licenses/by-nc/4.0/' }), UNSAID, 100)?.id, 'a', 'Archive, a licence with terms: offered');
+same(k.archiveVerdict('a', archive([video('film.mp4', '6000')]), { publicDomain: false, copyrighted: true }, 100), null, 'Archive, Wikidata says copyrighted: still not offered');
+
 const upload = (licensedContent) => ({ id: 'AAAAAAAAAAA', status: { privacyStatus: 'public', embeddable: true }, contentDetails: { duration: 'PT1H40M', licensedContent } });
 same(k.youtubeVerdict(upload(false), PD, 100, 'SE')?.publicDomain, true, 'YouTube, Wikidata says public domain: labelled');
 same(k.youtubeVerdict(upload(true), UNSAID, 100, 'SE')?.publicDomain, false, 'YouTube, a licensed upload: offered, not labelled');
 same(k.youtubeVerdict(upload(true), BOTH, 100, 'SE')?.publicDomain, false, 'Wikidata says both: not labelled');
-same(k.youtubeVerdict(upload(false), UNSAID, 100, 'SE'), null, 'neither public domain nor licensed: not offered');
+same(k.youtubeVerdict(upload(false), UNSAID, 100, 'SE')?.id, 'AAAAAAAAAAA', 'YouTube, nothing said either way: offered');
+same(k.youtubeVerdict(upload(false), UNSAID, 100, 'SE')?.publicDomain, false, 'and not labelled');
+same(k.youtubeVerdict(upload(false), BOTH, 100, 'SE')?.publicDomain, false, 'YouTube, Wikidata says both: offered, not labelled');
+same(k.youtubeVerdict({ ...upload(false), status: { privacyStatus: 'public', embeddable: false } }, UNSAID, 100, 'SE'), null, 'YouTube, can\'t be embedded: not offered, because it would not play');
+same(k.youtubeVerdict({ ...upload(false), contentDetails: { duration: 'PT2M' } }, UNSAID, 100, 'SE'), null, 'YouTube, a trailer\'s length: not offered');
 
 asserts.done();

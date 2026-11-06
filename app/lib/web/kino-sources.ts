@@ -114,13 +114,10 @@ export function longEnough(seconds: number, runtimeMinutes: number | undefined):
   return runtimeMinutes !== undefined ? seconds >= runtimeMinutes * 30 : seconds >= SHORTEST_UNKNOWN_SECONDS;
 }
 
-/** The Archive's own marks for "no one owns this": its public-domain mark and CC0. A CC licence with terms is not enough here. */
-const ARCHIVE_NO_RIGHTS = /^https?:\/\/(?:www\.)?creativecommons\.org\/(?:publicdomain\/(?:mark|zero)\/|licenses\/publicdomain\/?)/;
-
 /**
  * Whether one Archive item is offered as a free copy of the title. Pure. It must be a public video item (not dark, not
- * access-restricted, not a book scan of the novel), long enough to be the title, and not called copyrighted by Wikidata,
- * with evidence of the public domain from Wikidata or the Archive's own licence mark.
+ * access-restricted, not a book scan of the novel), long enough to be the title, and not called copyrighted by Wikidata.
+ * No evidence of the public domain is asked for (Luke, 2026-11-06).
  */
 export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined, type: KinoTitle['type'] = 'movie'): FreeCopy | null {
   if (candidates.copyrighted) return null;
@@ -128,12 +125,10 @@ export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeC
   if (read === null || read.episodes.length === 0) return null;
   const metadata = ((body as Record<string, unknown>).metadata ?? {}) as Record<string, unknown>;
   if (metadata.mediatype !== 'movies') return null;
-  const marked = typeof metadata.licenseurl === 'string' && ARCHIVE_NO_RIGHTS.test(metadata.licenseurl);
-  if (!candidates.publicDomain && !marked) return null;
   // A film must be one video: the Archive's player starts on its own choice of an item's videos and stops at the end of it,
   // so a DVD rip (live-checked 2026-11-06) plays a 10-second menu. A show's item may hold its episodes.
   if (type === 'movie' && read.episodes.length !== 1) return null;
-  // The Archive lists a length for nearly every video. One it doesn't is still public-domain and playable.
+  // The Archive lists a length for nearly every video. One it doesn't is still playable.
   const seconds = read.episodes[0].seconds ?? 0;
   if (seconds > 0 && !longEnough(seconds, runtimeMinutes)) return null;
   return { platform: 'internet_archive', id, publicDomain: candidates.publicDomain };
@@ -156,9 +151,9 @@ export function youtubeStatusUrl(ids: readonly string[], key: string): string {
 }
 
 /**
- * Whether one `videos.list` entry is offered as a free copy of the title. Pure. Public, embeddable, not age-locked, not
- * blocked in the viewer's country, long enough to be the title, and either the film is public domain (Wikidata, and not
- * also called copyrighted) or YouTube marks the upload licensed (`licensedContent`: a rights holder's own or claimed).
+ * Whether one `videos.list` entry is offered as a free copy of the title. Pure. Every upload Wikidata links as the film is
+ * served if it will play: public, embeddable, not age-locked, not blocked in the viewer's country, long enough to be the
+ * title (Luke, 2026-11-06: "serve the YouTube videos that are found"). Rights decide nothing here, only the label.
  */
 export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined, country: string): FreeCopy | null {
   const item = (typeof doc === 'object' && doc !== null ? doc : {}) as Record<string, unknown>;
@@ -174,8 +169,7 @@ export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'p
   if (Array.isArray(region.allowed) && !region.allowed.includes(country)) return null;
   const seconds = isoSeconds(details.duration);
   if (seconds === null || !longEnough(seconds, runtimeMinutes)) return null;
-  const publicDomain = candidates.publicDomain && !candidates.copyrighted;
-  return publicDomain || details.licensedContent === true ? { platform: 'youtube', id, publicDomain } : null;
+  return { platform: 'youtube', id, publicDomain: candidates.publicDomain && !candidates.copyrighted };
 }
 
 const FALLBACK_COUNTRY = 'US';

@@ -24,12 +24,10 @@ handling tagging and media serving".
 Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (P724) or YouTube id (P1651).
 - **Either site:** not a trailer or clip (a role on the link, or under half the running time). Links Wikidata ranks as wrong are skipped.
 - **Archive:** a public video item (not dark, not restricted, not a book scan), a film being one video (the Archive's player stops
-  after one, so a DVD rip plays a 10-second menu), and not called copyrighted by Wikidata, and
-  either Wikidata says public domain or dedicated to it, or the Archive's own mark says public domain or CC0. A CC licence
-  with terms doesn't count: those are mostly someone's upload of someone else's film.
-- **YouTube:** public, embeddable, not age-locked, not blocked in the country, and either Wikidata says public domain and not
-  also copyrighted, or YouTube marks the upload licensed (`licensedContent`, added back 2026-11-06). That flag means a rights
-  holder's own upload or one it has claimed; it can't tell which. An upload with neither is not offered. Needs
+  after one, so a DVD rip plays a 10-second menu), and not called copyrighted by Wikidata. No evidence of the public domain is
+  asked for (Luke, 2026-11-06: "Remove the evidence thing"), so some of these are someone's upload of someone else's film.
+- **YouTube:** every upload Wikidata links as the film, if it will play: public, embeddable, not age-locked, not blocked in the
+  country (Luke, 2026-11-06: "serve the YouTube videos that are found"). Rights decide only the PUBLIC DOMAIN label. Needs
   `YOUTUBE_API_KEY`; without it nothing from YouTube is offered, because nothing can be checked. One unit of quota per page of rows.
 
 ## Limits, said plainly
