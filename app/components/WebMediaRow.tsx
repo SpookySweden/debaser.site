@@ -14,7 +14,7 @@ import { webSessionHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
-import { useKinoSources, WatchList, watchCount } from './KinoSources';
+import { useKinoSources, WATCH_PLAYER_BOX, WATCH_PLAYING_LINE, WatchList, watchCount } from './KinoSources';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 
@@ -269,7 +269,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         <div className="mt-2 flex flex-wrap items-end gap-2">
           {wholeOffered ? (
             <button type="button" onClick={pickWhole} aria-pressed={whole} className={whole ? BIG_KEY_ON : BIG_KEY}>
-              [ ▶ WHOLE SERIES ]
+              [ WHOLE SERIES ]
             </button>
           ) : null}
           {/* Picking a season or an episode chooses that episode (WHOLE SERIES lets go). */}
@@ -307,7 +307,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         </div>
       ) : null}
       {media.type === 'tv' && seasons.size > 0 ? (
-        <p className="mt-1 text-label font-bold text-ink-quiet">{whole ? 'PLAYING: THE WHOLE SERIES' : `PLAYING: SEASON ${season} · EPISODE ${episode}`}</p>
+        <p className="mt-1 text-label font-bold text-ink-quiet">{`${playing ? 'PLAYING' : 'PICKED'}: ${whole ? 'THE WHOLE SERIES' : `SEASON ${season} · EPISODE ${episode}`}`}</p>
       ) : null}
 
       <WatchList
@@ -316,13 +316,33 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         audio={contentLanguage(item)}
         serverCount={media.copies.length}
         startOpen={kept !== undefined}
+        notice={
+          // Plain words for every state, large, in one fixed place under the key (Luke's eyesight).
+          phase === 'asking' ? (
+            <p role="status" className="text-heading font-bold text-ink">{`ASKING ${label(server)}...`}</p>
+          ) : phase === 'down' || phase === 'unasked' ? (
+            <div role="alert" className="flex flex-col items-start gap-2">
+              <p className="w-fit bg-bubble-pale px-1 text-heading font-bold text-ink-bar">
+                {phase === 'down' ? `${label(server)} IS NOT ANSWERING.` : `COULD NOT REACH ${label(server)}. TRY AGAIN.`}
+              </p>
+              {nextServer !== null ? (
+                <button type="button" onClick={() => pickServer(nextServer)} className={BIG_KEY}>
+                  {`[ TRY ${label(nextServer)} ]`}
+                </button>
+              ) : (
+                <p className="text-title font-bold text-ink">NO OTHER SERVER HAS IT.</p>
+              )}
+            </div>
+          ) : null
+        }
         servers={
-          <div className="flex flex-col items-start gap-2" role="group" aria-label={`Servers holding "${item.title}"`}>
+          <>
             {media.copies.map((copy) => {
               const holds = holders.includes(copy.server);
-              const here = open && copy.server === server;
+              // Only while it's asked or playing: a server that didn't answer can be pressed again, with nothing to close first.
+              const here = (phase === 'asking' || playing) && copy.server === server;
               return (
-                <div key={copy.server} className="flex flex-wrap items-center gap-2" data-server-copy={copy.server}>
+                <div key={copy.server} className={`flex flex-wrap items-center gap-2 ${here ? WATCH_PLAYING_LINE : ''}`} data-server-copy={copy.server}>
                   {here ? (
                     <button
                       type="button"
@@ -354,31 +374,12 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                 </div>
               );
             })}
-          </div>
+            {/* Nothing from the server loads until the reader asks and the server answers. */}
+            {playing ? <PlayerBox id={playId} title={item.title} className={`${WATCH_PLAYER_BOX} aspect-video w-full border border-ink-plate bg-paper`} /> : null}
+          </>
         }
       />
 
-      {/* Plain words for every state, large, in one fixed place (Luke's eyesight). */}
-      {phase === 'asking' ? (
-        <p role="status" className="mt-2 text-heading font-bold text-ink">{`ASKING ${label(server)}...`}</p>
-      ) : null}
-      {phase === 'down' || phase === 'unasked' ? (
-        <div role="alert" className="mt-2 flex flex-col items-start gap-2">
-          <p className="w-fit bg-bubble-pale px-1 text-heading font-bold text-ink-bar">
-            {phase === 'down' ? `${label(server)} IS NOT ANSWERING.` : `COULD NOT REACH ${label(server)}. TRY AGAIN.`}
-          </p>
-          {nextServer !== null ? (
-            <button type="button" onClick={() => pickServer(nextServer)} className={BIG_KEY}>
-              {`[ TRY ${label(nextServer)} ]`}
-            </button>
-          ) : (
-            <p className="text-title font-bold text-ink">NO OTHER SERVER HAS IT.</p>
-          )}
-        </div>
-      ) : null}
-
-      {/* Nothing from the server loads until the reader asks and the server answers. */}
-      {playing ? <PlayerBox id={playId} title={item.title} className="mt-2 aspect-video w-full border border-ink-plate bg-paper" /> : null}
     </li>
   );
 }

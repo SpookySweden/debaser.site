@@ -23,6 +23,11 @@ export type RoomDoor = {
 /** The way in: `watch_join`'s answer. */
 export type JoinAnswer = 'joined' | 'wrong' | 'locked' | 'removed' | 'ended' | 'refused';
 
+/** Somebody in a room with no account (SPEC-guests.md). `named` is false until they have picked a name, which they need to speak. */
+export type RoomGuest = { id: string; label: string; named: boolean };
+
+export type GuestNameAnswer = 'named' | 'bad' | 'taken' | 'refused';
+
 /** Three sizes of bar, never the real length (decision 13). */
 export type PrivateSize = 'short' | 'medium' | 'long';
 
@@ -88,6 +93,8 @@ export type WatchRoom = {
   topic: string | null;
   /** Who may add to the queue or a list of their own. */
   addMode: RoomAddMode;
+  /** GUESTS CAN TALK in the room's cog (SPEC-guests.md). Off: a guest watches and reads, and only accounts speak. */
+  guestsCanTalk: boolean;
 };
 
 export type RoomOrigin = 'stream' | 'music';

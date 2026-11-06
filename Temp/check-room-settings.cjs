@@ -95,7 +95,7 @@ const room = { hostId: 'host', endedAt: null, addMode: 'anyone' };
   assert.match(sql, /r\.add_mode = 'anyone'\s+or r\.host_id = auth\.uid\(\)\s+or exists \(select 1 from public\.watch_crowns c where c\.room_id = watch_queue\.room_id/, 'the add rule');
   const supa = fs.readFileSync('app/lib/watch/supabase-watch-repository.ts', 'utf8');
   assert.match(supa, /rpc\('watch_room_settings', \{ room: input\.roomId, new_name: input\.name, new_topic: input\.topic, new_add_mode: input\.addMode \}\)/, 'the Supabase store calls it');
-  assert.match(supa, /is_public, cleared_at, name, topic, add_mode, privacy'/, 'and reads the columns');
+  assert.match(supa, /is_public, cleared_at, name, topic, add_mode, privacy, guests_can_talk'/, 'and reads the columns');
 
   // 6. The page.
   const page = fs.readFileSync('app/components/CytubePage.tsx', 'utf8');

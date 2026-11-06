@@ -387,7 +387,7 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     assert.match(queue, /id="stream-queue-search"/);
   });
 
-  await ok('a signed-in viewer: no transport, but chat and [ + ADD ]; a guest: neither, [ LOG IN ] TO TALK', () => {
+  await ok('a signed-in viewer: no transport, but chat and [ + ADD ]; somebody with no account: the chat box (its first line asks who is speaking), no [ + ADD ], and in a room with guests turned off, [ LOG IN ] TO TALK', () => {
     viewer = { id: 'b', displayName: 'TEST ACCOUNT B' };
     const watcher = html(element(WatchRoom, { read: liveRead, closing: false, onStay: noop, onLeft: noop }));
     assert.doesNotMatch(watcher, /END STREAM|title="Skip"|aria-label="(Play|Pause)"|YOU ARE HOSTING/);
@@ -397,11 +397,14 @@ const member = (key, userId, joinedAt, name = key) => ({ key, userId, name, join
     assert.match(watcherQueue, /id="stream-queue-search"/);
     viewer = null;
     const guest = html(element(WatchRoom, { read: liveRead, closing: false, onStay: noop, onLeft: noop }));
-    assert.doesNotMatch(guest, /aria-label="Send"|watch-chat/);
+    assert.match(guest, /aria-label="Send"/);
+    assert.doesNotMatch(guest, /data-guest-window/, 'nothing is asked before they say something');
     const guestQueue = queueWindow(null);
     assert.doesNotMatch(guestQueue, /\+ ADD|id="stream-queue-search"/);
     assert.match(guestQueue, /\[ LOG IN \]<\/a> TO ADD VIDEOS/);
-    assert.match(guest, /\[ LOG IN \]<\/a> TO TALK/);
+    const quiet = html(element(WatchRoom, { read: { ...liveRead, room: { ...liveRead.room, guestsCanTalk: false } }, closing: false, onStay: noop, onLeft: noop }));
+    assert.doesNotMatch(quiet, /aria-label="Send"/);
+    assert.match(quiet, /\[ LOG IN \]<\/a> TO TALK/);
     assert.match(guest, /look at the bars/, 'guests read the chat');
   });
 

@@ -136,7 +136,7 @@ require.cache[lib('supabase', 'client.js')] = {
   id: lib('supabase', 'client.js'),
   filename: lib('supabase', 'client.js'),
   loaded: true,
-  exports: { getSupabaseBrowserClient: () => currentClient, isSupabaseConfigured: true },
+  exports: { getSupabaseBrowserClient: () => currentClient, supabaseAuthStorageKey: () => null, isSupabaseConfigured: true },
 };
 
 const bridges = require(lib('web', 'bridges.js'));

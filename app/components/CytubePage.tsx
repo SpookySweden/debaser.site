@@ -24,7 +24,7 @@ import StreamQueueWindow from './StreamQueueWindow';
 /**
  * The CYTUBE page (SPEC-cytube.md): what streaming here is, the live rooms, the stream canvases, and - always
  * above the tabs - GO LIVE (with the side panel's GO LIVE key, the only places a room is started) and CUSTOMIZE LAYOUT (your broadcast look).
- * Signed-in people only, like the archive: signed out it shows a sign-in prompt.
+ * Signed out (SPEC-guests.md): ABOUT and ROOM, to join from. Going live, your look and the canvases are for accounts.
  *
  * The tab is in the address (`?tab=live`), so a link can open on the list of live rooms.
  */
@@ -41,8 +41,8 @@ const TABS: readonly { key: Tab; label: string }[] = [
 /** How many live rooms the CANVASES tab asks about an open canvas. */
 const OPEN_CANVAS_ROOMS = 12;
 
-function readTab(value: string | null): Tab {
-  return TABS.find((tab) => tab.key === value)?.key ?? 'about';
+function readTab(value: string | null, tabs: readonly { key: Tab }[]): Tab {
+  return tabs.find((tab) => tab.key === value)?.key ?? 'about';
 }
 
 export default function CytubePage() {
@@ -56,28 +56,15 @@ export default function CytubePage() {
     );
   }
 
-  if (status !== 'signed-in' || user === null) {
-    return (
-      <section aria-labelledby="cytube-sign-in-title" className="flex flex-col items-start gap-3 py-2">
-        <h2 id="cytube-sign-in-title" className="text-headline font-bold text-ink">
-          SIGN IN TO USE STREAM
-        </h2>
-        <p className="text-prose text-ink">STREAM is for people with an account. Sign in to go live, join a room or pick your look.</p>
-        <Link href="/account" className={PLATE_MAIN}>
-          [ SIGN IN ]
-        </Link>
-      </section>
-    );
-  }
-
-  return <SignedIn user={user} />;
+  return <StreamTabs user={status === 'signed-in' ? user : null} />;
 }
 
-function SignedIn({ user }: { user: AccountUser }) {
+function StreamTabs({ user }: { user: AccountUser | null }) {
   const search = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
-  const tab = readTab(search.get('tab'));
+  const tabs = user === null ? TABS.filter((entry) => entry.key !== 'canvases') : TABS;
+  const tab = readTab(search.get('tab'), tabs);
   const [layoutOpen, setLayoutOpen] = useState(false);
 
   function show(next: Tab) {
@@ -86,18 +73,27 @@ function SignedIn({ user }: { user: AccountUser }) {
 
   return (
     <div className="flex min-w-0 flex-col gap-3">
-      <div className="flex flex-wrap items-center gap-2">
-        <GoLiveKey user={user} />
-        <button type="button" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((open) => !open)} className={layoutOpen ? PLATE_PRESSED : PLATE} data-cytube-layout-key>
-          [ CUSTOMIZE LAYOUT ]
-        </button>
-      </div>
+      {user === null ? (
+        <p className="text-label font-bold text-ink" data-cytube-visitor>
+          <Link href="/account" className={PLATE_MAIN}>
+            [ LOG IN ]
+          </Link>{' '}
+          TO GO LIVE OR PICK YOUR LOOK. YOU CAN JOIN A ROOM WITHOUT AN ACCOUNT.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-2">
+          <GoLiveKey user={user} />
+          <button type="button" aria-expanded={layoutOpen} onClick={() => setLayoutOpen((open) => !open)} className={layoutOpen ? PLATE_PRESSED : PLATE} data-cytube-layout-key>
+            [ CUSTOMIZE LAYOUT ]
+          </button>
+        </div>
+      )}
 
-      {layoutOpen ? <CytubeLayout userId={user.id} /> : null}
+      {layoutOpen && user !== null ? <CytubeLayout userId={user.id} /> : null}
 
       {/* The tabs scroll sideways inside their strip on a narrow screen, never the page. */}
       <div className="flex min-w-0 flex-nowrap items-stretch gap-1 overflow-x-auto" role="tablist" aria-label="STREAM">
-        {TABS.map((entry) => (
+        {tabs.map((entry) => (
           <button
             key={entry.key}
             type="button"
@@ -158,6 +154,11 @@ function About() {
         wrong tries locks somebody out for ten minutes. OPEN: anyone. Everyone outside a private room sees that it is on and how much is going on, with names
         as ANON tags and words as bars. No account on the site can read a private room, the house account included. Going open later never opens what came
         before.
+      </AboutPart>
+      <AboutPart title="GUESTS">
+        You can join a room without an account: from the ROOM tab, or with a room&apos;s link. A private room asks for its password if it has one, and until you are in you see
+        only ANON tags and bars. To talk you pick a name, which shows with [GUEST] after it, or log in. Going live, the queue and drawing need an account. A host can turn GUESTS
+        CAN TALK off, and can remove a guest.
       </AboutPart>
       <AboutPart title="THE QUEUE AND ADDITIONS">
         What plays comes from the room&apos;s queue: red has played, green is on, blue is next. Anybody can add things. Without a crown, what

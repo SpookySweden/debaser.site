@@ -588,12 +588,14 @@ test('CytubeLiveStreams: null until the first answer, then only live rooms, play
 });
 
 // --- CytubePage
-test('CytubePage: signed out or still checking, a prompt and no way to go live', () => {
+test('CytubePage: signed out, ABOUT and ROOM to join from and no way to go live (SPEC-guests.md); still checking, a prompt', () => {
   auth = { status: 'signed-out', user: null };
   let html = draw(el(CytubePage));
-  assert.match(visible(html), /SIGN IN TO USE \w+/);
-  assert.match(openingTag(html, '[ SIGN IN ]'), /href="\/account"/);
-  assert.ok(!html.includes('GO LIVE ]') && !html.includes('role="tablist"'));
+  assert.doesNotMatch(visible(html), /SIGN IN TO USE \w+/);
+  assert.match(visible(html), /YOU CAN JOIN A ROOM WITHOUT AN ACCOUNT/);
+  assert.match(openingTag(html, '[ LOG IN ]'), /href="\/account"/);
+  assert.ok(html.includes('role="tablist"') && visible(html).includes('[ ROOM ]') && visible(html).includes('[ ABOUT ]'));
+  assert.ok(!html.includes('GO LIVE ]') && !html.includes('data-cytube-layout-key') && !visible(html).includes('[ CANVASES ]'));
   auth = { status: 'loading', user: null };
   html = draw(el(CytubePage));
   assert.equal(visible(html), 'CHECKING YOUR SIGN-IN...');
@@ -1038,6 +1040,25 @@ test('WebMediaRow: its WATCH key starts shut, with no line of any server showing
   assert.ok(words.includes('[ WATCH · 2 ▾ ]'), words);
   assert.ok(!words.includes('[ ▶ ON OWED ONE ]'));
 });
+test('WebMediaRow: with the list shut, a playing server video has no box here, so it floats', async () => {
+  await playRow(FILM);
+  assert.ok(row(FILM).includes('data-player-box='), 'list open: its box');
+  assert.ok(!draw(el(WebMediaRow, { item: FILM, titleId: 'row-title' }), { WatchList: slots(false) }).includes('data-player-box='), 'list shut: no box');
+  floating.closeFloating();
+});
+test('WatchList: back with a free copy playing, it opens once; after that, shutting it stays shut', () => {
+  const { WatchList } = require('./owed-render/components/KinoSources.js');
+  const copy = { platform: 'internet_archive', id: 'a-free-copy', publicDomain: false };
+  const list = (seeds) => visible(draw(el(WatchList, { sources: { watch: null, free: [copy] }, title: 'A Film', audio: null }), seeds));
+  assert.ok(list({}).includes('[ WATCH · 1 ▾ ]'), 'nothing playing: shut');
+  floating.playFloating({ id: 'kino-free:internet_archive:a-free-copy', title: 'A Film', shape: 'video', player: { kind: 'frame', src: 'https://archive.org/embed/a-free-copy', frameTitle: 'x', referrerPolicy: 'no-referrer', sandbox: '', allow: '', allowFullScreen: true, timeFrom: null } });
+  try {
+    assert.ok(list({}).includes('[ WATCH · 1 ▴ ]'), 'copies first known with one playing: open');
+    assert.ok(list({ WatchList: slots(false, true) }).includes('[ WATCH · 1 ▾ ]'), 'already looked, and shut by the reader: stays shut while it plays');
+  } finally {
+    floating.closeFloating();
+  }
+});
 test('WebMediaRow: third-party words are text, never markup', () => {
   const html = row({ ...FILM, title: '<img src=x onerror=alert(1)>' });
   assert.ok(!html.includes('<img src=x'));
@@ -1111,6 +1132,8 @@ test('WebMediaRow: a server not answering says so in plain words and offers the 
   let html = row(FILM, rowPhase('down'));
   assert.ok(visible(html).includes('OWED ONE IS NOT ANSWERING.'));
   assert.ok(visible(html).includes('[ TRY OWED TWO ]'));
+  assert.ok(visible(html).includes('[ ▶ ON OWED ONE ]') && !visible(html).includes('[ ■ CLOSE ]'), 'a server that did not answer can be pressed again, with nothing to close');
+  assert.ok(visible(draw(el(WebMediaRow, { item: FILM, titleId: 'row-title' }), rowPhase('down'))).includes('OWED ONE IS NOT ANSWERING.'), 'and it says so with the list shut too');
   assert.ok(!html.includes('<iframe'));
   html = row({ ...FILM, media: { ...FILM.media, copies: [{ server: 'owed_one' }] } }, rowPhase('unasked'));
   assert.ok(visible(html).includes('COULD NOT REACH OWED ONE. TRY AGAIN.'));
@@ -1119,7 +1142,7 @@ test('WebMediaRow: a server not answering says so in plain words and offers the 
 test('WebMediaRow: a show picks season and episode; a server without that episode cannot be pressed, and says why', async () => {
   const html = row(SHOW);
   const words = visible(html);
-  for (const word of ['SEASON 1', 'SEASON 2', 'EPISODE 1', 'EPISODE 2', 'PLAYING: SEASON 1 · EPISODE 1', '[ ▶ ON OWED ONE ]', '[ OWED TWO: NOT THIS EPISODE ]', '[ ▶ WHOLE SERIES ]']) assert.ok(words.includes(word), word);
+  for (const word of ['SEASON 1', 'SEASON 2', 'EPISODE 1', 'EPISODE 2', 'PICKED: SEASON 1 · EPISODE 1', '[ ▶ ON OWED ONE ]', '[ OWED TWO: NOT THIS EPISODE ]', '[ WHOLE SERIES ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OWED TWO: NOT THIS EPISODE ]'), /disabled=""/);
   await playRow(SHOW);
   assert.equal(floating.floatingState().entry.player.src, 'https://owed-one.test/play/tv/1399/1/1');

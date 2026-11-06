@@ -1,5 +1,5 @@
 import type { RealtimeChannel, SupabaseClient } from '@supabase/supabase-js';
-import { getSupabaseBrowserClient } from '../supabase/client';
+import { roomClient } from './room-client';
 import { inputData, readInput, type CanvasInput, type Placement } from './canvas';
 import type {
   CanvasCredit,
@@ -131,7 +131,7 @@ function refusal(error: { message?: string; code?: string } | null, fallback: st
 
 class SupabaseCanvasRepository implements CanvasRepository {
   private client(): SupabaseClient {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) throw new Error('THE CANVAS CANNOT BE REACHED.');
     return client;
   }
@@ -297,7 +297,7 @@ class SupabaseCanvasRepository implements CanvasRepository {
   }
 
   joinWire(roomId: string, onMessage: (message: CanvasWireMessage) => void): CanvasWire {
-    const client = getSupabaseBrowserClient();
+    const client = roomClient();
     if (client === null) return { send: () => undefined, leave: () => undefined };
     // Every tab in the room must share the topic, so it cannot carry a serial; the client hands back a channel it
     // still holds for that topic (a quick close and reopen), so the old one is let go first.
