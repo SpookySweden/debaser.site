@@ -16,6 +16,7 @@ export function Playhead({
   columnOf,
   headerCells,
   hitsAt,
+  across = false,
 }: {
   transport: Transport;
   /** Which visible column this spot falls in, or null if it isn't showing. */
@@ -24,17 +25,28 @@ export function Playhead({
   headerCells: number;
   /** The notes to light up at this spot, if this grid shows notes. */
   hitsAt?: (spot: PlayheadSpot) => readonly HitNote[];
+  /** The bars run down the screen, so the playhead is a band across. */
+  across?: boolean;
 }) {
   const spot = useSyncExternalStore(transport.subscribe, transport.getSpot);
   const column = spot && columnOf(spot);
   if (!spot || column === null || column === undefined) return null;
-  const left = `calc(var(--cell) * ${column + headerCells})`;
+  if (across) {
+    return (
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute right-0 left-0 z-20 border-(length:--playhead-width) border-bb-flavine"
+        style={{ top: `calc(var(--head-h) + var(--cell) * ${column})`, height: "var(--cell)" }}
+      />
+    );
+  }
+  const left = `calc(var(--name-w, var(--cell) * ${headerCells}) + var(--cell-w, var(--cell)) * ${column})`;
   return (
     <>
       <div
         aria-hidden="true"
         className="pointer-events-none absolute top-0 bottom-0 z-20 border-(length:--playhead-width) border-bb-flavine"
-        style={{ left, width: "var(--cell)" }}
+        style={{ left, width: "var(--cell-w, var(--cell))" }}
       />
       {/* A note lights and sinks in the moment it's hit, like a contact closing. */}
       {hitsAt?.(spot).map((hit) => (
@@ -44,9 +56,9 @@ export function Playhead({
           className="pointer-events-none absolute z-10 flex items-center justify-center overflow-hidden text-center leading-none font-bold wrap-anywhere text-bb-black bb-sunk motion-safe:bg-bb-flavine"
           style={{
             left,
-            top: `calc(var(--cell) * ${hit.row + 1})`,
-            width: "var(--cell)",
-            height: "var(--cell)",
+            top: `calc(var(--head-h, var(--cell)) + var(--cell-h, var(--cell)) * ${hit.row})`,
+            width: "var(--cell-w, var(--cell))",
+            height: "var(--cell-h, var(--cell))",
           }}
         >
           <span className="motion-reduce:hidden">{hit.name}</span>

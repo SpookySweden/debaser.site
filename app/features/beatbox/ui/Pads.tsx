@@ -5,7 +5,6 @@ import { DRUM_ROW_COUNT, midiToPitch, pitchName, type SongData } from "../engine
 import type { NoteEvent } from "../input/noteEvents";
 import { channelName, noteShapeStyle } from "./channelLooks";
 import type { LiveNotes } from "./liveNotes";
-import { titleLine } from "./looks";
 
 const PAD_VELOCITY = 100;
 const PAD_KEYS = new Set(["Enter", " "]);
@@ -98,8 +97,8 @@ export function Pads({ song, channelIndex, live }: { song: SongData; channelInde
       });
 
   return (
-    <section aria-label="Pads" className="flex w-full flex-col gap-bb-gutter">
-      <h2 className={titleLine}>
+    <section aria-label="Pads" className="flex w-full flex-none flex-col gap-1 px-2 pb-1">
+      <h2 className="sr-only">
         <span>Pads: {channelName(song, channelIndex)}</span>
       </h2>
       <div className="flex w-full flex-wrap gap-bb-gutter">

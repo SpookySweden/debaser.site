@@ -15,6 +15,7 @@
   /* Sizes */
   --target-min: 44px; /* smallest button or pad */
   --target-large: 64px; /* main buttons */
+  --target-bar: 52px; /* the keys on the slim bar over the grid */
   --focus-width: 8px; /* thicker than anything else on screen */
   --border-width: 4px;
   --press-depth: 8px; /* inset "pressed" look on hit */

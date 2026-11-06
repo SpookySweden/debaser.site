@@ -6,7 +6,8 @@ export const focusOnly =
   "focus:outline-(length:--focus-width) focus:outline-offset-(length:--focus-width) focus:outline-bb-daffodil";
 
 const pressed = "active:translate-y-(--press-drop) active:bg-bb-pink active:text-bb-black";
-const keyShape = `bb-key cursor-pointer px-bb-gutter text-bb-large font-bold uppercase ${focusOnly} ${pressed}`;
+const keyCore = `bb-key cursor-pointer text-bb-large font-bold uppercase whitespace-nowrap ${focusOnly} ${pressed}`;
+const keyShape = `${keyCore} px-bb-gutter`;
 
 // A key that's on is filled, and its label says so too, so colour isn't the only sign.
 const bracketKey = "text-bb-daffodil hover:bg-bb-daffodil hover:text-bb-nigrosine";
@@ -24,6 +25,19 @@ export function bigKey(on = false): string {
 
 /** The one main action on the screen. */
 export const mainKey = `min-h-bb-target-large min-w-bb-target-large bg-bb-daffodil text-bb-black hover:bg-bb-emerald ${keyShape}`;
+
+/** A key on the slim bar over the grid: big words, little padding. */
+export function barKey(on = false): string {
+  return `min-h-bb-target-bar min-w-bb-target-min px-2 ${keyCore} ${on ? onKey : bracketKey}`;
+}
+
+/** The bar's one main key, filled so the eye lands on it first. */
+export const barMainKey = `min-h-bb-target-bar min-w-bb-target-min px-2 bg-bb-daffodil text-bb-black hover:bg-bb-emerald ${keyCore}`;
+
+/** A key on the strip of bars or the row under the grid. */
+export function stripKey(on = false): string {
+  return `min-h-bb-target-min min-w-bb-target-min px-1.5 cursor-pointer text-bb-cell-l font-bold uppercase whitespace-nowrap bb-key ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
+}
 
 /** A section's title, set between two rules. */
 export const titleLine = "bb-title-line text-bb-large font-bold wrap-anywhere text-bb-daffodil uppercase";

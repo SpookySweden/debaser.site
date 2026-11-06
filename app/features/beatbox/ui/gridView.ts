@@ -32,6 +32,47 @@ export function visibleColumnCount(
   return Math.min(wholeBeats > 0 ? wholeBeats : fits, totalColumns);
 }
 
+/**
+ * The note grid fills the room it's given: as many whole beats and rows as fit at this size, each cell then stretched so
+ * no room is left over. The row names take half a cell more than the notes, for names like "Open hat".
+ */
+export interface GridFit {
+  readonly rows: number;
+  readonly columns: number;
+  readonly cellWidth: number;
+  readonly cellHeight: number;
+  readonly headHeight: number;
+  readonly nameWidth: number;
+}
+
+const MIN_FIT_ROWS = 4;
+const HEAD_SHARE = 0.6;
+const NAME_SHARE = 1.5;
+
+export function fitGrid(
+  width: number,
+  height: number,
+  cell: number,
+  stepsPerBeat: number,
+  totalColumns: number,
+  totalRows: number,
+): GridFit {
+  const headHeight = Math.round(cell * HEAD_SHARE);
+  const nameWidth = Math.round(cell * NAME_SHARE);
+  const fitsAcross = Math.max(1, Math.floor((width - nameWidth) / cell));
+  const wholeBeats = fitsAcross - (fitsAcross % stepsPerBeat);
+  const columns = Math.min(wholeBeats > 0 ? wholeBeats : fitsAcross, totalColumns);
+  const rows = Math.min(totalRows, Math.max(MIN_FIT_ROWS, Math.floor((height - headHeight) / cell)));
+  return {
+    rows,
+    columns,
+    cellWidth: Math.max(cell, Math.floor((width - nameWidth) / columns)),
+    cellHeight: Math.max(cell, Math.floor((height - headHeight) / rows)),
+    headHeight,
+    nameWidth,
+  };
+}
+
 /** Columns move a page at a time. */
 export function columnWindowStart(cursorColumn: number, columnCount: number): number {
   return Math.floor(cursorColumn / columnCount) * columnCount;

@@ -24,13 +24,14 @@ const METRONOMES: readonly { value: MetronomeMode; label: string }[] = [
 ];
 
 /** The light flashes with the beat, and the verse is the pass being recorded. */
-function BeatLight({ session }: { session: RecordSession }) {
+export function BeatLight({ session }: { session: RecordSession }) {
   const beat = useSyncExternalStore(session.subscribe, session.getBeat);
-  const text = !beat ? "-" : beat.countIn > 0 ? `In ${beat.countIn}: ${beat.beat}` : `Beat ${beat.beat}`;
+  const text = !beat ? "" : beat.countIn > 0 ? `In ${beat.countIn}:${beat.beat}` : `Beat ${beat.beat}`;
+  // Its place is kept while it's dark, so nothing on the bar moves when recording starts.
   return (
     <div
       aria-hidden="true"
-      className={`flex min-h-bb-target-large min-w-bb-target-large items-center justify-center border-(length:--border-width) border-bb-white px-bb-gutter text-bb-large font-bold uppercase wrap-anywhere ${beat?.lit ? "motion-safe:bg-bb-flavine motion-safe:text-bb-black" : ""}`}
+      className={`flex w-[7ch] flex-none items-center justify-center self-stretch text-bb-large font-bold whitespace-nowrap uppercase ${beat?.lit ? "motion-safe:bg-bb-flavine motion-safe:text-bb-black" : ""}`}
     >
       {text}
     </div>
@@ -46,18 +47,6 @@ export function RecordPanel({ session }: { session: RecordSession }) {
       <h2 className={titleLine}>
         <span>Loop recorder</span>
       </h2>
-      <p className="text-bb-large wrap-anywhere">The loop calls. You respond.</p>
-      <div className="flex flex-wrap gap-bb-gutter">
-        <BeatLight session={session} />
-        {settings.recording && (
-          <div
-            aria-hidden="true"
-            className="flex min-h-bb-target-large min-w-bb-target-large items-center justify-center border-(length:--border-width) border-bb-white px-bb-gutter text-bb-large font-bold uppercase wrap-anywhere"
-          >
-            Verse {settings.pass}
-          </div>
-        )}
-      </div>
       <ChoiceGroup label="Mode" keyName="V" value={settings.mode} options={MODES} onChange={session.setMode} />
       <ChoiceGroup label="Count-in" keyName="N" value={settings.countInBars} options={COUNT_INS} onChange={session.setCountIn} />
       <ChoiceGroup label="Metronome" keyName="M" value={settings.metronome} options={METRONOMES} onChange={session.setMetronome} />

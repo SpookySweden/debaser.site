@@ -20,6 +20,12 @@ type SiteWindowProps = {
    * every explanation into a tip; the heading stays for screen readers only).
    */
   tip?: string;
+  /**
+   * A tool that wants every pixel (the beat box, SPEC-beatbox-ui.md): the window fills the screen between the guest strip
+   * and the music bar, the title and the START strip stand aside on a desktop, the page has no padding, and the side panel
+   * starts folded for this page only (what the reader chose for the other pages is untouched).
+   */
+  fill?: boolean;
   children: ReactNode;
 };
 
@@ -39,7 +45,7 @@ type SiteWindowProps = {
  * Client-side because the chrome is: the taskbar reads the unread badge and opens the Start menu,
  * the profile control opens a menu, and the side panel remembers whether it is collapsed.
  */
-export default function SiteWindow({ title, active, tip, children }: SiteWindowProps) {
+export default function SiteWindow({ title, active, tip, fill = false, children }: SiteWindowProps) {
   return (
     // The surface behind the window is the desktop's own tile. (The room kept for the player's bar and
     // the guest strip is the two spacers, below.)
@@ -61,15 +67,21 @@ export default function SiteWindow({ title, active, tip, children }: SiteWindowP
     // and the window, `my-auto` between them, shrinks when the screen is short - so its title and its
     // taskbar are never behind either strip. With no strip drawn the spacers fall back to what the
     // padding used to keep: nothing at the top, 4rem at the foot (the folded player's key).
-    <main className="desktop-tile flex h-dvh flex-col items-center p-2 font-mono select-none sm:p-4">
+    <main className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? '' : 'p-2 sm:p-4'}`}>
       <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
-      <div className="my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale">
+      <div
+        className={
+          fill
+            ? 'flex min-h-0 w-full flex-1 flex-col frame bg-sun-pale'
+            : 'my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale'
+        }
+      >
 
         {/* Title Bar: the window title and the profile control on a phone. The same on every page:
             USERS and MEDIA used to carry a `[ × ]` close key here, which pushed their title and its
             rules left of every other page's (Luke, 2026-10-24) - a page is not a window over the
             board, and the band under this bar already goes everywhere. */}
-        <div className={WINDOW_TITLE_BAR}>
+        <div className={fill ? `${WINDOW_TITLE_BAR} md:hidden` : WINDOW_TITLE_BAR}>
           <span className="truncate" title={tip}>
             {title}
           </span>
@@ -87,19 +99,21 @@ export default function SiteWindow({ title, active, tip, children }: SiteWindowP
          * Written before the page and pulled to the foot with `order-last`, so a keyboard user reads
          * the page before the tray while the window still looks like a desktop.
          */}
-        <Taskbar />
+        <div className={fill ? 'contents md:hidden' : 'contents'}>
+          <Taskbar />
+        </div>
 
         {/* Page and side panel */}
         <div className="flex min-h-0 flex-1">
           <div
             data-scroll-pane="page"
-            className="min-w-0 flex-1 overflow-y-auto bg-paper p-4 text-ink select-text sm:p-6"
+            className={`min-w-0 flex-1 overflow-y-auto bg-paper text-ink select-text ${fill ? '' : 'p-4 sm:p-6'}`}
           >
             <GuestPrompt />
             {children}
           </div>
 
-          <DesktopSidebar />
+          <DesktopSidebar foldedOnThisPage={fill} />
         </div>
 
       </div>

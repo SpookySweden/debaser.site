@@ -14,20 +14,21 @@ import { QUANTISE_OPTIONS } from "../recorder/convert";
 import type { NoteData, SongData } from "../engine/songData";
 import { createApp } from "./app";
 import { AUDIO_MODES, audioBehaviour, type AudioMode } from "./audioModes";
-import { BarRow, type BarPick } from "./BarRow";
+import { BarRow, type BarLayout, type BarPick } from "./BarRow";
+import { channelName } from "./channelLooks";
 import { ChoiceGroup } from "./ChoiceGroup";
 import { CELL_SIZES, type CellSize } from "./gridView";
 import { HelpPanel } from "./HelpPanel";
 import { InOut, type SavedSong } from "./InOut";
 import { createLiveNotes } from "./liveNotes";
-import { bigKey, mainKey, smallKey, titleLine } from "./looks";
+import { barKey, barMainKey, smallKey, stripKey, titleLine } from "./looks";
 import { MidiConnect } from "./MidiConnect";
 import { NoteGrid, type NoteGridHandle } from "./NoteGrid";
 import { Pads } from "./Pads";
 import { PixelSlot, type BeatBoxArt } from "./PixelSlot";
-import { RecordPanel } from "./RecordPanel";
+import { BeatLight, RecordPanel } from "./RecordPanel";
 import { createRecordSession } from "./recordSession";
-import { replacePatternNotes } from "./songEdit";
+import { barsUsingPattern, replacePatternNotes } from "./songEdit";
 
 export type BeatBoxTheme = "default" | "high-contrast";
 
@@ -38,6 +39,13 @@ const TEMPO_STEP = 5;
 
 function startingTheme(): BeatBoxTheme {
   return window.matchMedia?.("(prefers-contrast: more)").matches ? "high-contrast" : "default";
+}
+
+/** Local-only, while Luke picks. Never reaches main. */
+function startingLayout(): BarLayout {
+  if (process.env.NODE_ENV !== "development") return "strip";
+  const asked = new URLSearchParams(window.location.search).get("layout");
+  return asked === "map" || asked === "tracker" ? asked : "strip";
 }
 
 export interface BeatBoxProps {
@@ -56,6 +64,8 @@ export interface BeatBoxProps {
   art?: BeatBoxArt;
   /** Marks where the art slots are, for placing art. */
   showArtSlots?: boolean;
+  /** The one key that brings the page's side panel back, or folds it again. */
+  onTogglePanel?: () => void;
 }
 
 const NO_ART: BeatBoxArt = {};
@@ -69,8 +79,9 @@ export function BeatBox({
   hideTitle = false,
   art = NO_ART,
   showArtSlots = false,
+  onTogglePanel,
 }: BeatBoxProps = {}) {
-  const [status, setStatus] = useState("Stopped. Press Tab to reach the bars and the notes.");
+  const [status, setStatus] = useState("Stopped.");
   // All one starter: React runs starters twice while developing, and a spare set
   // made from a shared app would carry on listening and recording alongside the real one.
   const [{ app, live, session }] = useState(() => {
@@ -92,12 +103,23 @@ export function BeatBox({
   const [focusView, setFocusView] = useState(false);
   const [theme, setTheme] = useState<BeatBoxTheme>(() => themeProp ?? startingTheme());
   const [helpOpen, setHelpOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [padsShown, setPadsShown] = useState(false);
+  const [mapShown, setMapShown] = useState(true);
+  const [layout] = useState<BarLayout>(startingLayout);
   const grid = useRef<NoteGridHandle>(null);
   const page = useRef<HTMLDivElement>(null);
+  const menuKey = useRef<HTMLButtonElement>(null);
+  const menuPanel = useRef<HTMLDivElement>(null);
   const cursorTone = useRef<{ pitch: number; timer: ReturnType<typeof setTimeout> } | null>(null);
   const behaviour = audioBehaviour(audioMode);
 
   useEffect(() => engine.setVolume(behaviour.volume), [engine, behaviour.volume]);
+
+  // The cursor is on the grid from the start, so the arrows and Enter work at once.
+  useEffect(() => {
+    if (document.activeElement === document.body) grid.current?.focus();
+  }, [songNumber]);
 
   const stop = useCallback(() => {
     const wasRecording = session.getSettings().recording;
@@ -172,6 +194,21 @@ export function BeatBox({
     page.current?.querySelector<HTMLElement>(`[aria-label^="${label}"] [role="gridcell"][tabindex="0"]`)?.focus();
   }
 
+  function openMenu() {
+    setMenuOpen(true);
+    setTimeout(() => menuPanel.current?.focus());
+  }
+
+  function closeMenu() {
+    setMenuOpen(false);
+    setTimeout(() => menuKey.current?.focus());
+  }
+
+  function toggleMenu() {
+    if (menuOpen) closeMenu();
+    else openMenu();
+  }
+
   function cycleMode() {
     session.setMode(session.getSettings().mode === "overdub" ? "replace" : "overdub");
   }
@@ -211,6 +248,10 @@ export function BeatBox({
     cycleCountIn,
     cycleMetronome,
     cycleQuantise,
+    toggleMenu,
+    menuOpen,
+    closeMenu,
+    onTogglePanel,
   };
   const pageKeys = useRef(latest);
   useEffect(() => {
@@ -228,7 +269,8 @@ export function BeatBox({
       const inTextBox = event.target instanceof Element && event.target.closest("input, textarea, select, [contenteditable]");
       const onControl = event.target instanceof Element && event.target.closest(CONTROL_ELEMENTS);
       if (event.key === "Escape") {
-        keys.stop();
+        if (keys.menuOpen) keys.closeMenu();
+        else keys.stop();
         return;
       }
       if (inTextBox) return;
@@ -252,6 +294,11 @@ export function BeatBox({
       if (event.repeat) return;
       if (event.key === "?") {
         setHelpOpen(true);
+      } else if (event.key === "/") {
+        event.preventDefault();
+        keys.toggleMenu();
+      } else if (event.key === "\\") {
+        keys.onTogglePanel?.();
       } else if (event.code === "KeyI") {
         keys.cycleAudioMode();
       } else if (event.key === ".") {
@@ -391,16 +438,151 @@ export function BeatBox({
     };
   }
 
+  const pickedChannel = song.channels[pick.channel];
+  const pickedPattern = pickedChannel?.bars[pick.bar] ?? 0;
+  const sharedBars = pickedChannel ? barsUsingPattern(pickedChannel, pickedPattern) : 0;
+  const where = `${channelName(song, pick.channel)} bar ${pick.bar + 1}${pickedPattern === 0 ? " silent" : ` pattern ${pickedPattern}`}${sharedBars > 1 ? ` on ${sharedBars} bars` : ""}`;
+
+  const bars = (
+    <BarRow
+      key={`bars-${songNumber}`}
+      layout={layout}
+      song={song}
+      pick={pick}
+      transport={transport}
+      onPick={setPick}
+      onChange={changeSong}
+      onAnnounce={setStatus}
+      onOpenGrid={() => grid.current?.focus()}
+      art={art}
+      showArtSlots={showArtSlots}
+    />
+  );
+
+  const menuContent = (
+    <>
+      <div className="flex w-full flex-wrap items-center justify-between gap-bb-gutter">
+        <h2 className="text-bb-large font-bold text-bb-daffodil uppercase">Menu</h2>
+        <button type="button" onClick={closeMenu} title="Close (Esc)" className={smallKey()}>
+          Close
+        </button>
+      </div>
+
+      <section aria-label="Seeing and hearing" className="flex w-full flex-col items-start gap-bb-gutter">
+        <h3 className={titleLine}>
+          <span>Seeing and hearing</span>
+        </h3>
+        <ChoiceGroup label="Audio mode" keyName="I" value={audioMode} options={AUDIO_MODES} onChange={changeAudioMode} />
+        <div className="flex flex-wrap items-center gap-bb-gutter">
+          <button type="button" aria-pressed={theme === "high-contrast"} title="Key: ," onClick={toggleTheme} className={smallKey(theme === "high-contrast")}>
+            High contrast {theme === "high-contrast" ? "on" : "off"}
+          </button>
+          <button type="button" aria-pressed={follow} title="Key: B" onClick={toggleFollow} className={smallKey(follow)}>
+            Follow {follow ? "on" : "off"}
+          </button>
+          <button type="button" aria-pressed={focusView} title="Key: ." onClick={toggleFocusView} className={smallKey(focusView)}>
+            Focus view {focusView ? "on" : "off"}
+          </button>
+          <button type="button" title="Key: Ctrl+Y" onClick={redo} className={smallKey()}>
+            Redo
+          </button>
+        </div>
+      </section>
+
+      <RecordPanel session={session} />
+
+      <section aria-label="Playing notes" className="flex w-full flex-col items-start gap-bb-gutter">
+        <h3 className={titleLine}>
+          <span>Playing notes</span>
+        </h3>
+        <p className="text-bb-large wrap-anywhere">Computer keys play notes: {NOTE_KEY_LABELS}</p>
+        <div role="group" aria-label="Computer keys" className="flex flex-wrap items-center gap-bb-gutter">
+          <span className="text-bb-large font-bold uppercase">Octave {octave}</span>
+          <button type="button" title="Key: Z" onClick={() => shiftOctave(-1)} className={smallKey()}>
+            Lower
+          </button>
+          <button type="button" title="Key: X" onClick={() => shiftOctave(1)} className={smallKey()}>
+            Higher
+          </button>
+        </div>
+      </section>
+
+      <MidiConnect live={live} />
+
+      <InOut
+        engine={engine}
+        onOpen={openSong}
+        onSave={onSave}
+        shareLinkStart={shareLinkStart}
+        extras={extras}
+        onAnnounce={setStatus}
+      />
+    </>
+  );
+
+  // Each layout puts the menu somewhere of its own. It stays drawn while shut, so a MIDI keyboard stays connected.
+  const menuPlace =
+    layout === "strip"
+      ? "absolute inset-0 z-40 overflow-y-auto"
+      : layout === "map"
+        ? "absolute top-0 right-0 bottom-0 z-40 w-full max-w-[44rem] overflow-y-auto border-l-(length:--frame-width) border-bb-white"
+        : "h-full w-[34rem] max-w-full flex-none overflow-y-auto border-r-(length:--frame-width) border-bb-white";
+
+  const menu = (
+    <div
+      ref={menuPanel}
+      role="region"
+      aria-label="Menu"
+      tabIndex={-1}
+      hidden={!menuOpen}
+      className={`${menuPlace} ${menuOpen ? "flex" : "hidden"} flex-col items-start gap-bb-gap bg-bb-nigrosine p-bb-gutter focus:outline-none`}
+    >
+      {menuContent}
+    </div>
+  );
+
+  const noteGrid = (
+    <NoteGrid
+      key={`grid-${songNumber}-${pick.channel}`}
+      ref={grid}
+      song={song}
+      channelIndex={pick.channel}
+      bar={pick.bar}
+      size={size}
+      transport={transport}
+      shortCellNames={behaviour.shortCellNames}
+      art={art}
+      showArtSlots={showArtSlots}
+      onSizeChange={setSize}
+      onNotesChange={changeNotes}
+      onToggled={noteToggled}
+      onCursorMoved={cursorMoved}
+      onAnnounce={setStatus}
+      footKeys={
+        <>
+          <button type="button" aria-pressed={padsShown} title="Pads to play with the mouse" onClick={() => setPadsShown(!padsShown)} className={stripKey(padsShown)}>
+            Pads
+          </button>
+          {layout === "map" && (
+            <button type="button" aria-pressed={mapShown} title="The bars under the grid" onClick={() => setMapShown(!mapShown)} className={stripKey(mapShown)}>
+              Bars
+            </button>
+          )}
+        </>
+      }
+    />
+  );
+
   return (
     <div
       ref={page}
       data-theme={theme}
-      className="debaser-beatbox flex flex-col items-start gap-bb-gap bg-bb-nigrosine p-bb-gutter font-beatbox text-bb-white print:bg-bb-white"
+      data-layout={layout}
+      className="debaser-beatbox relative flex min-h-full flex-col bg-bb-nigrosine font-beatbox text-bb-white print:bg-bb-white"
     >
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <div className="contents print:hidden">
-      <div className={focusView ? "hidden" : "contents"}>
         <div className="contents">
           <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only`}>
             Go to the bars
@@ -410,162 +592,74 @@ export function BeatBox({
           </button>
         </div>
         {!hideTitle && <h1 className="text-bb-title font-bold wrap-anywhere">DEBASER_BEATBOX</h1>}
-      </div>
 
-      <div className="flex flex-wrap items-center gap-bb-gutter">
-        <button type="button" onClick={togglePlay} className={mainKey}>
-          {playing ? "Stop (Space)" : "Play (Space)"}
-        </button>
-        <PixelSlot name="record-light" size="light" src={art.recordLight} showEmpty={showArtSlots} />
-        <button
-          type="button"
-          aria-pressed={recordSettings.recording}
-          onClick={session.toggleRecord}
-          className={bigKey(recordSettings.recording)}
-        >
-          {recordSettings.recording ? `Recording pass ${recordSettings.pass} (R)` : "Record (R)"}
-        </button>
-        <button type="button" onClick={undo} className={smallKey()}>
-          Undo (Ctrl+Z)
-        </button>
-        <button type="button" onClick={redo} className={smallKey()}>
-          Redo (Ctrl+Y)
-        </button>
-        <button
-          type="button"
-          aria-pressed={follow}
-          onClick={toggleFollow}
-          className={smallKey(follow)}
-        >
-          Follow {follow ? "on" : "off"} (B)
-        </button>
-        <button
-          type="button"
-          aria-pressed={focusView}
-          onClick={toggleFocusView}
-          className={smallKey(focusView)}
-        >
-          Focus view {focusView ? "on" : "off"} (.)
-        </button>
-      </div>
-
-      <p role="status" aria-live={behaviour.speaksStatus ? "polite" : "off"} className="text-bb-large wrap-anywhere">
-        {status}
-      </p>
-      {/* Problems are always spoken, whatever the audio mode. */}
-      <p role="alert" className="sr-only">
-        {status.startsWith("Problem") ? status : ""}
-      </p>
-
-      <div className={focusView ? "hidden" : "contents"}>
-      <div role="group" aria-label="Speed" className="flex flex-wrap items-center gap-bb-gutter">
-        <span className="text-bb-large font-bold uppercase">Speed {song.tempo}</span>
-        <button
-          type="button"
-          aria-label="Slower"
-          onClick={() => changeTempo(-TEMPO_STEP)}
-          className={smallKey()}
-        >
-          Slower ([)
-        </button>
-        <button
-          type="button"
-          aria-label="Faster"
-          onClick={() => changeTempo(TEMPO_STEP)}
-          className={smallKey()}
-        >
-          Faster (])
-        </button>
-      </div>
-
-      <section aria-label="Seeing and hearing" className="flex w-full flex-col items-start gap-bb-gutter">
-        <h2 className={titleLine}>
-          <span>Seeing and hearing</span>
-        </h2>
-        <ChoiceGroup
-          label="Audio mode"
-          keyName="I"
-          value={audioMode}
-          options={AUDIO_MODES}
-          onChange={changeAudioMode}
-        />
-        <div className="flex flex-wrap items-center gap-bb-gutter">
+        {/* The slim bar: everything you need without looking anywhere else. */}
+        <div role="group" aria-label="Main keys" className="flex flex-none flex-wrap items-stretch gap-x-2 gap-y-1 px-2 py-1">
+          <button type="button" onClick={togglePlay} title="Play or stop (Space)" aria-keyshortcuts="Space" className={barMainKey}>
+            {playing ? "Stop" : "Play"}
+          </button>
+          <PixelSlot name="record-light" size="light" src={art.recordLight} showEmpty={showArtSlots} />
           <button
             type="button"
-            aria-pressed={theme === "high-contrast"}
-            onClick={toggleTheme}
-            className={smallKey(theme === "high-contrast")}
+            aria-pressed={recordSettings.recording}
+            onClick={session.toggleRecord}
+            title="Record, or stop recording and keep playing (R)"
+            aria-keyshortcuts="R"
+            className={barKey(recordSettings.recording)}
           >
-            High contrast {theme === "high-contrast" ? "on" : "off"} (,)
+            {recordSettings.recording ? (
+              <>
+                Rec<span className="sr-only">ording pass</span> {recordSettings.pass}
+              </>
+            ) : (
+              "Record"
+            )}
           </button>
-          <button type="button" onClick={() => setHelpOpen(true)} className={smallKey()}>
-            All the keys (?)
+          <BeatLight session={session} />
+          <button type="button" onClick={undo} title="Undo (Ctrl+Z)" aria-keyshortcuts="Control+Z" className={barKey()}>
+            Undo
           </button>
+          <div role="group" aria-label="Speed" className="flex flex-wrap items-stretch gap-x-1">
+            <span className="flex items-center px-1 text-bb-large font-bold whitespace-nowrap uppercase">Speed {song.tempo}</span>
+            <button type="button" aria-label="Slower" title="Slower ([)" onClick={() => changeTempo(-TEMPO_STEP)} className={barKey()}>
+              -
+            </button>
+            <button type="button" aria-label="Faster" title="Faster (])" onClick={() => changeTempo(TEMPO_STEP)} className={barKey()}>
+              +
+            </button>
+          </div>
+          <div className="ml-auto flex flex-wrap items-stretch gap-x-2">
+            <button ref={menuKey} type="button" aria-expanded={menuOpen} onClick={toggleMenu} title="Everything else (/)" className={barKey(menuOpen)}>
+              Menu
+            </button>
+            <button type="button" aria-label="All the keys" onClick={() => setHelpOpen(true)} title="All the keys (?)" className={barKey()}>
+              ?
+            </button>
+          </div>
         </div>
-      </section>
 
-      <RecordPanel session={session} />
+        <div className={`relative flex min-h-0 flex-1 ${layout === "tracker" ? "flex-row" : "flex-col"}`}>
+          {layout === "tracker" && menu}
+          {(layout === "strip" || layout === "map") && !focusView && (layout === "strip" || mapShown) && bars}
+          {layout === "tracker" && !focusView && !menuOpen && bars}
 
-      <Pads song={song} channelIndex={pick.channel} live={live} />
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+            <div className="flex flex-none flex-wrap items-baseline gap-x-bb-gutter px-2 text-bb-cell-l">
+              <p className="font-bold whitespace-nowrap text-bb-daffodil uppercase">{where}</p>
+              <p role="status" aria-live={behaviour.speaksStatus ? "polite" : "off"} className="wrap-anywhere">
+                {status}
+              </p>
+              {/* Problems are always spoken, whatever the audio mode. */}
+              <p role="alert" className="sr-only">
+                {status.startsWith("Problem") ? status : ""}
+              </p>
+            </div>
+            {noteGrid}
+          </div>
 
-      <div role="group" aria-label="Computer keys" className="flex w-full flex-col items-start gap-bb-gutter">
-        <p className="text-bb-large wrap-anywhere">Computer keys play notes: {NOTE_KEY_LABELS}</p>
-        <div className="flex flex-wrap items-center gap-bb-gutter">
-          <span className="text-bb-large font-bold uppercase">Octave {octave}</span>
-          <button type="button" onClick={() => shiftOctave(-1)} className={smallKey()}>
-            Lower (Z)
-          </button>
-          <button type="button" onClick={() => shiftOctave(1)} className={smallKey()}>
-            Higher (X)
-          </button>
+          {padsShown && <Pads song={song} channelIndex={pick.channel} live={live} />}
+          {layout !== "tracker" && menu}
         </div>
-      </div>
-
-      <MidiConnect live={live} />
-
-      <BarRow
-        key={`bars-${songNumber}`}
-        song={song}
-        pick={pick}
-        transport={transport}
-        onPick={setPick}
-        onChange={changeSong}
-        onAnnounce={setStatus}
-        onOpenGrid={() => grid.current?.focus()}
-        art={art}
-        showArtSlots={showArtSlots}
-      />
-      </div>
-
-      <NoteGrid
-        key={`grid-${songNumber}-${pick.channel}`}
-        ref={grid}
-        song={song}
-        channelIndex={pick.channel}
-        bar={pick.bar}
-        size={size}
-        transport={transport}
-        shortCellNames={behaviour.shortCellNames}
-        fillHeight={focusView}
-        art={art}
-        showArtSlots={showArtSlots}
-        onSizeChange={setSize}
-        onNotesChange={changeNotes}
-        onToggled={noteToggled}
-        onCursorMoved={cursorMoved}
-        onAnnounce={setStatus}
-      />
-
-      <div className={focusView ? "hidden" : "contents"}>
-      <InOut
-        engine={engine}
-        onOpen={openSong}
-        onSave={onSave}
-        shareLinkStart={shareLinkStart}
-        extras={extras}
-        onAnnounce={setStatus}
-      />
-      </div>
       </div>
     </div>
   );
