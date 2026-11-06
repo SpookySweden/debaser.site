@@ -132,6 +132,10 @@ export class PlaneStore {
     return this.dirty.size > 0;
   }
 
+  isDirty(key: string): boolean {
+    return this.dirty.has(key);
+  }
+
   /** Every changed picture to storage. A picture changed again while it was being written stays dirty. */
   async flush(): Promise<boolean> {
     let ok = true;
@@ -154,11 +158,5 @@ export class PlaneStore {
   adopt(key: string, canvas: OffscreenCanvas): void {
     this.put(key, canvas);
     this.bump(key);
-  }
-
-  /** Forget a live canvas, so the next read goes back to storage (a project replaced). */
-  clear(): void {
-    this.live.clear();
-    this.dirty.clear();
   }
 }

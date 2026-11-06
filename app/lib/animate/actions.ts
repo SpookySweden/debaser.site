@@ -140,11 +140,17 @@ export function attachKeys(): () => void {
   const onUp = (event: KeyboardEvent) => {
     if (event.key === ' ') keys.space = false;
   };
+  // A key let go in another window never reports it.
+  const onBlur = () => {
+    keys.space = false;
+  };
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);
+  window.addEventListener('blur', onBlur);
   return () => {
     window.removeEventListener('keydown', onDown);
     window.removeEventListener('keyup', onUp);
+    window.removeEventListener('blur', onBlur);
     keys.space = false;
   };
 }

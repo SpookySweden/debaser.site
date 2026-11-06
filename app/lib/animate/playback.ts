@@ -28,6 +28,15 @@ function dropCache(): void {
   cache = null;
 }
 
+let dropTimer: ReturnType<typeof setTimeout> | null = null;
+let hooked = false;
+
+/** Playback's pictures are kept a minute after stopping, for a quick replay, and no longer: they can be most of a gigabyte. */
+function dropCacheSoon(): void {
+  if (dropTimer !== null) clearTimeout(dropTimer);
+  dropTimer = setTimeout(dropCache, 60_000);
+}
+
 /** Every plane a frame shows, ready to draw. */
 export async function loadFramePlanes(engine: AnimateEngine, project: Project, frame: number): Promise<void> {
   const signature = frameSignature(project, frame);
@@ -64,7 +73,10 @@ async function prepare(engine: AnimateEngine, token: number): Promise<boolean> {
     await loadFramePlanes(engine, project, f);
     const sheet = new OffscreenCanvas(w, h);
     const ctx = sheet.getContext('2d');
-    if (ctx === null) return false;
+    if (ctx === null) {
+      for (const picture of pictures.values()) picture.close();
+      return false;
+    }
     ctx.scale(scale, scale);
     composite(ctx, {
       project,
@@ -90,10 +102,19 @@ export function stopPlaying(engine: AnimateEngine): void {
   engine.playbackPicture = null;
   useStudio.setState({ playing: false, readying: null });
   engine.invalidate();
+  dropCacheSoon();
 }
 
 export async function startPlaying(engine: AnimateEngine): Promise<void> {
   if (useStudio.getState().playing || engine.live !== null) return;
+  if (!hooked) {
+    hooked = true;
+    engine.onProjectSwap.push(() => {
+      if (useStudio.getState().playing) stopPlaying(engine);
+      dropCache();
+    });
+  }
+  if (dropTimer !== null) clearTimeout(dropTimer);
   running += 1;
   const token = running;
   useStudio.setState({ playing: true });

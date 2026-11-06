@@ -10,10 +10,10 @@ import { BRUSH_SHAPES, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE, Stabiliser, applyCurve, t
 import { composite } from './composite';
 import { copyRect, History, restoreRect, type HistoryStep, type PlanePatch } from './history';
 import { fillStroke, paintStroke, strokeBounds, type PaintMask } from './paint';
-import { planeKey, PlaneStore } from './planes';
+import { planeFile, planeKey, PlaneStore } from './planes';
 import { addDrawing, addOp, celAt, createProject, findNode, firstLayer, neighbourFrame } from './project';
 import { assetIdsOf, buildProjectFile, FILE_EXTENSION, readProjectFile, safeFileName, saveBlobAs } from './project-file';
-import { askToKeepStorage, deleteProjectData, getMeta, listProjects, loadProjectData, saveProjectData, setMeta, type ProjectListing } from './storage';
+import { askToKeepStorage, deleteProjectData, getMeta, listProjects, loadProjectData, readFile, saveProjectData, setMeta, type ProjectListing } from './storage';
 import { saveSettings, useStudio, type ToolId } from './store';
 import { isFigure, liveBehaviours, smartsForStroke, tagBehaviours } from './tags';
 import type { BrushId, Cel, LayerNode, PlaneName, PlaneOp, Project, Stroke, StrokePoint } from './types';
@@ -58,11 +58,14 @@ export class AnimateEngine {
   private dpr = 1;
   private resizeObserver: ResizeObserver | null = null;
   private lastSaved: Project | null = null;
-  private saving = false;
   private autosaveTimer: ReturnType<typeof setInterval> | null = null;
   private lastCommit = 0;
   /** Undo and anything else that has to wait for storage run one at a time. */
   private queue: Promise<void> = Promise.resolve();
+  private queuedJobs = 0;
+  /** Goes up with every project swap: work that was waiting on storage checks it, so it can't land in the wrong project. */
+  private generation = 0;
+  private saveJob: Promise<void> | null = null;
   private started: Promise<void> | null = null;
   /** Marks over the drawing that other modules add (selection, closures, fill preview). */
   uiPainters: ((ctx: CanvasRenderingContext2D) => void)[] = [];
@@ -146,6 +149,10 @@ export class AnimateEngine {
 
   /** A change to the project's data with no pictures involved. */
   edit(label: string, change: (project: Project) => Project): void {
+    if (this.queuedJobs > 0) {
+      this.inQueue(async () => this.edit(label, change));
+      return;
+    }
     const before = this.project;
     const after = change(before);
     if (after === before) return;
@@ -187,8 +194,9 @@ export class AnimateEngine {
 
   swapProject(project: Project, keepFrame = false): void {
     this.cancelStroke();
+    this.generation += 1;
     this.history.clear();
-    this.planes.clear();
+    // The old store is simply let go: a save still running on it finishes on it.
     this.planes = this.storeFor(project);
     const layer = firstLayer(project);
     useStudio.setState({
@@ -503,6 +511,11 @@ export class AnimateEngine {
   beginStroke(x: number, y: number, pressure: number, tilt: number, time: number, simulated: boolean, brushOverride: BrushId | null): boolean {
     const state = useStudio.getState();
     if (this.live !== null || state.playing) return false;
+    if (this.queuedJobs > 0) {
+      // An undo is waiting on a picture from storage; a stroke now would be made against what the undo is about to replace.
+      this.notify('ONE MOMENT');
+      return false;
+    }
     const node = findNode(state.project, state.layerId);
     const brush = brushOverride ?? this.brushForTool(state.tool);
     if (brush === null) return false;
@@ -680,8 +693,12 @@ export class AnimateEngine {
     if (canvas !== null) {
       finish(canvas);
     } else {
-      // The picture is still coming from storage: the stroke lands the moment it arrives.
-      void this.planes.open(key).then(finish);
+      // The picture is still coming from storage: the stroke lands the moment it arrives, unless the person has since dropped
+      // it or moved to another project.
+      const generation = this.generation;
+      void this.planes.open(key).then((opened) => {
+        if (generation === this.generation && this.live === live) finish(opened);
+      });
     }
   }
 
@@ -706,13 +723,19 @@ export class AnimateEngine {
   // ── undo ───────────────────────────────────────────────────────────────────────────────
 
   private inQueue(job: () => Promise<void>): void {
-    this.queue = this.queue.then(job, job);
+    this.queuedJobs += 1;
+    const run = () => job().finally(() => {
+      this.queuedJobs -= 1;
+    });
+    this.queue = this.queue.then(run, run);
   }
 
-  private async applyStep(step: HistoryStep, direction: 'undo' | 'redo'): Promise<void> {
+  private async applyStep(step: HistoryStep, direction: 'undo' | 'redo', generation: number): Promise<void> {
     const target = direction === 'undo' ? step.before : step.after;
     for (const patch of step.patches) {
       const canvas = await this.planes.open(patch.key);
+      // A slow load can outlast the project it was for.
+      if (generation !== this.generation) return;
       restoreRect(canvas, patch.rect, direction === 'undo' ? patch.before : patch.after);
       this.planes.markDirty(patch.key);
     }
@@ -725,18 +748,20 @@ export class AnimateEngine {
   afterHistory: () => void = () => undefined;
 
   undo(): void {
-    if (this.live !== null) return;
-    this.inQueue(async () => {
-      const step = this.history.takeUndo();
-      if (step !== null) await this.applyStep(step, 'undo');
-    });
+    this.stepHistory('undo');
   }
 
   redo(): void {
+    this.stepHistory('redo');
+  }
+
+  private stepHistory(direction: 'undo' | 'redo'): void {
     if (this.live !== null) return;
+    const generation = this.generation;
     this.inQueue(async () => {
-      const step = this.history.takeRedo();
-      if (step !== null) await this.applyStep(step, 'redo');
+      if (generation !== this.generation) return;
+      const step = direction === 'undo' ? this.history.takeUndo() : this.history.takeRedo();
+      if (step !== null) await this.applyStep(step, direction, generation);
     });
   }
 
@@ -744,9 +769,9 @@ export class AnimateEngine {
 
   goToFrame(frame: number): void {
     const { project } = this;
-    const next = Math.max(0, Math.min(Math.max(project.frames, frame + 1) - 1, Math.round(frame)));
+    const next = Math.max(0, Math.round(frame));
     if (next === this.frame) return;
-    if (next >= project.frames) useStudio.setState({ project: { ...project, frames: next + 1 } });
+    if (next >= project.frames) this.tweak((p) => ({ ...p, frames: next + 1 }));
     useStudio.setState({ frame: next });
     this.invalidate();
   }
@@ -777,39 +802,70 @@ export class AnimateEngine {
     return this.project !== this.lastSaved || this.planes.hasDirty();
   }
 
-  /** Everything changed since the last autosave, into browser storage. */
-  async autosave(): Promise<void> {
-    if (this.saving || this.live !== null || !this.needsSaving()) return;
-    this.saving = true;
+  /** Everything changed since the last autosave, into browser storage. One save at a time: asking during a save waits for it, then saves what's left. */
+  autosave(): Promise<void> {
+    if (this.saveJob !== null) return this.saveJob.then(() => this.autosave());
+    if (this.live !== null || !this.needsSaving()) return Promise.resolve();
+    this.saveJob = this.runSave().finally(() => {
+      this.saveJob = null;
+    });
+    return this.saveJob;
+  }
+
+  private async runSave(): Promise<void> {
     const project = this.project;
+    const planes = this.planes;
+    const generation = this.generation;
+    const previous = this.lastSaved;
     useStudio.setState({ saveState: 'saving' });
     let ok = false;
     try {
-      ok = await this.planes.flush();
-      const previous = this.lastSaved;
-      const changed = Object.values(project.drawings).filter((drawing) => previous === null || previous.drawings[drawing.id] !== drawing);
-      await saveProjectData(project, changed, Date.now());
-      await setMeta('current', project.id);
-      this.lastSaved = project;
+      // Pictures first, and the data only if they all landed: data with no matching picture would load as an older drawing.
+      ok = await planes.flush();
+      if (ok) {
+        const changed = Object.values(project.drawings).filter((drawing) => previous === null || previous.drawings[drawing.id] !== drawing);
+        await saveProjectData(project, changed, Date.now());
+        if (generation === this.generation) {
+          await setMeta('current', project.id);
+          this.lastSaved = project;
+        }
+      }
     } catch {
       ok = false;
     }
-    this.saving = false;
-    const stillChanged = this.needsSaving();
-    useStudio.setState({ saveState: ok ? (stillChanged ? 'waiting' : 'saved') : 'failed' });
+    if (generation !== this.generation) return;
+    useStudio.setState({ saveState: ok ? (this.needsSaving() ? 'waiting' : 'saved') : 'failed' });
     if (!ok) this.notify('COULD NOT SAVE IN THIS BROWSER. SAVE TO A FILE.', true);
   }
 
-  /** The whole project as a file. */
+  /** Before leaving a project: true once it's safe. Refused, in words, if it isn't, so a swap never drops unsaved pictures. */
+  private async readyToLeave(): Promise<boolean> {
+    if (this.live !== null) return false;
+    await this.autosave();
+    if (!this.needsSaving()) return true;
+    this.notify('NOT SAVED YET, SO STAYING HERE. TRY AGAIN OR SAVE TO A FILE.', true);
+    return false;
+  }
+
+  /** A plane's picture for a project file: the live one if it's newer than storage. */
+  private async pictureFor(key: string): Promise<Blob | null> {
+    const live = this.planes.isDirty(key) ? this.planes.peek(key) : null;
+    if (live !== null) return live.convertToBlob({ type: 'image/png' });
+    const stored = await readFile(this.project.id, planeFile(key));
+    if (stored !== null) return stored;
+    return (await this.planes.open(key)).convertToBlob({ type: 'image/png' });
+  }
+
+  /** The whole project as a file. It holds every picture, even if browser storage has been failing. */
   async saveToFile(): Promise<void> {
     await this.autosave();
     const project = this.project;
     this.notify('BUILDING THE FILE...');
     try {
-      const blob = await buildProjectFile(project);
+      const blob = await buildProjectFile(project, (key) => this.pictureFor(key));
       const saved = await saveBlobAs(blob, `${safeFileName(project.name)}${FILE_EXTENSION}`, 'ANIMATE project', ['.zip']);
       if (saved) {
-        useStudio.setState({ fileDirty: false });
+        useStudio.setState({ fileDirty: this.project !== project });
         this.notify('FILE SAVED');
       } else {
         this.notify('NOT SAVED');
@@ -821,7 +877,7 @@ export class AnimateEngine {
 
   /** A project file opened: it becomes a new project in this browser, so nothing here is overwritten. */
   async openFile(file: Blob): Promise<void> {
-    await this.autosave();
+    if (!(await this.readyToLeave())) return;
     this.notify('OPENING...');
     const project = await readProjectFile(file, newProjectId());
     if (project === null) {
@@ -841,7 +897,7 @@ export class AnimateEngine {
   }
 
   async newProject(name?: string, width?: number, height?: number, fps?: number): Promise<void> {
-    await this.autosave();
+    if (!(await this.readyToLeave())) return;
     const project = createProject(newProjectId(), name, width, height, fps);
     this.swapProject(project);
     await this.saveWhole(project);
@@ -850,7 +906,7 @@ export class AnimateEngine {
 
   async switchProject(id: string): Promise<void> {
     if (id === this.project.id) return;
-    await this.autosave();
+    if (!(await this.readyToLeave())) return;
     const project = await loadProjectData(id);
     if (project === null) {
       this.notify('THAT PROJECT IS GONE', true);
@@ -868,6 +924,7 @@ export class AnimateEngine {
   /** Delete a project from this browser. If it's the open one, a new blank takes its place. */
   async deleteProject(id: string): Promise<void> {
     const wasOpen = id === this.project.id;
+    await this.saveJob;
     await deleteProjectData(id);
     if (wasOpen) {
       const rest = await listProjects();

@@ -134,6 +134,13 @@ function worker(): Worker | null {
       pending.get(event.data.id)?.(event.data.ok);
       pending.delete(event.data.id);
     };
+    // A worker that dies answers nothing: everything waiting on it falls back to IndexedDB, and the next write starts a new one.
+    saveWorker.onerror = () => {
+      for (const resolve of pending.values()) resolve(false);
+      pending.clear();
+      saveWorker?.terminate();
+      saveWorker = null;
+    };
   }
   return saveWorker;
 }
@@ -148,6 +155,10 @@ export async function writePlanePicture(projectId: string, file: string, canvas:
     const wrote = await new Promise<boolean>((resolve) => {
       pending.set(id, resolve);
       w.postMessage({ id, path: opfsPath(projectId, file), bitmap }, [bitmap]);
+      // No answer in a minute: treated as failed, so a stuck worker can't stop every save after it.
+      setTimeout(() => {
+        if (pending.delete(id)) resolve(false);
+      }, 60_000);
     });
     if (wrote) return true;
   } else {

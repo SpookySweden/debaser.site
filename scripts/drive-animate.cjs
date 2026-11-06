@@ -443,6 +443,39 @@ phases.phase1 = async (page, shot) => {
   await shot('phase1-export');
   await page.keyboard.press('Control+e');
 
+  // Leaving a project in the middle of a save (the code review's first worry): nothing is lost.
+  await freshProject(page);
+  await penStroke(page, mark(300, 300));
+  const leftBehind = await page.evaluate(async () => {
+    const engine = window.__animate;
+    const id = engine.project.id;
+    const save = engine.autosave();
+    await engine.newProject();
+    await save;
+    return id;
+  });
+  check('leaving during a save moves to the new project', (await state(page, () => window.__animate.project.nodes[0].cels.length)) === 0);
+  await page.evaluate((id) => window.__animate.switchProject(id), leftBehind);
+  await page.waitForTimeout(500);
+  check('and the old project came through whole', (await frameOps(page)) === 1 && (await pixel(page, 320, 320)) === '#000000', await pixel(page, 320, 320));
+
+  // Undo waiting on a picture from storage: the plane is thrown out of memory first, so undo has to load it, and a new project swapped in
+  // meanwhile must not be overwritten.
+  const swapped = await page.evaluate(async () => {
+    const engine = window.__animate;
+    engine.undo();
+    await engine.newProject();
+    return engine.project.nodes[0].cels.length;
+  });
+  check('an undo racing a project swap stays out of the new project', swapped === 0);
+  await page.evaluate((id) => window.__animate.switchProject(id), leftBehind);
+  await page.waitForTimeout(300);
+
+  // Saving to a file holds a stroke made a moment ago, not yet autosaved.
+  await penStroke(page, mark(500, 500));
+  const zipNow = await downloadFrom(page, () => page.getByRole('button', { name: /SAVE FILE/ }).click());
+  check('SAVE FILE holds the latest stroke', zipNow.bytes.toString('latin1').includes('project.json') && zipNow.bytes.length > 400, `${zipNow.bytes.length} bytes`);
+
   // Full screen.
   await page.keyboard.press('\\');
   await page.waitForTimeout(300);
