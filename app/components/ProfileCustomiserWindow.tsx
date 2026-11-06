@@ -8,7 +8,9 @@ import { findOriginal, recordMedia, type MediaFingerprint } from '../lib/media/u
 import { itemForSrc, pictureTiles, recordUses } from '../lib/media/uses';
 import { AVATAR_BUCKET, uploadAvatarDrawing } from '../lib/profile/avatar-upload';
 import { uploadSongFile } from '../lib/profile/song-upload';
+import { profileNameColour } from '../lib/profile/name-colours';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { PLATE_MAIN } from '../lib/ui/controls';
 import { validateBio, validateCountry, validateSongCredit, validateSongTitle, validateStatus } from '../lib/profile/visibility';
 import {
   figureIsUnsaved,
@@ -177,25 +179,23 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const benchFigure = useBenchFigure();
   const keptFigure = useKeptFigure();
 
+  // A colour since taken off the swatch counts as none, as it does everywhere a name is drawn: kept in the
+  // form, it would be sent back with every save and refused, so that account could save nothing at all.
+  const storedNameColour = profileNameColour(profile) ?? '';
+  const stored = {
+    displayName: profile.displayName,
+    bio: profile.bio,
+    country: profile.country,
+    status: profile.status,
+    nameColour: storedNameColour,
+  };
+  const textDrafts = { name: nameDraft, bio: bioDraft, country: countryDraft, status: statusDraft, nameColour: nameColourDraft };
+
+  // What `[ SAVE ]` would keep. A picture or track waiting to be filed isn't: each has its own key.
+  const aboutChanged = unsavedChanges(stored, { ...textDrafts, pendingPicture: null, pendingSong: null }).length > 0;
+
   const unsaved: UnsavedChange[] = [
-    ...unsavedChanges(
-      {
-        displayName: profile.displayName,
-        bio: profile.bio,
-        country: profile.country,
-        status: profile.status,
-        nameColour: profile.nameColour ?? null,
-      },
-      {
-        name: nameDraft,
-        bio: bioDraft,
-        country: countryDraft,
-        status: statusDraft,
-        nameColour: nameColourDraft,
-        pendingPicture: pendingSrc,
-        pendingSong: songSrc,
-      },
-    ),
+    ...unsavedChanges(stored, { ...textDrafts, pendingPicture: pendingSrc, pendingSong: songSrc }),
     ...(() => {
       // The figure, compared with what was kept - the same model as every field above it, rather than a latch.
       const change = figureIsUnsaved({ bench: benchFigure, kept: keptFigure });
@@ -208,7 +208,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const country = countryDraft ?? profile.country;
   const status = statusDraft ?? profile.status;
   // Empty means the default: usernames are drawn in the page's own black.
-  const nameColour = nameColourDraft ?? profile.nameColour ?? '';
+  const nameColour = nameColourDraft ?? storedNameColour;
   const bioProblem = validateBio(bio);
   const countryProblem = validateCountry(country);
   const statusProblem = validateStatus(status);
@@ -578,11 +578,29 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         ))}
       </div>
 
-      {/* The tab that dresses the page: the picture, then the name and bio, then the
+      {/* The tab that dresses the page: the name and bio, then the picture and track, then the
           tags other people gave. They were three tabs; seeing them together is what
           makes the page they add up to visible while you work on it. */}
       {tab === 'profile' ? (
         <div className="space-y-3">
+          <PanelHeading>ABOUT</PanelHeading>
+          <ProfileIdentityTab
+            profile={profile}
+            name={name}
+            bio={bio}
+            country={country}
+            status={status}
+            nameColour={nameColour}
+            onNameChange={setNameDraft}
+            onBioChange={setBioDraft}
+            onCountryChange={setCountryDraft}
+            onStatusChange={setStatusDraft}
+            onNameColourChange={setNameColourDraft}
+            bioProblem={bioProblem}
+            countryProblem={countryProblem}
+            statusProblem={statusProblem}
+          />
+
           {/* HOW IT WORKS: behind a [ ? ] on the heading's bar (SPEC-less-text.md), not a hover tip a phone never shows. */}
           <PanelHeadingWithHelp title="PICTURE" topic="picture versions">
             FILING MAKES A NEW VERSION (P{profile.avatar.versions.length + 1}). OLD ONES STAY IN THE HISTORY WITH THEIR COMMENTS.
@@ -623,26 +641,6 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             uploadMessage={songMessage}
           />
 
-          <PanelHeading>ABOUT</PanelHeading>
-          <ProfileIdentityTab
-            profile={profile}
-            name={name}
-            bio={bio}
-            country={country}
-            status={status}
-            nameColour={nameColour}
-            onNameChange={setNameDraft}
-            onBioChange={setBioDraft}
-            onCountryChange={setCountryDraft}
-            onStatusChange={setStatusDraft}
-            onNameColourChange={setNameColourDraft}
-            onSave={() => void handleSaveIdentity()}
-            busy={busy}
-            bioProblem={bioProblem}
-            countryProblem={countryProblem}
-            statusProblem={statusProblem}
-          />
-
           <PanelHeading>TAGS</PanelHeading>
           <ProfileTagsTab
             profile={profile}
@@ -673,9 +671,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
         </div>
       ) : null}
 
-      {/* A problem stays on screen until the next try; a success is the `SAVED` in the foot. */}
+      {/* A problem stays on screen until the next try; a success is the `SAVED` in the foot. Pinned to the
+          bottom of the window, because `[ SAVE ]` can be pressed from anywhere in this long scroll. */}
       {error === null ? null : (
-        <p className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">PROBLEM: {error}</p>
+        <p className="sticky bottom-0 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">PROBLEM: {error}</p>
       )}
     </div>
   );
@@ -726,6 +725,13 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             <span aria-live="polite" className="inline-block w-12 text-right text-label text-ink">
               {savedTick > 0 ? 'SAVED' : ''}
             </span>
+            {/* Here rather than under the bio, so it's in reach from anywhere in the scroll. It goes quiet until
+                there's something for it to keep, so it doesn't look like it would file a picture or a track. */}
+            {tab === 'profile' ? (
+              <button type="button" onClick={() => void handleSaveIdentity()} disabled={busy || !aboutChanged} className={PLATE_MAIN}>
+                {busy ? '[ WORKING... ]' : '[ SAVE ]'}
+              </button>
+            ) : null}
             {/* Through the same gate as closing: a plain link here used to leave the page and lose
                 unsaved work without asking. Still a real link, so a middle-click opens a new tab. */}
             <a

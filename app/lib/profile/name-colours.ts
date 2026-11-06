@@ -1,4 +1,5 @@
 import { contrastRatio } from '../ui/colour';
+import { THEMES } from '../ui/themes';
 import type { PublicProfile } from './types';
 
 /**
@@ -42,14 +43,16 @@ export type NameColour = {
    * there. Rose becomes Brilliant Pink, the lighter of the two hot dyes, and the rest do not move.
    */
   dark: string;
+  /** What `dark` is called, where it differs from `hex`: a swatch named BLACK that draws white has to say so. */
+  darkLabel?: string;
 };
 
 export const NAME_COLOURS: NameColour[] = [
-  { id: 'black', label: 'BLACK', hex: '#000000', dark: '#ffffff' },
-  { id: 'nigrosine', label: 'NIGROSINE', hex: '#1a1525', dark: '#e1ff00' },
-  { id: 'royal-blue', label: 'ROYAL BLUE', hex: '#1d3ca6', dark: '#fff000' },
+  { id: 'black', label: 'BLACK', hex: '#000000', dark: '#ffffff', darkLabel: 'WHITE' },
+  { id: 'nigrosine', label: 'NIGROSINE', hex: '#1a1525', dark: '#e1ff00', darkLabel: 'FLAVINE' },
+  { id: 'royal-blue', label: 'ROYAL BLUE', hex: '#1d3ca6', dark: '#fff000', darkLabel: 'DAFFODIL' },
   { id: 'emerald', label: 'EMERALD', hex: '#28c745', dark: '#28c745' },
-  { id: 'rose', label: 'ROSE', hex: '#e6004c', dark: '#ff00a0' },
+  { id: 'rose', label: 'ROSE', hex: '#e6004c', dark: '#ff00a0', darkLabel: 'BRILLIANT PINK' },
   { id: 'brilliant-pink', label: 'BRILLIANT PINK', hex: '#ff00a0', dark: '#ff00a0' },
   { id: 'flavine', label: 'FLAVINE', hex: '#e1ff00', dark: '#e1ff00' },
   { id: 'daffodil', label: 'DAFFODIL YELLOW', hex: '#fff000', dark: '#fff000' },
@@ -154,6 +157,48 @@ export function profileNameColour(profile: PublicProfile | null | undefined): st
 
 export function nameColourLabel(hex: string): string {
   return NAME_COLOURS.find((colour) => colour.hex === hex)?.label ?? 'DEFAULT';
+}
+
+/** What the editor calls having no colour of your own: the name takes the theme's own ink. */
+export const SITE_COLOUR_LABEL = 'SITE COLOUR';
+
+/**
+ * A swatch's honest name: both of the colours it draws, bright themes first (`BLACK / WHITE`). The same choice
+ * is a different colour on a dark theme, so a name that gave only one of them would be wrong on the other.
+ */
+export function nameColourPairLabel(colour: NameColour): string {
+  return colour.darkLabel === undefined ? colour.label : `${colour.label} / ${colour.darkLabel}`;
+}
+
+/** A stored value in words, for a reader who will not recognise a hex. Off the swatch it can only be repeated. */
+export function nameColourWords(hex: string): string {
+  if (hex.length === 0) return SITE_COLOUR_LABEL;
+  const swatch = NAME_COLOURS.find((colour) => colour.hex === hex);
+  return swatch === undefined ? hex : nameColourPairLabel(swatch);
+}
+
+export type NameOnTheme = {
+  id: string;
+  label: string;
+  /** The theme's window colour, which is what a name is mostly read on. */
+  field: string;
+  /** The theme's own words on that field. */
+  ink: string;
+  /** What this choice is drawn as there: the same reading `.name-ink` picks by the theme's scheme. */
+  value: string;
+  readable: boolean;
+};
+
+/** One choice ('' for the site colour) on every theme, so the editor can show it as each reader will see it. */
+export function nameOnThemes(hex: string): NameOnTheme[] {
+  const swatch = NAME_COLOURS.find((colour) => colour.hex === hex);
+
+  return THEMES.map((theme) => {
+    const field = theme.tokens['sun-pale'];
+    const ink = theme.tokens.ink;
+    const value = swatch === undefined ? ink : theme.scheme === 'dark' ? swatch.dark : swatch.hex;
+    return { id: theme.id, label: theme.label, field, ink, value, readable: contrastRatio(value, field) >= READABLE };
+  });
 }
 
 /** The swatch hex for one of the sixteen by name, e.g. `green` -> `#008000`. */

@@ -80,7 +80,7 @@ export default function ProfileCustomiserPictureTab({
           <div>
             <p className={CUSTOMISER_NOTE}>NEW</p>
             {pendingSrc === null ? (
-              <div className="mt-1 flex h-[130px] w-[140px] items-center justify-center frame bg-ice-pale p-2 text-center">
+              <div className="flex aspect-square w-[140px] items-center justify-center frame bg-ice-pale p-2 text-center">
                 <span className="text-label font-bold text-ink">NOTHING CHOSEN</span>
               </div>
             ) : (
@@ -185,12 +185,10 @@ export default function ProfileCustomiserPictureTab({
         </div>
       )}
 
-      <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>HISTORY</p>
+      {versions.length === 0 ? null : (
+        <div className="p-3">
+          <p className={CUSTOMISER_NOTE}>HISTORY</p>
 
-        {versions.length === 0 ? (
-          <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>
-        ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
               <li
@@ -224,8 +222,8 @@ export default function ProfileCustomiserPictureTab({
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

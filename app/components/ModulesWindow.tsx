@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
+import { inkOnNameColour } from '../lib/profile/name-colours';
 import { KEY_FOCUS } from '../lib/ui/controls';
 import { MODULES, moduleIsOn, moduleSwatches, withColour, withTick, type ModuleDef } from '../lib/ui/modules';
 import {
@@ -22,7 +23,7 @@ import { useAuth } from './AuthProvider';
 import DockWindow from './DockWindow';
 
 const TICK = `${KEY_FOCUS} key inline-flex min-h-7 w-full items-center gap-2 px-1 text-sm font-bold leading-none disabled:cursor-not-allowed pointer-coarse:min-h-tap`;
-const SWATCH = `${KEY_FOCUS} h-7 w-7 border-line border-ink cursor-pointer pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
+const SWATCH = `${KEY_FOCUS} inline-flex h-7 w-7 items-center justify-center border-line border-ink text-key leading-none cursor-pointer pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
 const SMALL_KEY = `${KEY_FOCUS} key inline-flex h-7 items-center px-1 text-label font-bold leading-none pointer-coarse:min-h-tap`;
 
 /** A module still being made. Drawn in the key's own ink so it reads on any face the key wears. */
@@ -72,8 +73,10 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
             title={swatch.label}
             onClick={() => setModuleChoices(withColour(choices, module.key, swatch.id))}
             className={SWATCH}
-            style={{ backgroundColor: swatch.ink }}
-          />
+            style={{ backgroundColor: swatch.ink, color: inkOnNameColour(swatch.ink) }}
+          >
+            {picked === swatch.id ? <span aria-hidden="true">✓</span> : null}
+          </button>
         ))}
         <button type="button" aria-pressed={picked === undefined} onClick={() => setModuleChoices(withColour(choices, module.key, null))} className={SMALL_KEY}>
           [ SITE ]

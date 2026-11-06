@@ -78,7 +78,7 @@ export default function ProfileCustomiserSongTab({
           <div className="min-w-0 flex-1 basis-64 space-y-2">
             <p className={CUSTOMISER_NOTE}>NEW</p>
             <p className="text-label text-ink">
-              {pendingSrc === null ? 'NOTHING CHOSEN.' : `READY: ${pendingSrc}`}
+              {pendingSrc === null ? 'NOTHING CHOSEN.' : 'READY.'}
             </p>
 
             <p className={CUSTOMISER_NOTE}>UPLOAD (MAX {Math.round(MAX_TRACK_BYTES / (1024 * 1024))}MB)</p>
@@ -142,12 +142,10 @@ export default function ProfileCustomiserSongTab({
         </div>
       </div>
 
-      <div className="p-3">
-        <p className={CUSTOMISER_NOTE}>HISTORY</p>
+      {versions.length === 0 ? null : (
+        <div className="p-3">
+          <p className={CUSTOMISER_NOTE}>HISTORY</p>
 
-        {versions.length === 0 ? (
-          <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>
-        ) : (
           <ul className="mt-2 space-y-2">
             {versions.map((version) => (
               <li
@@ -179,8 +177,8 @@ export default function ProfileCustomiserSongTab({
               </li>
             ))}
           </ul>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   );
 }

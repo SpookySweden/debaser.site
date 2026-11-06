@@ -14,6 +14,7 @@
  * which is the behaviour a reader expects and the one a naive `!== null` test gets wrong.
  */
 import { countryName } from './countries';
+import { nameColourWords } from './name-colours';
 
 /** One thing the reader changed, in the two forms the prompt needs. */
 export type UnsavedChange = {
@@ -90,7 +91,8 @@ export function unsavedChanges(stored: StoredProfile, drafts: ProfileDrafts): Un
     changes.push({
       tab: 'profile',
       label: 'NAME COLOUR',
-      detail: `${show(stored.nameColour ?? '')} -> ${show(drafts.nameColour)}`,
+      // The colours' names, for the same reason as the country below: `"#e1ff00"` is an edit nobody recognises.
+      detail: `${show(nameColourWords(stored.nameColour ?? ''))} -> ${show(nameColourWords(drafts.nameColour))}`,
     });
   }
 

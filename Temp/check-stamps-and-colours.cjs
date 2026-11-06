@@ -159,47 +159,28 @@ assert.equal(typeof validateNameColour('#123456'), 'string', 'off-swatch colours
       onCountryChange: () => undefined,
       onStatusChange: () => undefined,
       onNameColourChange: () => undefined,
-      onSave: () => undefined,
-      busy: false,
       bioProblem: undefined,
       countryProblem: undefined,
       statusProblem: undefined,
     }),
   );
-  assert.equal((tabHtml.match(/aria-pressed/g) ?? []).length, 8, 'the picker shows the eight dyes');
-  assert.match(tabHtml, /color:#fff000/, 'and previews the chosen dye');
-  assert.match(tabHtml, /PREVIEW :: DAFFODIL YELLOW/);
+  // (Changed on purpose, Luke 2026-11-06: "make the username colour swatches better and more legible".) The chips
+  // became rows: the eight dyes and the site colour, each with a tick, a block, its honest name and the reader's own name.
+  assert.equal((tabHtml.match(/aria-pressed/g) ?? []).length, 9, 'the picker shows the eight dyes and the way back to none');
+  assert.equal((tabHtml.match(/aria-pressed="true"/g) ?? []).length, 1, 'with one picked');
+  assert.match(tabHtml, /<button[^>]*aria-pressed="true"[^>]*aria-label="DAFFODIL YELLOW"[^>]*>(?:(?!<\/button>)[\s\S])*\[ ✓ \]/, 'marked by a tick, not by colour alone');
+  assert.equal((tabHtml.match(/\[ ✓ \]/g) ?? []).length, 1, 'and only the picked one has it');
+  assert.match(tabHtml, /aria-label="SITE COLOUR"/, 'the site colour is a choice, so a colour can be taken off again');
+  assert.match(tabHtml, /aria-label="BLACK \/ WHITE"/, 'a dye that draws two colours says both');
+  assert.match(tabHtml, />READS ON EVERY THEME<\/p>/, 'the readable dyes are one group');
+  assert.match(tabHtml, />FADES ON SOME THEMES<\/p>/, 'and the bright ones another');
+  assert.doesNotMatch(tabHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
+  assert.equal((tabHtml.match(/>sweden<\/span>/g) ?? []).length, 9 + 5, 'the reader own name beside each choice and on all five themes');
+  assert.equal((tabHtml.match(/HARD TO READ/g) ?? []).length, 3, 'Daffodil is called hard to read in words on the three light themes');
+  assert.doesNotMatch(tabHtml, /\[ SAVE \]/, 'the save key is in the window foot now, not here');
 
-  // the picker itself: eight dyes drawn as keys on neutral chips in two derived rows, not as
-  // eight blocks of colour - and each one a thumb's height on a phone.
-  // (2026-10-25, SPEC-less-text.md) The row heads are `INK` and `GLOW` (were `INK :: A NAME THE PAGE CANNOT
-  // SWALLOW` / `GLOW :: A NAME THE PAGE SHOWS THROUGH`); what the two mean moved into the `[ ? ]` fold
-  // (InfoFold, topic "name colours") under NAME COLOUR, replacing the label's hover tip.
-  assert.equal((tabHtml.match(/>INK<\/p>/g) ?? []).length, 1, 'the readable dyes are one row');
-  assert.equal((tabHtml.match(/>GLOW<\/p>/g) ?? []).length, 1, 'and the bright ones another');
-  assert.doesNotMatch(tabHtml, /A NAME THE PAGE CANNOT SWALLOW|A NAME THE PAGE SHOWS THROUGH/, 'with short heads');
-  const colourFold = (tabHtml.match(/<details[^>]*>(?:(?!<\/details>)[\s\S])*aria-label="About name colours"[\s\S]*?<\/details>/) ?? [''])[0];
-  assert.match(colourFold, /\[ \? \]/, 'the INK / GLOW explanation sits behind a [ ? ] key');
-  assert.match(colourFold, /INK READS IN EITHER THEME[\s\S]*GLOW IS HARD TO READ ON PURPOSE/, 'and says what each row means, inside the fold');
-  assert.doesNotMatch(tabHtml, /title="AN INK SWATCH IS/, 'no longer as a hover tip a phone never shows');
-  assert.doesNotMatch(tabHtml, /PICK ONE OF THE EIGHT DYES/, 'and the label no longer miscounts the swatches');
-  assert.equal(
-    (tabHtml.match(/background-color/g) ?? []).length,
-    8,
-    'every dye is a key of the colour rather than a block of it',
-  );
-  assert.ok(
-    (tabHtml.match(/max-sm:min-h-tap/g) ?? []).length >= 8,
-    'and the dyes are thumb-sized on a phone (the tab`s plates carry it too)',
-  );
-  // The number in the tooltip is now the *worst of both themes* rather than the light theme's own, and
-  // the wording says so: Daffodil is 1.19:1 on White and 15.04:1 on the dark field, and a reader picking
-  // a name has to be told the first number, because the light theme is the one it fails in.
-  // (2026-10-25, SPEC-less-text.md) Each swatch's tip (`DAFFODIL YELLOW :: 1.2:1 wherever the name is read`)
-  // repeated the name drawn on the key, plus a ratio: cut. The key names itself; the INK / GLOW rows (built
-  // from the same contrast arithmetic, app/lib/profile/name-colours.ts) are what say whether a dye reads.
-  assert.doesNotMatch(tabHtml, /wherever the name is read/, 'the swatches carry no ratio tip');
-  assert.match(tabHtml, /<button[^>]*aria-pressed="(true|false)"[^>]*>(?:(?!<\/button>)[\s\S])*DAFFODIL YELLOW<\/button>/, 'and each key names its dye on its face');
+  const blackHtml = renderToStaticMarkup(element(ProfileIdentityTab, { profile: { displayName: 'sweden' }, name: 'sweden', bio: '', country: '', status: '', nameColour: '#000000', onNameChange: () => undefined, onBioChange: () => undefined, onCountryChange: () => undefined, onStatusChange: () => undefined, onNameColourChange: () => undefined, bioProblem: undefined, countryProblem: undefined, statusProblem: undefined }));
+  assert.doesNotMatch(blackHtml, /HARD TO READ/, 'a colour that reads everywhere carries no warning');
 
   console.log('stamp + swatch checks passed');
   console.log('  stamp  :', formatStamp('2026-09-21T04:39:52.000Z'), '->', "text-[#0000ff]");

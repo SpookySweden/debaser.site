@@ -1,6 +1,6 @@
 /*
  * Scratch check that a username always wears its account's colour (run from the root):
- *   npx tsc app/components/ProfileName.tsx app/components/ProfileBoardActivity.tsx app/components/AccountProfilePanel.tsx app/components/CommsThreadPanel.tsx --outDir Temp/name-colour-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strict
+ *   npx tsc app/components/ProfileName.tsx app/components/ProfileBoardActivity.tsx app/components/AccountProfilePanel.tsx app/components/CommsThreadPanel.tsx app/lib/ui/modules.ts --outDir Temp/name-colour-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strict
  *   node Temp/check-name-colour.cjs
  *
  * Every place a name is printed now draws it with `ProfileName`, so the swatch an
@@ -165,6 +165,56 @@ assert.deepEqual(
   ['black', 'nigrosine', 'royal-blue'],
   'the INK row is the three dyes that read wherever the field is, each restated in the dark theme',
 );
+
+// 5b. (Luke, 2026-11-06.) A swatch says what it draws, and the group offered as reading on every theme does, on all five.
+const { nameColourPairLabel, nameColourWords, nameOnThemes, profileNameColour } = require('./name-colour-render/lib/profile/name-colours.js');
+const { THEMES } = require('./name-colour-render/lib/ui/themes.js');
+const { moduleSwatches, moduleInk } = require('./name-colour-render/lib/ui/modules.js');
+
+assert.deepEqual(
+  NAME_COLOURS.map((swatch) => swatch.id),
+  ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose', 'brilliant-pink', 'flavine', 'daffodil'],
+  'the stored ids have not moved: user_modules holds them',
+);
+assert.deepEqual(
+  NAME_COLOURS.map((swatch) => swatch.hex),
+  ['#000000', '#1a1525', '#1d3ca6', '#28c745', '#e6004c', '#ff00a0', '#e1ff00', '#fff000'],
+  'nor have the stored values: profiles hold those',
+);
+for (const swatch of NAME_COLOURS) {
+  const named = NAME_COLOURS.find((other) => other.hex === swatch.dark);
+  if (swatch.dark === swatch.hex) assert.equal(nameColourPairLabel(swatch), swatch.label, swatch.label + ' draws one colour, and has one name');
+  else assert.ok(swatch.darkLabel && nameColourPairLabel(swatch).startsWith(swatch.label + ' / '), swatch.label + ' draws two colours, and names both');
+  if (swatch.darkLabel && named) assert.ok(named.label.startsWith(swatch.darkLabel), swatch.label + ' second name is the colour it draws');
+}
+assert.equal(nameColourWords(''), 'SITE COLOUR');
+assert.equal(nameColourWords('#1d3ca6'), 'ROYAL BLUE / DAFFODIL');
+
+assert.equal(THEMES.length, 5, 'every theme is asked about, not only the two the older arithmetic knows');
+for (const swatch of NAME_COLOURS_THAT_READ) {
+  for (const theme of nameOnThemes(swatch.hex)) assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label);
+}
+for (const theme of nameOnThemes('')) assert.ok(theme.readable, 'the site colour reads on ' + theme.label);
+for (const theme of THEMES) {
+  const shown = nameOnThemes('#000000').find((entry) => entry.id === theme.id);
+  assert.equal(shown.value, theme.scheme === 'dark' ? '#ffffff' : '#000000', 'the strip draws what .name-ink draws on ' + theme.label);
+  assert.equal(shown.readable, contrastRatio(shown.value, theme.tokens['sun-pale']) >= 4.5);
+}
+assert.equal(nameOnThemes('#e1ff00').find((entry) => entry.id === 'default').readable, false, 'Flavine on the Flavine window is called hard to read');
+assert.equal(profileNameColour({ nameColour: '#800000' }), undefined, 'a colour since taken off the swatch counts as none');
+
+// MODULOS: the label beside the square is the colour in the square.
+const darkBar = THEMES.find((theme) => theme.id === 'dark').tokens['sun-pale'];
+const offered = moduleSwatches(darkBar, undefined);
+assert.deepEqual(
+  offered.map((swatch) => swatch.label),
+  ['WHITE', 'FLAVINE', 'DAFFODIL', 'EMERALD', 'BRILLIANT PINK'],
+  'on the dark bar each swatch is named for what it draws',
+);
+assert.deepEqual(offered.map((swatch) => swatch.id), ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose'], 'and still stores the same ids');
+assert.equal(moduleInk('black', darkBar), '#ffffff');
+const brightBar = THEMES.find((theme) => theme.id === 'default').tokens['sun-pale'];
+assert.equal(moduleSwatches(brightBar, undefined)[0].label, 'BLACK', 'and BLACK where it draws black');
 
 // 6. A row that arrives with no name at all - a hand-made row, or a column a select skipped -
 //    reads as the anonymous default instead of taking the page down with it.

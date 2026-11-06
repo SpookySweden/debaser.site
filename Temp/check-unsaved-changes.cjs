@@ -100,6 +100,11 @@ assert.deepEqual(
   'an unset colour draft matches an unset stored colour',
 );
 assert.equal(unsavedChanges(stored, { ...clean, nameColour: '#FF00A0' }).length, 1, 'and choosing one is a change');
+assert.equal(
+  unsavedChanges(stored, { ...clean, nameColour: '#e1ff00' })[0].detail,
+  '"SITE COLOUR" -> "FLAVINE"',
+  'and the prompt names the colours: a hex is an edit nobody recognises',
+);
 
 /*
  * 8. (Changed on purpose, 2026-11-05.) The privacy switches are not here any more: the editor's PRIVACY tab is the same switches as
