@@ -146,6 +146,10 @@ class SupabaseAuthRepository implements AuthRepository {
       password: input.password,
     });
 
+    // Said to everybody, whatever they typed, so it never tells anyone which addresses had an account.
+    if (error?.code === 'invalid_credentials') {
+      return { ok: false, error: 'WRONG ADDRESS OR PASSWORD. EVERY ACCOUNT WAS LOST ON 6 NOVEMBER: IF YOU HAD ONE, SIGN UP AGAIN WITH THE SAME ADDRESS AND IT COMES BACK.' };
+    }
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
 
     return { ok: true, user: data.user === null ? null : toAccount(data.user) };
