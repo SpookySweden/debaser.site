@@ -95,6 +95,8 @@ assert.ok(!draw('must=dub&view=list').includes('LOOKING...'), 'a word on the map
 // The count beside what's held, in the list of words and in a word's facts.
 assert.ok(/ON \d+ ITEMS? · (ALL FOUND|\d+ FOUND SO FAR)/.test(dub) || /ON 1 ITEM/.test(dub), 'a word never just says how many the catalogue has');
 assert.ok(!/>ON \d+ ITEMS</.test(dub), 'no bare count');
+assert.ok(!/>ON \d+ ITEMS</.test(home), 'nor in the most used words, with nothing chosen');
+assert.ok(/>ON \d+ ITEMS · /.test(home), 'which say what is found too');
 
 // 6. Third-party text is only ever text.
 const hostile = buildIndex(buildStationGraph([{ item: { id: 'peertube:x', platform: 'peertube', externalId: 'x', kind: 'video', url: 'javascript:alert(1)', canonicalUrl: '', title: '<img src=x onerror=alert(1)>', creator: '<script>bad()</script>', description: '<b>x</b>', embedUrl: 'https://evil.example/frame', thumbnailUrl: 'https://evil.example/t.png', publishedAt: '2026-01-01T00:00:00.000Z', fetchedAt: '' }, claudeWords: ['<i>word</i>'] }]));
