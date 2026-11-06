@@ -1,10 +1,10 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
+import { PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
-import { freeCopyEmbed, kinoWatchPage, type FreeCopy, type KinoSources, type KinoTitle, type WatchOffer } from '../lib/web/kino';
+import { freeCopyEmbed, type FreeCopy, type KinoSources, type KinoTitle, type WatchOffer } from '../lib/web/kino';
 import { askKinoSources } from '../lib/web/kino-sources-client';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
 import { startingEmbed } from '../lib/web/row-addresses';
@@ -16,7 +16,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
  * (TMDB's rule).
  */
 
-/** Where-to-watch names are listed in full up to here; the rest are behind TMDB's page. */
+/** Rent-or-buy names are listed up to here; the rest are only counted. */
 const RENT_OR_BUY_SHOWN = 4;
 
 /** This title's sources, once read. `null`: none yet, or none could be read: the row is as it always was. */
@@ -123,8 +123,8 @@ function WatchLine({ label, names }: { label: string; names: readonly string[] }
   );
 }
 
-/** TMDB's where-to-watch for one country. Service names only; the real links are on TMDB's page, as TMDB asks. */
-export function WhereToWatch({ offer, title, name }: { offer: WatchOffer; title: KinoTitle; name: string }) {
+/** TMDB's where-to-watch for one country. Service names only. */
+export function WhereToWatch({ offer }: { offer: WatchOffer }) {
   const rentOrBuy = [...new Set([...offer.rent, ...offer.buy])];
   const hidden = rentOrBuy.length - RENT_OR_BUY_SHOWN;
   return (
@@ -134,16 +134,11 @@ export function WhereToWatch({ offer, title, name }: { offer: WatchOffer; title:
       <WatchLine label="FREE" names={offer.free} />
       <WatchLine label="FREE WITH ADS" names={offer.ads} />
       <WatchLine label="RENT OR BUY" names={hidden > 0 ? [...rentOrBuy.slice(0, RENT_OR_BUY_SHOWN), `+${hidden} MORE`] : rentOrBuy} />
-      <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-label text-ink-quiet">
-        <a href={kinoWatchPage(title, offer.country)} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`Where to watch "${name}" (opens TMDB in a new tab)`}>
-          [ SEE WHERE ↗ ]
+      <p className="mt-1 text-label text-ink-quiet" data-justwatch-credit>
+        {'LISTINGS FROM '}
+        <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline" aria-label="JustWatch (opens in a new tab)">
+          JUSTWATCH
         </a>
-        <span data-justwatch-credit>
-          {'LISTINGS FROM '}
-          <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline" aria-label="JustWatch (opens in a new tab)">
-            JUSTWATCH
-          </a>
-        </span>
       </p>
     </div>
   );

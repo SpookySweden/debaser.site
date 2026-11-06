@@ -80,11 +80,6 @@ export function parseKinoTitleKey(value: string): KinoTitle | null {
   return match ? { type: match[1] as KinoTitle['type'], tmdbId: Number(match[2]) } : null;
 }
 
-/** TMDB's where-to-watch page for a title in a country: it holds the real links (TMDB's own rule for this data). */
-export function kinoWatchPage(title: KinoTitle, country: string): string {
-  return `https://${KINO_PAGE_HOST}/${title.type}/${title.tmdbId}/watch?locale=${encodeURIComponent(country)}`;
-}
-
 /** A free copy's player address, unchecked: `officialEmbedUrl` checks it before anything is framed. */
 export function freeCopyEmbed(copy: Pick<FreeCopy, 'platform' | 'id'>): string {
   return copy.platform === 'youtube' ? `https://www.youtube-nocookie.com/embed/${copy.id}` : `https://archive.org/embed/${copy.id}`;

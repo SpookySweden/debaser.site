@@ -102,7 +102,7 @@ const WATCH_NAMES_MAX = 12;
 
 /**
  * One country's where-to-watch from a `detailsWithWatchUrl` answer, or null when it lists nothing there. Service names
- * only, in TMDB's own order: no logo, no address (the row links to TMDB's page, `kinoWatchPage`). Pure.
+ * only, in TMDB's own order: no logo, no address. Pure.
  */
 export function toWatchOffer(doc: unknown, country: string): WatchOffer | null {
   const root = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>) : {};

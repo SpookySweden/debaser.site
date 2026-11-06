@@ -14,8 +14,10 @@ handling tagging and media serving".
   keep their space while shut, so opening moves nothing. Plays in the floating player, from the platform's own player. Shutting
   it while a video plays sends the video floating. `NO SERVER HAS THIS.` goes when a copy is there.
 - **`WHERE TO WATCH IN <COUNTRY>`**: STREAM, FREE, FREE WITH ADS, RENT OR BUY, by name, from TMDB's watch providers. Credited
-  `LISTINGS FROM JUSTWATCH`, which TMDB's terms require, or it can revoke API access. `[ SEE WHERE ↗ ]` goes to TMDB's page,
-  which holds the real links: TMDB gives no deep links. Service names only: no logos (asset rules, and plain words read better).
+  `LISTINGS FROM JUSTWATCH`, which TMDB's terms require, or it can revoke API access. Service names only: no logos (asset rules,
+  and plain words read better). Its `[ SEE WHERE ↗ ]` key to TMDB's watch page is gone (Luke, 2026-11-06: "remove the see where
+  to watch legally button."). TMDB's docs make that link optional ("You can link to the provided TMDB URL to help support TMDB");
+  JustWatch's credit is the condition. The row's `[ ON TMDB ↗ ]` stays.
 - The country is Vercel's reading of the address, used to choose the answer and never kept. Nothing here is saved.
 
 ## What is offered

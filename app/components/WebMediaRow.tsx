@@ -464,7 +464,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
         </div>
       </div>
       {free.length > 0 ? <FreeCopies copies={free} title={item.title} audio={contentLanguage(item)} /> : null}
-      {title !== null && sources?.watch ? <WhereToWatch offer={sources.watch} title={title} name={item.title} /> : null}
+      {sources?.watch ? <WhereToWatch offer={sources.watch} /> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {action ?? (free.length > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
         {addresses.link ? (
