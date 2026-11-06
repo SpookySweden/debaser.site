@@ -14,6 +14,7 @@ import { webSessionHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
+import { FreeCopyKeys, useKinoSources, WhereToWatch } from './KinoSources';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 
@@ -391,9 +392,11 @@ function TmdbCredit() {
 }
 
 /**
- * One KINO title (kino.ts): TMDB's details, with no player. A show lists its seasons with their episode counts. A
- * title a media server holds is drawn by `WebMediaRow` instead (its row replaces this one, live-merge.ts). A stream
- * room's IMDB lookup never reads the servers, so it cannot say none has it: `action` takes that line's place.
+ * One KINO title (kino.ts): TMDB's details, with no player of its own. A show lists its seasons with their episode
+ * counts. After the row is drawn it asks for other places to watch (KinoSources.tsx): a free legal copy to play here,
+ * and where it streams in the viewer's country. A title a media server holds is drawn by `WebMediaRow` instead (its
+ * row replaces this one, live-merge.ts). A stream room's IMDB lookup never reads the servers, so it cannot say none
+ * has it: `action` takes that line's place.
  */
 export function KinoRow({ item, titleId, action }: { item: WebItem & { media: MediaInfo }; titleId: string; action?: ReactNode }) {
   const [thumbFailed, setThumbFailed] = useState(false);
@@ -409,6 +412,11 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
     ...(details?.genres ?? []).map((genre) => genre.toUpperCase()),
   ].filter(Boolean);
   const seasons = (details?.seasons ?? []).filter((season) => season.season >= 1 && season.episodes > 0);
+  // A stream room's lookup (`action`) stays as it was: only the /media row offers other places to watch.
+  const { type: mediaType, tmdbId } = item.media;
+  const title = action === undefined && (mediaType === 'movie' || mediaType === 'tv') && tmdbId !== undefined ? { type: mediaType, tmdbId } : null;
+  const sources = useKinoSources(title);
+  const free = sources?.free ?? [];
 
   return (
     <li className="rule-pixel py-2">
@@ -455,8 +463,16 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
           <TmdbCredit />
         </div>
       </div>
+      {free.length > 0 ? (
+        <div className="mt-2 flex flex-col gap-2">
+          {free.map((copy) => (
+            <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={item.title} audio={contentLanguage(item)} />
+          ))}
+        </div>
+      ) : null}
+      {title !== null && sources?.watch ? <WhereToWatch offer={sources.watch} title={title} name={item.title} /> : null}
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {action ?? <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>}
+        {action ?? (free.length > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
         {addresses.link ? (
           <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
             [ ON TMDB ↗ ]

@@ -1,3 +1,4 @@
+import type { WatchOffer } from './kino';
 import type { MediaDetails } from './media-titles';
 import { buildUrl, SafeFetchError, safeFetchJson, type FetchLike } from './safe-fetch';
 import { sanitiseText } from './sanitise';
@@ -88,6 +89,42 @@ export function toDetails(doc: unknown, type: 'movie' | 'tv'): MediaDetails | nu
 export function detailsUrl(type: 'movie' | 'tv', tmdbId: number): string {
   if (!Number.isInteger(tmdbId) || tmdbId < 1 || tmdbId > 999_999_999) throw new TmdbError('bad number');
   return buildUrl(TMDB_API_HOST, ['3', type, String(tmdbId)], [['language', 'en-US']]);
+}
+
+/** One title's details and, in the same answer, where it can be watched in every country (`toWatchOffer`). */
+export function detailsWithWatchUrl(type: 'movie' | 'tv', tmdbId: number): string {
+  const url = new URL(detailsUrl(type, tmdbId));
+  url.searchParams.set('append_to_response', 'watch/providers');
+  return url.toString();
+}
+
+const WATCH_NAMES_MAX = 12;
+
+/**
+ * One country's where-to-watch from a `detailsWithWatchUrl` answer, or null when it lists nothing there. Service names
+ * only, in TMDB's own order: no logo, no address (the row links to TMDB's page, `kinoWatchPage`). Pure.
+ */
+export function toWatchOffer(doc: unknown, country: string): WatchOffer | null {
+  const root = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>) : {};
+  const block = root['watch/providers'];
+  const results = typeof block === 'object' && block !== null ? (block as Record<string, unknown>).results : undefined;
+  const here = typeof results === 'object' && results !== null ? (results as Record<string, unknown>)[country] : undefined;
+  if (typeof here !== 'object' || here === null) return null;
+  const names = (field: string): string[] => {
+    const list = (here as Record<string, unknown>)[field];
+    if (!Array.isArray(list)) return [];
+    const ordered = list
+      .flatMap((raw) => {
+        const entry = (typeof raw === 'object' && raw !== null ? raw : {}) as Record<string, unknown>;
+        const name = sanitiseText(entry.provider_name, 60);
+        return name ? [{ name, at: typeof entry.display_priority === 'number' ? entry.display_priority : 9999 }] : [];
+      })
+      .sort((a, b) => a.at - b.at)
+      .map((entry) => entry.name);
+    return [...new Set(ordered)].slice(0, WATCH_NAMES_MAX);
+  };
+  const offer: WatchOffer = { country, stream: names('flatrate'), free: names('free'), ads: names('ads'), rent: names('rent'), buy: names('buy') };
+  return [offer.stream, offer.free, offer.ads, offer.rent, offer.buy].some((list) => list.length > 0) ? offer : null;
 }
 
 /** One film or show from TMDB's search: its number, title, year and poster only. */

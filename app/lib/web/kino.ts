@@ -53,3 +53,39 @@ export function seasonsLine(details: MediaDetails | undefined): string | null {
   const episodes = seasons.reduce((sum, season) => sum + season.episodes, 0);
   return `${seasons.length} SEASON${seasons.length === 1 ? '' : 'S'} · ${episodes} EPISODE${episodes === 1 ? '' : 'S'}`;
 }
+
+/**
+ * Where a KINO title can be watched, beyond this site (SPEC-kino-sources.md). Client-safe shapes; the reading is
+ * server-only (kino-sources.ts) and reaches the page through /api/web/kino/sources.
+ */
+export type KinoTitle = { type: 'movie' | 'tv'; tmdbId: number };
+
+/** TMDB's where-to-watch for one country (the data is JustWatch's: every place it shows must credit them). Service names only. */
+export type WatchOffer = { country: string; stream: string[]; free: string[]; ads: string[]; rent: string[]; buy: string[] };
+
+/** A plainly legal free copy: why it is, in one word, is part of what the row says. */
+export type FreeCopy = { platform: 'internet_archive' | 'youtube'; id: string; why: 'public_domain' | 'official' };
+
+export type KinoSources = { watch: WatchOffer | null; free: FreeCopy[] };
+
+export const KINO_SOURCES_MAX = 20;
+const TITLE_KEY = /^(movie|tv)-([1-9][0-9]{0,8})$/;
+
+export function kinoTitleKey(title: KinoTitle): string {
+  return `${title.type}-${title.tmdbId}`;
+}
+
+export function parseKinoTitleKey(value: string): KinoTitle | null {
+  const match = TITLE_KEY.exec(value);
+  return match ? { type: match[1] as KinoTitle['type'], tmdbId: Number(match[2]) } : null;
+}
+
+/** TMDB's where-to-watch page for a title in a country: it holds the real links (TMDB's own rule for this data). */
+export function kinoWatchPage(title: KinoTitle, country: string): string {
+  return `https://${KINO_PAGE_HOST}/${title.type}/${title.tmdbId}/watch?locale=${encodeURIComponent(country)}`;
+}
+
+/** A free copy's player address, unchecked: `officialEmbedUrl` checks it before anything is framed. */
+export function freeCopyEmbed(copy: Pick<FreeCopy, 'platform' | 'id'>): string {
+  return copy.platform === 'youtube' ? `https://www.youtube-nocookie.com/embed/${copy.id}` : `https://archive.org/embed/${copy.id}`;
+}

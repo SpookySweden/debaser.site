@@ -301,6 +301,17 @@ const real = require(join(REAL, 'media-servers.js'));
 const realTitles = require(join(REAL, 'media-titles.js'));
 const realFilters = require(join(REAL, 'web-filters.js'));
 const list = real.MEDIA_SERVERS;
+// Public streaming resolvers never go in, in any form (Luke, 2026-11-06: "forget the illegal sources").
+for (const s of real.MEDIA_SERVERS_AS_WRITTEN) ok(!real.isRefusedHost(s.base), `${s.id}: "${s.base}" is a public streaming site, which can never be a server`);
+for (const bad of ['https://vidsrc.me', 'https://vidsrc.to', 'https://www.vidsrc.xyz', 'https://vidsrcme.ru', 'https://vidsrc-embed.ru', 'https://www.2embed.cc', 'https://2embed.skin', 'https://embed.su', 'https://multiembed.mov', 'https://moviesapi.club', 'https://autoembed.co', 'https://vidlink.pro', 'not an address']) {
+  ok(real.isRefusedHost(bad), `refused: ${bad}`);
+}
+for (const fine of ['https://media.friend.example', 'https://embed.friend.example', 'https://movies.friend.xyz', 'https://friend-media.example']) ok(!real.isRefusedHost(fine), `a friend's own server is not refused: ${fine}`);
+// One written into the list anyway: a copy of the code is compiled and asked, so "the list refuses it" is what the code does.
+const REFUSED_LINE = "  { id: 'bad_server', label: 'BAD SERVER', base: 'https://vidsrc.me', listPath: '/l.json', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' } },";
+const refusing = require(join(compileWithTestServers('out-web-media-refused', ['lib/web/media-servers.ts'], [REFUSED_LINE]), 'lib', 'web', 'media-servers.js'));
+ok(!refusing.isMediaServerId('bad_server') && refusing.MEDIA_SERVERS.every((s) => s.id !== 'bad_server'), 'a resolver written into the list is not a server: the site never reads or plays it');
+ok(refusing.MEDIA_SERVERS_AS_WRITTEN.some((s) => s.id === 'bad_server'), 'while the list as written still shows it, which is what fails this check on the real list');
 // Updated on purpose 2026-11-02: an empty list is allowed (Luke reset it; the site builds and shows no server titles).
 ok(Array.isArray(list), 'the server list is a list (it may be empty)');
 same(new Set(list.map((s) => s.id)).size, list.length, 'every server id is different');
