@@ -103,7 +103,12 @@ async function startFromRow(page, { privacy, viaFloat = false }) {
   await page.waitForSelector('[data-room-picture] iframe', { timeout: 30000 });
   assert.equal(await page.locator('[data-floating-player]').count(), 0, 'the old player has stopped: one video at a time');
   pass('the second press starts the room, and the old player stops');
-  await sleep(6000);
+  const samples = [];
+  for (let i = 0; i < 12; i += 1) {
+    await sleep(500);
+    samples.push((await clock(page)).toFixed(1));
+  }
+  console.log(`      the room's clock: ${samples.join(' ')}`);
   await page.screenshot({ path: join(SHOTS, `watch-in-room-started-${privacy}.png`) });
   const t = await clock(page);
   assert.ok(t >= 6, `the room carries on from where it had got to, not the top: ${t}s`);
@@ -132,8 +137,10 @@ async function endRoom(page) {
   }
   const browser = await chromium.launch({ executablePath: findChrome(), headless: !flag('--headed'), args: ['--autoplay-policy=no-user-gesture-required', '--no-first-run'] });
   const seenAdds = [];
+  let a = null;
+  let finished = false;
   try {
-    const a = await person(browser, 'A');
+    a = await person(browser, 'A');
     a.on('request', (request) => {
       const url = request.url();
       if (request.method() === 'POST' && /\/rest\/v1\/watch_rooms\b/.test(url)) {
@@ -223,9 +230,12 @@ async function endRoom(page) {
       await endRoom(a);
       pass('the room ended');
     }
+    finished = true;
     await a.context().close();
     console.log(`\n${passed} proved.${rooms.length > 0 ? ` Rooms left to list for deletion: ${rooms.join(' ')}` : ''}`);
   } finally {
+    // A run that stopped part way ends its room rather than leaving it on the air.
+    if (!finished && a !== null) await endRoom(a).catch(() => undefined);
     await browser.close();
   }
 })().catch((error) => {

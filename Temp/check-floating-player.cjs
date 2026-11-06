@@ -260,21 +260,24 @@ ok(!/transition/.test(layer) && !/animate-/.test(layer), 'nothing moves but what
 
 /* ---------------------------------------------------------------- WATCH IN ROOM (part 3) */
 const roomStart = require(join(OUT, 'lib/watch/room-start.js'));
-same(roomStart.takeRoomStart('e1'), null, 'no place: from the top');
-roomStart.noteRoomStart('e1', 90.5);
-same(roomStart.takeRoomStart('e2'), null, 'a place belongs to its own row');
-same(roomStart.takeRoomStart('e1'), 90.5, 'the room starts from where the viewer had got to');
-same(roomStart.takeRoomStart('e1'), null, 'once, so the host can go back to the top');
+const playerOne = {};
+same(roomStart.roomStartFor(playerOne, 'e1'), null, 'no place: from the top');
+roomStart.noteRoomStart('e1', 90.5, 1000);
+same(roomStart.roomStartFor(playerOne, 'e2', 1000), null, 'a place belongs to its own row');
+same(roomStart.roomStartFor(playerOne, 'e1', 1000), 90.5, 'the room starts from where the viewer had got to');
+same(roomStart.roomStartFor(playerOne, 'e1', 1000), null, 'each player once, so the host can go back to the top');
+same(roomStart.roomStartFor({}, 'e1', 2000), 90.5, 'a private room draws its stage twice as it opens: the player that stays gets the place too');
+same(roomStart.roomStartFor({}, 'e1', 60000), null, 'not long after: a player made later starts as the room says');
 roomStart.noteRoomStart('e3', 0.4);
-same(roomStart.takeRoomStart('e3'), null, 'under a second is the top');
+same(roomStart.roomStartFor({}, 'e3'), null, 'under a second is the top');
 roomStart.noteRoomStart('e4', null);
-same(roomStart.takeRoomStart('e4'), null, 'a player that cannot tell starts from the top');
+same(roomStart.roomStartFor({}, 'e4'), null, 'a player that cannot tell starts from the top');
 const roomKey = read('app/components/WatchInRoomKey.tsx');
 ok(/\[ WATCH IN ROOM \]/.test(roomKey) && /\[ ADD TO ROOM \]/.test(roomKey), 'one key with both words');
 for (const path of ['app/components/WebStream.tsx', 'app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
 ok(!/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title can\'t play in a room: no key');
 ok(/entry\.room === undefined \? null : <WatchInRoomKey/.test(layer), 'the float has it only for what can play in a room');
 ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
-ok(/const place = takeRoomStart\(entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
+ok(/const place = roomStartFor\(videoElement, entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
 
 console.log(`ok: ${count} assertions (floating player, site arrows)`);

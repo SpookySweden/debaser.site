@@ -25,7 +25,7 @@ import { isSongLink, songLink, trackForSong } from '../lib/watch/songs';
 import { useWebTrack, webTrackNow } from '../lib/web/web-track-lookup';
 import { switchMusicRoomOff } from '../lib/watch/use-music-room';
 
-import { takeRoomStart } from '../lib/watch/room-start';
+import { roomStartFor } from '../lib/watch/room-start';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import {
   MESSAGE_MAX_LENGTH,
@@ -304,7 +304,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // Before the hosting effect below, so its first word to the room already says that place. A player not ready yet holds on to it.
   useEffect(() => {
     if (!amHost || !live || videoElement === null || entryId === null) return;
-    const place = takeRoomStart(entryId);
+    const place = roomStartFor(videoElement, entryId);
     if (place !== null) videoElement.currentTime = place;
   }, [amHost, live, videoElement, entryId]);
 
