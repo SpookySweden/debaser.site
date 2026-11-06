@@ -36,6 +36,8 @@ type PopoutWindowProps = {
   windowClassName?: string;
   /** The title line's ink instead of the accent ink (a room look's `text-room-title`). */
   titleInk?: string;
+  /** In the middle of the screen rather than near the top. An auto margin, so a tall window still scrolls from its first line. */
+  centred?: boolean;
   children: ReactNode;
 };
 
@@ -61,6 +63,7 @@ export default function PopoutWindow({
   windowClassName = '',
   titleInk,
   dismissOnBackdrop = true,
+  centred = false,
   children,
 }: PopoutWindowProps) {
   const titleId = useId();
@@ -105,7 +108,7 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`mt-6 w-full ${maxWidth} frame bg-sun-pale ${windowClassName}`}
+        className={`${centred ? 'my-auto' : 'mt-6'} w-full ${maxWidth} frame bg-sun-pale ${windowClassName}`}
       >
         {/* Draggable title bar */}
         <div

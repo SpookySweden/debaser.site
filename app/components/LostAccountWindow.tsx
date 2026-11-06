@@ -80,7 +80,7 @@ export default function LostAccountWindow() {
 
   if (lost === null) {
     return (
-      <PopoutWindow title="HAD AN ACCOUNT?" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md">
+      <PopoutWindow title="HAD AN ACCOUNT?" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md" centred>
         <form
           className="flex flex-col gap-2 p-2"
           onSubmit={(event) => {
@@ -111,7 +111,7 @@ export default function LostAccountWindow() {
   }
 
   return (
-    <PopoutWindow title="WELCOME BACK" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md">
+    <PopoutWindow title="WELCOME BACK" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md" centred>
       <form
         className="flex flex-col gap-2 p-2"
         onSubmit={(event) => {
