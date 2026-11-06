@@ -154,6 +154,7 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   await stationGraph(read, 1000 + 179 * 60 * 1000);
   assert.equal(reads, 1, 'kept for three hours, as the words change no faster');
   await stationGraph(read, 1000 + 181 * 60 * 1000);
+  assert.equal(reads, 2, 'read again after it');
   // A map built while part of the pool couldn't be read is only kept 5 minutes: live, one bad read blanked the lists for 3 hours.
   let poolReads = 0;
   const shortPool = async () => {
@@ -166,7 +167,6 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.equal(poolReads, 1, 'kept for a few minutes');
   await stationGraph(read, later + 6 * 60 * 1000, async () => false, async () => [], shortPool);
   assert.equal(poolReads, 2, 'then read again');
-  assert.equal(reads, 2, 'read again after it');
 
   // 11. Browser code never brings in the UMAP library or the server's build.
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]));

@@ -195,7 +195,16 @@ let finished = false;
   assert.deepEqual(counts.find((one) => one.word === sweep.TOTAL_ROW), { word: '#total', items: 2, partners: {} });
   assert.deepEqual(sweep.countWords([]), []);
   const wide = sweep.countWords([{ id: 'w', words: Array.from({ length: 150 }, (_, i) => `w${i}`) }]);
-  assert.ok(Object.keys(wide[0].partners).length <= 100, 'top 100 partners');
+  assert.ok(Object.keys(wide[0].partners).length <= 30, 'the map uses 30 at most');
+  const bigCount = sweep.countWords([...Array.from({ length: 1000 }, (_, i) => ({ id: `r${i}`, words: ['jazz', 'piano'] })), { id: 'once', words: ['jazz', 'rare'] }]);
+  assert.deepEqual(Object.keys(bigCount.find((one) => one.word === 'jazz').partners), ['piano'], 'in a big batch, a pair seen once is not written');
+  assert.equal(bigCount.find((one) => one.word === 'rare').items, 1, 'though the word is still counted');
+  // Parts by weight: a word with many closest words takes more of a part, so no part runs past the database's few seconds.
+  const weighted = [{ word: 'a', items: 1, partners: Object.fromEntries(Array.from({ length: 30 }, (_, i) => [`p${i}`, 2])) }];
+  const manyParts = sweep.statsParts(Array.from({ length: 100 }, (_, i) => ({ ...weighted[0], word: `w${i}` })));
+  assert.ok(manyParts.length >= 5, 'heavy words make more parts');
+  assert.ok(manyParts.every((part) => part.reduce((sum, one) => sum + 1 + Object.keys(one.partners).length, 0) <= 600));
+  assert.equal(manyParts.flat().length, 100, 'and none is lost');
 
   // 8. The job.
   const candidate = (id, over = {}) => ({ id, platform: 'internet_archive', externalId: id, host: null, kind: 'audio', title: 'T', creator: null, description: 'About trains', tags: null, publishedAt: null, tmdbRef: null, ...over });
@@ -332,7 +341,7 @@ let finished = false;
   assert.equal(collecting.log.stats[0].stats.find((one) => one.word === 'jazz').items, 900, 'every answer is counted');
   assert.equal(collecting.log.stats[0].stats.find((one) => one.word === sweep.TOTAL_ROW).items, 901);
   // Cut short after the first part: the next run works out the same parts and carries on from the second.
-  const manyWords = Array.from({ length: 450 }, (_, i) => `x${i}`);
+  const manyWords = Array.from({ length: 1300 }, (_, i) => `x${i}`);
   const bigBatch = () => [...manyWords.map((id, i) => answer(id, [`word${i}`]))];
   const resumed = fake({ pending: ['b1'], out: [], results: bigBatch(), statsPlace: 1 });
   await sweep.runSweep(resumed.client, resumed.store, resumed.read);
@@ -340,7 +349,7 @@ let finished = false;
   const whole = fake({ pending: ['b1'], out: [], results: bigBatch() });
   await sweep.runSweep(whole.client, whole.store, whole.read);
   assert.deepEqual(whole.log.stats[1].stats, resumed.log.stats[0].stats, 'and the parts come out the same');
-  assert.equal(whole.log.stats.flatMap((one) => one.stats).find((one) => one.word === sweep.TOTAL_ROW).items, 450, 'with nothing missed');
+  assert.equal(whole.log.stats.flatMap((one) => one.stats).find((one) => one.word === sweep.TOTAL_ROW).items, 1300, 'with nothing missed');
   assert.deepEqual(collecting.log.spend, [['b1', 450500, 27030, batchCost(450500, 27030)]], 'and everything paid for is counted');
   assert.deepEqual(collecting.log.released, ['b1']);
   const refusing = fake({ pending: ['b1'], out: many.slice(0, 500), results: many.slice(0, 500).map((id) => answer(id, ['jazz'])) });

@@ -455,7 +455,9 @@ export async function readSources(state: SweepState, deadline: number, deps: Swe
 export type WordCount = { word: string; items: number; partners: Record<string, number> };
 /** A row of `web_word_stats` holding how many items have been counted in all, which the page needs for its total. */
 export const TOTAL_ROW = '#total';
-const MAX_PARTNERS_SENT = 100;
+/** The map uses 30 closest words at most. A pair seen once in a big batch says nothing, and writing it is most of what fills the database's time. */
+const MAX_PARTNERS_SENT = 30;
+const BIG_BATCH = 1000;
 
 /** One chunk of tagged items as word counts. Pure. */
 export function countWords(rows: readonly { id: string; words: readonly string[] }[]): WordCount[] {
@@ -472,7 +474,7 @@ export function countWords(rows: readonly { id: string; words: readonly string[]
   const out: WordCount[] = [...counts.entries()].map(([word, entry]) => ({
     word,
     items: entry.items,
-    partners: Object.fromEntries([...entry.partners.entries()].sort(([a, one], [b, two]) => two - one || (a < b ? -1 : 1)).slice(0, MAX_PARTNERS_SENT)),
+    partners: Object.fromEntries([...entry.partners.entries()].filter(([, count]) => rows.length < BIG_BATCH || count >= 2).sort(([a, one], [b, two]) => two - one || (a < b ? -1 : 1)).slice(0, MAX_PARTNERS_SENT)),
   }));
   if (rows.length > 0) out.push({ word: TOTAL_ROW, items: rows.filter((row) => row.words.length > 0).length, partners: {} });
   return out;
@@ -518,8 +520,24 @@ export type SweepResult = { collected: number; sent: number; waiting: number; in
 
 const COLLECT_CHUNK = 500;
 const SMALLEST_CHUNK = 25;
-/** A batch's word counts go in once, in parts this many words long, so a run cut short carries on and each word is rewritten once a batch. */
-const STATS_PART = 200;
+/** A batch's word counts go in once, in numbered parts, so a run cut short carries on. A part stays small enough for the database's few seconds a statement, as a word and its closest words. */
+const STATS_PART_SIZE = 600;
+
+/** The same counts always make the same parts, so a run that was cut short carries on from the right place. */
+export function statsParts(stats: readonly WordCount[]): WordCount[][] {
+  const parts: WordCount[][] = [];
+  let size = 0;
+  for (const one of stats) {
+    const weight = 1 + Object.keys(one.partners).length;
+    if (parts.length === 0 || size + weight > STATS_PART_SIZE) {
+      parts.push([]);
+      size = 0;
+    }
+    parts[parts.length - 1].push(one);
+    size += weight;
+  }
+  return parts;
+}
 /** Of each batch, this many stay as rows for the map's own list. */
 const HOT_PER_BATCH = 200;
 /** The rows sent before the files, moved over in files this size, this many a run. */
@@ -554,6 +572,7 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
       waiting += 1;
       continue;
     }
+    let unfinished = false;
     const batch = await client.messages.batches.retrieve(batchId);
     if (batch.processing_status !== 'ended') {
       waiting += 1;
@@ -605,9 +624,19 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     };
     for (let start = 0; start < rows.length; start += COLLECT_CHUNK) await collectChunk(rows.slice(start, start + COLLECT_CHUNK));
     // Counted from every answer, sorted, so a run cut short works out the same parts again and carries on from the next one.
-    const stats = countWords(counted).sort((a, b) => (a.word < b.word ? -1 : 1));
-    const parts = Math.ceil(stats.length / STATS_PART);
-    for (let part = await store.statsPlace(batchId); part < parts; part += 1) await store.addStats(batchId, part, stats.slice(part * STATS_PART, (part + 1) * STATS_PART));
+    const parts = statsParts(countWords(counted).sort((a, b) => (a.word < b.word ? -1 : 1)));
+    for (let part = await store.statsPlace(batchId); part < parts.length; part += 1) {
+      // Out of time: it carries on from this part next run.
+      if (now() - startedAt > COLLECTING_TOO_LONG_MS) {
+        unfinished = true;
+        break;
+      }
+      await store.addStats(batchId, part, parts[part]);
+    }
+    if (unfinished) {
+      waiting += 1;
+      continue;
+    }
     if (heldOut !== null) {
       // In the order of the file sent, so a run cut short writes the same files again.
       const tagged = heldOut.filter((row) => wordsFor.has(row)).map((row) => ({ ...row, words: wordsFor.get(row) as string[] }));
