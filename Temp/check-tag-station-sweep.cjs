@@ -232,6 +232,25 @@ let finished = false;
   await sweep.runSweep(refusing.client, refusing.store, refusing.read);
   assert.equal(refusing.log.collected.reduce((sum, one) => sum + one.rows.length, 0), 150, 'a chunk the database refuses is tried in halves, and nothing is lost');
 
+  // The API answers at most 1,000 rows a call (found in the first real runs): the store asks in parts, so nothing past the first 1,000 is lost.
+  const calls = [];
+  const fakeDb = {
+    rpc: (name, args) => {
+      calls.push([name, args]);
+      if (name === 'web_pool_unknown') return Promise.resolve({ data: args.p_ids, error: null });
+      const builder = {
+        range: async (from) => ({ data: from === 0 ? Array.from({ length: 1000 }, (_, i) => `a${i}`) : from === 1000 ? Array.from({ length: 1000 }, (_, i) => `b${i}`) : Array.from({ length: 300 }, (_, i) => `c${i}`), error: null }),
+      };
+      return builder;
+    },
+  };
+  const realStore = sweep.makeSweepStore(fakeDb, 'lock');
+  const asked = Array.from({ length: 2500 }, (_, i) => `id${i}`);
+  assert.equal((await realStore.unknown(asked)).length, 2500, 'every id gets an answer');
+  assert.ok(calls.filter(([name]) => name === 'web_pool_unknown').every(([, args]) => args.p_ids.length <= 1000), 'at most 1,000 a call');
+  assert.equal(calls.filter(([name]) => name === 'web_pool_unknown').length, 3);
+  assert.equal((await realStore.outIn('b1')).length, 2300, 'and a big batch is read whole');
+
   // 10. The $50 stop, and the size stop.
   assert.equal(sweep.SWEEP_LIMIT_USD, 50);
   const atLimit = fake({ spent: 50, items: [candidate('a')] });

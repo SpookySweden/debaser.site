@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { loadStationIndex } from '../lib/tag-station/client';
 import { discoverList, POOL_TARGET, poolReady, recommendedList, type PickSort } from '../lib/tag-station/picks';
-import { getPresetStore, withPreset } from '../lib/tag-station/presets';
+import { getPresetStore, withPreset, type Preset } from '../lib/tag-station/presets';
 import type { StationIndex } from '../lib/tag-station/query';
 import { EMPTY_RECIPE, type Recipe } from '../lib/tag-station/recipe';
 import type { StationItem } from '../lib/tag-station/types';
-import { getRecommendationStore, type RecommendedPick } from '../lib/web/recommendations';
+import { getRecommendationStore, RECOMMEND_NOTE, type RecommendedPick } from '../lib/web/recommendations';
 import { readTaste } from '../lib/web/taste-store';
 import type { WebItem } from '../lib/web/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import InfoFold from './InfoFold';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import ProfileName from './ProfileName';
 import { STATION_KEY } from './TagStationParts';
@@ -64,7 +65,7 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
     let live = true;
     void (async () => {
       try {
-        const [loaded, feed, presets] = await Promise.all([loadStationIndex(), getRecommendationStore().feed(300).catch(() => []), getPresetStore().list().catch(() => [])]);
+        const [loaded, feed, presets] = await Promise.all([loadStationIndex(), getRecommendationStore().feed(300).catch((): RecommendedPick[] => []), getPresetStore().list().catch((): Preset[] => [])]);
         if (!live) return;
         setIndex(loaded);
         setPicks(feed);
@@ -104,6 +105,7 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
 
   return (
     <div>
+      {list === 'recommended' ? <InfoFold topic="Recommended">{RECOMMEND_NOTE}</InfoFold> : null}
       <ul aria-label={list === 'recommended' ? 'Recommended' : 'Discover'}>
         {rows.slice(0, shown).map(({ item, people }) => (
           <li key={item.id} className="list-none">

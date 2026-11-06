@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { RECOMMEND_NOTE } from '../lib/web/recommendations';
 
 /** Each switch and what it shares, in the plain words the PRIVACY tab and the first-look window both use. */
 export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; note: string }[] = [
@@ -14,9 +15,6 @@ export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; no
   { key: 'showSongComments', label: 'TRACK COMMENTS', note: 'PEOPLE CAN READ AND WRITE COMMENTS ON YOUR TRACK.' },
   { key: 'showTags', label: 'TAGS', note: 'TAGS PEOPLE GAVE YOU SHOW ON YOUR PROFILE. EACH TAG ALSO HAS ITS OWN SWITCH.' },
 ];
-
-/** Not a switch, because there's nothing to turn off but the key itself: pressing it is the choice. */
-export const RECOMMEND_NOTE = 'WHEN YOU RECOMMEND SOMETHING ON MEDIA, SIGNED-IN PEOPLE SEE YOUR NAME, PICTURE AND STATUS NEXT TO IT. PRESS IT AGAIN TO TAKE IT BACK.';
 
 /**
  * The switches, in large type, each saved the moment it is pressed (SPEC-privacy-phase-1.md).

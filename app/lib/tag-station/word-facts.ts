@@ -24,6 +24,16 @@ export type WordRules = {
   facet(key: string): Facet | null;
 };
 
+const tokens = (word: string): string[] => word.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/** One word inside a longer phrase ("savanna", "african savanna") is a broader and a narrower word, however the answer put it, never the same word. */
+export function narrowerPhrase(a: string, b: string): boolean {
+  const [one, two] = [tokens(a), tokens(b)];
+  if (one.length === two.length) return false;
+  const [short, long] = one.length < two.length ? [one, new Set(two)] : [two, new Set(one)];
+  return short.length > 0 && short.every((token) => long.has(token));
+}
+
 export const NO_WORD_RULES: WordRules = { canonical: (key) => key, isVague: () => false, facet: () => null };
 
 export function buildWordRules(facts: readonly WordFact[]): WordRules {
@@ -44,7 +54,7 @@ export function buildWordRules(facts: readonly WordFact[]): WordRules {
     if (fact.facet !== null && !facetByKey.has(key)) facetByKey.set(key, fact.facet);
   }
   for (const fact of sorted) {
-    if (fact.sameAs === null || fact.vague) continue;
+    if (fact.sameAs === null || fact.vague || narrowerPhrase(fact.word, fact.sameAs)) continue;
     const a = find(wordKey(fact.word));
     const b = find(wordKey(fact.sameAs));
     if (a.length === 0 || b.length === 0 || a === b || vague.has(wordKey(fact.sameAs))) continue;

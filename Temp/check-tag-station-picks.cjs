@@ -124,8 +124,14 @@ const big = (rows, counted) => buildIndex(buildStationGraph(rows, [], { counted,
   assert.ok(!/word\.word\}|\.words\.map\(\(word\) => \(\s*</.test(list2), 'no word drawn on MEDIA');
   const stream = fs.readFileSync(path.join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
   assert.ok(/canRecommend\(item\) \? <WebRecommendKey/.test(stream), 'the key is on a row only when it may be');
+  const restartBody = /const restart = useCallback\([\s\S]*?\[start\],/.exec(stream)[0];
+  assert.ok(restartBody.includes('setPicked(null)'), 'a search leaves the list, or its results would sit behind it');
+  assert.ok(/if \(picked !== null\) \{\s*setDraft\(withFilter\(draft, 'sort', word\)\);/.test(stream), 'but the SORT keys keep it, and only change its order');
+  const recSource = fs.readFileSync(path.join(ROOT, 'app/lib/web/recommendations.ts'), 'utf8');
+  assert.ok(/useMyRecommendations\(userId: string \| null\)/.test(recSource) && /userId === loadedFor/.test(recSource), "one account's list never shows for another");
   const privacy = fs.readFileSync(path.join(ROOT, 'app/components/PrivacySwitches.tsx'), 'utf8');
   assert.ok(/\{RECOMMEND_NOTE\}/.test(privacy), 'the PRIVACY tab says a recommendation shows your name');
+  assert.ok(/\{RECOMMEND_NOTE\}/.test(list2), 'and so does the list');
   finished = true;
   console.log('check-tag-station-picks: all passed');
 })().catch((error) => {

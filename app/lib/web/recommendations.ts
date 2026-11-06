@@ -1,3 +1,5 @@
+'use client';
+
 import { useEffect, useSyncExternalStore } from 'react';
 import { getSupabaseBrowserClient } from '../supabase/client';
 import { WEB_DATA_SOURCE } from './repository';
@@ -10,6 +12,9 @@ import type { WebItem, WebPlatform } from './types';
  *
  * Mock and Supabase stores behind one switch (`NEXT_PUBLIC_WEB_DATA_SOURCE`). The mock keeps them for the page load: it has no database.
  */
+
+/** Said on the PRIVACY tab and beside the list: pressing the key is the choice, so there's no switch to turn off. */
+export const RECOMMEND_NOTE = 'WHEN YOU RECOMMEND SOMETHING ON MEDIA, SIGNED-IN PEOPLE SEE YOUR NAME, PICTURE AND STATUS NEXT TO IT. PRESS IT AGAIN TO TAKE IT BACK.';
 
 /** Rows that can't be recommended: KINO's and media servers' carry TMDB's words, and have no id the stream can save. */
 const RECOMMENDABLE: readonly WebPlatform[] = ['internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo'];
@@ -65,9 +70,9 @@ export function getRecommendationStore(): RecommendationStore {
   return WEB_DATA_SOURCE === 'supabase' ? SUPABASE_STORE : MOCK_STORE;
 }
 
-/** The reader's own, shared by every row on the page, read once. */
+/** The reader's own, shared by every row on the page, read once per account, because signing out and in doesn't reload the page. */
 let mineNow: ReadonlySet<string> = new Set<string>();
-let loading = false;
+let loadedFor: string | null = null;
 const listeners = new Set<() => void>();
 const publish = (next: ReadonlySet<string>) => {
   mineNow = next;
@@ -75,18 +80,23 @@ const publish = (next: ReadonlySet<string>) => {
 };
 const NOTHING: ReadonlySet<string> = new Set<string>();
 
-export function useMyRecommendations(): ReadonlySet<string> {
+export function useMyRecommendations(userId: string | null): ReadonlySet<string> {
   useEffect(() => {
-    if (loading) return;
-    loading = true;
+    if (userId === loadedFor) return;
+    loadedFor = userId;
+    publish(NOTHING);
+    if (userId === null) return;
     void getRecommendationStore()
       .mine()
-      .then((ids) => publish(new Set(ids)))
+      .then((ids) => {
+        // Only if it's still this person: they may have signed out while it was asked.
+        if (loadedFor === userId) publish(new Set(ids));
+      })
       .catch(() => {
-        // Keys just start off; pressing one still works, and says so if it can't.
-        loading = false;
+        // Keys just start off; pressing one still works, and says so if it can't. The next row to appear asks again.
+        if (loadedFor === userId) loadedFor = null;
       });
-  }, []);
+  }, [userId]);
   return useSyncExternalStore(
     (listener) => {
       listeners.add(listener);

@@ -52,6 +52,7 @@ import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { canRecommend, toggleRecommendation, useMyRecommendations } from '../lib/web/recommendations';
 import WebPickedList from './WebPickedList';
+import { useAuth } from './AuthProvider';
 import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
@@ -430,6 +431,8 @@ export default function WebStream() {
   const restart = useCallback(
     (box: string) => {
       setTried(new Set());
+      // Anything that runs a search leaves RECOMMENDED or DISCOVER, or its results would sit behind the list.
+      setPicked(null);
       start(requestFor(box), box);
     },
     [start],
@@ -591,6 +594,11 @@ export default function WebStream() {
   /** A SORT key or the flip key: the order written into the box (`sort:`), and the search runs again. */
   const pickSort = (choice: SortChoice) => {
     const word = choice.sort === 'date' ? (choice.dir === 'asc' ? 'oldest' : 'newest') : choice.sort;
+    // On RECOMMENDED or DISCOVER the list reads the box's order itself, so nothing needs asking again.
+    if (picked !== null) {
+      setDraft(withFilter(draft, 'sort', word));
+      return;
+    }
     pickFilter('sort', word);
   };
 
@@ -782,6 +790,7 @@ export default function WebStream() {
             type="button"
             onClick={() => {
               setArt(true);
+              setPicked(null);
               window.history.replaceState(window.history.state, '', '?art=1');
             }}
             aria-pressed={art}
@@ -1346,7 +1355,8 @@ ${item.description}` : item.title)} className="ml-1.5" />
  * when it's on, in words as well as a filled key.
  */
 function WebRecommendKey({ item, onOpen }: { item: WebItem; onOpen: () => void }) {
-  const mine = useMyRecommendations();
+  const { user } = useAuth();
+  const mine = useMyRecommendations(user?.id ?? null);
   const on = mine.has(item.id);
   const [fault, setFault] = useState(false);
   return (

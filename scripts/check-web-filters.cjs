@@ -134,7 +134,8 @@ ok(/disabled=\{boxSort\.sort !== 'date'\}/.test(page), 'the flip key works on DA
 // The IMDB key (Luke, 2026-11-04): above the SOURCE choices, centred, and it is the KINO filter.
 const imdbKey = page.indexOf('data-imdb-key');
 ok(imdbKey !== -1 && imdbKey < page.indexOf('role="group" aria-label="Source"'), 'the IMDB key sits above the SOURCE choices');
-ok(/flex justify-center">\s*<button\s+type="button"\s+onClick=\{\(\) => pickFilter\('in', 'kino'\)\}/.test(page), 'centred, and it filters to KINO');
+// Updated on purpose 2026-11-05: RECOMMENDED and DISCOVER sit beside it on the same centred row (SPEC-discover.md).
+ok(/flex flex-wrap justify-center gap-1">/.test(page) && /onClick=\{\(\) => pickFilter\('in', 'kino'\)\}[\s\S]{0,400}data-imdb-key/.test(page), 'centred, and it filters to KINO');
 ok(
   require('node:fs').readFileSync('next.config.ts', 'utf8').includes("{ source: '/cytube', destination: '/stream', permanent: true }"),
   'an old /cytube address lands on /stream',
