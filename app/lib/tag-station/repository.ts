@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import type { StationRow, SweptCounts } from './types';
+import type { PoolAsk, PoolStep, StationRow, SweptCounts } from './types';
 import type { WordFact } from './word-facts';
 import { getMockTagRepository } from './mock-tag-repository';
 import { createSupabaseTagRepository } from './supabase-tag-repository';
@@ -15,8 +15,10 @@ export type TagStationRepository = {
   wordFacts(): Promise<readonly WordFact[]>;
   /** The sweep's rows to list and its word counts. Empty, never an error, when they can't be read. */
   pool(): Promise<{ rows: readonly StationRow[]; swept: SweptCounts; incomplete?: boolean }>;
-  /** Swept items carrying any of these words, from the pool's compressed files. Empty, never an error, when they can't be read. */
-  poolFiles(words: readonly string[], seed: string): Promise<readonly StationRow[]>;
+  /** One step of digging through the pool's compressed files. Throws when the files can't be read, so a reader's [ MORE ] can try the same step again. */
+  poolFiles(ask: PoolAsk): Promise<PoolStep>;
+  /** Which of these words the tagged items carry at all. */
+  poolWords(words: readonly string[]): Promise<readonly string[]>;
   /** Whether the $60 tagging limit has been reached. */
   limitReached(): Promise<boolean>;
 };

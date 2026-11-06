@@ -56,6 +56,7 @@ import { useAuth } from './AuthProvider';
 import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
+import WebCatalogueFinds, { CatalogueLine, useCatalogueFinds } from './WebCatalogueFinds';
 import WebSiteFiles from './WebSiteFiles';
 import StreamArtShelf from './StreamArtShelf';
 import { watchLinkForItem } from '../lib/web/bridges';
@@ -321,6 +322,8 @@ export default function WebStream() {
   const [tried, setTried] = useState<ReadonlySet<string>>(() => new Set());
   /** The site's own files the search finds (DEBASER.SITE), from the catalogue the whole site shares. */
   const catalogue = useCatalogue();
+  // The tagged catalogue's rows for this search: their own request, so the outside sites are neither waited on nor slowed.
+  const finds = useCatalogueFinds(shown.kind === 'search' ? { query: shown.query, source: shown.filters.source, type: shown.filters.type, authors: authorsOf(shown.filters) } : null);
   const siteFiles = useMemo(
     () => (shown.kind === 'search' ? siteFileMatches(catalogue.entries, { query: shown.query, filters: shown.filters }) : []),
     [catalogue.entries, shown],
@@ -655,9 +658,10 @@ export default function WebStream() {
     if (shown.kind === 'link') return busy ? 'READING THE LINK...' : LINK_WORDS[linkOutcome ?? 'no-answer'];
     if (busy) return shown.kind === 'stream' ? 'READING MEDIA...' : null;
     if (shown.kind === 'stream') return null;
-    return `NOTHING ${siteFiles.length > 0 ? 'ELSE ' : ''}MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
+    return `NOTHING ${siteFiles.length > 0 || finds.rows.length > 0 ? 'ELSE ' : ''}MATCHES ${searchWordsShown(shown.query, shown.filters)}.`;
   };
   const emptyLine = empty && !failed ? emptyWords() : null;
+  const resultIds = new Set(list.shown.map((item) => item.id));
 
   /** One row, drawn by the component for its kind: a media server's title, a KINO title, or anything else. */
   const renderRow = (item: WebStreamItem) =>
@@ -901,6 +905,7 @@ export default function WebStream() {
           {`LIVE SOURCES ARE ASKED ABOUT ONE CREATOR AT A TIME: ${authorsOf(shown.filters)[0].toUpperCase()}.`}
         </p>
       ) : null}
+      {finds.asked ? <CatalogueLine finds={finds} /> : null}
       {/* Its own fixed line, so a source finishing never moves the rows below it. */}
       {searching ? (
         <p role="status" className="text-label text-ink-quiet wrap-anywhere">
@@ -976,6 +981,8 @@ export default function WebStream() {
           </button>
         </div>
       ) : null}
+
+      {shown.kind === 'search' ? <WebCatalogueFinds key={searchAddress({ ...shown.filters, text: shown.query })} finds={finds} resultIds={resultIds} renderRow={(item) => renderRow({ ...item, alsoOn: [] } as WebStreamItem)} /> : null}
 
       {/* Related topics (related.ts), each its own section below the results, loaded once the reader scrolls to it. */}
       {shown.kind === 'search' && related !== null

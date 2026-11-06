@@ -3,9 +3,10 @@ import { decodePoolFile, POOL_BUCKET, type PoolFileRow } from '../web/pool-files
 import { poolStore, type PoolFileStore } from '../web/pool-store';
 import { canonicalIso, rowToItem, WEB_ITEM_COLUMNS, WEB_ITEMS_TABLE, type WebItemRow } from '../web/rows';
 import type { WebItem } from '../web/types';
-import { heldFile } from './pool-file-cache';
+import { heldFile, heldOrder, seededOrder, type HeldOrder } from './pool-file-cache';
+import { poorTitle } from './title-quality';
 import type { TagStationRepository } from './repository';
-import type { StationRow, SweptCounts, SweptWord } from './types';
+import type { PoolStep, StationRow, SweptCounts, SweptWord } from './types';
 import { FACETS, type Facet, type WordFact } from './word-facts';
 
 /**
@@ -63,9 +64,17 @@ function poolToRow(row: PoolRow): StationRow {
 /** The map's own sample of the pool: the newest few files, a spread of what's in them. */
 const SAMPLE_FILES = 8;
 
-/** How many files one ask reads, and how many rows it answers with. */
-const FILES_PER_ASK = 4;
-const MOST_ROWS_PER_ASK = 300;
+/**
+ * One step of digging: files are read two at a time until there are enough rows or it has read the most it may, so a common word costs two files and a rare one six. A file is about 80 KB of the
+ * free plan's 5 GB of downloads a month (SPEC-discover.md).
+ */
+const FILES_AT_ONCE = 2;
+const MOST_FILES_PER_STEP = 6;
+const ENOUGH_ROWS = 30;
+const MOST_ROWS_PER_STEP = 300;
+/** A page of PostgREST's answer, and how many pages of file names to read at most. */
+const FILES_PAGE = 1000;
+const MOST_FILE_PAGES = 5;
 /** The columns of a seen row anyone may read (supabase/migrations/*_web_seen_items.sql). */
 const SEEN_COLUMNS = 'id, platform, kind, title, creator, published_at, words';
 const KINDS: readonly WebItem['kind'][] = ['audio', 'video', 'image', 'text', 'other'];
@@ -112,12 +121,50 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       return new Uint8Array(await answer.data.arrayBuffer());
     },
   });
-  const readFile = (path: string) =>
+  const readWholeFile = (path: string) =>
     heldFile(path, async () => {
       const file = await files.get(path);
-      if (file === null) throw new Error('POOL_FILE');
-      return decodePoolFile(file);
-    }).catch((): PoolFileRow[] => []);
+      // A file that's gone stays gone, so digging goes past it. Any other failure is thrown, and the same press can try again.
+      return file === null ? [] : decodePoolFile(file);
+    });
+  const readFile = (path: string) => readWholeFile(path).catch((): PoolFileRow[] => []);
+
+  /** File names holding any of these word numbers, or every file, as many pages as it takes. */
+  const allPaths = async (ids: readonly number[] | null): Promise<string[]> => {
+    const paths: string[] = [];
+    for (let page = 0; page < MOST_FILE_PAGES; page += 1) {
+      const names = client.from('web_pool_shards').select('path');
+      const { data, error } = await (ids === null ? names : names.overlaps('words', [...ids])).order('id').range(page * FILES_PAGE, (page + 1) * FILES_PAGE - 1);
+      if (error) throw new Error('POOL_FILES');
+      paths.push(...((data ?? []) as { path: string }[]).map((row) => row.path));
+      if ((data ?? []).length < FILES_PAGE) break;
+    }
+    return paths;
+  };
+
+  /** Which files to dig through. The rarest thing asked for comes first, since a common word's items are everywhere anyway. */
+  const fileOrder = (groups: readonly (readonly string[])[]): Promise<HeldOrder> =>
+    heldOrder(JSON.stringify(groups), async () => {
+      if (groups.length === 0) return { order: [await allPaths(null)], counted: [] };
+      const { data, error } = await client.from('web_word_stats').select('id, word, items').in('word', [...new Set(groups.flat())]);
+      if (error) throw new Error('POOL_FILES');
+      const known = (data ?? []) as { id: number; word: string; items: number }[];
+      const counted = known.map(({ word, items }) => ({ word, items }));
+      const of = (group: readonly string[]) => known.filter((one) => group.includes(one.word));
+      const size = (group: readonly string[]) => of(group).reduce((sum, one) => sum + one.items, 0);
+      // Items must carry every group, so only the rarest group's files can hold them.
+      if (groups.length > 1) {
+        if (groups.some((group) => of(group).length === 0)) return { order: [], counted };
+        const rarest = [...groups].sort((a, b) => size(a) - size(b))[0];
+        return { order: [await allPaths(of(rarest).map((one) => one.id))], counted };
+      }
+      if (known.length === 0) return { order: [], counted };
+      const rarest = [...known].sort((a, b) => a.items - b.items)[0];
+      const first = await allPaths([rarest.id]);
+      if (known.length === 1) return { order: [first], counted };
+      const inFirst = new Set(first);
+      return { order: [first, (await allPaths(known.map((one) => one.id))).filter((path) => !inFirst.has(path))], counted };
+    });
   return {
     source: 'supabase',
     async rows(): Promise<StationRow[]> {
@@ -165,19 +212,37 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
         ...(sample.error || total.error || words.error ? { incomplete: true } : {}),
       };
     },
-    async poolFiles(words, seed): Promise<StationRow[]> {
-      if (words.length === 0) return [];
-      const { data, error } = await client.rpc('web_pool_shards_for', { p_words: [...words], p_limit: FILES_PER_ASK, p_seed: seed });
-      if (error) return [];
-      const held = await Promise.all(((data ?? []) as string[]).map(readFile));
-      const wanted = new Set(words);
-      const scored = held.flat().flatMap((row) => {
-        const score = row.words.filter((word) => wanted.has(word)).length;
-        return score === 0 ? [] : [{ row, score }];
-      });
-      // Those with most of the words first. Files come in the order the seed gave, so this list stays steady for a visit.
-      scored.sort((a, b) => b.score - a.score);
-      return scored.slice(0, MOST_ROWS_PER_ASK).map(({ row }) => fileRowToRow(row));
+    async poolFiles({ words = [], every, seed, from }): Promise<PoolStep> {
+      const groups = every ?? (words.length > 0 ? [words] : []);
+      const { order, counted } = await fileOrder(groups);
+      const paths = seededOrder(order, seed);
+      const wanted = new Set(groups.flat());
+      const found: { row: PoolFileRow; score: number }[] = [];
+      let at = Math.max(0, from);
+      const stop = at + MOST_FILES_PER_STEP;
+      while (at < paths.length && at < stop && found.length < ENOUGH_ROWS) {
+        const part = paths.slice(at, Math.min(at + FILES_AT_ONCE, stop));
+        for (const file of await Promise.all(part.map(readWholeFile))) {
+          for (const row of file) {
+            if (groups.length === 0) {
+              if (!poorTitle(row.title, row.externalId)) found.push({ row, score: 0 });
+            } else if (every === undefined || every.every((group) => row.words.some((word) => group.includes(word)))) {
+              const score = row.words.filter((word) => wanted.has(word)).length;
+              if (score > 0) found.push({ row, score });
+            }
+          }
+        }
+        at += part.length;
+      }
+      // Browsing takes a spread of what the files hold. Asking takes those with most of the words first; files come in the seed's order, so a list stays steady for a visit.
+      const spread = Math.max(1, Math.ceil(found.length / MOST_ROWS_PER_STEP));
+      const kept = groups.length === 0 ? found.filter((_, place) => place % spread === 0) : found.sort((a, b) => b.score - a.score).slice(0, MOST_ROWS_PER_STEP);
+      return { rows: kept.map(({ row }) => fileRowToRow(row)), next: at < paths.length ? at : null, files: paths.length, counted };
+    },
+    async poolWords(words): Promise<string[]> {
+      const { data, error } = await client.from('web_word_stats').select('word').in('word', [...words]);
+      if (error) throw new Error('POOL_FILES');
+      return ((data ?? []) as { word: string }[]).map((row) => row.word);
     },
     async wordFacts(): Promise<WordFact[]> {
       // PostgREST's cap is 1,000 rows an answer, so page by page, usually just one. Any failed page means no answers at all this time:

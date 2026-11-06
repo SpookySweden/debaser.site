@@ -14,6 +14,8 @@ export type StationItem = Omit<WebItem, 'tags' | 'pickWords' | 'pickPage' | 'med
   words: ItemWord[];
   /** A search result nobody saved (`web_seen_items`): its words count, and it has no address of its own here. */
   seenOnly?: boolean;
+  /** From the tagged catalogue (the pool's files), not the saved feed: what the DISCOVER filter leads with. */
+  catalogue?: boolean;
 };
 
 /** Another word this one meets. `close` is the honest part: true only once the pair shares `MIN_SHARED` items. */
@@ -68,6 +70,15 @@ export type StationRow = {
   /** A swept item (`web_pool_items`): listed, but its words are already in the word counts, so they aren't counted again. */
   listOnly?: boolean;
 };
+
+/**
+ * One step through the pool's files. `words` finds items carrying any of them. `every` finds items carrying something from each group, as a MEDIA search does. Neither is browsing: whatever
+ * the next files hold. `from` is the place in this seed's order of files.
+ */
+export type PoolAsk = { words?: readonly string[]; every?: readonly (readonly string[])[]; seed: string; from: number };
+
+/** One step's answer. `next` is null when the files have run out. `files` is how many hold what was asked, `counted` how many items each asked word is on. */
+export type PoolStep = { rows: readonly StationRow[]; next: number | null; files: number; counted: readonly { word: string; items: number }[] };
 
 /** What the sweep has counted (`web_word_stats`): most swept items are dropped once they're in here. */
 export type SweptWord = { word: string; items: number; partners: Readonly<Record<string, number>> };

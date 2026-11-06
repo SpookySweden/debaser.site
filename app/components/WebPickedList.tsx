@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { loadStationIndex } from '../lib/tag-station/client';
-import { useMoreItems } from '../lib/tag-station/more';
+import { digLine, useMoreItems, type PoolAsk } from '../lib/tag-station/more';
 import { discoverList, POOL_TARGET, poolReady, recommendedList, type PickSort } from '../lib/tag-station/picks';
 import { getPresetStore, withPreset, type Preset } from '../lib/tag-station/presets';
 import type { StationIndex } from '../lib/tag-station/query';
 import { EMPTY_RECIPE, type Recipe } from '../lib/tag-station/recipe';
+import { keepShownFirst } from '../lib/tag-station/title-quality';
 import type { StationItem } from '../lib/tag-station/types';
 import { getRecommendationStore, RECOMMEND_NOTE, type RecommendedPick } from '../lib/web/recommendations';
 import { readTaste } from '../lib/web/taste-store';
@@ -35,7 +36,7 @@ function PersonBeside({ person }: { person: { id: string; name: string } }) {
 }
 
 /** A film or show has no player here: its name, its source, and MEDIA's own search to find one. */
-function NoPlayerRow({ item }: { item: StationItem }) {
+export function NoPlayerRow({ item }: { item: StationItem }) {
   return (
     <li className="rule-pixel py-2">
       <p className="break-words text-sm font-bold text-ink">{item.title}</p>
@@ -81,22 +82,30 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
     };
   }, []);
 
-  // What the reader's own taste, or else the commonest words, finds in the pool's files, so the list isn't limited to what's on the map.
-  const askWords = useMemo(() => {
-    if (loaded === null || !poolReady(loaded)) return [];
+  // What the preset's words or the reader's own taste find in the pool's files, or else whatever the files hold, so the list isn't limited to what's on the map.
+  const ask = useMemo((): PoolAsk | null => {
+    if (loaded === null || !poolReady(loaded)) return null;
     const own = Object.entries(taste.tags).sort(([, a], [, b]) => b - a).map(([word]) => word);
-    const common = [...loaded.graph.tags].sort((a, b) => b.count - a.count).map((tag) => tag.name);
-    return (own.length > 0 ? own : common).slice(0, 12);
-  }, [loaded, taste]);
-  const index = useMoreItems(loaded, askWords);
+    const wanted = list === 'discover' && recipe.must.length + recipe.any.length > 0 ? [...recipe.must, ...recipe.any] : own;
+    return wanted.length > 0 ? { words: wanted.slice(0, 12) } : { browse: true };
+  }, [loaded, list, recipe, taste]);
+  const digging = useMoreItems(loaded, ask);
+  const { index } = digging;
 
-  const rows = useMemo(() => {
+  const computed = useMemo(() => {
     if (index === null || !poolReady(index)) return [];
     return list === 'recommended' ? recommendedList(index, picks, taste, sort, now) : discoverList(index, recipe, taste, sort, now).map((item) => ({ item, people: [] as { id: string; name: string }[] }));
   }, [index, list, picks, recipe, taste, sort, now]);
+  // What's on the screen stays put when more arrives. A new list or SORT starts again.
+  const order = `${list}|${sort}`;
+  const [pinned, setPinned] = useState<{ order: string; ids: readonly string[] }>({ order, ids: [] });
+  const rows = useMemo(
+    () => keepShownFirst(pinned.order === order ? pinned.ids : [], computed.map((row) => ({ ...row, id: row.item.id }))),
+    [pinned, order, computed],
+  );
 
   if (fault !== null) return <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{fault}</p>;
-  if (index === null) {
+  if (index === null || digging.loading) {
     return (
       <p role="status" className="py-2 text-title font-bold text-ink">
         LOADING...
@@ -132,10 +141,26 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
           </li>
         ))}
       </ul>
-      {rows.length > shown ? (
-        <button type="button" onClick={() => setShown((current) => current + STEP)} className={STATION_KEY}>
-          [ MORE ]
-        </button>
+      {rows.length > shown || digging.more ? (
+        <div className="flex flex-wrap items-center gap-1">
+          <button
+            type="button"
+            disabled={digging.digging}
+            onClick={() => {
+              // These rows and the ones this press brings into view: what arrives from the files comes after them.
+              setPinned({ order, ids: rows.slice(0, shown + STEP).map((row) => row.id) });
+              setShown(shown + STEP);
+              // Before the list runs out: a press never shows nothing while the next files are read.
+              if (rows.length < shown + 2 * STEP) digging.dig();
+            }}
+            className={STATION_KEY}
+          >
+            {digging.digging ? '[ DIGGING... ]' : '[ MORE ]'}
+          </button>
+          <span className="text-label text-ink-quiet" data-dig-line>
+            {digLine(digging.answer)}
+          </span>
+        </div>
       ) : null}
     </div>
   );

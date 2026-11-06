@@ -1,6 +1,7 @@
-import { recommendOrder, type Taste } from '../web/recommend';
+import { dayJitter, recommendOrder, tasteScore, type Taste } from '../web/recommend';
 import { focusOf, itemCommonness, matchItems, type StationIndex } from './query';
 import type { Recipe } from './recipe';
+import { sinkPoor } from './title-quality';
 import type { StationItem } from './types';
 
 /**
@@ -32,10 +33,51 @@ function ordered(index: StationIndex, items: readonly StationItem[], taste: Tast
   return order.map((item) => byItem.get(item.id) as StationItem);
 }
 
-/** DISCOVER: the algorithm alone, applied the way the active preset says. */
+const DAY_MS = 86_400_000;
+const YEAR_MS = 365 * DAY_MS;
+/** How much each thing counts toward a find. What the reader has shown they like is on its own scale (`tasteScore`) and comes first. */
+const FIND = { obscure: 3, old: 2, oldWord: 1, jitter: 2, repeat: 1.5 };
+/** A word naming an era before this year makes an item an old one, whatever day it was uploaded. */
+const OLD_BEFORE = 1990;
+
+/**
+ * The catalogue's own order: old and obscure finds, with what the reader has shown they like first. A maker's further items cost more each, so one collection can't fill the page, and it changes by
+ * the day, not the second, so a list holds still.
+ */
+function findsOrder(index: StationIndex, items: readonly StationItem[], taste: Taste, now: number): StationItem[] {
+  const day = Math.floor(now / DAY_MS);
+  const most = Math.log(1 + Math.max(index.total, 2));
+  const scored = items.map((item) => {
+    const obscure = 1 - Math.min(1, Math.log(1 + itemCommonness(index, item)) / most);
+    const published = Date.parse(item.publishedAt);
+    const old = Number.isFinite(published) ? Math.min(1, Math.max(0, now - published) / (20 * YEAR_MS)) : 0.5;
+    const oldWord = item.words.some(({ word }) => Number.parseInt(index.tagByName.get(word)?.era ?? '', 10) < OLD_BEFORE);
+    const score = tasteScore({ tags: words(item), creator: item.creator }, taste) + FIND.obscure * obscure + FIND.old * old + (oldWord ? FIND.oldWord : 0) + FIND.jitter * dayJitter(item.id, day);
+    return { item, score };
+  });
+  scored.sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : 1));
+  const seen = new Map<string, number>();
+  return scored
+    .map(({ item, score }) => {
+      const maker = (item.creator ?? '').toLowerCase();
+      const earlier = maker === '' ? 0 : (seen.get(maker) ?? 0);
+      seen.set(maker, earlier + 1);
+      return { item, score: score - FIND.repeat * earlier };
+    })
+    .sort((a, b) => b.score - a.score || (a.item.id < b.item.id ? -1 : 1))
+    .map(({ item }) => item);
+}
+
+/**
+ * DISCOVER: the algorithm alone, applied the way the active preset says, leading with the tagged catalogue, then the saved feed, each in SORT's order. So it's never RECOMMENDED's list, under any
+ * SORT. Junk titles and what has no player go last.
+ */
 export function discoverList(index: StationIndex, recipe: Recipe, taste: Taste, sort: PickSort, now: number): StationItem[] {
   const applied: Recipe = { ...recipe, tag: null, item: null, link: null };
-  return ordered(index, matchItems(index, applied, focusOf(index, applied)), taste, sort, now);
+  const found = matchItems(index, applied, focusOf(index, applied));
+  const catalogue = found.filter((item) => item.catalogue);
+  const leading = sort === 'best' ? findsOrder(index, catalogue, taste, now) : ordered(index, catalogue, taste, sort, now);
+  return sinkPoor([...leading, ...ordered(index, found.filter((item) => !item.catalogue), taste, sort, now)]);
 }
 
 export type RecommendedRow = { item: StationItem; people: { id: string; name: string }[] };
@@ -50,9 +92,11 @@ export function recommendedList(index: StationIndex, picks: readonly { person: s
     people.set(pick.itemId, list);
   }
   const picked = [...people.keys()].map((id) => index.itemById.get(id) as StationItem);
-  const others = index.graph.items.filter((item) => !people.has(item.id));
+  const rest = index.graph.items.filter((item) => !people.has(item.id));
+  // Under BEST the algorithm weighs everything together, and favours what's recent. Under SORT's other keys the saved feed leads, where DISCOVER has the catalogue lead, so they stay two lists.
+  const others = sinkPoor(sort === 'best' ? ordered(index, rest, taste, sort, now) : [...ordered(index, rest.filter((item) => !item.catalogue), taste, sort, now), ...ordered(index, rest.filter((item) => item.catalogue), taste, sort, now)]);
   return [
     ...ordered(index, picked, taste, sort, now).map((item) => ({ item, people: people.get(item.id) ?? [] })),
-    ...ordered(index, others, taste, sort, now).map((item) => ({ item, people: [] })),
+    ...others.map((item) => ({ item, people: [] })),
   ];
 }
