@@ -3,6 +3,7 @@
  * Private File System. If private file storage isn't available, pictures go in IndexedDB too, which is slower but still keeps the work.
  */
 import type { Drawing, Project } from './types';
+import { startWorker } from './workers';
 
 const DB_NAME = 'debaser-animate';
 const DB_VERSION = 1;
@@ -127,15 +128,12 @@ let nextJob = 1;
 
 function worker(): Worker | null {
   if (saveWorker !== null) return saveWorker;
-  if (typeof Worker === 'undefined') return null;
-  try {
-    saveWorker = new Worker(new URL('./save.worker.ts', import.meta.url));
+  saveWorker = startWorker('save');
+  if (saveWorker !== null) {
     saveWorker.onmessage = (event: MessageEvent<{ id: number; ok: boolean }>) => {
       pending.get(event.data.id)?.(event.data.ok);
       pending.delete(event.data.id);
     };
-  } catch {
-    saveWorker = null;
   }
   return saveWorker;
 }

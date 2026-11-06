@@ -26,7 +26,7 @@ this file holds what was decided for the build.
 - **Licence of the plan's Mediabunny (MPL-2.0)** is compatible with using it as an untouched package; credited.
 
 ## Where things live
-- `app/animate/page.tsx`: the page. `app/components/animate/`: its panels.
+- `app/animate/page.tsx`: the page; `AnimateBoot.tsx` beside it tells the workers where they live. `app/components/animate/`: its panels.
 - `app/lib/animate/`: pure logic (`project.ts`, `zip.ts`, `regions-core.ts`...), covered by `Temp/check-animate-*.cjs`, and the
   browser engine (`engine.ts`, `planes.ts`, `storage.ts`) and workers (`*.worker.ts`).
 - `scripts/drive-animate.cjs`: drives the real page in a browser with synthetic pen events.

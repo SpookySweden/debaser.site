@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import AnimateLoader from '../components/animate/AnimateLoader';
+import AnimateBoot from './AnimateBoot';
 import SiteWindow from '../components/SiteWindow';
 
 export const metadata: Metadata = {
@@ -15,7 +15,7 @@ export default function AnimatePage() {
   return (
     <SiteWindow title="DEBASER_OS - v1.0 [ANIMATE]" active="animate" tip="Draw frame by frame. Your work stays in this browser.">
       <h1 className="sr-only">DEBASER.SITE // ANIMATE</h1>
-      <AnimateLoader />
+      <AnimateBoot />
     </SiteWindow>
   );
 }

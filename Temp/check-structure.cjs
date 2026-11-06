@@ -35,7 +35,7 @@ const sources = new Map(files.map((file) => [file, readFileSync(file, 'utf8')]))
 function resolve(from, specifier) {
   const base = posix.normalize(posix.join(posix.dirname(from), specifier));
 
-  for (const candidate of [`${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]) {
+  for (const candidate of [base, `${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`]) {
     if (sources.has(candidate)) return candidate;
   }
 
@@ -48,6 +48,8 @@ for (const [file, text] of sources) {
   const specs = [
     ...[...text.matchAll(/from\s+['"](\.[^'"]+)['"]/g)].map((match) => match[1]),
     ...[...text.matchAll(/import\(\s*['"](\.[^'"]+)['"]\s*\)/g)].map((match) => match[1]),
+    // A worker is read by the file that starts it: `new Worker(new URL('./x.worker.ts', import.meta.url))`.
+    ...[...text.matchAll(/new URL\(\s*['"](\.[^'"]+)['"]\s*,\s*import\.meta\.url/g)].map((match) => match[1]),
   ];
 
   for (const specifier of specs) {
