@@ -125,7 +125,8 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **MEDIA search lists tagged rows (`WebCatalogueFinds.tsx`).** Its own request, so the outside sites are neither waited on nor slowed. The rows sit below the results, with one fixed-height line above them (TAGGED CATALOGUE: 26+ BELOW. [ GO ]), so they arrive without moving anything. A search is read as the longest words it can be; every word must be on the row; what isn't a word has to be in the title. Only with SOURCE ALL, INTERNET ARCHIVE, PEERTUBE or OPENVERSE, and no `from:`. A row an outside site has already found isn't repeated, unless it's already on the screen.
 - **The DISCOVER filter leads with the catalogue (`picks.ts`):** what the reader has shown they like, then old and obscure finds, with a maker's further items costing more each. With no taste it browses whatever a few files hold. RECOMMENDED keeps people's picks and the recent feed first. Under any SORT, DISCOVER leads with the catalogue and RECOMMENDED with the feed.
 - **Junk titles and no-player rows sink (`title-quality.ts`).** A number alone, a machine's id, a camera's file name, "untitled": about 1.7% of 27,000 real titles sampled. They go last in every list under every SORT and aren't deleted: a word still reaches them. Rows with no player come just before them.
-- **Any word can be chosen on the DISCOVER page.** The map shows 2,000 words; the search box offers any other as LOOK IN THE CATALOGUE, and the page looks it up before saying NO SUCH WORD.
+- **Any word can be chosen on the DISCOVER page.** The map shows 2,000 words; the search box and the filter's ADD A WORD box offer any other as LOOK IN THE CATALOGUE, and the page looks it up before saying NO SUCH WORD. In the filter it can be MUST or ANY, not NOT: a list's rows only carry the map's words and the ones asked for, so an exclusion would quietly let through everything that has it. Measured live: legal case, added as a must-have, first rows 1.3 s after the press and all 183 by pressing on; beekeeping 3.9 s; ottoman era 1.3 s; maritime law and zzqqxv say NO SUCH WORD.
+- **A word's count says how much of it is found (`wordItemsLine`).** Everywhere the page said ON 19194 ITEMS (a word's facts, the list of words, the most used words) it now says ON 19194 ITEMS · 105 FOUND SO FAR, then ALL FOUND, or 181 FOUND, ALL FILES READ if the files run out short. FOUND is what this page holds for the word, whatever the filters leave. It isn't a promise that every item can be reached: all of a word has only been proven for rare ones (175 of 175, 183 of 183). The search box's offers (WORD · 19194 ITEMS) and the map's spoken labels keep the plain count.
 - **What's on the screen stays put.** A press pins the rows it brings into view, and what arrives comes after them (`keepShownFirst`).
 
 **Measured live, signed in, jobs off.** Before is one ask of the old route; the reader's page showed fewer (Luke's main session measured jazz 19, film noir 10, ottoman era 5).
@@ -141,7 +142,7 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 
 **Still short of what's tagged:**
 - A common word is reachable but slowly: all of jazz would be about 748 files, 62 MB, for one reader pressing a very long time.
-- The DISCOVER page's must-have and any-of word boxes still only take words on the map.
+- A word off the map can't be excluded, and a NOT in an old link for such a word does nothing.
 - The map's 2,000 words are the top 1,000 and whatever its sample carries, so a word on 1 item can be on the map while a word on 7,000 isn't.
 - The map is 4 MB before compression for each reader on each visit, from Vercel, not Supabase.
 
