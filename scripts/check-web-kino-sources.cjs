@@ -118,6 +118,10 @@ same(k.archiveVerdict('a', item({ mediatype: 'texts' }), PD, 100), null, 'a scan
 same(k.archiveVerdict('a', { metadata: { mediatype: 'movies' }, files: [{ name: 'notes.txt', format: 'Text' }] }, PD, 100), null, 'no video in it: refused');
 same(k.archiveVerdict('a', item({}, '140'), PD, 100), null, 'a two-minute trailer of a 100-minute film: refused');
 same(k.archiveVerdict('a', item({}, '3000'), PD, 100)?.id, 'a', 'half the running time passes');
+const dvdRip = { metadata: { mediatype: 'movies' }, files: [{ name: 'VIDEO_TS.mp4', format: 'h.264', length: '10', source: 'original' }, { name: 'VTS_01_1.mp4', format: 'h.264', length: '2500', source: 'original' }, { name: 'VTS_01_2.mp4', format: 'h.264', length: '2500', source: 'original' }] };
+same(k.archiveVerdict('a', dvdRip, PD, 90), null, "a film split into several videos, as a DVD rip is: refused, as the Archive's player plays only one");
+same(k.archiveVerdict('a', { metadata: { mediatype: 'movies' }, files: [{ name: 'e1.mp4', format: 'h.264', length: '1500', source: 'original' }, { name: 'e2.mp4', format: 'h.264', length: '1500', source: 'original' }] }, PD, 25, 'tv')?.id, 'a', 'a show may hold its episodes');
+same(k.archiveVerdict('a', { metadata: { mediatype: 'movies' }, files: [{ name: 'a-promo.mp4', format: 'h.264', length: '30', source: 'original' }, { name: 'e1.mp4', format: 'h.264', length: '1500', source: 'original' }] }, PD, 25, 'tv'), null, "a show whose first video is a promo: refused");
 same(k.archiveVerdict('a', item({}, '2999'), PD, 100), null, 'under half does not');
 same(k.archiveVerdict('a', item({}, '140'), PD, undefined), null, 'no running time known: a clip still fails');
 same(k.archiveVerdict('a', { metadata: { mediatype: 'movies' }, files: [{ name: 'film.mp4', format: 'h.264', source: 'original' }] }, PD, 100)?.id, 'a', 'a video with no length listed is still offered');

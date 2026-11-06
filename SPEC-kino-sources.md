@@ -16,7 +16,8 @@ the rows are drawn, and a failure just leaves the row as it was.
 Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (P724) or YouTube id (P1651). A link proves
 nothing: plenty are stranger's uploads, so unsure means not offered.
 - **Either site:** not a trailer or clip (a role on the link, or under half the running time). Links Wikidata ranks as wrong are skipped.
-- **Archive:** a public video item (not dark, not restricted, not a book scan) and not called copyrighted by Wikidata, and
+- **Archive:** a public video item (not dark, not restricted, not a book scan), a film being one video (the Archive's player stops
+  after one, so a DVD rip plays a 10-second menu), and not called copyrighted by Wikidata, and
   either Wikidata says public domain or dedicated to it, or the Archive's own mark says public domain or CC0. A CC licence
   with terms doesn't count: those are mostly someone's upload of someone else's film.
 - **YouTube:** public, embeddable, not age-locked, not blocked in the country, and Wikidata says public domain and not also
@@ -32,8 +33,11 @@ nothing: plenty are stranger's uploads, so unsure means not offered.
 
 ## Numbers (Wikidata, 2026-11-06)
 - 286,908 films have a TMDB number; 67,155 shows.
-- Films with an Archive link: 6,266. A random 200 run through the real rules: 116 passed (58%), so about 3,600 films.
-- Films with a YouTube link: 13,657. Public domain and YouTube-linked: 901, 439 of them also on the Archive.
+- Films with an Archive link: 6,266. A random 200 run through the real rules: 77 passed (38%), so about 2,400 films.
+- Films with a YouTube link: 13,657. Public domain and YouTube-linked: 901. Of the 462 not also linked to the Archive, a random 100 run
+  through the live route: 66 passed, so about 300 more. In all about 2,700 films, or 1% of the films with a TMDB number.
+- What a viewer meets: 15 ordinary KINO searches (268 titles, 75 of them films): none had a free copy, and 148 had a where-to-watch
+  listing in the UK (54 of 75 films, 94 of 193 shows). Of 14 famous old films asked for by name, 9 had one.
 
 ## Friends' servers
 Already built (SPEC-media-servers.md). Proven end to end 2026-11-06 with three fake https servers: the real hourly update read

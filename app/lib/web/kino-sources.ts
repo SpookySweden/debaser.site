@@ -30,7 +30,7 @@ const COPYRIGHTED = 'Q50423863';
 const ROLE_THE_FILM = 'Q11424';
 
 /** A film can list several uploads; only so many are looked at. */
-const ARCHIVE_PER_TITLE = 3;
+const ARCHIVE_PER_TITLE = 6;
 const YOUTUBE_PER_TITLE = 8;
 /** `videos.list` takes 50 ids a call, and one call is all a batch spends (one unit of YouTube's daily quota). */
 const YOUTUBE_PER_CALL = 50;
@@ -122,7 +122,7 @@ const ARCHIVE_NO_RIGHTS = /^https?:\/\/(?:www\.)?creativecommons\.org\/(?:public
  * access-restricted, not a book scan of the novel), long enough to be the title, and not called copyrighted by Wikidata,
  * with evidence of the public domain from Wikidata or the Archive's own licence mark.
  */
-export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined): FreeCopy | null {
+export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeCandidates, 'publicDomain' | 'copyrighted'>, runtimeMinutes: number | undefined, type: KinoTitle['type'] = 'movie'): FreeCopy | null {
   if (candidates.copyrighted) return null;
   const read = parseArchiveSeries(id, body);
   if (read === null || read.episodes.length === 0) return null;
@@ -130,8 +130,11 @@ export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeC
   if (metadata.mediatype !== 'movies') return null;
   const marked = typeof metadata.licenseurl === 'string' && ARCHIVE_NO_RIGHTS.test(metadata.licenseurl);
   if (!candidates.publicDomain && !marked) return null;
+  // A film must be one video: the Archive's player starts on its own choice of an item's videos and stops at the end of it,
+  // so a DVD rip (live-checked 2026-11-06) plays a 10-second menu. A show's item may hold its episodes.
+  if (type === 'movie' && read.episodes.length !== 1) return null;
   // The Archive lists a length for nearly every video. One it doesn't is still public-domain and playable.
-  const seconds = read.episodes.reduce((sum, episode) => sum + (episode.seconds ?? 0), 0);
+  const seconds = read.episodes[0].seconds ?? 0;
   if (seconds > 0 && !longEnough(seconds, runtimeMinutes)) return null;
   return { platform: 'internet_archive', id };
 }
@@ -211,13 +214,13 @@ async function readCandidates(titles: readonly KinoTitle[], fetchImpl: FetchLike
   }
 }
 
-async function firstArchiveCopy(candidates: FreeCandidates, runtime: number | undefined, fetchImpl: FetchLike): Promise<FreeCopy | null> {
+async function firstArchiveCopy(candidates: FreeCandidates, runtime: number | undefined, type: KinoTitle['type'], fetchImpl: FetchLike): Promise<FreeCopy | null> {
   if (candidates.copyrighted) return null;
   const answers = await Promise.all(
     candidates.archive.map(async (id) => {
       try {
         const body = await safeFetchJson(buildUrl(ARCHIVE_HOST, ['metadata', id]), { allowedHosts: [ARCHIVE_HOST], fetchImpl, userAgent: AGENT, timeoutMs: ANSWER_TIMEOUT_MS, maxBytes: ARCHIVE_MAX_BYTES });
-        return archiveVerdict(id, body, candidates, runtime);
+        return archiveVerdict(id, body, candidates, runtime, type);
       } catch {
         return null;
       }
@@ -252,7 +255,7 @@ export async function readKinoSources(titles: readonly KinoTitle[], country: str
   const [archive, youtube] = await Promise.all([
     Promise.all(titles.map(async (title, index) => {
       const entry = candidates.get(kinoTitleKey(title));
-      return entry === undefined ? null : firstArchiveCopy(entry, tmdb[index].runtime, deps.fetch);
+      return entry === undefined ? null : firstArchiveCopy(entry, tmdb[index].runtime, title.type, deps.fetch);
     })),
     readYoutube(youtubeIds, deps.youtubeKey, deps.fetch),
   ]);
