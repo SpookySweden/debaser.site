@@ -6,6 +6,7 @@ import { inkOn, readPalette } from '../../lib/animate/colours';
 import { getEngine } from '../../lib/animate/engine';
 import { saveBlobAs } from '../../lib/animate/project-file';
 import { makeSmart } from '../../lib/animate/smart';
+import { snapBack } from '../../lib/animate/trace';
 import { useStudio, type ToolId } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
@@ -22,9 +23,34 @@ const TOOL_KEYS: ToolKey[] = [
   { tool: 'filleraser', label: BRUSH_LABELS.filleraser, key: 'SHIFT + Y' },
   { tool: 'lasso', label: 'LASSO', key: 'W' },
   { tool: 'rect', label: 'BOX SELECT', key: 'SHIFT + W' },
+  { tool: 'shift', label: 'SHIFT + TRACE', key: 'J' },
   { tool: 'pick', label: 'PICK COLOUR', key: 'K' },
   { tool: 'hand', label: 'HAND', key: 'H' },
 ];
+
+/** Shift and Trace's options: which neighbour, how to handle it, and back to where it was. */
+function TraceKeys() {
+  const mode = useStudio((state) => state.traceMode);
+  const side = useStudio((state) => state.traceSide);
+  const on = useStudio((state) => state.shiftTraceOn);
+  return (
+    <div role="group" aria-label="Shift and Trace" className="flex flex-wrap gap-x-1" data-animate-trace-keys>
+      {(['prev', 'next'] as const).map((value) => (
+        <button key={value} type="button" className={side === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={side === value} onClick={() => useStudio.setState({ traceSide: value })}>
+          [ {value === 'prev' ? 'BEFORE' : 'AFTER'} ]
+        </button>
+      ))}
+      {(['move', 'turn', 'scale'] as const).map((value) => (
+        <button key={value} type="button" className={mode === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={mode === value} onClick={() => useStudio.setState({ traceMode: value })}>
+          [ {value.toUpperCase()} ]
+        </button>
+      ))}
+      <button type="button" className={PLATE_MEDIUM} disabled={!on} onClick={snapBack} title="SHIFT + J">
+        [ SNAP BACK ]
+      </button>
+    </div>
+  );
+}
 
 /** Keep the current colour, drop it, and carry a palette between projects as a file. */
 function PaletteKeys() {
@@ -113,6 +139,8 @@ export default function AnimateTools() {
           </button>
         ))}
       </div>
+
+      {tool === 'shift' && <TraceKeys />}
 
       {hasSelection && (
         <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart>

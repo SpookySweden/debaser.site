@@ -39,5 +39,9 @@ exposure length, a drawing. A drawing has two planes, Line and Colour (plain lay
 operations (strokes, fills, moves) as data, plus a picture that is what those operations left. Undo restores both. Tags are
 named bundles of behaviours; a stroke records which were on when it was drawn.
 
+## Left for later (Should or Later in the plan, not in its phase checklists)
+Hold the pen to refine a fill, a guided tour (`[ ? ]` lists every key instead), video as reference frames, lasso fill across frames, pegbar alignment,
+light, dark and high-contrast themes of its own (it follows the site's Preferences).
+
 ## Out of scope for version 1 (from the plan)
 Bone rigging, tweening, AI-generated colour or in-betweens, cloud accounts, symmetry, perspective guides, rulers.

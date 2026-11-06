@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { toWebItem as archiveItem } from './adapters/internet-archive';
 import { toWebItem as openverseItem } from './adapters/openverse';
 import { decodePoolFile, encodePoolFile, ITEMS_PER_FILE, POOL_BUCKET, wordsIn, type PoolFileRow } from './pool-files';
+import { poolStore } from './pool-store';
 import { safeFetchJson, SafeFetchError, buildUrl, type FetchLike } from './safe-fetch';
 import { sanitiseText } from './sanitise';
 import { toWebItem as peertubeItem } from './search/providers/peertube';
@@ -763,6 +764,26 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
     if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `${name} ${error.code ?? 'no code'}` });
     return data as T;
   };
+  // Supabase Storage, or Cloudflare R2 in front of it once its settings are there (pool-store.ts).
+  const files = poolStore({
+    // The bucket checks the lock from the header this client was made with (the route's client).
+    put: async (path, file) => {
+      const { error } = await db.storage.from(POOL_BUCKET).upload(path, file, { upsert: true, contentType: 'application/octet-stream' });
+      if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `put file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
+    },
+    get: async (path) => {
+      const { data, error } = await db.storage.from(POOL_BUCKET).download(path);
+      if (error) {
+        // Only "not found". The storage API answers 400 to everything, so anything else stops the run rather than treating a paid batch as having no rows.
+        if ((error as { statusCode?: string }).statusCode === '404') return null;
+        throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `get file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
+      }
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    remove: async (path) => {
+      await db.storage.from(POOL_BUCKET).remove([path]);
+    },
+  });
   return {
     // Spent, plus the worst of everything out.
     spent: async () => Number(await call<number | string>('web_tag_committed', {})),
@@ -802,23 +823,9 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
       return out;
     },
     pending: () => call<string[]>('web_pool_pending', {}),
-    // The bucket checks the lock from the header this client was made with (`sweepClient`).
-    putFile: async (path, file) => {
-      const { error } = await db.storage.from(POOL_BUCKET).upload(path, file, { upsert: true, contentType: 'application/octet-stream' });
-      if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `put file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
-    },
-    getFile: async (path) => {
-      const { data, error } = await db.storage.from(POOL_BUCKET).download(path);
-      if (error) {
-        // Only "not found". The storage API answers 400 to everything, so anything else stops the run rather than treating a paid batch as having no rows.
-        if ((error as { statusCode?: string }).statusCode === '404') return null;
-        throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `get file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
-      }
-      return new Uint8Array(await data.arrayBuffer());
-    },
-    removeFile: async (path) => {
-      await db.storage.from(POOL_BUCKET).remove([path]);
-    },
+    putFile: (path, file) => files.put(path, file),
+    getFile: (path) => files.get(path),
+    removeFile: (path) => files.remove(path),
     fileAdd: async (path, items, words) => {
       await call('web_pool_shard_add', { p_path: path, p_items: items, p_words: [...words] });
     },

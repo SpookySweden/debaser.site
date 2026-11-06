@@ -1061,6 +1061,273 @@ phases.phase4 = async (page, shot) => {
   await shot('phase4-desktop');
 };
 
+/** A small WAV of a tone, for testing sound without shipping one. */
+function toneWav(seconds = 1, rate = 8000) {
+  const n = seconds * rate;
+  const buffer = Buffer.alloc(44 + n * 2);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + n * 2, 4);
+  buffer.write('WAVEfmt ', 8);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(rate, 24);
+  buffer.writeUInt32LE(rate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i += 1) buffer.writeInt16LE(Math.round(Math.sin((i / rate) * 2 * Math.PI * 440) * 20000), 44 + i * 2);
+  return buffer;
+}
+
+phases.phase5 = async (page, shot) => {
+  console.log('Phase 5: Pro polish');
+  await freshProject(page);
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
+  });
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.keyboard.press('i');
+  await penStroke(page, mark(300, 300), { gapMs: 1 });
+  await page.keyboard.press('.');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('.');
+  await page.waitForTimeout(60);
+  await penStroke(page, mark(600, 300), { gapMs: 1 });
+
+  // Light table: a second layer's drawing washes out.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await penStroke(page, mark(900, 300), { gapMs: 1 });
+  await page.waitForTimeout(80);
+  check('before the light table, the other layer is full strength', JSON.stringify(await seen(page, 620, 320)) === '[0,0,0]', JSON.stringify(await seen(page, 620, 320)));
+  await page.keyboard.press('t');
+  await page.waitForTimeout(120);
+  const washed = await seen(page, 620, 320);
+  check('the light table washes out every layer but the one in hand', washed[0] > 120, JSON.stringify(washed));
+  check('and leaves the one in hand', JSON.stringify(await seen(page, 920, 320)) === '[0,0,0]', JSON.stringify(await seen(page, 920, 320)));
+  await shot('phase5-lighttable');
+  await page.keyboard.press('t');
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(100);
+
+  // Shift and Trace: the onion moves; the drawing doesn't; it snaps back.
+  await page.evaluate(() => window.__animate.goToFrame(2));
+  await page.keyboard.press('o');
+  await page.waitForTimeout(100);
+  const opsBefore = await frameOps(page);
+  await page.keyboard.press('j');
+  await page.waitForTimeout(60);
+  check('the trace keys show', (await page.locator('[data-animate-trace-keys]').count()) === 1);
+  check('the neighbour shows in its tint where it was', (await seen(page, 320, 320))[0] > 200 && (await seen(page, 320, 320))[1] < 200, JSON.stringify(await seen(page, 320, 320)));
+  await penStroke(page, [[400, 400, 0.5], [500, 500, 0.5], [600, 600, 0.5]], { gapMs: 4 });
+  await page.waitForTimeout(150);
+  check('dragging moves the onion', JSON.stringify(await seen(page, 320, 320)) === '[255,255,255]' && (await seen(page, 520, 520))[0] > 200, JSON.stringify(await seen(page, 520, 520)));
+  await shot('phase5-trace');
+  check('and changes no drawing', (await frameOps(page)) === opsBefore);
+  await page.keyboard.press('Shift+J');
+  await page.waitForTimeout(100);
+  check('SNAP BACK puts it back', (await seen(page, 320, 320))[0] > 200, JSON.stringify(await seen(page, 320, 320)));
+  await page.keyboard.press('o');
+
+  // Carry colour forward.
+  await freshProject(page);
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
+    const id = engine.activeLayer.id;
+    engine.edit('TAG', (p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, tagId: 'figure' } : n)) }));
+  });
+  await page.waitForTimeout(80);
+  const box = async (x0, y0, x1, y1) => {
+    await penStroke(page, along(x0, y0, x1, y0), { gapMs: 1 });
+    await penStroke(page, along(x1, y0, x1, y1), { gapMs: 1 });
+    await penStroke(page, along(x1, y1, x0, y1), { gapMs: 1 });
+    await penStroke(page, along(x0, y1, x0, y0), { gapMs: 1 });
+  };
+  await page.keyboard.press('i');
+  await box(300, 300, 700, 700);
+  await page.waitForTimeout(800);
+  await page.keyboard.press('g');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await page.waitForTimeout(100);
+  await penStroke(page, [[500, 500, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(300);
+  check('a coloured drawing to carry from', (await pixel(page, 500, 500)) === '#e6004c');
+  await page.keyboard.press('.');
+  await page.waitForTimeout(100);
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await box(320, 320, 720, 720);
+  await page.waitForTimeout(800);
+  check('the next drawing has lines and no colour', (await pixel(page, 500, 500)) === '#ffffff');
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('c');
+  await page.waitForTimeout(800);
+  check('carrying goes to the next drawing', (await state(page, () => window.__animate.frame)) === 1);
+  check('and fills its matching area', (await pixel(page, 500, 500)) === '#e6004c' && (await pixel(page, 900, 500)) === '#ffffff', (await pixel(page, 500, 500)) + ' ' + (await pixel(page, 900, 500)));
+  await shot('phase5-carry');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => window.__animate.goToFrame(1));
+  await page.waitForTimeout(100);
+  check('undo takes the carried colour off', (await pixel(page, 500, 500)) === '#ffffff', await pixel(page, 500, 500));
+
+  // The Carry Colour Forward behaviour: stepping on from a coloured drawing carries once. With nothing to carry it doesn't loop.
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: true } } : t)) }));
+    engine.goToFrame(0);
+  });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('.');
+  await page.waitForTimeout(900);
+  check('the behaviour carries colour as you step on to a drawing with none', (await state(page, () => window.__animate.frame)) === 1 && (await pixel(page, 500, 500)) === '#e6004c', await pixel(page, 500, 500));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  const hops = await page.evaluate(async () => {
+    const engine = window.__animate;
+    engine.goToFrame(0);
+    let last = engine.frame;
+    let changes = 0;
+    const started = performance.now();
+    await new Promise((resolve) => {
+      const tick = () => {
+        if (engine.frame !== last) {
+          changes += 1;
+          last = engine.frame;
+        }
+        if (performance.now() - started < 800) requestAnimationFrame(tick);
+        else resolve();
+      };
+      engine.goToFrame(1);
+      tick();
+    });
+    return changes;
+  });
+  check('it tries once for each drawing: the frame does not hop back and forth', hops <= 3, hops + ' changes');
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: false } } : t)) }));
+  });
+
+  // Sound: a file in, a row on the timeline, and it travels with the project.
+  const wavPath = path.join(os.tmpdir(), 'animate-tone-' + Date.now() + '.wav');
+  fs.writeFileSync(wavPath, toneWav());
+  await page.keyboard.press('Shift+A');
+  await page.waitForTimeout(100);
+  await page.setInputFiles('#animate-sound-file', wavPath);
+  await page.waitForFunction(() => window.__animate.project.audio !== null, null, { timeout: 10000 });
+  await page.waitForTimeout(250);
+  check('a sound shows as a row on the timeline', (await page.locator('[data-animate-sound-row]').count()) === 1);
+  const bars = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-animate-sound-row] canvas');
+    const d = canvas.getContext('2d').getImageData(0, 0, Math.min(200, canvas.width), canvas.height).data;
+    let on = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 100) on += 1;
+    return on;
+  });
+  check('drawn as its loudness', bars > 100, bars + ' pixels');
+  await shot('phase5-sound');
+  fs.writeFileSync(wavPath, 'not a sound');
+  await page.setInputFiles('#animate-sound-file', wavPath);
+  await page.waitForFunction(() => document.querySelector('[data-animate-notice]')?.textContent?.includes('CANNOT READ'), null, { timeout: 8000 });
+  pass('a file that is not a sound is refused, in words');
+  fs.unlinkSync(wavPath);
+  await page.keyboard.press('Shift+A');
+  await page.waitForTimeout(80);
+
+  // Playing with sound: the picture still runs.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(600);
+  const during = await state(page, () => window.__animate.frame);
+  await page.keyboard.press('Enter');
+  check('it plays with sound on', during > 0, 'frame ' + during);
+
+  // Video: real files, with real headers.
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  const canH264 = await page.evaluate(async () => {
+    try {
+      return (await VideoEncoder.isConfigSupported({ codec: 'avc1.42001f', width: 480, height: 270 })).supported === true;
+    } catch {
+      return false;
+    }
+  });
+  await page.getByRole('button', { name: '[ 25% ]' }).click();
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, frames: 12 })));
+  await page.waitForTimeout(60);
+  if (canH264) {
+    const mp4 = await downloadFrom(page, () => page.getByRole('button', { name: '[ MP4 ]' }).click());
+    check('MP4 export gives a real MP4', mp4.name.endsWith('.mp4') && mp4.bytes.subarray(4, 8).toString() === 'ftyp', mp4.bytes.length + ' bytes');
+    check('with sound in it', mp4.bytes.includes('soun', 0, 'latin1'), mp4.bytes.includes('soun', 0, 'latin1') ? 'sound track found' : 'no sound track: ' + (await page.locator('[data-animate-notice]').textContent()));
+    await page.waitForTimeout(200);
+  } else {
+    pass('this browser has no H.264 encoder here, so MP4 was not tried');
+  }
+  const webm = await downloadFrom(page, () => page.getByRole('button', { name: '[ WEBM ]' }).click());
+  check('WebM export gives a real WebM', webm.name.endsWith('.webm') && webm.bytes[0] === 0x1a && webm.bytes[1] === 0x45 && webm.bytes[2] === 0xdf && webm.bytes[3] === 0xa3, webm.bytes.length + ' bytes');
+  await shot('phase5-export');
+  // Closing the panel during an export keeps STOP: reopening shows it still running, and a second can't start.
+  // Hundreds of different drawings, so the export takes long enough to catch in the act. Undone afterwards.
+  await page.evaluate(() => {
+    window.__animate.edit('TEST', (p) => {
+      const drawings = { ...p.drawings };
+      const cels = [...p.nodes[0].cels];
+      for (let i = 0; i < 300; i += 1) {
+        const id = 'test_' + i;
+        drawings[id] = { id, planes: { line: [], colour: [] } };
+        cels.push({ id: 'testcel_' + i, frame: 20 + i, length: 1, drawingId: id, mark: 'key' });
+      }
+      return { ...p, frames: 330, drawings, nodes: p.nodes.map((n, at) => (at === 0 ? { ...n, cels } : n)) };
+    });
+  });
+  await page.getByRole('button', { name: '[ GIF ]' }).click();
+  await page.waitForFunction(() => document.body.textContent.includes('GIF 1 /') || document.body.textContent.includes('STARTING'), null, { timeout: 8000 });
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  await penStroke(page, mark(100, 100), { gapMs: 1 });
+  check('the pen waits while an export reads the pictures', (await page.locator('[data-animate-notice]').textContent()).includes('EXPORTING'));
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  check('reopening the panel shows it still running', (await page.getByRole('button', { name: '[ STOP ]' }).count()) === 1);
+  await page.getByRole('button', { name: '[ STOP ]' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-animate-notice]')?.textContent?.includes('EXPORT STOPPED'), null, { timeout: 20000 });
+  pass('STOP stops it');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, frames: 12 })));
+  await page.keyboard.press('Control+e');
+
+  // The sound travels in the project file.
+  await page.waitForTimeout(100);
+  const projectZip = await downloadFrom(page, () => page.getByRole('button', { name: /SAVE FILE/ }).click());
+  check('the project file holds the sound', projectZip.bytes.toString('latin1').includes('assets/a_'), projectZip.bytes.length + ' bytes');
+
+  // A reference picture lands on its own locked layer, and stays out of renders.
+  const pngPath = path.join(os.tmpdir(), 'animate-pic-' + Date.now() + '.png');
+  const pngData = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 40;
+    c.height = 30;
+    c.getContext('2d').fillRect(0, 0, 40, 30);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  fs.writeFileSync(pngPath, Buffer.from(pngData, 'base64'));
+  await page.setInputFiles('#animate-import-picture', pngPath);
+  await page.waitForFunction(() => window.__animate.project.nodes[0].tagId === 'reference', null, { timeout: 8000 });
+  check('an imported picture lands on a locked Reference layer', await page.evaluate(() => window.__animate.project.nodes[0].locked === true));
+  check('and is kept as data', await page.evaluate(() => Object.values(window.__animate.project.drawings).some((d) => d.planes.line.some((op) => op.kind === 'image'))));
+  fs.unlinkSync(pngPath);
+  await shot('phase5-desktop');
+};
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'animate-drive-'));
@@ -1091,6 +1358,21 @@ phases.phase4 = async (page, shot) => {
   const helpers = { penStroke, line, pixel, state, frameOps, waitSaved, check, pass, fail, shot };
   const wanted = ONLY === '' ? Object.keys(phases) : ONLY.split(',');
   for (const name of wanted) await phases[name](page, shot, helpers);
+
+  // Every control in the studio has a name a screen reader can say, and nothing is set below the site's smallest text.
+  const unreadable = await page.evaluate(() => {
+    const studio = document.querySelector('[aria-label="Animation studio"]');
+    const out = [];
+    for (const el of studio.querySelectorAll('button, input, select')) {
+      const name = el.getAttribute('aria-label') || el.textContent?.trim() || el.closest('label')?.textContent?.trim();
+      if (!name) out.push('unnamed ' + el.tagName);
+    }
+    for (const el of studio.querySelectorAll('button, span, p, label, h2, h3, li')) {
+      if (el.textContent?.trim() && Number.parseFloat(getComputedStyle(el).fontSize) < 13) out.push('small ' + el.textContent.trim().slice(0, 20));
+    }
+    return out;
+  });
+  check('every control has a name, and no text is under 13px', unreadable.length === 0, unreadable.slice(0, 6).join(' | '));
 
   // Phone width: no sideways scroll.
   await page.setViewportSize({ width: 390, height: 844 });

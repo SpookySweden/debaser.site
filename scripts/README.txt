@@ -18,6 +18,14 @@ The distinction is deliberate:
                 Temp/check-resend.cjs stays ignored: it holds a mailbox password, and the repo is public.
     scripts/    tools that outlive a session, and that a rule points at by name.
 
+drive-animate.cjs
+-----------------
+    node scripts/drive-animate.cjs --url <address>/animate [--only phase0,phase1,...] [--out <dir>]
+
+ANIMATE (SPEC-animator.md) in a real browser, with made-up pen events: what `Temp/check-animate-*.cjs` can't reach (canvases,
+storage, workers, keys, exports). A live check, run by hand against the mock server or the deployed site. It uses a throwaway browser profile,
+and never signs in. It proves the numbers, not the feel: `docs/animate-pen-list.md` is what only a real pen can answer.
+
 run-checks.cjs
 --------------
     npm run checks                      every check, in both directories

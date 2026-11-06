@@ -435,6 +435,44 @@ let finished = false;
   assert.equal(moreOut[0].views, undefined, 'and only what a row needs reaches the answer');
   assert.deepEqual(more.moreItems([{ ...fileRowsAsRows[0], claudeWords: ['off the map'] }], shownGraph), [], 'an item with no word on the map is left out');
 
+  // Cloudflare R2 behind the same store, off until its four settings are there.
+  const store = require('./tag-station-sweep-out/web/pool-store.js');
+  assert.equal(store.r2Settings({}), null, 'no settings: Supabase Storage');
+  assert.equal(store.r2Settings({ R2_ACCOUNT_ID: 'a', R2_ACCESS_KEY_ID: 'b', R2_SECRET_ACCESS_KEY: 'c' }), null, 'half set up: still Supabase Storage');
+  assert.deepEqual(store.r2Settings({ R2_ACCOUNT_ID: 'a', R2_ACCESS_KEY_ID: 'b', R2_SECRET_ACCESS_KEY: 'c', R2_BUCKET: 'd' }), { accountId: 'a', accessKeyId: 'b', secretAccessKey: 'c', bucket: 'd' });
+  // Amazon's own published example for signature version 4 (GET Object), to the letter.
+  const signed = store.signS3({ method: 'GET', host: 'examplebucket.s3.amazonaws.com', path: '/test.txt', region: 'us-east-1', bodyHash: 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', at: new Date('2013-05-24T00:00:00.000Z'), accessKeyId: 'AKIAIOSFODNN7EXAMPLE', secretAccessKey: 'wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY', extraHeaders: { range: 'bytes=0-9' } });
+  assert.equal(signed.authorization, 'AWS4-HMAC-SHA256 Credential=AKIAIOSFODNN7EXAMPLE/20130524/us-east-1/s3/aws4_request,SignedHeaders=host;range;x-amz-content-sha256;x-amz-date,Signature=f0e8bdb87c964420e857bd35b5d6ed310bd44f0170aba48dd91039c6036bdb41', 'matches Amazon\'s published signature');
+  // The store against a fake R2.
+  const r2Log = [];
+  const r2Files = new Map();
+  const fakeR2 = async (url, init) => {
+    r2Log.push({ url: String(url), method: init.method, headers: init.headers });
+    const key = new URL(url).pathname;
+    if (init.method === 'PUT') { r2Files.set(key, init.body); return new Response(null, { status: 200 }); }
+    if (init.method === 'DELETE') { r2Files.delete(key); return new Response(null, { status: 204 }); }
+    return r2Files.has(key) ? new Response(r2Files.get(key)) : new Response(null, { status: 404 });
+  };
+  const r2 = store.r2Store({ accountId: 'acct', accessKeyId: 'id', secretAccessKey: 'secret', bucket: 'pool' }, fakeR2);
+  await r2.put('s/batch 1.br', new Uint8Array([1, 2]));
+  assert.equal(r2Log[0].url, 'https://acct.r2.cloudflarestorage.com/pool/s/batch%201.br');
+  assert.ok(!JSON.stringify(r2Log).includes('secret'), 'the secret is never sent');
+  assert.deepEqual([...(await r2.get('s/batch 1.br'))], [1, 2]);
+  assert.equal(await r2.get('s/none.br'), null);
+  const local = new Map([['old.br', new Uint8Array([9])]]);
+  const localStore = { put: async (where, file) => local.set(where, file), get: async (where) => local.get(where) ?? null, remove: async (where) => local.delete(where) };
+  const both = store.poolStoreWith(localStore, r2);
+  assert.deepEqual([...(await both.get('old.br'))], [9], 'a file written before R2 is still read from Supabase Storage: nothing has to move');
+  await both.put('new.br', new Uint8Array([7]));
+  assert.equal(local.has('new.br'), false, 'new files go to R2');
+  assert.deepEqual([...(await both.get('new.br'))], [7]);
+  const broken = store.poolStoreWith(localStore, { put: async () => { throw new Error('x'); }, get: async () => { throw new Error('x'); }, remove: async () => { throw new Error('x'); } });
+  await broken.put('fell-back.br', new Uint8Array([3]));
+  assert.equal(local.has('fell-back.br'), true, 'R2 refusing a write: it goes to Supabase Storage');
+  assert.deepEqual([...(await broken.get('old.br'))], [9], 'and R2 down: reads still work');
+  assert.equal(store.poolStoreWith(localStore, null), localStore, 'no R2: exactly the Supabase store');
+  for (const file of ['app/lib/web/pool-store.ts', 'app/lib/web/sweep.ts', 'app/lib/tag-station/supabase-tag-repository.ts']) assert.ok(!/NEXT_PUBLIC_R2|cloudflare.*public/i.test(fs.readFileSync(path.join(ROOT, file), 'utf8')), `${file} keeps R2 server-only`);
+
   // The file format: small, and exact.
   const sample = Array.from({ length: 2000 }, (_, i) => ({ platform: i % 2 ? 'peertube' : 'internet_archive', externalId: `item-${i}-${(i * 7919).toString(36)}`, host: i % 2 ? 'video.example.org' : null, kind: i % 3 ? 'video' : 'audio', title: `A title for item ${i}`, creator: i % 5 ? `Maker ${i % 40}` : null, publishedAt: i % 7 ? '2019-03-04T05:06:07.000Z' : null, tmdbRef: i % 11 ? null : `movie:${i}`, words: ['jazz', `theme ${i % 50}`, `mood ${i % 9}`] }));
   const encoded = poolFiles.encodePoolFile(sample);

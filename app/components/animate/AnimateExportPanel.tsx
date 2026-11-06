@@ -1,7 +1,7 @@
 'use client';
 
-import { useRef, useState } from 'react';
-import { exportGif, exportPngSequence, exportSize, saveExport } from '../../lib/animate/export';
+import { useState } from 'react';
+import { exportSize, startExport, stopExport, type ExportKind } from '../../lib/animate/export';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
@@ -18,31 +18,9 @@ export default function AnimateExportPanel() {
   const [scale, setScale] = useState(0.5);
   const [rangeOnly, setRangeOnly] = useState(project.range !== null);
   const [transparent, setTransparent] = useState(false);
-  const [progress, setProgress] = useState<string | null>(null);
-  const cancelled = useRef(false);
+  const progress = useStudio((state) => state.exportProgress);
   const { w, h } = exportSize(project, scale);
-
-  const run = async (kind: 'gif' | 'png') => {
-    cancelled.current = false;
-    setProgress('STARTING...');
-    try {
-      const settings = {
-        scale,
-        rangeOnly,
-        transparent,
-        cancelled: () => cancelled.current,
-        onProgress: (done: number, total: number) => setProgress(`${kind === 'gif' ? 'GIF' : 'PNG'} ${done} / ${total}`),
-      };
-      const blob = kind === 'gif' ? await exportGif(settings) : await exportPngSequence(settings);
-      if (blob !== null) {
-        const saved = kind === 'gif' ? await saveExport(blob, '.gif', 'GIF') : await saveExport(blob, '.png-frames.zip', 'PNG frames');
-        useStudio.setState({ notice: { text: saved ? 'EXPORTED' : 'NOT SAVED', fault: false } });
-      }
-    } catch {
-      useStudio.setState({ notice: { text: 'THE EXPORT FAILED', fault: true } });
-    }
-    setProgress(null);
-  };
+  const run = (kind: ExportKind) => void startExport(kind, { scale, rangeOnly, transparent });
 
   return (
     <AnimatePanelFrame title="EXPORT">
@@ -67,22 +45,22 @@ export default function AnimateExportPanel() {
           PNG WITH NO PAPER
         </label>
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => void run('gif')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('gif')}>
             [ GIF ]
           </button>
-          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => void run('png')}>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('png')}>
             [ PNG FRAMES ]
+          </button>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('mp4')}>
+            [ MP4 ]
+          </button>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => run('webm')}>
+            [ WEBM ]
           </button>
           {progress !== null && (
             <>
               <span role="status">{progress}</span>
-              <button
-                type="button"
-                className={PLATE_MEDIUM}
-                onClick={() => {
-                  cancelled.current = true;
-                }}
-              >
+              <button type="button" className={PLATE_MEDIUM} onClick={stopExport}>
                 [ STOP ]
               </button>
             </>

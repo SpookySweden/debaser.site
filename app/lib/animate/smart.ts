@@ -633,7 +633,102 @@ export async function makeSmart(): Promise<void> {
   engine.notify(`MADE ${changed} SMART`);
 }
 
+/** The colour most of this region's pixels hold on a plane, if most of it is coloured at all. */
+function regionColours(map: RegionMap, plane: OffscreenCanvas): Map<number, string> {
+  const ctx = plane.getContext('2d', { willReadFrequently: true });
+  if (ctx === null) return new Map();
+  const { data } = ctx.getImageData(0, 0, map.width, map.height);
+  const tallies = new Map<number, Map<number, number>>();
+  const areas = new Int32Array(map.count + 1);
+  for (let i = 0; i < map.labels.length; i += 1) {
+    if (map.isLine[i] !== 0) continue;
+    const region = map.labels[i];
+    areas[region] += 1;
+    const o = i * 4;
+    if (data[o + 3] < 128) continue;
+    const colour = (data[o] << 16) | (data[o + 1] << 8) | data[o + 2];
+    let tally = tallies.get(region);
+    if (tally === undefined) {
+      tally = new Map();
+      tallies.set(region, tally);
+    }
+    tally.set(colour, (tally.get(colour) ?? 0) + 1);
+  }
+  const out = new Map<number, string>();
+  for (const [region, tally] of tallies) {
+    let best = 0;
+    let count = 0;
+    for (const [colour, n] of tally) {
+      if (n > count) {
+        best = colour;
+        count = n;
+      }
+    }
+    if (count * 2 > areas[region]) out.set(region, `#${best.toString(16).padStart(6, '0')}`);
+  }
+  return out;
+}
+
+/**
+ * Carry colour forward: each area of the next drawing takes the colour that lies under most of it on this one. The lines have usually moved a little
+ * between drawings, and most of an area still sits over the colour it should have.
+ */
+export async function carryForward(): Promise<boolean> {
+  const engine = getEngine();
+  const state = useStudio.getState();
+  const node = engine.activeLayer;
+  if (node === null || node.kind !== 'layer' || !isFigure(state.project, node)) {
+    engine.notify('CARRYING COLOUR NEEDS A FIGURE LAYER', true);
+    return false;
+  }
+  const here = celFor(state.project, node, state.frame);
+  const next = here === null ? undefined : node.cels.find((c) => c.frame > here.frame);
+  if (here === null || next === undefined) {
+    engine.notify('NO DRAWING AFTER THIS ONE', true);
+    return false;
+  }
+  const entry = await readMap(node, next.frame, gapFor(state.project, node, true));
+  if (entry === null || engine.project.id !== state.project.id || engine.isBusy()) return false;
+  const source = await engine.planes.open(planeKey(here.drawingId, 'colour'));
+  const target = await engine.planes.open(planeKey(next.drawingId, 'colour'));
+  const ctx = target.getContext('2d');
+  if (ctx === null) return false;
+  const colours = regionColours(entry.map, source);
+  if (colours.size === 0) {
+    engine.notify('NO COLOUR TO CARRY', true);
+    return false;
+  }
+
+  // A pixel inside each area to seed it from, so a re-lay can find it again.
+  const seeds = new Map<number, [number, number]>();
+  for (let i = 0; i < entry.map.labels.length && seeds.size < colours.size; i += 1) {
+    const region = entry.map.labels[i];
+    if (entry.map.isLine[i] === 0 && colours.has(region) && !seeds.has(region)) seeds.set(region, [i % entry.map.width, Math.floor(i / entry.map.width)]);
+  }
+
+  const smarts = smartsForStroke(liveBehaviours(state.project, node, true));
+  const before = engine.project;
+  let after = before;
+  const full = { x: 0, y: 0, w: target.width, h: target.height };
+  const copy = copyRect(target, full);
+  for (const [region, colour] of colours) {
+    const mask = maskOf(entry.key, entry.map, region, smarts.includes('tuckUnder'));
+    const seed = seeds.get(region);
+    if (mask === null || seed === undefined) continue;
+    paintMaskFill(ctx, colour, mask, false);
+    const op: FillOp = { kind: 'fill', id: `c_${Date.now().toString(36)}${region}`, plane: 'colour', colour, seed, smartAtDrawTime: smarts, regionId: region };
+    after = addOp(after, next.drawingId, 'colour', op);
+  }
+  const key = planeKey(next.drawingId, 'colour');
+  engine.planes.markDirty(key);
+  engine.pushStep('CARRY COLOUR', before, after, [{ key, rect: full, before: copy, after: copyRect(target, full) }]);
+  engine.goToFrame(next.frame);
+  engine.notify(`CARRIED ${colours.size} COLOURS FORWARD`);
+  return true;
+}
+
 const smartActions: Action[] = [
+  { id: 'smart.carry', label: 'CARRY COLOUR TO THE NEXT DRAWING', group: 'SMARTS', key: 'c', run: () => void carryForward() },
   {
     id: 'smart.toggle',
     label: 'SMARTS ON / OFF (HOLD FOR ONE STROKE)',
@@ -657,6 +752,28 @@ const smartActions: Action[] = [
   { id: 'tool.filleraser', label: 'FILL ERASER', group: 'TOOLS', key: 'shift+y', run: () => getEngine().setTool('filleraser') },
 ];
 addActions(smartActions);
+
+/** Drawings the Carry behaviour has already tried: once each, whatever came of it. */
+const carryTried = new Set<string>();
+
+function autoCarry(frame: number, from: number): void {
+  const engine = getEngine();
+  const { project, layerId } = useStudio.getState();
+  const node = findNode(project, layerId);
+  if (node === null || node.kind !== 'layer' || frame <= from) return;
+  if (tagBehaviours(project, node)?.carryColourForward !== true) return;
+  const old = celFor(project, node, from);
+  const now = celFor(project, node, frame);
+  if (old === null || now === null || old.id === now.id || node.cels.find((c) => c.frame > old.frame)?.id !== now.id) return;
+  const had = project.drawings[old.drawingId]?.planes;
+  const has = project.drawings[now.drawingId]?.planes;
+  if (had === undefined || has === undefined || had.colour.length === 0 || has.colour.length > 0 || has.line.length === 0) return;
+  if (carryTried.has(now.id) || !isFigure(project, node)) return;
+  carryTried.add(now.id);
+  // Carry from where the person just was: back a moment, then on again, would flash; the function goes to the next drawing itself.
+  useStudio.setState({ frame: from });
+  void carryForward().then(() => engine.goToFrame(frame));
+}
 
 let installed = false;
 
@@ -754,12 +871,15 @@ export function installSmarts(): void {
     laidWith.clear();
     relaid.clear();
     relaysWaiting.clear();
+    carryTried.clear();
     fillTrail = null;
   });
   useStudio.subscribe((state, previous) => {
     if (state.frame !== previous.frame || state.layerId !== previous.layerId || state.project !== previous.project) {
       if (!state.playing) refresh();
     }
+    // The Carry Colour Forward behaviour: stepping on from a coloured drawing to one with lines and no colour yet.
+    if (state.frame !== previous.frame && !state.playing) autoCarry(state.frame, previous.frame);
   });
 }
 

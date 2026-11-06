@@ -134,7 +134,7 @@ export class AnimateEngine {
 
   /** A stroke is in the hand, or an undo is waiting on a picture: not a moment to change a plane behind them. */
   isBusy(): boolean {
-    return this.live !== null || this.queuedJobs > 0;
+    return this.live !== null || this.queuedJobs > 0 || useStudio.getState().exportProgress !== null;
   }
 
   get swapCount(): number {
@@ -560,6 +560,11 @@ export class AnimateEngine {
     if (this.queuedJobs > 0) {
       // An undo is waiting on a picture from storage; a stroke now would be made against what the undo is about to replace.
       this.notify('ONE MOMENT');
+      return false;
+    }
+    if (state.exportProgress !== null) {
+      // An export is reading these same pictures.
+      this.notify('EXPORTING. STOP IT TO DRAW.');
       return false;
     }
     const node = findNode(state.project, state.layerId);
