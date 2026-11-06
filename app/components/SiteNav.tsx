@@ -1,7 +1,20 @@
 'use client';
 
 import Link from 'next/link';
+import { useSyncExternalStore, type CSSProperties } from 'react';
+import { moduleBarColour } from './ModulesWindow';
 import SiteArrows from './SiteArrows';
+import { MODULES, moduleInk, moduleIsOn } from '../lib/ui/modules';
+import {
+  modulesState,
+  modulesWindowOpen,
+  serverModules,
+  serverModulesWindowOpen,
+  subscribeToModules,
+  subscribeToModulesWindow,
+  toggleModulesWindow,
+} from '../lib/ui/modules-slot';
+import { subscribeToTheme, themeState } from '../lib/ui/theme-slot';
 import {
   ICON_ACCOUNT,
   ICON_ARCADE,
@@ -154,7 +167,7 @@ export const SIDE_QUEUES: NavItem = {
 };
 
 /**
- * The header's own list: named pages rather than glyphs (Luke, 2026-10-30).
+ * The header's own list is the modules (`app/lib/ui/modules.ts`, Luke 2026-11-06): named pages rather than glyphs, each person ticking which appear.
  *
  * Kept apart from `NAV_ITEMS` on purpose. The phone's picture menu, the side panel and the Start menu
  * still draw `NAV_ITEMS`, so COMMS and ACCOUNT stay reachable there even though the header dropped
@@ -166,18 +179,6 @@ export const SIDE_QUEUES: NavItem = {
  *
  * No DIRECTORY key (Luke, 2026-11-03): the account list is the side panel's DIRECTORY, whose `[ ALL ]` opens /users.
  */
-const HEADER_ITEMS: { key: NavKey; label: string; href: string }[] = [
-  { key: 'home', label: 'PROJECTS', href: '/projects' },
-  { key: 'forum', label: 'FORUM', href: '/forum' },
-  { key: 'web', label: 'MEDIA', href: '/media' },
-  // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md): this key is its only way in besides its own address.
-  { key: 'tagstation', label: 'DISCOVER', href: '/discover' },
-  // The music maker (app/features/beatbox): this key is its only way in besides its own address.
-  { key: 'beatbox', label: 'BEATBOX', href: '/beatbox' },
-  { key: 'cytube', label: 'STREAM', href: '/stream' },
-  // The frame-by-frame animator (SPEC-animator.md).
-  { key: 'animate', label: 'ANIMATE', href: '/animate' },
-];
 
 /** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */
 function wordClass(isActive: boolean): string {
@@ -190,23 +191,37 @@ function wordClass(isActive: boolean): string {
 
 // No profile key (Luke, 2026-11-03): the reader's own profile is reached from the side panel.
 export default function SiteNav({ active }: { active?: NavKey }) {
+  const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
+  const listOpen = useSyncExternalStore(subscribeToModulesWindow, modulesWindowOpen, serverModulesWindowOpen);
+  const { id: themeId } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
+  const bar = moduleBarColour(themeId);
+
   return (
     <nav
-      aria-label="Site pages"
+      aria-label="Modules"
       // `hidden` below `md`: the profile picture in the title bar is the only door on a phone.
       className="hidden min-w-0 flex-wrap items-center gap-1 border-b-line border-ink bg-sun-pale px-2 py-0.75 md:flex"
     >
       <SiteArrows />
-      {HEADER_ITEMS.map((item) => (
-        <Link
-          key={item.key}
-          href={item.href}
-          aria-current={item.key === active ? 'page' : undefined}
-          className={wordClass(item.key === active)}
-        >
-          {item.label}
-        </Link>
-      ))}
+      <span className="px-1 text-label font-bold leading-none text-ink">MODULES:</span>
+      {MODULES.filter((module) => moduleIsOn(module, choices)).map((module) => {
+        const ink = moduleInk(choices.colours[module.key], bar);
+        const hover = ink === null ? {} : { style: { '--module-ink': ink } as CSSProperties };
+        const inked = ink === null ? '' : ' module-key';
+        if (module.href === null) {
+          return (
+            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(listOpen)} cursor-pointer${inked}`} {...hover}>
+              {module.label}
+            </button>
+          );
+        }
+        const isActive = module.key === active;
+        return (
+          <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)}${inked}`} {...hover}>
+            {module.label}
+          </Link>
+        );
+      })}
     </nav>
   );
 }

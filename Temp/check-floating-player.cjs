@@ -246,9 +246,9 @@ ok(/playCount\(\) !== playsBefore/.test(read('app/components/WebMediaRow.tsx')),
 const app = read('app/layout.tsx');
 ok(/<FloatingPlayer \/>/.test(app) && /<SiteHistoryKeeper \/>/.test(app), 'both are drawn once, above every page');
 const nav = read('app/components/SiteNav.tsx');
-ok(nav.indexOf('<SiteArrows />') > -1 && nav.indexOf('<SiteArrows />') < nav.indexOf('HEADER_ITEMS.map'), 'the arrows sit left of PROJECTS');
+ok(nav.indexOf('<SiteArrows />') > -1 && nav.indexOf('<SiteArrows />') < nav.indexOf('MODULES.filter'), 'the arrows sit left of the modules');
 const arrows = read('app/components/SiteArrows.tsx');
-ok(/\[ ◄ \]/.test(arrows) && /\[ ► \]/.test(arrows), 'the arrows are bracket keys');
+ok(/◄/.test(arrows) && /►/.test(arrows) && !/\[ ◄ \]/.test(arrows), 'the arrows are small keys without brackets (Luke, 2026-11-06: they take much less room)');
 ok(/aria-label="Back"/.test(arrows) && /aria-label="Forward"/.test(arrows), 'named for a screen reader');
 ok(/disabled=\{!back\}/.test(arrows) && /disabled=\{!forward\}/.test(arrows), 'quiet when there is nowhere to go');
 ok(/pointer-coarse:min-h-tap/.test(arrows), 'a full tap size for a finger');

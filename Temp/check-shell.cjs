@@ -233,9 +233,9 @@ assert.equal((nav.match(/hidden lg:inline-flex/g) ?? []).length, 0, 'no key wait
 // (2026-11-04, Luke 2026-10-30 and 2026-11-03, SiteNav.tsx) The header has its own list of named pages, `HEADER_ITEMS`, kept
 // apart from `NAV_ITEMS`, which the menus still draw. It is not exported, so it is read from the source, and the rendered
 // band is held to it: exactly one link per entry, in that order, with that word and that address.
-const headerSource = require('node:fs').readFileSync('app/components/SiteNav.tsx', 'utf8');
-const headerBlock = headerSource.slice(headerSource.indexOf('const HEADER_ITEMS'), headerSource.indexOf('];', headerSource.indexOf('const HEADER_ITEMS')));
-const HEADER_ITEMS = [...headerBlock.matchAll(/\{ key: '(\w+)', label: '([^']+)', href: '([^']+)' \}/g)].map(([, key, label, href]) => ({ key, label, href }));
+const headerSource = require('node:fs').readFileSync('app/lib/ui/modules.ts', 'utf8'); // Updated on purpose 2026-11-06 (Luke): the band's keys are the modules, and a first draw shows those that start on.
+const headerBlock = headerSource.slice(headerSource.indexOf('export const MODULES'), headerSource.indexOf('];', headerSource.indexOf('export const MODULES')));
+const HEADER_ITEMS = [...headerBlock.matchAll(/\{ key: '(\w+)', label: '([^']+)', href: '([^']+)', group: '\w+', startsOn: true/g)].map(([, key, label, href]) => ({ key, label, href }));
 assert.ok(HEADER_ITEMS.some((item) => item.key === 'forum'), 'the band has the board on it');
 assert.deepEqual(
   [...nav.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([^<]+)</g)].map(([, href, label]) => ({ href, label })),
@@ -244,7 +244,7 @@ assert.deepEqual(
 );
 // Updated on purpose 2026-11-05 (SPEC-floating-player.md): the band now starts with the site's two arrows, which go
 // nowhere of their own and so are buttons. Every page key is still a link.
-assert.equal((nav.match(/<button/g) ?? []).length, 2, 'each page key is a link wearing its own chrome; the only buttons are the two arrows');
+assert.equal((nav.match(/<button/g) ?? []).length, 3, 'each page key is a link wearing its own chrome; the only buttons are the two arrows and MODULES, which opens its list (Luke, 2026-11-06)');
 assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forward"') > nav.indexOf('aria-label="Back"') && nav.indexOf('aria-label="Forward"') < nav.indexOf('<a '), 'the arrows sit left of the first page key');
 // "Pressed in" is a filled pill now (`key-fill`, SPEC-readability.md) rather than the inverted Win95 bevel
 // this used to count, and it is held to the tab that says it is the page - not just to a count of one.

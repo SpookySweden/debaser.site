@@ -133,7 +133,7 @@ address = new URLSearchParams('tag=bristol&view=list');
 assert.ok(renderToStaticMarkup(el(TagStation.Station, { index: withFacts })).includes('Go to dub, a genre'));
 
 // 10. The one header key, and nothing else outside the page.
-const nav = fs.readFileSync(path.join(__dirname, '..', 'app/components/SiteNav.tsx'), 'utf8');
+const nav = fs.readFileSync(path.join(__dirname, '..', 'app/lib/ui/modules.ts'), 'utf8');
 assert.equal((nav.match(/href: '\/discover'/g) ?? []).length, 1, 'one nav entry');
 assert.ok(nav.includes("label: 'DISCOVER'"), 'reads DISCOVER');
 assert.ok(!/TAG STATION|Tag Station/.test(fs.readdirSync(path.join(__dirname, '..', 'app/components')).filter((name) => name.startsWith('TagStation')).map((name) => fs.readFileSync(path.join(__dirname, '..', 'app/components', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '').replace(/\{\/\*[\s\S]*?\*\/\}/g, '')).join('\n')), 'no reader-visible old name');

@@ -719,6 +719,13 @@ img {
     color: var(--key-hover-ink, var(--color-paper));
   }
 
+  /* A module with a colour its person picked (app/lib/ui/modules.ts): on hover its word turns that colour on the bar, with no fill behind it. */
+  .key.module-key:not(.key-fill):hover:not(:disabled),
+  .key.module-key:not(.key-fill):focus-visible:not(:disabled) {
+    background-color: transparent;
+    color: var(--module-ink);
+  }
+
   /* A bracket key that cannot be pressed goes quiet: the quiet ink (16:1 in both themes, never a dimmed
      field ink under 4.5:1), no fill under the pointer, and the pointer says so. */
   .key:not(.key-fill):disabled {
