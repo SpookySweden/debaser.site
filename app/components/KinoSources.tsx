@@ -126,14 +126,13 @@ function WatchLine({ label, names }: { label: string; names: readonly string[] }
 /** TMDB's where-to-watch for one country. Service names only. */
 export function WhereToWatch({ offer }: { offer: WatchOffer }) {
   const rentOrBuy = [...new Set([...offer.rent, ...offer.buy])];
-  const hidden = rentOrBuy.length - RENT_OR_BUY_SHOWN;
   return (
     <div className="mt-2 flex flex-col gap-0.5" data-where-to-watch>
       <p className="text-label font-bold text-ink-quiet">{`WHERE TO WATCH IN ${countryName(offer.country)}`}</p>
       <WatchLine label="STREAM" names={offer.stream} />
       <WatchLine label="FREE" names={offer.free} />
       <WatchLine label="FREE WITH ADS" names={offer.ads} />
-      <WatchLine label="RENT OR BUY" names={hidden > 0 ? [...rentOrBuy.slice(0, RENT_OR_BUY_SHOWN), `+${hidden} MORE`] : rentOrBuy} />
+      <WatchLine label="RENT OR BUY" names={rentOrBuy.slice(0, RENT_OR_BUY_SHOWN)} />
       <p className="mt-1 text-label text-ink-quiet" data-justwatch-credit>
         {'LISTINGS FROM '}
         <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline" aria-label="JustWatch (opens in a new tab)">
