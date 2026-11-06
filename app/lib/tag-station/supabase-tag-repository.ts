@@ -70,6 +70,8 @@ const SAMPLE_FILES = 8;
  */
 const FILES_AT_ONCE = 2;
 const MOST_FILES_PER_STEP = 6;
+/** The first step happens by itself, on every search and word, so it reads no more than a press does for a common word's few. */
+const MOST_FILES_FIRST_STEP = 4;
 const ENOUGH_ROWS = 30;
 const MOST_ROWS_PER_STEP = 300;
 /** A page of PostgREST's answer, and how many pages of file names to read at most. */
@@ -219,7 +221,7 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       const wanted = new Set(groups.flat());
       const found: { row: PoolFileRow; score: number }[] = [];
       let at = Math.max(0, from);
-      const stop = at + MOST_FILES_PER_STEP;
+      const stop = at + (at === 0 ? MOST_FILES_FIRST_STEP : MOST_FILES_PER_STEP);
       while (at < paths.length && at < stop && found.length < ENOUGH_ROWS) {
         const part = paths.slice(at, Math.min(at + FILES_AT_ONCE, stop));
         for (const file of await Promise.all(part.map(readWholeFile))) {

@@ -336,7 +336,9 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
   const recipeKey = recipeQuery(recipe);
   const shownCount = shownFor.key === recipeKey ? shownFor.count : ITEMS_STEP;
   // What's on the screen stays put when more arrives.
-  const listed = useMemo(() => keepShownFirst(pinned.key === recipeKey ? pinned.ids : [], results), [pinned, recipeKey, results]);
+  // A word the map doesn't show has no list until the catalogue has answered, not every item the site has.
+  const lookingUp = digging.loading && recipe.tag !== null && findTag(mapIndex, recipe.tag) === null;
+  const listed = useMemo(() => (lookingUp ? [] : keepShownFirst(pinned.key === recipeKey ? pinned.ids : [], results)), [lookingUp, pinned, recipeKey, results]);
   const shownItems = listed.slice(0, shownCount);
   const skip = useMemo(() => new Set(results.slice(0, ITEMS_STEP).map((item) => item.id)), [results]);
   const mix = useMemo(() => sameMix(index, matched, recipe, focus, skip), [index, matched, recipe, focus, skip]);
@@ -483,7 +485,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
                 </select>
               </label>
             </div>
-            {results.length === 0 ? <p className="py-1 text-title text-ink">NOTHING FOUND.</p> : null}
+            {results.length === 0 && !lookingUp ? <p className="py-1 text-title text-ink">NOTHING FOUND.</p> : null}
             {hints.length > 0 ? (
               <ul aria-label="Ways to find more" className="flex flex-col items-start gap-1 py-1">
                 {hints.map((hint) => (
@@ -500,7 +502,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
                 <ItemRow key={item.id} item={item} extraHosts={extraHosts} onPick={pickItem} />
               ))}
             </ul>
-            {listed.length > shownCount || digging.more ? (
+            {!lookingUp && (listed.length > shownCount || digging.more) ? (
               <div className="flex flex-wrap items-center gap-1">
                 <button
                   type="button"
