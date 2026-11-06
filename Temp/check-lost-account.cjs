@@ -29,6 +29,10 @@ for (const table of ['house_account', 'house_account_gate', 'account_restores'])
   assert.match(migration, new RegExp(`alter table public\\.${table} enable row level security`), table);
   assert.match(migration, new RegExp(`revoke all on public\\.${table} from anon, authenticated`), table);
 }
+const nameLookup = fs.readFileSync(path.join(root, 'supabase/migrations/20261107001000_lost_account_name.sql'), 'utf8');
+assert.match(nameLookup, /r\.claimed_by is null/, 'only what is still waiting');
+assert.match(nameLookup, /r\.email <> 'admin1212@debaser\.site'/, 'and never the house account');
+assert.doesNotMatch(nameLookup, /returns (setof|table)/, 'one address at a time: it can never list them');
 const client = fs.readFileSync(path.join(root, 'app/lib/supabase/client.ts'), 'utf8');
 assert.ok(client.indexOf('parkLostSession(supabaseAuthStorageKey()') < client.indexOf('browserClient = createClient'), 'the dead session is moved before any client can wipe it');
 console.log('lost account checks passed');

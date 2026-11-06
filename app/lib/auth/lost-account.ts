@@ -42,6 +42,23 @@ export function parkLostSession(sessionKey: string): void {
   }
 }
 
+const listeners = new Set<() => void>();
+
+export function subscribeToLostAccount(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Somebody logged in with an address that's waiting to come back: the window opens for it. */
+export function rememberLostAccount(lost: LostAccount): void {
+  try {
+    window.localStorage.setItem(LOST_ACCOUNT_KEY, JSON.stringify(lost));
+  } catch {
+    // Nothing to do without storage.
+  }
+  listeners.forEach((listener) => listener());
+}
+
 export function readLostAccountRaw(): string | null {
   try {
     return window.localStorage.getItem(LOST_ACCOUNT_KEY);
@@ -60,10 +77,31 @@ export function parseLostAccount(raw: string | null): LostAccount | null {
   }
 }
 
+const NEVER_HAD_ONE_KEY = 'debaser.lost-account.never.v1';
+
+/** This browser said it never had an account here, so it isn't asked again. */
+export function saidNeverHadOne(): boolean {
+  try {
+    return window.localStorage.getItem(NEVER_HAD_ONE_KEY) !== null;
+  } catch {
+    return true;
+  }
+}
+
+export function rememberNeverHadOne(): void {
+  try {
+    window.localStorage.setItem(NEVER_HAD_ONE_KEY, '1');
+  } catch {
+    // Nothing to do without storage.
+  }
+  listeners.forEach((listener) => listener());
+}
+
 export function forgetLostAccount(): void {
   try {
     window.localStorage.removeItem(LOST_ACCOUNT_KEY);
   } catch {
     // Nothing to do without storage.
   }
+  listeners.forEach((listener) => listener());
 }
