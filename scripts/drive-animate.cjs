@@ -1669,6 +1669,23 @@ phases.phase6 = async (page, shot) => {
   await shot('phase6-zoom400');
   const wide = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   check('400% zoom: no sideways scroll', wide <= 0, `${wide}px`);
+  // The sheet itself, drawn and fitted: a narrow window once squeezed it to nothing while every key still passed.
+  const narrowSheet = () =>
+    page.evaluate(() => {
+      const engine = window.__animate;
+      const stage = document.querySelector('[data-animate-stage]').getBoundingClientRect();
+      const section = document.querySelector('[aria-label="Animation studio"]').getBoundingClientRect();
+      const across = engine.project.width * engine.view.zoom;
+      return { stage: Math.round(stage.width), high: Math.round(stage.height), section: Math.round(section.width), across: Math.round(across) };
+    });
+  const at400 = await narrowSheet();
+  check('400% zoom: the sheet is there, as wide as the window lets it be', at400.stage >= at400.section * 0.9 && at400.across >= at400.stage * 0.5, JSON.stringify(at400));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.waitForTimeout(400);
+  const atPhone = await narrowSheet();
+  check('phone width: so it is here', atPhone.stage >= atPhone.section * 0.9 && atPhone.across >= atPhone.stage * 0.5, JSON.stringify(atPhone));
+  await page.setViewportSize({ width: 320, height: 225 });
+  await page.waitForTimeout(400);
   const reachAll = (selector) =>
     page.evaluate((sel) => {
       const bad = [];

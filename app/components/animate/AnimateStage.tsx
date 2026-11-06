@@ -49,7 +49,7 @@ export default function AnimateStage() {
       aria-label="Drawing sheet"
       data-no-cat
       data-animate-stage
-      className="relative min-h-[12rem] min-w-0 flex-1 touch-none overflow-hidden bg-chrome-dark max-md:h-[60vh] max-md:flex-none"
+      className="relative min-h-[12rem] min-w-0 flex-1 touch-none overflow-hidden bg-chrome-dark"
     >
       <canvas ref={below} data-animate="below" className={LAYER} />
       <canvas ref={live} data-animate="live" className={`${LAYER} pointer-events-none`} />
