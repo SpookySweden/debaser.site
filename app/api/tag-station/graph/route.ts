@@ -1,4 +1,4 @@
-import { stationGraph } from '../../../lib/tag-station/graph-cache';
+import { sharedStationMap } from '../../../lib/tag-station/graph-shared';
 import { getTagRepository } from '../../../lib/tag-station/repository';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
@@ -9,7 +9,7 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
  *   GET /api/tag-station/graph  ->  { tags, items }
  *
  * Signed-in people only: the session first, before anything is read. `web_item_tags` can only be read with a session, so the
- * reader's own token does the reading, and the built map is kept in the server's memory for three hours (graph-cache.ts). Reads
+ * reader's own token does the reading, and the built map is kept for every server to use (graph-shared.ts). Reads
  * only: nothing here writes to the database. Never kept by Vercel's edge, where a copy could reach the signed-out.
  */
 
@@ -32,8 +32,7 @@ export async function GET(request: Request): Promise<Response> {
   const header = request.headers.get('authorization') ?? '';
   const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : null;
   try {
-    const repository = getTagRepository(token);
-    const graph = await stationGraph(() => repository.rows(), Date.now(), () => repository.limitReached(), () => repository.wordFacts(), () => repository.pool());
+    const { graph } = await sharedStationMap(getTagRepository(token));
     return json(graph, 200);
   } catch {
     return json({ error: 'The map could not be built. Try again in a minute.' }, 503);
