@@ -150,7 +150,7 @@ let finished = false;
   // 6. The sources. The "nothing from TMDB" guard was here until Luke removed that rule (2026-11-06): his decision, in SPEC-discover.md.
   assert.deepEqual([...sweep.SWEEP_SOURCES].sort(), ['internet_archive', 'openverse', 'peertube', 'tvmaze', 'wikidata']);
   // Wider than the named collections, and still never adult, restricted or dark.
-  for (const needed of ['NOT collection:(no-preview OR adult OR ', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
+  for (const needed of ['NOT collection:(no-preview OR adult OR TrumpDCInsurrectionJan062021 OR ', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
   for (const named of sweep.ARCHIVE_COLLECTIONS) assert.ok(sweep.ARCHIVE_WIDER.includes(` OR ${named}`), `and leaves out ${named}, already read and paid for`);
   const lastNamed = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [] })]]);
   const movedOn = await sweep.readArchive({ cursor: 'x' }, later(), deps(lastNamed));
