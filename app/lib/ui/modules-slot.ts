@@ -4,7 +4,7 @@ import { NO_CHOICES, parseModuleChoices, type ModuleChoices } from './modules';
 import { createWindowSlot } from './window-slot';
 
 /**
- * Whose modules are on, for the bar and the MODULES window (`modules.ts`). A browser's copy draws the bar at once and is all a signed-out visitor has; a signed-in
+ * Whose modules are on, for the bar and the MODULOS window (`modules.ts`). A browser's copy draws the bar at once and is all a signed-out visitor has; a signed-in
  * person's choices are saved to their account as well, in `user_modules`, which only they can read or write, so they follow them between machines.
  */
 
@@ -83,7 +83,7 @@ let account: string | null = null;
 /** Bumped by every change, so an answer that was already on its way can't overwrite what somebody has just pressed. */
 let changes = 0;
 
-/** Who is signed in, from the MODULES window. Their account's choices replace the browser's; an account with none takes the browser's. */
+/** Who is signed in, from the MODULOS window. Their account's choices replace the browser's; an account with none takes the browser's. */
 export async function setModulesAccount(person: string | null): Promise<void> {
   if (person === account) return;
   account = person;

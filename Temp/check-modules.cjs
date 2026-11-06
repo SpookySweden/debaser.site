@@ -41,9 +41,26 @@ async function up() {
     await nav.waitFor({ state: 'visible', timeout: 20000 });
     await page.waitForTimeout(800);
 
-    const keys = async () => (await nav.locator('a, button:not([aria-label])').allInnerTexts()).map((text) => text.trim());
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'MEDIA', 'DISCOVER', 'STREAM', 'MODULES'], 'the keys a first visit shows');
-    console.log('  ok    first visit: PROJECTS FORUM MEDIA DISCOVER STREAM MODULES, no BEATBOX or ANIMATE');
+    const keys = async () => (await nav.locator('a, button:not([aria-label])').allInnerTexts()).map((text) => text.trim().replace(/\s+/g, ' '));
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'MEDIA', 'STREAM', 'MODULOS'], 'the keys a first visit shows');
+    console.log('  ok    first visit: PROJECTS FORUM MEDIA STREAM MODULOS, no DISCOVER, BEATBOX or ANIMATE');
+
+    // MODULOS is a solid block: neither a bare word nor the dark block of the page you're on, and its word reads.
+    const modulosKey = nav.getByRole('button', { name: 'MODULOS', exact: true });
+    const face = (key) => key.evaluate((node) => { const style = getComputedStyle(node); return { fill: style.backgroundColor, ink: style.color }; });
+    const channels = (colour) => colour.match(/[\d.]+/g).slice(0, 3).map(Number);
+    const lum = (colour) => { const [r, g, b] = channels(colour).map((v) => { const c = v / 255; return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4; }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+    await page.mouse.move(0, 0);
+    const modulosFace = await face(modulosKey);
+    const standing = await face(nav.getByRole('link', { name: 'FORUM' }));
+    const bare = await face(nav.getByRole('link', { name: 'MEDIA' }));
+    assert.equal(bare.fill, 'rgba(0, 0, 0, 0)', 'the other keys are bare words');
+    assert.notEqual(modulosFace.fill, 'rgba(0, 0, 0, 0)', 'MODULOS is filled');
+    assert.notEqual(modulosFace.fill, standing.fill, 'MODULOS does not look like the page you are on');
+    assert.ok(ratio(modulosFace.ink, modulosFace.fill) >= 4.5, `MODULOS reads at ${ratio(modulosFace.ink, modulosFace.fill)}`);
+    const [lastLink, modulosBox] = await Promise.all([nav.getByRole('link', { name: 'STREAM' }).boundingBox(), modulosKey.boundingBox()]);
+    console.log(`  ok    MODULOS is a solid ${modulosFace.fill} block, ${ratio(modulosFace.ink, modulosFace.fill).toFixed(1)}:1, ${Math.round(modulosBox.x - lastLink.x - lastLink.width)} px from STREAM`);
 
     const title = nav.getByText('MODULES:', { exact: true });
     const back = nav.getByRole('button', { name: 'Back' });
@@ -53,8 +70,8 @@ async function up() {
     assert.ok(titleBox.x > forwardBox.x, 'MODULES: sits to the right of the arrows');
     console.log(`  ok    arrows ${Math.round(backBox.width)} and ${Math.round(forwardBox.width)} px wide, MODULES: to their right`);
 
-    await nav.getByRole('button', { name: 'MODULES', exact: true }).click();
-    const list = page.getByRole('dialog', { name: 'MODULES' }).or(page.getByLabel('MODULES', { exact: true }).filter({ hasText: 'CREATIVE' })).first();
+    await modulosKey.click();
+    const list = page.getByRole('dialog', { name: 'MODULOS' }).or(page.getByLabel('MODULOS', { exact: true }).filter({ hasText: 'CREATIVE' })).first();
     await list.waitFor({ state: 'visible', timeout: 5000 });
     const creative = list.locator('section', { hasText: 'CREATIVE' });
     assert.deepEqual(
@@ -66,13 +83,16 @@ async function up() {
     assert.equal(await tick('STREAM').getAttribute('aria-checked'), 'true', 'STREAM starts ticked');
     assert.equal(await tick('BEATBOX').getAttribute('aria-checked'), 'false', 'BEATBOX starts unticked');
     assert.equal(await tick('ANIMATE').getAttribute('aria-checked'), 'false', 'ANIMATE starts unticked');
-    assert.ok(await tick('MODULES').isDisabled(), 'MODULES cannot be unticked');
-    console.log('  ok    list: CREATIVE holds BEATBOX, STREAM (ticked), ANIMATE; MODULES can\'t be unticked');
+    assert.equal(await tick('DISCOVER').getAttribute('aria-checked'), 'false', 'DISCOVER starts unticked');
+    for (const name of ['DISCOVER', 'BEATBOX', 'ANIMATE']) assert.match(await tick(name).innerText(), /WIP/, `${name} is tagged WIP in the list`);
+    for (const name of ['PROJECTS', 'FORUM', 'MEDIA', 'STREAM', 'MODULOS']) assert.doesNotMatch(await tick(name).innerText(), /WIP/, `${name} is not tagged WIP`);
+    assert.ok(await tick('MODULOS').isDisabled(), 'MODULOS cannot be unticked');
+    console.log('  ok    list: CREATIVE holds BEATBOX, STREAM (ticked), ANIMATE; DISCOVER, BEATBOX and ANIMATE tagged WIP; MODULOS can\'t be unticked');
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-list.png` });
 
     await tick('BEATBOX').click();
     await tick('MEDIA').click();
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'DISCOVER', 'BEATBOX', 'STREAM', 'MODULES'], 'ticking moves the bar at once');
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'ticking moves the bar at once, and BEATBOX wears its tag');
     console.log('  ok    ticking BEATBOX on and MEDIA off changes the bar at once');
 
     // A hover colour: the word turns it on the bar, with no fill.
@@ -94,16 +114,35 @@ async function up() {
     console.log(`  ok    PROJECTS turns ${hovered} on hover`);
     if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-hover.png` });
 
+    // MODULOS keeps its hover colour too: it steps back to an outline, and the word turns the colour against the bar.
+    const modulosGroup = list.getByRole('group', { name: 'MODULOS hover colour' });
+    const modulosSwatch = modulosGroup.locator('button[style]').first();
+    const modulosWanted = await modulosSwatch.evaluate((button) => getComputedStyle(button).backgroundColor);
+    await modulosSwatch.click();
+    await modulosKey.click();
+    await list.waitFor({ state: 'hidden', timeout: 5000 });
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(250);
+    assert.notEqual((await face(modulosKey)).fill, 'rgba(0, 0, 0, 0)', 'with a colour picked, MODULOS is still solid at rest');
+    await modulosKey.hover();
+    await page.waitForTimeout(250);
+    const modulosHovered = await face(modulosKey);
+    assert.equal(modulosHovered.ink, modulosWanted, 'on hover MODULOS wears the picked colour');
+    assert.equal(modulosHovered.fill, 'rgba(0, 0, 0, 0)', 'and steps back from its fill, so the colour reads against the bar');
+    console.log(`  ok    MODULOS turns ${modulosHovered.ink} on hover`);
+    if (SHOTS) await page.screenshot({ path: `${SHOTS}/modules-modulos-hover.png` });
+
     // It survives a reload.
     await page.reload({ waitUntil: 'domcontentloaded' });
     await nav.waitFor({ state: 'visible' });
     await page.waitForTimeout(800);
-    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'DISCOVER', 'BEATBOX', 'STREAM', 'MODULES'], 'choices survive a reload');
+    assert.deepEqual(await keys(), ['PROJECTS', 'FORUM', 'BEATBOX WIP', 'STREAM', 'MODULOS'], 'choices survive a reload');
     console.log('  ok    choices survive a reload');
 
     // An unticked module's address still works.
     await page.goto(`${BASE}/animate`, { waitUntil: 'domcontentloaded' });
     assert.ok(await page.title(), 'the page opens');
+    assert.equal((await page.goto(`${BASE}/discover`, { waitUntil: 'domcontentloaded' })).status(), 200, 'DISCOVER, unticked, still opens');
     console.log('  ok    an unticked module\'s address still opens');
 
     console.log('PASS check-modules');

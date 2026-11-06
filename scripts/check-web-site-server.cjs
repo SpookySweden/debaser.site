@@ -128,8 +128,10 @@ async function addresses() {
 
 /* ---------------------------------------------------------------- the keys */
 const nav = readFileSync(join(ROOT, 'app', 'components', 'SiteNav.tsx'), 'utf8');
+// Updated on purpose 2026-11-06 (Luke): the header's keys are the modules, in modules.ts, so the header list is read there.
+const modules = readFileSync(join(ROOT, 'app', 'lib', 'ui', 'modules.ts'), 'utf8');
 const block = (name) => new RegExp(`const ${name}[^=]*=\\s*\\[([\\s\\S]*?)\\];`).exec(nav)?.[1] ?? '';
-const header = [...block('HEADER_ITEMS').matchAll(/\{\s*key:\s*'([^']+)',\s*label:\s*'([^']+)',\s*href:\s*'([^']+)'\s*\}/g)].map(([, key, label, href]) => ({ key, label, href }));
+const header = [...modules.matchAll(/\{\s*key:\s*'([^']+)',\s*label:\s*'([^']+)',\s*href:\s*'([^']+)',\s*group:/g)].map(([, key, label, href]) => ({ key, label, href }));
 const menu = [...block('NAV_ITEMS').matchAll(/\{\s*key:\s*'([^']+)',\s*label:\s*'([^']+)',\s*mark:\s*\w+,\s*href:\s*'([^']+)'\s*\}/g)].map(([, key, label, href]) => ({ key, label, href }));
 ok(header.length >= 3 && menu.length >= 5, `the two key lists were read (${header.length}, ${menu.length})`);
 same(header.filter((key) => key.label === 'MEDIA'), [{ key: 'web', label: 'MEDIA', href: '/media' }], 'the header: one MEDIA key, to /media');

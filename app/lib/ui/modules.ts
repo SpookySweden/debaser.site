@@ -11,28 +11,31 @@ export type ModuleKey = 'home' | 'forum' | 'web' | 'tagstation' | 'beatbox' | 'c
 export type ModuleDef = {
   key: ModuleKey;
   label: string;
-  /** Null for MODULES itself, which opens the list rather than going anywhere. */
+  /** Null for MODULOS, the key at the end, which opens the list rather than going anywhere. */
   href: string | null;
   group: 'site' | 'creative';
   /** On the bar until somebody says otherwise. */
   startsOn: boolean;
+  /** Still being made: wears a WIP tag on the bar and in the list (Luke, 2026-11-06). */
+  wip?: boolean;
   /** Can't be unticked: the way back to this list. */
   always?: boolean;
 };
 
-/** In the order the bar draws them, MODULES last. Luke's choice: BEATBOX and ANIMATE start off, and CREATIVE holds them and STREAM. */
+/** In the order the bar draws them, MODULOS last. Luke's choice: BEATBOX, ANIMATE and DISCOVER start off and are tagged WIP, and CREATIVE holds BEATBOX, STREAM and ANIMATE. */
 export const MODULES: readonly ModuleDef[] = [
   { key: 'home', label: 'PROJECTS', href: '/projects', group: 'site', startsOn: true },
   { key: 'forum', label: 'FORUM', href: '/forum', group: 'site', startsOn: true },
   { key: 'web', label: 'MEDIA', href: '/media', group: 'site', startsOn: true },
   // A map of the words on MEDIA's items (SPEC-tag-station.md, SPEC-discover.md).
-  { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: true },
+  { key: 'tagstation', label: 'DISCOVER', href: '/discover', group: 'site', startsOn: false, wip: true },
   // The music maker (app/features/beatbox).
-  { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false },
+  { key: 'beatbox', label: 'BEATBOX', href: '/beatbox', group: 'creative', startsOn: false, wip: true },
   { key: 'cytube', label: 'STREAM', href: '/stream', group: 'creative', startsOn: true },
   // The frame-by-frame animator (SPEC-animator.md).
-  { key: 'animate', label: 'ANIMATE', href: '/animate', group: 'creative', startsOn: false },
-  { key: 'modules', label: 'MODULES', href: null, group: 'site', startsOn: true, always: true },
+  { key: 'animate', label: 'ANIMATE', href: '/animate', group: 'creative', startsOn: false, wip: true },
+  // MODULOS is the tab holding the rest of the modules, Luke's name for it (2026-11-06); the bar's title still reads MODULES:.
+  { key: 'modules', label: 'MODULOS', href: null, group: 'site', startsOn: true, always: true },
 ];
 
 /** Only what somebody changed from the start, so a module's starting state can change later without touching anybody's choices. */

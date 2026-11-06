@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useSyncExternalStore, type CSSProperties } from 'react';
-import { moduleBarColour } from './ModulesWindow';
+import { moduleBarColour, WipTag } from './ModulesWindow';
 import SiteArrows from './SiteArrows';
 import { MODULES, moduleInk, moduleIsOn } from '../lib/ui/modules';
 import {
@@ -180,9 +180,14 @@ export const SIDE_QUEUES: NavItem = {
  * No DIRECTORY key (Luke, 2026-11-03): the account list is the side panel's DIRECTORY, whose `[ ALL ]` opens /users.
  */
 
+const WORD_KEY = 'inline-flex h-7 min-w-0 items-center px-2 text-label font-bold leading-none max-md:min-h-tap';
+
+/** MODULOS at rest: a solid block among bare words, set apart by a gap (globals.css). Open, it wears the same face as the page you're on. */
+const MODULOS_KEY = `${WORD_KEY} key key-fill modulos-key active:translate-y-press active:bg-bubble active:text-ink-plate`;
+
 /** A word key: the same raised and pressed-in faces as the glyph keys, sized for a word. */
 function wordClass(isActive: boolean): string {
-  const base = 'inline-flex h-7 min-w-0 items-center px-2 text-label font-bold leading-none max-md:min-h-tap';
+  const base = WORD_KEY;
 
   return isActive
     ? `${base} key key-fill [--key-fill:var(--color-ink)] text-paper`
@@ -210,7 +215,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
         const inked = ink === null ? '' : ' module-key';
         if (module.href === null) {
           return (
-            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${wordClass(listOpen)} cursor-pointer${inked}`} {...hover}>
+            <button key={module.key} type="button" aria-expanded={listOpen} onClick={toggleModulesWindow} className={`${listOpen ? wordClass(true) : MODULOS_KEY} ml-2 cursor-pointer${inked}`} {...hover}>
               {module.label}
             </button>
           );
@@ -219,6 +224,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
         return (
           <Link key={module.key} href={module.href} aria-current={isActive ? 'page' : undefined} className={`${wordClass(isActive)}${inked}`} {...hover}>
             {module.label}
+            {module.wip ? <WipTag /> : null}
           </Link>
         );
       })}
