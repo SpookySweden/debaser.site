@@ -27,8 +27,11 @@ export type SweepSource = (typeof SWEEP_SOURCES)[number];
 export const SWEEP_LIMIT_USD = 60;
 /** What the tagging job and the word pass may have out at worst, which the sweep leaves them. */
 const OTHER_JOBS_IN_FLIGHT_USD = 0.6;
-/** Batches out at once. At a full run each, inside the 200,000 requests Claude's API lets wait in its queue. A batch of 24,000 took 19 minutes, measured. */
-export const MAX_OUT = 7;
+/**
+ * Batches out at once. A batch of 27,000 takes about 25 minutes, measured, so this is what caps the rate. Past what Claude's API lets wait in its queue it just refuses the
+ * next one, which costs nothing: the worst case is given back and the same items are read again.
+ */
+export const MAX_OUT = 12;
 /** The most one batch holds: more than a run can read, so no read item is cut. */
 const MAX_BATCH = 35_000;
 /** Batches sent before the files, whose rows are in the table, at most this many a batch (`web_pool_out`). */

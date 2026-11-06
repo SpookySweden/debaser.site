@@ -14,6 +14,12 @@ const KEEP_INCOMPLETE_MS = 5 * 60 * 1000;
 let held: { graph: StationGraph; at: number; keep: number } | null = null;
 let building: Promise<StationGraph> | null = null;
 let heldFacts: readonly WordFact[] = [];
+let heldIncomplete = false;
+
+/** Whether the last map built couldn't read part of the pool, so it isn't one to share. */
+export function stationIncomplete(): boolean {
+  return heldIncomplete;
+}
 
 /** The word pass's answers as of the last build, so a list's extra items are joined the way the map's are. */
 export function stationFacts(): readonly WordFact[] {
@@ -31,6 +37,7 @@ export async function stationGraph(read: () => Promise<readonly StationRow[]>, n
       const graph: StationGraph = { ...buildStationGraph([...rows, ...listed], facts, swept.swept), ...(reached ? { limitReached: true } : {}) };
       held = { graph, at: now, keep: swept.incomplete ? KEEP_INCOMPLETE_MS : KEEP_MS };
       heldFacts = facts;
+      heldIncomplete = swept.incomplete === true;
       return graph;
     })
     .finally(() => {
