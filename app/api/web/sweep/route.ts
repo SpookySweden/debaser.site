@@ -36,7 +36,8 @@ export async function POST(request: Request): Promise<Response> {
   if (lock.length < MIN_LOCK_LENGTH || lock.length > MAX_LOCK_LENGTH) return json({ error: 'Not allowed.' }, 401);
   if (!process.env.ANTHROPIC_API_KEY) return json({ skipped: 'no key set' }, 200);
 
-  const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  // The lock as a header too: the pool's file bucket checks it from there.
+  const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { [LOCK_HEADER]: lock } } });
   try {
     const hosts = await peertubeHosts(cachedFetch);
     // Plain fetch, not the day-long cache: a sweep's whole point is the next page, and its answers aren't worth keeping.

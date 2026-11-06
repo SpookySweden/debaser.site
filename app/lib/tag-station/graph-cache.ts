@@ -11,6 +11,12 @@ const KEEP_MS = 3 * 60 * 60 * 1000;
 
 let held: { graph: StationGraph; at: number } | null = null;
 let building: Promise<StationGraph> | null = null;
+let heldFacts: readonly WordFact[] = [];
+
+/** The word pass's answers as of the last build, so a list's extra items are joined the way the map's are. */
+export function stationFacts(): readonly WordFact[] {
+  return heldFacts;
+}
 
 export async function stationGraph(read: () => Promise<readonly StationRow[]>, now: number = Date.now(), limitReached: () => Promise<boolean> = async () => false, wordFacts: () => Promise<readonly WordFact[]> = async () => [], pool: () => Promise<{ rows: readonly StationRow[]; swept: SweptCounts }> = async () => ({ rows: [], swept: { counted: 0, words: [] } })): Promise<StationGraph> {
   if (held !== null && now - held.at < KEEP_MS) return held.graph;
@@ -22,6 +28,7 @@ export async function stationGraph(read: () => Promise<readonly StationRow[]>, n
       const listed = swept.rows.filter((row) => !saved.has(row.item.id));
       const graph: StationGraph = { ...buildStationGraph([...rows, ...listed], facts, swept.swept), ...(reached ? { limitReached: true } : {}) };
       held = { graph, at: now };
+      heldFacts = facts;
       return graph;
     })
     .finally(() => {

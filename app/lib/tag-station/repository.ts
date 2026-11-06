@@ -15,6 +15,8 @@ export type TagStationRepository = {
   wordFacts(): Promise<readonly WordFact[]>;
   /** The sweep's rows to list and its word counts. Empty, never an error, when they can't be read. */
   pool(): Promise<{ rows: readonly StationRow[]; swept: SweptCounts }>;
+  /** Swept items carrying any of these words, from the pool's compressed files. Empty, never an error, when they can't be read. */
+  poolFiles(words: readonly string[], seed: string): Promise<readonly StationRow[]>;
   /** Whether the $60 tagging limit has been reached. */
   limitReached(): Promise<boolean>;
 };

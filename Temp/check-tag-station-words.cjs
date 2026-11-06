@@ -161,6 +161,12 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
   const vagueJoin = buildWordRules([fact('video', 'form', 'film', true), fact('movie', 'form', 'video')]);
   assert.notEqual(vagueJoin.canonical('video'), vagueJoin.canonical('film'), 'a vague word joins nothing');
   assert.notEqual(vagueJoin.canonical('movie'), vagueJoin.canonical('video'), 'and nothing joins it');
+  // Luke, 2026-11-06: these two stay on the map, whatever the word pass says.
+  const kept = buildWordRules([fact('film', 'form', '', true), fact('music', 'form', '', true), fact('placeholder', 'form', '', true), fact('cinema', 'form', 'film')]);
+  assert.equal(kept.isVague('film'), false);
+  assert.equal(kept.isVague('music'), false);
+  assert.equal(kept.isVague('placeholder'), true, 'the rest of the vague list stays off');
+  assert.equal(kept.canonical('cinema'), kept.canonical('film'), 'and a true duplicate joins a word kept');
 
   // A narrower phrase is not the same word, whatever the answer said (real answers, 2026-11-05).
   const narrower = buildWordRules([fact('african savanna', 'place', 'savanna'), fact('british military', 'subject', 'military'), fact('fantasy card game', 'genre', 'fantasy'), fact('essays', 'form', 'essay'), fact('flamingo', 'subject', 'flamingos'), fact('early 1900s', 'era', 'early-1900s'), fact('calm', 'mood', 'chill')]);

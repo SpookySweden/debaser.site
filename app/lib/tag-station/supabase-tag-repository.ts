@@ -1,6 +1,8 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { decodePoolFile, POOL_BUCKET, type PoolFileRow } from '../web/pool-files';
 import { canonicalIso, rowToItem, WEB_ITEM_COLUMNS, WEB_ITEMS_TABLE, type WebItemRow } from '../web/rows';
 import type { WebItem } from '../web/types';
+import { heldFile } from './pool-file-cache';
 import type { TagStationRepository } from './repository';
 import type { StationRow, SweptCounts, SweptWord } from './types';
 import { FACETS, type Facet, type WordFact } from './word-facts';
@@ -58,6 +60,9 @@ function poolToRow(row: PoolRow): StationRow {
   };
 }
 
+/** How many files one ask reads, and how many rows it answers with. */
+const FILES_PER_ASK = 4;
+const MOST_ROWS_PER_ASK = 300;
 /** The columns of a seen row anyone may read (supabase/migrations/*_web_seen_items.sql). */
 const SEEN_COLUMNS = 'id, platform, kind, title, creator, published_at, words';
 const KINDS: readonly WebItem['kind'][] = ['audio', 'video', 'image', 'text', 'other'];
@@ -124,6 +129,30 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
           words: all.filter((one) => one.word !== TOTAL_ROW),
         },
       };
+    },
+    async poolFiles(words, seed): Promise<StationRow[]> {
+      if (words.length === 0) return [];
+      const { data, error } = await client.rpc('web_pool_shards_for', { p_words: [...words], p_limit: FILES_PER_ASK, p_seed: seed });
+      if (error) return [];
+      const files = await Promise.all(
+        ((data ?? []) as string[]).map((path) =>
+          heldFile(path, async () => {
+            const answer = await client.storage.from(POOL_BUCKET).download(path);
+            if (answer.error) throw new Error('POOL_FILE');
+            return decodePoolFile(new Uint8Array(await answer.data.arrayBuffer()));
+          }).catch((): PoolFileRow[] => []),
+        ),
+      );
+      const wanted = new Set(words);
+      const scored = files.flat().flatMap((row) => {
+        const score = row.words.filter((word) => wanted.has(word)).length;
+        return score === 0 ? [] : [{ row, score }];
+      });
+      // Those with most of the words first. Files come in the order the seed gave, so this list stays steady for a visit.
+      scored.sort((a, b) => b.score - a.score);
+      return scored.slice(0, MOST_ROWS_PER_ASK).map(({ row }) =>
+        poolToRow({ id: `${row.platform}:${row.externalId}`, platform: row.platform, external_id: row.externalId, host: row.host, kind: row.kind, title: row.title, creator: row.creator, published_at: row.publishedAt, words: [...row.words] }),
+      );
     },
     async wordFacts(): Promise<WordFact[]> {
       // PostgREST's cap is 1,000 rows an answer, so page by page, usually just one. Any failed page means no answers at all this time:

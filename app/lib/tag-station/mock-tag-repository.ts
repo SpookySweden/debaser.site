@@ -138,6 +138,10 @@ const MOCK: TagStationRepository = {
   async pool() {
     return { rows: MOCK_POOL_ROWS, swept: MOCK_SWEPT };
   },
+  // The mock has no files: the same rows the map lists, for whichever words they carry.
+  async poolFiles(words) {
+    return MOCK_POOL_ROWS.filter((row) => row.claudeWords.some((word) => words.includes(word.toLowerCase())));
+  },
   async limitReached() {
     return false;
   },
