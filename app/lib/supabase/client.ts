@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { parkLostSession } from '../auth/lost-account';
 
 /**
  * Supabase client helper.
@@ -25,6 +26,9 @@ export function supabaseAuthStorageKey(): string | null {
   if (!isSupabaseConfigured) return null;
   return `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
 }
+
+// Before any client exists: it would wipe a dead session on its first failed refresh, and with it who they were.
+if (typeof window !== 'undefined' && isSupabaseConfigured) parkLostSession(supabaseAuthStorageKey() as string);
 
 /** Returns null when the project env vars are missing, so callers can fall back. */
 export function getSupabaseBrowserClient(): SupabaseClient | null {

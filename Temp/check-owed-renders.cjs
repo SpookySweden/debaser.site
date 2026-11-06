@@ -1,6 +1,6 @@
 /*
  * Scratch check for the ten components that arrived with no render (check-structure's OWED_RENDERS), run from the root:
- *   npx tsc app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/WatchInRoomKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/LostAccountWindow.tsx app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/WatchInRoomKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-owed-renders.cjs
  *
  * What it is for: a server render shows a component's first paint and nothing else, and most of these read their data in
@@ -370,6 +370,7 @@ const MusicRoomKeeper = require('./owed-render/components/MusicRoomKeeper.js').d
 const StreamArtShelf = require('./owed-render/components/StreamArtShelf.js').default;
 const WatchInRoomKey = require('./owed-render/components/WatchInRoomKey.js').default;
 const { canWatch, WebDiscussKey } = require('./owed-render/components/WebBridgeKeys.js');
+const LostAccountWindow = require('./owed-render/components/LostAccountWindow.js').default;
 const WebMediaRowModule = require('./owed-render/components/WebMediaRow.js');
 const WebSignInGate = require('./owed-render/components/WebSignInGate.js').default;
 const WebSiteFiles = require('./owed-render/components/WebSiteFiles.js').default;
@@ -1019,6 +1020,11 @@ test('WatchInRoomKey: a room gone quiet takes nothing', async () => {
   press('[ ADD TO ROOM ]');
   await tick();
   assert.deepEqual(said('addToQueue'), []);
+});
+
+// --- LostAccountWindow
+test('LostAccountWindow: the server draws nothing, because only a browser can know', () => {
+  assert.equal(draw(el(LostAccountWindow)), '');
 });
 
 // --- WebMediaRow

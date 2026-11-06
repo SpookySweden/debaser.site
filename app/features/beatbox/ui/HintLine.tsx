@@ -1,14 +1,41 @@
 'use client';
 
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useState, useSyncExternalStore, type RefObject } from "react";
+
+/** What the status line says, kept outside the page: every press says something, and that shouldn't redraw everything else. */
+export interface StatusLine {
+  subscribe(listener: () => void): () => void;
+  get(): string;
+  set(words: string): void;
+}
+
+export function createStatusLine(first: string): StatusLine {
+  const listeners = new Set<() => void>();
+  let words = first;
+  return {
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    get: () => words,
+    set(next) {
+      if (next === words) return;
+      words = next;
+      for (const listener of listeners) listener();
+    },
+  };
+}
 
 /**
  * The line that says what's happening, and what a key is while it's pointed at or tabbed to, big enough to read, in the same place every
  * time. A key's own short name and shortcut are all there is to say, so a browser's little tooltip is never the only way to find out. The
  * status stays in the page for a screen reader, which speaks a key's name by itself and shouldn't hear it twice.
  */
-export function HintLine({ page, status, live }: { page: RefObject<HTMLElement | null>; status: string; live: boolean }) {
+export function HintLine({ page, line, live }: { page: RefObject<HTMLElement | null>; line: StatusLine; live: boolean }) {
   const [hint, setHint] = useState<string | null>(null);
+  const status = useSyncExternalStore(line.subscribe, line.get);
 
   useEffect(() => {
     const root = page.current;
@@ -56,6 +83,10 @@ export function HintLine({ page, status, live }: { page: RefObject<HTMLElement |
           {hint}
         </p>
       )}
+      {/* Problems are always spoken, whatever the audio mode. */}
+      <p role="alert" className="sr-only">
+        {status.startsWith("Problem") ? status : ""}
+      </p>
     </>
   );
 }

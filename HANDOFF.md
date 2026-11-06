@@ -1,6 +1,14 @@
 # Handoff (2026-11-06)
 Older notes: `docs/handoff-archive.md`, newest first. Search it when a past decision matters; don't read it all.
 
+## Accounts lost, 2026-11-06 (read this first)
+A clean-up through `npm run db` lost its filter and deleted every account at 21:11 UTC (13, plus test guests). Free plan, no backups we can reach. Luke emailed support@supabase.com from his Gmail, 21:55 UTC, thread `1a1b2dbd6820f284`: watch for a reply; a full restore would replace everything below.
+- **Coming back:** `account_restores` (addresses from a 14 October log, Luke's details; rows never in this public repo; nobody can read it) and `restore_lost_account`: signing up with an old address restores the details and relinks posts by their `author_label`. A browser still holding a dead session gets `LostAccountWindow`. Only the address proves who you are, because sign-up doesn't confirm addresses and the server holds no secret: Luke knows.
+- **House account:** `is_admin()` needs a `house_account` row now. Signing up with its address is refused unless `house_account_gate` has a row in date; the trigger fills `house_account` and shuts the gate. After Luke makes it: put its new id in `NEXT_PUBLIC_SITE_ACCOUNT_ID` in `.env.production`.
+- **Moldavius figtree's song** isn't in storage under their folder: ask Luke. Moot's only picture on file is a ginger cat in headphones, used for his "lion".
+- **Gone unless Supabase restores it:** DMs, rooms, canvases, playlists, likes. Characters were never in the database: they live in each person's browser (`debaser.character.library.v3`), and account ids don't touch them.
+- **Tests:** TEST ACCOUNT C and D don't exist until a check signs them in.
+
 ## Picked up again, 2026-11-06 afternoon
 - **WATCH (SPEC-kino-sources.md):** replaced the free-copy key and the where-to-watch list. No real friends' server exists yet, so its server lines are only proven with fake servers (the KINO session's harness, run at desktop and two phone widths). Known, and older than WATCH: back on /media after a search, a video that was in its box can stay floating with the row off screen; its `[ BACK ]` still finds the row.
 - **Live:** the last bar key is MODULOS, a solid block; the title stays `MODULES:`. DISCOVER starts off; DISCOVER, BEATBOX and ANIMATE wear WIP (`afd0576`). KINO: free copies behind `[ FREE COPIES ▾ ]`, licensed YouTube uploads offered, `[ SEE WHERE ↗ ]` gone, the rule that a server must hold what it lists gone (`listPath: '*'` stays, unused; `aaf51b8`). DISCOVER: FOUND SO FAR beside ON n ITEMS, ADD A WORD finds off-map words (`612b061`, `677e8eb`).

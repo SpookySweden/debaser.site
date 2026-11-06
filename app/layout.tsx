@@ -16,6 +16,7 @@ import MusicPlayerProvider from './components/MusicPlayerProvider';
 import MusicWindow from './components/MusicWindow';
 import QueueWindow from './components/QueueWindow';
 import NotificationsProvider from './components/NotificationsProvider';
+import LostAccountWindow from './components/LostAccountWindow';
 import ModulesWindow from './components/ModulesWindow';
 import PreferencesWindow from './components/PreferencesWindow';
 import PrivacyFirstLook from './components/PrivacyFirstLook';
@@ -128,6 +129,9 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
 
                       {/* The MODULOS key's list: which modules appear on the bar, and their hover colours. */}
                       <ModulesWindow />
+
+                      {/* Somebody back after the accounts were lost: a new password, then their profile. */}
+                      <LostAccountWindow />
 
                       {/* The PRIVACY window, once per account (SPEC-privacy-phase-1.md). */}
                       <PrivacyFirstLook />

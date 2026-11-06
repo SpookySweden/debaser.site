@@ -26,7 +26,8 @@ import { displayCrop } from '../lib/profile/avatar-crop';
  */
 export default function AccountProfilePanel({ userId }: { userId: string }) {
   const { profile, ready } = usePublicProfile(userId);
-  const [customising, setCustomising] = useState(false);
+  // `?edit=1`: sent here to edit, straight after getting a lost account back. Only ever drawn signed in, so never on the server.
+  const [customising, setCustomising] = useState(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('edit') === '1');
   const [showOptions, setShowOptions] = useState(false);
   const player = useMusicPlayer();
   const compact = useCompactViewport();

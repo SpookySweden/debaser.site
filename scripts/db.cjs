@@ -42,6 +42,12 @@
  *   --write      run a statement that changes something (`insert`, `update`, `alter`, `drop`, ...)
  *   --dry-run    print the statement and the command, and run nothing at all
  *
+ * **What it refuses, since 2026-11-06.** A clean-up written over several lines went through `npm run db -- --write "..."`.
+ * npm on Windows hands its arguments to cmd.exe, which keeps only the first line, so `delete from auth.users u` ran without its
+ * `where` and removed every account on the site. So: a write through `npm run db` must come from `--file` (a file can't be cut
+ * short), a `delete` or `update` must have a `where`, and anything emptying or dropping a table, or deleting from `auth`, needs
+ * `--destructive` as well as `--write`. Checks hold this (`Temp/check-db-guard.cjs`).
+ *
  * It writes nothing to the repository, holds no row of its own, and leaves the database as it found
  * it unless the SQL it was given says otherwise.
  */
@@ -119,6 +125,31 @@ function isRead(sql) {
     .toLowerCase();
 
   return /^(select|with|show|explain|table|values)\b/.test(stripped);
+}
+
+/**
+ * Why this write must not run, or null. Pure, so a check can hold it. `viaNpm` is `npm run db`, whose command line loses everything
+ * after a first newline with no way to tell from here; a file is read whole. Dollar-quoted bodies are left out of the look at the
+ * statements: a `do $$ ... $$` block's own statements are its author's, and it always arrives from a file or from a script.
+ */
+function writeProblem(sql, { fromFile, viaNpm, destructive }) {
+  if (viaNpm && !fromFile) return 'A write through `npm run db` must come from --file: this command line can lose everything after its first line.';
+  const plain = sql
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/--[^\n]*/g, ' ')
+    .replace(/\$([a-z_]*)\$[\s\S]*?\$\1\$/gi, ' ')
+    .replace(/'(?:[^']|'')*'/g, "''")
+    .toLowerCase();
+  for (const piece of plain.split(';')) {
+    const text = piece.trim();
+    if (text === '') continue;
+    const changes = /\b(delete\s+from|update)\b/.test(text) && !/\bcreate\s+(or\s+replace\s+)?(function|trigger|policy|rule|procedure)\b/.test(text);
+    if (changes && !/\bwhere\b/.test(text)) return `No "where": this would change every row. ${describe(text)}`;
+    if (destructive) continue;
+    if (/\btruncate\b/.test(text) || /^drop\s+(table|schema|database)\b/.test(text)) return `This empties or drops a table, so it also needs --destructive. ${describe(text)}`;
+    if (/\bdelete\s+from\s+"?auth"?\./.test(text)) return `This deletes accounts, so it also needs --destructive. ${describe(text)}`;
+  }
+  return null;
 }
 
 /** The statement in one line, for the summary - long ones are cut rather than printed whole. */
@@ -272,6 +303,16 @@ function main() {
     return;
   }
 
+  if (!isRead(sql)) {
+    const fromFile = argv.includes('--file') || argv.includes('-f');
+    const problem = writeProblem(sql, { fromFile, viaNpm: environment.npm_lifecycle_event === 'db', destructive: argv.includes('--destructive') });
+    if (problem !== null) {
+      console.error(`refused, and nothing was run. ${problem}`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+
   if (!hasCredential(environment)) {
     console.error('no Supabase credential. One of these:');
     console.error('');
@@ -289,4 +330,6 @@ function main() {
   run(sql, from, ref, environment, json);
 }
 
-main();
+if (require.main === module) main();
+
+module.exports = { isRead, writeProblem };
