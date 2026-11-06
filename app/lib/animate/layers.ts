@@ -160,6 +160,6 @@ addActions([
   { id: 'layer.lock', label: 'LOCK LAYER', group: 'LAYERS', key: 'alt+l', run: () => activeRow((id) => toggleRow(id, 'locked')) },
   { id: 'layer.solo', label: 'SOLO LAYER', group: 'LAYERS', key: 'alt+s', run: () => activeRow((id) => toggleRow(id, 'solo')) },
   { id: 'layer.delete', label: 'DELETE LAYER', group: 'LAYERS', key: 'alt+delete', run: () => activeRow(deleteRow) },
-  { id: 'layer.panel', label: 'SHOW / HIDE THE LAYER LIST', group: 'VIEW', key: 'shift+l', run: () => updateSettings({ showLayers: !useStudio.getState().settings.showLayers }) },
+  { id: 'layer.panel', label: 'SHOW / HIDE THE LAYER LIST', group: 'VIEW', key: 'l', run: () => updateSettings({ showLayers: !useStudio.getState().settings.showLayers }) },
   { id: 'settings.panel', label: 'SETTINGS', group: 'VIEW', key: 'ctrl+,', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'settings' ? 'none' : 'settings' }) },
 ]);

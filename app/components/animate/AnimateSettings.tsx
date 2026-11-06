@@ -294,7 +294,7 @@ export default function AnimateSettings() {
           ))}
         </div>
         <AnimateSlider label="BRUSH RING THICKNESS" min={1} max={4} step={0.5} value={settings.cursorScale} onChange={(cursorScale) => updateSettings({ cursorScale })} />
-        <Check label="LEFT-HANDED: TOOLS ON THE RIGHT" on={settings.leftHanded} onChange={(leftHanded) => updateSettings({ leftHanded })} />
+        <Check label="LEFT-HANDED: TOOLS OPEN LEFT OF THE PEN" on={settings.leftHanded} onChange={(leftHanded) => updateSettings({ leftHanded })} />
         <p>THEMES FOLLOW THE SITE&apos;S PREFERENCES.</p>
       </Group>
       <Group title="SAVING">

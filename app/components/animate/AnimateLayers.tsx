@@ -224,7 +224,7 @@ export default function AnimateLayers() {
   };
 
   return (
-    <aside aria-label="Layers" className="flex w-60 flex-col border-l-line border-ink bg-sun-pale text-key max-md:w-full max-md:border-l-0">
+    <aside aria-label="Layers" className="flex h-full w-60 max-w-full flex-col border-l-line border-ink bg-sun-pale text-key">
       <div className="flex flex-wrap items-center gap-1 p-1">
         <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('layer')} title="SHIFT + N">
           [ + LAYER ]
@@ -236,7 +236,7 @@ export default function AnimateLayers() {
           [ TAGS ]
         </button>
       </div>
-      <ul className="max-h-[50%] min-h-16 flex-1 overflow-y-auto border-y-line border-ink max-md:max-h-48">
+      <ul className="max-h-[50%] min-h-16 flex-1 overflow-y-auto border-y-line border-ink">
         {rows.map((node) => (
           <Fragment key={node.id}>
             <Row project={project} node={node} active={node.id === layerId} dropMark={drop?.id === node.id ? drop.mark : null} onGrab={grab} />

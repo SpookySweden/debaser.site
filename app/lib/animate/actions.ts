@@ -2,6 +2,7 @@
  * Everything the studio can do from a key, in one list: the keyboard handler, the remap screen and the cheat sheet all read it, so a
  * new action is on all three by being written here.
  */
+import { togglePagePanel } from '../ui/side-panel-page';
 import { MAX_BRUSH_SIZE } from './brushes';
 import { getEngine } from './engine';
 import { keys } from './pointer';
@@ -21,8 +22,40 @@ function tool(id: string, label: string, key: string, which: ToolId): Action {
   return { id: `tool.${id}`, label, group: 'TOOLS', key, run: () => getEngine().setTool(which) };
 }
 
-function toggleFull(): void {
-  updateSettings({ full: !useStudio.getState().settings.full });
+/** The layers, if they were out on the way in to full screen. */
+let layersBeforeFull = false;
+
+/** Full screen is the sheet and the timeline and nothing else, so the layers fold away on the way in, and come back on the way out. */
+export function toggleFull(): void {
+  const { full, showLayers } = useStudio.getState().settings;
+  if (full) {
+    updateSettings({ full: false, showLayers: showLayers || layersBeforeFull });
+    layersBeforeFull = false;
+  } else {
+    layersBeforeFull = showLayers;
+    updateSettings({ full: true, showLayers: false });
+  }
+}
+
+/** The tools, at the pen, or in the middle of the sheet if the pen isn't over it. */
+export function toggleTools(): void {
+  const engine = getEngine();
+  const stage = engine.stageSize();
+  const { popup, panel } = useStudio.getState();
+  // Opening it shuts any panel: the two can't both be in front.
+  if (popup !== null) useStudio.setState({ popup: null });
+  else useStudio.setState({ popup: engine.hoverScreen ?? { x: stage.w / 2, y: stage.h / 3 }, panel: panel === 'none' ? panel : 'none' });
+  updateSettings({ hintSeen: true });
+}
+
+export function toggleMenu(): void {
+  updateSettings({ hintSeen: true });
+  togglePanel('menu');
+}
+
+export function toggleFramesMenu(): void {
+  updateSettings({ hintSeen: true });
+  togglePanel('frames');
 }
 
 export function stepUiScale(direction: -1 | 1): void {
@@ -63,10 +96,23 @@ export function allActions(): Action[] {
     tool('eraser', 'ERASER', 'e', 'eraser'),
     tool('hand', 'HAND', 'h', 'hand'),
     tool('pick', 'COLOUR PICKER', 'k', 'pick'),
+    { id: 'tools.popup', label: 'THE TOOLS, BY THE PEN', group: 'TOOLS', key: 'x', run: toggleTools },
+    { id: 'palette.panel', label: 'PALETTE AND OTHER COLOURS', group: 'TOOLS', key: '', run: () => togglePanel('palette') },
     { id: 'edit.undo', label: 'UNDO', group: 'EDIT', key: 'ctrl+z', run: () => getEngine().undo() },
     { id: 'edit.redo', label: 'REDO', group: 'EDIT', key: 'ctrl+y', run: () => getEngine().redo() },
     { id: 'edit.redo2', label: 'REDO (2ND KEY)', group: 'EDIT', key: 'ctrl+shift+z', run: () => getEngine().redo() },
-    { id: 'edit.cancel', label: 'DROP THE STROKE', group: 'EDIT', key: 'escape', run: () => getEngine().cancelStroke() },
+    {
+      id: 'edit.cancel',
+      label: 'DROP THE STROKE, OR CLOSE',
+      group: 'EDIT',
+      key: 'escape',
+      run: () => {
+        const state = useStudio.getState();
+        if (state.popup !== null) useStudio.setState({ popup: null });
+        else if (state.panel !== 'none') useStudio.setState({ panel: 'none' });
+        else getEngine().cancelStroke();
+      },
+    },
     { id: 'brush.bigger', label: 'BRUSH BIGGER', group: 'TOOLS', key: ']', run: () => brushSizeBy(1.2) },
     { id: 'brush.smaller', label: 'BRUSH SMALLER', group: 'TOOLS', key: '[', run: () => brushSizeBy(1 / 1.2) },
     { id: 'view.in', label: 'ZOOM IN', group: 'VIEW', key: '=', run: () => getEngine().zoomAt(1.25) },
@@ -75,13 +121,15 @@ export function allActions(): Action[] {
     { id: 'view.left', label: 'TURN LEFT', group: 'VIEW', key: 'shift+r', run: () => getEngine().rotateBy(-15) },
     { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
     { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
-    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '\\', run: toggleFull },
-    { id: 'view.panels', label: 'HIDE / SHOW THE PANELS', group: 'VIEW', key: '`', run: () => updateSettings({ panelsHidden: !useStudio.getState().settings.panelsHidden }) },
+    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '`', run: toggleFull },
+    { id: 'view.sidepanel', label: "THE SITE'S SIDE PANEL", group: 'VIEW', key: '\\', run: togglePagePanel },
     { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: "ctrl+'", run: () => stepUiScale(1) },
     { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+;', run: () => stepUiScale(-1) },
+    { id: 'file.projects', label: 'PROJECTS', group: 'FILE', key: '', run: () => togglePanel('projects') },
     { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
     { id: 'file.open', label: 'OPEN A FILE', group: 'FILE', key: 'ctrl+o', run: () => document.getElementById('animate-open-file')?.click() },
-    { id: 'help.keys', label: 'THESE KEYS', group: 'HELP', key: '?', run: () => togglePanel('help') },
+    { id: 'time.menu', label: 'THE TIMELINE MENU', group: 'TIMELINE', key: 'shift+f', run: toggleFramesMenu },
+    { id: 'help.keys', label: 'MENU', group: 'HELP', key: '?', run: toggleMenu },
     { id: 'help.close', label: 'CLOSE THE PANEL', group: 'HELP', key: 'shift+escape', run: () => useStudio.setState({ panel: 'none' }) },
     ...extra,
   ];
@@ -145,6 +193,8 @@ export function attachKeys(): () => void {
     if ((name === 'enter' || name.startsWith('arrow')) && document.activeElement !== document.body && !(document.activeElement instanceof HTMLCanvasElement)) return;
     event.preventDefault();
     action.run();
+    // A key does what the pop-up was open to do, so it goes. Sizing the brush is the exception: that's watched in the pop-up.
+    if (action.id !== 'tools.popup' && !action.id.startsWith('brush.') && useStudio.getState().popup !== null) useStudio.setState({ popup: null });
   };
   const onUp = (event: KeyboardEvent) => {
     if (event.key === ' ') keys.space = false;

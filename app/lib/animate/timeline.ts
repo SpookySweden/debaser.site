@@ -197,7 +197,7 @@ addActions([
   { id: 'range.in', label: 'RANGE STARTS HERE', group: 'TIMELINE', key: 'b', run: () => setRangeEnd('in') },
   { id: 'range.out', label: 'RANGE ENDS HERE', group: 'TIMELINE', key: 'n', run: () => setRangeEnd('out') },
   { id: 'range.clear', label: 'CLEAR THE RANGE', group: 'TIMELINE', key: 'shift+b', run: clearRange },
-  { id: 'range.mode', label: 'LOOP / PING-PONG / ONCE', group: 'TIMELINE', key: 'l', run: cyclePlayMode },
+  { id: 'range.mode', label: 'LOOP / PING-PONG / ONCE', group: 'TIMELINE', key: 'shift+l', run: cyclePlayMode },
   { id: 'onion.toggle', label: 'ONION SKIN', group: 'ONION', key: 'o', run: () => setOnion(!useStudio.getState().project.onion.on) },
   { id: 'onion.panel', label: 'ONION SETTINGS', group: 'ONION', key: 'shift+o', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'onion' ? 'none' : 'onion' }) },
   { id: 'export.panel', label: 'EXPORT', group: 'FILE', key: 'ctrl+e', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'export' ? 'none' : 'export' }) },

@@ -4,7 +4,7 @@
  * palm never draws.
  */
 import type { AnimateEngine } from './engine';
-import { useStudio } from './store';
+import { updateSettings, useStudio } from './store';
 
 type Handlers = { penDown: (x: number, y: number, event: PointerEvent) => boolean; penMove?: (x: number, y: number, event: PointerEvent) => void; penUp?: (x: number, y: number, event: PointerEvent) => void; penCancel?: () => void };
 
@@ -72,7 +72,14 @@ export function attachPen(root: HTMLElement, engine: AnimateEngine): () => void 
       if (mode === 'stroke' && event.button === 2) engine.cancelStroke();
       return;
     }
-    if (event.button === 1 || event.button === 2 || keysHeld() || useStudio.getState().tool === 'hand') {
+    if (event.button === 2) {
+      // The right button, or the pen's barrel button: the tools, right here.
+      const rect = box();
+      useStudio.setState({ popup: { x: event.clientX - rect.left, y: event.clientY - rect.top } });
+      updateSettings({ hintSeen: true });
+      return;
+    }
+    if (event.button === 1 || keysHeld() || useStudio.getState().tool === 'hand') {
       startPan(event);
       return;
     }

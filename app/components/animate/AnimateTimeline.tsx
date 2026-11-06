@@ -2,137 +2,28 @@
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { getEngine } from '../../lib/animate/engine';
-import { togglePlaying } from '../../lib/animate/playback';
 import { planeKey } from '../../lib/animate/planes';
 import { selectRow } from '../../lib/animate/layers';
 import { depthOf, moveCel, setExposure, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
 import { tagOf } from '../../lib/animate/tags';
-import { carryForward } from '../../lib/animate/smart';
 import { soundPeaks } from '../../lib/animate/sound';
-import { toggleLightTable } from '../../lib/animate/trace';
-import { clearRange, cycleMark, deleteDrawing, duplicateDrawing, holdsOn, newDrawing, setOnion, setPlayMode, setRangeEnd } from '../../lib/animate/timeline';
-import type { Cel, CelMark, LayerNode, PlayMode } from '../../lib/animate/types';
-import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
+import type { Cel, CelMark, LayerNode } from '../../lib/animate/types';
+import { FrameWords, FramesKey, PlayKey } from './AnimateBars';
 import { TagChip } from './AnimateLayers';
 
-const ROW_HEIGHT = 44;
+const ROW_HEIGHT = 30;
 const RULER_HEIGHT = 24;
-const NAME_WIDTH = 150;
+const NAME_WIDTH = 240;
 const SOUND_HEIGHT = 32;
+/** Room for the scrollbar under the rows. */
+const SCROLLBAR = 20;
 
 const MARK_LETTER: Record<CelMark, string> = { key: 'K', breakdown: 'B', inbetween: 'I' };
 const MARK_FILL: Record<CelMark, string> = { key: 'bg-sun text-ink-plate', breakdown: 'bg-bubble text-ink-plate', inbetween: 'bg-acid text-ink-plate' };
-const PLAY_MODES: { mode: PlayMode; label: string }[] = [
-  { mode: 'loop', label: 'LOOP' },
-  { mode: 'pingpong', label: 'PING-PONG' },
-  { mode: 'once', label: 'ONCE' },
-];
-
-/** The buttons above the timeline. */
-function Transport() {
-  const playing = useStudio((state) => state.playing);
-  const readying = useStudio((state) => state.readying);
-  const frame = useStudio((state) => state.frame);
-  const frames = useStudio((state) => state.project.frames);
-  const fps = useStudio((state) => state.project.fps);
-  const playMode = useStudio((state) => state.project.playMode);
-  const range = useStudio((state) => state.project.range);
-  const onionOn = useStudio((state) => state.project.onion.on);
-  const lightTable = useStudio((state) => state.lightTable);
-  const engine = getEngine();
-
-  return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-2 py-1 text-key">
-      <button type="button" className={playing ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={playing} onClick={() => togglePlaying(engine)} title="ENTER">
-        [ {playing ? 'STOP' : 'PLAY'} ]
-      </button>
-      <span aria-live="off" data-animate-frame={frame}>
-        FRAME {frame + 1} / {frames}
-      </span>
-      {readying !== null && <span role="status">READYING {Math.round(readying * 100)}%</span>}
-      <span role="group" aria-label="How playback runs" className="flex items-center gap-0.5">
-        {PLAY_MODES.map((item) => (
-          <button key={item.mode} type="button" className={playMode === item.mode ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={playMode === item.mode} onClick={() => setPlayMode(item.mode)}>
-            [ {item.label} ]
-          </button>
-        ))}
-      </span>
-      <span role="group" aria-label="Playback range" className="flex items-center gap-0.5">
-        <button type="button" className={PLATE_MEDIUM} onClick={() => setRangeEnd('in')} title="B">
-          [ IN ]
-        </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => setRangeEnd('out')} title="N">
-          [ OUT ]
-        </button>
-        {range !== null && (
-          <button type="button" className={PLATE_MEDIUM} onClick={clearRange} title="SHIFT + B" aria-label="Clear the range">
-            [ {range.in + 1}-{range.out + 1} X ]
-          </button>
-        )}
-      </span>
-      <label className="flex items-center gap-1">
-        FPS
-        <input
-          type="number"
-          min={1}
-          max={60}
-          value={fps}
-          aria-label="Frames per second"
-          onChange={(event) => {
-            const value = Math.max(1, Math.min(60, Math.round(Number(event.target.value)) || 1));
-            engine.tweak((project) => ({ ...project, fps: value }));
-          }}
-          className="frame w-14 bg-paper px-1 py-0.5 font-mono text-key text-ink outline-none focus:outline-2 focus:outline-dotted focus:outline-bubble"
-        />
-      </label>
-      <span role="group" aria-label="Drawings" className="flex flex-wrap items-center gap-0.5">
-        <button type="button" className={PLATE_MEDIUM} onClick={newDrawing} title="D">
-          [ NEW ]
-        </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => void duplicateDrawing()} title="SHIFT + D">
-          [ COPY ]
-        </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={deleteDrawing} title="SHIFT + DELETE">
-          [ DEL ]
-        </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={cycleMark} title="U">
-          [ MARK ]
-        </button>
-      </span>
-      <span role="group" aria-label="Put this layer on ones, twos or threes" className="flex items-center gap-0.5">
-        {[1, 2, 3].map((hold) => (
-          <button key={hold} type="button" className={PLATE_MEDIUM} onClick={() => holdsOn(hold)} title={`ALT + ${hold}`} aria-label={`Layer on ${hold}s`}>
-            [ {hold}S ]
-          </button>
-        ))}
-      </span>
-      <span role="group" aria-label="Onion skin" className="flex items-center gap-0.5">
-        <button type="button" className={onionOn ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={onionOn} onClick={() => setOnion(!onionOn)} title="O">
-          [ ONION ]
-        </button>
-        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'onion' })} title="SHIFT + O" aria-label="Onion settings">
-          [ ... ]
-        </button>
-      </span>
-      <button type="button" className={lightTable ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={lightTable} onClick={toggleLightTable} title="T">
-        [ LIGHT TABLE ]
-      </button>
-      <button type="button" className={PLATE_MEDIUM} onClick={() => void carryForward()} title="C">
-        [ CARRY COLOUR ]
-      </button>
-      <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'sound' })} title="SHIFT + A">
-        [ SOUND ]
-      </button>
-      <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'export' })} title="CTRL + E">
-        [ EXPORT ]
-      </button>
-    </div>
-  );
-}
 
 /** A small picture of a drawing, on its cel. */
-function CelThumb({ drawingId, width }: { drawingId: string; width: number }) {
+function CelThumb({ drawingId, width, height }: { drawingId: string; width: number; height: number }) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawing = useStudio((state) => state.project.drawings[drawingId]);
   const sheetW = useStudio((state) => state.project.width);
@@ -166,7 +57,7 @@ function CelThumb({ drawingId, width }: { drawingId: string; width: number }) {
     };
   }, [drawing, drawingId, sheetW, sheetH, background]);
 
-  const w = Math.max(8, Math.min(width - 4, 60));
+  const w = Math.max(8, Math.min(width - 4, 60, (height * sheetW) / sheetH));
   const h = Math.max(6, Math.round((w * sheetH) / sheetW));
   return <canvas ref={ref} width={w} height={h} aria-hidden="true" className="pointer-events-none" />;
 }
@@ -185,7 +76,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
     target.setPointerCapture(event.pointerId);
     useStudio.setState({ layerId });
     let moved = false;
-    const at = (clientX: number) => Math.round((clientX - startX) / cellWidth);
+    const at = (point: number) => Math.round((point - startX) / cellWidth);
     const onMove = (move: PointerEvent) => {
       const delta = at(move.clientX);
       if (delta !== 0) moved = true;
@@ -217,7 +108,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
   return (
     <div
       className={`absolute top-0.5 flex touch-none items-center gap-0.5 overflow-hidden border-line ${active ? 'border-bubble' : 'border-ink'} bg-paper`}
-      style={{ left: frame * cellWidth, width: width - 1, height: ROW_HEIGHT - 5 }}
+      style={{ left: frame * cellWidth, width: width - 1, height: ROW_HEIGHT - 6 }}
       data-animate-cel={cel.id}
       data-frame={cel.frame}
       data-length={cel.length}
@@ -233,7 +124,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
         }}
       >
         <span className={`flex h-full w-3.5 shrink-0 items-center justify-center ${MARK_FILL[cel.mark]}`}>{MARK_LETTER[cel.mark]}</span>
-        {showThumbs && width >= 30 && <CelThumb drawingId={cel.drawingId} width={width - 22} />}
+        {showThumbs && width >= 30 && <CelThumb drawingId={cel.drawingId} width={width - 22} height={ROW_HEIGHT - 9} />}
       </button>
       <span
         role="presentation"
@@ -246,8 +137,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
   );
 }
 
-function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; depth: number }) {
-  void depth;
+function Row({ node, cellWidth }: { node: LayerNode; cellWidth: number }) {
   const frame = useStudio((state) => state.frame);
   const isActive = useStudio((state) => state.layerId === node.id);
   const tagColour = useStudio((state) => tagOf(state.project, node)?.colour ?? null);
@@ -257,7 +147,8 @@ function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; d
     <div
       className="relative"
       style={{
-        height: ROW_HEIGHT,
+        // Its wrapper's line under it makes up the rest, so a row and its name stay level however many layers there are.
+        height: ROW_HEIGHT - 1,
         // A line per frame, and a thin hatch: a frame nothing covers reads as empty.
         backgroundImage: `repeating-linear-gradient(to right, var(--color-ink) 0 1px, transparent 1px ${cellWidth}px), repeating-linear-gradient(135deg, var(--color-chrome-dark) 0 2px, transparent 2px 7px)`,
         opacity: isActive ? 1 : 0.85,
@@ -356,15 +247,39 @@ function Playhead({ cellWidth }: { cellWidth: number }) {
   return <div aria-hidden="true" data-animate-playhead className="pointer-events-none absolute inset-y-0 z-10 border-x-line border-bubble" style={{ left: frame * cellWidth, width: cellWidth }} />;
 }
 
-/** The timeline: layers as rows, frames as columns, each drawing as a box as long as it's held. */
+/** A row's name, picks the layer. */
+function RowName({ node }: { node: LayerNode }) {
+  const active = useStudio((state) => state.layerId === node.id);
+  const project = useStudio((state) => state.project);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      className={`flex w-full cursor-pointer items-center truncate border-b border-ink px-1 text-left text-key ${active ? 'bg-ink text-paper' : 'text-ink'}`}
+      style={{ height: ROW_HEIGHT }}
+      onClick={() => selectRow(node.id)}
+      data-animate-row-name={node.id}
+    >
+      <span className="truncate" style={{ paddingLeft: depthOf(project, node) * 8 }}>
+        {node.kind === 'folder' ? `${node.name} /` : node.name}
+      </span>
+      <span className="ml-auto pl-1">
+        <TagChip project={project} node={node} />
+      </span>
+    </button>
+  );
+}
+
+/** The timeline, as thin as it can be: PLAY, where we are and its menu, then layers as rows and frames as columns, each drawing a box as long as it's held. */
 export default function AnimateTimeline() {
   const project = useStudio((state) => state.project);
-  const layerId = useStudio((state) => state.layerId);
   const frame = useStudio((state) => state.frame);
+  const layerId = useStudio((state) => state.layerId);
   const uiScale = useStudio((state) => state.settings.uiScale);
-  const [cellWidth, setCellWidth] = useState(24);
-  const scroller = useRef<HTMLDivElement>(null);
+  const cellWidth = useStudio((state) => state.settings.frameWidth);
+  const rowsShown = useStudio((state) => state.settings.timelineRows);
   const hasSound = useStudio((state) => state.project.audio !== null);
+  const scroller = useRef<HTMLDivElement>(null);
   const rows = visibleRows(project);
   const count = Math.max(project.frames + 24, frame + 24);
 
@@ -376,52 +291,48 @@ export default function AnimateTimeline() {
     if (x < box.scrollLeft + NAME_WIDTH || x + cellWidth > box.scrollLeft + box.clientWidth) box.scrollLeft = x - NAME_WIDTH - box.clientWidth / 3;
   }, [frame, cellWidth]);
 
+  // So does the layer in hand, however few rows are showing.
+  const activeAt = rows.findIndex((node) => node.id === layerId);
+  useEffect(() => {
+    const box = scroller.current;
+    if (box === null || activeAt < 0) return;
+    const top = RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + activeAt * ROW_HEIGHT;
+    const pinned = RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0);
+    if (top - pinned < box.scrollTop) box.scrollTop = top - pinned;
+    else if (top + ROW_HEIGHT > box.scrollTop + box.clientHeight) box.scrollTop = top + ROW_HEIGHT - box.clientHeight;
+  }, [activeAt, hasSound, rowsShown]);
+
   return (
-    <section aria-label="Timeline" className="flex flex-col border-t-line border-ink bg-sun-pale">
-      <Transport />
-      {/* Its height stays a share of the screen at any interface size. */}
-      <div ref={scroller} className="min-h-24 overflow-auto bg-paper" style={{ maxHeight: `calc(30vh / ${uiScale})` }}>
+    <section aria-label="Timeline" className="shrink-0 border-t-line border-ink bg-sun-pale" style={{ zoom: uiScale }}>
+      <div ref={scroller} className="overflow-auto bg-paper" style={{ maxHeight: RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + rowsShown * ROW_HEIGHT + SCROLLBAR }}>
         <div className="flex" style={{ width: NAME_WIDTH + count * cellWidth }}>
-          <div className="sticky left-0 z-20 shrink-0 border-r-line border-ink bg-sun-pale" style={{ width: NAME_WIDTH }}>
-            <div className="flex items-center gap-1 border-b-line border-ink px-1" style={{ height: RULER_HEIGHT }}>
-              <button type="button" className="key cursor-pointer px-1 text-label" aria-label="Frames narrower" onClick={() => setCellWidth((w) => Math.max(8, w - 4))}>
-                [-]
-              </button>
-              <button type="button" className="key cursor-pointer px-1 text-label" aria-label="Frames wider" onClick={() => setCellWidth((w) => Math.min(80, w + 4))}>
-                [+]
-              </button>
-            </div>
-            {hasSound && (
-              <div className="flex items-center truncate border-b border-ink px-1 text-key" style={{ height: SOUND_HEIGHT }}>
-                SOUND
+          <div className="left-0 z-30 shrink-0 border-r-line border-ink bg-sun-pale md:sticky" style={{ width: NAME_WIDTH }}>
+            <div className="sticky top-0 z-10 bg-sun-pale">
+              <div className="flex items-center justify-between gap-1 border-b-line border-ink px-1" style={{ height: RULER_HEIGHT }}>
+                <PlayKey />
+                <FrameWords />
+                <FramesKey />
               </div>
-            )}
+              {hasSound && (
+                <div className="flex items-center truncate border-b border-ink px-1 text-key" style={{ height: SOUND_HEIGHT }}>
+                  SOUND
+                </div>
+              )}
+            </div>
             {rows.map((node) => (
-              <button
-                key={node.id}
-                type="button"
-                aria-pressed={node.id === layerId}
-                className={`flex w-full cursor-pointer items-center truncate border-b border-ink px-1 text-left text-key ${node.id === layerId ? 'bg-ink text-paper' : 'text-ink'}`}
-                style={{ height: ROW_HEIGHT }}
-                onClick={() => selectRow(node.id)}
-              >
-                <span className="truncate" style={{ paddingLeft: depthOf(project, node) * 10 }}>
-                  {node.kind === 'folder' ? `${node.name} /` : node.name}
-                </span>
-                <span className="ml-auto pl-1">
-                  <TagChip project={project} node={node} />
-                </span>
-              </button>
+              <RowName key={node.id} node={node} />
             ))}
           </div>
           <div className="relative min-w-0 flex-1">
-            <Ruler cellWidth={cellWidth} count={count} />
+            <div className="sticky top-0 z-20 bg-paper">
+              <Ruler cellWidth={cellWidth} count={count} />
+              <SoundRow cellWidth={cellWidth} count={count} />
+            </div>
             <div className="relative">
               <Playhead cellWidth={cellWidth} />
-              <SoundRow cellWidth={cellWidth} count={count} />
               {rows.map((node) => (
                 <div key={node.id} className="border-b border-ink">
-                  <Row node={node} cellWidth={cellWidth} depth={0} />
+                  <Row node={node} cellWidth={cellWidth} />
                 </div>
               ))}
             </div>

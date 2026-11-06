@@ -25,6 +25,14 @@ drive-animate.cjs
 ANIMATE (SPEC-animator.md) in a real browser, with made-up pen events: what `Temp/check-animate-*.cjs` can't reach (canvases,
 storage, workers, keys, exports). A live check, run by hand against the mock server or the deployed site. It uses a throwaway browser profile,
 and never signs in. It proves the numbers, not the feel: `docs/animate-pen-list.md` is what only a real pen can answer.
+`phase6` is the interface's acceptance tests (SPEC-animate-ui.md), 400% zoom included.
+
+measure-animate-ui.cjs
+----------------------
+    node scripts/measure-animate-ui.cjs --url <address>/animate [--name after] [--out <dir>]
+
+ANIMATE's interface in numbers: how much of the window the sheet gets, how many keys are on screen, and how many presses a 6-frame
+bouncing ball takes with the mouse. With screenshots at 1280x900 and 1920x1080.
 
 run-checks.cjs
 --------------

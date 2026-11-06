@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  */
 export default function AnimatePage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [ANIMATE]" active="animate" tip="Draw frame by frame. Your work stays in this browser.">
+    <SiteWindow title="DEBASER_OS - v1.0 [ANIMATE]" active="animate" tip="Draw frame by frame. Your work stays in this browser." fill>
       <h1 className="sr-only">DEBASER.SITE // ANIMATE</h1>
       <AnimateBoot />
     </SiteWindow>

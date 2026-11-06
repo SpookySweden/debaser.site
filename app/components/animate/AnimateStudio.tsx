@@ -3,8 +3,7 @@
 import { useEffect } from 'react';
 import { attachKeys } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
-import { loadStoredSettings, updateSettings, useStudio } from '../../lib/animate/store';
-import { PLATE_MEDIUM } from '../../lib/ui/controls';
+import { loadStoredSettings, useStudio } from '../../lib/animate/store';
 import '../../lib/animate/layers';
 import { installSelection } from '../../lib/animate/selection';
 import { installPictures } from '../../lib/animate/picture';
@@ -13,21 +12,21 @@ import { installSmarts } from '../../lib/animate/smart';
 import { installSound } from '../../lib/animate/sound';
 import { installTrace } from '../../lib/animate/trace';
 import '../../lib/animate/timeline';
+import { FilePickers, LayersKey, MenuKey, StatusWords, ToolsKey, WhenItApplies } from './AnimateBars';
+import AnimateFramesMenu from './AnimateFramesMenu';
 import AnimateLayers from './AnimateLayers';
 import AnimateNotice from './AnimateNotice';
 import AnimatePanels from './AnimatePanels';
+import AnimatePopup from './AnimatePopup';
 import AnimateStage from './AnimateStage';
 import AnimateTimeline from './AnimateTimeline';
-import AnimateTools from './AnimateTools';
-import AnimateTopBar from './AnimateTopBar';
 
-/** The studio: the strip across the top, the tools, the sheet, and the panels that come and go. Everything is local to this browser. */
+/** The studio: the sheet and the timeline, a few small keys in the corners, and what opens from them. Everything is local to this browser. */
 export default function AnimateStudio() {
   const full = useStudio((state) => state.settings.full);
   const uiScale = useStudio((state) => state.settings.uiScale);
-  const leftHanded = useStudio((state) => state.settings.leftHanded);
   const showLayers = useStudio((state) => state.settings.showLayers);
-  const panelsHidden = useStudio((state) => state.settings.panelsHidden);
+  const hintSeen = useStudio((state) => state.settings.hintSeen);
 
   useEffect(() => {
     loadStoredSettings();
@@ -71,46 +70,53 @@ export default function AnimateStudio() {
         const focused = document.activeElement;
         if (focused instanceof HTMLButtonElement || (focused instanceof HTMLInputElement && focused.type === 'range')) focused.blur();
       }}
-      className={
-        full
-          ? 'fixed inset-0 z-overlay flex flex-col overflow-y-auto bg-paper text-ink select-none'
-          : 'relative flex h-full min-h-[32rem] flex-col overflow-y-auto text-ink select-none max-md:h-auto'
-      }
+      // The right button is the tools here, so the browser's own menu stays away, on the pop-up it just opened as well as on the sheet. A text field keeps its own, for pasting.
+      onContextMenu={(event) => {
+        if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+      }}
+      className={full ? 'fixed inset-0 z-overlay flex flex-col bg-paper text-ink select-none' : 'relative flex h-full min-h-[24rem] flex-col text-ink select-none'}
     >
-      {!panelsHidden && (
-        <div className="shrink-0" style={{ zoom: uiScale }}>
-          <AnimateTopBar />
+      <div className="relative flex min-h-0 flex-1">
+        <div className="relative flex min-h-0 min-w-0 flex-1">
+          <AnimateStage />
+          {/* Full screen is the sheet and the timeline. Otherwise, the few keys float in the corners, over the grey round the sheet. */}
+          {!full && (
+            <>
+              <div className="absolute left-1 top-1 z-20 flex max-w-[60%] flex-wrap items-center gap-1" style={{ zoom: uiScale }}>
+                <span className="bg-paper">
+                  <MenuKey />
+                </span>
+                <span className="bg-paper">
+                  <ToolsKey />
+                </span>
+                <span className="bg-paper px-1">
+                  <StatusWords />
+                </span>
+              </div>
+              <div className="absolute right-1 top-1 z-20 bg-paper" style={{ zoom: uiScale }}>
+                <LayersKey />
+              </div>
+            </>
+          )}
+          <WhenItApplies />
+          {!hintSeen && !full && (
+            <p role="note" data-animate-hint className="pointer-events-none absolute bottom-12 left-1/2 z-20 max-w-full -translate-x-1/2 frame bg-paper px-3 py-2 text-center text-heading text-ink" style={{ zoom: uiScale }}>
+              DRAW HERE. RIGHT BUTTON OR X FOR TOOLS.
+            </p>
+          )}
+          <AnimatePopup />
+          <AnimateFramesMenu />
         </div>
-      )}
-      {/* The sheet always keeps a good share of the screen: at a big interface size the rest scrolls, rather than squeezing the sheet out. */}
-      <div className={`flex flex-1 shrink-0 max-md:flex-none max-md:flex-col ${full ? 'min-h-[50vh]' : 'min-h-[30vh]'} ${leftHanded ? 'flex-row-reverse' : ''}`}>
-        {!panelsHidden && (
-          <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto max-md:overflow-visible" style={{ zoom: uiScale }}>
-            <AnimateTools />
-          </div>
-        )}
-        <AnimateStage />
-        {!panelsHidden && showLayers && (
-          <div className="flex min-h-0 shrink-0 flex-col max-md:shrink" style={{ zoom: uiScale }}>
+        {showLayers && (
+          // On a narrow window it sits over the sheet; on a wide one the sheet gives it room.
+          <div className="flex min-h-0 shrink-0 flex-col max-md:absolute max-md:inset-y-0 max-md:right-0 max-md:z-30 max-md:max-w-full" style={{ zoom: uiScale }} data-animate-layers-fold>
             <AnimateLayers />
           </div>
         )}
       </div>
-      <div className="shrink-0" style={{ zoom: uiScale }}>
-        {!panelsHidden && <AnimateTimeline />}
-        <AnimateNotice />
-      </div>
-      {panelsHidden && (
-        <button
-          type="button"
-          className={`${PLATE_MEDIUM} absolute right-2 top-2 z-30 bg-paper`}
-          style={{ zoom: uiScale }}
-          title="`"
-          onClick={() => updateSettings({ panelsHidden: false })}
-        >
-          [ SHOW PANELS ]
-        </button>
-      )}
+      <AnimateTimeline />
+      <FilePickers />
+      <AnimateNotice />
       <AnimatePanels />
     </section>
   );

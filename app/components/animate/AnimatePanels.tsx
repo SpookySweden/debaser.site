@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
-import { allActions, keyLabel, keyOf } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
 import { DEFAULT_FPS, DEFAULT_HEIGHT, DEFAULT_WIDTH } from '../../lib/animate/project';
 import type { ProjectListing } from '../../lib/animate/storage';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
 import AnimateExportPanel from './AnimateExportPanel';
+import AnimateMenu from './AnimateMenu';
 import AnimateOnionPanel from './AnimateOnionPanel';
+import AnimatePalettePanel from './AnimatePalettePanel';
 import AnimateSettings from './AnimateSettings';
 import AnimateSoundPanel from './AnimateSoundPanel';
 import AnimateTagPanel from './AnimateTagPanel';
@@ -29,33 +30,6 @@ export function AnimatePanelFrame({ title, children, wide = false }: { title: st
         <div className="min-h-0 overflow-y-auto">{children}</div>
       </div>
     </div>
-  );
-}
-
-function HelpPanel() {
-  const groups = new Map<string, { label: string; key: string }[]>();
-  for (const action of allActions()) {
-    const list = groups.get(action.group) ?? [];
-    list.push({ label: action.label, key: keyLabel(keyOf(action)) });
-    groups.set(action.group, list);
-  }
-  return (
-    <AnimatePanelFrame title="KEYS">
-      <p className="mb-2">HOLD SPACE TO PAN. WHEEL TO ZOOM. SHIFT + WHEEL TO TURN. ALT + PEN PICKS A COLOUR. RIGHT BUTTON DRAGS THE VIEW AND DROPS A STROKE.</p>
-      {[...groups.entries()].map(([group, list]) => (
-        <section key={group} className="mb-2">
-          <h3 className="text-accent-ink">{group}</h3>
-          <dl className="grid grid-cols-[1fr_auto] gap-x-3">
-            {list.map((item) => (
-              <div key={item.label} className="contents">
-                <dt>{item.label}</dt>
-                <dd>{item.key}</dd>
-              </div>
-            ))}
-          </dl>
-        </section>
-      ))}
-    </AnimatePanelFrame>
   );
 }
 
@@ -171,7 +145,8 @@ function ProjectsPanel() {
 /** Whichever floating panel is open. */
 export default function AnimatePanels() {
   const panel = useStudio((state) => state.panel);
-  if (panel === 'help') return <HelpPanel />;
+  if (panel === 'menu') return <AnimateMenu />;
+  if (panel === 'palette') return <AnimatePalettePanel />;
   if (panel === 'projects') return <ProjectsPanel />;
   if (panel === 'onion') return <AnimateOnionPanel />;
   if (panel === 'export') return <AnimateExportPanel />;
