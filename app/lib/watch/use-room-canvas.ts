@@ -19,6 +19,7 @@ import {
   type EraseInput,
   type StrokeInput,
 } from './canvas';
+import { whenRoomClientChanges } from './room-client';
 import { getCanvasRepository, type CanvasParticipant, type CanvasWire, type CanvasWireMessage, type RoomCanvasRecord } from './canvas-repository';
 
 /**
@@ -56,6 +57,12 @@ export type CanvasContext = {
   present: CanvasParticipant[];
   /** Who holds a crown now. */
   crowned: ReadonlySet<string>;
+  /** Somebody with no account (SPEC-guests.md). A named guest draws, as `me`, and doesn't save: nothing here asks them to. */
+  guest?: boolean;
+  /** The guests in the room now, so their strokes are heard on the wire as they are drawn. */
+  guests?: ReadonlySet<string>;
+  /** Set while somebody could draw if they had a name: pressing the canvas asks them for one. */
+  askName?: () => void;
 };
 
 /** "Save this canvas?" waiting on an answer: at a close (END STREAM, leaving) or on the canvas view. */
@@ -266,7 +273,7 @@ async function flush(session: Session): Promise<void> {
 function heard(session: Session, authorId: string): boolean {
   const context = session.context;
   if (context === null) return false;
-  if (authorId === context.host.id || context.present.some((person) => person.id === authorId)) return true;
+  if (authorId === context.host.id || context.present.some((person) => person.id === authorId) || context.guests?.has(authorId) === true) return true;
   return session.confirmedAuthors.has(authorId);
 }
 
@@ -301,6 +308,16 @@ function onWire(session: Session, message: CanvasWireMessage): void {
   }
   if (taken) emit(session, {}, true);
 }
+
+// Somebody became a guest or logged in: the wire was joined as who they were, and what they can read has changed.
+whenRoomClientChanges(() => {
+  for (const session of sessions.values()) {
+    if (session.users === 0) continue;
+    session.wire?.leave();
+    session.wire = getCanvasRepository().joinWire(session.roomId, (message) => onWire(session, message));
+    void refresh(session);
+  }
+});
 
 /** The room's session object: one per room for the life of the tab, so every caller holds the same one. */
 function sessionFor(roomId: string): Session {
@@ -433,7 +450,7 @@ function participantsNow(session: Session, inputs: readonly CanvasInput[]): Canv
 async function snapshot(session: Session): Promise<void> {
   const canvas = session.canvas;
   const me = session.context?.me ?? null;
-  if (canvas === null || canvas.savedAt === null || me === null) return;
+  if (canvas === null || canvas.savedAt === null || me === null || session.context?.guest === true) return;
   await flush(session);
   const timeline = replayOrder(await getCanvasRepository().readInputs(canvas.id));
   const raster = rasterOf(timeline);
@@ -458,7 +475,7 @@ async function snapshot(session: Session): Promise<void> {
 
 async function autosave(session: Session): Promise<void> {
   const context = session.context;
-  if (context === null || context.me === null || !context.live || session.canvas?.savedAt == null) return;
+  if (context === null || context.me === null || context.guest === true || !context.live || session.canvas?.savedAt == null) return;
   // Only somebody with a part in the canvas may take a snapshot (room_canvas_may_snapshot): anybody else would be
   // refused on every try, so they leave autosaving to those who can.
   const me = context.me.id;
@@ -492,7 +509,7 @@ async function autosave(session: Session): Promise<void> {
 /** SAVE: documented in the archive from now on, with a snapshot at once. */
 async function saveNow(session: Session): Promise<void> {
   const me = session.context?.me ?? null;
-  if (me === null) return;
+  if (me === null || session.context?.guest === true) return;
   emit(session, { saving: true, error: null });
   try {
     const canvas = await ensureCanvas(session);
@@ -551,7 +568,7 @@ export async function askToSaveCanvas(roomId: string, options: { ending?: boolea
   const context = session.context;
   const state = { changed: session.inputs.length > 0, saved: session.canvas?.savedAt != null };
   // Only while it can still be saved: once the room is over (the host ended it) the canvas takes nothing more.
-  const open = context !== null && context.me !== null && context.live && !context.over && session.canvas?.closedAt == null;
+  const open = context !== null && context.me !== null && context.guest !== true && context.live && !context.over && session.canvas?.closedAt == null;
   if (open && asksOnClose(state)) {
     if (await ask(session, 'close')) await saveNow(session);
   } else if (open && state.saved && session.lastSnapshot?.inputCount !== session.confirmed.size + session.pending.length) {
@@ -610,7 +627,7 @@ function undoOwn(session: Session): void {
 function viewedNow(session: Session): void {
   const now = Date.now();
   const state = { changed: session.inputs.length > 0, saved: session.canvas?.savedAt != null };
-  if (!session.context?.me || session.lastAskedAt === null || !asksOnCanvasView(state, now, session.lastAskedAt)) return;
+  if (!session.context?.me || session.context.guest === true || session.lastAskedAt === null || !asksOnCanvasView(state, now, session.lastAskedAt)) return;
   session.lastAskedAt = now;
   void ask(session, 'view').then((save) => (save ? saveNow(session) : undefined));
 }

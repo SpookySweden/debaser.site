@@ -199,7 +199,11 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /* --- who is here ----------------------------------------------------------------------------- */
 
   const [myKey] = useState(newTabKey);
-  const guestLabel = useRoomGuest()?.label ?? '';
+  const roomGuest = useRoomGuest();
+  const guestLabel = roomGuest?.label ?? '';
+  const presenceGuestId = user === null ? (roomGuest?.id ?? null) : null;
+  /** The window that asks who this is, from pressing the canvas (SPEC-guests.md). */
+  const [naming, setNaming] = useState(false);
   const [members, setMembers] = useState<WatchMember[]>([]);
   /** False until the room's presence has answered once: before that, "the host is missing" means nothing. */
   const [membersHeard, setMembersHeard] = useState(false);
@@ -209,7 +213,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     const membership = repository.joinRoom(
       roomId,
       // A guest is here by name only: no id on the wire, so nobody can crown them or hand them the room.
-      { key: myKey, userId: user?.id ?? null, name: user?.displayName ?? guestLabel },
+      { key: myKey, userId: user?.id ?? null, guestId: presenceGuestId, name: user?.displayName ?? guestLabel },
       (next) => {
         setMembers(next);
         if (next.length > 1 || next.some((member) => member.key !== myKey)) setMembersHeard(true);
@@ -222,7 +226,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       window.clearTimeout(heard);
       membership.leave();
     };
-  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, guestLabel, myKey]);
+  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey]);
 
   const accounts = accountsPresent(members);
 
@@ -996,7 +1000,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const screen = useScreenView(roomId, canvasAudio);
   const crownedIds = new Set(read.crowns.map((crown) => crown.userId));
   const canvasContext: CanvasContext = {
-    me: user === null ? null : { id: user.id, label: user.displayName },
+    me: user !== null ? { id: user.id, label: user.displayName } : roomGuest !== null && roomGuest.named && room.guestsCanTalk !== false ? { id: roomGuest.id, label: roomGuest.label } : null,
+    guest: user === null,
+    guests: new Set(members.flatMap((member) => (typeof member.guestId === 'string' ? [member.guestId] : []))),
+    askName: user === null && live && room.guestsCanTalk !== false && (roomGuest === null || !roomGuest.named) ? () => setNaming(true) : undefined,
     host: { id: room.originalHostId, label: room.originalHostLabel },
     title: `${music ? 'MUSIC' : 'STREAM'} :: ${room.originalHostLabel.toUpperCase()}`,
     amHost,
@@ -1193,6 +1200,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
           look={look}
         />
       ) : null}
+      {naming && user === null ? <GuestWindow onNamed={() => setNaming(false)} onClose={() => setNaming(false)} /> : null}
       {settingsOpen && user !== null && mayEditRoom(room, read.crowns, user.id, live) ? <RoomSettingsWindow room={room} userId={user.id} look={look} onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );

@@ -1026,11 +1026,12 @@ class SupabaseWatchRepository implements WatchRepository {
       if (left) return;
       const members: WatchMember[] = [];
       for (const [key, metas] of Object.entries(joined.presenceState())) {
-        const meta = metas[0] as { user_id?: unknown; name?: unknown; joined_at?: unknown } | undefined;
+        const meta = metas[0] as { user_id?: unknown; guest_id?: unknown; name?: unknown; joined_at?: unknown } | undefined;
         if (meta === undefined) continue;
         members.push({
           key,
           userId: typeof meta.user_id === 'string' ? meta.user_id : null,
+          guestId: typeof meta.guest_id === 'string' ? meta.guest_id : null,
           name: typeof meta.name === 'string' ? meta.name : '',
           joinedAt: typeof meta.joined_at === 'number' ? meta.joined_at : Date.now(),
         });
@@ -1041,7 +1042,7 @@ class SupabaseWatchRepository implements WatchRepository {
       joined.subscribe((status) => {
         if (left) return;
         if (status === 'SUBSCRIBED') {
-          void joined.track({ user_id: self.userId, name: self.name, joined_at: self.joinedAt }).catch(() => undefined);
+          void joined.track({ user_id: self.userId, guest_id: self.guestId ?? null, name: self.name, joined_at: self.joinedAt }).catch(() => undefined);
         }
       });
     };

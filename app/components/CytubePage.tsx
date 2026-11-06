@@ -157,8 +157,8 @@ function About() {
       </AboutPart>
       <AboutPart title="GUESTS">
         You can join a room without an account: from the ROOM tab, or with a room&apos;s link. A private room asks for its password if it has one, and until you are in you see
-        only ANON tags and bars. To talk you pick a name, which shows with [GUEST] after it, or log in. Going live, the queue and drawing need an account. A host can turn GUESTS
-        CAN TALK off, and can remove a guest.
+        only ANON tags and bars. To talk or draw you pick a name, which shows with [GUEST] after it, or log in. Going live, the queue, saving a canvas and chat pictures need an account. A host can
+        turn GUESTS CAN TALK off, which stops guests drawing too, and can remove a guest.
       </AboutPart>
       <AboutPart title="THE QUEUE AND ADDITIONS">
         What plays comes from the room&apos;s queue: red has played, green is on, blue is next. Anybody can add things. Without a crown, what

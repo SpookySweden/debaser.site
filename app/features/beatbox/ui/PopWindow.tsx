@@ -10,6 +10,7 @@ import {
   type PointerEvent,
   type ReactNode,
 } from "react";
+import { GLYPHS } from "./keyHelp";
 import { windowCloseKey } from "./looks";
 import { clampPlace, type Size, type WindowName, type WindowStore } from "./windowStore";
 
@@ -138,7 +139,7 @@ export function PopWindow({
           )}
         </h2>
         <button type="button" aria-label={`Close ${title}`} title="Close (Esc)" onClick={onClose} className={windowCloseKey}>
-          Close
+          {GLYPHS.close}
         </button>
       </div>
       <div className="flex min-h-0 flex-1 flex-col items-start gap-bb-gap p-bb-gutter md:overflow-y-auto">{children}</div>

@@ -13,8 +13,8 @@ import { getWatchRepository } from '../lib/watch/repository';
 import { roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
 import { guestReturnRoom } from '../lib/watch/guest-return';
-import { hasStoredGuest } from '../lib/watch/room-client';
-import { applyLocalChange, refollowRooms, useWatchRoom } from '../lib/watch/use-watch-room';
+import { announceRoomClientChange, hasStoredGuest } from '../lib/watch/room-client';
+import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
   collapseWatch,
@@ -62,7 +62,7 @@ export default function WatchWindow() {
   useEffect(() => {
     if (accountWas.current === accountId) return;
     accountWas.current = accountId;
-    if (hasStoredGuest()) refollowRooms();
+    if (hasStoredGuest()) announceRoomClientChange();
   }, [accountId]);
   useEffect(() => {
     if (accountId === null) return;

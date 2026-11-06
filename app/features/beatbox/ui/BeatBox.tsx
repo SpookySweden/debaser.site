@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { SongLoadError } from "../engine";
-import { makeSound } from "../engine/sounds";
+import { makeSound, soundIdOf, tryPitchOf } from "../engine/sounds";
 import { NOTE_KEY_LABELS } from "../input/computerKeys";
 import { QUANTISE_OPTIONS } from "../recorder/convert";
 import type { NoteData, SongData } from "../engine/songData";
@@ -18,8 +18,8 @@ import { AUDIO_MODES, audioBehaviour, type AudioMode } from "./audioModes";
 import { BarRow, type BarPick } from "./BarRow";
 import { channelName } from "./channelLooks";
 import { ChoiceGroup } from "./ChoiceGroup";
-import { CELL_SIZES, type CellSize } from "./gridView";
 import { HelpPanel } from "./HelpPanel";
+import { HintLine } from "./HintLine";
 import { InOut, type SavedSong } from "./InOut";
 import {
   actionFor,
@@ -32,9 +32,10 @@ import {
   type KeyAction,
   type KeyStorage,
 } from "./keyBindings";
+import { GLYPHS } from "./keyHelp";
 import { KeysPanel } from "./KeysPanel";
 import { createLiveNotes } from "./liveNotes";
-import { barKey, barMainKey, smallKey, stripKey, titleLine, windowKey } from "./looks";
+import { barGlyph, barMainGlyph, glyphKey, smallKey, stripKey, titleLine } from "./looks";
 import { MidiConnect } from "./MidiConnect";
 import { NoteGrid, type NoteGridHandle } from "./NoteGrid";
 import { Pads } from "./Pads";
@@ -52,18 +53,39 @@ export type BeatBoxTheme = "default" | "high-contrast";
 const HEAR_NOTE_MS = 250;
 const CURSOR_TONE_MS = 100;
 const TEMPO_STEP = 5;
-// What a new sound plays so it can be heard: middle C on a tune channel, the kick on the drums.
-const TRY_TUNE_PITCH = 48;
-const TRY_DRUM_PITCH = 0;
-const TRY_SOUND_MS = 400;
+// How long a new sound plays, so it can be heard. Long enough for a slow pad to get going.
+const TRY_SOUND_MS = 600;
+const NAMES_KEY = "debaser.beatbox.key-names.v1";
 
-const WINDOW_KEYS: readonly { readonly name: WindowName; readonly label: string; readonly action: KeyAction; readonly hint: string }[] = [
-  { name: "sounds", label: "Sounds", action: "windowSounds", hint: "The kinds of instrument" },
-  { name: "recorder", label: "Recorder", action: "windowRecorder", hint: "How recording works" },
-  { name: "playing", label: "Playing", action: "windowPlaying", hint: "Computer keys, pads and a MIDI keyboard" },
-  { name: "song", label: "Song", action: "windowSong", hint: "Open, save and share" },
-  { name: "settings", label: "Settings", action: "windowSettings", hint: "How it looks and sounds, and every key" },
+const WINDOW_KEYS: readonly { readonly name: WindowName; readonly label: string; readonly glyph: string; readonly action: KeyAction; readonly hint: string }[] = [
+  { name: "sounds", label: "Sounds", glyph: GLYPHS.sounds, action: "windowSounds", hint: "Sounds: the kinds of instrument" },
+  { name: "recorder", label: "Recorder", glyph: GLYPHS.recorder, action: "windowRecorder", hint: "Recorder: how recording works" },
+  { name: "playing", label: "Playing", glyph: GLYPHS.playing, action: "windowPlaying", hint: "Playing: computer keys, pads and a MIDI keyboard" },
+  { name: "song", label: "Song", glyph: GLYPHS.song, action: "windowSong", hint: "Song: open, save and share" },
+  { name: "settings", label: "Settings", glyph: GLYPHS.settings, action: "windowSettings", hint: "Settings: how it looks and sounds, and every key" },
 ];
+
+/** What's on a small key: its glyph, and its name under it for anyone who's asked for them in Settings. */
+function KeyFace({ glyph, name, names }: { glyph: string; name: string; names: boolean }) {
+  return (
+    <>
+      <span aria-hidden="true">{glyph}</span>
+      {names && (
+        <span aria-hidden="true" className="px-1 text-bb-cell-m uppercase">
+          {name}
+        </span>
+      )}
+    </>
+  );
+}
+
+function rememberedNames(memory: KeyStorage | null): boolean {
+  try {
+    return memory?.getItem(NAMES_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
 
 /** A key in the words a screen reader wants. */
 function ariaKeys(stroke: string): string {
@@ -125,7 +147,6 @@ export function BeatBox({
   const playing = useSyncExternalStore(transport.subscribe, transport.isPlaying);
   const recordSettings = useSyncExternalStore(session.subscribe, session.getSettings);
   const [pick, setPick] = useState<BarPick>({ channel: 0, bar: 0 });
-  const [size, setSize] = useState<CellSize>("l");
   const [follow, setFollow] = useState(false);
   const [songNumber, setSongNumber] = useState(0);
   const [audioMode, setAudioMode] = useState<AudioMode>("practice");
@@ -133,6 +154,8 @@ export function BeatBox({
   const [theme, setTheme] = useState<BeatBoxTheme>(() => themeProp ?? startingTheme());
   const [helpOpen, setHelpOpen] = useState(false);
   const [padsShown, setPadsShown] = useState(false);
+  const [hand, setHand] = useState(false);
+  const [names, setNames] = useState(() => rememberedNames(memory));
   const [barsFolded, setBarsFolded] = useState(false);
   const [looping, setLooping] = useState(true);
   const [bindings, setBindings] = useState<Bindings>(() => loadBindings(memory));
@@ -222,11 +245,19 @@ export function BeatBox({
     setStatus(songs.redo() ? "Redone." : "Nothing to redo.");
   }
 
-  function changeSize(direction: 1 | -1) {
-    const next = CELL_SIZES[CELL_SIZES.indexOf(size) + direction];
-    if (next) {
-      setSize(next);
-      setStatus(`Grid size ${next.toUpperCase()}.`);
+  function toggleHand() {
+    setHand(!hand);
+    setStatus(hand ? "Hand off. Dragging moves the notes." : "Hand on. Dragging moves the view.");
+  }
+
+  function toggleNames() {
+    const next = !names;
+    setNames(next);
+    try {
+      if (next) memory?.setItem(NAMES_KEY, "on");
+      else memory?.removeItem(NAMES_KEY);
+    } catch {
+      // A browser that won't keep it only forgets it next time.
     }
   }
 
@@ -302,6 +333,15 @@ export function BeatBox({
     setStatus("The windows are back where they started.");
   }
 
+  /** Plays this channel's sound. Heard over a playing song by itself, and on its own when there's none. */
+  function trySound() {
+    const channel = songs.getSong().channels[pick.channel];
+    if (!channel) return;
+    const pitch = tryPitchOf(soundIdOf(channel.sounds[0], channel.isDrum) ?? "", channel.isDrum);
+    engine.playLiveNote(pitch, pick.channel);
+    setTimeout(() => engine.releaseLiveNote(pitch), TRY_SOUND_MS);
+  }
+
   function changeSound(soundId: string) {
     const current = songs.getSong();
     const channel = current.channels[pick.channel];
@@ -313,10 +353,7 @@ export function BeatBox({
         channel.sounds.map((sound) => makeSound(soundId, channel.isDrum, sound)),
       ),
     );
-    // Heard over a playing song by itself, and on its own when there's none.
-    const pitch = channel.isDrum ? TRY_DRUM_PITCH : TRY_TUNE_PITCH;
-    engine.playLiveNote(pitch, pick.channel);
-    setTimeout(() => engine.releaseLiveNote(pitch), TRY_SOUND_MS);
+    trySound();
     setStatus(`${channelName(current, pick.channel)} has a new sound.`);
   }
 
@@ -388,8 +425,7 @@ export function BeatBox({
     audioMode: cycleAudioMode,
     focusView: toggleFocusView,
     contrast: toggleTheme,
-    smaller: () => changeSize(-1),
-    bigger: () => changeSize(1),
+    hand: toggleHand,
   };
   const latest = { actions, bindings, showOctave, closeWindow };
   const pageKeys = useRef(latest);
@@ -512,12 +548,20 @@ export function BeatBox({
     }
   }, [initialSong, openSong]);
 
-  function changeNotes(notes: readonly NoteData[]) {
-    songs.edit(replacePatternNotes(songs.getSong(), pick.channel, pick.bar, notes));
+  function changeNotes(notes: readonly NoteData[], partOfLast = false) {
+    const next = replacePatternNotes(songs.getSong(), pick.channel, pick.bar, notes);
+    if (partOfLast) songs.reviseLatest(next);
+    else songs.edit(next);
   }
 
-  function changeSong(next: SongData) {
-    songs.edit(next);
+  function changeSong(next: SongData, partOfLast = false) {
+    if (partOfLast) songs.reviseLatest(next);
+    else songs.edit(next);
+  }
+
+  /** Setting the loop means wanting it to loop. */
+  function loopSet() {
+    setLooping(true);
   }
 
   function noteToggled(pitch: number, on: boolean) {
@@ -551,15 +595,11 @@ export function BeatBox({
   const keyFor = (action: KeyAction) => keyWords(bindings[action]);
   const roomSize = { width: roomWidth, height: roomHeight };
 
-  const sizeKeys = (
-    <ChoiceGroup<CellSize>
-      label="Size"
-      keyName={`${keyFor("smaller")} ${keyFor("bigger")}`}
-      value={size}
-      options={CELL_SIZES.map((option) => ({ value: option, label: option.toUpperCase() }))}
-      onChange={setSize}
-      look={stripKey}
-    />
+  const loopWords = `bars ${song.loopStart + 1} to ${song.loopStart + song.loopLength}`;
+  const handKey = (
+    <button type="button" aria-label="Hand" aria-pressed={hand} title={`Hand: dragging moves the view (${keyFor("hand")})`} onClick={toggleHand} className={glyphKey(hand)}>
+      {GLYPHS.hand}
+    </button>
   );
 
   return (
@@ -588,24 +628,26 @@ export function BeatBox({
           <div role="group" aria-label="Playing the song" className="flex flex-wrap items-stretch gap-x-1">
             <button
               type="button"
+              aria-label={playing ? "Pause" : "Play"}
               onClick={togglePlay}
               title={`${playing ? "Pause" : "Play"} (${keyFor("playPause")})`}
               aria-keyshortcuts={ariaKeys(bindings.playPause)}
-              className={`${barMainKey} w-[7ch] 2xl:w-[8ch]`}
+              className={barMainGlyph}
             >
-              {playing ? "Pause" : "Play"}
+              <KeyFace glyph={playing ? GLYPHS.pause : GLYPHS.play} name={playing ? "Pause" : "Play"} names={names} />
             </button>
-            <button type="button" onClick={stop} title={`Stop, and go back to the picked bar (${keyFor("stop")})`} className={barKey()}>
-              Stop
+            <button type="button" aria-label="Stop" onClick={stop} title={`Stop, and go back to the picked bar (${keyFor("stop")})`} className={barGlyph()}>
+              <KeyFace glyph={GLYPHS.stop} name="Stop" names={names} />
             </button>
             <button
               type="button"
+              aria-label={looping ? `Loop ${loopWords}` : "Loop off"}
               aria-pressed={looping}
               onClick={toggleLoop}
-              title={looping ? `Repeating bars ${song.loopStart + 1} to ${song.loopStart + song.loopLength}. Press for the whole song, once (${keyFor("loop")})` : `Playing the whole song once. Press to repeat bars ${song.loopStart + 1} to ${song.loopStart + song.loopLength} (${keyFor("loop")})`}
-              className={focusView ? "hidden" : barKey(looping)}
+              title={looping ? `Loop on: ${loopWords} repeat. Press for the whole song, once (${keyFor("loop")})` : `Loop off: the whole song, once. Press to repeat ${loopWords} (${keyFor("loop")})`}
+              className={focusView ? "hidden" : barGlyph(looping)}
             >
-              {looping ? `Loop ${song.loopStart + 1}-${song.loopStart + song.loopLength}` : "Loop off"}
+              <KeyFace glyph={GLYPHS.loop} name="Loop" names={names} />
             </button>
           </div>
           <PixelSlot name="record-light" size="light" src={art.recordLight} showEmpty={showArtSlots} />
@@ -614,45 +656,54 @@ export function BeatBox({
             aria-pressed={recordSettings.recording}
             onClick={session.toggleRecord}
             title={`Record, or stop recording and keep playing (${keyFor("record")})`}
+            aria-label={recordSettings.recording ? `Recording pass ${recordSettings.pass}` : "Record"}
             aria-keyshortcuts={ariaKeys(bindings.record)}
-            className={barKey(recordSettings.recording)}
+            className={barGlyph(recordSettings.recording)}
           >
             {recordSettings.recording ? (
-              <>
-                Rec<span className="sr-only">ording pass</span> {recordSettings.pass}
-              </>
+              <span aria-hidden="true" className="whitespace-nowrap">
+                {GLYPHS.record} {recordSettings.pass}
+              </span>
             ) : (
-              "Record"
+              <KeyFace glyph={GLYPHS.record} name="Record" names={names} />
             )}
           </button>
-          <button type="button" onClick={undo} title={`Undo (${keyFor("undo")})`} aria-keyshortcuts={ariaKeys(bindings.undo)} className={focusView ? "hidden" : barKey()}>
-            Undo
+          <button type="button" aria-label="Undo" onClick={undo} title={`Undo (${keyFor("undo")})`} aria-keyshortcuts={ariaKeys(bindings.undo)} className={focusView ? "hidden" : barGlyph()}>
+            <KeyFace glyph={GLYPHS.undo} name="Undo" names={names} />
+          </button>
+          <button type="button" aria-label="Redo" onClick={redo} title={`Redo (${keyFor("redo")})`} aria-keyshortcuts={ariaKeys(bindings.redo)} className={focusView ? "hidden" : barGlyph()}>
+            <KeyFace glyph={GLYPHS.redo} name="Redo" names={names} />
           </button>
           <div role="group" aria-label="Speed" className={focusView ? "hidden" : "flex flex-wrap items-stretch gap-x-1"}>
-            <span className="flex items-center text-display font-bold whitespace-nowrap uppercase 2xl:px-1 2xl:text-bb-large">Speed {song.tempo}</span>
-            <button type="button" aria-label="Slower" title={`Slower (${keyFor("slower")})`} onClick={() => changeTempo(-TEMPO_STEP)} className={barKey()}>
-              -
+            <button type="button" aria-label="Slower" title={`Slower (${keyFor("slower")})`} onClick={() => changeTempo(-TEMPO_STEP)} className={barGlyph()}>
+              <KeyFace glyph="-" name="Slower" names={names} />
             </button>
-            <button type="button" aria-label="Faster" title={`Faster (${keyFor("faster")})`} onClick={() => changeTempo(TEMPO_STEP)} className={barKey()}>
-              +
+            <span title="The speed, in beats a minute" className="flex items-center text-bb-large font-bold whitespace-nowrap">
+              <span className="sr-only">Speed </span>
+              <span aria-hidden="true">{GLYPHS.beat}</span>
+              {song.tempo}
+            </span>
+            <button type="button" aria-label="Faster" title={`Faster (${keyFor("faster")})`} onClick={() => changeTempo(TEMPO_STEP)} className={barGlyph()}>
+              <KeyFace glyph="+" name="Faster" names={names} />
             </button>
           </div>
-          <div role="group" aria-label="Windows" className="ml-auto flex flex-wrap items-stretch 2xl:gap-x-1">
-            {WINDOW_KEYS.map(({ name, label, action, hint }) => (
+          <div role="group" aria-label="Windows" className="ml-auto flex flex-wrap items-stretch gap-x-1">
+            {WINDOW_KEYS.map(({ name, label, glyph, action, hint }) => (
               <button
                 key={name}
                 type="button"
                 data-window-key={name}
+                aria-label={label}
                 aria-expanded={openWindows.includes(name)}
                 onClick={() => pressWindowKey(name)}
                 title={`${hint} (${keyFor(action)})`}
-                className={focusView && name !== "settings" ? "hidden" : windowKey(openWindows.includes(name))}
+                className={focusView && name !== "settings" ? "hidden" : barGlyph(openWindows.includes(name))}
               >
-                {label}
+                <KeyFace glyph={glyph} name={label} names={names} />
               </button>
             ))}
-            <button type="button" aria-label="All the keys" onClick={() => setHelpOpen(true)} title={`All the keys (${keyFor("help")})`} className={windowKey()}>
-              ?
+            <button type="button" aria-label="All the keys" onClick={() => setHelpOpen(true)} title={`All the keys (${keyFor("help")})`} className={barGlyph()}>
+              <KeyFace glyph="?" name="Keys" names={names} />
             </button>
           </div>
         </div>
@@ -661,12 +712,13 @@ export function BeatBox({
           {/* The windows float over the page, which stays usable behind them. At high zoom there's no room to float, so they
               stack above the notes instead. */}
           <div className="md:pointer-events-none md:absolute md:inset-0 md:z-40">
-            <PopWindow store={windows} name="sounds" title="Sounds" room={roomSize} onClose={() => closeWindow("sounds")}>
+            <PopWindow store={windows} name="sounds" title="Sounds" room={roomSize} wide onClose={() => closeWindow("sounds")}>
               <SoundsPanel
                 song={song}
                 channel={pick.channel}
                 onPickChannel={(channel) => setPick({ channel, bar: pick.bar })}
                 onPickSound={changeSound}
+                onTrySound={trySound}
               />
             </PopWindow>
 
@@ -682,11 +734,11 @@ export function BeatBox({
                 <p className="text-bb-large wrap-anywhere">These play notes: {NOTE_KEY_LABELS}</p>
                 <div role="group" aria-label="Computer keys" className="flex flex-wrap items-center gap-bb-gutter">
                   <span className="text-bb-large font-bold uppercase">Octave {octave}</span>
-                  <button type="button" title="Key: Z" onClick={() => shiftOctave(-1)} className={smallKey()}>
-                    Lower
+                  <button type="button" aria-label="Lower" title="Lower (Z)" onClick={() => shiftOctave(-1)} className={glyphKey()}>
+                    {GLYPHS.down}
                   </button>
-                  <button type="button" title="Key: X" onClick={() => shiftOctave(1)} className={smallKey()}>
-                    Higher
+                  <button type="button" aria-label="Higher" title="Higher (X)" onClick={() => shiftOctave(1)} className={glyphKey()}>
+                    {GLYPHS.up}
                   </button>
                 </div>
                 <button type="button" aria-pressed={padsShown} onClick={() => setPadsShown(!padsShown)} className={smallKey(padsShown)}>
@@ -723,8 +775,8 @@ export function BeatBox({
                   <button type="button" aria-pressed={focusView} title={`Key: ${keyFor("focusView")}`} onClick={toggleFocusView} className={smallKey(focusView)}>
                     Focus view {focusView ? "on" : "off"}
                   </button>
-                  <button type="button" title={`Key: ${keyFor("redo")}`} onClick={redo} className={smallKey()}>
-                    Redo
+                  <button type="button" aria-pressed={names} onClick={toggleNames} className={smallKey(names)}>
+                    Names on keys {names ? "on" : "off"}
                   </button>
                   <button type="button" onClick={putWindowsBack} className={smallKey()}>
                     Put windows back
@@ -741,18 +793,20 @@ export function BeatBox({
               song={song}
               pick={pick}
               transport={transport}
+              looping={looping}
+              hand={hand}
               onPick={setPick}
               onChange={changeSong}
+              onLoopSet={loopSet}
               onAnnounce={setStatus}
               onOpenGrid={() => grid.current?.focus()}
               art={art}
               showArtSlots={showArtSlots}
-              footKeys={barsShowing ? sizeKeys : undefined}
             />
           </div>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex flex-none flex-wrap items-baseline gap-x-bb-gutter px-2 text-display">
+            <div className="flex min-h-bb-target-min flex-none items-center gap-x-bb-gutter px-2 text-display">
               {!barsShowing && !focusView && (
                 <p className="font-bold whitespace-nowrap text-bb-daffodil uppercase">
                   {channelName(song, pick.channel)} bar {pick.bar + 1}
@@ -761,9 +815,7 @@ export function BeatBox({
                 </p>
               )}
               <BeatLight session={session} />
-              <p role="status" aria-live={behaviour.speaksStatus ? "polite" : "off"} className="wrap-anywhere">
-                {status}
-              </p>
+              <HintLine page={page} status={status} live={behaviour.speaksStatus} />
               {/* Problems are always spoken, whatever the audio mode. */}
               <p role="alert" className="sr-only">
                 {status.startsWith("Problem") ? status : ""}
@@ -775,9 +827,9 @@ export function BeatBox({
               song={song}
               channelIndex={pick.channel}
               bar={pick.bar}
-              size={size}
               transport={transport}
               shortCellNames={behaviour.shortCellNames}
+              hand={hand}
               art={art}
               showArtSlots={showArtSlots}
               onBarStep={barStep}
@@ -788,9 +840,9 @@ export function BeatBox({
               footKeys={
                 focusView ? undefined : (
                   <>
-                    {!barsShowing && sizeKeys}
-                    <button type="button" aria-pressed={!barsFolded} title={`Show or hide the bars (${keyFor("bars")})`} onClick={toggleBars} className={stripKey(!barsFolded)}>
-                      Bars
+                    {handKey}
+                    <button type="button" aria-label="Bars" aria-pressed={!barsFolded} title={`Show or hide the bars (${keyFor("bars")})`} onClick={toggleBars} className={glyphKey(!barsFolded)}>
+                      {GLYPHS.bars}
                     </button>
                   </>
                 )

@@ -2,8 +2,8 @@
 
 import { useEffect, useSyncExternalStore } from 'react';
 import { getWatchRepository } from './repository';
+import { announceRoomClientChange } from './room-client';
 import type { GuestNameAnswer, RoomGuest } from './types';
-import { refollowRooms } from './use-watch-room';
 
 /** The guest in this browser, if there is one (SPEC-guests.md). Kept once per tab, as every room screen asks. */
 
@@ -48,7 +48,7 @@ export async function ensureRoomGuest(): Promise<RoomGuest> {
   const guest = found ?? (await getWatchRepository().becomeGuest());
   asked = true;
   publish(guest);
-  refollowRooms();
+  announceRoomClientChange();
   return guest;
 }
 

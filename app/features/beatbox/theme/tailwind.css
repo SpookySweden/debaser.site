@@ -9,6 +9,8 @@
   --color-bb-pink: var(--pink);
   --color-bb-rose: var(--rose);
   --color-bb-royal-blue: var(--royal-blue);
+  --color-bb-loop: var(--loop);
+  --color-bb-on-loop: var(--on-loop);
   --color-bb-black: var(--black);
   --font-beatbox: var(--font-mono);
   --text-bb-title: var(--text-title);
@@ -17,6 +19,7 @@
   --text-bb-cell-m: var(--text-m);
   --text-bb-cell-l: var(--text-l);
   --text-bb-cell-xl: var(--text-xl);
+  --text-bb-glyph: var(--text-glyph);
   --spacing-bb-target-min: var(--target-min);
   --spacing-bb-target-large: var(--target-large);
   --spacing-bb-target-bar: var(--target-bar);

@@ -302,3 +302,4 @@ lines, faces, layers - against a local `next start` on :3210 (`--base` for anoth
 The proof for a change that is meant to move nothing: a screenshot cannot prove that (clocks tick, a crawl
 scrolls), and a source diff cannot either. Widths and positions are counted separately from the look,
 because a relative time changing its words moves a box without anything having been restyled.
+measure-beatbox-feel.cjs  How quick the beat box feels: press to change on screen, on this machine and four times slower. Run by hand before and after.

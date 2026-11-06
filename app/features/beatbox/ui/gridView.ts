@@ -1,62 +1,57 @@
-// Works out which part of the note grid fits on screen. The grid shows only what fits and moves
-// in pages as the cursor does, so nothing ever scrolls sideways, even at 400% browser zoom.
-
-export type CellSize = "s" | "m" | "l" | "xl";
-
-export const CELL_SIZES: readonly CellSize[] = ["s", "m", "l", "xl"];
+// Works out how the note grid sits in the room it's given. It's a canvas: the whole bar and every note exist at once, the view moves
+// over them, and only what's near the view is drawn, so a press stays quick however big the canvas is.
 
 /**
- * The note grid fills the room it's given: as many whole beats and rows as fit at this size, each cell then stretched so
- * no room is left over. The row names take a quarter of a cell more than the notes.
+ * The size of the canvas. The whole bar fits across whenever a step can stay at least STEP_SHARE of a tap target wide; past that the
+ * steps stop shrinking and the view scrolls. Rows stay a tap target tall at the least and share out what's left, so whole rows show.
  */
-export interface GridFit {
+export interface CanvasFit {
+  /** How many whole rows fit in the view, at most. */
   readonly rows: number;
-  readonly columns: number;
   readonly cellWidth: number;
   readonly cellHeight: number;
   readonly headHeight: number;
   readonly nameWidth: number;
+  /** The whole canvas, with its headings. */
+  readonly width: number;
+  readonly height: number;
 }
 
-const MIN_FIT_ROWS = 4;
-const HEAD_SHARE = 0.6;
-const NAME_SHARE = 1.25;
+const HEAD_SHARE = 0.75;
+const NAME_SHARE = 1.35;
+const STEP_SHARE = 0.6;
 
-export function fitGrid(
-  width: number,
-  height: number,
-  cell: number,
-  stepsPerBeat: number,
-  totalColumns: number,
-  totalRows: number,
-): GridFit {
-  const headHeight = Math.round(cell * HEAD_SHARE);
-  const nameWidth = Math.round(cell * NAME_SHARE);
-  const fitsAcross = Math.max(1, Math.floor((width - nameWidth) / cell));
-  const wholeBeats = fitsAcross - (fitsAcross % stepsPerBeat);
-  const columns = Math.min(wholeBeats > 0 ? wholeBeats : fitsAcross, totalColumns);
-  const rows = Math.min(totalRows, Math.max(MIN_FIT_ROWS, Math.floor((height - headHeight) / cell)));
+export function fitCanvas(viewWidth: number, viewHeight: number, target: number, totalColumns: number, totalRows: number): CanvasFit {
+  const headHeight = Math.round(target * HEAD_SHARE);
+  const nameWidth = Math.round(target * NAME_SHARE);
+  const cellWidth = Math.max(Math.round(target * STEP_SHARE), Math.floor((viewWidth - nameWidth) / totalColumns));
+  const rows = Math.min(totalRows, Math.max(1, Math.floor((viewHeight - headHeight) / target)));
+  const cellHeight = Math.max(target, Math.floor((viewHeight - headHeight) / rows));
   return {
     rows,
-    columns,
-    cellWidth: Math.max(cell, Math.floor((width - nameWidth) / columns)),
-    cellHeight: Math.max(cell, Math.floor((height - headHeight) / rows)),
+    cellWidth,
+    cellHeight,
     headHeight,
     nameWidth,
+    width: nameWidth + cellWidth * totalColumns,
+    height: headHeight + cellHeight * totalRows,
   };
 }
 
-/** Columns move a page at a time. */
-export function columnWindowStart(cursorColumn: number, columnCount: number): number {
-  return Math.floor(cursorColumn / columnCount) * columnCount;
+/** The whole rows or columns showing, for a view that's `view` long after its heading, scrolled `scrolled` along. */
+export function showing(scrolled: number, cell: number, view: number, total: number): { first: number; last: number } {
+  const first = Math.max(0, Math.min(total - 1, Math.ceil(scrolled / cell - 0.01)));
+  const last = Math.max(first, Math.min(total - 1, Math.floor((scrolled + view) / cell + 0.01) - 1));
+  return { first, last };
 }
 
-/** Rows move only as far as needed to keep the cursor showing. */
-export function rowWindowStart(current: number, cursorRow: number, rowCount: number, totalRows: number): number {
-  let start = current;
-  if (cursorRow < start) start = cursorRow;
-  if (cursorRow >= start + rowCount) start = cursorRow - rowCount + 1;
-  return Math.max(0, Math.min(start, totalRows - rowCount));
+/** How far to scroll to bring a row or column into a view that's `view` long, moving no further than it must. */
+export function scrollToShow(scrolled: number, cell: number, view: number, index: number): number {
+  const start = index * cell;
+  const end = start + cell;
+  if (start < scrolled) return start;
+  if (end > scrolled + view) return Math.max(0, Math.min(start, end - view));
+  return scrolled;
 }
 
 export interface GridCursor {

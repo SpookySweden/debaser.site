@@ -65,6 +65,38 @@ function stretchPins(note: NoteData, length: number): NoteData["pins"] {
   return [...inner, { interval: last?.interval ?? 0, time: length, size: last?.size ?? NOTE_SIZE_MAX }];
 }
 
+/** Sets where a note ends, as far as the bar and the next note let it go. Returns the notes unchanged if nothing moved. */
+export function setNoteEnd(notes: readonly NoteData[], note: NoteData, wanted: number, smallest: number, barParts: number): readonly NoteData[] {
+  const next = notes.filter((other) => other !== note && other.start >= note.end).reduce((soonest, other) => Math.min(soonest, other.start), barParts);
+  const end = Math.max(note.start + smallest, Math.min(next, wanted));
+  if (end === note.end) return notes;
+  const stretched = { ...note, end, pins: stretchPins(note, end - note.start) };
+  return notes.map((other) => (other === note ? stretched : other));
+}
+
+/**
+ * Picks a note up and sets it down somewhere else: along the bar by `byParts`, and this one pitch up or down by `byPitch` (the rest of a
+ * chord stays). If the place along the bar is taken it stays where it was along the bar, and the same for a pitch the chord already has.
+ */
+export function moveNote(
+  notes: readonly NoteData[],
+  note: NoteData,
+  pitch: number,
+  byParts: number,
+  byPitch: number,
+  barParts: number,
+  highestPitch: number,
+): readonly NoteData[] {
+  const length = note.end - note.start;
+  const wantedStart = Math.max(0, Math.min(barParts - length, note.start + byParts));
+  const others = notes.filter((other) => other !== note);
+  const free = !others.some((other) => other.start < wantedStart + length && other.end > wantedStart);
+  const start = free ? wantedStart : note.start;
+  const wantedPitch = Math.max(0, Math.min(highestPitch, pitch + byPitch));
+  const newPitch = note.pitches.includes(wantedPitch) && wantedPitch !== pitch ? pitch : wantedPitch;
+  return byStart([...others, { ...note, start, end: start + length, pitches: note.pitches.map((held) => (held === pitch ? newPitch : held)) }]);
+}
+
 export function deleteNoteAt(notes: readonly NoteData[], start: number, end: number): readonly NoteData[] {
   const note = noteAt(notes, start, end);
   return note ? notes.filter((other) => other !== note) : notes;

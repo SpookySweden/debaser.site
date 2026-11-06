@@ -9,7 +9,7 @@ import AccountForms from './AccountForms';
 import PopoutWindow from './PopoutWindow';
 
 /**
- * What opens the first time somebody without an account does something that needs a name (SPEC-guests.md, Luke 2026-11-06): on the left, log in or create
+ * What opens the first time somebody without an account speaks or draws (SPEC-guests.md, Luke 2026-11-06): on the left, log in or create
  * an account; on the right, a name for a temporary guest. The database has the last word on a name. Logging in closes this from outside, once the
  * account has landed; a phone stacks the two, left side first.
  */
@@ -40,7 +40,7 @@ export default function GuestWindow({ onNamed, onClose }: { onNamed: (guest: Roo
   }
 
   return (
-    <PopoutWindow title="WHO IS SPEAKING?" onClose={onClose} maxWidth="max-w-4xl">
+    <PopoutWindow title="WHO ARE YOU?" onClose={onClose} maxWidth="max-w-4xl">
       <div className="grid gap-3 p-2 text-label text-ink sm:grid-cols-2" data-guest-window>
         <section className="min-w-0" data-guest-window-account>
           <h2 className="text-title font-bold">LOG IN OR CREATE AN ACCOUNT</h2>
@@ -49,7 +49,7 @@ export default function GuestWindow({ onNamed, onClose }: { onNamed: (guest: Roo
         <section className="flex min-w-0 flex-col gap-2" data-guest-window-guest>
           <h2 className="text-title font-bold">OR BE A GUEST</h2>
           <p>
-            A TEMPORARY NAME FOR THIS BROWSER. IT SHOWS WITH [GUEST] AFTER IT. GUESTS CAN TALK IN STREAMS. GOING LIVE, THE QUEUE AND DRAWING NEED AN ACCOUNT.
+            A TEMPORARY NAME FOR THIS BROWSER. IT SHOWS WITH [GUEST] AFTER IT. GUESTS CAN TALK AND DRAW IN STREAMS. GOING LIVE, THE QUEUE, SAVING A CANVAS AND CHAT PICTURES NEED AN ACCOUNT.
           </p>
           <form
             noValidate
@@ -73,7 +73,7 @@ export default function GuestWindow({ onNamed, onClose }: { onNamed: (guest: Roo
             </label>
             <div>
               <button type="submit" className={PLATE_MAIN} disabled={busy || name.trim().length === 0} data-guest-name-save>
-                {busy ? '[ JUST A MOMENT... ]' : '[ SPEAK AS A GUEST ]'}
+                {busy ? '[ JUST A MOMENT... ]' : '[ CONTINUE AS A GUEST ]'}
               </button>
             </div>
             {fault === null ? null : (

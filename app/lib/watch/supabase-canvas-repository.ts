@@ -125,6 +125,10 @@ function toSnapshot(row: SnapshotRow, imageUrl: string | null): CanvasSnapshot {
 }
 
 function refusal(error: { message?: string; code?: string } | null, fallback: string): Error {
+  // The database's own words for a guest's strokes (20261106204241_guests_can_draw.sql).
+  if (error?.code === 'GT401') return new Error('PICK A NAME FIRST.');
+  if (error?.code === 'GT415') return new Error('THAT NEEDS AN ACCOUNT.');
+  if (error?.code === 'GT429') return new Error('SLOW DOWN. WHAT YOU DREW IS WAITING TO BE KEPT.');
   if (error?.code === '42501') return new Error('NOT ALLOWED.');
   return new Error(fallback);
 }
@@ -145,15 +149,13 @@ class SupabaseCanvasRepository implements CanvasRepository {
   async openCanvas(input: { roomId: string; host: { id: string; label: string }; title: string; by: string }): Promise<RoomCanvasRecord> {
     const open = await this.findOpenCanvas(input.roomId);
     if (open !== null) return open;
-    const { data, error } = await this.client()
+    // Not read back in the same breath: the read rule asks a function about the row, the function can't see a row still being written, and the whole insert is refused.
+    const { error } = await this.client()
       .from(CANVASES)
-      .insert({ room_id: input.roomId, host_id: input.host.id, host_label: input.host.label.slice(0, 80) || 'Unknown', title: input.title.slice(0, 120), opened_by: input.by })
-      .select(CANVAS_COLUMNS)
-      .single<CanvasRow>();
-    if (data !== null) return toCanvas(data);
-    // Two tabs opened it at once: the other one's is the room's canvas.
-    const raced = await this.findOpenCanvas(input.roomId);
-    if (raced !== null) return raced;
+      .insert({ room_id: input.roomId, host_id: input.host.id, host_label: input.host.label.slice(0, 80) || 'Unknown', title: input.title.slice(0, 120), opened_by: input.by });
+    // This one, or if two tabs opened it at once, the other one's: it is the room's canvas either way.
+    const opened = await this.findOpenCanvas(input.roomId);
+    if (opened !== null) return opened;
     throw refusal(error, 'THE CANVAS COULD NOT BE OPENED.');
   }
 

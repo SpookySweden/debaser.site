@@ -11,15 +11,15 @@ temporary guest account."
 - **Private rooms on ROOM:** anonymous lines with no key. The link is still the only way in.
 - **A private room's link:** `JOIN THIS ROOM?`, with no room name, then ANON tags and bars until they get in. A password room asks for its password, and five wrong tries lock
   that guest out for ten minutes. Pressing JOIN makes the guest, with a placeholder name like GUEST-7Q2.
-- **Speaking:** the first line opens WHO IS SPEAKING?. Left: log in or create an account. Right: a name for a temporary guest. A phone stacks them, left first.
-  With a guest name, the line sends as soon as the name is saved. Logging in brings them back to the room with the words still in the box.
-- **The room's cog:** GUESTS CAN TALK, on by default, for the host and crowns. REMOVE works on guests.
+- **Speaking or drawing:** the first line, or the first press on the canvas, opens WHO ARE YOU?. Left: log in or create an account. Right: a name for a temporary guest. A phone stacks them, left first.
+  With a guest name, a line sends as soon as the name is saved, and the canvas is ready to draw on. Logging in brings them back to the room with the words still in the box.
+- **The room's cog:** GUESTS CAN TALK, on by default, for the host and crowns. Off stops guests drawing too. REMOVE works on guests.
 
 ## What guests can't do
-Go live, add to or change a queue, draw, save stream art, upload, use chat pictures (emotes are fine; a guest's line always draws as words, however it is spelled), post on the board, DM, have a profile, use MEDIA, take a crown or
+Go live, add to or change a queue, save a canvas or stream art, place pictures or chat lines on a canvas, upload, use chat pictures (emotes are fine; a guest's line always draws as words, however it is spelled), post on the board, DM, have a profile, use MEDIA, take a crown or
 be handed a room. Everywhere outside a stream room, the site treats a guest as signed out. A room still ends when its last account leaves.
 
-**Drawing** waits for Luke's answer: decision 6 said guests could draw, and his message names only speaking.
+**Drawing** is in (Luke, 2026-11-06, "OK, with drawing"): strokes, rubbing out and undo. A guest's strokes are credited by name when somebody with an account saves the canvas.
 
 ## Guest names
 - 2 to 20 letters, numbers, spaces, - or _.
@@ -30,6 +30,7 @@ be handed a room. Everywhere outside a stream room, the site treats a guest as s
 
 ## Limits
 - 5 lines in 10 seconds and 20 a minute per guest, and 60 a minute for all of a room's guests. Accounts aren't limited.
+- 60 strokes in 10 seconds and 200 a minute per guest, and 600 a minute for all of a canvas's guests.
 - 20 wrong guest passwords in 10 minutes shuts guests out of that room for 10 minutes, right password included. Accounts aren't affected.
 - 30 new guests an hour per internet address (Supabase's own limit).
 - **No Turnstile yet** (decision 11): Supabase's bot check also covers ordinary sign-ins, so it would probably stop the test accounts' sign-in. Not tried.
@@ -45,7 +46,7 @@ be handed a room. Everywhere outside a stream room, the site treats a guest as s
   3. **Rules on `storage.objects` and `realtime.messages`**: the gate doesn't cover uploads or live channels.
   4. **The server routes** that take a session token refuse a guest's (`web-session.ts`, media upload, avatar, YouTube).
 - Guests have hidden profiles, because room membership points at `profiles`, and no welcome tag.
-- Presence carries a guest's name with no id, so nobody can crown them or hand them the room.
+- Presence carries a guest's name and `guest_id`, never `user_id`, so nobody can crown them or hand them the room, and their strokes are heard on the wire as they draw.
 
 ## Undo
 The gate, in about a minute, by a route that doesn't pass through it:
@@ -60,6 +61,7 @@ Guest sign-in: the project's Auth settings, Anonymous sign-ins, or `external_ano
   lines stay as FORMER GUEST, so the tidy-up has to change that first.
 - KEEP THIS GUEST (linking Google to a guest) isn't built. Somebody who logs in after being a guest starts afresh as their account, and their guest's lines stay as the guest's.
 - A guest could turn into a real account by hand with Supabase's own email change. The site offers no way to, and it would be an ordinary account with a hidden profile.
+- A guest turned out by REMOVE or GUESTS CAN TALK can still send made-up strokes on the live wire from an altered tab. The timeline refuses them, so other tabs drop them within 30 seconds.
 - An account's chat line still takes its name from the browser, which nothing checks. Separate from this work, and not changed here. One new effect: an account that writes [GUEST] after its name could use up a room's 60 guest lines a minute, and its pictures draw as words.
 
 ## Proof

@@ -27,8 +27,7 @@ export type KeyAction =
   | "audioMode"
   | "focusView"
   | "contrast"
-  | "smaller"
-  | "bigger";
+  | "hand";
 
 export interface KeyActionInfo {
   readonly id: KeyAction;
@@ -93,8 +92,7 @@ export const KEY_GROUPS: readonly KeyActionGroup[] = [
       { id: "audioMode", label: "Change audio mode: Practice, Sonify, Perform", starts: "KeyI" },
       { id: "focusView", label: "Focus view: the notes and little else, on or off", starts: "." },
       { id: "contrast", label: "High contrast, on or off", starts: "," },
-      { id: "smaller", label: "Smaller grid", starts: "-" },
-      { id: "bigger", label: "Bigger grid", starts: "=", also: "+" },
+      { id: "hand", label: "Hand: dragging moves the view, not the notes", starts: "Shift+KeyH" },
     ],
   },
 ];
