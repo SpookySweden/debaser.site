@@ -229,7 +229,7 @@ export function relatedTags(index: StationIndex, recipe: Recipe, focus: Focus, l
       .filter((tag) => usable(tag) && !not.has(tag.name))
       .sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : 1))
       .slice(0, limit)
-      .map((tag) => ({ tag, score: tag.count, close: false, reason: `ON ${itemsWord(tag.count)}` }));
+      .map((tag) => ({ tag, score: tag.count, close: false, reason: wordItemsLine(index, tag.name) }));
   }
 
   const focusSet = new Set(focus.words);
