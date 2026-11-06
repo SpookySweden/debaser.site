@@ -10,7 +10,7 @@ const q = require('./tag-station-query-out/tag-station/query.js');
 const { EMPTY_RECIPE, hasFilters, listOf, parseRecipe, recipeQuery, withWordIn } = require('./tag-station-query-out/tag-station/recipe.js');
 const m = require('./tag-station-query-out/tag-station/map-layout.js');
 
-const item = (id, over = {}) => ({ id, platform: 'peertube', externalId: id, kind: 'video', url: '', canonicalUrl: '', title: id, publishedAt: '2026-01-01T00:00:00.000Z', fetchedAt: '2026-01-01T00:00:00.000Z', ...over });
+const item = (id, over = {}) => ({ id, platform: 'peertube', externalId: id, kind: 'video', url: '', canonicalUrl: '', title: `Item ${id}`, publishedAt: '2026-01-01T00:00:00.000Z', fetchedAt: '2026-01-01T00:00:00.000Z', ...over });
 const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
 const R = (over = {}) => ({ ...EMPTY_RECIPE, ...over });
 const ids = (list) => list.map((one) => one.id).sort();

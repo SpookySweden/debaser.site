@@ -41,17 +41,21 @@ export function wordsOf(item: Pick<ScoredItem, 'tags'>, extra: readonly string[]
   return [...new Set([...(item.tags ?? []), ...extra].map(normal).filter(Boolean))];
 }
 
-export function scoreItem(item: ScoredItem, taste: Taste, extra: readonly string[], now: number): number {
-  const day = Math.floor(now / DAY_MS);
+/** How much this item's words and maker are what the reader has shown they like. */
+export function tasteScore(item: Pick<ScoredItem, 'tags' | 'creator'>, taste: Taste, extra: readonly string[] = []): number {
   const tagScore = wordsOf(item, extra).reduce((sum, word) => sum + Math.min(taste.tags[word] ?? 0, CAP), 0);
   const creator = item.creator ? Math.min(taste.creators[normal(item.creator)] ?? 0, CAP) : 0;
+  return WEIGHT.tag * tagScore + WEIGHT.creator * creator;
+}
+
+export function scoreItem(item: ScoredItem, taste: Taste, extra: readonly string[], now: number): number {
+  const day = Math.floor(now / DAY_MS);
   const platform = Math.min(taste.platforms[item.platform] ?? 0, CAP);
   const published = Date.parse(item.publishedAt ?? '');
   // Halves every 30 days. A row with no date is treated as a month old, not as new.
   const age = Number.isFinite(published) ? Math.max(0, now - published) / DAY_MS : 30;
   return (
-    WEIGHT.tag * tagScore +
-    WEIGHT.creator * creator +
+    tasteScore(item, taste, extra) +
     WEIGHT.platform * platform +
     WEIGHT.fresh * 0.5 ** (age / 30) +
     (item.thumbnailUrl ? WEIGHT.picture : 0) +

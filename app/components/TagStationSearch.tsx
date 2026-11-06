@@ -2,6 +2,7 @@
 
 import { useId, useMemo, useState, type KeyboardEvent, type RefObject } from 'react';
 import { sourceLabel, suggest, type StationIndex } from '../lib/tag-station/query';
+import { wordKey } from '../lib/tag-station/words';
 import { looksLikeLink, MAX_LINK_LENGTH } from '../lib/web/link-shape';
 import { FIELD } from '../lib/ui/controls';
 import { STATION_RING } from './TagStationParts';
@@ -10,6 +11,12 @@ type Choice =
   | { key: string; kind: 'link'; link: string; label: string }
   | { key: string; kind: 'tag'; name: string; label: string; detail: string }
   | { key: string; kind: 'item'; id: string; label: string; detail: string };
+
+/** A word nothing on the map spells: looked up in the catalogue when it's chosen. */
+function lookIn(word: string, onMap: readonly string[]): Choice[] {
+  if (word.length < 3 || onMap.some((name) => wordKey(name) === wordKey(word))) return [];
+  return [{ key: `look:${word}`, kind: 'tag', name: word, label: word, detail: 'LOOK IN THE CATALOGUE' }];
+}
 
 /**
  * The one box at the top (SPEC-tag-station.md): a word, an item's name or a pasted link. It works out which and offers each,
@@ -41,6 +48,8 @@ export default function TagStationSearch({
     return [
       ...found.tags.map((tag): Choice => ({ key: `tag:${tag.name}`, kind: 'tag', name: tag.name, label: tag.name, detail: tag.count === 1 ? 'WORD · 1 ITEM' : `WORD · ${tag.count} ITEMS` })),
       ...found.items.map((item): Choice => ({ key: `item:${item.id}`, kind: 'item', id: item.id, label: item.title, detail: sourceLabel(item.platform) })),
+      // The map shows 2,000 words and the catalogue holds far more: any other word is looked up when it's chosen.
+      ...lookIn(text.trim().toLowerCase(), found.tags.map((tag) => tag.name)),
     ];
   }, [index, text]);
 

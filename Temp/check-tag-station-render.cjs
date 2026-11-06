@@ -78,7 +78,8 @@ assert.ok(item.includes('PLAY'), 'but a key for it');
 
 // 5. An unknown word, a gone item: said plainly, with suggestions and no crash.
 const typo = draw('tag=bristoll');
-assert.ok(typo.includes('NO SUCH WORD: bristoll'));
+// Drawn on the server, before the catalogue has been asked: it says it's looking. NO SUCH WORD comes once the answer is in.
+assert.ok(typo.includes('LOOKING FOR: bristoll'));
 assert.ok(typo.includes('Go to bristol'), 'offers the near miss');
 assert.ok(draw('item=gone%3Aitem').includes('THAT ITEM IS GONE'));
 

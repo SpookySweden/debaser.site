@@ -5,7 +5,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
 import { loadStationIndex } from '../lib/tag-station/client';
-import { useMoreItems } from '../lib/tag-station/more';
+import { digLine, useMoreItems } from '../lib/tag-station/more';
+import { keepShownFirst } from '../lib/tag-station/title-quality';
 import type { StationItem } from '../lib/tag-station/types';
 import { eraOf } from '../lib/tag-station/words';
 import { FIELD_TIGHT } from '../lib/ui/controls';
@@ -291,10 +292,12 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
   const recipe = useMemo(() => parseRecipe(params), [params]);
   // The chosen words, with what the pool's files hold for them added to the list. The map stays as it is.
   const chosenWords = useMemo(() => [...new Set([...(recipe.tag !== null ? [recipe.tag] : []), ...recipe.must, ...recipe.any])].slice(0, 12), [recipe.tag, recipe.must, recipe.any]);
-  const index = useMoreItems(mapIndex, chosenWords) ?? mapIndex;
+  const digging = useMoreItems(mapIndex, useMemo(() => (chosenWords.length > 0 ? { words: chosenWords } : null), [chosenWords]));
+  const index = digging.index ?? mapIndex;
   const searchBox = useRef<HTMLInputElement>(null);
   const textSize = useSyncExternalStore(subscribeTextSize, readTextSize, () => 'M' as TextSize);
   const [shownFor, setShownFor] = useState<{ key: string; count: number }>({ key: '', count: ITEMS_STEP });
+  const [pinned, setPinned] = useState<{ key: string; ids: readonly string[] }>({ key: '', ids: [] });
   const [copied, setCopied] = useState(false);
 
   const go = useCallback(
@@ -332,7 +335,11 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
 
   const recipeKey = recipeQuery(recipe);
   const shownCount = shownFor.key === recipeKey ? shownFor.count : ITEMS_STEP;
-  const shownItems = results.slice(0, shownCount);
+  // What's on the screen stays put when more arrives.
+  // A word the map doesn't show has no list until the catalogue has answered, not every item the site has.
+  const lookingUp = digging.loading && recipe.tag !== null && findTag(mapIndex, recipe.tag) === null;
+  const listed = useMemo(() => (lookingUp ? [] : keepShownFirst(pinned.key === recipeKey ? pinned.ids : [], results)), [lookingUp, pinned, recipeKey, results]);
+  const shownItems = listed.slice(0, shownCount);
   const skip = useMemo(() => new Set(results.slice(0, ITEMS_STEP).map((item) => item.id)), [results]);
   const mix = useMemo(() => sameMix(index, matched, recipe, focus, skip), [index, matched, recipe, focus, skip]);
   const edge = useMemo(() => edgePicks(index, matched, focus, new Set([...skip, ...mix.map((one) => one.item.id)])), [index, matched, focus, skip, mix]);
@@ -408,7 +415,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
             />
           ) : recipe.tag !== null ? (
             <div className="flex flex-col gap-2">
-              <p className="w-fit break-words bg-bubble-pale px-1 text-label text-ink-bar">NO SUCH WORD: {recipe.tag}</p>
+              <p className="w-fit break-words bg-bubble-pale px-1 text-label text-ink-bar">{digging.loading ? `LOOKING FOR: ${recipe.tag}` : `NO SUCH WORD: ${recipe.tag}`}</p>
               <ul className="flex flex-wrap gap-1">
                 {suggest(index, recipe.tag).tags.map((tag) => (
                   <li key={tag.name}>
@@ -478,7 +485,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
                 </select>
               </label>
             </div>
-            {results.length === 0 ? <p className="py-1 text-title text-ink">NOTHING FOUND.</p> : null}
+            {results.length === 0 && !lookingUp ? <p className="py-1 text-title text-ink">NOTHING FOUND.</p> : null}
             {hints.length > 0 ? (
               <ul aria-label="Ways to find more" className="flex flex-col items-start gap-1 py-1">
                 {hints.map((hint) => (
@@ -495,10 +502,26 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
                 <ItemRow key={item.id} item={item} extraHosts={extraHosts} onPick={pickItem} />
               ))}
             </ul>
-            {results.length > shownCount ? (
-              <button type="button" onClick={() => setShownFor({ key: recipeKey, count: shownCount + ITEMS_STEP })} className={STATION_KEY}>
-                [ MORE ITEMS ]
-              </button>
+            {!lookingUp && (listed.length > shownCount || digging.more) ? (
+              <div className="flex flex-wrap items-center gap-1">
+                <button
+                  type="button"
+                  disabled={digging.digging}
+                  onClick={() => {
+                    // These rows and the ones this press brings into view: what arrives from the files comes after them.
+                    setPinned({ key: recipeKey, ids: listed.slice(0, shownCount + ITEMS_STEP).map((item) => item.id) });
+                    setShownFor({ key: recipeKey, count: shownCount + ITEMS_STEP });
+                    // Before the list runs out: a press never shows nothing while the next files are read.
+                    if (listed.length < shownCount + 2 * ITEMS_STEP) digging.dig();
+                  }}
+                  className={STATION_KEY}
+                >
+                  {digging.digging ? '[ DIGGING... ]' : '[ MORE ITEMS ]'}
+                </button>
+                <span className="text-label text-ink-quiet" data-dig-line>
+                  {digLine(digging.answer)}
+                </span>
+              </div>
             ) : null}
           </div>
 

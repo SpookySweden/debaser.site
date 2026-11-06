@@ -5,6 +5,7 @@ import type { Niche, Recipe } from './recipe';
 import { EMPTY_RECIPE } from './recipe';
 import type { StationGraph, StationItem, StationTag } from './types';
 import { editDistance, wordKey } from './words';
+import { poorTitle, sinkPoor } from './title-quality';
 
 /**
  * Asking the map things (SPEC-tag-station.md): which items a recipe finds, what sits near a word or item, what to loosen when
@@ -200,12 +201,12 @@ export function sortItems(index: StationIndex, items: readonly StationItem[], re
   const byId = (a: StationItem, b: StationItem) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
   const newest = (a: StationItem, b: StationItem) => b.publishedAt.localeCompare(a.publishedAt) || byId(a, b);
   const list = [...items];
-  if (recipe.sort === 'rare') return list.sort((a, b) => itemCommonness(index, a) - itemCommonness(index, b) || newest(a, b));
-  if (recipe.sort === 'new') return list.sort(newest);
-  if (recipe.sort === 'tagged') return list.sort((a, b) => b.words.length - a.words.length || newest(a, b));
-  if (focus.words.length === 0) return list.sort(newest);
+  if (recipe.sort === 'rare') return sinkPoor(list.sort((a, b) => itemCommonness(index, a) - itemCommonness(index, b) || newest(a, b)));
+  if (recipe.sort === 'new') return sinkPoor(list.sort(newest));
+  if (recipe.sort === 'tagged') return sinkPoor(list.sort((a, b) => b.words.length - a.words.length || newest(a, b)));
+  if (focus.words.length === 0) return sinkPoor(list.sort(newest));
   const scores = new Map(list.map((item) => [item.id, itemScore(index, item, focus.words, recipe.src)]));
-  return list.sort((a, b) => (scores.get(b.id) as number) - (scores.get(a.id) as number) || newest(a, b));
+  return sinkPoor(list.sort((a, b) => (scores.get(b.id) as number) - (scores.get(a.id) as number) || newest(a, b)));
 }
 
 export type RelatedTag = {
@@ -300,7 +301,7 @@ export function sameMix(index: StationIndex, items: readonly StationItem[], reci
 export function edgePicks(index: StationIndex, items: readonly StationItem[], focus: Focus, skip: ReadonlySet<string>, limit = 5): StationItem[] {
   if (focus.words.length === 0) return [];
   return items
-    .filter((item) => !skip.has(item.id))
+    .filter((item) => !skip.has(item.id) && !poorTitle(item.title, item.externalId))
     .sort((a, b) => itemCommonness(index, a) - itemCommonness(index, b) || (a.id < b.id ? -1 : 1))
     .slice(0, limit);
 }

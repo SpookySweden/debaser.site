@@ -139,8 +139,14 @@ const MOCK: TagStationRepository = {
     return { rows: MOCK_POOL_ROWS, swept: MOCK_SWEPT };
   },
   // The mock has no files: the same rows the map lists, for whichever words they carry.
-  async poolFiles(words) {
-    return MOCK_POOL_ROWS.filter((row) => row.claudeWords.some((word) => words.includes(word.toLowerCase())));
+  async poolFiles({ words = [], every }) {
+    const asked = every ?? (words.length > 0 ? [words] : []);
+    const rows = MOCK_POOL_ROWS.filter((row) => asked.every((group) => row.claudeWords.some((word) => group.includes(word.toLowerCase()))));
+    const counted = asked.flat().map((word) => ({ word, items: rows.filter((row) => row.claudeWords.some((one) => one.toLowerCase() === word)).length }));
+    return { rows, next: null, files: 1, counted };
+  },
+  async poolWords(words) {
+    return words.filter((word) => MOCK_POOL_ROWS.some((row) => row.claudeWords.some((one) => one.toLowerCase() === word)));
   },
   async limitReached() {
     return false;

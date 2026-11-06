@@ -72,7 +72,7 @@ export function buildStationGraph(rows: readonly StationRow[], facts: readonly W
 
   const notCounted = new Set(parsed.filter((one) => one.listOnly).map((one) => one.item.id));
   const items: StationItem[] = parsed
-    .map(({ item, seenOnly, found }) => {
+    .map(({ item, seenOnly, listOnly, found }) => {
       const words: ItemWord[] = found.map(([key, source]) => ({ word: nameOf.get(key) as string, ...source }));
       // Named one by one, not spread: only what a row's page needs reaches the answer, and nothing else a row may ever carry.
       const station: StationItem = {
@@ -93,6 +93,7 @@ export function buildStationGraph(rows: readonly StationRow[], facts: readonly W
         ...(item.durationSeconds !== undefined ? { durationSeconds: item.durationSeconds } : {}),
         ...(item.language ? { language: item.language } : {}),
         ...(seenOnly ? { seenOnly: true } : {}),
+        ...(listOnly ? { catalogue: true } : {}),
         words,
       };
       return station;
