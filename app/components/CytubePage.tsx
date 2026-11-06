@@ -153,6 +153,12 @@ function About() {
         A room is somebody&apos;s stream: everybody in it sees and hears the same thing at the same moment, and talks in its chat. Press GO LIVE
         to open yours. It starts empty, on a black screen with three keys - BOOKS, VIDEO and MUSIC - that open the queue with a search ready.
       </AboutPart>
+      <AboutPart title="WHO CAN JOIN">
+        GO LIVE asks first, with PRIVATE already picked. PRIVATE: only people with the room&apos;s link. PRIVATE + PASSWORD: the link and a password. Five
+        wrong tries locks somebody out for ten minutes. OPEN: anyone. Everyone outside a private room sees that it is on and how much is going on, with names
+        as ANON tags and words as bars. No account on the site can read a private room, the house account included. Going open later never opens what came
+        before.
+      </AboutPart>
       <AboutPart title="THE QUEUE AND ADDITIONS">
         What plays comes from the room&apos;s queue: red has played, green is on, blue is next. Anybody can add things. Without a crown, what
         you add waits on your own list until somebody with a crown pulls it into the queue. When the queue runs out, the screen goes black
@@ -163,8 +169,8 @@ function About() {
         takes out what has not played yet. Playing, pausing, skipping and ending the stream stay with the host.
       </AboutPart>
       <AboutPart title="ROOM SETTINGS">
-        The cog beside QUEUE is for the host and anybody with a crown. It names the room, gives it a topic, and sets who can add: anyone, or
-        crowns only. It also copies the room&apos;s link and picks your look.
+        The cog beside QUEUE is for the host and anybody with a crown. It lists who joined, each with REMOVE, names the room, gives it a topic, and sets who can add: anyone, or
+        crowns only. It also copies the room&apos;s link and picks your look. The host alone changes who can join and the password.
       </AboutPart>
       <AboutPart title="THE STREAM BAR AND THE TV KEY">
         While you are in a room, the music bar along the foot of the screen becomes the stream&apos;s: what is on, what is next, and the

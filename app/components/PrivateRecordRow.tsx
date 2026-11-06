@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { threadDomId } from '../lib/forum/anchors';
 import type { ForumThread } from '../lib/forum/types';
 import { getWatchRepository } from '../lib/watch/repository';
-import type { OutlineLine } from '../lib/watch/types';
+import type { PrivateLine } from '../lib/watch/types';
 import { PrivateLines } from './PrivateOutline';
 
 /**
@@ -12,7 +12,7 @@ import { PrivateLines } from './PrivateOutline';
  * replies and no reply box. The thread itself stays unreadable, so its title and author never reach this browser.
  */
 export default function PrivateRecordRow({ thread, isOpen, onToggle }: { thread: ForumThread; isOpen: boolean; onToggle: (threadId: string, open: boolean) => void }) {
-  const [lines, setLines] = useState<OutlineLine[] | null>(null);
+  const [lines, setLines] = useState<PrivateLine[] | null>(null);
 
   useEffect(() => {
     if (!isOpen || lines !== null) return;
