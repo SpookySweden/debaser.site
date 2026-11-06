@@ -43,6 +43,7 @@ let worker: Worker | null = null;
 let nextJob = 1;
 /** What a re-laying pass reads from. */
 let replayMap: { key: string; map: RegionMap } | null = null;
+let replayBelow: OffscreenCanvas | null = null;
 /** The drawing each region map was last laid to, so a change of lines is noticed. */
 const laidWith = new Map<string, string>();
 /** Drawings re-laid since their undo patches were made: an undo there has to re-lay too. */
@@ -229,18 +230,52 @@ function maskForStroke(stroke: Stroke, entry: MapEntry, x: number, y: number): P
   return maskOf(entry.key, entry.map, region, stroke.smartAtDrawTime.includes('tuckUnder'));
 }
 
-/** A re-lay's mask for an operation: where it's seeded, on the map being laid to. */
+/** The layer this one sits on: the next drawable row down that's showing. */
+function layerBelow(project: Project, node: LayerNode): LayerNode | null {
+  const at = project.nodes.findIndex((n) => n.id === node.id);
+  return project.nodes.slice(at + 1).find((n) => n.kind === 'layer' && isShown(project, n)) ?? null;
+}
+
+/** Everything the layer below has on this frame, as a mask. Null when nothing there is drawn yet: nothing can land. */
+async function belowMask(project: Project, node: LayerNode, frame: number): Promise<OffscreenCanvas | null> {
+  const below = layerBelow(project, node);
+  if (below === null) return null;
+  const cel = celFor(project, below, frame);
+  if (cel === null) return null;
+  const engine = getEngine();
+  const out = new OffscreenCanvas(project.width, project.height);
+  const ctx = out.getContext('2d');
+  if (ctx === null) return null;
+  for (const plane of ['colour', 'line'] as PlaneName[]) {
+    if ((project.drawings[cel.drawingId]?.planes[plane].length ?? 0) > 0) ctx.drawImage(await engine.planes.open(planeKey(cel.drawingId, plane)), 0, 0);
+  }
+  return out;
+}
+
+/** A stroke's mask cut down to the layer below. With no region mask, it's the layer below alone. */
+function cutToBelow(mask: PaintMask | null, below: OffscreenCanvas | null): PaintMask {
+  const out = new OffscreenCanvas(below?.width ?? 1, below?.height ?? 1);
+  const ctx = out.getContext('2d');
+  if (ctx !== null && below !== null) {
+    if (mask === null) {
+      ctx.drawImage(below, 0, 0);
+    } else {
+      ctx.drawImage(mask.canvas, mask.x, mask.y);
+      ctx.globalCompositeOperation = 'destination-in';
+      ctx.drawImage(below, 0, 0);
+    }
+  }
+  return { canvas: out, x: 0, y: 0 };
+}
+
+/** A re-lay's mask for an operation: where it's seeded, on the map being laid to, and cut to the layer below if it remembers that. */
 function replayMask(op: PlaneOp): PaintMask | null {
   if (replayMap === null) return null;
-  if (op.kind === 'stroke') {
-    if (!op.smartAtDrawTime.includes('stayInsideLines')) return null;
-    const [x, y] = op.points[0];
-    return maskOf(replayMap.key, replayMap.map, labelAt(replayMap.map, x, y), op.smartAtDrawTime.includes('tuckUnder'));
-  }
-  if (op.kind === 'fill') {
-    return maskOf(replayMap.key, replayMap.map, labelAt(replayMap.map, op.seed[0], op.seed[1]), op.smartAtDrawTime.includes('tuckUnder'));
-  }
-  return null;
+  if (op.kind !== 'stroke' && op.kind !== 'fill') return null;
+  const [x, y] = op.kind === 'stroke' ? op.points[0] : op.seed;
+  const inside = op.smartAtDrawTime.includes('stayInsideLines') ? maskOf(replayMap.key, replayMap.map, labelAt(replayMap.map, x, y), op.smartAtDrawTime.includes('tuckUnder')) : null;
+  if (op.smartAtDrawTime.includes('clipToLayerBelow') && replayBelow !== null) return cutToBelow(inside, replayBelow);
+  return inside;
 }
 
 /** A raw fill keeps the exact shape it filled: smarts off means it never moves. */
@@ -311,8 +346,17 @@ async function relay(drawingId: string, plane: PlaneName, entry: MapEntry): Prom
   if (ops === undefined) return;
   const fresh = new OffscreenCanvas(target.width, target.height);
   replayMap = entry;
-  engine.replayOps(fresh, ops);
+  // Clip to Layer Below is judged against the layer below as it is now.
+  const owner = engine.project.nodes.find((node) => node.cels.some((cel) => cel.drawingId === drawingId));
+  const ownerCel = owner?.cels.find((cel) => cel.drawingId === drawingId);
+  replayBelow = owner !== undefined && ownerCel !== undefined && ops.some((op) => (op.kind === 'stroke' || op.kind === 'fill') && op.smartAtDrawTime.includes('clipToLayerBelow')) ? await belowMask(engine.project, owner, ownerCel.frame) : null;
+  if (swap !== engine.swapCount || engine.isBusy()) {
+    replayBelow = null;
+    return;
+  }
+  engine.replayOps(fresh, engine.project.drawings[drawingId]?.planes[plane] ?? ops);
   replayMap = null;
+  replayBelow = null;
   restoreRect(target, { x: 0, y: 0, w: target.width, h: target.height }, fresh);
   engine.planes.markDirty(key);
   relaid.add(drawingId);
@@ -648,12 +692,22 @@ export function installSmarts(): void {
   // Lines changed a moment ago and aren't read yet: the stroke showed free, and is held to its area as it lands.
   engine.commitMask = (live) => {
     const { stroke, layerId } = live;
-    const { project } = useStudio.getState();
-    const node = findNode(project, layerId);
-    if (live.mask !== null || node === null || !clipsStroke(stroke, isFigure(project, node))) return null;
-    const [x, y] = stroke.points[0];
     const state = useStudio.getState();
-    return readMap(node, state.frame, gapFor(project, node, state.smartOn)).then((entry) => (entry === null ? null : maskForStroke(stroke, entry, x, y)));
+    const { project, frame } = state;
+    const node = findNode(project, layerId);
+    if (node === null) return null;
+    const clipsBelow = stroke.smartAtDrawTime.includes('clipToLayerBelow');
+    const clips = clipsStroke(stroke, isFigure(project, node));
+    if (!clipsBelow && (live.mask !== null || !clips)) return null;
+    const [x, y] = stroke.points[0];
+    return (async () => {
+      let mask = live.mask;
+      if (mask === null && clips) {
+        const entry = await readMap(node, frame, gapFor(project, node, state.smartOn));
+        mask = entry === null ? null : maskForStroke(stroke, entry, x, y);
+      }
+      return clipsBelow ? cutToBelow(mask, await belowMask(project, node, frame)) : mask;
+    })();
   };
   // A plane's picture is gone from storage and has to be drawn from its data: smart operations need the lines first.
   engine.beforeRebuild = async (drawingId, plane) => {

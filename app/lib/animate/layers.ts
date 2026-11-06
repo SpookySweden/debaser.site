@@ -60,6 +60,23 @@ export function deleteRow(id: string): void {
   }
 }
 
+/**
+ * A tag put on a row, or taken off. A layer takes what the tag starts a layer with, so a Shade multiplies from the moment it's a Shade.
+ * A folder only passes the tag down.
+ */
+export function applyTag(id: string, tagId: string | null): void {
+  const engine = getEngine();
+  engine.edit('TAG', (project) => {
+    const node = findNode(project, id);
+    if (node === null) return project;
+    const tag = tagId === null ? undefined : project.tags.find((t) => t.id === tagId);
+    if (tag === undefined || node.kind === 'folder') return updateNode(project, id, { tagId });
+    const { blend, opacity } = tag.behaviours.layerDefaults;
+    return updateNode(project, id, { tagId, blend, opacity, locked: node.locked || tag.behaviours.startLocked });
+  });
+  selectRow(id);
+}
+
 export function setRow(id: string, change: Partial<LayerNode>, label = 'LAYER'): void {
   getEngine().edit(label, (project) => updateNode(project, id, change));
 }
@@ -110,7 +127,29 @@ export function rowTag(id: string): { name: string; colour: string; mark: string
   return tag === null ? null : { name: tag.name, colour: tag.colour, mark: tag.mark, inherited: node.tagId === null };
 }
 
+/** Ctrl + 1 to 9: a new layer with that tag. Bound by place in the list, so it follows whatever the person has made. */
+function newTaggedLayer(index: number): void {
+  const tag = useStudio.getState().project.tags[index];
+  if (tag === undefined) {
+    getEngine().notify(`NO TAG ${index + 1} YET`);
+    return;
+  }
+  newRow('layer', tag.id);
+  useStudio.setState({ notice: { text: `NEW ${tag.name} LAYER`, fault: false } });
+}
+
+addActions(
+  Array.from({ length: 9 }, (_, i) => ({
+    id: `tag.layer.${i + 1}`,
+    label: `NEW LAYER WITH TAG ${i + 1}`,
+    group: 'TAGS',
+    key: `ctrl+${i + 1}`,
+    run: () => newTaggedLayer(i),
+  })),
+);
+
 addActions([
+  { id: 'tag.panel', label: 'TAGS', group: 'TAGS', key: 'shift+t', run: () => useStudio.setState({ panel: useStudio.getState().panel === 'tags' ? 'none' : 'tags' }) },
   { id: 'layer.new', label: 'NEW LAYER', group: 'LAYERS', key: 'shift+n', run: () => newRow('layer') },
   { id: 'layer.folder', label: 'NEW FOLDER', group: 'LAYERS', key: 'shift+g', run: () => newRow('folder') },
   { id: 'layer.up', label: 'LAYER ABOVE', group: 'LAYERS', key: 'arrowup', run: () => stepActive(-1) },

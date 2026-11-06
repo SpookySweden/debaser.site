@@ -14,7 +14,7 @@ export type TagStationRepository = {
   /** What the word pass has said so far. Empty, never an error, when it can't be read: the map just goes without. */
   wordFacts(): Promise<readonly WordFact[]>;
   /** The sweep's rows to list and its word counts. Empty, never an error, when they can't be read. */
-  pool(): Promise<{ rows: readonly StationRow[]; swept: SweptCounts }>;
+  pool(): Promise<{ rows: readonly StationRow[]; swept: SweptCounts; incomplete?: boolean }>;
   /** Swept items carrying any of these words, from the pool's compressed files. Empty, never an error, when they can't be read. */
   poolFiles(words: readonly string[], seed: string): Promise<readonly StationRow[]>;
   /** Whether the $60 tagging limit has been reached. */

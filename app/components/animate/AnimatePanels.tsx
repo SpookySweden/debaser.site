@@ -10,14 +10,15 @@ import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
 import AnimateExportPanel from './AnimateExportPanel';
 import AnimateOnionPanel from './AnimateOnionPanel';
 import AnimateSettings from './AnimateSettings';
+import AnimateTagPanel from './AnimateTagPanel';
 
 /** The panel that floats over the studio. Esc-free: its key or `[ CLOSE ]` shuts it; the studio's keys still work behind it. */
-export function AnimatePanelFrame({ title, children }: { title: string; children: ReactNode }) {
+export function AnimatePanelFrame({ title, children, wide = false }: { title: string; children: ReactNode; wide?: boolean }) {
   const uiScale = useStudio((state) => state.settings.uiScale);
   return (
     // Held inside the studio's own box, so at any interface size it's all reachable and nothing hides behind the site's strips.
     <div className="pointer-events-none absolute inset-1 z-40 flex justify-end">
-      <div role="dialog" aria-label={title} className="pointer-events-auto flex h-fit max-h-full w-[28rem] max-w-full flex-col frame bg-paper p-3 text-key text-ink" style={{ zoom: uiScale }}>
+      <div role="dialog" aria-label={title} className={`pointer-events-auto flex h-fit max-h-full max-w-full flex-col frame bg-paper p-3 text-key text-ink ${wide ? 'w-[44rem]' : 'w-[28rem]'}`} style={{ zoom: uiScale }}>
         <div className="mb-2 flex items-center justify-between gap-2">
           <h2 className={TITLE_BAR}>{title}</h2>
           <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'none' })}>
@@ -174,5 +175,6 @@ export default function AnimatePanels() {
   if (panel === 'onion') return <AnimateOnionPanel />;
   if (panel === 'export') return <AnimateExportPanel />;
   if (panel === 'settings') return <AnimateSettings />;
+  if (panel === 'tags') return <AnimateTagPanel />;
   return null;
 }

@@ -133,6 +133,14 @@ useStudio.setState({ hasSelection: true });
 assert.ok(draw().includes('data-animate-make-smart'), 'MAKE SMART shows with a selection');
 useStudio.setState({ hasSelection: false });
 
+// The tag editor: every behaviour has a switch, and each tag can be put on the layer in hand.
+useStudio.setState({ panel: 'tags' });
+html = draw();
+assert.ok(html.includes('[ NEW TAG ]') && html.includes('[ SAVE TAGS ]') && html.includes('[ LOAD TAGS ]'), 'tags can be made and carried as a file');
+assert.ok(html.includes('CTRL + 1') && html.includes('CTRL + 8'), 'and each says its new-layer key');
+assert.ok(html.includes('FIGURE smarts on'), "each tag has its own switch");
+useStudio.setState({ panel: 'none' });
+
 // Selection geometry and palette files.
 const Sel = require('./animate-render-out/lib/animate/selection.js');
 const square = [[0, 0], [10, 0], [10, 10], [0, 10]];
