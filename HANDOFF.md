@@ -4,7 +4,7 @@ Older notes: `docs/handoff-archive.md`, newest first. Search it when a past deci
 ## Picked up again, 2026-11-06 afternoon
 - **Live:** the last bar key is MODULOS, a solid block; the title stays `MODULES:`. DISCOVER starts off; DISCOVER, BEATBOX and ANIMATE wear WIP (`afd0576`). KINO: free copies behind `[ FREE COPIES ▾ ]`, licensed YouTube uploads offered, `[ SEE WHERE ↗ ]` gone, the rule that a server must hold what it lists gone (`listPath: '*'` stays, unused; `aaf51b8`). DISCOVER: FOUND SO FAR beside ON n ITEMS, ADD A WORD finds off-map words (`612b061`, `677e8eb`).
 - **Luke's choices:** STREAM ART's HIDE stays on the house account. NVDA is installed on the desktop and off; the installer started it once and he had it quit, so don't start it.
-- **Left open:** RENT OR BUY's `+1 MORE` leads nowhere now SEE WHERE is gone. YouTube uploads with neither public-domain nor licensed marks, and Archive films with no public-domain evidence, still aren't offered: KINO's reading of "remove the rule".
+- **KINO, later the same day:** `+1 MORE` is gone, and no evidence of the public domain is asked for (`bcf647c`, Luke: "Remove the evidence thing and serve the YouTube videos that are found"). Any linked upload that will play is served. Left on: Wikidata calling a film copyrighted keeps its Archive copy off, which he hasn't asked to change.
 
 ## Paused by Luke, 2026-11-06 ("pause the work asap and we will pick up soon")
 - **Live, proven by their sessions or the main session:** modules on the top bar (`app/lib/ui/modules.ts`, `user_modules`, `Temp/check-modules.cjs`), ANIMATE's new interface (`e5c3b09`), KINO sources (`d43be5c`), beat box layout C, `[ WATCH IN ROOM ]`, sign-in shown at once (`15d9326`).
