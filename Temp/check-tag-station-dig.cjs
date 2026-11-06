@@ -153,6 +153,8 @@ const NOW = Date.parse('2026-11-06T12:00:00Z');
   const every = await repository.poolFiles({ every: [['jazz'], ['rare one']], seed: 'a', from: 0 });
   assert.ok(every.rows.length > 0 && every.rows.every(({ claudeWords }) => claudeWords.includes('rare one') && claudeWords.includes('jazz')));
   const browsed = await repository.poolFiles({ seed: 'a', from: 0 });
+  assert.equal(browsed.next, 4, 'browsing reads all a step may, for a spread across files');
+  assert.ok(new Set(browsed.rows.map(({ item }) => item.externalId.split('-')[0])).size === 4, 'and takes rows from each of them');
   assert.ok(browsed.rows.length > 0 && browsed.rows.length <= 300);
   assert.ok(browsed.rows.every(({ item }) => item.title !== '7'), 'browsing leaves junk out');
   assert.ok((await repository.poolFiles({ words: ['jazz'], seed: 'a', from: 0 })).rows.some(({ item }) => item.title === '7'), 'but a word still reaches it: nothing is deleted');

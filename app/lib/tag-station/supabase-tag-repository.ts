@@ -222,7 +222,8 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       const found: { row: PoolFileRow; score: number }[] = [];
       let at = Math.max(0, from);
       const stop = at + (at === 0 ? MOST_FILES_FIRST_STEP : MOST_FILES_PER_STEP);
-      while (at < paths.length && at < stop && found.length < ENOUGH_ROWS) {
+      // Browsing reads all the step may, whatever it has found: a file's items run in name order from one stretch of a list, so two files read as one letter of the alphabet.
+      while (at < paths.length && at < stop && (groups.length === 0 || found.length < ENOUGH_ROWS)) {
         const part = paths.slice(at, Math.min(at + FILES_AT_ONCE, stop));
         for (const file of await Promise.all(part.map(readWholeFile))) {
           for (const row of file) {
