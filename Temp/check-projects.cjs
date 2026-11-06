@@ -123,7 +123,7 @@ const nav = withProviders(element(SiteNav, { active: 'forum' }));
 // 2026-10-24 (SPEC-media-catalogue.md): MEDIA joined the band, so five became six.
 // (2026-11-05) The header is five word keys now (HEADER_ITEMS: PROJECTS, FORUM, MEDIA, TAGS, STREAM; Luke's TAG STATION); NAV_ITEMS still feeds the menus.
 // (2026-11-05) And BEATBOX: six word keys. (2026-11-06) And ANIMATE, Luke's animator: seven.
-assert.equal((nav.match(/<a\b/g) ?? []).length, 5, 'five keys on a first draw, each one a link: they are modules now, BEATBOX and ANIMATE start off, and MODULES is a button (Luke, 2026-11-06)');
+assert.equal((nav.match(/<a\b/g) ?? []).length, 4, 'four keys on a first draw, each one a link: they are modules now, BEATBOX, ANIMATE and DISCOVER start off, and MODULOS is a button (Luke, 2026-11-06)');
 assert.doesNotMatch(nav, /CONCEPTS/, 'concepts is not a key: it is a shelf of the project');
 assert.doesNotMatch(nav, /href="\/concepts"/);
 

@@ -244,11 +244,14 @@ assert.deepEqual(
 );
 // Updated on purpose 2026-11-05 (SPEC-floating-player.md): the band now starts with the site's two arrows, which go
 // nowhere of their own and so are buttons. Every page key is still a link.
-assert.equal((nav.match(/<button/g) ?? []).length, 3, 'each page key is a link wearing its own chrome; the only buttons are the two arrows and MODULES, which opens its list (Luke, 2026-11-06)');
+assert.equal((nav.match(/<button/g) ?? []).length, 3, 'each page key is a link wearing its own chrome; the only buttons are the two arrows and MODULOS, which opens its list (Luke, 2026-11-06)');
 assert.ok(nav.indexOf('aria-label="Back"') > -1 && nav.indexOf('aria-label="Forward"') > nav.indexOf('aria-label="Back"') && nav.indexOf('aria-label="Forward"') < nav.indexOf('<a '), 'the arrows sit left of the first page key');
 // "Pressed in" is a filled pill now (`key-fill`, SPEC-readability.md) rather than the inverted Win95 bevel
 // this used to count, and it is held to the tab that says it is the page - not just to a count of one.
-assert.equal((nav.match(/(?<=[" ])key-fill(?=[" ])/g) ?? []).length, 1, "the open page's tab is the one pressed in");
+// Updated on purpose 2026-11-06 (Luke): MODULOS is a solid key too, so this counts the links, and MODULOS is held apart by its own class.
+assert.equal((nav.match(/<a\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 1, "the open page's tab is the one pressed in");
+assert.equal((nav.match(/<button\b[^>]*(?<=[" ])key-fill(?=[" ])[^>]*>/g) ?? []).length, 1, 'and the only other solid key is MODULOS');
+assert.match(nav, /<button\b[^>]*modulos-key[^>]*>MODULOS</, 'wearing its own face, not the pressed one');
 assert.match(nav, /<a[^>]*class="[^"]*key-fill[^"]*"[^>]*aria-current="page"|<a[^>]*aria-current="page"[^>]*class="[^"]*key-fill/, 'and it is the open page`s tab that is filled');
 assert.equal((nav.match(/aria-current="page"/g) ?? []).length, 1, 'and says so to a screen reader');
 /**

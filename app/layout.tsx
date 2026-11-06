@@ -126,7 +126,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                           reads no address and has nothing to catch up on. */}
                       <PreferencesWindow />
 
-                      {/* The MODULES key's list: which modules appear on the bar, and their hover colours. */}
+                      {/* The MODULOS key's list: which modules appear on the bar, and their hover colours. */}
                       <ModulesWindow />
 
                       {/* The PRIVACY window, once per account (SPEC-privacy-phase-1.md). */}

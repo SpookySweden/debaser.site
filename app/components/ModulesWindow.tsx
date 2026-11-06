@@ -25,6 +25,15 @@ const TICK = `${KEY_FOCUS} key inline-flex min-h-7 w-full items-center gap-2 px-
 const SWATCH = `${KEY_FOCUS} h-7 w-7 border-line border-ink cursor-pointer pointer-coarse:min-h-tap pointer-coarse:min-w-tap`;
 const SMALL_KEY = `${KEY_FOCUS} key inline-flex h-7 items-center px-1 text-label font-bold leading-none pointer-coarse:min-h-tap`;
 
+/** A module still being made. Drawn in the key's own ink so it reads on any face the key wears. */
+export function WipTag() {
+  return (
+    <span title="WORK IN PROGRESS" className="ml-1 border-line border-current px-0.5 text-label font-bold leading-none">
+      WIP
+    </span>
+  );
+}
+
 /** The bar's fill on the theme in use: what a colour is read against. */
 export function moduleBarColour(themeId: string): string {
   return (THEMES.find((theme) => theme.id === themeId) ?? THEMES[0]).tokens['sun-pale'];
@@ -49,6 +58,7 @@ function ModuleRow({ module, bar }: { module: ModuleDef; bar: string }) {
       >
         <span aria-hidden="true">{on ? '[ ✓ ]' : '[   ]'}</span>
         <span>{module.label}</span>
+        {module.wip ? <WipTag /> : null}
         {module.always ? <span className="text-label">ALWAYS ON</span> : null}
       </button>
       <p className="px-1 pt-1 text-label text-ink">HOVER: {pickedLabel}</p>
@@ -83,7 +93,7 @@ function Group({ title, children }: { title?: string; children: ReactNode }) {
 }
 
 /**
- * The MODULES key's list (Luke, 2026-11-06): tick what appears on your bar, and pick what colour each word turns on hover. A window beside the page rather than a
+ * The MODULOS key's list (Luke, 2026-11-06): tick what appears on your bar, and pick what colour each word turns on hover. A window beside the page rather than a
  * dialogue, because the bar it changes is the thing to look at while changing it. Drawn once in `layout.tsx`, and it's what tells the choices who is signed in.
  */
 export default function ModulesWindow() {
@@ -101,7 +111,7 @@ export default function ModulesWindow() {
   const bar = moduleBarColour(themeId);
 
   return (
-    <DockWindow title="MODULES" onClose={closeModulesWindow} status="" dock="bottom" id="modules" defaultSize={{ w: 400, h: 640 }} minSize={{ w: 280, h: 200 }}>
+    <DockWindow title="MODULOS" onClose={closeModulesWindow} status="" dock="bottom" id="modules" defaultSize={{ w: 400, h: 640 }} minSize={{ w: 280, h: 200 }}>
       <div className="p-2">
         {failed ? (
           <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">

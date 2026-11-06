@@ -726,6 +726,25 @@ img {
     color: var(--module-ink);
   }
 
+  /* MODULOS (Luke, 2026-11-06): the tab holding the rest of the modules, a solid Emerald block among the bar's bare words. The page you're on is the dark block, so the two
+     never read alike. With a hover colour picked, it steps back to an outline with that colour's word, read against the bar like every other module's. */
+  .key.key-fill.modulos-key {
+    --key-fill: var(--color-acid);
+    --frame-line: var(--color-ink-plate);
+    color: var(--color-ink-plate);
+  }
+
+  .key.key-fill.modulos-key:hover:not(:disabled) {
+    --key-fill: var(--color-sun);
+  }
+
+  .key.key-fill.modulos-key.module-key:hover:not(:disabled),
+  .key.key-fill.modulos-key.module-key:focus-visible:not(:disabled) {
+    --frame-line: var(--module-ink);
+    background-color: transparent;
+    color: var(--module-ink);
+  }
+
   /* A bracket key that cannot be pressed goes quiet: the quiet ink (16:1 in both themes, never a dimmed
      field ink under 4.5:1), no fill under the pointer, and the pointer says so. */
   .key:not(.key-fill):disabled {
