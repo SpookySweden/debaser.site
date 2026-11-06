@@ -1,0 +1,48 @@
+# KINO: where else a title can be watched
+
+Luke, 2026-11-06: "yes continue with all of these... forget the illegal sources... set up the technical side for me and
+leave spaces for the servers and their series links too". KINO search itself stays as it is: the extra part arrives after
+the rows are drawn, and a failure just leaves the row as it was.
+
+## On a KINO row (/media only, not a stream room's lookup)
+- **`[ ▶ FREE ON ARCHIVE ]` / `[ ▶ FREE ON YOUTUBE ]`**, with why: `PUBLIC DOMAIN` or `OFFICIAL UPLOAD`. Plays in the floating
+  player, from the platform's own player. `NO SERVER HAS THIS.` goes when one is there.
+- **`WHERE TO WATCH IN <COUNTRY>`**: STREAM, FREE, FREE WITH ADS, RENT OR BUY, by name, from TMDB's watch providers. Credited
+  `LISTINGS FROM JUSTWATCH`, which TMDB's terms require, or it can revoke API access. `[ SEE WHERE ↗ ]` goes to TMDB's page,
+  which holds the real links: TMDB gives no deep links. Service names only: no logos (asset rules, and plain words read better).
+- The country is Vercel's reading of the address, used to choose the answer and never kept. Nothing here is saved.
+
+## What counts as a plainly legal copy
+Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (P724) or YouTube id (P1651). A link proves
+nothing: plenty are stranger's uploads, so unsure means not offered.
+- **Either site:** not a trailer or clip (a role on the link, or under half the running time). Links Wikidata ranks as wrong are skipped.
+- **Archive:** a public video item (not dark, not restricted, not a book scan) and not called copyrighted by Wikidata, and
+  either Wikidata says public domain or dedicated to it, or the Archive's own mark says public domain or CC0. A CC licence
+  with terms doesn't count: those are mostly someone's upload of someone else's film.
+- **YouTube:** public, embeddable, not age-locked, not blocked in the country, and either Wikidata says public domain and not
+  also copyrighted, or YouTube's `licensedContent` says a rights partner uploaded and claimed it. Needs `YOUTUBE_API_KEY`;
+  without it nothing from YouTube is offered, because nothing can be checked. One unit of quota per page of rows.
+
+## Limits, said plainly
+- Public domain on Wikidata mostly means in the US (about 87% of the Archive-linked ones say so). A viewer elsewhere may be in a country where a film is still under copyright. The site links and never hosts, but it is a real limit.
+- Coverage is small: see the numbers below. A big recent film has no free copy, and where to watch is what it gets.
+- A show's link is to one video or item: there is no matching of episodes. 51 shows have an Archive link and 628 a YouTube one.
+- Wikidata's query service is sometimes busy. Then that page of rows has no free copies until asked again.
+
+## Numbers (Wikidata, 2026-11-06)
+- 286,908 films have a TMDB number; 67,155 shows.
+- Films with an Archive link: 6,266. A random 200 run through the real rules: 116 passed (58%), so about 3,600 films.
+- Films with a YouTube link: 13,657. Public domain and YouTube-linked: 901. The rest depend on YouTube's flag: see HANDOFF or the report.
+
+## Friends' servers
+Already built (SPEC-media-servers.md). Proven end to end 2026-11-06 with three fake https servers: the real hourly update read
+their list files, the real rows drew, the real ping route ran, and their player pages loaded in frames, desktop and phone. See
+`docs/media-server-fill-in.md` for what to ask each friend.
+- **Refused for good:** public streaming resolvers (vidsrc, 2embed and the like). `isRefusedHost` in media-servers.ts drops one from
+  the list, the Debaser Servers program won't save one, and `scripts/check-web-media.cjs` fails if one is written in.
+- **Not fixed, needs a database change:** a list that gives a show BOTH a whole-show line and episode lines is saved as just
+  those episodes. The docs say to pick one.
+
+## Code
+`app/lib/web/kino-sources.ts` (server), `kino-sources-client.ts` (page; one request per page of rows), `/api/web/kino/sources`,
+`app/components/KinoSources.tsx`, `scripts/check-web-kino-sources.cjs`.

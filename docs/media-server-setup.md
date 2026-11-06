@@ -6,18 +6,20 @@ server. The site lists what your server holds and plays it **from your server**.
 stores your videos: only the titles and, for films and shows, details and posters from TMDB.
 
 Only your own media: things you made, or copies you own and are allowed to share with friends. A server that
-plays anything you give it a TMDB number for (a "streaming source" that finds films elsewhere) can't be added.
+plays anything you give it a TMDB number for (a "streaming source" that finds films elsewhere) can't be added: the
+server list refuses public streaming sites such as vidsrc and 2embed by name.
 
 ## What your server needs
 
 1. **An https address**, e.g. `https://media.yourname.xyz`. Plain http isn't read.
 2. **A list file** at a fixed address on that same host, e.g. `https://media.yourname.xyz/debaser/list.json`.
-   A JSON array, one entry per film and one per episode of a show:
+   A JSON array, one entry per film and, for a show, one per episode or one for the whole show:
 
    ```json
    [
      { "title": "Example Movie", "type": "movie", "tmdb_id": "157336" },
      { "title": "Example TV Show", "type": "tv", "tmdb_id": "1399", "season": "1", "episode": "1" },
+     { "title": "A show you hold every episode of", "type": "tv", "tmdb_id": "4607" },
      { "title": "My short film", "type": "movie", "id": "my-short-film", "description": "Made in 2026.",
        "creator": "Your Name", "date": "2026-10-12", "duration": 754,
        "thumbnail": "https://media.yourname.xyz/pictures/my-short-film.jpg" }
@@ -25,7 +27,10 @@ plays anything you give it a TMDB number for (a "streaming source" that finds fi
    ```
 
    - `tmdb_id` (TMDB's number) is what lets the same film on two servers show once, and brings in TMDB's
-     details. A show needs `season` and `episode` on every entry.
+     details.
+   - **A show, one way or the other, not both:** an entry per episode with `season` and `episode` offers exactly those
+     episodes. One entry with neither says you hold the whole show, and viewers get every season and episode TMDB
+     lists for it, so use it only when that's true. A show entry with only one of the two numbers is dropped.
    - Things TMDB doesn't know: give an `id` (letters, digits, `.`, `_`, `-`) and whatever of `description`,
      `creator`, `date`, `duration` (seconds) and `thumbnail` you have. A missing field just stays empty.
    - A `thumbnail` must be on your server's own host, https, with no `?...` on the end, or it's ignored.
@@ -33,7 +38,9 @@ plays anything you give it a TMDB number for (a "streaming source" that finds fi
 3. **A player page** for each title, on the same host, at addresses built from a pattern, e.g.:
    - films: `/debaser/play/movie/{tmdb}` → `/debaser/play/movie/157336`
    - episodes: `/debaser/play/tv/{tmdb}/{season}/{episode}` → `/debaser/play/tv/1399/1/1`
-   - your own videos: `/debaser/play/item/{id}` → `/debaser/play/item/my-short-film`
+   - a whole show (optional: your own page for it, with its seasons or playing from the start):
+     `/debaser/play/tv/{tmdb}` → `/debaser/play/tv/1399`
+   - your own videos (optional): `/debaser/play/item/{id}` → `/debaser/play/item/my-short-film`
 
    The page plays only things in your list. Tell Luke your patterns; they go in `app/lib/web/media-servers.ts`.
 4. **Let debaser.site show the player in a frame.** Send this header on the player pages:
