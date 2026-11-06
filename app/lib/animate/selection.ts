@@ -11,7 +11,7 @@ import { addOp } from './project';
 import { useStudio } from './store';
 import { SELECTION_INK } from './colours';
 import { boundsOf, unionRect, type Rect } from './brushes';
-import type { MoveOp, PlaneName, PlaneOp, Stroke } from './types';
+import type { MoveOp, PlaneName, PlaneOp } from './types';
 
 type Matrix = MoveOp['matrix'];
 type Point = [number, number];
@@ -216,10 +216,18 @@ export function selectedStrokeIds(): string[] {
   const out: string[] = [];
   const shape = outline;
   const count = (ops: PlaneOp[]) => {
+    // Where each stroke's points are now: a move after it has carried them along.
+    const strokes: { id: string; points: Point[] }[] = [];
     for (const op of ops) {
-      if (op.kind !== 'stroke') continue;
-      const inside = (op as Stroke).points.filter((p) => pointInOutline(shape, p[0], p[1])).length;
-      if (inside * 2 > op.points.length) out.push(op.id);
+      if (op.kind === 'stroke') {
+        strokes.push({ id: op.id, points: op.points.map((p): Point => [p[0], p[1]]) });
+      } else if (op.kind === 'move') {
+        for (const stroke of strokes) stroke.points = stroke.points.map((p) => (pointInOutline(op.outline, p[0], p[1]) ? apply(op.matrix, p) : p));
+      }
+    }
+    for (const stroke of strokes) {
+      const inside = stroke.points.filter((p) => pointInOutline(shape, p[0], p[1])).length;
+      if (inside * 2 > stroke.points.length) out.push(stroke.id);
     }
   };
   count(drawing.planes.colour);

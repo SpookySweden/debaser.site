@@ -119,8 +119,24 @@ export class AnimateEngine {
     const [drawingId, plane] = key.split('.') as [string, PlaneName];
     const ops = this.project.drawings[drawingId]?.planes[plane];
     if (ops === undefined || ops.length === 0) return false;
+    const done = (await this.beforeRebuild?.(drawingId, plane)) ?? null;
     this.replayOps(canvas, ops);
+    done?.();
     return true;
+  }
+
+  /** Set by the smart module: gets ready to replay a plane, and says how to finish. */
+  beforeRebuild: ((drawingId: string, plane: PlaneName) => Promise<(() => void) | null>) | null = null;
+  /** Told when nothing is waiting in the undo queue any more. */
+  onIdle: (() => void) | null = null;
+
+  /** A stroke is in the hand, or an undo is waiting on a picture: not a moment to change a plane behind them. */
+  isBusy(): boolean {
+    return this.live !== null || this.queuedJobs > 0;
+  }
+
+  get swapCount(): number {
+    return this.generation;
   }
 
   /** Lay a list of operations onto a blank plane. Smart operations go through `maskForOp` (set by the smart module). */
@@ -768,6 +784,7 @@ export class AnimateEngine {
     this.queuedJobs += 1;
     const run = () => job().finally(() => {
       this.queuedJobs -= 1;
+      if (this.queuedJobs === 0) this.onIdle?.();
     });
     this.queue = this.queue.then(run, run);
   }
@@ -810,6 +827,8 @@ export class AnimateEngine {
   // ── the timeline ───────────────────────────────────────────────────────────────────────
 
   goToFrame(frame: number): void {
+    // A stroke belongs to the frame it started on.
+    if (this.live !== null) return;
     const { project } = this;
     const next = Math.max(0, Math.round(frame));
     if (next === this.frame) return;

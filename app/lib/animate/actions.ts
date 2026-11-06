@@ -149,12 +149,15 @@ export function attachKeys(): () => void {
   const onUp = (event: KeyboardEvent) => {
     if (event.key === ' ') keys.space = false;
     if (isTyping(event.target) || capturingKey) return;
-    const name = keyName(event);
-    for (const action of allActions()) if (action.release !== undefined && keyOf(action) === name) action.release();
+    // By the bare key: a modifier may have been let go first.
+    const bare = (key: string) => key.split('+').pop();
+    const name = bare(keyName(event));
+    for (const action of allActions()) if (action.release !== undefined && bare(keyOf(action)) === name) action.release();
   };
   // A key let go in another window never reports it.
   const onBlur = () => {
     keys.space = false;
+    for (const action of allActions()) action.release?.();
   };
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);

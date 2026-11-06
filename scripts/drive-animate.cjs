@@ -790,6 +790,14 @@ phases.phase3 = async (page, shot) => {
   check('the lines stay on top', (await pixel(page, 800, 400)) === '#000000', await pixel(page, 800, 400));
   await shot('phase3-inside');
 
+  // Tapping Q reads the lines with no closing, and that must not move colour already down (the code review's worry).
+  await page.keyboard.press('q');
+  await page.waitForTimeout(900);
+  check('tapping Q off moves no colour', (await pixel(page, 900, 400)) === '#ffffff' && (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 900, 400));
+  await page.keyboard.press('q');
+  await page.waitForTimeout(500);
+  check('nor does tapping it on', (await pixel(page, 900, 400)) === '#ffffff' && (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 900, 400));
+
   // It leaks through a big gap but not the small one. (Starting outside it stays outside.)
   await penStroke(page, along(1000, 500, 700, 500), { gapMs: 1 });
   await page.waitForTimeout(150);

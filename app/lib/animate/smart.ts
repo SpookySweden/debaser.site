@@ -27,7 +27,18 @@ type MapEntry = { key: string; map: RegionMap };
 const maps: MapEntry[] = [];
 const masks = new Map<string, PaintMask>();
 const waiting = new Map<string, ((map: RegionMap | null) => void)[]>();
-const pendingJobs = new Map<number, { key: string; drawingId: string | null }>();
+type MapJob = {
+  key: string;
+  /** Which lines were read, whatever the gap: this is what says the lines have changed. */
+  linesKey: string;
+  drawingId: string | null;
+  projectId: string;
+  gap: number;
+  /** The gap this layer has with its smarts on. Only a reading at this gap may move colour: tapping Q reads at no gap, and moves nothing. */
+  smartGap: number;
+  plane: PlaneName;
+};
+const pendingJobs = new Map<number, MapJob>();
 let worker: Worker | null = null;
 let nextJob = 1;
 /** What a re-laying pass reads from. */
@@ -36,6 +47,8 @@ let replayMap: { key: string; map: RegionMap } | null = null;
 const laidWith = new Map<string, string>();
 /** Drawings re-laid since their undo patches were made: an undo there has to re-lay too. */
 const relaid = new Set<string>();
+/** Re-lays that came while a stroke or an undo was under way, to run as soon as it's done. */
+const relaysWaiting = new Map<string, { plane: PlaneName; entry: MapEntry }>();
 
 function regionWorker(): Worker | null {
   if (worker !== null) return worker;
@@ -49,7 +62,7 @@ function regionWorker(): Worker | null {
       if (map !== null) remember(job.key, map);
       for (const told of waiting.get(job.key) ?? []) told(map);
       waiting.delete(job.key);
-      if (map !== null) afterMap(job.key, map, job.drawingId);
+      if (map !== null) afterMap(job, map);
     };
     worker.onerror = () => {
       for (const list of waiting.values()) for (const told of list) told(null);
@@ -86,8 +99,10 @@ export function regionSources(project: Project, node: LayerNode, frame: number):
     if (cel !== null) keys.push(planeKey(cel.drawingId, 'line'));
   };
   const behaviours = tagBehaviours(project, node);
-  if (behaviours?.ignoredByFills !== true || isFigure(project, node)) add(node);
-  if (behaviours?.stayInsideLines === true && !isFigure(project, node)) {
+  const figure = isFigure(project, node);
+  // A layer that keeps inside someone else's lines doesn't read its own pixels: its own strokes aren't walls for it.
+  if (figure || (behaviours?.ignoredByFills !== true && behaviours?.stayInsideLines !== true)) add(node);
+  if (behaviours?.stayInsideLines === true && !figure) {
     const at = project.nodes.indexOf(node);
     const below = project.nodes.slice(at + 1).find((other) => other.kind === 'layer' && isFigure(project, other));
     if (below !== undefined) add(below);
@@ -105,14 +120,15 @@ function gapFor(project: Project, node: LayerNode, smartOn: boolean): number {
   return live?.closeGaps.on === true ? live.closeGaps.maxGapPx : 0;
 }
 
-function mapKeyFor(project: Project, node: LayerNode, frame: number, gap: number): { key: string; sources: string[] } {
+function mapKeyFor(project: Project, node: LayerNode, frame: number, gap: number): { key: string; linesKey: string; sources: string[] } {
   const engine = getEngine();
   const sources = regionSources(project, node, frame);
   const parts = sources.filter((key) => {
     const [drawingId, plane] = key.split('.') as [string, PlaneName];
     return (project.drawings[drawingId]?.planes[plane].length ?? 0) > 0;
   });
-  return { key: `${gap}|${parts.map((key) => `${key}@${engine.planes.version(key)}`).join(',')}`, sources: parts };
+  const linesKey = parts.map((key) => `${key}@${engine.planes.version(key)}`).join(',');
+  return { key: `${project.id}|${gap}|${linesKey}`, linesKey, sources: parts };
 }
 
 /** The map for here and now, if it's ready. */
@@ -122,14 +138,16 @@ function readyMap(node: LayerNode): MapEntry | null {
   return maps.find((entry) => entry.key === key) ?? null;
 }
 
-/** Read the lines for this layer and frame, unless they've been read already. The answer arrives when it arrives. */
-function requestMap(node: LayerNode, frame = useStudio.getState().frame): Promise<RegionMap | null> {
-  const state = useStudio.getState();
-  const { project } = state;
-  const { key, sources } = mapKeyFor(project, node, frame, gapFor(project, node, state.smartOn));
+/**
+ * Read the lines for this layer and frame, unless they've been read already. The answer arrives when it arrives. The key is settled here, before
+ * any waiting, so an answer can never be filed under the frame the person has since moved to.
+ */
+function readMap(node: LayerNode, frame: number, gap: number): Promise<MapEntry | null> {
+  const { project } = useStudio.getState();
+  const { key, linesKey, sources } = mapKeyFor(project, node, frame, gap);
   const found = maps.find((entry) => entry.key === key);
-  if (found !== undefined) return Promise.resolve(found.map);
-  const answer = new Promise<RegionMap | null>((resolve) => {
+  if (found !== undefined) return Promise.resolve(found);
+  return new Promise<RegionMap | null>((resolve) => {
     const list = waiting.get(key);
     if (list !== undefined) {
       list.push(resolve);
@@ -146,14 +164,29 @@ function requestMap(node: LayerNode, frame = useStudio.getState().frame): Promis
     const cel = celFor(project, node, frame);
     const id = nextJob;
     nextJob += 1;
-    pendingJobs.set(id, { key, drawingId: cel?.drawingId ?? null });
+    pendingJobs.set(id, {
+      key,
+      linesKey,
+      drawingId: cel?.drawingId ?? null,
+      projectId: project.id,
+      gap,
+      smartGap: gapFor(project, node, true),
+      plane: isFigure(project, node) ? 'colour' : 'line',
+    });
     void (async () => {
       const pictures: ImageBitmap[] = [];
-      for (const source of sources) pictures.push(await createImageBitmap(await engine.planes.open(source)));
-      w.postMessage({ id, width: project.width, height: project.height, maxGap: gapFor(project, node, state.smartOn), pictures }, pictures);
+      try {
+        for (const source of sources) pictures.push(await createImageBitmap(await engine.planes.open(source)));
+        w.postMessage({ id, width: project.width, height: project.height, maxGap: gap, pictures }, pictures);
+      } catch {
+        // Nothing could be read. Whoever was waiting hears so, or a stroke waiting on this would never land.
+        for (const picture of pictures) picture.close();
+        pendingJobs.delete(id);
+        for (const told of waiting.get(key) ?? []) told(null);
+        waiting.delete(key);
+      }
     })();
-  });
-  return answer;
+  }).then((map) => (map === null ? null : { key, map }));
 }
 
 function labelAt(map: RegionMap, x: number, y: number): number {
@@ -254,14 +287,28 @@ function paintFillOp(ctx: OffscreenCanvasRenderingContext2D, op: FillOp): void {
   if (mask !== null) paintMaskFill(ctx, op.colour, mask, op.clear === true);
 }
 
-/** Lay a drawing's colour plane down again from what it remembers, to the current lines. Raw strokes land exactly as they did. */
-async function relay(drawingId: string, entry: MapEntry): Promise<void> {
+function layerSmartOps(ops: PlaneOp[] | undefined): boolean {
+  return ops !== undefined && ops.some((op) => (op.kind === 'stroke' || op.kind === 'fill') && op.smartAtDrawTime.includes('stayInsideLines'));
+}
+
+/**
+ * Lay a drawing's plane down again from what it remembers, to the current lines. Raw strokes land exactly as they did. While a stroke or an undo
+ * is under way it waits: both are about to change this same plane and its data, and the two have to go on agreeing.
+ */
+async function relay(drawingId: string, plane: PlaneName, entry: MapEntry): Promise<void> {
   const engine = getEngine();
-  const drawing = engine.project.drawings[drawingId];
-  const ops = drawing?.planes.colour;
-  if (ops === undefined || !ops.some((op) => (op.kind === 'stroke' || op.kind === 'fill') && op.smartAtDrawTime.includes('stayInsideLines'))) return;
-  const key = planeKey(drawingId, 'colour');
+  const swap = engine.swapCount;
+  const key = planeKey(drawingId, plane);
+  if (!layerSmartOps(engine.project.drawings[drawingId]?.planes[plane])) return;
   const target = await engine.planes.open(key);
+  if (swap !== engine.swapCount) return;
+  if (engine.isBusy()) {
+    relaysWaiting.set(drawingId, { plane, entry });
+    return;
+  }
+  // Read now, after the wait: a stroke may have landed during it.
+  const ops = engine.project.drawings[drawingId]?.planes[plane];
+  if (ops === undefined) return;
   const fresh = new OffscreenCanvas(target.width, target.height);
   replayMap = entry;
   engine.replayOps(fresh, ops);
@@ -272,22 +319,36 @@ async function relay(drawingId: string, entry: MapEntry): Promise<void> {
   engine.invalidate();
 }
 
-function afterMap(key: string, map: RegionMap, drawingId: string | null): void {
+function flushRelays(): void {
+  if (getEngine().isBusy()) return;
+  const list = [...relaysWaiting.entries()];
+  relaysWaiting.clear();
+  for (const [drawingId, { plane, entry }] of list) void relay(drawingId, plane, entry);
+}
+
+function afterMap(job: MapJob, map: RegionMap): void {
   const engine = getEngine();
-  if (drawingId !== null) {
-    const before = laidWith.get(drawingId);
-    laidWith.set(drawingId, key);
-    // A first reading just learns the lines; the picture already matches them. A change of lines moves smart colour.
-    if (before !== undefined && before !== key) void relay(drawingId, { key, map });
+  // A late answer for a project that has since been left.
+  if (job.projectId !== engine.project.id) return;
+  if (job.drawingId !== null && job.gap === job.smartGap) {
+    const before = laidWith.get(job.drawingId);
+    laidWith.set(job.drawingId, job.linesKey);
+    // A first reading just learns the lines; the picture already matches them. Only a change of lines moves smart colour.
+    if (before !== undefined && before !== job.linesKey) void relay(job.drawingId, job.plane, { key: job.key, map });
   }
   engine.paintUi();
 }
 
-/** Keep the current layer's reading fresh whenever what it reads could have changed. */
+/** Keep the current layer's reading fresh whenever what it reads could have changed: at the gap in force, and at its smart gap, which is what moves colour. */
 function refresh(): void {
   const engine = getEngine();
   const node = engine.activeLayer;
-  if (node !== null && node.kind === 'layer') void requestMap(node);
+  if (node === null || node.kind !== 'layer') return;
+  const state = useStudio.getState();
+  const gap = gapFor(state.project, node, state.smartOn);
+  const smartGap = gapFor(state.project, node, true);
+  void readMap(node, state.frame, gap);
+  if (smartGap !== gap) void readMap(node, state.frame, smartGap);
 }
 
 // ── the bucket, the fill brush, the fill eraser ──────────────────────────────────────────
@@ -304,10 +365,12 @@ async function commitFills(node: LayerNode, seeds: [number, number][], clear: bo
   }
   const live = liveBehaviours(state.project, node, state.smartOn);
   const smarts = smartsForStroke(live);
-  const generation = state.project.id;
-  const map = await requestMap(node);
-  if (map === null || engine.project.id !== generation) return;
-  const { key: mapKey } = mapKeyFor(engine.project, node, state.frame, gapFor(engine.project, node, state.smartOn));
+  const projectId = state.project.id;
+  // The fill belongs to the frame it was pressed on, even if the person has stepped on by the time the lines are read.
+  const { frame } = state;
+  const entry = await readMap(node, frame, gapFor(state.project, node, state.smartOn));
+  if (entry === null || engine.project.id !== projectId) return;
+  const { map, key: mapKey } = entry;
 
   // One operation per area, however many times the brush crossed it.
   const regions = new Map<number, [number, number]>();
@@ -317,12 +380,18 @@ async function commitFills(node: LayerNode, seeds: [number, number][], clear: bo
   }
   if (regions.size === 0) return;
 
+  if (engine.isBusy()) {
+    engine.notify('ONE MOMENT');
+    return;
+  }
   const before = engine.project;
   let after = before;
-  let cel = engine.celForDrawing(node);
+  const fresh = findNode(before, node.id);
+  if (fresh === null) return;
+  let cel = celFor(before, fresh, frame);
   if (cel === null) {
     if (clear) return;
-    const made = addDrawing(after, node.id, state.frame, state.settings.defaultHold);
+    const made = addDrawing(after, node.id, frame, state.settings.defaultHold);
     after = made.project;
     cel = made.cel;
   }
@@ -363,7 +432,7 @@ async function commitFills(node: LayerNode, seeds: [number, number][], clear: bo
   engine.planes.markDirty(key);
   engine.pushStep(clear ? 'CLEAR AREA' : 'FILL', before, after, patches);
   engine.paintNow();
-  noteStroke();
+  flushRelays();
 }
 
 // ── hover preview and helper lines ───────────────────────────────────────────────────────
@@ -426,6 +495,7 @@ function fillHandlers(mode: 'bucket' | 'brush', clear: boolean) {
         engine.notify('PICK A LAYER', true);
         return false;
       }
+      noteStroke();
       fillTrail = { seeds: [[x, y]], regions: new Set() };
       const entry = readyMap(node);
       if (entry !== null) fillTrail.regions.add(labelAt(entry.map, x, y));
@@ -464,7 +534,7 @@ function fillHandlers(mode: 'bucket' | 'brush', clear: boolean) {
 let heldQ = false;
 let strokeWhileHeld = false;
 
-/** Told when a stroke or fill lands. */
+/** Told when a stroke or fill begins: a Q held at that moment is a Q held for that stroke, even if it's let go before the pen lifts. */
 function noteStroke(): void {
   if (heldQ) strokeWhileHeld = true;
 }
@@ -490,8 +560,13 @@ export async function makeSmart(): Promise<void> {
     return;
   }
   const ids = new Set(selectedStrokeIds());
-  const drawing = state.project.drawings[cel.drawingId];
   const smarts = smartsForStroke(live);
+  const entry = await readMap(node, state.frame, gapFor(state.project, node, true));
+  if (entry === null || engine.project.id !== state.project.id) return;
+  const key = planeKey(cel.drawingId, 'colour');
+  const canvas = await engine.planes.open(key);
+  const drawing = engine.project.drawings[cel.drawingId];
+  if (drawing === undefined || engine.isBusy()) return;
   let changed = 0;
   const ops = drawing.planes.colour.map((op) => {
     if (op.kind !== 'stroke' || !ids.has(op.id) || op.smartAtDrawTime.includes('stayInsideLines')) return op;
@@ -502,15 +577,10 @@ export async function makeSmart(): Promise<void> {
     engine.notify('NOTHING RAW SELECTED');
     return;
   }
-  const map = await requestMap(node);
-  if (map === null) return;
-  const { key: mapKey } = mapKeyFor(engine.project, node, state.frame, gapFor(engine.project, node, state.smartOn));
-  const key = planeKey(cel.drawingId, 'colour');
-  const canvas = await engine.planes.open(key);
   const full = { x: 0, y: 0, w: canvas.width, h: canvas.height };
   const copy = copyRect(canvas, full);
   const fresh = new OffscreenCanvas(canvas.width, canvas.height);
-  replayMap = { key: mapKey, map };
+  replayMap = entry;
   engine.replayOps(fresh, ops);
   replayMap = null;
   restoreRect(canvas, full, fresh);
@@ -561,6 +631,7 @@ export function installSmarts(): void {
   };
 
   engine.liveMaskFor = (live, x, y) => {
+    noteStroke();
     const { stroke, layerId } = live;
     const { project } = useStudio.getState();
     const node = findNode(project, layerId);
@@ -581,30 +652,45 @@ export function installSmarts(): void {
     const node = findNode(project, layerId);
     if (live.mask !== null || node === null || !clipsStroke(stroke, isFigure(project, node))) return null;
     const [x, y] = stroke.points[0];
-    return requestMap(node).then((map) => {
-      if (map === null) return null;
-      const { key } = mapKeyFor(engine.project, node, useStudio.getState().frame, gapFor(engine.project, node, useStudio.getState().smartOn));
-      return maskForStroke(stroke, { key, map }, x, y);
-    });
+    const state = useStudio.getState();
+    return readMap(node, state.frame, gapFor(project, node, state.smartOn)).then((entry) => (entry === null ? null : maskForStroke(stroke, entry, x, y)));
+  };
+  // A plane's picture is gone from storage and has to be drawn from its data: smart operations need the lines first.
+  engine.beforeRebuild = async (drawingId, plane) => {
+    const { project } = useStudio.getState();
+    if (!layerSmartOps(project.drawings[drawingId]?.planes[plane])) return null;
+    for (const node of project.nodes) {
+      const cel = node.cels.find((c) => c.drawingId === drawingId);
+      if (cel === undefined) continue;
+      replayMap = await readMap(node, cel.frame, gapFor(project, node, true));
+      return () => {
+        replayMap = null;
+      };
+    }
+    return null;
   };
 
   engine.afterStroke = (layerId, drawingId, plane) => {
-    noteStroke();
-    void drawingId;
-    const node = findNode(engine.project, layerId);
-    if (node !== null && plane === 'line') void requestMap(node);
+    flushRelays();
+    if (plane !== 'line') return;
+    // Everything that reads these lines hears about it, not only the layer being drawn on: an Ink layer's strokes move a Figure's colour.
+    const { project, frame } = useStudio.getState();
+    const key = planeKey(drawingId, 'line');
+    for (const node of project.nodes) {
+      if (node.kind === 'layer' && (node.id === layerId || regionSources(project, node, frame).includes(key))) void readMap(node, frame, gapFor(project, node, true));
+    }
   };
   engine.afterMove = refresh;
+  engine.onIdle = flushRelays;
   engine.afterHistory = () => {
     refresh();
     // An undo patch knows the colour as it was when it was made. If colour has been re-laid since, lay it again to match.
     const node = engine.activeLayer;
     const cel = node !== null && node.kind === 'layer' ? engine.celForDrawing(node) : null;
     if (node !== null && cel !== null && relaid.has(cel.drawingId)) {
-      void requestMap(node).then((map) => {
-        if (map === null) return;
-        const { key } = mapKeyFor(engine.project, node, useStudio.getState().frame, gapFor(engine.project, node, useStudio.getState().smartOn));
-        void relay(cel.drawingId, { key, map });
+      const state = useStudio.getState();
+      void readMap(node, state.frame, gapFor(state.project, node, true)).then((entry) => {
+        if (entry !== null) void relay(cel.drawingId, isFigure(state.project, node) ? 'colour' : 'line', entry);
       });
     }
   };
@@ -613,6 +699,7 @@ export function installSmarts(): void {
     masks.clear();
     laidWith.clear();
     relaid.clear();
+    relaysWaiting.clear();
     fillTrail = null;
   });
   useStudio.subscribe((state, previous) => {
