@@ -1044,6 +1044,19 @@ test('WebMediaRow: with the list shut, a playing server video has no box here, s
   assert.ok(!draw(el(WebMediaRow, { item: FILM, titleId: 'row-title' }), { WatchList: slots(false) }).includes('data-player-box='), 'list shut: no box');
   floating.closeFloating();
 });
+test('WatchList: back with a free copy playing, it opens once; after that, shutting it stays shut', () => {
+  const { WatchList } = require('./owed-render/components/KinoSources.js');
+  const copy = { platform: 'internet_archive', id: 'a-free-copy', publicDomain: false };
+  const list = (seeds) => visible(draw(el(WatchList, { sources: { watch: null, free: [copy] }, title: 'A Film', audio: null }), seeds));
+  assert.ok(list({}).includes('[ WATCH · 1 ▾ ]'), 'nothing playing: shut');
+  floating.playFloating({ id: 'kino-free:internet_archive:a-free-copy', title: 'A Film', shape: 'video', player: { kind: 'frame', src: 'https://archive.org/embed/a-free-copy', frameTitle: 'x', referrerPolicy: 'no-referrer', sandbox: '', allow: '', allowFullScreen: true, timeFrom: null } });
+  try {
+    assert.ok(list({}).includes('[ WATCH · 1 ▴ ]'), 'copies first known with one playing: open');
+    assert.ok(list({ WatchList: slots(false, true) }).includes('[ WATCH · 1 ▾ ]'), 'already looked, and shut by the reader: stays shut while it plays');
+  } finally {
+    floating.closeFloating();
+  }
+});
 test('WebMediaRow: third-party words are text, never markup', () => {
   const html = row({ ...FILM, title: '<img src=x onerror=alert(1)>' });
   assert.ok(!html.includes('<img src=x'));

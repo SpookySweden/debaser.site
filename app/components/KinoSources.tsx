@@ -144,11 +144,12 @@ export function watchCount(sources: KinoSources | null): number {
 export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false, notice }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean; notice?: ReactNode }) {
   const [open, setOpen] = useState(startOpen);
   const copies = sources?.free ?? [];
-  // Sources arrive after the row is drawn, so a free copy still playing from before is only known now. Once: closing it mustn't shut the list.
-  const [cameBack, setCameBack] = useState(false);
-  if (!cameBack && !open && copies.some((copy) => floatingState().entry?.id === freeCopyPlayId(copy))) {
-    setCameBack(true);
-    setOpen(true);
+  // Sources arrive after the row is drawn, so a free copy still playing from before is only known now. Looked at once, the moment
+  // the copies arrive: after that the key alone opens and shuts the list.
+  const [looked, setLooked] = useState(false);
+  if (!looked && copies.length > 0) {
+    setLooked(true);
+    if (copies.some((copy) => floatingState().entry?.id === freeCopyPlayId(copy))) setOpen(true);
   }
   const services = offeredServices(sources?.watch);
   const total = serverCount + copies.length + services.length;
