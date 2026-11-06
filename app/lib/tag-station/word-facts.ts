@@ -37,6 +37,9 @@ export function narrowerPhrase(a: string, b: string): boolean {
 /** Luke, 2026-11-06: these stay on the map, whatever the word pass says of them. The rest of what it calls vague stays off. */
 const KEPT_ON_MAP: ReadonlySet<string> = new Set(['film', 'music']);
 
+/** Words that say there's nothing to say (2026-11-06). Off the map, and on no item, whatever the word pass makes of them. As `wordKey` writes them: "n/a" is "na". */
+const EMPTY_WORDS: ReadonlySet<string> = new Set(['unknown', 'na', 'none', 'untitled', 'notitle', 'nodescription', 'unnamed', 'unspecified', 'undefined', 'null', 'tbd', 'unlabeled', 'unlabelled', 'unidentified', 'unclassified', 'uncategorized', 'uncategorised', 'untagged', 'undescribed', 'unclear', 'placeholder', 'generic', 'miscellaneous', 'misc']);
+
 /** Whether `short` is made of the start of each word in `long` ("wwii": world war ii; "scifi": science fiction). */
 function abbreviates(short: string, long: readonly string[]): boolean {
   if (long.length === 0) return short.length === 0;
@@ -65,7 +68,7 @@ export function trueDuplicate(a: string, b: string): boolean {
   return short.length >= 2 && long.length >= 2 && abbreviates(short, long);
 }
 
-export const NO_WORD_RULES: WordRules = { canonical: (key) => key, isVague: () => false, facet: () => null };
+export const NO_WORD_RULES: WordRules = { canonical: (key) => key, isVague: (key) => EMPTY_WORDS.has(key), facet: () => null };
 
 export function buildWordRules(facts: readonly WordFact[]): WordRules {
   const sorted = [...facts].sort((a, b) => (a.word < b.word ? -1 : a.word > b.word ? 1 : 0));
@@ -103,7 +106,7 @@ export function buildWordRules(facts: readonly WordFact[]): WordRules {
   }
   return {
     canonical: find,
-    isVague: (key) => vague.has(key),
+    isVague: (key) => vague.has(key) || EMPTY_WORDS.has(key),
     facet: (key) => facetOfGroup.get(find(key)) ?? null,
   };
 }

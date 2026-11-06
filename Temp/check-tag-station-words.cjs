@@ -167,6 +167,8 @@ const row = (id, words) => ({ item: { id, platform: 'peertube', externalId: id, 
   assert.equal(kept.isVague('film'), false);
   assert.equal(kept.isVague('music'), false);
   assert.equal(kept.isVague('placeholder'), true, 'the rest of the vague list stays off');
+  for (const empty of ['unknown', 'n/a', 'none', 'untitled', 'Unspecified']) assert.equal(buildWordRules([]).isVague(wordKey(empty)), true, `${empty} says nothing, with or without the word pass`);
+  assert.equal(buildWordRules([]).isVague(wordKey('unknown pleasures')), false, 'a longer phrase is its own word');
   assert.equal(kept.canonical('films'), kept.canonical('film'), 'and a true duplicate joins a word kept');
   // Only true duplicates join, whatever the word pass answered (real answers, 2026-11-06).
   const joined = (a, b) => { const rules = buildWordRules([fact(a, 'subject', b), fact(b, 'subject')]); return rules.canonical(wordKey(a)) === rules.canonical(wordKey(b)); };
