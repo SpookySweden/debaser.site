@@ -43,6 +43,9 @@ Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (
 - Films with an Archive link: 6,266. A random 200 run through the real rules: 77 passed (38%), so about 2,400 films.
 - Films with a YouTube link: 13,657. Public domain and YouTube-linked: 901. Of the 462 not also linked to the Archive, a random 100 run
   through the live route: 66 passed, so about 300 more. In all about 2,700 films, or 1% of the films with a TMDB number.
+- With licensed YouTube uploads back (live route, 2026-11-06): of 200 random films from the 13,661 with a YouTube link, 47 were offered,
+  8 public domain and 39 licensed, so about 3,200 films on YouTube. Of 12 licensed ones looked at, 5 were named film studios' channels and
+  7 general film channels whose rights can't be told from here. The figures above and below are from before this.
 - What a viewer meets: 15 ordinary KINO searches (268 titles, 75 of them films): none had a free copy, and 148 had a where-to-watch
   listing in the UK (54 of 75 films, 94 of 193 shows). Of 14 famous old films asked for by name, 9 had one.
 
