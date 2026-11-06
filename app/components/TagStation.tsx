@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
+import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, wordItemsLine, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
 import { loadStationIndex } from '../lib/tag-station/client';
 import { digLine, useMoreItems } from '../lib/tag-station/more';
@@ -248,13 +248,13 @@ function ItemInput({ item, extraHosts, onPick, onAdd }: { item: StationItem; ext
 }
 
 /** Facts about a word: only ever about our own saved items. */
-function WordFacts({ index, word, onPick, onAdd }: { index: StationIndex; word: string; onPick: (word: string) => void; onAdd: (word: string) => void }) {
+function WordFacts({ index, word, finished, onPick, onAdd }: { index: StationIndex; word: string; finished: boolean; onPick: (word: string) => void; onAdd: (word: string) => void }) {
   const tag = index.tagByName.get(word);
   if (tag === undefined) return null;
   const year = (iso: string | null) => (iso === null ? '?' : iso.slice(0, 4));
   return (
     <div className="flex flex-col gap-1 text-prose text-ink">
-      <p>{tag.count === 1 ? 'ON 1 ITEM' : `ON ${tag.count} ITEMS`}</p>
+      <p>{wordItemsLine(index, word, finished)}</p>
       <p>
         FIRST {year(tag.first)} · LATEST {year(tag.latest)}
       </p>
@@ -294,6 +294,11 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
   const chosenWords = useMemo(() => [...new Set([...(recipe.tag !== null ? [recipe.tag] : []), ...recipe.must, ...recipe.any])].slice(0, 12), [recipe.tag, recipe.must, recipe.any]);
   const digging = useMoreItems(mapIndex, useMemo(() => (chosenWords.length > 0 ? { words: chosenWords } : null), [chosenWords]));
   const index = digging.index ?? mapIndex;
+  // Every file that could hold the chosen words has been read. A failed read has no files to its name, so it doesn't count.
+  const finished = useMemo(
+    () => new Set(!digging.loading && !digging.more && digging.answer.files > 0 ? chosenWords.flatMap((word) => findTag(index, word)?.name ?? []) : []),
+    [digging.loading, digging.more, digging.answer.files, chosenWords, index],
+  );
   const searchBox = useRef<HTMLInputElement>(null);
   const textSize = useSyncExternalStore(subscribeTextSize, readTextSize, () => 'M' as TextSize);
   const [shownFor, setShownFor] = useState<{ key: string; count: number }>({ key: '', count: ITEMS_STEP });
@@ -337,7 +342,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
   const shownCount = shownFor.key === recipeKey ? shownFor.count : ITEMS_STEP;
   // What's on the screen stays put when more arrives.
   // A word the map doesn't show has no list until the catalogue has answered, not every item the site has.
-  const lookingUp = digging.loading && recipe.tag !== null && findTag(mapIndex, recipe.tag) === null;
+  const lookingUp = digging.loading && chosenWords.some((word) => findTag(mapIndex, word) === null);
   const listed = useMemo(() => (lookingUp ? [] : keepShownFirst(pinned.key === recipeKey ? pinned.ids : [], results)), [lookingUp, pinned, recipeKey, results]);
   const shownItems = listed.slice(0, shownCount);
   const skip = useMemo(() => new Set(results.slice(0, ITEMS_STEP).map((item) => item.id)), [results]);
@@ -374,7 +379,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
           {copied ? '[ COPIED ]' : '[ COPY LINK ]'}
         </button>
         <InfoFold topic="Discover">
-          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED, SHOWN OR READ FROM OPEN CATALOGUES. FILM AND SHOW FACTS:{' '}
+          C IS CLAUDE&apos;S WORD, P THE PLATFORM&apos;S OWN, L A PASTED LINK&apos;S OWN, T FROM ITS TITLE. G IS A GENRE, M A MOOD, W A PLACE, E AN ERA, F A FORM, S A SUBJECT. TWO WORDS ARE CLOSE WHEN THEY MEET ON AT LEAST 3 ITEMS, MORE OFTEN THAN CHANCE. {index.total} ITEMS, {index.graph.tags.length} WORDS. ON IS HOW MANY ITEMS IN THE CATALOGUE HAVE A WORD, FOUND IS HOW MANY OF THEM THIS PAGE HAS READ SO FAR, AND [ MORE ITEMS ] READS ON. COUNTS ARE ONLY OF WHAT THIS SITE HAS SAVED, SHOWN OR READ FROM OPEN CATALOGUES. FILM AND SHOW FACTS:{' '}
           <a href="https://www.wikidata.org" target="_blank" rel="noopener noreferrer nofollow" className="underline">WIKIDATA</a>,{' '}
           <a href="https://www.tvmaze.com" target="_blank" rel="noopener noreferrer nofollow" className="underline">TVMAZE</a> AND{' '}
           <a href="https://www.wikipedia.org" target="_blank" rel="noopener noreferrer nofollow" className="underline">WIKIPEDIA</a>.
@@ -383,7 +388,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
 
       {index.graph.limitReached ? <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">TAGGING STOPPED: THE $60 LIMIT IS REACHED.</p> : null}
 
-      <TagStationFilters index={index} recipe={recipe} onChange={(next) => go(next)} />
+      <TagStationFilters index={index} mapIndex={mapIndex} recipe={recipe} looking={digging.loading} onChange={(next) => go(next)} />
 
       <p role="status" className="sr-only">
         {announcement}
@@ -444,7 +449,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
           {recipe.view === 'map' ? (
             <TagStationMap index={index} focus={focus.words} related={related} visibleNames={visibleNames} inRecipe={(word) => listOf(recipe, word)} onPick={pickTag} onAdd={addWord} onEscape={() => searchBox.current?.focus()} />
           ) : (
-            <TagStationList index={index} focus={focus.words} related={related} visibleNames={visibleNames} onPick={pickTag} onAdd={addWord} />
+            <TagStationList index={index} focus={focus.words} related={related} visibleNames={visibleNames} finished={finished} onPick={pickTag} onAdd={addWord} />
           )}
         </section>
 
@@ -486,7 +491,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
               </label>
             </div>
             {results.length === 0 && !lookingUp ? <p className="py-1 text-title text-ink">NOTHING FOUND.</p> : null}
-            {hints.length > 0 ? (
+            {hints.length > 0 && !lookingUp ? (
               <ul aria-label="Ways to find more" className="flex flex-col items-start gap-1 py-1">
                 {hints.map((hint) => (
                   <li key={hint.label}>
@@ -550,7 +555,7 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
           {chosenTag !== null ? (
             <div className="min-w-0 flex-1 basis-64">
               <h3 className="text-label font-bold text-ink-quiet">ABOUT THIS WORD</h3>
-              <WordFacts index={index} word={chosenTag.name} onPick={pickTag} onAdd={addWord} />
+              <WordFacts index={index} word={chosenTag.name} finished={finished.has(chosenTag.name)} onPick={pickTag} onAdd={addWord} />
             </div>
           ) : null}
           </div>

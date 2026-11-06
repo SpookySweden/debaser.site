@@ -335,6 +335,24 @@ export function loosenings(index: StationIndex, recipe: Recipe, focus: Focus, fo
     .slice(0, limit);
 }
 
+/**
+ * How many items carry a word, and how many of them the page holds so far (SPEC-discover.md). The first number is the whole catalogue's; a list holds what's been read of it, so one number alone
+ * promises rows nobody can reach. `finished` says every file that could hold the word has been read.
+ */
+export function wordItemsLine(index: StationIndex, name: string, finished = false): string {
+  const count = index.tagByName.get(name)?.count ?? 0;
+  const found = index.itemsByWord.get(name)?.size ?? 0;
+  const on = count === 1 ? 'ON 1 ITEM' : `ON ${count} ITEMS`;
+  if (found >= count) return count === 1 ? on : `${on} · ALL FOUND`;
+  return finished ? `${on} · ${found} FOUND, ALL FILES READ` : `${on} · ${found} FOUND SO FAR`;
+}
+
+/** What's typed, as a word to look up in the catalogue, when nothing offered spells it. The map shows 2,000 words and the catalogue holds far more. Null when there's nothing to look up. */
+export function wordToLookUp(typed: string, onMap: readonly string[]): string | null {
+  const word = typed.trim().toLowerCase();
+  return word.length < 3 || onMap.some((name) => wordKey(name) === wordKey(word)) ? null : word;
+}
+
 export type Suggestions = { tags: StationTag[]; items: StationItem[] };
 
 /** What the search box offers for what's typed: exact words, then starts-with, then contains, then near-misses for typos. */

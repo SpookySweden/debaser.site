@@ -194,4 +194,17 @@ assert.equal(m.nearestInDirection(grid, 'centre', 'left'), null, 'nothing that w
 assert.equal(m.nearestInDirection(grid, 'gone', 'left').tag.name, 'centre', 'starts somewhere when the word left the map');
 assert.equal(m.nearestInDirection([], 'x', 'left'), null);
 
+// How a word's count reads beside what the page holds (Luke, 2026-11-06: not a bare "ON 19194 ITEMS").
+const lineIndex = q.buildIndex({ ...buildStationGraph([]), tags: [{ name: 'jazz', count: 19194, claude: 19194, platform: 0, era: null, facet: null, first: null, latest: null, x: 0, y: 0, partners: [] }, { name: 'rare', count: 2, claude: 2, platform: 0, era: null, facet: null, first: null, latest: null, x: 0, y: 0, partners: [] }, { name: 'one', count: 1, claude: 1, platform: 0, era: null, facet: null, first: null, latest: null, x: 0, y: 0, partners: [] }], items: ['a', 'b'].map((id) => ({ id, platform: 'internet_archive', externalId: id, kind: 'video', url: '', canonicalUrl: '', title: id, publishedAt: '', fetchedAt: '', words: ['jazz', 'rare', 'one'].slice(0, id === 'a' ? 3 : 2).map((word) => ({ word, claude: true, platform: false })) })) });
+assert.equal(q.wordItemsLine(lineIndex, 'jazz'), 'ON 19194 ITEMS · 2 FOUND SO FAR', 'the catalogue and what is held');
+assert.equal(q.wordItemsLine(lineIndex, 'jazz', true), 'ON 19194 ITEMS · 2 FOUND, ALL FILES READ', 'said plainly when the files ran out short');
+assert.equal(q.wordItemsLine(lineIndex, 'rare'), 'ON 2 ITEMS · ALL FOUND');
+assert.equal(q.wordItemsLine(lineIndex, 'one'), 'ON 1 ITEM');
+
+// A word to look up: what's typed, unless it's too short or already offered in any spelling.
+assert.equal(q.wordToLookUp('  Legal Case ', ['legal']), 'legal case');
+assert.equal(q.wordToLookUp('legal-case', ['legal case']), null, 'already offered, whatever the spelling');
+assert.equal(q.wordToLookUp('ab', []), null, 'too short to be asked for');
+assert.equal(q.wordToLookUp('   ', []), null);
+
 console.log('check-tag-station-query: all passed');

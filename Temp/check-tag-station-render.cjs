@@ -83,6 +83,19 @@ assert.ok(typo.includes('LOOKING FOR: bristoll'));
 assert.ok(typo.includes('Go to bristol'), 'offers the near miss');
 assert.ok(draw('item=gone%3Aitem').includes('THAT ITEM IS GONE'));
 
+// A word the map doesn't show, in the recipe: asked for, not excludable, and nothing listed or hinted at until the catalogue has answered.
+const offMap = draw('must=legal%20case&view=list');
+assert.ok(offMap.includes('LOOKING...'), 'says it is looking');
+assert.ok(offMap.includes('aria-label="legal case: MUST"') && offMap.includes('aria-label="legal case: ANY"'), 'can be a must-have or an any-of');
+assert.ok(!offMap.includes('aria-label="legal case: NOT"'), 'cannot be excluded');
+assert.ok(!offMap.includes('DROP MUST-HAVE') && !offMap.includes('NOTHING FOUND'), 'no verdict before the answer');
+assert.ok(draw('not=legal%20case').includes('aria-label="legal case: NOT"'), 'one already excluded by an old link can still be moved');
+assert.ok(!draw('must=dub&view=list').includes('LOOKING...'), 'a word on the map has nothing to look up');
+
+// The count beside what's held, in the list of words and in a word's facts.
+assert.ok(/ON \d+ ITEMS? · (ALL FOUND|\d+ FOUND SO FAR)/.test(dub) || /ON 1 ITEM/.test(dub), 'a word never just says how many the catalogue has');
+assert.ok(!/>ON \d+ ITEMS</.test(dub), 'no bare count');
+
 // 6. Third-party text is only ever text.
 const hostile = buildIndex(buildStationGraph([{ item: { id: 'peertube:x', platform: 'peertube', externalId: 'x', kind: 'video', url: 'javascript:alert(1)', canonicalUrl: '', title: '<img src=x onerror=alert(1)>', creator: '<script>bad()</script>', description: '<b>x</b>', embedUrl: 'https://evil.example/frame', thumbnailUrl: 'https://evil.example/t.png', publishedAt: '2026-01-01T00:00:00.000Z', fetchedAt: '' }, claudeWords: ['<i>word</i>'] }]));
 address = new URLSearchParams('item=peertube%3Ax&view=list');
@@ -117,8 +130,30 @@ assert.ok(!map.includes('<svg'), 'with no drawn picture');
 const recipe = draw('tag=dub&must=bristol&any=reggae&not=vocals&strict=most&niche=rare&near=far&src=claude&era=1990s&kind=audio&sort=new&view=list');
 for (const words of ['MUST HAVE: bristol', 'ANY OF: reggae', 'EXCLUDE: vocals', 'CLEAR', 'STRICT', 'NICHE', 'HOW FAR', 'WORDS FROM', 'ERA', 'TYPE', 'SOURCE', 'FROM', 'ADD A WORD']) assert.ok(recipe.includes(words), words);
 assert.ok(!draw('tag=dub&view=list').includes('[ CLEAR ]'), 'nothing set, nothing to clear');
-assert.ok(draw('tag=dub&must=nothing+like+it&view=list').includes('NOTHING FOUND'), 'an empty result says so');
-assert.ok(/DROP MUST-HAVE nothing like it: \d+ MORE/.test(draw('tag=dub&must=nothing+like+it&view=list')), 'and what to loosen, with what it gains');
+
+// Once the catalogue has answered (a server render never gets that far by itself). Luke's filter box can now ask for any word, so the verdict waits for the answer (2026-11-06).
+const digging = require('./tag-station-render-out/lib/tag-station/more.js');
+const realMoreItems = digging.useMoreItems;
+const answered = (answer) => {
+  digging.useMoreItems = (map) => ({ answer, loading: false, digging: false, more: answer.next !== null, dig() {}, index: digging.withMore(map, answer.items, answer.tags) });
+};
+answered({ items: [], next: null, files: 3, tags: [] });
+const noSuch = draw('tag=dub&must=nothing+like+it&view=list');
+assert.ok(noSuch.includes('NOTHING FOUND'), 'an empty result says so');
+assert.ok(/DROP MUST-HAVE nothing like it: \d+ MORE/.test(noSuch), 'and what to loosen, with what it gains');
+assert.ok(noSuch.includes('NO SUCH WORD') && !noSuch.includes('LOOKING...'), 'and that the word does not exist');
+const heldRows = MOCK_STATION_ROWS.slice(0, 2).map(({ item }) => ({ ...item, id: `found:${item.id}`, words: [{ word: 'legal case', claude: true, platform: false }] }));
+answered({ items: heldRows, next: null, files: 3, tags: [{ word: 'legal case', items: 5 }] });
+const foundWord = draw('must=legal%20case&view=list');
+assert.ok(!foundWord.includes('NO SUCH WORD') && !foundWord.includes('LOOKING...'), 'a word the catalogue has is simply in the recipe');
+assert.ok(!foundWord.includes('aria-label="legal case: NOT"'), 'and still cannot be excluded');
+assert.ok(foundWord.includes('ITEMS: 2') || foundWord.includes('CLOSEST ITEMS: 2'), 'and lists what was found');
+assert.ok(foundWord.includes('ON 5 ITEMS · 2 FOUND, ALL FILES READ'), 'the files ran out short of the count: said plainly');
+answered({ items: heldRows, next: 2, files: 3, tags: [{ word: 'legal case', items: 5 }] });
+assert.ok(draw('must=legal%20case&view=list').includes('ON 5 ITEMS · 2 FOUND SO FAR'), 'files left: so far');
+answered({ items: [], next: null, files: 0, tags: [] });
+assert.ok(!draw('tag=dub&view=list').includes('ALL FILES READ'), 'a read that failed has read nothing');
+digging.useMoreItems = realMoreItems;
 
 // 9. The word pass on the page: a letter and a word for each type, the filter, and nothing of either before it has answered.
 const withFacts = buildIndex(buildStationGraph(MOCK_STATION_ROWS, MOCK_WORD_FACTS));

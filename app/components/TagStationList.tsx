@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { RelatedTag, StationIndex } from '../lib/tag-station/query';
+import { wordItemsLine, type RelatedTag, type StationIndex } from '../lib/tag-station/query';
 import { STATION_KEY, WordChip } from './TagStationParts';
 
 const STEP = 60;
@@ -15,6 +15,7 @@ export default function TagStationList({
   focus,
   related,
   visibleNames,
+  finished,
   onPick,
   onAdd,
 }: {
@@ -22,6 +23,8 @@ export default function TagStationList({
   focus: readonly string[];
   related: readonly RelatedTag[];
   visibleNames: ReadonlySet<string>;
+  /** Words whose files have all been read. */
+  finished: ReadonlySet<string>;
   onPick: (word: string) => void;
   onAdd: (word: string) => void;
 }) {
@@ -34,16 +37,13 @@ export default function TagStationList({
       seen.add(name);
       out.push({ name, reason, chosen });
     };
-    const onItems = (name: string) => {
-      const count = index.tagByName.get(name)?.count ?? 0;
-      return count === 1 ? 'ON 1 ITEM' : `ON ${count} ITEMS`;
-    };
+    const onItems = (name: string) => wordItemsLine(index, name, finished.has(name));
     for (const name of focus) add(name, onItems(name), true);
     for (const one of related) add(one.tag.name, one.reason, false);
     const rest = index.graph.tags.filter((tag) => visibleNames.has(tag.name)).sort((a, b) => b.count - a.count || (a.name < b.name ? -1 : 1));
     for (const tag of rest) add(tag.name, onItems(tag.name), false);
     return out;
-  }, [index, focus, related, visibleNames]);
+  }, [index, focus, related, visibleNames, finished]);
 
   if (rows.length === 0) return <p className="py-2 text-title text-ink">NO WORDS.</p>;
   return (
