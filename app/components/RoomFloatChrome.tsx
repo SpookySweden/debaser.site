@@ -2,7 +2,7 @@
 
 import { useLayoutEffect, type RefObject } from 'react';
 import { PLATE, WINDOW_TITLE_BAR } from '../lib/ui/controls';
-import { clampFloat, defaultFloat, FLOAT_VIDEO_SIZE, type FloatRect } from '../lib/ui/float-geometry';
+import { clampFloat, defaultFloat, FLOAT_ROOM_SIZE, type FloatRect } from '../lib/ui/float-geometry';
 import { footFloor, screenNow, useFloatFrame } from '../lib/ui/use-float-frame';
 import { GRIPS } from './DockWindow';
 
@@ -19,7 +19,7 @@ let placed: FloatRect | null = null;
 function rectNow(): FloatRect {
   const screen = screenNow();
   const floor = footFloor();
-  return placed === null ? { ...defaultFloat(FLOAT_VIDEO_SIZE, screen, floor), x: 8 } : clampFloat(placed, screen, floor);
+  return placed === null ? { ...defaultFloat(FLOAT_ROOM_SIZE, screen, floor), x: 8 } : clampFloat(placed, screen, floor);
 }
 
 export default function RoomFloatChrome({

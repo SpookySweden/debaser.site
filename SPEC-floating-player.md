@@ -62,10 +62,18 @@ pip seamlessly."
   YouTube's clear cover and our own `<video>` hand a double press to the existing FULL. Every row and the float have a
   `[ FULL ]` key, and a double press on the float's title line does the same.
 
-## Part 3, held: `[ WATCH IN ROOM ]`
-Luke chose to build privacy first, so don't add this key until the privacy plan's private stream phases (2 and 3) are live.
-Today's `[ WATCH ]` key on a video reads `[ ADD TO ROOM ]` since 2026-11-05 (Luke; `WebWatchKey`), and does what it did. Where
-this part says `[ WATCH ]`, it means that key.
+## Part 3: `[ WATCH IN ROOM ]`
+Held until the private stream phases were live, then built (2026-11-06). As built:
+- One key per video, `WatchInRoomKey.tsx`, reading for the situation: `[ WATCH IN ROOM ]`, or `[ ADD TO ROOM ]` in a room you can add
+  to. `[ ADD TO ROOM ]` takes one press: nothing new is posted, and the video goes to the back. In a crowns-only room without a
+  crown it reads `[ WATCH IN ROOM ]`, since you can't add there and can only start your own.
+- The menu is `GoLiveWindow.tsx` with `first`, not the cog: the room doesn't exist until START, and the cog edits a room that does.
+- **The video can't carry on as the same player.** A room's player is made and driven by the room (its own YouTube API player, no
+  YouTube controls), and moving a frame reloads it. So START stops the video and the room's new player seeks to where it had got
+  to (`room-start.ts`). That's a second or two of loading, from the same spot. Our own files, YouTube and Vimeo know their place;
+  anything else starts from the top.
+
+What was planned:
 - It replaces today's `[ WATCH ]` and `[ ▶ STREAM ]` go-live route on every video, from wherever it's being watched.
 - One press opens the room settings menu (`RoomSettingsWindow.tsx`): name, topic, who can add, and WHO CAN JOIN from the
   plan, with PRIVATE already picked. A second press starts the room, so a stray press never posts a thread.

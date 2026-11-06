@@ -1,6 +1,6 @@
 /*
  * The floating player and the site's arrows (SPEC-floating-player.md), offline. From the root:
- *   npx tsc app/lib/ui/float-geometry.ts app/lib/ui/floating-player.ts app/lib/ui/site-history.ts app/lib/web/embed-time.ts --rootDir app --outDir Temp/out-floating-player --module commonjs --target es2022 --lib es2022,dom,dom.iterable --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
+ *   npx tsc app/lib/ui/float-geometry.ts app/lib/ui/floating-player.ts app/lib/ui/site-history.ts app/lib/web/embed-time.ts app/lib/watch/room-start.ts --rootDir app --outDir Temp/out-floating-player --module commonjs --target es2022 --lib es2022,dom,dom.iterable --skipLibCheck --esModuleInterop --moduleResolution node --strictNullChecks
  *   node Temp/check-floating-player.cjs
  *
  * - where a float may be: whole on screen and off the strips along the foot, whatever is asked of it
@@ -41,7 +41,7 @@ const floor = 90;
 const corner = geometry.defaultFloat(geometry.FLOAT_VIDEO_SIZE, screen, floor);
 ok(corner.x + corner.w <= screen.w && corner.x > screen.w / 2, 'it starts in the right-hand corner');
 ok(corner.y + corner.h <= screen.h - floor, 'above the strips along the foot');
-ok(corner.y > screen.h / 2, 'and at the foot, not the top');
+ok(corner.y + corner.h > screen.h - floor - 20, 'and at the foot, not the top');
 for (const asked of [
   { x: -500, y: -500, w: 400, h: 300 },
   { x: 5000, y: 5000, w: 400, h: 300 },
@@ -103,14 +103,17 @@ same(store.floatingState().asked, false, 'coming back to the page puts it back i
 same(shown, 1, 'it was floating when it left, so it does not scroll the page: that is the arrows\' job');
 same(store.keptBox(), null, 'and a saved scroll position wins');
 store.noteFloating(false);
+const realNow = Date.now;
+Date.now = () => realNow() + 60000;
 again();
 const inView = store.registerBox('web:a', boxA);
 same(shown, 2, 'it was in its box when its row left: back on the page, the box comes into view');
 same(store.keptBox(), boxA, 'and it wins over a saved scroll position, since rows can come back in another order');
 store.letKeptBoxGo();
-same(store.keptBox(), null, 'until the page has settled');
+same(store.keptBox(), null, 'until the reader does something');
 store.noteFloating(true);
 inView();
+Date.now = realNow;
 shown = 1;
 store.wantBoxShown();
 const back = store.registerBox('web:a', boxA);
@@ -254,6 +257,24 @@ const keeper = read('app/components/SiteHistoryKeeper.tsx');
 ok(/closest\('main'\)/.test(keeper), 'only panes in the page count');
 ok(/THE_READER_ACTS/.test(keeper), 'the reader doing anything stops a place being put back');
 ok(!/transition/.test(layer) && !/animate-/.test(layer), 'nothing moves but what the reader moves: nothing to stop under reduced motion');
-ok(!/\[ WATCH IN ROOM \]/.test(stream + layer + read('app/components/WatchRoom.tsx')), 'WATCH IN ROOM waits for private streams (part 3 of the spec)');
+
+/* ---------------------------------------------------------------- WATCH IN ROOM (part 3) */
+const roomStart = require(join(OUT, 'lib/watch/room-start.js'));
+same(roomStart.takeRoomStart('e1'), null, 'no place: from the top');
+roomStart.noteRoomStart('e1', 90.5);
+same(roomStart.takeRoomStart('e2'), null, 'a place belongs to its own row');
+same(roomStart.takeRoomStart('e1'), 90.5, 'the room starts from where the viewer had got to');
+same(roomStart.takeRoomStart('e1'), null, 'once, so the host can go back to the top');
+roomStart.noteRoomStart('e3', 0.4);
+same(roomStart.takeRoomStart('e3'), null, 'under a second is the top');
+roomStart.noteRoomStart('e4', null);
+same(roomStart.takeRoomStart('e4'), null, 'a player that cannot tell starts from the top');
+const roomKey = read('app/components/WatchInRoomKey.tsx');
+ok(/\[ WATCH IN ROOM \]/.test(roomKey) && /\[ ADD TO ROOM \]/.test(roomKey), 'one key with both words');
+for (const path of ['app/components/WebStream.tsx', 'app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
+ok(!/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title can\'t play in a room: no key');
+ok(/entry\.room === undefined \? null : <WatchInRoomKey/.test(layer), 'the float has it only for what can play in a room');
+ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
+ok(/const place = takeRoomStart\(entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
 
 console.log(`ok: ${count} assertions (floating player, site arrows)`);
