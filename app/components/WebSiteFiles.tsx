@@ -16,7 +16,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SheetImage from './SheetImage';
 import { SongMenuKey, SongMenuPanel } from './SongMenu';
 import SpriteSlot from './SpriteSlot';
-import StreamAddKey from './StreamAddKey';
+import WatchInRoomKey from './WatchInRoomKey';
 
 /**
  * DEBASER.SITE in an archive search: the site's own files the search finds (`siteFileMatches` in
@@ -135,7 +135,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
                 type="button"
                 onClick={() => {
                   if (playing) closeFloatingIfMine(playId);
-                  else playFloating({ id: playId, title: item.title, shape: 'video', player: { kind: 'file', src: item.src } });
+                  else playFloating({ id: playId, title: item.title, shape: 'video', room: { mediaItemId: item.id }, player: { kind: 'file', src: item.src } });
                 }}
                 aria-expanded={playing}
                 aria-label={playing ? `Close the player for "${item.title}"` : `Play "${item.title}" here`}
@@ -145,8 +145,7 @@ function SiteFileRow({ entry, focusFirst }: { entry: CatalogueEntry; focusFirst:
               </button>
             ) : null}
             {item.kind === 'video' && playing ? <PipKey id={playId} title={item.title} /> : null}
-            {/* Streamed the way the catalogue does it (SPEC-cytube.md): into the room you host or hold a crown in, or to CYTUBE to go live. */}
-            {item.kind === 'video' && user !== null ? <StreamAddKey mediaItemId={item.id} title={item.title} /> : null}
+            {item.kind === 'video' && user !== null ? <WatchInRoomKey source={{ mediaItemId: item.id }} playId={playId} title={item.title} /> : null}
             {item.kind === 'image' ? (
               <button
                 type="button"

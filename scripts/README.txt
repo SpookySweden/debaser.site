@@ -144,6 +144,14 @@ The floating player and the arrows in a real browser (SPEC-floating-player.md): 
 element with the same address through scrolling, PIP, dragging, other pages and the arrows, which a server render can't
 show. Not in `npm run checks`: it needs a running site and a network. It writes screenshots to `Temp/browse/float-*.png`.
 
+drive-watch-in-room.cjs
+-----------------------
+    node scripts/drive-watch-in-room.cjs --base http://localhost:3001 --mock        on the dev-mock server, one person
+    node scripts/drive-watch-in-room.cjs --base <site> --env-test <path>            live, as kept test accounts A and B
+
+`[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
+and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
+
 drive-queue-filters.cjs
 -----------------------
     node scripts/drive-queue-filters.cjs [base]   the stream queue's filters, MEDIA and FILES, in a real browser

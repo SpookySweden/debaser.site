@@ -3,6 +3,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { toWebItem as archiveItem } from './adapters/internet-archive';
 import { toWebItem as openverseItem } from './adapters/openverse';
 import { decodePoolFile, encodePoolFile, ITEMS_PER_FILE, POOL_BUCKET, wordsIn, type PoolFileRow } from './pool-files';
+import { poolStore } from './pool-store';
 import { safeFetchJson, SafeFetchError, buildUrl, type FetchLike } from './safe-fetch';
 import { sanitiseText } from './sanitise';
 import { toWebItem as peertubeItem } from './search/providers/peertube';
@@ -27,8 +28,11 @@ export type SweepSource = (typeof SWEEP_SOURCES)[number];
 export const SWEEP_LIMIT_USD = 60;
 /** What the tagging job and the word pass may have out at worst, which the sweep leaves them. */
 const OTHER_JOBS_IN_FLIGHT_USD = 0.6;
-/** Batches out at once. At a full run each, inside the 200,000 requests Claude's API lets wait in its queue. A batch of 24,000 took 19 minutes, measured. */
-export const MAX_OUT = 7;
+/**
+ * Batches out at once. A batch of 27,000 takes about 25 minutes, measured, so this is what caps the rate. Past what Claude's API lets wait in its queue it just refuses the
+ * next one, which costs nothing: the worst case is given back and the same items are read again.
+ */
+export const MAX_OUT = 12;
 /** The most one batch holds: more than a run can read, so no read item is cut. */
 const MAX_BATCH = 35_000;
 /** Batches sent before the files, whose rows are in the table, at most this many a batch (`web_pool_out`). */
@@ -455,7 +459,9 @@ export async function readSources(state: SweepState, deadline: number, deps: Swe
 export type WordCount = { word: string; items: number; partners: Record<string, number> };
 /** A row of `web_word_stats` holding how many items have been counted in all, which the page needs for its total. */
 export const TOTAL_ROW = '#total';
-const MAX_PARTNERS_SENT = 100;
+/** The map uses 30 closest words at most. A pair seen once in a big batch says nothing, and writing it is most of what fills the database's time. */
+const MAX_PARTNERS_SENT = 30;
+const BIG_BATCH = 1000;
 
 /** One chunk of tagged items as word counts. Pure. */
 export function countWords(rows: readonly { id: string; words: readonly string[] }[]): WordCount[] {
@@ -472,7 +478,7 @@ export function countWords(rows: readonly { id: string; words: readonly string[]
   const out: WordCount[] = [...counts.entries()].map(([word, entry]) => ({
     word,
     items: entry.items,
-    partners: Object.fromEntries([...entry.partners.entries()].sort(([a, one], [b, two]) => two - one || (a < b ? -1 : 1)).slice(0, MAX_PARTNERS_SENT)),
+    partners: Object.fromEntries([...entry.partners.entries()].filter(([, count]) => rows.length < BIG_BATCH || count >= 2).sort(([a, one], [b, two]) => two - one || (a < b ? -1 : 1)).slice(0, MAX_PARTNERS_SENT)),
   }));
   if (rows.length > 0) out.push({ word: TOTAL_ROW, items: rows.filter((row) => row.words.length > 0).length, partners: {} });
   return out;
@@ -514,12 +520,28 @@ export type SweepStore = {
   release(batchId: string): Promise<void>;
 };
 
-export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true; noWords?: number };
+export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true; noWords?: number; collectFailed?: string };
 
 const COLLECT_CHUNK = 500;
 const SMALLEST_CHUNK = 25;
-/** A batch's word counts go in once, in parts this many words long, so a run cut short carries on and each word is rewritten once a batch. */
-const STATS_PART = 200;
+/** A batch's word counts go in once, in numbered parts, so a run cut short carries on. A part stays small enough for the database's few seconds a statement, as a word and its closest words. */
+const STATS_PART_SIZE = 600;
+
+/** The same counts always make the same parts, so a run that was cut short carries on from the right place. */
+export function statsParts(stats: readonly WordCount[]): WordCount[][] {
+  const parts: WordCount[][] = [];
+  let size = 0;
+  for (const one of stats) {
+    const weight = 1 + Object.keys(one.partners).length;
+    if (parts.length === 0 || size + weight > STATS_PART_SIZE) {
+      parts.push([]);
+      size = 0;
+    }
+    parts[parts.length - 1].push(one);
+    size += weight;
+  }
+  return parts;
+}
 /** Of each batch, this many stay as rows for the map's own list. */
 const HOT_PER_BATCH = 200;
 /** The rows sent before the files, moved over in files this size, this many a run. */
@@ -547,13 +569,17 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
   let outputTokens = 0;
   // Answers that came back unusable, or not at all, which are said rather than lost quietly. Not sent again: there's more to read than the money can tag.
   let noWords = 0;
-  const said = () => (noWords > 0 ? { noWords } : {});
+  let collectFailed: string | null = null;
+  const said = () => ({ ...(noWords > 0 ? { noWords } : {}), ...(collectFailed !== null ? { collectFailed } : {}) });
 
   for (const batchId of await store.pending()) {
     if (now() - startedAt > COLLECTING_TOO_LONG_MS) {
       waiting += 1;
       continue;
     }
+    let unfinished = false;
+    // One batch the database can't take in right now mustn't stop the rest of the job: it stopped everything for ten minutes once. It carries on from its place next run.
+    try {
     const batch = await client.messages.batches.retrieve(batchId);
     if (batch.processing_status !== 'ended') {
       waiting += 1;
@@ -605,9 +631,19 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     };
     for (let start = 0; start < rows.length; start += COLLECT_CHUNK) await collectChunk(rows.slice(start, start + COLLECT_CHUNK));
     // Counted from every answer, sorted, so a run cut short works out the same parts again and carries on from the next one.
-    const stats = countWords(counted).sort((a, b) => (a.word < b.word ? -1 : 1));
-    const parts = Math.ceil(stats.length / STATS_PART);
-    for (let part = await store.statsPlace(batchId); part < parts; part += 1) await store.addStats(batchId, part, stats.slice(part * STATS_PART, (part + 1) * STATS_PART));
+    const parts = statsParts(countWords(counted).sort((a, b) => (a.word < b.word ? -1 : 1)));
+    for (let part = await store.statsPlace(batchId); part < parts.length; part += 1) {
+      // Out of time: it carries on from this part next run.
+      if (now() - startedAt > COLLECTING_TOO_LONG_MS) {
+        unfinished = true;
+        break;
+      }
+      await store.addStats(batchId, part, parts[part]);
+    }
+    if (unfinished) {
+      waiting += 1;
+      continue;
+    }
     if (heldOut !== null) {
       // In the order of the file sent, so a run cut short writes the same files again.
       const tagged = heldOut.filter((row) => wordsFor.has(row)).map((row) => ({ ...row, words: wordsFor.get(row) as string[] }));
@@ -624,6 +660,11 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     await store.release(batchId);
     if (heldOut !== null) await store.removeFile(outPath(batchId)).catch(() => undefined);
     collected += rows.length;
+    } catch (error) {
+      if (!(error instanceof Error && error.message === 'TAGGING_DATABASE')) throw error;
+      waiting += 1;
+      collectFailed = (error as Error & { failed?: string }).failed ?? 'unknown';
+    }
   }
 
   // What was sent before the files existed moves over, so those rows can go past the row limit without being lost.
@@ -723,6 +764,26 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
     if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `${name} ${error.code ?? 'no code'}` });
     return data as T;
   };
+  // Supabase Storage, or Cloudflare R2 in front of it once its settings are there (pool-store.ts).
+  const files = poolStore({
+    // The bucket checks the lock from the header this client was made with (the route's client).
+    put: async (path, file) => {
+      const { error } = await db.storage.from(POOL_BUCKET).upload(path, file, { upsert: true, contentType: 'application/octet-stream' });
+      if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `put file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
+    },
+    get: async (path) => {
+      const { data, error } = await db.storage.from(POOL_BUCKET).download(path);
+      if (error) {
+        // Only "not found". The storage API answers 400 to everything, so anything else stops the run rather than treating a paid batch as having no rows.
+        if ((error as { statusCode?: string }).statusCode === '404') return null;
+        throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `get file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
+      }
+      return new Uint8Array(await data.arrayBuffer());
+    },
+    remove: async (path) => {
+      await db.storage.from(POOL_BUCKET).remove([path]);
+    },
+  });
   return {
     // Spent, plus the worst of everything out.
     spent: async () => Number(await call<number | string>('web_tag_committed', {})),
@@ -762,23 +823,9 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
       return out;
     },
     pending: () => call<string[]>('web_pool_pending', {}),
-    // The bucket checks the lock from the header this client was made with (`sweepClient`).
-    putFile: async (path, file) => {
-      const { error } = await db.storage.from(POOL_BUCKET).upload(path, file, { upsert: true, contentType: 'application/octet-stream' });
-      if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `put file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
-    },
-    getFile: async (path) => {
-      const { data, error } = await db.storage.from(POOL_BUCKET).download(path);
-      if (error) {
-        // Only "not found". The storage API answers 400 to everything, so anything else stops the run rather than treating a paid batch as having no rows.
-        if ((error as { statusCode?: string }).statusCode === '404') return null;
-        throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `get file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
-      }
-      return new Uint8Array(await data.arrayBuffer());
-    },
-    removeFile: async (path) => {
-      await db.storage.from(POOL_BUCKET).remove([path]);
-    },
+    putFile: (path, file) => files.put(path, file),
+    getFile: (path) => files.get(path),
+    removeFile: (path) => files.remove(path),
     fileAdd: async (path, items, words) => {
       await call('web_pool_shard_add', { p_path: path, p_items: items, p_words: [...words] });
     },

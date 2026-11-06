@@ -58,7 +58,9 @@ import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
 import WebSiteFiles from './WebSiteFiles';
 import StreamArtShelf from './StreamArtShelf';
-import { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } from './WebBridgeKeys';
+import { watchLinkForItem } from '../lib/web/bridges';
+import { canWatch, WebDiscussKey } from './WebBridgeKeys';
+import WatchInRoomKey from './WatchInRoomKey';
 
 /**
  * WEB: one stream of media from other platforms, newest first (SPEC-web.md).
@@ -1151,7 +1153,6 @@ function WebRow({
   const [readerOpen, setReaderOpen] = useState(false);
   const playing = floats ? playingHere : readerOpen;
   const [thumbFailed, setThumbFailed] = useState(false);
-  const [watchOpen, setWatchOpen] = useState(false);
   const opened = () => {
     noteOpened(item, item.pickWords ?? []);
     if (found) void recordOpened(item);
@@ -1167,6 +1168,10 @@ function WebRow({
   const seriesCount = useSeriesCount(item);
   const archiveSubtitles = useArchiveRowSubtitles(item);
 
+  /** How this row can play in a room: it has the key only if it can. */
+  const roomLink = canWatch(item) ? watchLinkForItem(item) : null;
+  const roomSource = roomLink === null ? undefined : { link: roomLink };
+
   /** Starts the platform's own player: the reader has just pressed PLAY, and only then does anything of theirs load. */
   const startPlayer = () => {
     if (embed === null) return;
@@ -1179,6 +1184,7 @@ function WebRow({
       id: playId,
       title: item.title,
       shape: item.kind === 'audio' ? 'audio' : 'video',
+      room: roomSource,
       player: {
         kind: 'frame',
         src: embedWithPlace(startingEmbed(embed, item.platform, contentLanguage(item)), timeFrom, placeOf(playId), window.location.origin),
@@ -1313,20 +1319,10 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
             {canRecommend(item) ? <WebRecommendKey item={item} onOpen={opened} /> : null}
-            {canWatch(item) ? (
-              <WebWatchKey
-                item={item}
-                open={watchOpen}
-                onToggle={() => {
-                  if (!watchOpen) opened();
-                  setWatchOpen((current) => !current);
-                }}
-              />
-            ) : null}
+            {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
           </div>
 
           {item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}
-          {watchOpen && canWatch(item) ? <WebWatchPanel item={item} /> : null}
         </div>
       </div>
 
