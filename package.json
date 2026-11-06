@@ -53,6 +53,7 @@
     "@tiptap/starter-kit": "^3.31.3",
     "beepbox": "4.2.0",
     "dashjs": "^5.2.1",
+    "gifenc": "1.0.3",
     "hls.js": "^1.7.4",
     "next": "16.3.5",
     "perfect-freehand": "1.2.3",

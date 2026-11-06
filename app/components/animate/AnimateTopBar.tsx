@@ -87,7 +87,7 @@ export default function AnimateTopBar() {
         <button type="button" className={PLATE_MEDIUM} onClick={() => stepUiScale(1)} aria-label="Interface bigger" title="CTRL + .">
           [ UI + ]
         </button>
-        <button type="button" className={full ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={full} onClick={() => updateSettings({ full: !full })} title="TAB">
+        <button type="button" className={full ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={full} onClick={() => updateSettings({ full: !full })} title="\">
           [ FULL ]
         </button>
         <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'help' })} title="?">

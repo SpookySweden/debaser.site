@@ -14,3 +14,9 @@ If the pen gives no pressure at all: in the Huion driver, tick "Windows Ink". Ch
 5. The pen's eraser end, if it has one: does flipping it erase?
 6. The pen's barrel button: does it drag the view, and drop a stroke if pressed mid-line?
 7. Rest your hand on the screen while drawing, if touch is on. Nothing should draw from the palm.
+
+## Phase 1: animating
+1. Draw a bouncing ball over 6 to 8 frames. Keys: `.` and `,` step, `D` starts a new drawing, `O` turns the onion on, `Enter` plays.
+2. Does the onion show enough of the last drawing to trace, without being in the way? Tints and opacities are behind `SHIFT + O`.
+3. Drag a drawing's end on the timeline with the pen. Is the grab handle wide enough to hit? (Hold Shift to push what follows.)
+4. Does 24 fps playback look even? It should start at once; a very long shot says READYING first.

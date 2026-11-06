@@ -73,7 +73,7 @@ export function allActions(): Action[] {
     { id: 'view.left', label: 'TURN LEFT', group: 'VIEW', key: 'shift+r', run: () => getEngine().rotateBy(-15) },
     { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
     { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
-    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: 'tab', run: toggleFull },
+    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '\\', run: toggleFull },
     { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: 'ctrl+.', run: () => stepUiScale(1) },
     { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+,', run: () => stepUiScale(-1) },
     { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
@@ -132,8 +132,6 @@ export function attachKeys(): () => void {
     }
     const action = allActions().find((candidate) => keyOf(candidate) === name);
     if (action === undefined) return;
-    // Tab still walks the keys when something is focused; only with nothing focused does it mean full screen.
-    if (name === 'tab' && document.activeElement !== document.body) return;
     // Enter and arrows belong to a focused key or slider.
     if ((name === 'enter' || name.startsWith('arrow')) && document.activeElement !== document.body && !(document.activeElement instanceof HTMLCanvasElement)) return;
     event.preventDefault();

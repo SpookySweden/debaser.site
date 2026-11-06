@@ -235,6 +235,224 @@ phases.phase0 = async (page, shot) => {
   await page.getByRole('button', { name: 'Interface smaller' }).click();
 };
 
+/** What is really on screen at a sheet point, onions and all: red, green, blue. */
+const seen = (page, x, y) =>
+  page.evaluate(
+    ([px, py]) => {
+      const engine = window.__animate;
+      const canvas = document.querySelector('canvas[data-animate="below"]');
+      const m = engine.viewMatrix(true);
+      const p = m.transformPoint(new DOMPoint(px, py));
+      const data = canvas.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
+      return [data[0], data[1], data[2]];
+    },
+    [x, y],
+  );
+
+const cels = (page) => page.evaluate(() => window.__animate.project.nodes.find((n) => n.id === window.__animate.activeLayer.id).cels.map((c) => [c.frame, c.length, c.mark]));
+
+async function freshProject(page) {
+  await page.evaluate(() => window.__animate.newProject());
+  await page.waitForTimeout(200);
+}
+
+/** A bar of ink through (x + 20, y + 20), so a frame can be told by where its mark is. */
+const mark = (x, y) => Array.from({ length: 16 }, (_, i) => [x + i * 3, y + 20, 0.9]);
+
+/** Save whatever the next click downloads; returns its bytes. */
+async function downloadFrom(page, click) {
+  const wait = page.waitForEvent('download', { timeout: 60000 });
+  await click();
+  const file = await wait;
+  const where = path.join(os.tmpdir(), `animate-dl-${Date.now()}`);
+  await file.saveAs(where);
+  const bytes = fs.readFileSync(where);
+  fs.unlinkSync(where);
+  return { name: file.suggestedFilename(), bytes };
+}
+
+phases.phase1 = async (page, shot) => {
+  console.log('Phase 1: Animate');
+  await freshProject(page);
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+  });
+  await page.keyboard.press('i');
+
+  // Drawing on empty frames makes drawings; the frame keys walk them.
+  await penStroke(page, mark(200, 200));
+  await page.keyboard.press('.');
+  await page.keyboard.press('.');
+  await penStroke(page, mark(400, 200));
+  await page.keyboard.press('.');
+  await page.keyboard.press('.');
+  await penStroke(page, mark(600, 200));
+  check('drawing on an empty frame makes a drawing there', JSON.stringify(await cels(page)) === JSON.stringify([[0, 1, 'key'], [2, 1, 'key'], [4, 1, 'key']]), JSON.stringify(await cels(page)));
+  check('each frame shows only its own drawing', (await pixel(page, 620, 220)) === '#000000' && (await pixel(page, 220, 220)) === '#ffffff');
+  await page.keyboard.press('a');
+  check('the drawing keys step drawing by drawing', (await state(page, () => window.__animate.frame)) === 2);
+  await page.keyboard.press('s');
+  check('and forward', (await state(page, () => window.__animate.frame)) === 4);
+
+  // Undo reaches across the timeline: it goes back to the frame it happened on.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+  check('undo goes back to the frame it happened on', (await state(page, () => window.__animate.frame)) === 4 && (await cels(page)).length === 2);
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(150);
+
+  // Exposure: drag a drawing's end.
+  await page.evaluate(() => window.__animate.goToFrame(0));
+  await page.waitForTimeout(100);
+  const end = page.locator('[data-animate-cel-end]').first();
+  await end.scrollIntoViewIfNeeded();
+  const box = await end.boundingBox();
+  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(box.x + 24, box.y + box.height / 2, { steps: 4 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  check("dragging a drawing's end holds it longer", (await cels(page))[0][1] === 2, JSON.stringify(await cels(page)));
+  check('a held frame shows the drawing', await page.evaluate(() => window.__animate.goToFrame(1) === undefined));
+  await page.waitForTimeout(100);
+  check('and frame 2 now shows frame 1', (await pixel(page, 220, 220)) === '#000000');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+  check('undo shortens it again', (await cels(page))[0][1] === 1);
+
+  // Alt+. holds with a push; on twos.
+  await page.evaluate(() => window.__animate.goToFrame(0));
+  await page.keyboard.press('Alt+.');
+  await page.waitForTimeout(50);
+  check('the hold key pushes what follows along', JSON.stringify((await cels(page)).map((c) => c[0])) === '[0,3,5]', JSON.stringify(await cels(page)));
+  await page.keyboard.press('Alt+2');
+  await page.waitForTimeout(50);
+  check('on twos', JSON.stringify((await cels(page)).map((c) => [c[0], c[1]])) === '[[0,2],[2,2],[4,2]]', JSON.stringify(await cels(page)));
+  await page.keyboard.press('u');
+  await page.waitForTimeout(50);
+  check('a drawing can be marked', (await cels(page))[0][2] === 'breakdown');
+
+  // A new drawing in a hold, a copy, a paste.
+  await page.evaluate(() => window.__animate.goToFrame(1));
+  await page.keyboard.press('d');
+  await page.waitForTimeout(50);
+  check('NEW inside a hold cuts it', JSON.stringify((await cels(page)).slice(0, 2).map((c) => [c[0], c[1]])) === '[[0,1],[1,1]]', JSON.stringify(await cels(page)));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.__animate.goToFrame(4));
+  await page.keyboard.press('Shift+D');
+  await page.waitForTimeout(200);
+  check('COPY puts a copy after it, and goes there', (await state(page, () => window.__animate.frame)) === 6 && (await pixel(page, 620, 220)) === '#000000');
+  await penStroke(page, mark(800, 200));
+  await page.evaluate(() => window.__animate.goToFrame(4));
+  await page.waitForTimeout(100);
+  check('drawing on the copy leaves the original alone', (await pixel(page, 820, 220)) === '#ffffff');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+
+  // Onion: neighbours show tinted, and follow the frame.
+  await page.evaluate(() => window.__animate.goToFrame(2));
+  await page.waitForTimeout(100);
+  check('with the onion off, neighbours do not show', JSON.stringify(await seen(page, 220, 220)) === '[255,255,255]');
+  await page.keyboard.press('o');
+  await page.waitForTimeout(150);
+  const before = await seen(page, 220, 220);
+  const after = await seen(page, 620, 220);
+  check('the drawing before shows, in its tint', before[0] > before[1] + 40 && before[0] > 200, JSON.stringify(before));
+  check('the drawing after shows, in its tint', after[1] > after[0] + 40, JSON.stringify(after));
+  await shot('phase1-onion');
+  await page.evaluate(() => window.__animate.goToFrame(4));
+  await page.waitForTimeout(150);
+  check('it follows the frame being edited', JSON.stringify(await seen(page, 620, 220)) === '[0,0,0]' && (await seen(page, 420, 220))[0] > 200);
+  await page.keyboard.press('Shift+O');
+  await page.waitForTimeout(100);
+  check('the onion panel opens', (await page.getByRole('dialog', { name: 'ONION SKIN' }).count()) === 1);
+  await shot('phase1-onion-panel');
+  await page.keyboard.press('Shift+O');
+  await page.keyboard.press('o');
+
+  // Playback: loop, ping-pong, range.
+  const watch = async (ms) =>
+    page.evaluate(
+      (duration) =>
+        new Promise((resolve) => {
+          const seenFrames = [];
+          const start = performance.now();
+          const step = () => {
+            const frame = window.__animate.frame;
+            if (seenFrames[seenFrames.length - 1] !== frame) seenFrames.push(frame);
+            if (performance.now() - start < duration) requestAnimationFrame(step);
+            else resolve(seenFrames);
+          };
+          step();
+        }),
+      ms,
+    );
+  await page.evaluate(() => {
+    window.__animate.goToFrame(0);
+    window.__animate.tweak((p) => ({ ...p, frames: 6, fps: 12 }));
+  });
+  await page.keyboard.press('Enter');
+  const looped = await watch(1200);
+  await page.keyboard.press('Enter');
+  const loopedText = looped.join(',');
+  check('LOOP runs and comes back round', /5,0/.test(loopedText) && looped.length >= 6, loopedText);
+  await page.waitForTimeout(100);
+  check('Enter stops it', !(await state(page, () => window.__animate.project && document.querySelector('[aria-pressed="true"][title="ENTER"]') !== null)));
+
+  await page.evaluate(() => window.__animate.goToFrame(0));
+  await page.getByRole('button', { name: '[ PING-PONG ]' }).click();
+  await page.mouse.move(300, 300);
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.keyboard.press('Enter');
+  const ponged = await watch(1500);
+  await page.keyboard.press('Enter');
+  check('PING-PONG comes back down', /5,4/.test(ponged.join(',')) && /1,0|0,1/.test(ponged.join(',')), ponged.join(','));
+
+  await page.evaluate(() => window.__animate.goToFrame(2));
+  await page.keyboard.press('b');
+  await page.evaluate(() => window.__animate.goToFrame(4));
+  await page.keyboard.press('n');
+  await page.getByRole('button', { name: '[ LOOP ]' }).click();
+  await page.evaluate(() => document.activeElement?.blur?.());
+  await page.evaluate(() => window.__animate.goToFrame(2));
+  await page.keyboard.press('Enter');
+  const ranged = await watch(1200);
+  await page.keyboard.press('Enter');
+  check('the in/out range holds it there', ranged.every((f) => f >= 2 && f <= 4) && ranged.length >= 3, ranged.join(','));
+  await page.keyboard.press('Shift+B');
+  await shot('phase1-desktop');
+
+  // Timeline thumbnails exist.
+  check('a cel shows a little picture', (await page.locator('[data-animate-cel] canvas').count()) >= 1);
+
+  // Exports.
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, fps: 24 })));
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  const gif = await downloadFrom(page, () => page.getByRole('button', { name: '[ GIF ]' }).click());
+  check('GIF export gives a real GIF', gif.name.endsWith('.gif') && gif.bytes.subarray(0, 6).toString() === 'GIF89a', `${gif.name}, ${gif.bytes.length} bytes`);
+  const frameCount = gif.bytes.reduce((n, byte, i) => n + (byte === 0x21 && gif.bytes[i + 1] === 0xf9 && gif.bytes[i + 2] === 4 ? 1 : 0), 0);
+  check('with its frames', frameCount >= 3, `${frameCount} frames`);
+  const zip = await downloadFrom(page, () => page.getByRole('button', { name: '[ PNG FRAMES ]' }).click());
+  const names = zip.bytes.toString('latin1').match(/UNTITLED_\d{4}\.png/g) ?? [];
+  check('PNG export gives a zip of frames', zip.name.endsWith('.zip') && zip.bytes.subarray(0, 2).toString() === 'PK' && new Set(names).size === 6, `${new Set(names).size} frames`);
+  await shot('phase1-export');
+  await page.keyboard.press('Control+e');
+
+  // Full screen.
+  await page.keyboard.press('\\');
+  await page.waitForTimeout(300);
+  check('FULL fills the window', await page.evaluate(() => document.querySelector('[aria-label="Animation studio"]').getBoundingClientRect().width === window.innerWidth));
+  await page.keyboard.press('0');
+  await page.waitForTimeout(100);
+  await shot('phase1-full');
+  await page.keyboard.press('\\');
+};
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'animate-drive-'));

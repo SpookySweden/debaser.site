@@ -69,7 +69,7 @@ export function saveSettings(settings: Settings): void {
 }
 
 export type SaveState = 'saved' | 'saving' | 'failed' | 'waiting';
-export type Panel = 'none' | 'settings' | 'keys' | 'projects' | 'export' | 'tags' | 'help';
+export type Panel = 'none' | 'settings' | 'keys' | 'projects' | 'export' | 'tags' | 'help' | 'onion';
 
 export type StudioState = {
   project: Project;

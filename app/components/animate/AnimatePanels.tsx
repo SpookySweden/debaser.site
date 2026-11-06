@@ -6,6 +6,8 @@ import { getEngine } from '../../lib/animate/engine';
 import type { ProjectListing } from '../../lib/animate/storage';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
+import AnimateExportPanel from './AnimateExportPanel';
+import AnimateOnionPanel from './AnimateOnionPanel';
 
 /** The panel that floats over the studio. Esc-free: its key or `[ CLOSE ]` shuts it; the studio's keys still work behind it. */
 export function AnimatePanelFrame({ title, children }: { title: string; children: ReactNode }) {
@@ -122,5 +124,7 @@ export default function AnimatePanels() {
   const panel = useStudio((state) => state.panel);
   if (panel === 'help') return <HelpPanel />;
   if (panel === 'projects') return <ProjectsPanel />;
+  if (panel === 'onion') return <AnimateOnionPanel />;
+  if (panel === 'export') return <AnimateExportPanel />;
   return null;
 }

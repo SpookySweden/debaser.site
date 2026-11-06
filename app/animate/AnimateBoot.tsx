@@ -5,6 +5,7 @@ import { registerWorkers } from '../lib/animate/workers';
 
 registerWorkers({
   save: () => new Worker(new URL('../lib/animate/save.worker.ts', import.meta.url)),
+  export: () => new Worker(new URL('../lib/animate/export.worker.ts', import.meta.url)),
 });
 
 /** The studio, with its background workers told where they live. */
