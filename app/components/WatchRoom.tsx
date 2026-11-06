@@ -201,6 +201,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   const [myKey] = useState(newTabKey);
   const roomGuest = useRoomGuest();
   const guestLabel = roomGuest?.label ?? '';
+  const presenceGuestId = user === null ? (roomGuest?.id ?? null) : null;
   /** The window that asks who this is, from pressing the canvas (SPEC-guests.md). */
   const [naming, setNaming] = useState(false);
   const [members, setMembers] = useState<WatchMember[]>([]);
@@ -212,7 +213,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     const membership = repository.joinRoom(
       roomId,
       // A guest is here by name only: no id on the wire, so nobody can crown them or hand them the room.
-      { key: myKey, userId: user?.id ?? null, guestId: user === null ? (roomGuest?.id ?? null) : null, name: user?.displayName ?? guestLabel },
+      { key: myKey, userId: user?.id ?? null, guestId: presenceGuestId, name: user?.displayName ?? guestLabel },
       (next) => {
         setMembers(next);
         if (next.length > 1 || next.some((member) => member.key !== myKey)) setMembersHeard(true);
@@ -225,7 +226,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       window.clearTimeout(heard);
       membership.leave();
     };
-  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, roomGuest?.id, guestLabel, myKey]);
+  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, presenceGuestId, guestLabel, myKey]);
 
   const accounts = accountsPresent(members);
 

@@ -32,6 +32,12 @@ assert.match(beforeStore, /function joinWatchingChannel/, "the site-wide watchin
 assert.doesNotMatch(read('app/lib/watch/supabase-canvas-repository.ts'), /getSupabaseBrowserClient/, 'so does the canvas store');
 console.log("  ok    only the room stores use a guest's connection");
 
+// Reading a new canvas back in the insert is refused for everybody, and no canvas opens: the read rule's function can't see a row still being written. Live proof: Temp/guest-drive.cjs.
+const opening = read('app/lib/watch/supabase-canvas-repository.ts');
+const openCanvas = opening.slice(opening.indexOf('async openCanvas('), opening.indexOf('async readCanvas('));
+assert.doesNotMatch(openCanvas, /\.select\(/, 'opening a canvas must not read the new row back in the same request');
+console.log('  ok    opening a canvas does not read the new row back');
+
 /* --- the live gate is in place ---------------------------------------------------------------------------------------- */
 const [role] = ask("select rolconfig::text as settings from pg_roles where rolname = 'authenticator'");
 assert.match(role.settings, /pgrst\.db_pre_request=public\.guest_request_gate/, 'the gate is what runs before every request');
