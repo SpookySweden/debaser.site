@@ -717,6 +717,7 @@ const main = async () => {
     await page.keyboard.press('i');
     await page.keyboard.press('i');
     await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(150);
     await page.locator('#song-link').fill('not a song');
     await page.keyboard.press('Enter');
     await expectStatus(page, /^Problem/, 'a bad link');
@@ -974,7 +975,7 @@ const main = async () => {
     await page.waitForTimeout(100);
     assert.equal(await page.getByRole('dialog').count(), 1, 'closed');
     // A click on one behind brings it forward too.
-    await page.getByRole('button', { name: /^Song/ }).click();
+    await page.locator('[data-window-key="song"]').click();
     await page.waitForTimeout(100);
     await page.getByRole('dialog', { name: 'Recorder' }).getByRole('button', { name: /^Move the / }).click({ position: { x: 12, y: 12 } });
     await page.waitForTimeout(100);
@@ -1064,6 +1065,7 @@ const main = async () => {
     assert.equal(await page.locator('#song-link').inputValue(), 'a b', 'Space types in a text box');
     assert.equal(await first.textContent(), 'Play', 'without playing');
     await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
     await page.keyboard.press('Shift+R');
     await page.waitForTimeout(100);
     const replace = page.getByRole('radio', { name: /Replace/ });
