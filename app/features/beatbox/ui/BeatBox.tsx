@@ -538,7 +538,7 @@ export function BeatBox({
     <div
       ref={page}
       data-theme={theme}
-      className="debaser-beatbox relative flex min-h-full flex-col bg-bb-nigrosine md:h-full font-beatbox text-bb-white print:bg-bb-white"
+      className="debaser-beatbox relative flex min-h-full flex-col bg-bb-nigrosine max-md:pb-16 md:h-full font-beatbox text-bb-white print:bg-bb-white"
     >
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
 
