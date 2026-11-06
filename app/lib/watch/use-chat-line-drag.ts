@@ -4,6 +4,7 @@ import { profileNameColour } from '../profile/name-colours';
 import { usePublicProfile } from '../profile/use-public-profile';
 import { canvasDraggable, useCanvasOpen, type CanvasDraggable } from './canvas-drag';
 import { chatImageUrl } from './chat-images';
+import { isGuestLabel } from './rules';
 import type { WatchMessage } from './types';
 
 /**
@@ -16,7 +17,7 @@ export function useChatLineDrag(message: WatchMessage): CanvasDraggable | null {
   const { profile } = usePublicProfile(message.authorId);
   if (!open) return null;
   return canvasDraggable(() => {
-    const picture = chatImageUrl(message.body);
+    const picture = isGuestLabel(message.authorLabel) ? null : chatImageUrl(message.body);
     if (picture !== null) return { type: 'picture', url: picture, title: message.authorLabel };
     return { type: 'text', text: message.body, writerId: message.authorId, writerLabel: message.authorLabel, colour: profileNameColour(profile) ?? '' };
   });

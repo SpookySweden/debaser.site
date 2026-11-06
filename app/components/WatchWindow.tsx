@@ -12,7 +12,9 @@ import { useEdgeReserve } from '../lib/ui/use-edge-reserve';
 import { getWatchRepository } from '../lib/watch/repository';
 import { roomIsLive, roomPrivacyLabel, roomShownName } from '../lib/watch/rules';
 import { streamBarState, subscribeToStreamBar } from '../lib/watch/stream-bar';
-import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
+import { guestReturnRoom } from '../lib/watch/guest-return';
+import { hasStoredGuest } from '../lib/watch/room-client';
+import { applyLocalChange, refollowRooms, useWatchRoom } from '../lib/watch/use-watch-room';
 import {
   closeWatch,
   collapseWatch,
@@ -25,6 +27,7 @@ import {
 } from '../lib/watch/watch-window';
 import ArtMark from './ArtMark';
 import { useAuth } from './AuthProvider';
+import { useRoomIdentity } from './use-room-identity';
 import DockWindow from './DockWindow';
 import RoomDoor from './RoomDoor';
 import WatchRoom from './WatchRoom';
@@ -51,6 +54,21 @@ export default function WatchWindow() {
   const pathname = usePathname();
   const router = useRouter();
   const asked = search.toString();
+  const { user: account } = useAuth();
+  const accountId = account?.id ?? null;
+
+  // Back from logging in at the guest window: the room opens again, and the connection a guest was on gives way to the account's (SPEC-guests.md).
+  const accountWas = useRef(accountId);
+  useEffect(() => {
+    if (accountWas.current === accountId) return;
+    accountWas.current = accountId;
+    if (hasStoredGuest()) refollowRooms();
+  }, [accountId]);
+  useEffect(() => {
+    if (accountId === null) return;
+    const room = guestReturnRoom();
+    if (room !== null) openWatch({ kind: 'room', roomId: room });
+  }, [accountId]);
 
   useEffect(() => {
     const named = watchFocusFromSearch(asked.length === 0 ? '' : `?${asked}`);
@@ -134,14 +152,13 @@ function RoomWindow({ roomId, collapsed, onCollapse, onLeft }: { roomId: string;
   const now = useNow(5000);
   const live = read !== undefined && read !== null && roomIsLive(read.room, now);
   const hostName = profile?.displayName ?? read?.room.originalHostLabel ?? '';
-  const { user } = useAuth();
-  const userId = user?.id ?? null;
+  const userId = useRoomIdentity()?.id ?? null;
   const readable = read !== undefined && read !== null;
   /** Taken out of this stream while in it (SPEC-privacy-phase-2.md): the room goes, and its wires with it. */
   const [removedFor, setRemovedFor] = useState<string | null>(null);
   const removed = removedFor === roomId;
 
-  // Somebody who can read the room and is signed in belongs to it from here (an open room going private keeps them).
+  // Somebody who can read the room and is signed in, or a guest, belongs to it from here (an open room going private keeps them).
   // A room they cannot read waits for JOIN at its door.
   useEffect(() => {
     if (userId === null || !readable) return;

@@ -37,6 +37,19 @@ export const HOLD_BACK_RATE = 0.92;
 
 export const MESSAGE_MAX_LENGTH = 500;
 
+/** The longest name a guest can pick (SPEC-guests.md). */
+export const GUEST_NAME_MAX = 20;
+
+/** The shape of a guest's name, so the window can say so at once. The database decides for good, names already taken included. */
+export function guestNameLooksRight(name: string): boolean {
+  return /^[A-Za-z0-9_-][A-Za-z0-9 _-]{0,18}[A-Za-z0-9_-]$/.test(name.trim().replace(/\s+/g, ' '));
+}
+
+/** A chat line by a guest: drawn as a plain name, because a guest has no profile to open. */
+export function isGuestLabel(label: string): boolean {
+  return label.endsWith(' [GUEST]');
+}
+
 /** A write the room's rules refused: both stores say it in these words (no database message reaches the screen). */
 export const NOT_ALLOWED = 'NOT ALLOWED: THE STREAM MAY HAVE ENDED, OR ITS HOST OR CROWNS CHANGED.';
 

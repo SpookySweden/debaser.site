@@ -107,7 +107,7 @@ async function lists(viewer, client, testIds, viewerId) {
   );
   check(
     'and still hold everybody else - the house account among them',
-    listed.length === accounts.length - 4 && listed.some((account) => account.displayName === HOUSE_NAME),
+    listed.length === accounts.filter((account) => account.hidden !== true).length && listed.some((account) => account.displayName === HOUSE_NAME),
     `${listed.length} of ${accounts.length}`,
   );
 

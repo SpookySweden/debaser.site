@@ -8,25 +8,30 @@ import { getWatchRepository } from '../lib/watch/repository';
 import { ROOM_PASSWORD_MAX } from '../lib/watch/rules';
 import type { JoinAnswer, RoomDoor as Door } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
+import { ensureRoomGuest } from '../lib/watch/use-room-guest';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import PrivateOutline from './PrivateOutline';
+import { useRoomIdentity } from './use-room-identity';
 
 const line = 'text-label font-bold text-ink';
 
 /**
  * What somebody sees who opens the link of a room they cannot read yet (SPEC-privacy-phase-2.md): `JOIN <ROOM NAME>?`, and the
  * password if it has one. Pressing JOIN is what makes them a member. The database answers all of it (`watch_room_door`, `watch_join`).
+ * Somebody with no account joins as a guest (SPEC-guests.md): the guest is made by that press, not before, and the room stays nameless to them until they are in.
  */
 export default function RoomDoor({ roomId }: { roomId: string }) {
-  const { user, status } = useAuth();
+  const { status } = useAuth();
+  const identity = useRoomIdentity();
   const { refreshThreads } = useForum();
-  const userId = user?.id ?? null;
+  const userId = identity?.id ?? null;
   const [door, setDoor] = useState<Door | null>(null);
   const [password, setPassword] = useState('');
   const [shown, setShown] = useState(false);
   const [answer, setAnswer] = useState<JoinAnswer | null>(null);
   const [busy, setBusy] = useState(false);
+  const [fault, setFault] = useState<string | null>(null);
   const now = useNow(30000);
 
   useEffect(() => {
@@ -47,7 +52,9 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
 
   async function join() {
     setBusy(true);
+    setFault(null);
     try {
+      if (identity === null) await ensureRoomGuest();
       const said = await getWatchRepository().enterRoom(roomId, door?.privacy === 'password' ? password : null);
       setAnswer(said);
       setPassword('');
@@ -57,8 +64,9 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
         // The stream's record is readable now, and the board hears no event for that.
         void refreshThreads().catch(() => undefined);
       } else setDoor(await getWatchRepository().readDoor(roomId));
-    } catch {
+    } catch (failure) {
       setAnswer('refused');
+      setFault(failure instanceof Error ? failure.message : null);
     } finally {
       setBusy(false);
     }
@@ -79,20 +87,6 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
       <>
         <p className={line} data-room-door="ended">THIS STREAM HAS ENDED.</p>
         {door.member ? null : <PrivateOutline roomId={roomId} />}
-      </>
-    );
-  }
-  if (userId === null) {
-    return (
-      <>
-        <p className={line} data-room-door="signed-out">
-          THIS STREAM IS PRIVATE.{' '}
-          <Link href="/account" className="key px-1 py-1 text-label">
-            [ LOG IN ]
-          </Link>{' '}
-          TO JOIN
-        </p>
-        <PrivateOutline roomId={roomId} />
       </>
     );
   }
@@ -152,10 +146,19 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
           </span>
         ) : answer === 'refused' ? (
           <span className="bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">
-            THAT DID NOT WORK.
+            {fault ?? 'THAT DID NOT WORK.'}
           </span>
         ) : null}
       </div>
+      {identity?.kind === 'account' ? null : (
+        <p className="font-bold" data-room-door-guest>
+          JOINING AS A GUEST.{' '}
+          <Link href="/account" className="key px-1 py-1 text-label">
+            [ LOG IN ]
+          </Link>{' '}
+          IF YOU HAVE AN ACCOUNT.
+        </p>
+      )}
     </form>
     <PrivateOutline roomId={roomId} />
     </>

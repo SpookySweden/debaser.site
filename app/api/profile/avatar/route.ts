@@ -80,7 +80,7 @@ async function sessionUserId(request: Request): Promise<string | null> {
     });
 
     const { data, error } = await client.auth.getUser(token);
-    if (error !== null) return null;
+    if (error !== null || data.user?.is_anonymous === true) return null;
 
     return data.user?.id ?? null;
   } catch {

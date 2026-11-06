@@ -39,7 +39,7 @@ function Field({ id, label, type, value, onChange, placeholder, autoComplete, er
 }
 
 /** The signed-out half of the account page: create an account, or log in. */
-export default function AccountForms() {
+export default function AccountForms({ stacked = false }: { stacked?: boolean }) {
   const { signUp, signIn } = useAuth();
 
   const [signUpEmail, setSignUpEmail] = useState('');
@@ -109,7 +109,7 @@ export default function AccountForms() {
   }
 
   return (
-    <div className="grid gap-3 lg:grid-cols-2">
+    <div className={stacked ? 'grid gap-3' : 'grid gap-3 lg:grid-cols-2'}>
       <section>
         <div className="title-line text-accent-ink">
           <span>CREATE ACCOUNT</span>

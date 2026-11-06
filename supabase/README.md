@@ -1005,3 +1005,9 @@ subscriber's rules, so don't swap it for a definer function. `Temp/check-private
 
 `Temp/check-visitor-limits.cjs` is the proof, live. A tab left open from before a change like this keeps its old code until
 it is reloaded.
+
+
+Guests
+------
+
+`20261106194444_guests_in_streams.sql` (SPEC-guests.md, Luke's OK 2026-11-06): guests in streams are Supabase's anonymous sign-in, and to Postgres they are ordinary signed-in people. A gate runs before every request (`guest_request_gate`), and a new table needs a `guests stay out` rule unless guests are meant to read it. The spec has the undo; `Temp/check-guests.cjs` fails on a table left open.

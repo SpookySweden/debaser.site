@@ -83,6 +83,17 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
     return getWatchRepository().subscribeRoomMembers(room.id, readPeople);
   }, [room.id, readPeople]);
 
+  const [guestsFault, setGuestsFault] = useState<string | null>(null);
+  async function setGuestsCanTalk(allowed: boolean) {
+    setGuestsFault(null);
+    try {
+      await getWatchRepository().setGuestsCanTalk(room.id, allowed);
+      applyLocalChange(room.id, { kind: 'refresh' });
+    } catch (failure) {
+      setGuestsFault(failure instanceof Error ? failure.message : 'THAT DID NOT WORK.');
+    }
+  }
+
   async function removePerson(person: RoomMemberRow) {
     setPeopleFault(null);
     try {
@@ -246,6 +257,17 @@ export default function RoomSettingsWindow({ room, userId, look, onClose }: { ro
         ) : (
           <p className="font-bold">WHO CAN JOIN: {roomPrivacyLabel(room.privacy)}</p>
         )}
+
+        <div className="flex flex-wrap items-center gap-2" data-room-guests-talk={room.guestsCanTalk === false ? 'off' : 'on'}>
+          <span className="font-bold">GUESTS CAN TALK:</span>
+          <button type="button" className={room.guestsCanTalk === false ? PLATE : PLATE_PRESSED} aria-pressed={room.guestsCanTalk !== false} onClick={() => void setGuestsCanTalk(true)}>
+            [ YES ]
+          </button>
+          <button type="button" className={room.guestsCanTalk === false ? PLATE_PRESSED : PLATE} aria-pressed={room.guestsCanTalk === false} onClick={() => void setGuestsCanTalk(false)}>
+            [ NO, THEY WATCH ]
+          </button>
+          {guestsFault === null ? null : <span className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="alert">{guestsFault}</span>}
+        </div>
 
         {people.length === 0 ? null : (
           <div className="flex flex-col gap-1" data-room-people>

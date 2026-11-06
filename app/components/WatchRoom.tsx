@@ -11,6 +11,7 @@ import { ASCII_EMOTICONS } from '../lib/comms/ascii-emoticons';
 import { FIELD_TIGHT, KEY_FOCUS, PLATE, PLATE_MAIN, PLATE_ON_BLACK, PLATE_ON_BLACK_PRESSED, PLATE_PRESSED, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 import { useNow } from '../lib/ui/use-now';
 import { chatImageUrl, type ImageResult, type ImageSearchKind } from '../lib/watch/chat-images';
+import { forgetGuestReturn, guestReturnDraft, keepGuestReturn } from '../lib/watch/guest-return';
 import { createEmbed, isEmbedKind } from '../lib/watch/embeds';
 import { liveJump } from '../lib/watch/links';
 import { hasQualityControl, hasSubtitleControl, type EmbedPlayable, type Playable, type QualityControl } from '../lib/watch/playable';
@@ -45,6 +46,7 @@ import {
   upcoming,
   viewerStep,
   withSeries,
+  isGuestLabel,
 } from '../lib/watch/rules';
 import type { WatchLink, WatchMember, WatchMessage, WatchRoomRead } from '../lib/watch/types';
 import { steadyInterval } from '../lib/watch/steady-timer';
@@ -58,7 +60,10 @@ import { burnedInSubtitles } from '../lib/web/subtitles';
 import { archiveFileOf, useArchiveSubtitles } from '../lib/web/subtitles-client';
 import { archiveSubtitles, streamSubtitles, type VideoSubtitles } from '../lib/watch/subtitle-tracks';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
+import { useRoomGuest } from '../lib/watch/use-room-guest';
 import { useAuth } from './AuthProvider';
+import GuestWindow from './GuestWindow';
+import { useRoomIdentity } from './use-room-identity';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import ArtMark from './ArtMark';
 import BlankScreen from './BlankScreen';
@@ -194,6 +199,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   /* --- who is here ----------------------------------------------------------------------------- */
 
   const [myKey] = useState(newTabKey);
+  const guestLabel = useRoomGuest()?.label ?? '';
   const [members, setMembers] = useState<WatchMember[]>([]);
   /** False until the room's presence has answered once: before that, "the host is missing" means nothing. */
   const [membersHeard, setMembersHeard] = useState(false);
@@ -202,7 +208,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     if (room.endedAt !== null) return;
     const membership = repository.joinRoom(
       roomId,
-      { key: myKey, userId: user?.id ?? null, name: user?.displayName ?? '' },
+      // A guest is here by name only: no id on the wire, so nobody can crown them or hand them the room.
+      { key: myKey, userId: user?.id ?? null, name: user?.displayName ?? guestLabel },
       (next) => {
         setMembers(next);
         if (next.length > 1 || next.some((member) => member.key !== myKey)) setMembersHeard(true);
@@ -215,7 +222,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
       window.clearTimeout(heard);
       membership.leave();
     };
-  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, myKey]);
+  }, [repository, roomId, room.endedAt, user?.id, user?.displayName, guestLabel, myKey]);
 
   const accounts = accountsPresent(members);
 
@@ -1251,9 +1258,18 @@ function ChatPanel({
   /** What plays next, announced in this chat once a minute; null says nothing. */
   nextTitle: string | null;
 }) {
-  const { user } = useAuth();
+  const identity = useRoomIdentity();
   const repository = getWatchRepository();
-  const [draft, setDraft] = useState('');
+  const [draft, setDraft] = useState(() => guestReturnDraft(read.room.id));
+  /** The window that asks who is speaking (SPEC-guests.md). What was typed stays in the box behind it. */
+  const [asking, setAsking] = useState(false);
+  // Logged in from that window: there is nothing left to ask.
+  if (asking && identity?.kind === 'account') setAsking(false);
+  // What came back with this box has been put in it; an account has nothing more to come back to.
+  const speakerKind = identity?.kind ?? null;
+  useEffect(() => {
+    if (speakerKind === 'account' || speakerKind === null) forgetGuestReturn();
+  }, [speakerKind]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shelf, setShelf] = useState<ShelfTab | null>(null);
@@ -1286,8 +1302,13 @@ function ChatPanel({
     if (list !== null) list.scrollTop = list.scrollHeight;
   }, [count]);
 
-  async function send(body: string) {
-    if (user === null || body.trim().length === 0) return false;
+  async function send(body: string, speaker: { id: string; label: string; named: boolean } | null = identity) {
+    if (body.trim().length === 0) return false;
+    if (speaker === null || !speaker.named) {
+      keepGuestReturn(read.room.id, body);
+      setAsking(true);
+      return false;
+    }
     setBusy(true);
     setError(null);
     try {
@@ -1295,7 +1316,7 @@ function ChatPanel({
         roomId: read.room.id,
         queueEntryId: read.room.currentEntryId,
         mediaItemId: item?.id ?? null,
-        author: { id: user.id, label: user.displayName },
+        author: { id: speaker.id, label: speaker.label },
         body,
         mediaSeconds: videoRef.current?.currentTime ?? 0,
       });
@@ -1324,12 +1345,27 @@ function ChatPanel({
           ),
         )}
       </ol>
-      {!live ? null : user === null ? (
-        <p className="text-label font-bold text-ink">
+      {asking ? (
+        <GuestWindow
+          onNamed={(guest) => {
+            setAsking(false);
+            forgetGuestReturn();
+            void send(draft, guest).then((sent) => {
+              if (sent) setDraft('');
+            });
+          }}
+          onClose={() => {
+            setAsking(false);
+            forgetGuestReturn();
+          }}
+        />
+      ) : null}
+      {!live ? null : identity?.kind !== 'account' && read.room.guestsCanTalk === false ? (
+        <p className="text-label font-bold text-ink" data-watch-guests-quiet>
           <Link href="/account" className="key px-1 py-1 text-label">
             [ LOG IN ]
           </Link>{' '}
-          TO TALK
+          TO TALK. GUESTS WATCH ONLY IN THIS ROOM.
         </p>
       ) : (
         <div className="relative">
@@ -1337,6 +1373,7 @@ function ChatPanel({
             <ChatShelf
               tab={shelf}
               onTab={setShelf}
+              emotesOnly={identity?.kind !== 'account'}
               onEmote={(text) => {
                 setDraft((current) => `${current}${current.length === 0 || current.endsWith(' ') ? '' : ' '}${text}`.slice(0, MESSAGE_MAX_LENGTH));
                 inputRef.current?.focus();
@@ -1380,7 +1417,7 @@ function ChatPanel({
                   className={shelf !== null ? PLATE_PRESSED : PLATE}
                   aria-pressed={shelf !== null}
                   aria-label="Emotes, GIFs and images"
-                  onClick={() => setShelf((open) => (open !== null ? null : 'gif'))}
+                  onClick={() => setShelf((open) => (open !== null ? null : identity?.kind === 'account' ? 'gif' : 'emote'))}
                 >
                   GIF
                 </button>
@@ -1419,12 +1456,15 @@ const SHELF_TABS: { tab: ShelfTab; label: string }[] = [
 function ChatShelf({
   tab,
   onTab,
+  emotesOnly,
   onEmote,
   onPicture,
   busy,
 }: {
   tab: ShelfTab;
   onTab: (tab: ShelfTab) => void;
+  /** Pictures are for accounts (SPEC-guests.md): the searches ask for one and a guest's line can't be one. */
+  emotesOnly: boolean;
   onEmote: (text: string) => void;
   onPicture: (url: string) => void;
   busy: boolean;
@@ -1461,7 +1501,7 @@ function ChatShelf({
   return (
     <div className="absolute inset-x-0 bottom-full z-20 mb-1 flex max-h-96 flex-col gap-1 frame bg-sun-pale p-2" role="dialog" aria-label="Emoticons and pictures">
       <div className="flex flex-wrap gap-1">
-        {SHELF_TABS.map((entry) => (
+        {(emotesOnly ? SHELF_TABS.filter((entry) => entry.tab === 'emote') : SHELF_TABS).map((entry) => (
           <button
             key={entry.tab}
             type="button"
@@ -1558,9 +1598,16 @@ function ChatShelf({
   );
 }
 
+/** Who said a line. A guest has no profile to open, so their name is plain, as a guest's post is on the board. */
+function messageAuthor(message: WatchMessage) {
+  return { id: isGuestLabel(message.authorLabel) ? null : message.authorId, displayName: message.authorLabel };
+}
+
 /** What a chat line says: its words, or the one GIPHY / Commons picture it links to, hotlinked from there. */
-function MessageBody({ body }: { body: string }) {
-  const picture = chatImageUrl(body);
+function MessageBody({ message }: { message: WatchMessage }) {
+  const body = message.body;
+  // Pictures are for accounts (SPEC-guests.md). The database writes a guest's name, so a guest's line always says so, however it is spelled.
+  const picture = isGuestLabel(message.authorLabel) ? null : chatImageUrl(body);
   // A picture the host has taken down reads as its link rather than a blank.
   const [gone, setGone] = useState(false);
   if (picture === null || gone) return <>{body}</>;
@@ -1575,7 +1622,7 @@ function MessageBody({ body }: { body: string }) {
  * No delete key (Luke, 2026-11-02): what is said in a stream stays said.
  */
 function ChatLine({ message }: { message: WatchMessage }) {
-  const author = { id: message.authorId, displayName: message.authorLabel };
+  const author = messageAuthor(message);
   // While the canvas is on screen, a line can be dragged onto it (SPEC-stream-art.md).
   const drag = useChatLineDrag(message);
   return (
@@ -1588,7 +1635,7 @@ function ChatLine({ message }: { message: WatchMessage }) {
           </span>
           <span className="shrink-0 text-label text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
         </span>
-        <MessageBody body={message.body} />
+        <MessageBody message={message} />
       </span>
     </li>
   );
@@ -1601,9 +1648,9 @@ export function TimedMessage({ message }: { message: WatchMessage }) {
       <span className="shrink-0 text-label font-bold text-ink-quiet">{formatMediaTime(message.mediaSeconds)}</span>
       <span className="min-w-0 flex-1 wrap-anywhere">
         <span className="text-label font-bold">
-          <ProfileName author={{ id: message.authorId, displayName: message.authorLabel }} />
+          <ProfileName author={messageAuthor(message)} />
         </span>{' '}
-        <MessageBody body={message.body} />
+        <MessageBody message={message} />
       </span>
     </li>
   );
