@@ -125,6 +125,10 @@ function toSnapshot(row: SnapshotRow, imageUrl: string | null): CanvasSnapshot {
 }
 
 function refusal(error: { message?: string; code?: string } | null, fallback: string): Error {
+  // The database's own words for a guest's strokes (20261106204241_guests_can_draw.sql).
+  if (error?.code === 'GT401') return new Error('PICK A NAME FIRST.');
+  if (error?.code === 'GT415') return new Error('THAT NEEDS AN ACCOUNT.');
+  if (error?.code === 'GT429') return new Error('SLOW DOWN. WHAT YOU DREW IS WAITING TO BE KEPT.');
   if (error?.code === '42501') return new Error('NOT ALLOWED.');
   return new Error(fallback);
 }

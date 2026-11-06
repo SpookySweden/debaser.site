@@ -15,6 +15,7 @@ import CanvasPicture from './CanvasPicture';
 import { useAdmin } from './ForumModerationControls';
 import PopoutWindow from './PopoutWindow';
 import ProfileAvatar from './ProfileAvatar';
+import { isGuestLabel } from '../lib/watch/rules';
 import ProfileLink from './ProfileLink';
 import { usePresence } from './PresenceProvider';
 import StatusDot from './StatusDot';
@@ -153,7 +154,7 @@ function Credits({ credits }: { credits: CanvasSnapshot['credits'] }) {
       {credits.map((credit, index) => (
         <span key={`${credit.id ?? credit.label}-${index}`}>
           {index === 0 ? null : ', '}
-          <ProfileLink author={{ id: credit.id, displayName: credit.label }} className="font-bold" />
+          <ProfileLink author={{ id: isGuestLabel(credit.label) ? null : credit.id, displayName: credit.label }} className="font-bold" />
         </span>
       ))}
     </p>

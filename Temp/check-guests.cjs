@@ -51,8 +51,8 @@ console.log(`  ok    every table but the ${ROOM_TABLES.length} of the room is sh
 
 /* --- a pretend guest, rolled back --------------------------------------------------------------------------------------- */
 const mark = process.env.GUESTS_CHECK_AS === 'account' ? 'false' : 'true';
-const REFUSED = ['GET /profiles', 'GET /forum_threads', 'GET /comms_messages', 'POST /forum_threads', 'POST /watch_rooms', 'POST /watch_queue', 'PATCH /watch_messages', 'DELETE /watch_messages', 'POST /room_canvas_inputs', 'POST /rpc/account_list', 'POST /rpc/room_canvas_save', 'POST /rpc/watch_remove_member', 'POST /rpc/watch_room_guests_talk'];
-const ALLOWED = ['GET /watch_rooms', 'GET /watch_messages', 'POST /watch_messages', 'POST /rpc/watch_join', 'POST /rpc/watch_room_door', 'POST /rpc/guest_set_name'];
+const REFUSED = ['GET /profiles', 'GET /forum_threads', 'GET /comms_messages', 'POST /forum_threads', 'POST /watch_rooms', 'POST /watch_queue', 'PATCH /watch_messages', 'DELETE /watch_messages', 'PATCH /room_canvases', 'POST /room_canvas_snapshots', 'POST /rpc/account_list', 'POST /rpc/room_canvas_save', 'POST /rpc/room_canvas_close', 'POST /rpc/watch_remove_member', 'POST /rpc/watch_room_guests_talk'];
+const ALLOWED = ['GET /watch_rooms', 'GET /watch_messages', 'POST /watch_messages', 'POST /room_canvas_inputs', 'POST /room_canvases', 'POST /rpc/watch_join', 'POST /rpc/watch_room_door', 'POST /rpc/guest_set_name'];
 const setting = (name, value) => `perform set_config('${name}', '${value}', true);`;
 const claims = (flag) => setting('request.jwt.claims', JSON.stringify({ sub: '00000000-0000-4000-8000-000000000001', role: 'authenticated', is_anonymous: flag === 'true' }));
 const request = (entry) => {
