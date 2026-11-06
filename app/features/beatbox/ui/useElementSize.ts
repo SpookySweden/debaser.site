@@ -2,20 +2,20 @@
 
 import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 
-/** Keeps track of how wide an element is, as the window or zoom changes. */
-export function useElementWidth(): [RefObject<HTMLDivElement | null>, number] {
+/** Keeps track of how big an element is, as the window or zoom changes. */
+export function useElementSize(): [RefObject<HTMLDivElement | null>, number, number] {
   const element = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(0);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useLayoutEffect(() => {
     const current = element.current;
     if (!current) return;
-    const measure = () => setWidth(current.clientWidth);
+    const measure = () => setSize({ width: current.clientWidth, height: current.clientHeight });
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(current);
     return () => observer.disconnect();
   }, []);
 
-  return [element, width];
+  return [element, size.width, size.height];
 }

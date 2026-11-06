@@ -22,6 +22,7 @@ export function ChoiceGroup<T extends string | number>({
   value,
   options,
   onChange,
+  look = smallKey,
 }: {
   label: string;
   /** The page-wide key that also changes this, shown beside the name. */
@@ -29,6 +30,7 @@ export function ChoiceGroup<T extends string | number>({
   value: T;
   options: readonly { readonly value: T; readonly label: string }[];
   onChange: (value: T) => void;
+  look?: (on: boolean) => string;
 }) {
   const group = useRef<HTMLDivElement>(null);
   const chosen = options.findIndex((option) => option.value === value);
@@ -48,11 +50,10 @@ export function ChoiceGroup<T extends string | number>({
       role="radiogroup"
       aria-label={label}
       onKeyDown={keyDown}
-      className="flex flex-wrap items-center gap-bb-gutter"
+      className={`flex flex-wrap items-center ${look === smallKey ? "gap-bb-gutter" : "gap-1"}`}
     >
-      <span className="text-bb-large font-bold uppercase">
+      <span className={`font-bold uppercase ${look === smallKey ? "text-bb-large" : "text-display"}`} title={keyName ? `Key: ${keyName}` : undefined}>
         {label}
-        {keyName ? ` (${keyName})` : ""}
       </span>
       {options.map((option) => (
         <button
@@ -62,7 +63,7 @@ export function ChoiceGroup<T extends string | number>({
           aria-checked={option.value === value}
           tabIndex={option.value === value ? 0 : -1}
           onClick={() => onChange(option.value)}
-          className={smallKey(option.value === value)}
+          className={look(option.value === value)}
         >
           {option.value === value ? "> " : ""}
           {option.label}

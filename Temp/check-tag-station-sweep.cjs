@@ -534,6 +534,10 @@ let finished = false;
           select: () => self,
           order: () => self,
           eq: () => self,
+          gte: (column, value) => {
+            client.atLeast = [table, column, value];
+            return self;
+          },
           maybeSingle: async () => total,
           limit: async () => (table === 'web_pool_shards' ? files : wordsAnswer),
         };
@@ -546,6 +550,7 @@ let finished = false;
   const poolClient = db();
   const poolRead = await createSupabaseTagRepository(poolClient).pool();
   assert.ok(!poolClient.tables.includes('web_pool_items'), "the map's sample comes from the files, not the big table, whose sort timed out live");
+  assert.deepEqual(poolClient.atLeast, ['web_word_stats', 'items', 20], "the commonest words ask for 20 or more items, or the read can't use its index and sorts the whole table");
   assert.equal(poolRead.swept.counted, 12);
   assert.deepEqual(poolRead.swept.words.map((one) => one.word), ['jazz'], 'the total is not a word');
   assert.equal(poolRead.rows[0].item.embedUrl, 'https://archive.org/embed/one');

@@ -148,7 +148,8 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
         // On its own, and quick: a list opening doesn't wait on the rest.
         client.from('web_word_stats').select('items').eq('word', TOTAL_ROW).maybeSingle(),
         // The commonest words only: this read costs the free plan's monthly allowance, and the map can't show more.
-        client.from('web_word_stats').select('word, items, partners').order('items', { ascending: false }).order('word').limit(MAX_ITEMS),
+        // Words on 20 or more items: the only ones its index holds (`web_word_stats_common20_idx`), and far more of them than the map can show.
+        client.from('web_word_stats').select('word, items, partners').gte('items', 20).order('items', { ascending: false }).order('word').limit(MAX_ITEMS),
       ]);
       const opened = await Promise.all(((sample.data ?? []) as { path: string }[]).map(({ path }) => readFile(path)));
       const held = opened.flat();

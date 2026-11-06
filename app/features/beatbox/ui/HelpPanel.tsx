@@ -27,8 +27,8 @@ export function HelpPanel({ open, onClose }: { open: boolean; onClose: () => voi
           Keys
         </h2>
         <div className="flex flex-wrap gap-bb-gutter print:hidden">
-          <button type="button" onClick={onClose} className={bigKey()}>
-            Close (Esc)
+          <button type="button" onClick={onClose} title="Close (Esc)" className={bigKey()}>
+            Close
           </button>
           <button type="button" onClick={() => window.print()} className={bigKey()}>
             Print
