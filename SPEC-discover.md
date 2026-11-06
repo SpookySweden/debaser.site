@@ -107,25 +107,43 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 `web-sweep` and `web-tag` are switched off and stay off until Luke says otherwise; `web-ingest` still runs. New items don't get tagged and the word pass doesn't run. The database stopped answering from about
 10:15 UTC and recovered about 11:05, 25 minutes after the jobs stopped. Tagging's hours of heavy writing are the likely cause, not proven: the deciding figure is Disk IO on the Supabase dashboard.
 
-**Where it stopped:** $59.25 spent, 1,688,595 items, 301,161 words, about 3.5 cents per 1,000. Database 177 MB, files 72.8 MB (911 files). The file index `web_pool_shards_words_idx` is gone (Luke's OK): finding files now reads the
-table straight through, 0.53 s through the site's route, against 7 to 80 ms before. The map's top-words read asks for 20 or more items (`.gte('items', 20)`), ready for the narrower index below, and works with the old one.
-The January 6 collection (`TrumpDCInsurrectionJan062021`) is skipped in code (Luke: "Skip it"); what's already tagged stays.
+**Where it stopped:** $59.25 spent, 1,688,595 items, 301,161 words, about 3.5 cents per 1,000. Files 72.8 MB (911 files, about 83 KB each). The January 6 collection (`TrumpDCInsurrectionJan062021`) is skipped in code (Luke: "Skip it"); what's already tagged stays.
 
-**On hold, each until Luke says:**
-- **Batch 6797:** 2,405 items, up to $0.23 and about $0.08 real, part saved and left unsaved. Claude keeps the answers for a limited time, so a long wait loses them. The lightest way in: a "collect only, send nothing" call, run once.
-- **`vacuum full` of the word table:** could give back 20 to 30 MB, but it's heavy disk work. Decide after the Disk IO figure is known.
-- **The other two index changes (Luke's OK given, held):** the common-words index only on words on 20 or more items, and removing `web_word_stats_id_idx` once nothing is confirmed to use it. Before narrowing, time `web_word_vocabulary` and `web_word_waiting`, which read words on 3 or more items.
+**The database's indexes (Luke's OK, "Yes, make all three", all applied):** the file index `web_pool_shards_words_idx` is gone, the common-words index covers only words on 20 or more items (`web_word_stats_common20_idx`, 0.8 MB from 17), and the word number index is gone, after checking that no function, view, foreign key or code looks a word up by its number. Database 194 MB to about 152 MB. The map's top-words read stayed at about 0.6 s. No `vacuum full`: at 152 MB of 500 it isn't needed, and it's heavy disk work. If the jobs return, `web_word_vocabulary` and `web_word_waiting` read words on 3 or more items without an index: time them first.
 
-**Needed only if the jobs return:**
+**Left as they are, for if the jobs ever return:**
+- **Batch 6797:** 2,405 items, about $0.08, part saved. Left unsaved on purpose: not worth a code change. Claude keeps the answers for a limited time, so it may well be lost, which is fine.
 - **A stop rule:** the worst case set aside is about 3 times the real cost, so batches shrank toward the $59.40 line: 52,668 items from 08:49 to 10:09, about 3% of the total, with four earlier 1-item batches. Stop once the room is too small to be worth a batch.
 - **`web_word_vocabulary` fix:** the word pass's read timed out at 3 seconds, 4 of 4 times in the 09:00 hour and again at 10:11.
 - **The 300,000 word cap:** passed at 301,161, so brand-new words wouldn't be counted.
 
-**What readers get of the pool (measured live, signed in, 2026-11-06, jobs off):** MEDIA's DISCOVER and RECOMMENDED and the DISCOVER page all work, and the 10,000 threshold is long passed. But a reader reaches very little of it:
-- A list holds 2,136 rows at most, against 1.69 million items. Of the first 100 rows on MEDIA's DISCOVER, with no taste held, 53 have no player and at most 7 are from the pool.
-- A chosen word gets a few files' worth: "jazz" is on 19,194 items and one ask brings 57.
-- Search knows only the 2,000 words on the map. "legal case" is on 183 items and the page says NO SUCH WORD. 22,952 words are on 20 or more items.
-- `moreItems` keeps only words on the map, so a word off it can't be shown even when its items come back.
+## Reaching readers (Luke, 2026-11-06: "Solve all of the tagging questions")
+**What it was:** a list held 2,136 rows at most against 1.69 million items, a word stopped at 4 files, and of the first 100 rows on MEDIA's DISCOVER 53 had no player and at most 7 were from the catalogue. DISCOVER and RECOMMENDED looked the same to a reader with no history.
+
+**What it does now:**
+- **[ MORE ] digs (`/api/tag-station/more`, `poolFiles`).** On the DISCOVER filter, RECOMMENDED and the DISCOVER page, a press reads the next files when the list is about to run out, and says how far it's got (READ 8 OF 327 FILES). Each reader has an order of files from their visit's seed; the files holding the asked word come from `web_pool_shards` and each is read once. The first step, which happens by itself, reads 4 files at most; a press reads up to 6, stopping at 30 rows. A file that has gone is passed over; any other failure leaves the place where it was, so the same press tries again. The database function `web_pool_shards_for` is no longer used and is left in place.
+- **MEDIA search lists tagged rows (`WebCatalogueFinds.tsx`).** Its own request, so the outside sites are neither waited on nor slowed. The rows sit below the results, with one fixed-height line above them (TAGGED CATALOGUE: 26+ BELOW. [ GO ]), so they arrive without moving anything. A search is read as the longest words it can be; every word must be on the row; what isn't a word has to be in the title. Only with SOURCE ALL, INTERNET ARCHIVE, PEERTUBE or OPENVERSE, and no `from:`. A row an outside site has already found isn't repeated, unless it's already on the screen.
+- **The DISCOVER filter leads with the catalogue (`picks.ts`):** what the reader has shown they like, then old and obscure finds, with a maker's further items costing more each. With no taste it browses whatever a few files hold. RECOMMENDED keeps people's picks and the recent feed first. Under any SORT, DISCOVER leads with the catalogue and RECOMMENDED with the feed.
+- **Junk titles and no-player rows sink (`title-quality.ts`).** A number alone, a machine's id, a camera's file name, "untitled": about 1.7% of 27,000 real titles sampled. They go last in every list under every SORT and aren't deleted: a word still reaches them. Rows with no player come just before them.
+- **Any word can be chosen on the DISCOVER page.** The map shows 2,000 words; the search box offers any other as LOOK IN THE CATALOGUE, and the page looks it up before saying NO SUCH WORD.
+- **What's on the screen stays put.** A press pins the rows it brings into view, and what arrives comes after them (`keepShownFirst`).
+
+**Measured live, signed in, jobs off.** Before is one ask of the old route; the reader's page showed fewer (Luke's main session measured jazz 19, film noir 10, ottoman era 5).
+| Word | On items | Files holding it | Before, one ask | After, by the route |
+|---|---|---|---|---|
+| jazz | 19,192 | 748 | 56 | 535 in 10 steps (30 files), and more to read |
+| film noir | 2,902 | 327 | 31 | 305 in 10 steps (56 files), and more to read |
+| ottoman era | 175 | 109 | 5, none showing the word | all 175, in 19 steps |
+| legal case | 183 | 87 | 4, none showing the word; NO SUCH WORD on the page | all 183, in 15 steps |
+
+- **Speed:** a step takes about 1 to 1.3 s (median), slowest 3.8 s. MEDIA's DISCOVER opens in about 3.5 s and RECOMMENDED in about 1.9 s; they now wait for the first step instead of drawing and then reordering, so they open a little later than the map alone (1 to 2.5 s). In MEDIA search the first outside result came at 0.4 to 1 s and the tagged answer at 1.1 to 4.3 s. The first result moved 0 times in the last 5 searches measured. It moved 24 pixels in 2 of an earlier 3, cause not found, possibly a line that was there before this work.
+- **Load, per reader, at about 83 KB a file:** opening DISCOVER or RECOMMENDED 4 files, 330 KB, and about 12 presses before more are needed. A MEDIA search at most 4 files, 330 KB. A press on a rare word 6 files, 500 KB; a whole rare word such as ottoman era 109 files, 9 MB. The server keeps the last 40 files and each word's file list for 10 minutes. Database: one read of the word table and one or two of the file list per word, about 0.15 s. The free plan's 5 GB of downloads a month is about 15,000 searches or list openings, if nothing were held. The account's actual use isn't visible from here: Luke's dashboard has it.
+
+**Still short of what's tagged:**
+- A common word is reachable but slowly: all of jazz would be about 748 files, 62 MB, for one reader pressing a very long time.
+- The DISCOVER page's must-have and any-of word boxes still only take words on the map.
+- The map's 2,000 words are the top 1,000 and whatever its sample carries, so a word on 1 item can be on the map while a word on 7,000 isn't.
+- The map is 4 MB before compression for each reader on each visit, from Vercel, not Supabase.
 
 ## Where this stood (2026-11-06, the ramp)
 **Live on main:** the rename to DISCOVER at `/discover`, `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters (blank until 10,000 are tagged), presets, and the sweep.
