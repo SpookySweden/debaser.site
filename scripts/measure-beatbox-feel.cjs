@@ -80,9 +80,15 @@ async function measure(browser, throttle) {
 
   // Placing a note with the mouse, and taking it away again: each press timed.
   const cells = () => page.locator(`${NOTES} [role="gridcell"]`);
-  const count = await cells().count();
-  const boxes = [];
-  for (let i = 0; i < TIMES; i += 1) boxes.push(await cells().nth((i * 7) % count).boundingBox());
+  // Only squares in view, since the canvas draws a few past its edges. It takes the ones it needs, spread out.
+  const boxes = await page.evaluate(({ notes, times }) => {
+    const view = document.querySelector(notes).parentElement.getBoundingClientRect();
+    const all = [...document.querySelectorAll(`${notes} [role="gridcell"]`)].map((cell) => cell.getBoundingClientRect()).filter((box) => box.top >= view.top + 40 && box.bottom <= view.bottom && box.left >= view.left && box.right <= view.right);
+    return Array.from({ length: times }, (_, index) => {
+      const box = all[Math.floor((index * all.length) / times)];
+      return { x: box.x, y: box.y, width: box.width, height: box.height };
+    });
+  }, { notes: NOTES, times: TIMES });
   for (const box of boxes) {
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await quiet();

@@ -53,7 +53,7 @@ const KEY_MOVES: Record<string, GridMove> = {
 };
 
 // Only what's near the view is drawn, so a press stays quick. A little more than shows, so a drag never meets a gap.
-const SPARE_ROWS = 4;
+const SPARE_ROWS = 2;
 const SPARE_COLUMNS = 8;
 const ROWS_PER_ARROW = 3;
 // How much of a note's last square is the grip for its length, as bb-note-grip draws it.
@@ -73,6 +73,60 @@ function spansOf(notes: readonly NoteData[], pitch: number): string {
 }
 
 /**
+ * One square. It only redraws when it changes, so going to another bar costs only the squares that differ. Only the cursor's square says
+ * which bar it's in, as that's the one a screen reader lands on; the grid's own name says it for the rest, so a new bar doesn't change them all.
+ */
+const NoteSquare = memo(function NoteSquare({
+  column,
+  name,
+  on,
+  isNoteStart,
+  isNoteEnd,
+  cursorBar,
+  beatLine,
+  sharp,
+  stepsPerBeat,
+  shortCellNames,
+  channelIndex,
+  song,
+}: {
+  column: number;
+  name: string;
+  on: boolean;
+  isNoteStart: boolean;
+  isNoteEnd: boolean;
+  /** The bar, if the cursor's on this square. */
+  cursorBar: number | null;
+  beatLine: boolean;
+  sharp: boolean;
+  stepsPerBeat: number;
+  shortCellNames: boolean;
+  channelIndex: number;
+  song: SongData;
+}) {
+  const active = cursorBar !== null;
+  const place = spokenStep(column, stepsPerBeat);
+  return (
+    <div
+      role="gridcell"
+      data-column={column}
+      aria-colindex={column + 2}
+      aria-selected={on}
+      aria-label={shortCellNames ? `${name} ${on ? "on" : "off"}` : `${active ? `Bar ${cursorBar + 1}, ` : ""}${place}, ${name}, ${on ? "on" : "off"}`}
+      tabIndex={active ? 0 : -1}
+      className={`relative flex-none cursor-pointer focus:outline-none bb-sinks bb-note-cell ${on && !isNoteEnd ? "bb-note-runs-on" : ""} ${beatLine ? "bb-beat-line" : ""} ${sharp ? "bg-bb-black" : "bg-bb-nigrosine"} ${active ? "z-10 outline-(length:--border-width) outline-bb-white focus:outline-(length:--focus-width) focus:outline-bb-daffodil" : ""}`}
+      style={{ width: "var(--cell-w)", height: "var(--cell-h)" }}
+    >
+      {on && (
+        <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-bb-pink bb-note" style={noteShapeStyle(song, channelIndex, isNoteStart, isNoteEnd)}>
+          {isNoteEnd && <span className="bb-note-grip" />}
+        </div>
+      )}
+    </div>
+  );
+});
+
+/**
  * One row of squares. It only redraws when something in this row changes, so a press costs one or two rows, not the whole grid. Presses
  * are all listened for on the grid, so the squares have nothing of their own to set up.
  */
@@ -89,6 +143,7 @@ const NoteRow = memo(function NoteRow({
   shortCellNames,
   channelIndex,
   song,
+  namesStick,
 }: {
   row: number;
   name: string;
@@ -97,6 +152,7 @@ const NoteRow = memo(function NoteRow({
   lastColumn: number;
   /** Which square here has the cursor, or -1. */
   cursorColumn: number;
+  /** Which bar it is, for the cursor's square. Other rows are always given 0, so a new bar is no change to them. */
   bar: number;
   stepParts: number;
   stepsPerBeat: number;
@@ -104,6 +160,8 @@ const NoteRow = memo(function NoteRow({
   channelIndex: number;
   /** Only read for the shape of this channel's notes, which never changes while it's drawn. */
   song: SongData;
+  /** The view scrolls sideways, so the note names stay put while it does. */
+  namesStick: boolean;
 }) {
   const sharp = name.includes("#");
   const parsed = spans
@@ -118,34 +176,30 @@ const NoteRow = memo(function NoteRow({
     const on = covering !== undefined;
     const isNoteStart = on && covering[0] >= start;
     const isNoteEnd = on && covering[1] <= end;
-    const active = column === cursorColumn;
-    const beatLine = column % stepsPerBeat === 0;
     cells.push(
-      <div
+      <NoteSquare
         key={column}
-        role="gridcell"
-        data-column={column}
-        aria-colindex={column + 2}
-        aria-selected={on}
-        aria-label={shortCellNames ? `${name} ${on ? "on" : "off"}` : `Bar ${bar + 1}, ${spokenStep(column, stepsPerBeat)}, ${name}, ${on ? "on" : "off"}`}
-        tabIndex={active ? 0 : -1}
-        className={`relative flex-none cursor-pointer focus:outline-none bb-sinks bb-note-cell ${on && !isNoteEnd ? "bb-note-runs-on" : ""} ${beatLine ? "bb-beat-line" : ""} ${sharp ? "bg-bb-black" : "bg-bb-nigrosine"} ${active ? "z-10 outline-(length:--border-width) outline-bb-white focus:outline-(length:--focus-width) focus:outline-bb-daffodil" : ""}`}
-        style={{ width: "var(--cell-w)", height: "var(--cell-h)" }}
-      >
-        {on && (
-          <div aria-hidden="true" className="absolute inset-0 overflow-hidden bg-bb-pink bb-note" style={noteShapeStyle(song, channelIndex, isNoteStart, isNoteEnd)}>
-            {isNoteEnd && <span className="bb-note-grip" />}
-          </div>
-        )}
-      </div>,
+        column={column}
+        name={name}
+        on={on}
+        isNoteStart={isNoteStart}
+        isNoteEnd={isNoteEnd}
+        cursorBar={column === cursorColumn ? bar : null}
+        beatLine={column % stepsPerBeat === 0}
+        sharp={sharp}
+        stepsPerBeat={stepsPerBeat}
+        shortCellNames={shortCellNames}
+        channelIndex={on ? channelIndex : 0}
+        song={song}
+      />,
     );
   }
   return (
-    <div role="row" aria-rowindex={row + 2} data-row={row} className="flex">
+    <div role="row" aria-rowindex={row + 2} data-row={row} className="bb-row flex">
       <div
         role="rowheader"
         aria-colindex={1}
-        className={`sticky left-0 z-30 flex flex-none cursor-grab items-center justify-center overflow-hidden text-center leading-none font-bold ${name.length > 3 ? "text-bb-cell-m" : "text-bb-cell-l"} ${sharp ? "bg-bb-black" : "bg-bb-royal-blue"}`}
+        className={`${namesStick ? "sticky left-0 z-30" : ""} flex flex-none cursor-grab items-center justify-center overflow-hidden text-center leading-none font-bold ${name.length > 3 ? "text-bb-cell-m" : "text-bb-cell-l"} ${sharp ? "bg-bb-black" : "bg-bb-royal-blue"}`}
         style={{ width: "var(--name-w)", height: "var(--cell-h)" }}
       >
         {name}
@@ -554,7 +608,8 @@ export function NoteGrid({
   const rows = Array.from({ length: lastRow - firstRow + 1 }, (_, index) => firstRow + index);
   const headColumns = Array.from({ length: lastColumn - firstColumn + 1 }, (_, index) => firstColumn + index);
 
-  const shapeSource = useMemo(() => song, [channelIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Only read for which channels are drums, which never changes while it's drawn.
+  const shapeSource = useMemo(() => song, [song.channels.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const gridStyle = {
     "--cell": "var(--target-min)",
@@ -573,17 +628,6 @@ export function NoteGrid({
         {sharedBars > 1 ? `, on ${sharedBars} bars` : ""}
         {patternNumber !== 0 && notes.length === 0 ? ", empty" : ""}
       </h2>
-
-      {notes.length === 0 && (
-        <div className="pointer-events-none z-30 flex flex-none flex-wrap items-center gap-bb-gutter bg-bb-nigrosine p-2 text-display font-bold uppercase md:absolute md:top-1/2 md:left-1/2 md:w-max md:max-w-full md:-translate-x-1/2 md:-translate-y-1/2 md:flex-nowrap">
-          <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
-          <p>
-            Click a square.
-            <br />
-            Or arrows and Enter.
-          </p>
-        </div>
-      )}
 
       <div className="flex min-h-0 w-full flex-1">
         <div
@@ -609,7 +653,7 @@ export function NoteGrid({
           >
             <div ref={cellProbe} aria-hidden="true" role="presentation" className="absolute" style={{ width: "var(--cell)", height: 0 }} />
             <div role="row" aria-rowindex={1} className="sticky top-0 z-40 flex" style={{ height: "var(--head-h)" }}>
-              <div role="columnheader" aria-colindex={1} aria-label="Note" className="sticky left-0 z-10 flex-none cursor-grab bg-bb-nigrosine" style={{ width: "var(--name-w)", height: "var(--head-h)" }} />
+              <div role="columnheader" aria-colindex={1} aria-label="Note" className={`${fit.width > viewWidth ? "sticky left-0 z-10" : ""} flex-none cursor-grab bg-bb-nigrosine`} style={{ width: "var(--name-w)", height: "var(--head-h)" }} />
               {firstColumn > 0 && <div role="presentation" className="flex-none" style={{ width: `calc(var(--cell-w) * ${firstColumn})` }} />}
               {headColumns.map((column) => (
                 <div
@@ -638,12 +682,13 @@ export function NoteGrid({
                   firstColumn={firstColumn}
                   lastColumn={lastColumn}
                   cursorColumn={row === cursor.row ? cursor.column : -1}
-                  bar={bar}
+                  bar={row === cursor.row ? bar : 0}
                   stepParts={stepParts}
                   stepsPerBeat={stepsPerBeat}
                   shortCellNames={shortCellNames}
                   channelIndex={channelIndex}
                   song={shapeSource}
+                  namesStick={fit.width > viewWidth}
                 />
               );
             })}
@@ -670,6 +715,18 @@ export function NoteGrid({
           forwardName="Lower"
         />
       </div>
+
+      {/* After the view in the page, so its coming and going doesn't make the browser look over every square. It shows over them. */}
+      {notes.length === 0 && (
+        <div className="pointer-events-none z-30 order-first flex flex-none flex-wrap items-center gap-bb-gutter bg-bb-nigrosine p-2 text-display font-bold uppercase md:absolute md:top-1/2 md:left-1/2 md:w-max md:max-w-full md:-translate-x-1/2 md:-translate-y-1/2 md:flex-nowrap">
+          <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
+          <p>
+            Click a square.
+            <br />
+            Or arrows and Enter.
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 p-1">
         <div role="group" aria-label="This bar" className="flex items-center">

@@ -256,7 +256,7 @@ const main = async () => {
         await page.waitForTimeout(40);
       };
       const stepShowing = (beat) => page.locator(`${NOTES} [role="columnheader"][aria-label="beat ${beat} step 1"]`).count();
-      const cell = (beat, name) => page.locator(`${NOTES} [role="gridcell"][aria-label="Bar 1, beat ${beat} step 1, ${name}, off"]`);
+      const cell = (beat, name) => page.locator(`${NOTES} [role="gridcell"][aria-label$="beat ${beat} step 1, ${name}, off"]`);
       async function write(channel, names) {
         await click(page.getByRole('button', { name: `Pick ${channel}` }).or(page.locator(`${BARS} [role="columnheader"] button[title="Pick ${channel}"]`)).first());
         for (let i = 0; i < names.length; i += 1) {
@@ -476,7 +476,10 @@ const main = async () => {
     await page.waitForTimeout(100);
     assert.equal(await page.locator(BARS).isVisible(), true, "' shows the bars");
 
-    // The loop recorder's keys.
+    // The loop recorder's keys, with its window open to see them in: shut, it isn't drawn.
+    await press('Shift+R');
+    await page.waitForTimeout(100);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
     await press('v');
     await chosen('Mode', /Replace/);
     await press('v');
@@ -503,6 +506,8 @@ const main = async () => {
     await chosen('Quantise', /1\/16/);
     await press('c');
     await expectStatus(page, /capture|Captured/i, 'C');
+    await press('Escape');
+    await page.waitForTimeout(100);
 
     // Note keys: each plays, none does anything else.
     await page.getByRole('button', { name: /^Playing/ }).click();
@@ -710,7 +715,9 @@ const main = async () => {
     const { context, page } = await open(browser, 1280, 900);
     assert.equal(await page.locator(STATUS).getAttribute('aria-live'), 'polite');
     assert.equal(await page.locator('.debaser-beatbox [role="alert"]').count(), 1, 'an alert place, there before a problem');
-    assert.match((await page.locator(`${NOTES} [role="gridcell"]`).first().getAttribute('aria-label')) ?? '', /^Bar 1, beat 1 step 1, .+, off$/);
+    assert.match((await page.locator(`${NOTES} [role="gridcell"]`).first().getAttribute('aria-label')) ?? '', /^beat 1 step 1, .+, off$/);
+    assert.match((await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).getAttribute('aria-label')) ?? '', /^Bar 1, beat 1 step 1, .+, off$/, 'the one the cursor is on says which bar');
+    assert.match((await page.locator(NOTES).getAttribute('aria-label')) ?? '', /bar 1$/, 'and so does the grid itself');
     assert.match((await page.locator(`${BARS} [role="gridcell"]`).first().getAttribute('aria-label')) ?? '', /^Tune 1, bar 1, pattern 1$/);
     assert.match(await page.locator('.debaser-beatbox h2.sr-only').first().textContent(), /Bars|Tune/);
     assert.equal(await page.locator('.debaser-beatbox [aria-keyshortcuts="Space"]').count(), 1, 'Play names its key');
@@ -1375,7 +1382,7 @@ const main = async () => {
   });
 
   // 12. Placing and moving notes: at once, by the press.
-  const cellAt = (page, beat, step, name, on) => page.locator(`${NOTES} [role="gridcell"][aria-label="Bar 1, beat ${beat} step ${step}, ${name}, ${on ? 'on' : 'off'}"]`);
+  const cellAt = (page, beat, step, name, on) => page.locator(`${NOTES} [role="gridcell"][aria-label$="beat ${beat} step ${step}, ${name}, ${on ? 'on' : 'off'}"]`);
   const middle = async (locator) => {
     const box = await locator.boundingBox();
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
@@ -1467,7 +1474,7 @@ const main = async () => {
 
   await test(12, 'a press that is not a click still works for a screen reader, and the keyboard is as it was', async () => {
     const { context, page } = await open(browser, 1280, 900);
-    await page.evaluate((selector) => document.querySelector(`${selector} [role="gridcell"][aria-label="Bar 1, beat 1 step 1, C4, off"]`).click(), NOTES);
+    await page.evaluate((selector) => document.querySelector(`${selector} [role="gridcell"][aria-label$="beat 1 step 1, C4, off"]`).click(), NOTES);
     await expectStatus(page, /C4 on/, 'a click with no pointer before it');
     assert.equal(await cellAt(page, 1, 1, 'C4', true).count(), 1);
     await page.keyboard.press('Enter');

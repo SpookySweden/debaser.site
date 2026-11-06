@@ -61,6 +61,7 @@ const BarLine = memo(function BarLine({
   selectedChannel,
   sharedChannel,
   several,
+  namesStick,
 }: {
   bar: number;
   inLoop: boolean;
@@ -79,15 +80,17 @@ const BarLine = memo(function BarLine({
   sharedChannel: number;
   /** More than one bar is picked, so the picked ones are marked. */
   several: boolean;
+  /** The view scrolls sideways, so the bar numbers stay put while it does. */
+  namesStick: boolean;
 }) {
   const channelNames = names.split("|");
   return (
-    <div role="row" aria-rowindex={bar + 2} data-bar={bar} className="flex">
+    <div role="row" aria-rowindex={bar + 2} data-bar={bar} className="bb-row flex">
       <div
         role="rowheader"
         aria-colindex={1}
         aria-label={`Bar ${bar + 1}${inLoop ? ", in the loop" : ""}`}
-        className={`sticky left-0 z-10 flex flex-none items-center justify-center font-bold whitespace-nowrap ${inLoop ? (looping ? "bb-loop-on" : "bb-loop-off bg-bb-nigrosine") : "bg-bb-nigrosine"} ${loopFirst ? "bb-loop-first" : ""} ${loopLast ? "bb-loop-last" : ""}`}
+        className={`${namesStick ? "sticky left-0 z-10" : ""} flex flex-none items-center justify-center font-bold whitespace-nowrap ${inLoop ? (looping ? "bb-loop-on" : "bb-loop-off bg-bb-nigrosine") : "bg-bb-nigrosine"} ${loopFirst ? "bb-loop-first" : ""} ${loopLast ? "bb-loop-last" : ""}`}
         style={{ width: "var(--cell)", height: "var(--cell)" }}
       >
         {bar + 1}
@@ -203,6 +206,8 @@ export function BarRow({
   const sharedBars = channel ? barsUsingPattern(channel, pattern) : 0;
   const names = useMemo(() => song.channels.map((_, index) => channelName(song, index)).join("|"), [song]);
   const bars = Array.from({ length: song.barCount }, (_, bar) => bar);
+  // A browser gives every sticky thing a layer of its own to look after, so only when there's a sideways scroll for it to stick against.
+  const namesStick = cellSize * (song.channels.length + 1) > viewWidth;
 
   function goTo(next: BarPick, keepSelection = false) {
     moveFocus.current = true;
@@ -441,7 +446,7 @@ export function BarRow({
               className="relative w-full min-w-fit select-none text-display"
             >
               <div ref={headRow} role="row" aria-rowindex={1} className="sticky top-0 z-40 flex bg-bb-nigrosine">
-                <div role="columnheader" aria-colindex={1} aria-label="Bar" className="sticky left-0 z-10 flex-none bg-bb-nigrosine" style={{ width: "var(--cell)" }} />
+                <div role="columnheader" aria-colindex={1} aria-label="Bar" className={`${namesStick ? "sticky left-0 z-10" : ""} flex-none bg-bb-nigrosine`} style={{ width: "var(--cell)" }} />
                 {song.channels.map((_, index) => (
                   <div key={index} role="columnheader" aria-colindex={index + 2} className={`${CHANNEL_CELL} min-h-bb-target-min flex-col!`}>
                     <PixelSlot name={`channel-icon-${index + 1}`} size="icon" src={art.channelIcons?.[index]} showEmpty={showArtSlots} />
@@ -480,6 +485,7 @@ export function BarRow({
                   selectedChannel={bar >= selectFrom && bar <= selectTo ? pick.channel : -1}
                   sharedChannel={pattern !== 0 && channel?.bars[bar] === pattern ? pick.channel : -1}
                   several={selectFrom !== selectTo}
+                  namesStick={namesStick}
                 />
               ))}
               <Playhead transport={transport} columnOf={(spot) => spot.bar} across />

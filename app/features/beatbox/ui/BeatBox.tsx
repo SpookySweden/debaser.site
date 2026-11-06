@@ -19,7 +19,7 @@ import { BarRow, type BarPick } from "./BarRow";
 import { channelName } from "./channelLooks";
 import { ChoiceGroup } from "./ChoiceGroup";
 import { HelpPanel } from "./HelpPanel";
-import { HintLine } from "./HintLine";
+import { createStatusLine, HintLine } from "./HintLine";
 import { InOut, type SavedSong } from "./InOut";
 import {
   actionFor,
@@ -132,7 +132,8 @@ export function BeatBox({
   onTogglePanel,
   memory = null,
 }: BeatBoxProps = {}) {
-  const [status, setStatus] = useState("Stopped.");
+  const [statusLine] = useState(() => createStatusLine("Stopped."));
+  const setStatus = statusLine.set;
   // All one starter: React runs starters twice while developing, and a spare set
   // made from a shared app would carry on listening and recording alongside the real one.
   const [{ app, live, session }] = useState(() => {
@@ -140,7 +141,7 @@ export function BeatBox({
     const newLive = createLiveNotes(newApp);
     return { app: newApp, live: newLive, session: createRecordSession(newApp, newLive) };
   });
-  useEffect(() => session.setAnnouncer(setStatus), [session]);
+  useEffect(() => session.setAnnouncer(setStatus), [session, setStatus]);
   const { engine, songs, transport } = app;
   const octave = useSyncExternalStore(live.subscribe, live.getOctave);
   const song = useSyncExternalStore(songs.subscribe, songs.getSong);
@@ -183,7 +184,7 @@ export function BeatBox({
         session.stopPlayback();
         setStatus("That's the end of the song.");
       }),
-    [session, transport],
+    [session, setStatus, transport],
   );
 
   // The cursor is on the grid from the start, so the arrows and Enter work at once.
@@ -196,7 +197,7 @@ export function BeatBox({
     const wasRecording = session.getSettings().recording;
     session.stopPlayback();
     if (!wasRecording) setStatus("Stopped.");
-  }, [session]);
+  }, [session, setStatus]);
 
   function pause() {
     session.pausePlayback();
@@ -536,7 +537,7 @@ export function BeatBox({
         setStatus(`Problem: ${error.message}`);
       }
     },
-    [engine, session, songs, transport],
+    [engine, session, setStatus, songs, transport],
   );
 
   // Opens the starting song once. Nothing sounds until someone presses Play.
@@ -713,17 +714,19 @@ export function BeatBox({
               stack above the notes instead. */}
           <div className="md:pointer-events-none md:absolute md:inset-0 md:z-40">
             <PopWindow store={windows} name="sounds" title="Sounds" room={roomSize} wide onClose={() => closeWindow("sounds")}>
-              <SoundsPanel
-                song={song}
-                channel={pick.channel}
-                onPickChannel={(channel) => setPick({ channel, bar: pick.bar })}
-                onPickSound={changeSound}
-                onTrySound={trySound}
-              />
+              {openWindows.includes("sounds") && (
+                <SoundsPanel
+                  song={song}
+                  channel={pick.channel}
+                  onPickChannel={(channel) => setPick({ channel, bar: pick.bar })}
+                  onPickSound={changeSound}
+                  onTrySound={trySound}
+                />
+              )}
             </PopWindow>
 
             <PopWindow store={windows} name="recorder" title="Recorder" room={roomSize} onClose={() => closeWindow("recorder")}>
-              <RecordPanel session={session} keyFor={keyFor} onCapture={capture} />
+              {openWindows.includes("recorder") && <RecordPanel session={session} keyFor={keyFor} onCapture={capture} />}
             </PopWindow>
 
             <PopWindow store={windows} name="playing" title="Playing" room={roomSize} onClose={() => closeWindow("playing")}>
@@ -783,7 +786,7 @@ export function BeatBox({
                   </button>
                 </div>
               </section>
-              <KeysPanel open={openWindows.includes("settings")} bindings={bindings} onChange={changeBindings} onReset={resetBindings} onAnnounce={setStatus} />
+              {openWindows.includes("settings") && <KeysPanel open bindings={bindings} onChange={changeBindings} onReset={resetBindings} onAnnounce={setStatus} />}
             </PopWindow>
           </div>
 
@@ -815,14 +818,11 @@ export function BeatBox({
                 </p>
               )}
               <BeatLight session={session} />
-              <HintLine page={page} status={status} live={behaviour.speaksStatus} />
-              {/* Problems are always spoken, whatever the audio mode. */}
-              <p role="alert" className="sr-only">
-                {status.startsWith("Problem") ? status : ""}
-              </p>
+              <HintLine page={page} line={statusLine} live={behaviour.speaksStatus} />
             </div>
             <NoteGrid
-              key={`grid-${songNumber}-${pick.channel}`}
+              // The same canvas for channels with the same notes on the same octave, so going between them stays quick and the view stays put.
+              key={`grid-${songNumber}-${pickedChannel?.isDrum}-${pickedChannel?.octave}`}
               ref={grid}
               song={song}
               channelIndex={pick.channel}

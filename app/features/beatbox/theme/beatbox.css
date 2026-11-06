@@ -157,6 +157,14 @@
   box-shadow: inset 0 var(--press-depth) 0 0 var(--black);
 }
 
+/* Each square and row is its own small world: a change inside one needn't make the browser look over the rest. */
+.debaser-beatbox .bb-row {
+  contain: layout style;
+}
+.debaser-beatbox .bb-note-cell {
+  contain: strict;
+}
+
 /* The lines of the note grid and the bars. */
 .debaser-beatbox .bb-note-cell {
   border-top: var(--cell-line) solid var(--grid-line);
