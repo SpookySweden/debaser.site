@@ -40,8 +40,8 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const repository = getTagRepository(token);
     const graph = await stationGraph(() => repository.rows(), Date.now(), () => repository.limitReached(), () => repository.wordFacts(), () => repository.pool());
-    const rows = await repository.poolFiles(spellingsOf(words, graph), seed);
-    return json({ items: moreItems(rows, stationFacts(), graph) }, 200);
+    const rows = await repository.poolFiles(spellingsOf(words, stationFacts(), graph), seed);
+    return json({ items: moreItems(rows, graph) }, 200);
   } catch {
     return json({ error: 'That could not be read. Try again in a minute.' }, 503);
   }

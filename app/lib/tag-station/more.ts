@@ -21,7 +21,8 @@ export function loadMore(words: readonly string[]): Promise<readonly StationItem
     const query = new URLSearchParams(words.map((word) => ['word', word]));
     query.set('seed', SEED);
     const response = await fetch(`/api/tag-station/more?${query.toString()}`, { headers });
-    if (!response.ok) return [];
+    // A failure isn't kept: the next ask tries again.
+    if (!response.ok) throw new Error('POOL_MORE');
     return ((await response.json()) as { items?: StationItem[] }).items ?? [];
   })().catch((): readonly StationItem[] => {
     asked.delete(key);

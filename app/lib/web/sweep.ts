@@ -50,7 +50,7 @@ export const ARCHIVE_COLLECTIONS = ['librivoxaudio', 'prelinger', 'feature_films
  * recordings whose uploader states a licence, which is more than the $60 can pay for: the 87 million others are left out, because with no licence stated more
  * of them are copies of other people's work, and these rows get offered to people.
  */
-export const ARCHIVE_WIDER = 'licenseurl:* AND mediatype:(movies OR audio) AND NOT collection:(no-preview OR adult) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true';
+export const ARCHIVE_WIDER = `licenseurl:* AND mediatype:(movies OR audio) AND NOT collection:(no-preview OR adult OR ${ARCHIVE_COLLECTIONS.join(' OR ')}) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true`;
 /** Few big calls rather than many small ones, as it asks: 5,000 rows take 8 seconds. */
 const ARCHIVE_ROWS = 5000;
 const ARCHIVE_CALLS = 4;
@@ -176,6 +176,8 @@ export async function readPeertube(state: Record<string, unknown>, deadline: num
   if (state.done === true) return { items, state };
   let start = typeof state.start === 'number' ? state.start : 0;
   let before = typeof state.before === 'string' ? state.before : null;
+  // Items at exactly the date it went back from come round again, and rows no longer say what's held, so it remembers them.
+  let edge = new Set(Array.isArray(state.edge) ? state.edge.filter((one): one is string => typeof one === 'string') : []);
   let done = false;
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(PEERTUBE_CALLS, deadline, deps, 1000, async () => {
@@ -189,22 +191,26 @@ export async function readPeertube(state: Record<string, unknown>, deadline: num
       if (error instanceof SafeFetchError && error.status === 400) done = true;
       return false;
     }
+    const read: { id: string; at: string | null }[] = [];
     for (const doc of docs) {
       const item = peertubeItem(doc, deps.peertubeHosts, fetchedAt);
-      if (item !== null) items.push(fromWebItem(item, 'peertube', new URL(item.url).hostname));
+      if (item === null) continue;
+      read.push({ id: item.externalId, at: iso((doc as { publishedAt?: unknown }).publishedAt) });
+      if (!edge.has(item.externalId)) items.push(fromWebItem(item, 'peertube', new URL(item.url).hostname));
     }
     start += docs.length;
     if (docs.length === 0) done = true;
     if (start + PEERTUBE_ROWS > PEERTUBE_DEEPEST) {
-      // Items at exactly this date come round again and are skipped as already held. The same date twice means it can't get further.
+      // The same date twice means it can't get further.
       const oldest = iso((docs[docs.length - 1] as { publishedAt?: unknown } | undefined)?.publishedAt);
       if (oldest === null || oldest === before) done = true;
       before = oldest;
       start = 0;
+      edge = new Set(read.filter((one) => one.at === oldest).map((one) => one.id));
     }
     return docs.length > 0 && !done;
   });
-  return { items, state: done ? { done: true } : { start, ...(before !== null ? { before } : {}) } };
+  return { items, state: done ? { done: true } : { start, ...(before !== null ? { before, edge: [...edge] } : {}) } };
 }
 
 /** A few pages a run, and a few dozen a day. */
@@ -481,7 +487,7 @@ export type SweepStore = {
   release(batchId: string): Promise<void>;
 };
 
-export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true };
+export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true; noWords?: number };
 
 const COLLECT_CHUNK = 500;
 const SMALLEST_CHUNK = 25;
@@ -512,6 +518,9 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
   let waiting = 0;
   let inputTokens = 0;
   let outputTokens = 0;
+  // Answers that came back unusable, or not at all, which are said rather than lost quietly. Not sent again: there's more to read than the money can tag.
+  let noWords = 0;
+  const said = () => (noWords > 0 ? { noWords } : {});
 
   for (const batchId of await store.pending()) {
     if (now() - startedAt > COLLECTING_TOO_LONG_MS) {
@@ -534,13 +543,20 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     let batchInput = 0;
     let batchOutput = 0;
     for await (const result of await client.messages.batches.results(batchId)) {
-      if (result.result.type !== 'succeeded') continue;
+      if (result.result.type !== 'succeeded') {
+        noWords += 1;
+        continue;
+      }
       batchInput += result.result.message.usage.input_tokens;
       batchOutput += result.result.message.usage.output_tokens;
-      if (result.result.message.stop_reason === 'refusal') continue;
+      if (result.result.message.stop_reason === 'refusal') {
+        noWords += 1;
+        continue;
+      }
       const answer = result.result.message.content.find((block) => block.type === 'text');
       const words = answer?.type === 'text' ? cleanWords(answer.text) : null;
       const id = idFor.get(result.custom_id);
+      if (words === null) noWords += 1;
       if (words !== null) counted.push({ id: result.custom_id, words });
       if (words !== null && id !== undefined) rows.push({ id, words });
       const fileRow = fromFile.get(result.custom_id);
@@ -593,14 +609,14 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     await store.filed(part.map(idOf));
   }
 
-  if (waiting >= MAX_OUT) return { collected, sent: 0, waiting, inputTokens, outputTokens };
+  if (waiting >= MAX_OUT) return { collected, sent: 0, waiting, inputTokens, outputTokens, ...said() };
 
   const limit = SWEEP_LIMIT_USD - OTHER_JOBS_IN_FLIGHT_USD;
   const spent = await store.spent();
-  if (spent >= limit) return { collected, sent: 0, waiting, inputTokens, outputTokens, stopped: 'spending limit' };
-  if (!(await store.room())) return { collected, sent: 0, waiting, inputTokens, outputTokens, stopped: 'database full' };
+  if (spent >= limit) return { collected, sent: 0, waiting, inputTokens, outputTokens, stopped: 'spending limit', ...said() };
+  if (!(await store.room())) return { collected, sent: 0, waiting, inputTokens, outputTokens, stopped: 'database full', ...said() };
 
-  if (now() - startedAt > COLLECTING_TOO_LONG_MS) return { collected, sent: 0, waiting, inputTokens, outputTokens };
+  if (now() - startedAt > COLLECTING_TOO_LONG_MS) return { collected, sent: 0, waiting, inputTokens, outputTokens, ...said() };
 
   const found = await read(await store.state(), now() + READ_FOR_MS);
   // Once each, however many sources or pages it came from, and nothing the site already holds.
@@ -626,14 +642,14 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     for (const [source, state] of Object.entries(found.state)) await store.saveState(source, state);
   };
   if (items.length === 0) {
-    // Held back by the limit means these items weren't sent, so the place stays where it was.
+    // Nothing was sent, so the place stays where it was if the limit stopped it.
     if (!heldBack) await saveAll();
-    return { collected, sent: 0, waiting, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
+    return { collected, sent: 0, waiting, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}), ...said() };
   }
 
   // Taken before the batch exists, all at once in the database, so the limit holds whatever else is out.
   const reservation = await store.reserve(items.length, worst, limit);
-  if (reservation === null) return { collected, sent: 0, waiting, inputTokens, outputTokens, read: counts, stopped: 'spending limit' };
+  if (reservation === null) return { collected, sent: 0, waiting, inputTokens, outputTokens, read: counts, stopped: 'spending limit', ...said() };
   let batch: { id: string };
   try {
     // Never retried by itself: a retry after a lost answer would pay for the same items twice.
@@ -651,12 +667,15 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
   try {
     await mark().catch(mark);
   } catch (error) {
-    // A batch nothing remembers would be paid for and never read.
+    // A batch nothing remembers would be paid for and never read. If it never got its row, cancelled means nothing's owed, so the row goes rather than
+    // holding its worst case for good. If it got one, the next run collects what the cancelled batch cost.
     await client.messages.batches.cancel(batch.id).catch(() => undefined);
+    await store.unreserve(reservation).catch(() => undefined);
     throw error;
   }
-  if (!heldBack) await saveAll();
-  return { collected, sent: items.length, waiting: waiting + 1, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}) };
+  // Moved on even past items the limit held back: reading them again would send the rest of this batch twice, and there's more to read than the money can tag.
+  await saveAll();
+  return { collected, sent: items.length, waiting: waiting + 1, inputTokens, outputTokens, read: counts, ...(heldBack ? { stopped: 'spending limit' as const } : {}), ...said() };
 }
 
 const idOf = (row: Pick<PoolFileRow, 'platform' | 'externalId'>) => `${row.platform}:${row.externalId}`;
@@ -673,7 +692,8 @@ const API_ROWS = 1000;
 export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
   const call = async <T>(name: string, args: Record<string, unknown>): Promise<T> => {
     const { data, error } = await db.rpc(name, { p_secret: lock, ...args });
-    if (error) throw new Error('TAGGING_DATABASE');
+    // Which call and its code, so a failed run's answer says where it stopped. Never the message.
+    if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `${name} ${error.code ?? 'no code'}` });
     return data as T;
   };
   return {
@@ -718,13 +738,14 @@ export function makeSweepStore(db: SupabaseClient, lock: string): SweepStore {
     // The bucket checks the lock from the header this client was made with (`sweepClient`).
     putFile: async (path, file) => {
       const { error } = await db.storage.from(POOL_BUCKET).upload(path, file, { upsert: true, contentType: 'application/octet-stream' });
-      if (error) throw new Error('TAGGING_DATABASE');
+      if (error) throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `put file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
     },
     getFile: async (path) => {
       const { data, error } = await db.storage.from(POOL_BUCKET).download(path);
       if (error) {
-        if ((error as { status?: number; statusCode?: string }).status === 404 || (error as { statusCode?: string }).statusCode === '404' || (error as { status?: number }).status === 400) return null;
-        throw new Error('TAGGING_DATABASE');
+        // Only "not found". The storage API answers 400 to everything, so anything else stops the run rather than treating a paid batch as having no rows.
+        if ((error as { statusCode?: string }).statusCode === '404') return null;
+        throw Object.assign(new Error('TAGGING_DATABASE'), { failed: `get file ${(error as { statusCode?: string }).statusCode ?? 'no code'}` });
       }
       return new Uint8Array(await data.arrayBuffer());
     },
