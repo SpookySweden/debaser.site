@@ -9,7 +9,7 @@ import { getSupabaseBrowserClient } from '../lib/supabase/client';
 import { hasErrors, MIN_PASSWORD_LENGTH, validateSignUp, type CredentialErrors } from '../lib/auth/validation';
 import { FIELD, PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
-import DockWindow from './DockWindow';
+import PopoutWindow from './PopoutWindow';
 
 const onServer = () => null;
 const hiddenOnServer = () => true;
@@ -80,7 +80,7 @@ export default function LostAccountWindow() {
 
   if (lost === null) {
     return (
-      <DockWindow title="HAD AN ACCOUNT?" onClose={away} status="" dock="bottom" id="lost-account" defaultSize={{ w: 420, h: 420 }} minSize={{ w: 280, h: 240 }}>
+      <PopoutWindow title="HAD AN ACCOUNT?" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md">
         <form
           className="flex flex-col gap-2 p-2"
           onSubmit={(event) => {
@@ -106,12 +106,12 @@ export default function LostAccountWindow() {
             </button>
           </div>
         </form>
-      </DockWindow>
+      </PopoutWindow>
     );
   }
 
   return (
-    <DockWindow title="WELCOME BACK" onClose={away} status="" dock="bottom" id="lost-account" defaultSize={{ w: 420, h: 420 }} minSize={{ w: 280, h: 240 }}>
+    <PopoutWindow title="WELCOME BACK" onClose={away} dismissOnBackdrop={false} maxWidth="max-w-md">
       <form
         className="flex flex-col gap-2 p-2"
         onSubmit={(event) => {
@@ -141,6 +141,6 @@ export default function LostAccountWindow() {
           </button>
         </div>
       </form>
-    </DockWindow>
+    </PopoutWindow>
   );
 }
