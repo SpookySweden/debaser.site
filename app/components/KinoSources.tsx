@@ -16,7 +16,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
  * (TMDB's rule).
  */
 
-/** Rent-or-buy names are listed up to here; the rest are only counted. */
+/** Rent-or-buy names are listed up to here. */
 const RENT_OR_BUY_SHOWN = 4;
 
 /** This title's sources, once read. `null`: none yet, or none could be read: the row is as it always was. */
@@ -47,16 +47,26 @@ function countryName(code: string): string {
 
 const SITE_NAMES: Readonly<Record<FreeCopy['platform'], string>> = { internet_archive: 'ARCHIVE', youtube: 'YOUTUBE' };
 
+/** A film's length as it's read aloud and at a glance: `1H 40M`, or `45M`. */
+function filmLength(seconds: number): string {
+  const minutes = Math.round(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  return hours > 0 ? `${hours}H ${minutes % 60}M` : `${minutes}M`;
+}
+
 /**
- * One free copy: PLAY, or CLOSE and PIP while it plays, in the site's one floating player. Closed, its keys keep their
- * space, so opening moves nothing. A playing video's box goes with them, and the video floats on over the site.
+ * One free copy to choose: what it is, then PLAY, or CLOSE and PIP while it plays, in the site's one floating player. With the
+ * list shut a playing video's box goes, and the video floats on over the site.
  */
-function FreeCopyKeys({ copy, title, audio, open }: { copy: FreeCopy; title: string; audio: string | null; open: boolean }) {
+function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; title: string; audio: string | null; open: boolean; only: boolean }) {
   const playId = `kino-free:${copy.platform}:${copy.id}`;
   const playing = usePlayingHere(playId);
   const embed = officialEmbedUrl(freeCopyEmbed(copy));
   if (embed === null) return null;
+  if (!open) return null;
   const site = SITE_NAMES[copy.platform];
+  // Plain text from the platform. What the key is read as has to tell the copies apart too.
+  const facts = [copy.label, copy.seconds === undefined ? undefined : filmLength(copy.seconds)].filter((fact) => fact !== undefined).join(' · ');
 
   const start = () => {
     const timeFrom = timeSourceOf(copy.platform);
@@ -80,34 +90,39 @@ function FreeCopyKeys({ copy, title, audio, open }: { copy: FreeCopy; title: str
 
   return (
     <>
-      <div className={`flex flex-wrap items-center gap-2 ${open ? '' : 'invisible'}`} data-free-copy={copy.platform}>
+      <div className="flex flex-wrap items-center gap-2" data-free-copy={copy.platform}>
         {playing ? (
           <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
             [ ■ CLOSE ]
           </button>
         ) : (
-          <button type="button" onClick={start} aria-label={`Play "${title}" free on ${site}`} className={`${PLATE_MAIN} min-h-tap`}>
+          <button type="button" onClick={start} aria-label={`Play "${title}" free on ${site}${facts ? `: ${facts}` : ''}`} className={`${only ? PLATE_MAIN : PLATE_LARGE} min-h-tap`}>
             {`[ ▶ FREE ON ${site} ]`}
           </button>
         )}
+        {facts ? <span className="text-label text-ink wrap-anywhere">{facts}</span> : null}
         {copy.publicDomain ? <span className="text-label font-bold text-ink">PUBLIC DOMAIN</span> : null}
         {playing ? <PipKey id={playId} title={title} /> : null}
       </div>
-      {playing && open ? <PlayerBox id={playId} title={title} className="order-last aspect-video w-full border border-ink-plate bg-paper" /> : null}
+      {playing ? <PlayerBox id={playId} title={title} className="order-last aspect-video w-full border border-ink-plate bg-paper" /> : null}
     </>
   );
 }
 
-/** The row's free copies, behind a key that opens and closes. Shut until asked for. */
+/**
+ * The row's free copies, behind a key that opens and closes, shut until asked for: every copy that will play, to choose from (Luke,
+ * 2026-11-06). Opening pushes the rest of the row down, a bend of "reveals take their space": keeping room for up to fourteen
+ * copies would leave a hole in every row with the list shut. The key itself never moves.
+ */
 export function FreeCopies({ copies, title, audio }: { copies: readonly FreeCopy[]; title: string; audio: string | null }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2" data-free-copies>
+    <div className="mt-2 flex flex-col items-start gap-2" data-free-copies>
       <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Free copies of "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
-        {`[ ${copies.length === 1 ? 'FREE COPY' : 'FREE COPIES'} ${open ? '▴' : '▾'} ]`}
+        {`[ ${copies.length === 1 ? 'FREE COPY' : `${copies.length} FREE COPIES`} ${open ? '▴' : '▾'} ]`}
       </button>
       {copies.map((copy) => (
-        <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} />
+        <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} only={copies.length === 1} />
       ))}
     </div>
   );
@@ -134,10 +149,7 @@ export function WhereToWatch({ offer }: { offer: WatchOffer }) {
       <WatchLine label="FREE WITH ADS" names={offer.ads} />
       <WatchLine label="RENT OR BUY" names={rentOrBuy.slice(0, RENT_OR_BUY_SHOWN)} />
       <p className="mt-1 text-label text-ink-quiet" data-justwatch-credit>
-        {'LISTINGS FROM '}
-        <a href="https://www.justwatch.com" target="_blank" rel="noopener noreferrer" className="underline" aria-label="JustWatch (opens in a new tab)">
-          JUSTWATCH
-        </a>
+        LISTINGS FROM JUSTWATCH
       </p>
     </div>
   );

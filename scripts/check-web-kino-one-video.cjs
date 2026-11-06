@@ -6,6 +6,7 @@
  * - PUBLIC DOMAIN is said only when Wikidata says so
  * - no evidence of the public domain is asked for, and YouTube's licensed mark decides nothing (Luke, 2026-11-06: "Remove the evidence thing and serve the YouTube videos that are found")
  * - Wikidata calling a film copyrighted still keeps its Archive copy off, which he has not asked to change
+ * - a title offers every copy that will play, each saying who holds it and how long it is, so one can be chosen (Luke, 2026-11-06)
  */
 const { join } = require('node:path');
 const { makeAsserts } = require('./web-search-check-kit.cjs');
@@ -46,4 +47,28 @@ same(k.youtubeVerdict(upload(false), BOTH, 100, 'SE')?.publicDomain, false, 'You
 same(k.youtubeVerdict({ ...upload(false), status: { privacyStatus: 'public', embeddable: false } }, UNSAID, 100, 'SE'), null, 'YouTube, can\'t be embedded: not offered, because it would not play');
 same(k.youtubeVerdict({ ...upload(false), contentDetails: { duration: 'PT2M' } }, UNSAID, 100, 'SE'), null, 'YouTube, a trailer\'s length: not offered');
 
-asserts.done();
+/* Choosing: every copy that will play comes back, not the first on each site */
+(async () => {
+  const film = { type: 'movie', tmdbId: 123 };
+  const long = (id, channelTitle, duration = 'PT1H40M') => ({ id, status: { privacyStatus: 'public', embeddable: true }, contentDetails: { duration }, snippet: { channelTitle, viewCount: 9, title: 'x' }, statistics: { viewCount: '9' } });
+  const ARCHIVES = { first: archive([video('a.mp4', '6000')], { title: 'First copy', creator: 'Someone' }), second: archive([video('b.mp4', '5400')], { title: 'Second copy' }), dvd: archive([video('m.mp4', '10'), video('f.mp4', '6000')], { title: 'A DVD' }) };
+  const YOUTUBE = [long('AAAAAAAAAAA', 'Channel One'), long('BBBBBBBBBBB', 'Channel Two', 'PT1H30M'), long('CCCCCCCCCCC', 'A trailer', 'PT2M')];
+  const row = (site, value) => ({ type: { value: 'movie' }, tmdb: { value: '123' }, site: { value: site }, value: { value } });
+  const fetchImpl = async (input) => {
+    const url = String(input);
+    const json = (body) => new Response(JSON.stringify(body), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    if (url.includes('query.wikidata.org')) return json({ results: { bindings: [row('archive', 'first'), row('archive', 'second'), row('archive', 'dvd'), row('youtube', 'AAAAAAAAAAA'), row('youtube', 'BBBBBBBBBBB'), row('youtube', 'CCCCCCCCCCC')] } });
+    if (url.includes('archive.org/metadata/')) return json(ARCHIVES[url.split('/').pop()]);
+    if (url.includes('googleapis.com')) { same(new URL(url).searchParams.get('part'), 'status,contentDetails,snippet', 'YouTube is asked for the channel name, and for no counts'); return json({ items: YOUTUBE }); }
+    throw new Error(`unexpected fetch ${url}`);
+  };
+  const answer = await k.readKinoSources([film], 'SE', { fetch: fetchImpl, youtubeKey: 'test' });
+  const free = answer['movie-123'].free;
+  same(free.map((copy) => copy.id), ['first', 'second', 'AAAAAAAAAAA', 'BBBBBBBBBBB'], 'every copy that will play is offered, and the DVD and the trailer are not');
+  same(free.map((copy) => copy.label), ['First copy', 'Second copy', 'Channel One', 'Channel Two'], 'each says what it is: the Archive item\'s title, the YouTube channel');
+  same(free.map((copy) => copy.seconds), [6000, 5400, 6000, 5400], 'and how long it is');
+  same(free.every((copy) => Object.keys(copy).every((key) => ['platform', 'id', 'publicDomain', 'label', 'seconds'].includes(key))), true, 'and nothing else about it: no counts reach the page');
+  same(k.youtubeVerdict(long('AAAAAAAAAAA', '   '), UNSAID, 100, 'SE')?.label, undefined, 'a blank name is no name');
+  same(k.youtubeVerdict(long('AAAAAAAAAAA', 'x'.repeat(200)), UNSAID, 100, 'SE')?.label?.length, 80, 'and a long one is cut');
+  asserts.done();
+})().catch((error) => { console.error(error); process.exit(1); });

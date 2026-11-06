@@ -17,7 +17,7 @@ handling tagging and media serving".
   `LISTINGS FROM JUSTWATCH`, which TMDB's terms require, or it can revoke API access. Service names only: no logos (asset rules,
   and plain words read better). Its `[ SEE WHERE ↗ ]` key to TMDB's watch page is gone (Luke, 2026-11-06: "remove the see where
   to watch legally button."). TMDB's docs make that link optional ("You can link to the provided TMDB URL to help support TMDB");
-  JustWatch's credit is the condition. The row's `[ ON TMDB ↗ ]` stays.
+  JustWatch's credit is the condition, and it stays as plain words: its link to justwatch.com is gone (Luke, 2026-11-06: "i dont want a link that goes to that site for that purpose."). The row's `[ ON TMDB ↗ ]` stays.
 - The country is Vercel's reading of the address, used to choose the answer and never kept. Nothing here is saved.
 
 ## What is offered
@@ -26,6 +26,7 @@ Wikidata links a title's TMDB number (P4947 film, P4983 show) to an Archive id (
 - **Archive:** a public video item (not dark, not restricted, not a book scan), a film being one video (the Archive's player stops
   after one, so a DVD rip plays a 10-second menu), and not called copyrighted by Wikidata. No evidence of the public domain is
   asked for (Luke, 2026-11-06: "Remove the evidence thing"), so some of these are someone's upload of someone else's film.
+- **Choosing (Luke, 2026-11-06: "allow to select options with the free copy among all the available options"):** a row offers every copy that passes, up to 6 from the Archive and 8 from YouTube, not the first on each site. Each line says what the copy is (the Archive item's title, the YouTube channel) and how long it is. The list opening pushes the rest of the row down.
 - **YouTube:** every upload Wikidata links as the film, if it will play: public, embeddable, not age-locked, not blocked in the
   country (Luke, 2026-11-06: "serve the YouTube videos that are found"). Rights decide only the PUBLIC DOMAIN label. Needs
   `YOUTUBE_API_KEY`; without it nothing from YouTube is offered, because nothing can be checked. One unit of quota per page of rows.

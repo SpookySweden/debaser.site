@@ -37,6 +37,8 @@ const YOUTUBE_PER_CALL = 50;
 const ANSWER_TIMEOUT_MS = 8_000;
 /** A film's metadata lists every file; a big restoration runs to a few MB. */
 const ARCHIVE_MAX_BYTES = 6 * 1024 * 1024;
+/** A copy's name on its key's line. */
+const LABEL_MAX = 80;
 /** With no running time to compare against, anything shorter is taken for a trailer or a clip. */
 const SHORTEST_UNKNOWN_SECONDS = 5 * 60;
 
@@ -114,6 +116,12 @@ export function longEnough(seconds: number, runtimeMinutes: number | undefined):
   return runtimeMinutes !== undefined ? seconds >= runtimeMinutes * 30 : seconds >= SHORTEST_UNKNOWN_SECONDS;
 }
 
+/** What tells a copy from the others, as plain text for the row. Only what's there: a blank name or an unknown length is left out. */
+function copyFacts(label: unknown, seconds: number | null): Pick<FreeCopy, 'label' | 'seconds'> {
+  const name = typeof label === 'string' ? label.trim().slice(0, LABEL_MAX) : '';
+  return { ...(name.length > 0 ? { label: name } : {}), ...(seconds !== null && seconds > 0 ? { seconds } : {}) };
+}
+
 /**
  * Whether one Archive item is offered as a free copy of the title. Pure. It must be a public video item (not dark, not
  * access-restricted, not a book scan of the novel), long enough to be the title, and not called copyrighted by Wikidata.
@@ -131,7 +139,7 @@ export function archiveVerdict(id: string, body: unknown, candidates: Pick<FreeC
   // The Archive lists a length for nearly every video. One it doesn't is still playable.
   const seconds = read.episodes[0].seconds ?? 0;
   if (seconds > 0 && !longEnough(seconds, runtimeMinutes)) return null;
-  return { platform: 'internet_archive', id, publicDomain: candidates.publicDomain };
+  return { platform: 'internet_archive', id, publicDomain: candidates.publicDomain, ...copyFacts(metadata.title, seconds) };
 }
 
 /** An ISO 8601 length (`PT1H24M3S`, `P1DT2H`) in seconds, or null. */
@@ -143,7 +151,7 @@ export function isoSeconds(value: unknown): number | null {
 
 export function youtubeStatusUrl(ids: readonly string[], key: string): string {
   return buildUrl(YOUTUBE_API_HOST, ['youtube', 'v3', 'videos'], [
-    ['part', 'status,contentDetails'],
+    ['part', 'status,contentDetails,snippet'],
     ['id', ids.join(',')],
     ['key', key],
     ['maxResults', String(YOUTUBE_PER_CALL)],
@@ -169,7 +177,8 @@ export function youtubeVerdict(doc: unknown, candidates: Pick<FreeCandidates, 'p
   if (Array.isArray(region.allowed) && !region.allowed.includes(country)) return null;
   const seconds = isoSeconds(details.duration);
   if (seconds === null || !longEnough(seconds, runtimeMinutes)) return null;
-  return { platform: 'youtube', id, publicDomain: candidates.publicDomain && !candidates.copyrighted };
+  const snippet = (item.snippet ?? {}) as Record<string, unknown>;
+  return { platform: 'youtube', id, publicDomain: candidates.publicDomain && !candidates.copyrighted, ...copyFacts(snippet.channelTitle, seconds) };
 }
 
 const FALLBACK_COUNTRY = 'US';
@@ -209,8 +218,8 @@ async function readCandidates(titles: readonly KinoTitle[], fetchImpl: FetchLike
   }
 }
 
-async function firstArchiveCopy(candidates: FreeCandidates, runtime: number | undefined, type: KinoTitle['type'], fetchImpl: FetchLike): Promise<FreeCopy | null> {
-  if (candidates.copyrighted) return null;
+async function archiveCopies(candidates: FreeCandidates, runtime: number | undefined, type: KinoTitle['type'], fetchImpl: FetchLike): Promise<FreeCopy[]> {
+  if (candidates.copyrighted) return [];
   const answers = await Promise.all(
     candidates.archive.map(async (id) => {
       try {
@@ -221,7 +230,7 @@ async function firstArchiveCopy(candidates: FreeCandidates, runtime: number | un
       }
     }),
   );
-  return answers.find((copy) => copy !== null) ?? null;
+  return answers.filter((copy) => copy !== null);
 }
 
 async function readYoutube(ids: readonly string[], key: string | undefined, fetchImpl: FetchLike): Promise<Map<string, unknown>> {
@@ -250,7 +259,7 @@ export async function readKinoSources(titles: readonly KinoTitle[], country: str
   const [archive, youtube] = await Promise.all([
     Promise.all(titles.map(async (title, index) => {
       const entry = candidates.get(kinoTitleKey(title));
-      return entry === undefined ? null : firstArchiveCopy(entry, tmdb[index].runtime, title.type, deps.fetch);
+      return entry === undefined ? [] : archiveCopies(entry, tmdb[index].runtime, title.type, deps.fetch);
     })),
     readYoutube(youtubeIds, deps.youtubeKey, deps.fetch),
   ]);
@@ -259,14 +268,11 @@ export async function readKinoSources(titles: readonly KinoTitle[], country: str
   titles.forEach((title, index) => {
     const key = kinoTitleKey(title);
     const entry = candidates.get(key);
-    const free: FreeCopy[] = [];
-    if (archive[index]) free.push(archive[index]);
+    // Every copy that will play, so the row can offer the choice (Luke, 2026-11-06).
+    const free: FreeCopy[] = [...archive[index]];
     for (const id of entry?.youtube ?? []) {
       const verdict = youtubeVerdict(youtube.get(id), entry as FreeCandidates, tmdb[index].runtime, country);
-      if (verdict !== null) {
-        free.push(verdict);
-        break;
-      }
+      if (verdict !== null) free.push(verdict);
     }
     answer[key] = { watch: tmdb[index].watch, free };
   });
