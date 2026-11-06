@@ -154,6 +154,18 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   await stationGraph(read, 1000 + 179 * 60 * 1000);
   assert.equal(reads, 1, 'kept for three hours, as the words change no faster');
   await stationGraph(read, 1000 + 181 * 60 * 1000);
+  // A map built while part of the pool couldn't be read is only kept 5 minutes: live, one bad read blanked the lists for 3 hours.
+  let poolReads = 0;
+  const shortPool = async () => {
+    poolReads += 1;
+    return { rows: [], swept: { counted: 0, words: [] }, incomplete: true };
+  };
+  const later = 1e12;
+  await stationGraph(read, later, async () => false, async () => [], shortPool);
+  await stationGraph(read, later + 4 * 60 * 1000, async () => false, async () => [], shortPool);
+  assert.equal(poolReads, 1, 'kept for a few minutes');
+  await stationGraph(read, later + 6 * 60 * 1000, async () => false, async () => [], shortPool);
+  assert.equal(poolReads, 2, 'then read again');
   assert.equal(reads, 2, 'read again after it');
 
   // 11. Browser code never brings in the UMAP library or the server's build.

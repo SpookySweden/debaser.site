@@ -25,7 +25,6 @@ const MAX_WORD_PAGES = 20;
 
 /** A row of `web_word_stats` holding how many items have been counted (word sweep's `TOTAL_ROW`). */
 const TOTAL_ROW = '#total';
-const POOL_COLUMNS = 'id, platform, external_id, host, kind, title, creator, published_at, words';
 type PoolRow = { id: string; platform: string; external_id: string; host: string | null; kind: string; title: string; creator: string | null; published_at: string | null; words: string[] | null };
 
 /** A swept row as a row of the map. Its addresses are built from its id by each platform's fixed shape, and checked again when they're drawn. */
@@ -60,6 +59,9 @@ function poolToRow(row: PoolRow): StationRow {
   };
 }
 
+/** The map's own sample of the pool: the newest few files, a spread of what's in them. */
+const SAMPLE_FILES = 8;
+
 /** How many files one ask reads, and how many rows it answers with. */
 const FILES_PER_ASK = 4;
 const MOST_ROWS_PER_ASK = 300;
@@ -89,6 +91,9 @@ function seenToRow(row: SeenRow): StationRow {
   };
 }
 
+const fileRowToRow = (row: PoolFileRow): StationRow =>
+  poolToRow({ id: `${row.platform}:${row.externalId}`, platform: row.platform, external_id: row.externalId, host: row.host, kind: row.kind, title: row.title, creator: row.creator, published_at: row.publishedAt, words: [...row.words] });
+
 export function createSupabaseTagRepository(client: SupabaseClient): TagStationRepository {
   return {
     source: 'supabase',
@@ -114,20 +119,34 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       const seenRows = ((seen.data ?? []) as unknown as SeenRow[]).filter((row) => !savedIds.has(row.id)).map(seenToRow);
       return [...savedRows, ...seenRows];
     },
-    async pool(): Promise<{ rows: StationRow[]; swept: SweptCounts }> {
-      const [items, words] = await Promise.all([
-        client.from('web_pool_items').select(POOL_COLUMNS).order('published_at', { ascending: false, nullsFirst: false }).order('id', { ascending: false }).limit(MAX_ITEMS),
+    async pool(): Promise<{ rows: StationRow[]; swept: SweptCounts; incomplete?: boolean }> {
+      const [files, total, words] = await Promise.all([
+        client.from('web_pool_shards').select('path').order('id', { ascending: false }).limit(SAMPLE_FILES),
+        // On its own, and quick: a list opening doesn't wait on the rest.
+        client.from('web_word_stats').select('items').eq('word', TOTAL_ROW).maybeSingle(),
         // The commonest words only: this read costs the free plan's monthly allowance, and the map can't show more.
         client.from('web_word_stats').select('word, items, partners').order('items', { ascending: false }).order('word').limit(MAX_ITEMS),
       ]);
-      const rows = items.error ? [] : ((items.data ?? []) as unknown as PoolRow[]).map(poolToRow);
+      const opened = await Promise.all(
+        ((files.data ?? []) as { path: string }[]).map(({ path }) =>
+          heldFile(path, async () => {
+            const answer = await client.storage.from(POOL_BUCKET).download(path);
+            if (answer.error) throw new Error('POOL_FILE');
+            return decodePoolFile(new Uint8Array(await answer.data.arrayBuffer()));
+          }).catch((): PoolFileRow[] => []),
+        ),
+      );
+      const held = opened.flat();
+      const every = Math.max(1, Math.ceil(held.length / MAX_ITEMS));
+      const rows = held.filter((_, at) => at % every === 0).map(fileRowToRow);
       const all = words.error ? [] : ((words.data ?? []) as unknown as SweptWord[]);
       return {
         rows,
         swept: {
-          counted: all.find((one) => one.word === TOTAL_ROW)?.items ?? 0,
+          counted: (total.data as { items?: number } | null)?.items ?? all.find((one) => one.word === TOTAL_ROW)?.items ?? 0,
           words: all.filter((one) => one.word !== TOTAL_ROW),
         },
+        ...(files.error || total.error || words.error ? { incomplete: true } : {}),
       };
     },
     async poolFiles(words, seed): Promise<StationRow[]> {
@@ -150,9 +169,7 @@ export function createSupabaseTagRepository(client: SupabaseClient): TagStationR
       });
       // Those with most of the words first. Files come in the order the seed gave, so this list stays steady for a visit.
       scored.sort((a, b) => b.score - a.score);
-      return scored.slice(0, MOST_ROWS_PER_ASK).map(({ row }) =>
-        poolToRow({ id: `${row.platform}:${row.externalId}`, platform: row.platform, external_id: row.externalId, host: row.host, kind: row.kind, title: row.title, creator: row.creator, published_at: row.publishedAt, words: [...row.words] }),
-      );
+      return scored.slice(0, MOST_ROWS_PER_ASK).map(({ row }) => fileRowToRow(row));
     },
     async wordFacts(): Promise<WordFact[]> {
       // PostgREST's cap is 1,000 rows an answer, so page by page, usually just one. Any failed page means no answers at all this time:

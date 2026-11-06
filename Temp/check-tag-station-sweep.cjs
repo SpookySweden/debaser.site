@@ -461,21 +461,33 @@ let finished = false;
   assert.equal(q.sourceLabel('peertube'), 'PEERTUBE');
 
   // 12. Reading: soft, addresses built by each platform's fixed shape, and only those drawn.
-  const db = (itemsAnswer, wordsAnswer) => {
-    const query = (result) => {
-      const self = { select: () => self, order: () => self, limit: async () => result };
-      return self;
+  const fileRows = [
+    { platform: 'internet_archive', externalId: 'one', host: null, kind: 'audio', title: 'One', creator: null, publishedAt: null, tmdbRef: null, words: ['jazz'] },
+    { platform: 'wikidata', externalId: 'Q1', host: null, kind: 'video', title: 'Film', creator: 'D', publishedAt: '1999-01-01T00:00:00.000Z', tmdbRef: 'movie:1', words: ['dystopia'] },
+    { platform: 'peertube', externalId: 'u', host: 'video.blender.org', kind: 'video', title: 'P', creator: null, publishedAt: null, tmdbRef: null, words: ['jazz'] },
+  ];
+  const db = ({ files = { data: [{ path: 's/one.br' }], error: null }, total = { data: { items: 12 }, error: null }, words: wordsAnswer = { data: [{ word: '#total', items: 12, partners: {} }, { word: 'jazz', items: 3, partners: {} }], error: null } } = {}) => {
+    const tables = [];
+    const client = {
+      tables,
+      from: (table) => {
+        tables.push(table);
+        const self = {
+          select: () => self,
+          order: () => self,
+          eq: () => self,
+          maybeSingle: async () => total,
+          limit: async () => (table === 'web_pool_shards' ? files : wordsAnswer),
+        };
+        return self;
+      },
+      storage: { from: () => ({ download: async () => ({ data: new Blob([poolFiles.encodePoolFile(fileRows)]), error: null }) }) },
     };
-    return { from: (table) => query(table === 'web_pool_items' ? itemsAnswer : wordsAnswer) };
+    return client;
   };
-  const poolRead = await createSupabaseTagRepository(db(
-    { data: [
-      { id: 'internet_archive:one', platform: 'internet_archive', external_id: 'one', host: null, kind: 'audio', title: 'One', creator: null, published_at: null, words: ['jazz'] },
-      { id: 'wikidata:Q1', platform: 'wikidata', external_id: 'Q1', host: null, kind: 'video', title: 'Film', creator: 'D', published_at: '1999-01-01T00:00:00+00:00', words: ['dystopia'] },
-      { id: 'peertube:u', platform: 'peertube', external_id: 'u', host: 'video.blender.org', kind: 'video', title: 'P', creator: null, published_at: null, words: [] },
-    ], error: null },
-    { data: [{ word: '#total', items: 12, partners: {} }, { word: 'jazz', items: 3, partners: {} }], error: null },
-  )).pool();
+  const poolClient = db();
+  const poolRead = await createSupabaseTagRepository(poolClient).pool();
+  assert.ok(!poolClient.tables.includes('web_pool_items'), "the map's sample comes from the files, not the big table, whose sort timed out live");
   assert.equal(poolRead.swept.counted, 12);
   assert.deepEqual(poolRead.swept.words.map((one) => one.word), ['jazz'], 'the total is not a word');
   assert.equal(poolRead.rows[0].item.embedUrl, 'https://archive.org/embed/one');
@@ -483,8 +495,13 @@ let finished = false;
   assert.equal(poolRead.rows[0].seenOnly, undefined);
   assert.equal(poolRead.rows[1].seenOnly, true, 'a film has no player here: FIND IN MEDIA');
   assert.equal(poolRead.rows[2].item.url, 'https://video.blender.org/videos/watch/u');
-  const failed = await createSupabaseTagRepository(db({ data: null, error: {} }, { data: null, error: {} })).pool();
-  assert.deepEqual(failed, { rows: [], swept: { counted: 0, words: [] } }, 'a failed read is an empty pool, never a broken map');
+  assert.equal(poolRead.incomplete, undefined);
+  // The total alone is enough for the lists to open: the slow read of the commonest words failing doesn't blank them.
+  const slowWords = await createSupabaseTagRepository(db({ words: { data: null, error: { code: '57014' } } })).pool();
+  assert.equal(slowWords.swept.counted, 12, 'the count survives the commonest words timing out, as they did live');
+  assert.equal(slowWords.incomplete, true, 'and that map is marked as not to keep');
+  const failed = await createSupabaseTagRepository(db({ files: { data: null, error: {} }, total: { data: null, error: {} }, words: { data: null, error: {} } })).pool();
+  assert.deepEqual(failed, { rows: [], swept: { counted: 0, words: [] }, incomplete: true }, 'a failed read is an empty pool, never a broken map');
   assert.ok((await getMockTagRepository().pool()).rows.length > 0, 'the mock has a pool too');
 
   // 13. The migration only adds, and only the job can write.
