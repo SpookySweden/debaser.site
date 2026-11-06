@@ -18,19 +18,19 @@ export type ProfileTagsTabProps = {
 /**
  * The tags other users gave you, and which of them visitors may see.
  *
- * The global switch is said once, at the top, as the tab and switch it names (SHOW / HIDE, TAGS).
+ * The global switch (the PRIVACY tab's) is said once, at the top, and only when it is hiding them.
  * Each tag's own key says what it will do, so there is no visible/hidden readback beside it.
  */
 export function ProfileTagsTab({ profile, busy, onSetHidden, onRemove, onSetAllHidden }: ProfileTagsTabProps) {
   return (
     <div className="p-3">
-      <p className={CUSTOMISER_NOTE}>PRIVACY :: TAGS: {profile.visibility.showTags ? 'ON' : 'OFF - NONE SHOW TO VISITORS'}</p>
+      {profile.visibility.showTags ? null : <p className={`${CUSTOMISER_NOTE} mb-2`}>HIDDEN FROM VISITORS</p>}
 
       {profile.tags.length === 0 ? (
-        <p className="mt-2 text-label font-bold text-ink">NONE YET.</p>
+        <p className="text-label font-bold text-ink">NONE YET.</p>
       ) : (
         <>
-          <div className="mt-2 flex flex-wrap gap-1">
+          <div className="flex flex-wrap gap-1">
             <button type="button" onClick={() => onSetAllHidden(false)} disabled={busy} className={PLATE_LARGE}>
               [ SHOW ALL ]
             </button>

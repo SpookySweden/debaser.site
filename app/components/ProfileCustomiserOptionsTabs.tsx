@@ -6,33 +6,84 @@ import { countryName, countryOptions } from '../lib/profile/countries';
 import {
   NAME_COLOURS_THAT_GLOW,
   NAME_COLOURS_THAT_READ,
+  SITE_COLOUR_LABEL,
   nameColourDark,
-  nameColourLabel,
+  nameColourPairLabel,
+  nameOnThemes,
 } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { PublicProfile } from '../lib/profile/types';
-import { FIELD, PLATE_MAIN } from '../lib/ui/controls';
+import { FIELD, KEY_FOCUS } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
-import InfoFold from './InfoFold';
-import { TagMark } from './TagBadge';
 
 export const CUSTOMISER_NOTE = 'text-label font-bold text-ink';
 
 /**
- * A swatch is offered as the site's own chip: a small key of the colour with the swatch's *name* in
- * readable ink beside it, rather than a 24px square of the colour itself. Eight saturated squares in
- * a grid is the loudest thing a customiser can do, and it tells a visitor nothing except that the
- * colours exist; the same eight as named keys is quiet, and the preview line underneath still shows
- * the name drawn in the colour that was picked - which is the only part that has to be loud.
+ * A choice of name colour is a whole row: a tick, a block of the colour, its name in the window's own ink, then
+ * the reader's own name in that colour on the window itself. It doesn't fill under the pointer as a key does,
+ * because the fill would cover the very thing the row is showing.
  */
-const SWATCH_CHIP =
-  'inline-flex cursor-pointer items-center gap-1 rounded-none border border-bubble-pale bg-bubble-pale px-1.5 py-0.25 text-label font-bold text-ink-bar uppercase hover:bg-sun hover:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:text-sm';
+const COLOUR_ROW = `${KEY_FOCUS} flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 px-1 py-1 text-left text-prose text-ink min-h-9 active:translate-y-press pointer-coarse:min-h-tap`;
 
-/** The sixteen, in the two rows the arithmetic produces (see app/lib/profile/name-colours.ts). */
-const NAME_COLOUR_ROWS = [
-  { label: 'INK', colours: NAME_COLOURS_THAT_READ },
-  { label: 'GLOW', colours: NAME_COLOURS_THAT_GLOW },
+/** The two groups the arithmetic produces (see app/lib/profile/name-colours.ts). */
+const NAME_COLOUR_GROUPS = [
+  { label: 'READS ON EVERY THEME', colours: NAME_COLOURS_THAT_READ },
+  { label: 'FADES ON SOME THEMES', colours: NAME_COLOURS_THAT_GLOW },
 ];
+
+/** The pair `.name-ink` picks between (globals.css), so this draws exactly what the board draws. */
+function nameInkStyle(hex: string): CSSProperties {
+  return { '--name-ink': hex, '--name-ink-dark': nameColourDark(hex) } as CSSProperties;
+}
+
+function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; label: string; sample: string; chosen: boolean; onChoose: (hex: string) => void }) {
+  // No swatch means the theme's own ink, which has no pair to pick between.
+  const ink = hex.length === 0 ? { className: 'text-ink', style: undefined } : { className: 'name-ink', style: nameInkStyle(hex) };
+
+  return (
+    <button
+      type="button"
+      onClick={() => onChoose(hex)}
+      aria-pressed={chosen}
+      aria-label={label}
+      className={`${COLOUR_ROW} ${chosen ? 'outline-2 -outline-offset-2 outline-ink' : 'hover:outline-2 hover:-outline-offset-2 hover:outline-dotted hover:outline-ink'}`}
+    >
+      {/* A fixed width: the tick falls back to a wider face, and picking a row must not nudge its words. */}
+      <span aria-hidden="true" className="w-12 shrink-0 whitespace-pre">
+        {chosen ? '[ ✓ ]' : '[   ]'}
+      </span>
+      <span aria-hidden="true" className={`${ink.className} h-6 w-6 shrink-0 border-line border-ink bg-current`} style={ink.style} />
+      <span className="w-52 shrink-0">{label}</span>
+      <span aria-hidden="true" className={`${ink.className} min-w-0 flex-1 basis-40 truncate text-title`} style={ink.style}>
+        {sample}
+      </span>
+    </button>
+  );
+}
+
+/** The choice on every theme, each strip in that theme's own window colour. Says so in words where it fails. */
+function NameOnEveryTheme({ hex, sample }: { hex: string; sample: string }) {
+  return (
+    <>
+      <p className={`${CUSTOMISER_NOTE} mt-3`}>YOUR PICK ON EVERY THEME</p>
+      <ul className="mt-1 border-line border-ink">
+        {nameOnThemes(hex).map((theme) => (
+          <li
+            key={theme.id}
+            className="flex min-h-8 flex-wrap items-center gap-x-2 px-2 py-1 text-key"
+            style={{ backgroundColor: theme.field, color: theme.ink }}
+          >
+            <span className="w-24 shrink-0">{theme.label}</span>
+            <span className="min-w-0 flex-1 basis-40 truncate text-title" style={{ color: theme.value }}>
+              {sample}
+            </span>
+            {theme.readable ? null : <span className="shrink-0">HARD TO READ</span>}
+          </li>
+        ))}
+      </ul>
+    </>
+  );
+}
 
 export type ProfileIdentityTabProps = {
   profile: PublicProfile;
@@ -48,8 +99,6 @@ export type ProfileIdentityTabProps = {
   onCountryChange: (value: string) => void;
   onStatusChange: (value: string) => void;
   onNameColourChange: (hex: string) => void;
-  onSave: () => void;
-  busy: boolean;
   bioProblem: string | undefined;
   countryProblem: string | undefined;
   statusProblem: string | undefined;
@@ -68,8 +117,6 @@ export function ProfileIdentityTab({
   onCountryChange,
   onStatusChange,
   onNameColourChange,
-  onSave,
-  busy,
   bioProblem,
   countryProblem,
   statusProblem,
@@ -92,59 +139,36 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
 
-      {/* What INK and GLOW mean is behind the [ ? ] (SPEC-less-text.md); the flag's asset note stays its
-          label's hover tip (Luke keeps the missing-artwork wording). */}
-      <p className={`${CUSTOMISER_NOTE} mt-2`}>NAME COLOUR</p>
-      <InfoFold topic="name colours" className="mt-1">
-        INK READS IN EITHER THEME: ON A DARK FIELD THE COLOUR IS RESTATED (BLACK BECOMES PURE WHITE, ROYAL BLUE
-        BECOMES DAFFODIL). GLOW IS HARD TO READ ON PURPOSE.
-      </InfoFold>
+      <p className={`${CUSTOMISER_NOTE} mt-3`}>NAME COLOUR</p>
+      <div className="mt-1">
+        <NameColourRow hex="" label={SITE_COLOUR_LABEL} sample={preview} chosen={nameColour.length === 0} onChoose={onNameColourChange} />
+      </div>
 
-      {NAME_COLOUR_ROWS.map((row) => (
-        <div key={row.label} className="mt-1">
-          <p className="text-label font-bold text-ink">{row.label}</p>
-          <div className="mt-1 flex flex-wrap items-center gap-1">
-            {row.colours.map((colour) => {
-              const chosen = nameColour === colour.hex;
-
-              return (
-                <button
-                  key={colour.id}
-                  type="button"
-                  onClick={() => onNameColourChange(colour.hex)}
-                  aria-pressed={chosen}
-                  className={`${SWATCH_CHIP} ${chosen ? 'outline-2 outline-ink' : ''}`}
-                >
-                  <TagMark colour={colour.hex} />
-                  {colour.label}
-                </button>
-              );
-            })}
+      {NAME_COLOUR_GROUPS.map((group) => (
+        <div key={group.label} className="mt-2">
+          <p className={CUSTOMISER_NOTE}>{group.label}</p>
+          <div className="mt-1">
+            {group.colours.map((colour) => (
+              <NameColourRow
+                key={colour.id}
+                hex={colour.hex}
+                label={nameColourPairLabel(colour)}
+                sample={preview}
+                chosen={nameColour === colour.hex}
+                onChoose={onNameColourChange}
+              />
+            ))}
           </div>
         </div>
       ))}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-ink pt-1">
-        {/* The preview is drawn through the same pair the board uses, so what an account sees here is
-            what a reader sees: the swatch on the field it is standing on. `name-ink` is what picks
-            between the two on `[data-theme='dark']` - see the rule in globals.css. */}
-        <span
-          className="name-ink text-sm font-bold"
-          style={
-            nameColour.length === 0
-              ? undefined
-              : ({ '--name-ink': nameColour, '--name-ink-dark': nameColourDark(nameColour) } as CSSProperties)
-          }
-        >
-          {preview}
-        </span>
-        <span className="text-label text-ink">PREVIEW :: {nameColourLabel(nameColour)}</span>
-      </div>
+      <NameOnEveryTheme hex={nameColour} sample={preview} />
 
       {/* A select rather than a text box, and that is the whole change: a place line was a sentence
-          the site could not draw, and a country is a code off the list below, which it can. */}
+          the site could not draw, and a country is a code off the list below, which it can. The flag's
+          asset note stays its label's hover tip (Luke keeps the missing-artwork wording). */}
       <label
-        className={`${CUSTOMISER_NOTE} mt-2 block`}
+        className={`${CUSTOMISER_NOTE} mt-3 block`}
         htmlFor="customise-country"
         title="A FLAG IS A HAND-DRAWN FILE AT /ASSETS/FLAGS - UNTIL ONE IS DRAWN THE TWO LETTERS OF THE CODE STAND IN FOR IT."
       >
@@ -214,14 +238,6 @@ export function ProfileIdentityTab({
         className={FIELD}
       />
       {bioProblem === undefined ? null : <p className="mt-1 w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">{bioProblem}</p>}
-
-      <div className="mt-2 flex flex-wrap items-center gap-2">
-        <span>
-          <button type="button" onClick={onSave} disabled={busy} className={PLATE_MAIN}>
-            {busy ? '[ WORKING... ]' : '[ SAVE ]'}
-          </button>
-        </span>
-      </div>
     </div>
   );
 }

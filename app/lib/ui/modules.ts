@@ -108,7 +108,8 @@ export function moduleSwatches(bar: string, picked: string | undefined): { id: s
     const already = seen.has(ink);
     if (already && colour.id !== picked) continue;
     seen.add(ink);
-    offered.push({ id: colour.id, label: colour.label, ink });
+    // Named for what's drawn, not for the choice: on a dark bar BLACK draws white, so the square beside it says WHITE.
+    offered.push({ id: colour.id, label: ink === colour.hex ? colour.label : (colour.darkLabel ?? colour.label), ink });
   }
   return offered;
 }

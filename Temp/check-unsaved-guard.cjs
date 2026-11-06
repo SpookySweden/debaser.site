@@ -90,7 +90,7 @@ assert.doesNotMatch(
 );
 assert.match(
   customiser,
-  /unsavedChanges\(\s*\n\s*\{/,
+  /unsavedChanges\(stored, \{ \.\.\.textDrafts, pendingPicture: pendingSrc, pendingSong: songSrc \}\)/,
   'it reads the stored profile',
 );
 assert.match(
