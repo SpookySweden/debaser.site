@@ -14,9 +14,8 @@ import type { WebItem } from './types';
  * Message Batches API, and counted. Run by /api/web/sweep every two minutes (Luke's ramp, 2026-11-06). SERVER ONLY. Past the row limit items are
  * kept as compressed files (pool-files.ts): what stays in the database is each word's count and closest words, which files hold which words, and a sample of rows.
  *
- * **Nothing from TMDB goes to Claude.** TMDB's terms exclude AI use, so this file reads only the five sources below; a film's facts come from
- * Wikidata (CC0), a show's from TVmaze (CC BY-SA), and a plot from Wikipedia (CC BY-SA), which goes to Claude and is never stored or shown.
- * A title's TMDB number may be kept, because it comes from Wikidata and is only a number.
+ * This file reads the five sources below: a film's facts come from Wikidata (CC0), a show's from TVmaze (CC BY-SA), and a plot from Wikipedia
+ * (CC BY-SA), which goes to Claude and is never stored or shown. A title's TMDB number comes from Wikidata.
  *
  * Every source is read gently: a fixed agent naming this project and no person, a pause between calls, and a 429 stops that source for the run.
  */
@@ -29,9 +28,9 @@ export const SWEEP_LIMIT_USD = 60;
 /** What the tagging job and the word pass may have out at worst, which the sweep leaves them. */
 const OTHER_JOBS_IN_FLIGHT_USD = 0.6;
 /** Batches out at once. At a full run each, inside the 200,000 requests Claude's API lets wait in its queue. */
-export const MAX_OUT = 8;
+export const MAX_OUT = 5;
 /** The most one batch holds: more than a run can read, so no read item is cut. */
-const MAX_BATCH = 25_000;
+const MAX_BATCH = 35_000;
 /** Batches sent before the files, whose rows are in the table, at most this many a batch (`web_pool_out`). */
 const MAX_BATCH_IN_ROWS = 6000;
 /**
@@ -44,10 +43,17 @@ const READ_FOR_MS = 60_000;
 const CLAIM_SECONDS = 245;
 const AGENT = 'DebaserSiteSweep/1.0 (+https://github.com/SpookySweden/debaser.site)';
 
-/** Named collections only (Luke, 2026-11-05): the open upload areas can hold adult or copied material, and these rows get offered to people. */
+/** The collections Luke named on 2026-11-05 are read first. */
 export const ARCHIVE_COLLECTIONS = ['librivoxaudio', 'prelinger', 'feature_films', 'etree', 'oldtimeradio', 'classic_tv', 'animationandcartoons', 'silent_films'] as const;
-const ARCHIVE_ROWS = 1000;
-const ARCHIVE_CALLS = 12;
+/**
+ * Then anything public (Luke, 2026-11-06: the named-collections rule removed, adult, restricted and dark items still skipped). 3.26 million videos and
+ * recordings whose uploader states a licence, which is more than the $60 can pay for: the 87 million others are left out, because with no licence stated more
+ * of them are copies of other people's work, and these rows get offered to people.
+ */
+export const ARCHIVE_WIDER = 'licenseurl:* AND mediatype:(movies OR audio) AND NOT collection:(no-preview OR adult) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true';
+/** Few big calls rather than many small ones, as it asks: 5,000 rows take 8 seconds. */
+const ARCHIVE_ROWS = 5000;
+const ARCHIVE_CALLS = 4;
 const PEERTUBE_ROWS = 100;
 const PEERTUBE_CALLS = 30;
 /** Sepia refuses a `start` of 9,000 or more, so from there it goes on from the oldest date it reached, with `endDate`. */
@@ -108,7 +114,7 @@ function fromWebItem(item: WebItem, platform: SweepSource, host: string | null):
 }
 
 const getJson = (url: string, hosts: readonly string[], deps: SweepDeps, accept?: string) =>
-  safeFetchJson(url, { allowedHosts: hosts, fetchImpl: deps.fetch, userAgent: AGENT, maxBytes: 4 * 1024 * 1024, timeoutMs: 25_000, ...(accept ? { accept } : {}) });
+  safeFetchJson(url, { allowedHosts: hosts, fetchImpl: deps.fetch, userAgent: AGENT, maxBytes: 16 * 1024 * 1024, timeoutMs: 25_000, ...(accept ? { accept } : {}) });
 
 /** A bad answer stops that source for this run and keeps what it already has: never the whole sweep. */
 async function each(calls: number, deadline: number, deps: SweepDeps, gapMs: number, call: (index: number) => Promise<boolean>): Promise<void> {
@@ -129,11 +135,12 @@ export async function readArchive(state: Record<string, unknown>, deadline: numb
   if (state.done === true) return { items, state };
   let cursor = typeof state.cursor === 'string' ? state.cursor : null;
   let rows = typeof state.rows === 'number' ? state.rows : ARCHIVE_ROWS;
+  let wider = state.wider === true;
   let done = false;
-  const q = `collection:(${ARCHIVE_COLLECTIONS.join(' OR ')})`;
+  const q = () => (wider ? ARCHIVE_WIDER : `collection:(${ARCHIVE_COLLECTIONS.join(' OR ')})`);
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(ARCHIVE_CALLS, deadline, deps, 1000, async () => {
-    const query: [string, string][] = [['q', q], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(rows)]];
+    const query: [string, string][] = [['q', q()], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(rows)]];
     if (cursor) query.push(['cursor', cursor]);
     let answer: { items?: unknown[]; cursor?: unknown };
     try {
@@ -152,11 +159,15 @@ export async function readArchive(state: Record<string, unknown>, deadline: numb
     }
     cursor = typeof answer.cursor === 'string' ? answer.cursor : null;
     rows = ARCHIVE_ROWS;
-    // The end of the collections. It stops here rather than going round: rows past the newest 100,000 are gone, so a second lap would pay again.
-    if (cursor === null) done = true;
-    return cursor !== null;
+    // The end of the named collections: on to the wider list. The end of that: finished, rather than going round, which would pay again.
+    if (cursor === null) {
+      if (wider) done = true;
+      wider = true;
+      return false;
+    }
+    return true;
   });
-  return { items, state: done ? { done: true } : { cursor, rows } };
+  return { items, state: done ? { done: true } : { cursor, rows, ...(wider ? { wider: true } : {}) } };
 }
 
 /** PeerTube through Sepia Search, newest first, safe-for-work only, on instances in the public index. */

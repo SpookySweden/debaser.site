@@ -34,6 +34,9 @@ export function narrowerPhrase(a: string, b: string): boolean {
   return short.length > 0 && short.every((token) => long.has(token));
 }
 
+/** Luke, 2026-11-06: these stay on the map, whatever the word pass says of them. The rest of what it calls vague stays off. */
+const KEPT_ON_MAP: ReadonlySet<string> = new Set(['film', 'music']);
+
 export const NO_WORD_RULES: WordRules = { canonical: (key) => key, isVague: () => false, facet: () => null };
 
 export function buildWordRules(facts: readonly WordFact[]): WordRules {
@@ -50,11 +53,11 @@ export function buildWordRules(facts: readonly WordFact[]): WordRules {
   for (const fact of sorted) {
     const key = wordKey(fact.word);
     if (key.length === 0) continue;
-    if (fact.vague) vague.add(key);
+    if (fact.vague && !KEPT_ON_MAP.has(key)) vague.add(key);
     if (fact.facet !== null && !facetByKey.has(key)) facetByKey.set(key, fact.facet);
   }
   for (const fact of sorted) {
-    if (fact.sameAs === null || fact.vague || narrowerPhrase(fact.word, fact.sameAs)) continue;
+    if (fact.sameAs === null || vague.has(wordKey(fact.word)) || narrowerPhrase(fact.word, fact.sameAs)) continue;
     const a = find(wordKey(fact.word));
     const b = find(wordKey(fact.sameAs));
     if (a.length === 0 || b.length === 0 || a === b || vague.has(wordKey(fact.sameAs))) continue;

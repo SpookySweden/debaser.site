@@ -1,6 +1,5 @@
 /*
- * The catalogue sweep (SPEC-discover.md), offline with fakes: what each source is asked and how it's read, that nothing from TMDB can reach a
- * batch, the $50 stop, that nothing is paid for or counted twice, and that the pool stays bounded. The migration only adds.
+ * The catalogue sweep (SPEC-discover.md), offline with fakes: what each source is asked and how it's read, the $50 stop, that nothing is paid for or counted twice, and that the pool stays bounded. The migration only adds.
  *   npx tsc app/lib/web/sweep.ts app/lib/web/seen-items.ts app/lib/tag-station/graph.ts app/lib/tag-station/query.ts app/lib/tag-station/supabase-tag-repository.ts app/lib/tag-station/mock-tag-repository.ts --rootDir app/lib --outDir Temp/tag-station-sweep-out --module commonjs --target es2022 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  */
 const assert = require('node:assert/strict');
@@ -37,7 +36,7 @@ const deps = (net) => ({ fetch: net.fetchImpl, sleep: async () => undefined, pee
 
 let finished = false;
 (async () => {
-  // 1. Internet Archive: named collections only, its own cursor, and restricted items never.
+  // 1. Internet Archive: named collections first, its own cursor, and restricted items never.
   const archive = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [
     { identifier: 'one', title: 'One', creator: 'Ada', description: 'About trains', mediatype: 'audio', subject: ['Trains', 'Jazz'], publicdate: '2020-01-01T00:00:00Z' },
     { identifier: 'two', title: 'Two', mediatype: 'movies', subject: 'a; b', publicdate: '2020-01-01T00:00:00Z' },
@@ -45,7 +44,7 @@ let finished = false;
     { identifier: '../bad', title: 'Bad', mediatype: 'audio', publicdate: '2020-01-01T00:00:00Z' },
   ], cursor: 'next' })]]);
   const fromArchive = await sweep.readArchive({}, later(), deps(archive));
-  assert.equal(archive.asked.length, 12, 'twelve calls a run, one at a time');
+  assert.equal(archive.asked.length, 4, 'four big calls a run, one at a time');
   const first = new URL(archive.asked[0].url);
   assert.ok(first.searchParams.get('q').startsWith('collection:(librivoxaudio OR '), 'named collections, never everything');
   assert.equal(new URL(archive.asked[1].url).searchParams.get('cursor'), 'next', 'follows its cursor');
@@ -53,13 +52,13 @@ let finished = false;
   assert.equal(fromArchive.items.filter((one) => one.externalId === 'hidden' || one.externalId === '../bad').length, 0, 'restricted and bad ids are dropped');
   assert.deepEqual(fromArchive.items[0].tags, ['Trains', 'Jazz']);
   assert.deepEqual(fromArchive.items[1].tags, ['a', ' b']);
-  assert.deepEqual(fromArchive.state, { cursor: 'next', rows: 1000 });
+  assert.deepEqual(fromArchive.state, { cursor: 'next', rows: 5000 });
   const stopped = network([[/^archive\.org/, () => json({}, 429)]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(stopped))).state, { cursor: 'kept', rows: 1000 }, 'a 429 stops it and keeps its place');
+  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(stopped))).state, { cursor: 'kept', rows: 5000 }, 'a 429 stops it and keeps its place');
   const heavy = network([[/^archive\.org/, () => json({}, 500)]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(heavy))).state, { cursor: 'kept', rows: 500 }, 'a page too heavy to read asks for less next run');
+  assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(heavy))).state, { cursor: 'kept', rows: 2500 }, 'a page too heavy to read asks for less next run');
   const lastPage = network([[/^archive\.org/, () => json({ items: [] })]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'x' }, later(), deps(lastPage))).state, { done: true }, 'the end of the collections: finished');
+  assert.deepEqual((await sweep.readArchive({ cursor: 'x', wider: true }, later(), deps(lastPage))).state, { done: true }, 'the end of the wider list: finished, not going round');
   assert.equal(stopped.asked.length, 1, 'with no second try');
 
   // 2. A fixed agent naming the project, on every source. Never a person.
@@ -139,18 +138,16 @@ let finished = false;
   }
   assert.deepEqual(notAsked.asked, [], 'and is not asked');
 
-  // 6. Nothing from TMDB can reach a batch. The sources are fixed, this file names no TMDB host, and no provider of KINO's is imported.
+  // 6. The sources. The "nothing from TMDB" guard was here until Luke removed that rule (2026-11-06): his decision, in SPEC-discover.md.
   assert.deepEqual([...sweep.SWEEP_SOURCES].sort(), ['internet_archive', 'openverse', 'peertube', 'tvmaze', 'wikidata']);
-  const source = fs.readFileSync(path.join(ROOT, 'app/lib/web/sweep.ts'), 'utf8');
-  const noComments = source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-  for (const banned of ['themoviedb', 'tmdb.org', 'TMDB_READ_TOKEN', 'tmdb', 'kino', 'media-titles', 'wildcard']) {
-    if (banned === 'tmdb') {
-      // The only use: Wikidata's number. Never a fetch.
-      for (const line of noComments.split('\n').filter((one) => one.toLowerCase().includes('tmdb'))) assert.ok(/tmdbRef|tmdb_ref|tmdbOf|row\.tmdb|'tmdb'|\?tmdb|tmdb:/.test(line), `only Wikidata's number: ${line.trim().slice(0, 80)}`);
-    } else {
-      assert.ok(!noComments.includes(banned), `sweep.ts must not name ${banned}`);
-    }
-  }
+  // Wider than the named collections, and still never adult, restricted or dark.
+  for (const needed of ['licenseurl:*', 'NOT collection:(no-preview OR adult)', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
+  const lastNamed = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [] })]]);
+  const movedOn = await sweep.readArchive({ cursor: 'x' }, later(), deps(lastNamed));
+  assert.deepEqual(movedOn.state, { cursor: null, rows: 5000, wider: true }, 'the end of the named collections: on to the wider list');
+  assert.equal(lastNamed.asked.length, 1);
+  await sweep.readArchive(movedOn.state, later(), deps(lastNamed));
+  assert.equal(new URL(lastNamed.asked[1].url).searchParams.get('q'), sweep.ARCHIVE_WIDER, 'asking for the wider list');
   const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations', fs.readdirSync(path.join(ROOT, 'supabase/migrations')).find((name) => name.endsWith('_web_pool.sql'))), 'utf8');
   const code = sql.replace(/--.*$/gm, '');
   assert.ok(/platform in \('internet_archive', 'peertube', 'openverse', 'wikidata', 'tvmaze'\)/.test(code), 'and the table takes no other source');
