@@ -50,7 +50,7 @@ assert.doesNotMatch(html, /<svg/, 'code draws no icons');
 useStudio.setState({ popup: { x: 40, y: 40 } });
 html = draw();
 assert.ok(html.includes('data-animate-popup'), 'the tools open');
-for (const word of ['INK', 'PENCIL', 'FLAT', 'ERASER', 'BUCKET', 'FILL BRUSH', 'FILL ERASER', 'PICK COLOUR', 'LASSO', 'BOX', 'TRACE', 'HAND', 'NEW LAYER', 'ONION ON', 'SMART ON', 'FULL SCREEN', 'LAYERS', 'MENU', 'COLOURS', 'SIZE', 'OPACITY', 'STEADY']) {
+for (const word of ['INK', 'PENCIL', 'FLAT', 'ERASER', 'BUCKET', 'FILL BRUSH', 'FILL ERASER', 'PICK COLOUR', 'LASSO', 'BOX', 'TRACE', 'HAND', 'NEW LAYER', 'ONION', 'SMART', 'FULL SCREEN', 'LAYERS', 'MENU', 'COLOURS', 'SIZE', 'OPACITY', 'STEADY']) {
   assert.ok(html.includes(word), `the tools have ${word}`);
 }
 assert.match(html, /disabled=""[^>]*>UNDO/, 'UNDO is quiet with nothing to undo');
@@ -158,11 +158,11 @@ useStudio.setState({ project });
 // The master toggle says where it stands, and the sheet says so too.
 useStudio.setState({ smartOn: true, popup: { x: 0, y: 0 } });
 html = draw();
-assert.ok(html.includes('SMART ON'), 'the smart word offers what it would do');
+assert.match(html, /aria-pressed="true"[^>]*data-animate-tile="SMART"/, 'the smart key is filled while on');
 assert.ok(!html.includes('data-animate-badge'), 'with no badge');
 useStudio.setState({ smartOn: false });
 html = draw();
-assert.ok(html.includes('SMART OFF'), 'and off');
+assert.match(html, /aria-pressed="false"[^>]*data-animate-tile="SMART"/, 'and not while off');
 assert.match(html, /data-animate-badge[^>]*bg-bubble-pale[^>]*>SMART OFF/, 'with a high-contrast badge');
 useStudio.setState({ smartOn: true, popup: null });
 assert.ok(!draw().includes('data-animate-make-smart'), 'MAKE SMART stays away with nothing selected');

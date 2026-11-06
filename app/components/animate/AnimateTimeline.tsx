@@ -108,7 +108,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
   return (
     <div
       className={`absolute top-0.5 flex touch-none items-center gap-0.5 overflow-hidden border-line ${active ? 'border-bubble' : 'border-ink'} bg-paper`}
-      style={{ left: frame * cellWidth, width: width - 1, height: ROW_HEIGHT - 5 }}
+      style={{ left: frame * cellWidth, width: width - 1, height: ROW_HEIGHT - 6 }}
       data-animate-cel={cel.id}
       data-frame={cel.frame}
       data-length={cel.length}
@@ -147,7 +147,8 @@ function Row({ node, cellWidth }: { node: LayerNode; cellWidth: number }) {
     <div
       className="relative"
       style={{
-        height: ROW_HEIGHT,
+        // Its wrapper's line under it makes up the rest, so a row and its name stay level however many layers there are.
+        height: ROW_HEIGHT - 1,
         // A line per frame, and a thin hatch: a frame nothing covers reads as empty.
         backgroundImage: `repeating-linear-gradient(to right, var(--color-ink) 0 1px, transparent 1px ${cellWidth}px), repeating-linear-gradient(135deg, var(--color-chrome-dark) 0 2px, transparent 2px 7px)`,
         opacity: isActive ? 1 : 0.85,
@@ -295,7 +296,7 @@ export default function AnimateTimeline() {
   useEffect(() => {
     const box = scroller.current;
     if (box === null || activeAt < 0) return;
-    const top = RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + activeAt * (ROW_HEIGHT + 1);
+    const top = RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + activeAt * ROW_HEIGHT;
     const pinned = RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0);
     if (top - pinned < box.scrollTop) box.scrollTop = top - pinned;
     else if (top + ROW_HEIGHT > box.scrollTop + box.clientHeight) box.scrollTop = top + ROW_HEIGHT - box.clientHeight;
@@ -303,7 +304,7 @@ export default function AnimateTimeline() {
 
   return (
     <section aria-label="Timeline" className="shrink-0 border-t-line border-ink bg-sun-pale" style={{ zoom: uiScale }}>
-      <div ref={scroller} className="overflow-auto bg-paper" style={{ maxHeight: RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + rowsShown * (ROW_HEIGHT + 1) + SCROLLBAR }}>
+      <div ref={scroller} className="overflow-auto bg-paper" style={{ maxHeight: RULER_HEIGHT + (hasSound ? SOUND_HEIGHT : 0) + rowsShown * ROW_HEIGHT + SCROLLBAR }}>
         <div className="flex" style={{ width: NAME_WIDTH + count * cellWidth }}>
           <div className="left-0 z-30 shrink-0 border-r-line border-ink bg-sun-pale md:sticky" style={{ width: NAME_WIDTH }}>
             <div className="sticky top-0 z-10 bg-sun-pale">

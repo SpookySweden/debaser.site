@@ -5,7 +5,6 @@ import { getEngine } from '../../lib/animate/engine';
 import { updateSettings, useStudio } from '../../lib/animate/store';
 import { AnimatePanelFrame } from './AnimatePanels';
 
-const SECOND_KEYS = new Set(['edit.redo2', 'time.next2', 'time.prev2', 'help.close', 'help.keys']);
 /** Pressed again and again while watching the result, so the menu stays. */
 const STAYS = new Set(['ui.bigger', 'ui.smaller', 'view.in', 'view.out', 'view.left', 'view.right', 'view.flip', 'brush.bigger', 'brush.smaller']);
 
@@ -21,9 +20,7 @@ export default function AnimateMenu() {
   const uiScale = useStudio((state) => state.settings.uiScale);
   const engine = getEngine();
   const groups = new Map<string, Action[]>();
-  for (const action of allActions()) {
-    if (!SECOND_KEYS.has(action.id)) groups.set(action.group, [...(groups.get(action.group) ?? []), action]);
-  }
+  for (const action of allActions()) groups.set(action.group, [...(groups.get(action.group) ?? []), action]);
   return (
     <AnimatePanelFrame title="MENU" wide>
       <div className="mb-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-title">

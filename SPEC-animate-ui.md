@@ -53,7 +53,7 @@ where we are and `[ FRAMES ]` on the timeline, with one row for the layer in han
 **Moved to the tool pop-up** (right button, the pen's barrel button, `X`): PENCIL, INK, FLAT COLOUR (now FLAT), ERASER, BUCKET, FILL BRUSH,
 FILL ERASER, LASSO, BOX SELECT (now BOX), SHIFT + TRACE (now TRACE), PICK COLOUR, HAND, UNDO, REDO, SMART ON/OFF, + LAYER (also in the layers, now
 NEW LAYER here), ONION, the palette's swatches, the SIZE, OPACITY and STEADY sliders (now `[ - ]` and `[ + ]`, 10% a press, so there's no slider
-to aim at; SIZE by a quarter). It also gets LAYERS, FULL SCREEN and MENU, so a pen with no keyboard to hand can reach them in full screen.
+to aim at; SIZE by a quarter; OPACITY still goes to the old slider's 5%). It also gets LAYERS, FULL SCREEN and MENU, so a pen with no keyboard to hand can reach them in full screen.
 
 **Moved to `[ MENU ]`, with its key beside it:** PROJECTS, OPEN, SAVE FILE (its `*` stays, on the row), PICTURE, EXPORT, FIT, UI - and UI + with the
 reading, the zoom reading, FULL, SETTINGS, `[ ? ]` (the menu is now the list of keys, with the gesture notes at its top), the project's name.

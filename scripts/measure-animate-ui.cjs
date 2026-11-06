@@ -199,7 +199,7 @@ async function measure(page) {
     }
     await tools('FLAT');
     await tools('NEW LAYER');
-    await tools('ONION ON');
+    await tools('ONION');
     await page.getByRole('button', { name: '[ PLAY ]' }).click();
     presses += 1;
     await page.waitForTimeout(500);

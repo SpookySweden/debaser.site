@@ -22,17 +22,29 @@ function tool(id: string, label: string, key: string, which: ToolId): Action {
   return { id: `tool.${id}`, label, group: 'TOOLS', key, run: () => getEngine().setTool(which) };
 }
 
-/** Full screen is the sheet and the timeline and nothing else, so the layers fold away on the way in. */
+/** The layers, if they were out on the way in to full screen. */
+let layersBeforeFull = false;
+
+/** Full screen is the sheet and the timeline and nothing else, so the layers fold away on the way in, and come back on the way out. */
 export function toggleFull(): void {
-  const full = !useStudio.getState().settings.full;
-  updateSettings(full ? { full, showLayers: false } : { full });
+  const { full, showLayers } = useStudio.getState().settings;
+  if (full) {
+    updateSettings({ full: false, showLayers: showLayers || layersBeforeFull });
+    layersBeforeFull = false;
+  } else {
+    layersBeforeFull = showLayers;
+    updateSettings({ full: true, showLayers: false });
+  }
 }
 
 /** The tools, at the pen, or in the middle of the sheet if the pen isn't over it. */
 export function toggleTools(): void {
   const engine = getEngine();
   const stage = engine.stageSize();
-  useStudio.setState({ popup: useStudio.getState().popup !== null ? null : (engine.hoverScreen ?? { x: stage.w / 2, y: stage.h / 3 }) });
+  const { popup, panel } = useStudio.getState();
+  // Opening it shuts any panel: the two can't both be in front.
+  if (popup !== null) useStudio.setState({ popup: null });
+  else useStudio.setState({ popup: engine.hoverScreen ?? { x: stage.w / 2, y: stage.h / 3 }, panel: panel === 'none' ? panel : 'none' });
   updateSettings({ hintSeen: true });
 }
 

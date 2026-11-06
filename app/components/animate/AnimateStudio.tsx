@@ -70,6 +70,10 @@ export default function AnimateStudio() {
         const focused = document.activeElement;
         if (focused instanceof HTMLButtonElement || (focused instanceof HTMLInputElement && focused.type === 'range')) focused.blur();
       }}
+      // The right button is the tools here, so the browser's own menu stays away, on the pop-up it just opened as well as on the sheet. A text field keeps its own, for pasting.
+      onContextMenu={(event) => {
+        if (!(event.target instanceof HTMLInputElement)) event.preventDefault();
+      }}
       className={full ? 'fixed inset-0 z-overlay flex flex-col bg-paper text-ink select-none' : 'relative flex h-full min-h-[24rem] flex-col text-ink select-none'}
     >
       <div className="relative flex min-h-0 flex-1">

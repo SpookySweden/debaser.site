@@ -46,6 +46,7 @@ function Colours() {
 }
 
 const STEP = 0.1;
+const LEAST_OPACITY = 0.05;
 const nearest = (value: number) => Math.round(value * 100) / 100;
 
 /** The brush in hand: its size, how solid it is and how steady. Only for a tool that has a brush. */
@@ -69,10 +70,10 @@ function BrushSteps() {
       <Stepper
         label="OPACITY"
         value={`${Math.round(opacity * 100)}%`}
-        canLess={opacity > 0.1}
+        canLess={opacity > LEAST_OPACITY}
         canMore={opacity < 1}
-        less={() => engine.setBrushValue(brush, { opacity: nearest(Math.max(0.1, opacity - STEP)) })}
-        more={() => engine.setBrushValue(brush, { opacity: nearest(Math.min(1, opacity + STEP)) })}
+        less={() => engine.setBrushValue(brush, { opacity: opacity <= STEP ? LEAST_OPACITY : nearest(Math.max(STEP, opacity - STEP)) })}
+        more={() => engine.setBrushValue(brush, { opacity: opacity < STEP ? STEP : nearest(Math.min(1, opacity + STEP)) })}
       />
       <Stepper
         label="STEADY"
@@ -138,8 +139,8 @@ export default function AnimatePopup() {
     { label: 'UNDO', disabled: !canUndo, run: () => engine.undo() },
     { label: 'REDO', disabled: !canRedo, run: () => engine.redo() },
     { label: 'NEW LAYER', run: () => newRow('layer') },
-    { label: onionOn ? 'ONION OFF' : 'ONION ON', run: () => setOnion(!onionOn) },
-    { label: smartOn ? 'SMART OFF' : 'SMART ON', run: toggleSmarts },
+    { label: 'ONION', on: onionOn, run: () => setOnion(!onionOn) },
+    { label: 'SMART', on: smartOn, run: toggleSmarts },
     { label: 'LAYERS', on: showLayers, run: () => updateSettings({ showLayers: !showLayers }) },
     // In full screen this is the way back for a pen with no keyboard to hand.
     { label: full ? 'LEAVE FULL' : 'FULL SCREEN', run: toggleFull },

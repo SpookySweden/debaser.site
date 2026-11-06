@@ -1417,9 +1417,16 @@ phases.phase6 = async (page, shot) => {
   // The first-time hint goes for good once used.
   check('a new person gets the hint', (await page.locator('[data-animate-hint]').count()) === 1);
   await shot('phase6-first-time');
+  // A real right click: the browser's own menu mustn't come up over the tools, which by then are what's under the pointer.
+  await page.evaluate(() => {
+    window.__contextMenus = [];
+    window.addEventListener('contextmenu', (event) => window.__contextMenus.push(event.defaultPrevented));
+  });
   const stageBox = await page.locator('[data-animate-stage]').boundingBox();
   await page.mouse.click(stageBox.x + stageBox.width * 0.4, stageBox.y + stageBox.height * 0.3, { button: 'right' });
   await page.waitForTimeout(150);
+  const menus = await page.evaluate(() => window.__contextMenus);
+  check("the browser's own menu stays away", menus.length > 0 && menus.every(Boolean), JSON.stringify(menus));
   check('the right button opens the tools', (await page.locator('[data-animate-popup]').count()) === 1);
   check('and the hint goes', (await page.locator('[data-animate-hint]').count()) === 0);
   const popupBox = await page.locator('[data-animate-popup]').boundingBox();
@@ -1437,6 +1444,15 @@ phases.phase6 = async (page, shot) => {
   const before = await read();
   await page.getByRole('button', { name: 'opacity down' }).click();
   await page.getByRole('button', { name: 'steady up' }).click();
+  // Down to the old slider's 5%, and back up.
+  await page.evaluate(() => window.__animate.setBrushValue('ink', { opacity: 0.1 }));
+  await page.waitForTimeout(40);
+  await page.getByRole('button', { name: 'opacity down' }).click();
+  await page.waitForTimeout(40);
+  check('OPACITY goes down to 5%', (await read()).OPACITY === '5%', (await read()).OPACITY);
+  await page.getByRole('button', { name: 'opacity up' }).click();
+  await page.waitForTimeout(40);
+  check('and steps back up to 10%', (await read()).OPACITY === '10%', (await read()).OPACITY);
   await page.getByRole('button', { name: 'size up' }).click();
   await page.waitForTimeout(80);
   const after = await read();
@@ -1501,6 +1517,12 @@ phases.phase6 = async (page, shot) => {
   await page.keyboard.press('Shift+F');
   await page.waitForTimeout(80);
   check("the timeline's menu opens", (await page.locator('[data-animate-frames-menu]').count()) === 1);
+  await page.keyboard.press('x');
+  await page.waitForTimeout(80);
+  check('X from a menu shuts it, so the tools are in front', (await page.locator('[data-animate-frames-menu]').count()) === 0 && (await page.locator('[data-animate-popup]').count()) === 1);
+  await page.keyboard.press('Escape');
+  await page.keyboard.press('Shift+F');
+  await page.waitForTimeout(80);
   await shot('phase6-frames-menu');
   const fps0 = await state(page, () => window.__animate.project.fps);
   await page.getByRole('button', { name: 'speed up' }).click();
@@ -1581,6 +1603,21 @@ phases.phase6 = async (page, shot) => {
   await page.keyboard.press('`');
   await page.waitForTimeout(300);
   check('one key back, and the work is safe', (await frameOps(page)) === opsFull + 1 && (await page.locator('[data-animate-tools-key]').count()) === 1, `${opsFull} strokes then ${await frameOps(page)}`);
+  check('and the layers that were out come back', (await page.locator('[data-animate-layers-fold]').count()) === 1);
+  // Names and rows level, however far down the layer in hand is.
+  for (let i = 0; i < 8; i += 1) await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(150);
+  const level = await page.evaluate(() => {
+    const engine = window.__animate;
+    const name = document.querySelector(`[data-animate-row-name="${engine.project.nodes[0].id}"]`).getBoundingClientRect();
+    const all = [...document.querySelectorAll('[data-animate-row-name]')].map((el) => el.getBoundingClientRect().top);
+    const rows = [...document.querySelectorAll('section[aria-label="Timeline"] .relative > .border-b')].map((el) => el.getBoundingClientRect().top);
+    return { name: name.height, drift: Math.max(...all.map((top, i) => Math.abs(top - rows[i]))) };
+  });
+  check('the timeline keeps names and rows level', level.drift < 1, JSON.stringify(level));
+  for (let i = 0; i < 8; i += 1) await page.keyboard.press('Control+z');
+  await page.keyboard.press('l');
+  await page.waitForTimeout(100);
   await waitSaved(page);
   await page.keyboard.press('Control+z');
 
@@ -1660,8 +1697,9 @@ phases.phase6 = async (page, shot) => {
   await shot('phase6-zoom400-menu');
   const menuBad = await reachAll('[data-animate-menu-item]');
   check('400% zoom: every row of the menu can be reached', menuBad.length === 0, menuBad.slice(0, 5).join(' | '));
+  check('the menu has every key, second keys too', rowsThere.includes('edit.redo2') && rowsThere.includes('time.next2') && rowsThere.includes('help.keys'));
   await page.keyboard.press('Escape');
-  await page.keyboard.press('l');
+  await layersOut(page);
   await page.waitForTimeout(150);
   await shot('phase6-zoom400-layers');
   const layersBad = await reachAll('[data-animate-layers-fold] button, [data-animate-layers-fold] select, [data-animate-layers-fold] input');
