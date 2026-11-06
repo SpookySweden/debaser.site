@@ -35,19 +35,64 @@ function Check({ label, on, onChange }: { label: string; on: boolean; onChange: 
 /** The pen's pressure curve: two handles to drag, and the same four numbers as sliders for the keyboard. */
 function CurveEditor() {
   const curve = useStudio((state) => state.settings.pressure);
-  const box = useRef<SVGSVGElement>(null);
+  const box = useRef<HTMLCanvasElement>(null);
   const [x1, y1, x2, y2] = curve;
   const px = (v: number) => v * CURVE_SIZE;
   const py = (v: number) => CURVE_SIZE - v * CURVE_SIZE;
 
-  const drag = (event: ReactPointerEvent<SVGCircleElement>, which: 0 | 1) => {
+  // A graph on a canvas, in the theme's own inks.
+  useEffect(() => {
+    const canvas = box.current;
+    const ctx = canvas?.getContext('2d');
+    if (canvas == null || ctx == null) return;
+    const css = getComputedStyle(canvas);
+    const ink = css.getPropertyValue('--color-ink');
+    const pink = css.getPropertyValue('--color-bubble');
+    const handle = css.getPropertyValue('--color-sun');
+    ctx.clearRect(0, 0, CURVE_SIZE, CURVE_SIZE);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = ink;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(0, CURVE_SIZE);
+    ctx.lineTo(CURVE_SIZE, 0);
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(0, CURVE_SIZE);
+    ctx.lineTo(px(x1), py(y1));
+    ctx.moveTo(CURVE_SIZE, 0);
+    ctx.lineTo(px(x2), py(y2));
+    ctx.stroke();
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = pink;
+    ctx.beginPath();
+    ctx.moveTo(0, CURVE_SIZE);
+    ctx.bezierCurveTo(px(x1), py(y1), px(x2), py(y2), CURVE_SIZE, 0);
+    ctx.stroke();
+    ctx.lineWidth = 2;
+    ctx.fillStyle = handle;
+    ctx.strokeStyle = ink;
+    for (const [hx, hy] of [[px(x1), py(y1)], [px(x2), py(y2)]]) {
+      ctx.beginPath();
+      ctx.arc(hx, hy, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+    }
+  });
+
+  const drag = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     const target = event.currentTarget;
+    const place = (clientX: number, clientY: number) => {
+      const rect = target.getBoundingClientRect();
+      return [Math.max(0, Math.min(1, (clientX - rect.left) / rect.width)), Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height))];
+    };
+    const [startX, startY] = place(event.clientX, event.clientY);
+    // Whichever handle is nearer the press.
+    const which = Math.hypot(startX - x1, startY - y1) <= Math.hypot(startX - x2, startY - y2) ? 0 : 1;
     target.setPointerCapture(event.pointerId);
     const onMove = (move: PointerEvent) => {
-      const rect = box.current?.getBoundingClientRect();
-      if (rect === undefined) return;
-      const hx = Math.max(0, Math.min(1, (move.clientX - rect.left) / rect.width));
-      const hy = Math.max(0, Math.min(1, 1 - (move.clientY - rect.top) / rect.height));
+      const [hx, hy] = place(move.clientX, move.clientY);
       const now = useStudio.getState().settings.pressure;
       updateSettings({ pressure: which === 0 ? [hx, hy, now[2], now[3]] : [now[0], now[1], hx, hy] });
     };
@@ -78,14 +123,7 @@ function CurveEditor() {
           [ FIRM ]
         </button>
       </div>
-      <svg ref={box} viewBox={`0 0 ${CURVE_SIZE} ${CURVE_SIZE}`} width={CURVE_SIZE} height={CURVE_SIZE} role="img" aria-label="Pressure curve" className="touch-none border-line border-ink bg-paper">
-        <line x1={0} y1={CURVE_SIZE} x2={CURVE_SIZE} y2={0} stroke="var(--color-ink)" strokeDasharray="4 4" strokeOpacity={0.5} />
-        <path d={`M 0 ${CURVE_SIZE} C ${px(x1)} ${py(y1)}, ${px(x2)} ${py(y2)}, ${CURVE_SIZE} 0`} fill="none" stroke="var(--color-bubble)" strokeWidth={3} />
-        <line x1={0} y1={CURVE_SIZE} x2={px(x1)} y2={py(y1)} stroke="var(--color-ink)" />
-        <line x1={CURVE_SIZE} y1={0} x2={px(x2)} y2={py(y2)} stroke="var(--color-ink)" />
-        <circle cx={px(x1)} cy={py(y1)} r={9} fill="var(--color-sun)" stroke="var(--color-ink-plate)" strokeWidth={2} className="cursor-grab" onPointerDown={(event) => drag(event, 0)} />
-        <circle cx={px(x2)} cy={py(y2)} r={9} fill="var(--color-sun)" stroke="var(--color-ink-plate)" strokeWidth={2} className="cursor-grab" onPointerDown={(event) => drag(event, 1)} />
-      </svg>
+      <canvas ref={box} width={CURVE_SIZE} height={CURVE_SIZE} role="img" aria-label="Pressure curve" className="cursor-grab touch-none border-line border-ink bg-paper" onPointerDown={drag} />
       <span>{samples}</span>
       <div className="grid grid-cols-2 gap-x-2">
         <AnimateSlider label="HANDLE 1 ACROSS" min={0} max={1} step={0.05} value={x1} percent onChange={(v) => set(0, v)} />
