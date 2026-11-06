@@ -64,9 +64,96 @@
   background-repeat: no-repeat;
 }
 
+/* The canvas views: the arrows and the rail stand in for the browser's scrollbars. */
+.debaser-beatbox .bb-canvas {
+  scrollbar-width: none;
+  touch-action: pinch-zoom;
+  isolation: isolate; /* its headings stick above its squares, and never above a window */
+}
+.debaser-beatbox .bb-canvas::-webkit-scrollbar {
+  display: none;
+}
+.debaser-beatbox .bb-hand,
+.debaser-beatbox .bb-hand * {
+  cursor: grab !important;
+}
+.debaser-beatbox .bb-panning,
+.debaser-beatbox .bb-panning * {
+  cursor: grabbing !important;
+}
+
+/* At high zoom the page stacks and scrolls, so a view has to stop somewhere or it would be all the notes at once. */
+@media (width < 48rem) {
+  .debaser-beatbox .bb-canvas {
+    max-height: calc(var(--cell) * 6);
+  }
+}
+
+/* The rail beside a view, with its mark for where the view is: slim to look at, a full target to press. */
+.debaser-beatbox .bb-rail-y {
+  background: linear-gradient(var(--rail-track), var(--rail-track)) center / var(--rail-width) 100% no-repeat;
+}
+.debaser-beatbox .bb-rail-x {
+  background: linear-gradient(var(--rail-track), var(--rail-track)) center / 100% var(--rail-width) no-repeat;
+}
+.debaser-beatbox .bb-rail-thumb {
+  background: var(--white);
+}
+.debaser-beatbox .bb-rail-y .bb-rail-thumb {
+  left: calc(50% - var(--rail-width) / 2);
+  width: var(--rail-width);
+}
+.debaser-beatbox .bb-rail-x .bb-rail-thumb {
+  top: calc(50% - var(--rail-width) / 2);
+  height: var(--rail-width);
+}
+
+/* A key that can't do anything right now goes quiet. */
+.debaser-beatbox [aria-disabled="true"] {
+  color: var(--quiet);
+  background: transparent;
+}
+
+/* The loop bar, along the bar numbers. Its ends step in, as frames do. On, it's filled; with Loop off, only outlined. */
+.debaser-beatbox .bb-loop-on {
+  background: var(--loop);
+  color: var(--on-loop);
+}
+.debaser-beatbox .bb-loop-off {
+  box-shadow: inset var(--border-width) 0 0 0 var(--loop), inset calc(-1 * var(--border-width)) 0 0 0 var(--loop);
+}
+.debaser-beatbox .bb-loop-first {
+  clip-path: polygon(var(--border-width) 0, calc(100% - var(--border-width)) 0, 100% var(--border-width), 100% 100%, 0 100%, 0 var(--border-width));
+}
+.debaser-beatbox .bb-loop-last {
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - var(--border-width)), calc(100% - var(--border-width)) 100%, var(--border-width) 100%, 0 calc(100% - var(--border-width)));
+}
+.debaser-beatbox .bb-loop-first.bb-loop-last {
+  clip-path: polygon(var(--border-width) 0, calc(100% - var(--border-width)) 0, 100% var(--border-width), 100% calc(100% - var(--border-width)), calc(100% - var(--border-width)) 100%, var(--border-width) 100%, 0 calc(100% - var(--border-width)), 0 var(--border-width));
+}
+
+/* The grip on a note's right-hand end: drag it and the note's length changes. */
+.debaser-beatbox .bb-note-grip {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 35%;
+  border-right: var(--border-width) solid var(--black);
+  cursor: ew-resize;
+}
+
 /* A contact closing: sunk in while it's hit. */
 .debaser-beatbox .bb-sunk,
 .debaser-beatbox .bb-sinks:active {
+  box-shadow: inset 0 var(--press-depth) 0 0 var(--black);
+}
+
+/* The square under the pointer lights straight away, so where a note will land is never a guess. */
+.debaser-beatbox .bb-note-cell:hover {
+  box-shadow: inset 0 0 0 var(--cell-line) var(--daffodil);
+}
+.debaser-beatbox .bb-note-cell:active .bb-note {
   box-shadow: inset 0 var(--press-depth) 0 0 var(--black);
 }
 

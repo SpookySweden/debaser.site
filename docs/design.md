@@ -24,7 +24,8 @@ Candy #FFB7E6, Carnation #FFA1C5, Salmon #FF9DA2, Coral #FF987F, Tangerine #FF93
 Orchid #B149AA, Lime #C5FF3F. Worn only by the SHERBET template's three options (PINK, NIGHT, MINT),
 picked under SHERBET in Preferences. All are light except Orchid, and Orchid words fail on the pastels
 (3:1), so SHERBET's words and links borrow Black, Nigrosine and Royal Blue from the palette above.
-Light/dark CSS (name colours, the CONTRAST cursor) reads `data-scheme`, not a theme id.
+Light/dark CSS (name colours, the CONTRAST cursor) reads `data-scheme`, not a theme id. One borrowing outside it: the beat box's loop bar is
+Orchid under White numbers, because BeepBox's is purple and Orchid is the only purple there is (Luke, 2026-11-06).
 
 ## The cover card (SPEC-music-queues.md, 2026-11-03)
 A room's screen while a song plays has a look of its own, the same in every theme: still retro, an Ash grey

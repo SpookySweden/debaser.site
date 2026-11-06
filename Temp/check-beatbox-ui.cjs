@@ -20,7 +20,7 @@ const argument = (name, fallback) => {
 };
 const BASE = argument('--url', 'http://localhost:3001');
 const OUT = argument('--out', path.join(__dirname, 'browse', 'bb-accept'));
-const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11').split(',').map(Number);
+const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11,12,13,14').split(',').map(Number);
 const STAND_IN = process.argv.includes('--stand-in');
 assert.ok(!STAND_IN || /localhost|127\.0\.0\.1/.test(BASE), 'the stand-in account is for a local build only');
 fs.mkdirSync(OUT, { recursive: true });
@@ -126,10 +126,15 @@ const openingLook = ({ MAIN: main, NOTES: notes, PANE: paneName }) => {
   const keyNamed = (pattern) => buttons.find((button) => pattern.test(button.textContent ?? '') || pattern.test(button.getAttribute('aria-label') ?? ''));
   const keys = { play: keyNamed(/^(Play|Pause)/), stop: keyNamed(/^Stop/), loop: keyNamed(/^Loop/), record: keyNamed(/^(Record|Rec)/), undo: keyNamed(/^Undo/), slower: keyNamed(/^Slower/), faster: keyNamed(/^Faster/), sounds: keyNamed(/^Sounds/), recorder: keyNamed(/^Recorder/), playing: keyNamed(/^Playing/), song: keyNamed(/^Song/), settings: keyNamed(/^Settings/), help: keyNamed(/^All the keys/) };
   const grid = document.querySelector(notes);
-  const cells = [...grid.querySelectorAll('[role="gridcell"]')];
+  const view = grid.closest('.bb-canvas').getBoundingClientRect();
+  // The canvas is bigger than its view, so what counts is what's in the view, not above or to the side of it.
+  const cells = [...grid.querySelectorAll('[role="gridcell"]')].filter((cell) => {
+    const place = cell.getBoundingClientRect();
+    return place.top >= view.top + 1 && place.bottom <= view.bottom + 1 && place.left >= view.left && place.right <= view.right + 1;
+  });
+  const across = new Set(cells.map((cell) => cell.getAttribute('aria-colindex'))).size;
   const mainRow = document.querySelector(main);
   const rowsOf = (list) => new Set(list.map((element) => Math.round(element.getBoundingClientRect().top))).size;
-  const box = grid.getBoundingClientRect();
   return {
     scrollNeeded: pane.scrollHeight > pane.clientHeight + 1,
     sideways: pane.scrollWidth > pane.clientWidth + 1,
@@ -137,12 +142,13 @@ const openingLook = ({ MAIN: main, NOTES: notes, PANE: paneName }) => {
     keyRows: mainRow ? rowsOf([...mainRow.querySelectorAll('button')]) : rowsOf(Object.values(keys).filter(Boolean)),
     keysOnScreen: buttons.filter((button) => inView(button.getBoundingClientRect())).length,
     keysOnPage: buttons.length,
-    gridTop: Math.round(box.top),
+    gridTop: Math.round(view.top),
     cells: cells.length,
     cellsInView: cells.filter((cell) => inView(cell.getBoundingClientRect())).length,
-    gridRows: grid.querySelectorAll('[role="row"]').length - 1,
-    gridColumns: cells.length / (grid.querySelectorAll('[role="row"]').length - 1),
-    gridShare: Math.round(((box.width * box.height) / (pane.clientWidth * pane.clientHeight)) * 100),
+    gridRows: across > 0 ? cells.length / across : 0,
+    gridColumns: across,
+    wholeBar: across === Number(grid.getAttribute('aria-colcount')) - 1,
+    gridShare: Math.round(((view.width * view.height) / (pane.clientWidth * pane.clientHeight)) * 100),
     screens: +(pane.scrollHeight / pane.clientHeight).toFixed(1),
     labelsWithShortcuts: buttons.filter((button) => /\((Space|R|Ctrl\+|B|\.|,|I)/.test(button.textContent ?? '')).length,
     smallestKeyText: Math.min(...buttons.map((button) => parseFloat(getComputedStyle(button).fontSize))),
@@ -182,7 +188,8 @@ const main = async () => {
       assert.equal(seen.labelsWithShortcuts, 0, 'keys spell out their shortcuts');
       assert.ok(seen.smallestKeyText >= 16, `smallest key text ${seen.smallestKeyText}px, DISCOVER's default is 16`);
       assert.ok(seen.gridShare >= 50, `the grid has only ${seen.gridShare}% of the page`);
-      assert.ok(seen.gridRows >= 7 && seen.gridColumns >= 12, `grid ${seen.gridRows} x ${seen.gridColumns}`);
+      assert.ok(seen.gridRows >= 11, `an octave or so in view: ${seen.gridRows} rows`);
+      assert.equal(seen.wholeBar, true, `the whole bar in view: ${seen.gridColumns} steps`);
     });
   }
 
@@ -254,7 +261,7 @@ const main = async () => {
         await click(page.getByRole('button', { name: `Pick ${channel}` }).or(page.locator(`${BARS} [role="columnheader"] button[title="Pick ${channel}"]`)).first());
         for (let i = 0; i < names.length; i += 1) {
           const beat = i * 2 + 1;
-          if ((await stepShowing(beat)) === 0) await click(page.getByRole('button', { name: `Go to beat ${beat}` }));
+          if ((await stepShowing(beat)) === 0) await click(page.getByRole('button', { name: 'Later', exact: true }));
           while ((await cell(beat, names[i]).count()) === 0) await click(page.getByRole('button', { name: 'Higher', exact: true }));
           await click(cell(beat, names[i]));
         }
@@ -279,6 +286,7 @@ const main = async () => {
     const allInView = async () => {
       const seen = await look(page);
       assert.equal(seen.cellsInView, seen.cells, 'the grid left the screen while recording');
+      assert.ok(seen.cells > 100, 'and it is still there');
     };
     await page.keyboard.press('r');
     const seen = [];
@@ -288,7 +296,7 @@ const main = async () => {
       await page.waitForTimeout(120);
       await page.keyboard.up('a');
       await page.waitForTimeout(600);
-      const text = (await key.textContent()) ?? '';
+      const text = (await key.getAttribute('aria-label')) ?? '';
       if (!seen.includes(text)) seen.push(text);
       if (/pass 4/i.test(text)) break;
     }
@@ -319,13 +327,13 @@ const main = async () => {
         const key = button.getBoundingClientRect();
         return getComputedStyle(button).backgroundColor === getComputedStyle(document.querySelector(`${main} button`)).backgroundColor && key.height > 1;
       });
-      return { filledYellow: yellow.map((button) => button.textContent), firstKey: document.querySelector(`${main} button`)?.textContent };
+      return { filledYellow: yellow.map((button) => button.getAttribute('aria-label') ?? button.textContent), firstKey: document.querySelector(`${main} button`)?.getAttribute('aria-label') };
     }, MAIN);
     const words = (await page.locator('.debaser-beatbox').innerText()).toUpperCase();
     await page.screenshot({ path: path.join(OUT, 'empty.png') });
     await context.close();
     assert.equal(bar.firstKey, 'Play', 'PLAY comes first');
-    assert.deepEqual(bar.filledYellow.filter((text) => !/^(Tune|Drums)/.test(text)), ['Play'], 'PLAY is the only filled main key');
+    assert.deepEqual(bar.filledYellow.filter((text) => !/^Pick /.test(text)), ['Play'], 'PLAY is the only filled main key');
     assert.match(words, /CLICK A SQUARE/, 'the empty grid says what to do');
     assert.match(words, /ARROWS AND ENTER/, 'for the keyboard too');
   });
@@ -337,43 +345,37 @@ const main = async () => {
     const cut = [...paneElement.querySelectorAll('button, [role="gridcell"], p, h2, h3, label')]
       .filter((element) => {
         const box = element.getBoundingClientRect();
-        return box.width > 1 && !element.closest('.sr-only') && !element.classList.contains('sr-only') && !element.closest('dialog') && box.right > right + 1;
+        return box.width > 1 && !element.closest('.sr-only') && !element.classList.contains('sr-only') && !element.closest('dialog') && !element.closest('.bb-canvas') && box.right > right + 1;
       })
       .slice(0, 5)
       .map((element) => (element.getAttribute('aria-label') || element.textContent).slice(0, 30));
     return { page: document.documentElement.scrollWidth > innerWidth + 1, pane: paneElement.scrollWidth > paneElement.clientWidth + 1, cut, screens: +(paneElement.scrollHeight / paneElement.clientHeight).toFixed(1) };
   };
   for (const [w, h] of SIZES) {
-    await test(6, `XL at ${w}x${h}: no cut-off, no scrolling`, async () => {
+    await test(6, `no size keys at ${w}x${h}: nothing cut off, no scrolling`, async () => {
       const { context, page } = await open(browser, w, h, { hash: EXAMPLE });
-      await page.getByRole('radio', { name: 'XL' }).click();
-      await page.waitForTimeout(300);
+      assert.equal(await page.locator('[role="radiogroup"][aria-label="Size"]').count(), 0, 'the size keys are gone');
       const seen = await look(page);
       const side = await page.evaluate(overflow, PANE);
-      numbers[`XL ${w}x${h}`] = { rows: seen.gridRows, columns: seen.gridColumns };
-      await page.screenshot({ path: path.join(OUT, `xl-${w}.png`) });
+      numbers[`canvas ${w}x${h}`] = { rows: seen.gridRows, columns: seen.gridColumns };
       await context.close();
-      assert.equal(seen.cellsInView, seen.cells, 'grid cells cut off');
       assert.equal(side.pane, false, 'sideways scrolling');
       assert.deepEqual(side.cut, [], 'cut off');
       assert.equal(seen.scrollNeeded, false, 'the page needs scrolling');
     });
   }
   for (const [w, h, name] of [[320, 225, '400% of 1280x900'], [480, 270, '400% of 1920x1080']]) {
-    for (const size of ['L', 'XL']) {
-      await test(6, `${name}, size ${size}: nothing cut off, nothing sideways, every key reachable`, async () => {
+    for (const size of ['L']) {
+      await test(6, `${name}: nothing cut off, nothing sideways, every key reachable`, async () => {
         const { context, page } = await open(browser, w, h, { hash: EXAMPLE });
         const first = await page.evaluate(() => document.querySelector('[data-scroll-pane="page"]').scrollTop);
-        if (size === 'XL') {
-          await page.keyboard.press('=');
-          await page.waitForTimeout(300);
-        }
         const side = await page.evaluate(overflow, PANE);
-        numbers[`${name} ${size}`] = side;
+        numbers[`${name}`] = side;
         await page.screenshot({ path: path.join(OUT, `zoom-${w}-${size}.png`) });
         assert.equal(first, 0, 'opens at the top, on the main keys');
         assert.equal(side.page, false, 'the page scrolls sideways');
         assert.equal(side.pane, false, 'the page scrolls sideways inside its window');
+        assert.ok(side.screens <= 10, `the page is ${side.screens} screens long, it was 8.4 at the most`);
         assert.deepEqual(side.cut, [], 'cut off');
         // The main keys, the grid, and the bars can each be brought to the screen.
         for (const target of [`${MAIN} button >> nth=0`, `${MAIN} button >> nth=-1`, `${NOTES} [role="gridcell"] >> nth=0`, `${BARS} [role="gridcell"] >> nth=0`]) {
@@ -412,10 +414,10 @@ const main = async () => {
     // Anywhere.
     await press('Space');
     await page.waitForTimeout(150);
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'Space plays');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Pause', 'Space plays');
     await press('Escape');
     await page.waitForTimeout(100);
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'Esc stops');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Play', 'Esc stops');
     await press('Space');
     await press('Space');
     await expectStatus(page, /^Paused/, 'Space pauses');
@@ -428,7 +430,7 @@ const main = async () => {
     await expectStatus(page, /Speed: 155/, ']');
     await press('[');
     await expectStatus(page, /Speed: 150/, '[');
-    assert.match(await page.locator(MAIN).innerText(), /SPEED 150|Speed 150/, 'the speed shows on the bar');
+    assert.match(await page.locator(MAIN).innerText(), /150/, 'the speed shows on the bar');
     await press('b');
     await expectStatus(page, /now follow/, 'B');
     await press('b');
@@ -451,10 +453,6 @@ const main = async () => {
     assert.equal(await page.locator('.debaser-beatbox').getAttribute('data-theme'), 'high-contrast', ',');
     await press(',');
     assert.equal(await page.locator('.debaser-beatbox').getAttribute('data-theme'), 'default');
-    await press('-');
-    await chosen('Size', /M/);
-    await press('=');
-    await chosen('Size', /L/);
     await press('?');
     assert.equal(await page.locator('dialog[open]').count(), 1, '? opens the help');
     const help = await page.locator('dialog[open]').innerText();
@@ -632,14 +630,18 @@ const main = async () => {
     await onCursor(/^Bar 1, beat 1 step 1/, 'Enter goes to the notes');
 
     // A set of choices: arrows.
-    await page.locator('[role="radiogroup"][aria-label="Size"] [aria-checked="true"]').focus();
-    await press('ArrowLeft');
-    await chosen('Size', /M/);
+    await page.keyboard.press('Shift+R');
+    await page.waitForTimeout(100);
+    await page.locator('[role="radiogroup"][aria-label="Mode"] [aria-checked="true"]').focus();
     await press('ArrowRight');
-    await chosen('Size', /L/);
+    await chosen('Mode', /Replace/);
+    await press('ArrowLeft');
+    await chosen('Mode', /Overdub/);
+    await press('Escape');
+    await page.waitForTimeout(100);
 
     // Where the old keys went, by name.
-    for (const name of [/^Stop$/, /^Loop 1-4$/, /^Slower$/, /^Faster$/, /^Undo$/, /^Sounds$/, /^Recorder$/, /^Playing$/, /^Song$/, /^Settings$/, /^All the keys$/, /^Earlier$/, /^Later$/, /^Higher$/, /^Lower$/, /^Bars$/, /^Previous pattern$/, /^Next pattern$/, /^Fill$/, /^Set loop$/, /^Earlier bars$/, /^Later bars$/]) {
+    for (const name of [/^Stop$/, /^Loop bars 1 to 4$/, /^Slower$/, /^Faster$/, /^Undo$/, /^Redo$/, /^Sounds$/, /^Recorder$/, /^Playing$/, /^Song$/, /^Settings$/, /^All the keys$/, /^Higher$/, /^Lower$/, /^Bars$/, /^Hand$/, /^Previous bar$/, /^Next bar$/, /^Previous pattern$/, /^Next pattern$/, /^Fill$/, /^Earlier bars$/, /^Later bars$/]) {
       assert.equal(await page.getByRole('button', { name }).count(), 1, `the ${name} key is there`);
     }
     const inWindow = async (windowName, names) => {
@@ -649,7 +651,7 @@ const main = async () => {
       for (const name of names) assert.ok((await dialog.getByRole('button', { name }).count()) >= 1, `the ${name} key is in ${windowName}`);
       return dialog;
     };
-    await inWindow('Settings', [/^High contrast/, /^Follow/, /^Focus view/, /^Redo$/, /^Put windows back$/, /^Put all the keys back$/]);
+    await inWindow('Settings', [/^High contrast/, /^Follow/, /^Focus view/, /^Names on keys/, /^Put windows back$/, /^Put all the keys back$/]);
     assert.equal(await pressed(/^Follow/), 'false');
     await page.keyboard.press('Escape');
     const recorder = await inWindow('Recorder', [/^Capture last pass/, /^Calibrate timing$/]);
@@ -668,7 +670,7 @@ const main = async () => {
       const wanted = await page.evaluate(() => {
         document.querySelectorAll('[data-reached]').forEach((element) => element.removeAttribute('data-reached'));
         return [...document.querySelectorAll('.debaser-beatbox button:not([tabindex="-1"]), .debaser-beatbox a, .debaser-beatbox input:not([tabindex="-1"]), .debaser-beatbox textarea')]
-          .filter((element) => element.getBoundingClientRect().width > 1 && !element.classList.contains('sr-only')).length;
+          .filter((element) => element.getBoundingClientRect().width > 1 && !element.classList.contains('sr-only') && getComputedStyle(element).visibility !== 'hidden').length;
       });
       await page.locator(`${MAIN} button`).first().focus();
       let reached = 0;
@@ -954,15 +956,15 @@ const main = async () => {
     await expectStatus(page, / on, beat /, 'a note goes in behind the windows');
     await page.keyboard.press('Space');
     await page.waitForTimeout(150);
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'and the song plays');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Pause', 'and the song plays');
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(), 1, 'Esc closes the one in front');
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'and only that');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Pause', 'and only that');
     await page.keyboard.press('Escape');
     assert.equal(await page.getByRole('dialog').count(), 0);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(100);
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'with none open, Esc stops');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Play', 'with none open, Esc stops');
     // The key of a window behind others brings it forward; the key of the one in front closes it.
     await page.getByRole('button', { name: /^Sounds/ }).click();
     await page.getByRole('button', { name: /^Recorder/ }).click();
@@ -992,26 +994,26 @@ const main = async () => {
     const stopBefore = (await page.getByRole('button', { name: 'Stop', exact: true }).boundingBox()).x;
     await page.keyboard.press('Space');
     await page.waitForTimeout(1200);
-    assert.equal(await first.textContent(), 'Pause');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause');
     assert.equal((await first.boundingBox()).width, widthBefore, 'the key keeps its size between Play and Pause');
     assert.equal((await page.getByRole('button', { name: 'Stop', exact: true }).boundingBox()).x, stopBefore, 'and nothing moves');
     await page.keyboard.press('Space');
     await expectStatus(page, /^Paused/, 'Space pauses');
-    assert.equal(await first.textContent(), 'Play');
+    assert.equal(await first.getAttribute('aria-label'), 'Play');
     const held = await spot();
     assert.ok(held !== null, 'the playhead stays where it paused');
     await page.waitForTimeout(500);
     assert.equal(await spot(), held, 'and stays still');
     await page.keyboard.press('Space');
     await page.waitForTimeout(300);
-    assert.equal(await first.textContent(), 'Pause', 'Space carries on');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'Space carries on');
     const on = await spot();
     const [heldBar, heldStep] = held.split(':').map(Number);
     const [onBar, onStep] = on.split(':').map(Number);
     assert.ok(onBar * 1000 + onStep >= heldBar * 1000 + heldStep, `carried on from the same place: ${held} then ${on}`);
     await page.getByRole('button', { name: 'Stop', exact: true }).click();
     await expectStatus(page, /^Stopped/, 'Stop');
-    assert.equal(await first.textContent(), 'Play');
+    assert.equal(await first.getAttribute('aria-label'), 'Play');
     assert.equal(await spot(), null, 'Stop clears the playhead');
     await context.close();
   });
@@ -1036,7 +1038,7 @@ const main = async () => {
     await page.getByRole('radio', { name: /Overdub/ }).focus();
     await page.locator(`${MAIN} button`).first().click();
     await page.getByRole('button', { name: 'Calibrate timing' }).waitFor({ timeout: 3000 });
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'stopped, not left half done');
+    assert.equal(await page.locator(`${MAIN} button`).first().getAttribute('aria-label'), 'Play', 'stopped, not left half done');
     await context.close();
   });
 
@@ -1047,11 +1049,11 @@ const main = async () => {
     await expectStatus(page, /Speed: 155/, 'Faster');
     await page.keyboard.press('Space');
     await page.waitForTimeout(200);
-    assert.equal(await first.textContent(), 'Pause', 'Space plays, with Faster last clicked');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'Space plays, with Faster last clicked');
     assert.match(await page.locator(MAIN).innerText(), /155/, 'and did not press Faster again');
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);
-    assert.equal(await first.textContent(), 'Play', 'pauses too');
+    assert.equal(await first.getAttribute('aria-label'), 'Play', 'pauses too');
     await page.keyboard.press('Escape');
     // Enter still presses a key, for anyone on the keyboard.
     await page.getByRole('button', { name: /^Faster/ }).focus();
@@ -1063,7 +1065,7 @@ const main = async () => {
     await page.locator('#song-link').focus();
     await page.keyboard.type('a b');
     assert.equal(await page.locator('#song-link').inputValue(), 'a b', 'Space types in a text box');
-    assert.equal(await first.textContent(), 'Play', 'without playing');
+    assert.equal(await first.getAttribute('aria-label'), 'Play', 'without playing');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(150);
     await page.keyboard.press('Shift+R');
@@ -1074,7 +1076,7 @@ const main = async () => {
     await page.getByRole('radio', { name: /Overdub/ }).focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);
-    assert.equal(await first.textContent(), 'Play', 'Space picks a choice');
+    assert.equal(await first.getAttribute('aria-label'), 'Play', 'Space picks a choice');
     assert.equal(await replace.getAttribute('aria-checked'), 'false', 'the one it was on');
     await context.close();
   });
@@ -1083,11 +1085,11 @@ const main = async () => {
     const { context, page } = await open(browser, 1280, 900);
     const first = page.locator(`${MAIN} button`).first();
     const loop = page.locator(MAIN).getByRole('button', { name: /^Loop/ });
-    assert.equal(await loop.textContent(), 'Loop 1-4', 'it says which bars');
+    assert.equal(await loop.getAttribute('aria-label'), 'Loop bars 1 to 4', 'it says which bars');
     assert.equal(await loop.getAttribute('aria-pressed'), 'true');
     await page.keyboard.press('Shift+L');
     await expectStatus(page, /^Loop off/, 'Shift+L');
-    assert.equal(await loop.textContent(), 'Loop off');
+    assert.equal(await loop.getAttribute('aria-label'), 'Loop off');
     assert.equal(await loop.getAttribute('aria-pressed'), 'false');
     // A short song, to reach its end in good time.
     for (let i = 0; i < 6; i += 1) await page.keyboard.press(']');
@@ -1095,9 +1097,9 @@ const main = async () => {
     await page.keyboard.press('End');
     await page.keyboard.press('Space');
     await page.waitForTimeout(300);
-    assert.equal(await first.textContent(), 'Pause', 'from the last bar');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'from the last bar');
     await expectStatus(page, /^That's the end of the song/, 'it stops by itself at the end');
-    assert.equal(await first.textContent(), 'Play');
+    assert.equal(await first.getAttribute('aria-label'), 'Play');
     await page.keyboard.press('Control+Home');
     await page.keyboard.press('r');
     await page.locator(MAIN).getByRole('button', { name: /^Rec/, pressed: true }).waitFor({ timeout: 5000 });
@@ -1105,7 +1107,7 @@ const main = async () => {
     await page.keyboard.press('Escape');
     await loop.click();
     await expectStatus(page, /^Loop on/, 'and back on');
-    assert.equal(await loop.textContent(), 'Loop 1-4');
+    assert.equal(await loop.getAttribute('aria-label'), 'Loop bars 1 to 4');
     await context.close();
   });
 
@@ -1119,7 +1121,7 @@ const main = async () => {
     const shown = (action) => settings.locator(`[data-key-shown="${action}"]`).textContent();
     const change = (action) => settings.locator(`[data-change-key="${action}"]`).click();
     assert.equal(await shown('playPause'), 'Space', 'Space is play and pause to begin with');
-    assert.equal(await settings.locator('[data-change-key]').count(), 27, 'every key that can change');
+    assert.equal(await settings.locator('[data-change-key]').count(), 26, 'every key that can change');
     await page.screenshot({ path: path.join(OUT, 'settings.png') });
 
     // A key that would break the notes.
@@ -1142,7 +1144,7 @@ const main = async () => {
     await page.waitForTimeout(100);
     await page.keyboard.press('Space');
     await page.waitForTimeout(150);
-    assert.equal(await first.textContent(), 'Pause', 'Space plays once the window is shut');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'Space plays once the window is shut');
     await page.keyboard.press('Space');
     await page.keyboard.press('/');
     await page.waitForTimeout(150);
@@ -1161,16 +1163,16 @@ const main = async () => {
     assert.match(await first.getAttribute('title'), /Insert/, 'the key on the bar says so too');
     await page.keyboard.press('Insert');
     await page.waitForTimeout(150);
-    assert.equal(await first.textContent(), 'Pause', 'the new key plays');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'the new key plays');
     await page.keyboard.press('Insert');
     await page.waitForTimeout(100);
-    assert.equal(await first.textContent(), 'Play');
+    assert.equal(await first.getAttribute('aria-label'), 'Play');
     await page.keyboard.press('Escape');
     await page.waitForTimeout(100);
     await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
     await page.keyboard.press('Space');
     await page.waitForTimeout(100);
-    assert.equal(await first.textContent(), 'Play', 'Space does nothing now');
+    assert.equal(await first.getAttribute('aria-label'), 'Play', 'Space does nothing now');
     await page.keyboard.press('/');
     await page.waitForTimeout(150);
 
@@ -1221,7 +1223,7 @@ const main = async () => {
     await page.waitForTimeout(500);
     await page.keyboard.press('Space');
     await page.waitForTimeout(150);
-    assert.equal(await first.textContent(), 'Pause', 'and they stay back');
+    assert.equal(await first.getAttribute('aria-label'), 'Pause', 'and they stay back');
     await context.close();
   });
 
@@ -1248,8 +1250,10 @@ const main = async () => {
     await page.keyboard.press('Shift+S');
     await page.waitForTimeout(150);
     const sounds = page.getByRole('dialog', { name: 'Sounds' });
-    const chosen = async () => (await sounds.getByRole('radiogroup', { name: 'Sound' }).locator('[aria-checked="true"]').textContent()).replace('> ', '');
-    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 15, 'fifteen for a tune');
+    const chosen = async () => sounds.getByRole('radiogroup', { name: 'Sound' }).locator('[aria-checked="true"]').textContent();
+    const kinds = sounds.getByRole('group', { name: 'Kinds of sound' }).getByRole('button');
+    assert.deepEqual(await kinds.allTextContents(), ['Keys', 'Bass', 'Plucked', 'Horns', 'Winds', 'Pads', 'Chip'], 'the kinds for a tune');
+    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 17, 'it opens on the kind this sound is');
     const before = await chosen();
     await sounds.getByRole('radio', { name: 'Plucked string' }).click();
     await expectStatus(page, /has a new sound/, 'picking one');
@@ -1271,10 +1275,24 @@ const main = async () => {
     assert.equal(await chosen(), before, 'undo brings the last one back');
     await page.keyboard.press('Control+y');
     assert.equal(await chosen(), 'Plucked string', 'redo too');
+    // Pressing the one that's chosen plays it again and changes nothing, so it costs no undo step.
+    await sounds.getByRole('radio', { name: 'Plucked string' }).click();
+    await page.keyboard.press('Control+z');
+    assert.equal(await chosen(), before, 'one undo still goes back');
+    // The list for another kind, run through by the arrow keys.
+    await sounds.getByRole('button', { name: 'Keys', exact: true }).click();
+    await sounds.getByRole('radio', { name: 'Electric piano' }).click();
+    assert.equal(await sounds.getByRole('radio', { name: 'Electric piano' }).getAttribute('aria-checked'), 'true');
+    await page.keyboard.press('ArrowDown');
+    await page.waitForTimeout(80);
+    assert.equal(await sounds.getByRole('radio', { name: 'Glassy e-piano' }).getAttribute('aria-checked'), 'true', 'an arrow picks the next and plays it');
+    await sounds.getByRole('button', { name: 'Chip', exact: true }).click();
+    await sounds.getByRole('radio', { name: 'Plucked string' }).click();
     // The drums have their own list, and the window follows the channel.
     await sounds.getByRole('radio', { name: 'Drums' }).click();
     await page.waitForTimeout(100);
-    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 7, 'seven for the drums');
+    assert.deepEqual(await kinds.allTextContents(), ['Hits', 'Noises'], 'the kinds for the drums');
+    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 10, 'ten noises');
     await sounds.getByRole('radio', { name: 'Clang' }).click();
     assert.equal((await saved()).channels[3].instruments[0].wave, 'clang');
     // A link keeps it.
@@ -1288,6 +1306,20 @@ const main = async () => {
     const reopened = again.page.getByRole('dialog', { name: 'Sounds' });
     assert.equal(await reopened.getByRole('radio', { name: 'Plucked string' }).getAttribute('aria-checked'), 'true', 'a share link brings it back');
     await again.context.close();
+    // One of the named sounds comes back by name through a link too, not as a stranger.
+    await sounds.getByRole('radio', { name: 'Tune 1' }).click();
+    await sounds.getByRole('button', { name: 'Plucked', exact: true }).click();
+    await sounds.getByRole('radio', { name: 'Koto' }).click();
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Copy share link' }).click();
+    await page.waitForTimeout(200);
+    const named = await page.locator('textarea[readonly]').inputValue();
+    const third = await open(browser, 1280, 900, { hash: named.slice(named.indexOf('#')) });
+    await third.page.keyboard.press('Shift+S');
+    await third.page.waitForTimeout(150);
+    assert.equal(await third.page.getByRole('dialog', { name: 'Sounds' }).getByRole('radio', { name: 'Koto' }).getAttribute('aria-checked'), 'true', 'Koto is still Koto after a link');
+    await third.context.close();
     await context.close();
   });
 
@@ -1316,15 +1348,20 @@ const main = async () => {
       await sounds.getByRole('radio', { name: channel }).click();
       await page.waitForTimeout(100);
       if (channel === 'Drums') {
-        await page.locator(`${NOTES} [role="gridcell"]`).nth(0).click();
+        await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+        await page.keyboard.press('Enter');
         await page.waitForTimeout(100);
       }
-      const names = await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').allTextContents();
-      for (const raw of names) {
-        const name = raw.replace('> ', '');
-        await sounds.getByRole('radio', { name: new RegExp(`^(> )?${name}$`) }).click();
+      const kinds = await sounds.getByRole('group', { name: 'Kinds of sound' }).getByRole('button').allTextContents();
+      for (const kind of kinds) {
+        await sounds.getByRole('button', { name: kind, exact: true }).click();
         await page.waitForTimeout(60);
-        report[`${channel}: ${name}`] = await peaks(page);
+        const names = await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').allTextContents();
+        for (const name of names) {
+          await sounds.getByRole('radio', { name, exact: true }).click();
+          await page.waitForTimeout(60);
+          report[`${channel}: ${name}`] = await peaks(page);
+        }
       }
     }
     numbers.sounds = report;
@@ -1335,6 +1372,307 @@ const main = async () => {
     assert.equal(new Set(tuneSums).size, tuneSums.length, 'two tune sounds came out the same');
     const drumSums = entries.filter(([name]) => name.startsWith('Drums')).map(([, { sum }]) => sum);
     assert.equal(new Set(drumSums).size, drumSums.length, 'two drum sounds came out the same');
+  });
+
+  // 12. Placing and moving notes: at once, by the press.
+  const cellAt = (page, beat, step, name, on) => page.locator(`${NOTES} [role="gridcell"][aria-label="Bar 1, beat ${beat} step ${step}, ${name}, ${on ? 'on' : 'off'}"]`);
+  const middle = async (locator) => {
+    const box = await locator.boundingBox();
+    return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
+  };
+  const notesInFile = (json) => json.channels[0].patterns[0].notes.map((note) => `${note.pitches.join('+')}@${note.points[0].tick}-${note.points[note.points.length - 1].tick}`).join(' ');
+
+  await test(12, 'a note lands as the button goes down, and a drag makes it longer or moves it, all one undo', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const c4 = await middle(cellAt(page, 1, 1, 'C4', false));
+    await page.mouse.move(c4.x, c4.y);
+    await page.mouse.down();
+    assert.equal(await cellAt(page, 1, 1, 'C4', true).count(), 1, 'the note is there with the button still down');
+    const end = await middle(cellAt(page, 1, 4, 'C4', false));
+    await page.mouse.move(end.x, end.y);
+    await page.waitForTimeout(40);
+    assert.equal(await cellAt(page, 1, 4, 'C4', true).count(), 1, 'the drag draws it longer as it goes');
+    await page.mouse.up();
+    assert.equal(notesInFile(await songFile(page)), '48@0-4', 'one note, four steps long');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo');
+    assert.equal(await cellAt(page, 1, 1, 'C4', true).count(), 0, 'one undo takes the whole gesture');
+
+    // Press and let go on a note: it goes, as the button comes up.
+    const again = await middle(cellAt(page, 2, 1, 'C4', false));
+    await page.mouse.click(again.x, again.y);
+    assert.equal(await cellAt(page, 2, 1, 'C4', true).count(), 1);
+    await page.mouse.move(again.x, again.y);
+    await page.mouse.down();
+    assert.equal(await cellAt(page, 2, 1, 'C4', true).count(), 1, 'held: still there');
+    await page.mouse.up();
+    assert.equal(await cellAt(page, 2, 1, 'C4', true).count(), 0, 'let go: gone');
+
+    // Pick one up and put it somewhere else, up and along.
+    await page.mouse.click(again.x, again.y);
+    const box = await cellAt(page, 2, 1, 'C4', true).boundingBox();
+    await page.mouse.move(box.x + 3, box.y + box.height / 2);
+    await page.mouse.down();
+    const to = await middle(cellAt(page, 3, 1, 'D4', false));
+    await page.mouse.move(to.x, to.y);
+    await page.waitForTimeout(40);
+    await page.mouse.up();
+    assert.equal(await cellAt(page, 2, 1, 'C4', true).count(), 0, 'it left');
+    assert.equal(await cellAt(page, 3, 1, 'D4', true).count(), 1, 'and landed');
+    assert.equal(notesInFile(await songFile(page)), '50@8-9', 'and that is what is saved');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo of a move');
+    assert.equal(await cellAt(page, 2, 1, 'C4', true).count(), 1, 'one undo puts it back');
+    await page.keyboard.press('Control+y');
+    await expectStatus(page, /^Redone/, 'redo of a move');
+
+    // Dragged onto a place that's taken and let go: nothing changes, and it isn't taken away either.
+    const blocker = await middle(cellAt(page, 5, 1, 'D4', false));
+    await page.mouse.click(blocker.x, blocker.y);
+    const third = await cellAt(page, 3, 1, 'D4', true).boundingBox();
+    await page.mouse.move(third.x + 3, third.y + third.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(blocker.x, blocker.y);
+    await page.waitForTimeout(40);
+    await page.mouse.up();
+    assert.equal(await cellAt(page, 3, 1, 'D4', true).count(), 1, 'nowhere to go: it stays');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo of the note in the way');
+    assert.equal(await cellAt(page, 5, 1, 'D4', true).count(), 0, 'the drag cost no undo step');
+
+    // An undo while a drag is held: the drag stops, and doesn't bring back what the undo took.
+    const held = await middle(cellAt(page, 6, 1, 'C4', false));
+    await page.mouse.move(held.x, held.y);
+    await page.mouse.down();
+    assert.equal(await cellAt(page, 6, 1, 'C4', true).count(), 1);
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo while held');
+    await page.mouse.move(held.x + 60, held.y);
+    await page.waitForTimeout(40);
+    await page.mouse.up();
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-label*=", C4, on"]`).count(), 0, 'it stays undone');
+
+    // Its right-hand end changes its length, and it stops at the next note.
+    const next = await middle(cellAt(page, 4, 1, 'D4', false));
+    await page.mouse.click(next.x, next.y);
+    const moved = await cellAt(page, 3, 1, 'D4', true).boundingBox();
+    await page.mouse.move(moved.x + moved.width - 2, moved.y + moved.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(next.x + 300, next.y);
+    await page.waitForTimeout(40);
+    await page.mouse.up();
+    assert.equal(notesInFile(await songFile(page)), '50@8-12 50@12-13', 'stretched to the next note and no further');
+    await context.close();
+  });
+
+  await test(12, 'a press that is not a click still works for a screen reader, and the keyboard is as it was', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.evaluate((selector) => document.querySelector(`${selector} [role="gridcell"][aria-label="Bar 1, beat 1 step 1, C4, off"]`).click(), NOTES);
+    await expectStatus(page, /C4 on/, 'a click with no pointer before it');
+    assert.equal(await cellAt(page, 1, 1, 'C4', true).count(), 1);
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /C4 off/, 'Enter');
+    await context.close();
+  });
+
+  // 13. Moving around.
+  await test(13, 'the arrows, the rail and dragging all move the view, and the cursor comes along', async () => {
+    const { context, page } = await open(browser, 1000, 700);
+    const view = page.locator(`${NOTES}`).locator('xpath=..');
+    const at = () => view.evaluate((element) => ({ left: element.scrollLeft, top: element.scrollTop }));
+    assert.equal(await page.getByRole('button', { name: 'Later', exact: true }).isVisible(), true, 'arrows across, since the bar does not fit here');
+    const start = await at();
+    await page.getByRole('button', { name: 'Higher', exact: true }).click();
+    assert.ok((await at()).top < start.top, 'Higher moves up');
+    await page.getByRole('button', { name: 'Lower', exact: true }).click();
+    assert.equal((await at()).top, start.top, 'Lower moves back');
+    await page.getByRole('button', { name: 'Later', exact: true }).click();
+    assert.ok((await at()).left > start.left, 'Later moves along');
+    await page.getByRole('button', { name: 'Earlier', exact: true }).click();
+    assert.equal((await at()).left, start.left, 'Earlier moves back');
+    assert.equal(await page.getByRole('button', { name: 'Earlier', exact: true }).getAttribute('aria-disabled'), 'true', 'and goes quiet at the end');
+
+    // Dragging a note name moves the canvas, and puts no note anywhere.
+    const name = await page.locator(`${NOTES} [role="rowheader"]`).nth(6).boundingBox();
+    const from = { x: name.x + name.width / 2, y: name.y + name.height / 2 };
+    const before = await at();
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x, from.y + 150);
+    await page.mouse.up();
+    assert.ok((await at()).top <= before.top - 140, `dragging down brings the notes above into view: ${before.top} to ${(await at()).top}`);
+
+    // The right button drags anywhere, and leaves no browser menu behind.
+    const centre = await middle(view);
+    const beforeRight = await at();
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down({ button: 'right' });
+    await page.mouse.move(centre.x, centre.y - 90);
+    await page.mouse.up({ button: 'right' });
+    assert.ok((await at()).top >= beforeRight.top + 80, 'the right button moves the view');
+
+    // The hand: dragging on the squares moves the view too, and a press puts no note.
+    await page.getByRole('button', { name: 'Hand', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: 'Hand', exact: true }).getAttribute('aria-pressed'), 'true');
+    const loopBefore = await page.locator(MAIN).getByRole('button', { name: /^Loop/ }).getAttribute('aria-label');
+    const numberOne = await page.locator(`${BARS} [role="rowheader"]`).nth(0).boundingBox();
+    await page.mouse.move(numberOne.x + 10, numberOne.y + numberOne.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(numberOne.x + 10, numberOne.y + 150);
+    await page.mouse.up();
+    assert.equal(await page.locator(MAIN).getByRole('button', { name: /^Loop/ }).getAttribute('aria-label'), loopBefore, 'the hand leaves the loop alone');
+    const beforeHand = await at();
+    await page.mouse.move(centre.x, centre.y);
+    await page.mouse.down();
+    await page.mouse.move(centre.x, centre.y + 90);
+    await page.mouse.up();
+    assert.ok((await at()).top <= beforeHand.top - 80, 'the hand moves the view');
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-selected="true"]`).count(), 0, 'and has put no note');
+    await page.keyboard.press('Shift+H');
+    assert.equal(await page.getByRole('button', { name: 'Hand', exact: true }).getAttribute('aria-pressed'), 'false', 'its key turns it off');
+
+    // Wherever the view has gone, the keyboard is still on a square in it.
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    await page.getByRole('button', { name: 'Higher', exact: true }).click();
+    assert.match((await focused(page)) ?? '', /^Bar 1, beat/, 'the arrows leave the cursor on the notes');
+    const cursor = await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).boundingBox();
+    const place = await view.boundingBox();
+    assert.ok(cursor.y >= place.y && cursor.y + cursor.height <= place.y + place.height + 1, 'the cursor stays in view');
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Control+End');
+    const last = await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).boundingBox();
+    assert.ok(last.y + last.height <= place.y + place.height + 1 && last.x + last.width <= place.x + place.width + 1, 'the arrow keys bring the view with them');
+    assert.match((await focused(page)) ?? '', /beat 8 step 4/, 'and the keyboard keeps its place');
+
+    // The bars scroll as well, by arrows.
+    const bars = page.locator(BARS).locator('xpath=ancestor::*[contains(@class, "bb-canvas")]');
+    const barsTop = () => bars.evaluate((element) => element.scrollTop);
+    await page.getByRole('button', { name: 'Later bars', exact: true }).click();
+    assert.ok((await barsTop()) > 0, 'Later bars');
+    await context.close();
+  });
+
+  await test(13, 'every small key has a name, says it when pointed at or tabbed to, and keeps a full-size target', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const small = await page.evaluate(() => {
+      const buttons = [...document.querySelectorAll('.debaser-beatbox button')].filter((button) => {
+        const box = button.getBoundingClientRect();
+        return box.width > 1 && getComputedStyle(button).visibility !== 'hidden' && !button.classList.contains('sr-only');
+      });
+      return {
+        unnamed: buttons.filter((button) => !(button.getAttribute('aria-label') || button.textContent.trim())).length,
+        tiny: buttons.filter((button) => {
+          const box = button.getBoundingClientRect();
+          return box.width < 44 || box.height < 44;
+        }).map((button) => `${button.getAttribute('aria-label') ?? button.textContent}: ${Math.round(button.getBoundingClientRect().width)}x${Math.round(button.getBoundingClientRect().height)}`),
+        words: buttons.filter((button) => /[A-Za-z]{2,}/.test(button.textContent)).map((button) => button.textContent),
+      };
+    });
+    numbers['small keys'] = small;
+    assert.equal(small.unnamed, 0, 'every key has a name');
+    assert.deepEqual(small.tiny, [], 'and a whole target');
+    assert.deepEqual(small.words, [], 'and the page shows no words on its keys');
+    const hint = page.locator('[data-hint]');
+    assert.equal(await hint.count(), 0, 'nothing is said until a key is pointed at');
+    const heights = async () => (await page.locator(NOTES).locator('xpath=..').boundingBox());
+    const grid = await heights();
+    await page.getByRole('button', { name: 'Stop', exact: true }).hover();
+    assert.match(await hint.textContent(), /^Stop/, 'pointed at, it says');
+    assert.deepEqual(await heights(), grid, 'and nothing moves');
+    await page.mouse.move(600, 500);
+    await page.waitForTimeout(50);
+    assert.equal(await hint.count(), 0, 'and stops');
+    // Pressed, the key says what happened, with the pointer still on it.
+    await page.getByRole('button', { name: 'Faster', exact: true }).hover();
+    assert.equal(await hint.count(), 1);
+    await page.mouse.down();
+    await page.mouse.up();
+    assert.equal(await hint.count(), 0, 'the hint gives way');
+    assert.ok(await page.locator(STATUS).isVisible(), 'to what the key did');
+    await page.keyboard.press('[');
+    await page.mouse.move(600, 500);
+    await page.locator(`${MAIN} button`).first().focus();
+    await page.keyboard.press('Tab');
+    assert.match(await hint.textContent(), /^Stop/, 'tabbed to, it says');
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    // Words on the keys, for anyone who wants them, kept for next time.
+    await page.keyboard.press('/');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: /^Names on keys/ }).click();
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    assert.match(await page.getByRole('button', { name: 'Stop', exact: true }).innerText(), /Stop/i, 'names on');
+    const seen = await look(page);
+    assert.equal(seen.keyRows, 1, 'and the main keys still take one row');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(400);
+    assert.match(await page.getByRole('button', { name: 'Stop', exact: true }).innerText(), /Stop/i, 'still on after a reload');
+    await context.close();
+  });
+
+  // 14. The loop bar.
+  await test(14, "the loop bar along the bar numbers: it's purple, it's readable, and it drags as BeepBox's does", async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const loopKey = page.locator(MAIN).getByRole('button', { name: /^Loop/ });
+    const span = async () => (await loopKey.getAttribute('aria-label'));
+    const number = (bar) => page.locator(`${BARS} [role="rowheader"]:is([aria-label="Bar ${bar}"], [aria-label="Bar ${bar}, in the loop"])`);
+    const place = async (bar, share = 0.5) => {
+      const box = await number(bar).boundingBox();
+      return { x: box.x + box.width / 2, y: box.y + box.height * share };
+    };
+    const drag = async (from, to) => {
+      await page.mouse.move(from.x, from.y);
+      await page.mouse.down();
+      await page.mouse.move(to.x, to.y, { steps: 3 });
+      await page.mouse.up();
+      await page.waitForTimeout(40);
+    };
+    const looks = await number(1).evaluate((cell) => ({ background: getComputedStyle(cell).backgroundColor, colour: getComputedStyle(cell).color }));
+    assert.equal(looks.background, 'rgb(177, 73, 170)', 'purple, Orchid from the palette');
+    assert.equal(looks.colour, 'rgb(255, 255, 255)', 'with white numbers, 4.77:1');
+    assert.equal(await span(), 'Loop bars 1 to 4');
+    await page.screenshot({ path: path.join(OUT, 'loop.png') });
+
+    await drag(await place(4), await place(6));
+    assert.equal(await span(), 'Loop bars 1 to 6', 'dragging the lower half takes the end');
+    await expectStatus(page, /^Loop: bars 1 to 6/, 'it says so');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo');
+    assert.equal(await span(), 'Loop bars 1 to 4', 'one undo for the whole drag');
+    await drag(await place(1), await place(3));
+    assert.equal(await span(), 'Loop bars 3 to 4', 'dragging the upper half takes the start');
+    await drag(await place(3), await place(7));
+    assert.equal(await span(), 'Loop bars 5 to 6', 'an end dragged past the other swaps with it');
+    await drag(await place(12), await place(12));
+    assert.equal(await span(), 'Loop bars 12 to 13', 'a press outside carries the whole loop there, centred on it');
+
+    // Loop off: only outlined, and setting the loop turns it back on.
+    await page.keyboard.press('Shift+L');
+    const off = await number(12).evaluate((cell) => getComputedStyle(cell).boxShadow);
+    assert.notEqual(off, 'none', 'outlined with Loop off');
+    await drag(await place(12), await place(11));
+    assert.equal(await span(), 'Loop bars 11 to 13', 'setting the loop turns Loop back on');
+
+    // The keyboard's way.
+    const start = page.getByRole('slider', { name: 'Loop starts at' });
+    const finish = page.getByRole('slider', { name: 'Loop ends at' });
+    await start.focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await span(), 'Loop bars 12 to 13', 'Down moves the start');
+    assert.equal(await start.getAttribute('aria-valuenow'), '12');
+    await finish.focus();
+    await page.keyboard.press('ArrowDown');
+    assert.equal(await span(), 'Loop bars 12 to 14', 'Down moves the end');
+    await page.keyboard.press('Home');
+    assert.equal(await span(), 'Loop bars 12 to 12', 'Home brings the end to the start, one bar at the least');
+    assert.ok(await finish.evaluate((element) => document.activeElement === element), 'and the cursor stays on it');
+
+    // Selecting bars and pressing L still works, and it follows into high contrast.
+    await page.keyboard.press(',');
+    const high = await number(12).evaluate((cell) => ({ background: getComputedStyle(cell).backgroundColor, colour: getComputedStyle(cell).color }));
+    assert.deepEqual(high, { background: 'rgb(255, 255, 255)', colour: 'rgb(0, 0, 0)' }, 'high contrast: black on white');
+    await context.close();
   });
 
   await browser.close();

@@ -2,8 +2,9 @@
 // Keys follow the site: `[ LABEL ]` in capitals, instant colour swaps, and a press is a small drop
 // and a pink flash.
 
+// Only for the keyboard: a key pressed with the mouse has no need of a ring round it afterwards.
 export const focusOnly =
-  "focus:outline-(length:--focus-width) focus:outline-offset-(length:--focus-width) focus:outline-bb-daffodil";
+  "focus-visible:outline-(length:--focus-width) focus-visible:outline-offset-(length:--focus-width) focus-visible:outline-bb-daffodil";
 
 const pressed = "active:translate-y-(--press-drop) active:bg-bb-pink active:text-bb-black";
 const keyCore = `bb-key cursor-pointer text-bb-large font-bold uppercase ${focusOnly} ${pressed}`;
@@ -47,13 +48,29 @@ export function rulerKey(on = false): string {
   return `min-h-bb-target-min min-w-11 cursor-pointer text-display font-bold ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
 }
 
+// A key that's a glyph needs no brackets or words: see docs/design.md. Its name is in its label and its hint.
+const glyphCore = `flex cursor-pointer items-center justify-center leading-none text-bb-glyph aria-disabled:cursor-not-allowed ${focusOnly} ${pressed}`;
+
+/** A key that's one glyph, the size a finger needs. */
+export function glyphKey(on = false): string {
+  return `min-h-bb-target-min min-w-bb-target-min ${glyphCore} ${on ? onKey : bracketKey}`;
+}
+
+/** A glyph key on the slim bar over the grid. */
+export function barGlyph(on = false): string {
+  return `min-h-bb-target-bar min-w-bb-target-bar flex-col ${glyphCore} ${on ? onKey : bracketKey}`;
+}
+
+/** The bar's one main key, filled so the eye lands on it first. */
+export const barMainGlyph = `min-h-bb-target-bar min-w-bb-target-large flex-col ${glyphCore} bg-bb-daffodil text-bb-black hover:bg-bb-emerald`;
+
+/** A row in a list of things to pick from: words, flat, the whole row a target. */
+export function listRow(on = false): string {
+  return `relative flex min-h-bb-target-min w-full cursor-pointer items-center px-2 text-left text-display font-bold wrap-anywhere focus-visible:z-10 focus-visible:outline-(length:--focus-width) focus-visible:outline-bb-daffodil ${pressed} ${on ? onKey : "hover:bg-bb-daffodil hover:text-bb-nigrosine"}`;
+}
+
 /** A section's title, set between two rules. */
 export const titleLine = "bb-title-line text-bb-large font-bold wrap-anywhere text-bb-daffodil uppercase";
 
-/** A window's key on the slim bar: smaller words and closer brackets, so the song's own keys stay the biggest. */
-export function windowKey(on = false): string {
-  return `min-h-bb-target-bar min-w-bb-target-min bb-key-tight cursor-pointer px-0.5 text-bb-cell-m font-bold uppercase whitespace-nowrap 2xl:px-1 ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
-}
-
 /** The close key on a window's title line, which is a light colour. */
-export const windowCloseKey = `bb-key min-h-bb-target-min min-w-bb-target-min flex-none cursor-pointer px-2 text-bb-black text-bb-large font-bold uppercase hover:bg-bb-nigrosine hover:text-bb-white focus:outline-(length:--focus-width) focus:outline-bb-pink ${pressed}`;
+export const windowCloseKey = `flex min-h-bb-target-min min-w-bb-target-min flex-none cursor-pointer items-center justify-center text-bb-black text-bb-glyph leading-none hover:bg-bb-nigrosine hover:text-bb-white focus-visible:outline-(length:--focus-width) focus-visible:outline-bb-pink ${pressed}`;

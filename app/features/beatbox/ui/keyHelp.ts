@@ -8,6 +8,59 @@ export interface KeyGroup {
   readonly keys: readonly (readonly [keys: string, action: string])[];
 }
 
+// Text glyphs, not drawings. The end of each stops the browser swapping in a coloured emoji.
+const TEXT = "\uFE0E";
+export const GLYPHS = {
+  play: `\u25B6${TEXT}`,
+  pause: "\u275A\u275A",
+  stop: `\u25A0${TEXT}`,
+  loop: `\u21BB${TEXT}`,
+  record: `\u25CF${TEXT}`,
+  undo: `\u21B6${TEXT}`,
+  redo: `\u21B7${TEXT}`,
+  sounds: `\u223F${TEXT}`,
+  recorder: `\u25C9${TEXT}`,
+  playing: `\u2328${TEXT}`,
+  song: `\u266B${TEXT}`,
+  settings: `\u2699${TEXT}`,
+  bars: `\u25E7${TEXT}`,
+  hand: `\u2725${TEXT}`,
+  fill: `\u21CA${TEXT}`,
+  close: `\u2715${TEXT}`,
+  up: `\u25B2${TEXT}`,
+  down: `\u25BC${TEXT}`,
+  left: `\u25C0${TEXT}`,
+  right: `\u25B6${TEXT}`,
+  barBack: `\u25C1${TEXT}`,
+  barOn: `\u25B7${TEXT}`,
+  beat: `\u2669${TEXT}`,
+} as const;
+
+/** What the small keys mean, for anyone who'd rather read it than point at each one. */
+export const KEY_FACES: KeyGroup = {
+  title: "What the small keys are",
+  keys: [
+    [GLYPHS.play, "Play"],
+    [GLYPHS.pause, "Pause"],
+    [GLYPHS.stop, "Stop"],
+    [GLYPHS.loop, "Loop on or off"],
+    [GLYPHS.record, "Record"],
+    [GLYPHS.undo, "Undo"],
+    [GLYPHS.redo, "Redo"],
+    [GLYPHS.beat, "The speed, in beats a minute"],
+    [GLYPHS.sounds, "Sounds"],
+    [GLYPHS.recorder, "Recorder"],
+    [GLYPHS.playing, "Playing"],
+    [GLYPHS.song, "Song"],
+    [GLYPHS.settings, "Settings"],
+    [GLYPHS.bars, "Show or hide the bars"],
+    [GLYPHS.hand, "Hand: dragging moves the view"],
+    [GLYPHS.fill, "This bar's pattern on the whole loop"],
+    [`${GLYPHS.barBack} ${GLYPHS.barOn}`, "Previous and next bar"],
+    [`${GLYPHS.up} ${GLYPHS.down} ${GLYPHS.left} ${GLYPHS.right}`, "Move the view. Hold to keep going"],
+  ],
+};
+
 export const FIXED_KEYS: readonly KeyGroup[] = [
   {
     title: "Anywhere",
@@ -31,6 +84,7 @@ export const FIXED_KEYS: readonly KeyGroup[] = [
       ["Shift+Up and Shift+Down, or Shift+click", "Pick several bars"],
       ["L", "Set the loop to the picked bars"],
       ["F", "Put this bar's pattern on the whole loop"],
+      ["Up and Down, on an end of the loop", "Move that end of the loop"],
       ["0 to 9", "Set the pattern. 0 is silent"],
       ["+ and -", "Next and previous pattern"],
       ["Enter", "Go to the notes"],
@@ -55,7 +109,18 @@ export const FIXED_KEYS: readonly KeyGroup[] = [
       ["Arrow keys, on its title", "Move the window"],
       ["Enter, on a key", "Press that key. Space plays and pauses wherever you are, unless you've changed it"],
       ["Enter, in the link box", "Open that song"],
-      ["Arrow keys, in a set of choices such as Mode or Size", "Change the choice"],
+      ["Arrow keys, in a set of choices such as Mode", "Change the choice"],
+    ],
+  },
+  {
+    title: "With the mouse",
+    keys: [
+      ["Press a square", "Put a note, there and then. Keep holding and drag to make it longer or change its pitch"],
+      ["Press a note and let go", "Take it away"],
+      ["Press a note and drag", "Move it. Drag its right-hand end to change its length"],
+      ["Drag the bar numbers", "Set the loop: the nearer end moves. Outside the loop, the whole loop moves there"],
+      ["Drag a note name or a beat number, or drag with the right or middle button", "Move around the grid"],
+      ["Ctrl and +", "Your browser's zoom makes everything bigger. The arrows take you around"],
     ],
   },
 ];
@@ -68,5 +133,6 @@ export function keyHelp(bindings: Bindings): readonly KeyGroup[] {
       keys: actions.map(({ id, label }): readonly [string, string] => [keyWords(bindings[id]), label]),
     })),
     ...FIXED_KEYS,
+    KEY_FACES,
   ];
 }

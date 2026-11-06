@@ -48,5 +48,23 @@ The Menu column became five windows, one key each on the bar: Sounds, Recorder, 
 - Sounds picks a kind of instrument per channel, as BeepBox's own types and waves. A new thing the beat box couldn't do before. It's kept
   in the song, its links and files, and undo brings the last one back.
 
+## Cleaner, snappier, a canvas (Luke, 2026-11-06)
+"The beep box needs more cleaning up... I need it to literally be more user friendly than beep box."
+- Up and down are arrows everywhere. The bar's words are small glyph keys. Each keeps a full target and a spoken name, and says its name and
+  key on the status line when pointed at or tabbed to, so a browser's tooltip is never the only way to find out. Settings has Names on keys,
+  which shows the words under the glyphs, and the help lists every glyph.
+- The notes are a canvas: the whole bar and every note exist, and the view moves over them. The size keys are gone. The whole bar fits across
+  whenever a step can stay 26px wide (0.6 of a target), rows stay a target tall; past that it scrolls. The browser's zoom is the way to bigger.
+  Big arrows and a rail beside each view, held to keep going. Drag the note names or the beat numbers, drag with the right or middle button
+  anywhere, or turn on the Hand to drag anywhere.
+- A note lands as the button goes down, not when it comes up. Keep holding: drag to lengthen or change pitch. Press a note and let go to take it
+  away, drag it to move it, drag its right-hand end to change its length. All one undo. (BeepBox waits for the button to come up.)
+- The loop bar is the bar numbers, purple as BeepBox's is, and drags as BeepBox's does: the nearer end moves, an end past the other swaps with it,
+  a press outside carries the whole loop there. Setting it turns Loop on. With Loop off it's only outlined. Purple is SHERBET's Orchid, borrowed:
+  the palette's only one, 4.77:1 under white numbers. Black on white in high contrast. On the keyboard its two ends are sliders.
+- Sounds lists 68 named sounds from BeepBox's own instrument list by kind, picked for a dusty 90s hip-hop and Samurai Champloo feel, as well as the
+  plain waves. MIT, settings for the synth rather than recordings, no sound files: about 34 KB of text. Moving down a list with the arrow keys plays
+  each one.
+
 ## Not in scope
 The NVDA run and listening tests stay on Luke's list. Phone layout beyond "doesn't break": phones get the zoomed-out desktop.

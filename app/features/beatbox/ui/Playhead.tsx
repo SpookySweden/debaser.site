@@ -5,12 +5,11 @@ import type { PlayheadSpot, Transport } from "./app";
 
 /** A note the playhead is on right now. */
 export interface HitNote {
-  /** Which visible row it's in, counting from the top. */
+  /** Which row it's in, counting from the top. */
   readonly row: number;
-  readonly name: string;
 }
 
-/** The thick outline over the column being played. It jumps; it never slides. */
+/** The thick outline over the column being played. It jumps; it never slides. It's only drawn while the song plays, so it costs nothing otherwise. */
 export function Playhead({
   transport,
   columnOf,
@@ -54,16 +53,14 @@ export function Playhead({
         <div
           key={hit.row}
           aria-hidden="true"
-          className="pointer-events-none absolute z-10 flex items-center justify-center overflow-hidden text-center leading-none font-bold wrap-anywhere text-bb-black bb-sunk motion-safe:bg-bb-flavine"
+          className="pointer-events-none absolute z-10 bb-sunk motion-safe:bg-bb-flavine"
           style={{
             left,
             top: `calc(var(--head-h, var(--cell)) + var(--cell-h, var(--cell)) * ${hit.row})`,
             width: "var(--cell-w, var(--cell))",
             height: "var(--cell-h, var(--cell))",
           }}
-        >
-          <span className="motion-reduce:hidden">{hit.name}</span>
-        </div>
+        />
       ))}
     </>
   );

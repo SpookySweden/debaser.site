@@ -10,7 +10,11 @@
   --pink: var(--dye-brilliant-pink); /* notes, text OK */
   --rose: var(--dye-rose); /* large shapes only, never small text (3.8:1) */
   --royal-blue: var(--dye-royal-blue); /* fills only, with white text on top (1.9:1 as text) */
+  --loop: var(--dye-orchid); /* the loop bar, borrowed from SHERBET: the palette's only purple, as BeepBox's bar is */
+  --on-loop: var(--dye-white); /* words on the loop bar, 4.77:1 */
   --black: var(--dye-black); /* high-contrast theme background */
+  --quiet: var(--dye-ash); /* a key that can't do anything right now */
+  --rail-track: var(--royal-blue); /* the rail beside a view, under its white mark */
 
   /* Sizes */
   --target-min: 44px; /* smallest button or pad */
@@ -28,15 +32,13 @@
   --cell-line: 2px;
   --grid-line: var(--royal-blue);
   --beat-line: 4px;
-  --cell-s: 32px; /* note grid sizes: S is the only size below --target-min */
-  --cell-m: 44px;
-  --cell-l: 64px;
-  --cell-xl: 96px;
   --text-s: 0.8125rem; /* note names inside S cells */
   --text-m: 1rem;
   --text-l: 1.375rem;
   --text-xl: 2rem;
+  --text-glyph: 1.75rem; /* a key that's one glyph, big enough to read at a glance */
   --target-swatch: 20px; /* channel shape beside its name, decoration only */
+  --rail-width: 16px;
   --gutter: 16px;
   --gap: 32px;
   --text-title: clamp(2rem, 8.5vw, 6rem);
@@ -49,6 +51,10 @@
   --nigrosine: var(--dye-black);
   --royal-blue: var(--dye-black);
   --pink: var(--dye-white);
+  --loop: var(--dye-white);
+  --on-loop: var(--dye-black);
+  --quiet: var(--dye-white);
+  --rail-track: var(--dye-ash);
   --rose: var(--dye-white);
   --emerald: var(--dye-daffodil);
   --flavine: var(--dye-daffodil);

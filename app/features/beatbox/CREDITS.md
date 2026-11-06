@@ -8,6 +8,11 @@ npm package `beepbox` 4.2.0, by John Nesky: https://github.com/johnnesky/beepbox
 
 The example song on the demo page and in the engine tests comes from this package's README, under the same licence.
 
+Two things come from BeepBox's own editor (v4.2.2 of the same repository, same licence), not the package:
+- `engine/soundBank.ts`: the settings of the named sounds in the Sounds window, from its instrument list `editor/EditorConfig.ts`. They're
+  settings for this synth, not recordings: there are no sound files. The plain names are ours.
+- `ui/loopEdit.ts`: how the loop bar drags, worked out from `editor/LoopEditor.ts`.
+
 ```
 MIT License
 
