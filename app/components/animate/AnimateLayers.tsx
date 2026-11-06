@@ -2,7 +2,7 @@
 
 import { Fragment, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkOn, LABEL_COLOURS } from '../../lib/animate/colours';
-import { BLEND_LABELS, deleteRow, dropRow, newRow, selectRow, setRow, toggleRow, tweakRow } from '../../lib/animate/layers';
+import { BLEND_LABELS, applyTag, deleteRow, dropRow, newRow, selectRow, setRow, toggleRow, tweakRow } from '../../lib/animate/layers';
 import { depthOf, findNode, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
 import { isFigure, tagOf } from '../../lib/animate/tags';
@@ -140,11 +140,7 @@ function Details({ project, node }: { project: Project; node: LayerNode }) {
           value={node.tagId ?? ''}
           aria-label="Tag"
           data-animate-tag-select
-          onChange={(event) => {
-            const tagId = event.target.value === '' ? null : event.target.value;
-            setRow(node.id, { tagId }, 'TAG');
-            selectRow(node.id);
-          }}
+          onChange={(event) => applyTag(node.id, event.target.value === '' ? null : event.target.value)}
           className="frame min-w-0 flex-1 bg-paper px-1 py-0.5 font-mono text-key text-ink"
         >
           <option value="">{node.parent === null ? 'NONE' : 'FROM ITS FOLDER'}</option>
@@ -235,6 +231,9 @@ export default function AnimateLayers() {
         </button>
         <button type="button" className={PLATE_MEDIUM} onClick={() => newRow('folder')} title="SHIFT + G">
           [ + FOLDER ]
+        </button>
+        <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'tags' })} title="SHIFT + T">
+          [ TAGS ]
         </button>
       </div>
       <ul className="max-h-[50%] min-h-16 flex-1 overflow-y-auto border-y-line border-ink max-md:max-h-48">

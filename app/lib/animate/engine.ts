@@ -41,6 +41,8 @@ export type LiveStroke = {
   stabiliser: Stabiliser;
   /** Where the pen really is: the line trails it and catches up here when the pen lifts. */
   lastRaw: StrokePoint;
+  /** This stroke, an eraser on a Figure with Protect Lines off, cuts the lines as well. */
+  reachesLines: boolean;
   mask: PaintMask | null;
   /** The plane being cut live, for an eraser. */
   working: OffscreenCanvas | null;
@@ -577,7 +579,9 @@ export class AnimateEngine {
     const settings = state.brushes[brush];
     const live = liveBehaviours(state.project, node, state.smartOn);
     const first = this.pressurePoint(x, y, pressure, tilt, simulated);
-    const stabiliser = new Stabiliser(settings.stabiliser);
+    // A tag can ask for its own steadiness (Ink's is higher), unless the person has steadied this brush more themselves.
+    const tagSteady = tagBehaviours(state.project, node)?.layerDefaults.stabiliser ?? 0;
+    const stabiliser = new Stabiliser(Math.max(settings.stabiliser, tagSteady));
     const stroke: Stroke = {
       kind: 'stroke',
       id: `s_${Date.now().toString(36)}${Math.floor(Math.random() * 46656).toString(36)}`,
@@ -591,7 +595,7 @@ export class AnimateEngine {
       smartAtDrawTime: smartsForStroke(live),
     };
 
-    const liveStroke: LiveStroke = { layerId: node.id, plane, stroke, predicted: [], stabiliser, lastRaw: first, mask: null, working: null, workingKey: null };
+    const liveStroke: LiveStroke = { layerId: node.id, plane, stroke, predicted: [], stabiliser, lastRaw: first, reachesLines: figure && live !== null && !live.protectLines, mask: null, working: null, workingKey: null };
     if (BRUSH_SHAPES[brush].erases) {
       const cel = this.celForDrawing(node);
       if (cel === null) {
@@ -700,7 +704,9 @@ export class AnimateEngine {
     const live = this.live;
     if (live === null) return;
     const { stroke } = live;
-    if (useStudio.getState().brushes[stroke.brush].stabiliser > 0 && stroke.points.length > 1) stroke.points.push(live.lastRaw);
+    // The line ends where the pen did, however far a stabiliser had it trailing.
+    const end = stroke.points[stroke.points.length - 1];
+    if (stroke.points.length > 1 && (end[0] !== live.lastRaw[0] || end[1] !== live.lastRaw[1])) stroke.points.push(live.lastRaw);
     this.lastCommit = performance.now();
     const before = this.project;
     const node = findNode(before, live.layerId);
@@ -729,8 +735,23 @@ export class AnimateEngine {
         patches.push({ key, rect: bounds, before: copyBefore, after: copyRect(canvas, bounds) });
         this.planes.markDirty(key);
       }
+      let landed = addOp(after, cel.drawingId, live.plane, stroke);
+      // Protect Lines off: an eraser used on the colour goes through to the lines as well.
+      const lineKey = planeKey(cel.drawingId, 'line');
+      const lines = BRUSH_SHAPES[stroke.brush].erases && live.plane === 'colour' && live.reachesLines ? this.planes.peek(lineKey) : null;
+      if (lines !== null && bounds !== null) {
+        const lineCtx = lines.getContext('2d');
+        if (lineCtx !== null) {
+          const copyLines = copyRect(lines, bounds);
+          const lineStroke: Stroke = { ...stroke, id: `${stroke.id}l`, plane: 'line' };
+          paintStroke(lineCtx, lineStroke, bounds, null);
+          patches.push({ key: lineKey, rect: bounds, before: copyLines, after: copyRect(lines, bounds) });
+          this.planes.markDirty(lineKey);
+          landed = addOp(landed, cel.drawingId, 'line', lineStroke);
+        }
+      }
       this.live = null;
-      this.pushStep(stroke.brush === 'eraser' ? 'ERASE' : 'STROKE', before, addOp(after, cel.drawingId, live.plane, stroke), patches);
+      this.pushStep(stroke.brush === 'eraser' ? 'ERASE' : 'STROKE', before, landed, patches);
       // The whole frame goes back on `below` before the live stroke is wiped, so nothing flickers off between the two.
       this.paintNow();
       this.clearLiveCanvas();
