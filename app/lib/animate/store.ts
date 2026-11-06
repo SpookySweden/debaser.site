@@ -28,6 +28,11 @@ export type Settings = {
   shortcuts: Record<string, string>;
   defaultGap: number;
   bigBadge: boolean;
+  showLayers: boolean;
+  /** Everything but the sheet out of the way, for drawing at a big interface size. */
+  panelsHidden: boolean;
+  /** Stepping through frames plays each one's slice of sound. */
+  scrubSound: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -45,6 +50,9 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   defaultGap: 8,
   bigBadge: true,
+  showLayers: true,
+  panelsHidden: false,
+  scrubSound: true,
 };
 
 const SETTINGS_KEY = 'debaser.animate.settings';
@@ -69,7 +77,7 @@ export function saveSettings(settings: Settings): void {
 }
 
 export type SaveState = 'saved' | 'saving' | 'failed' | 'waiting';
-export type Panel = 'none' | 'settings' | 'keys' | 'projects' | 'export' | 'tags' | 'help' | 'onion';
+export type Panel = 'none' | 'settings' | 'projects' | 'export' | 'tags' | 'help' | 'onion' | 'sound';
 
 export type StudioState = {
   project: Project;
@@ -102,6 +110,12 @@ export type StudioState = {
   /** Strokes picked by the selection, for MAKE SMART. */
   selectedStrokes: number;
   shiftTraceOn: boolean;
+  traceMode: 'move' | 'turn' | 'scale';
+  traceSide: 'prev' | 'next';
+  /** An export under way, in words, or null. */
+  exportProgress: string | null;
+  /** Counts up as sounds finish decoding, so what draws them can look again. */
+  soundReady: number;
 };
 
 export const useStudio = create<StudioState>(() => ({
@@ -128,6 +142,10 @@ export const useStudio = create<StudioState>(() => ({
   hasSelection: false,
   selectedStrokes: 0,
   shiftTraceOn: false,
+  traceMode: 'move',
+  traceSide: 'prev',
+  exportProgress: null,
+  soundReady: 0,
 }));
 
 export function loadStoredSettings(): void {

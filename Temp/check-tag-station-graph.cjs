@@ -134,8 +134,8 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.ok(!/client|supabase|\.rpc\(/i.test(fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station/graph.ts'), 'utf8')), 'the graph builder reaches no database');
   for (const file of ['repository.ts', 'supabase-tag-repository.ts', 'mock-tag-repository.ts', 'graph-cache.ts']) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station', file), 'utf8');
-    assert.ok(!/\.(insert|update|upsert|delete)\(/.test(source), `${file} writes nothing`);
-    assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => name !== 'web_tag_limit_reached'), [], `${file} only asks whether the limit is reached`);
+    assert.ok(!/\.(insert|update|upsert|delete|upload|remove)\(/.test(source), `${file} writes nothing`);
+    assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => !['web_tag_limit_reached', 'web_pool_shards_for'].includes(name)), [], `${file} only asks whether the limit is reached, and which files hold a word`);
   }
   assert.ok(MOCK_STATION_ROWS.length >= 30, 'the mock has enough to draw');
 
@@ -155,6 +155,30 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.equal(reads, 1, 'kept for three hours, as the words change no faster');
   await stationGraph(read, 1000 + 181 * 60 * 1000);
   assert.equal(reads, 2, 'read again after it');
+  // Packed for every server to share: small enough for the cache's 2 MB an item, and back exactly as it went in.
+  const zlib = require('node:zlib');
+  const bigMap = buildStationGraph(Array.from({ length: 1800 }, (_, i) => row(`shared-${i}`, [`theme ${i % 400}`, `mood ${i % 60}`, `era ${i % 30}`, 'jazz'])));
+  const bigJson = JSON.stringify({ graph: bigMap, facts: [] });
+  const bigPacked = zlib.brotliCompressSync(Buffer.from(bigJson)).toString('base64');
+  assert.ok(bigPacked.length < 1_900_000, `a big map packs to ${bigPacked.length} letters`);
+  const sharedSource = fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station/graph-shared.ts'), 'utf8');
+  assert.ok(/stationIncomplete\(\)/.test(sharedSource) && /throw new Error\('MAP_NOT_SHARED'\)/.test(sharedSource), 'a map missing part of the pool is never shared');
+  for (const route of ['graph', 'more']) {
+    const routeSource = fs.readFileSync(path.join(__dirname, '..', `app/api/tag-station/${route}/route.ts`), 'utf8');
+    assert.ok(routeSource.indexOf('webSignedIn(request)') > 0 && routeSource.indexOf('webSignedIn(request)') < routeSource.indexOf('sharedStationMap(') , `${route}: the session is checked before the shared map is asked for`);
+  }
+  // A map built while part of the pool couldn't be read is only kept 5 minutes: live, one bad read blanked the lists for 3 hours.
+  let poolReads = 0;
+  const shortPool = async () => {
+    poolReads += 1;
+    return { rows: [], swept: { counted: 0, words: [] }, incomplete: true };
+  };
+  const later = 1e12;
+  await stationGraph(read, later, async () => false, async () => [], shortPool);
+  await stationGraph(read, later + 4 * 60 * 1000, async () => false, async () => [], shortPool);
+  assert.equal(poolReads, 1, 'kept for a few minutes');
+  await stationGraph(read, later + 6 * 60 * 1000, async () => false, async () => [], shortPool);
+  assert.equal(poolReads, 2, 'then read again');
 
   // 11. Browser code never brings in the UMAP library or the server's build.
   const walk = (dir) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => (entry.isDirectory() ? walk(path.join(dir, entry.name)) : [path.join(dir, entry.name)]));

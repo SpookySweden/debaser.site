@@ -3,8 +3,17 @@
 import { useEffect } from 'react';
 import { attachKeys } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
-import { loadStoredSettings, useStudio } from '../../lib/animate/store';
+import { loadStoredSettings, updateSettings, useStudio } from '../../lib/animate/store';
+import { PLATE_MEDIUM } from '../../lib/ui/controls';
+import '../../lib/animate/layers';
+import { installSelection } from '../../lib/animate/selection';
+import { installPictures } from '../../lib/animate/picture';
+import { stopPlaying } from '../../lib/animate/playback';
+import { installSmarts } from '../../lib/animate/smart';
+import { installSound } from '../../lib/animate/sound';
+import { installTrace } from '../../lib/animate/trace';
 import '../../lib/animate/timeline';
+import AnimateLayers from './AnimateLayers';
 import AnimateNotice from './AnimateNotice';
 import AnimatePanels from './AnimatePanels';
 import AnimateStage from './AnimateStage';
@@ -17,10 +26,17 @@ export default function AnimateStudio() {
   const full = useStudio((state) => state.settings.full);
   const uiScale = useStudio((state) => state.settings.uiScale);
   const leftHanded = useStudio((state) => state.settings.leftHanded);
+  const showLayers = useStudio((state) => state.settings.showLayers);
+  const panelsHidden = useStudio((state) => state.settings.panelsHidden);
 
   useEffect(() => {
     loadStoredSettings();
     const engine = getEngine();
+    installSelection();
+    installSmarts();
+    installTrace();
+    installSound();
+    installPictures();
     void engine.start();
     const detachKeys = attachKeys();
 
@@ -38,6 +54,8 @@ export default function AnimateStudio() {
     document.addEventListener('visibilitychange', hide);
     return () => {
       detachKeys();
+      // The sheet is gone: nothing keeps playing behind another page.
+      stopPlaying(engine);
       window.removeEventListener('beforeunload', guard);
       document.removeEventListener('visibilitychange', hide);
       void engine.autosave();
@@ -55,23 +73,44 @@ export default function AnimateStudio() {
       }}
       className={
         full
-          ? 'fixed inset-0 z-overlay flex flex-col bg-paper text-ink select-none max-md:overflow-y-auto'
-          : 'flex h-full min-h-[32rem] flex-col text-ink select-none max-md:h-auto'
+          ? 'fixed inset-0 z-overlay flex flex-col overflow-y-auto bg-paper text-ink select-none'
+          : 'relative flex h-full min-h-[32rem] flex-col overflow-y-auto text-ink select-none max-md:h-auto'
       }
     >
-      <div className="shrink-0" style={{ zoom: uiScale }}>
-        <AnimateTopBar />
-      </div>
-      <div className={`flex min-h-0 flex-1 max-md:flex-none max-md:flex-col ${leftHanded ? 'flex-row-reverse' : ''}`}>
-        <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto max-md:overflow-visible" style={{ zoom: uiScale }}>
-          <AnimateTools />
+      {!panelsHidden && (
+        <div className="shrink-0" style={{ zoom: uiScale }}>
+          <AnimateTopBar />
         </div>
+      )}
+      {/* The sheet always keeps a good share of the screen: at a big interface size the rest scrolls, rather than squeezing the sheet out. */}
+      <div className={`flex flex-1 shrink-0 max-md:flex-none max-md:flex-col ${full ? 'min-h-[50vh]' : 'min-h-[30vh]'} ${leftHanded ? 'flex-row-reverse' : ''}`}>
+        {!panelsHidden && (
+          <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto max-md:overflow-visible" style={{ zoom: uiScale }}>
+            <AnimateTools />
+          </div>
+        )}
         <AnimateStage />
+        {!panelsHidden && showLayers && (
+          <div className="flex min-h-0 shrink-0 flex-col max-md:shrink" style={{ zoom: uiScale }}>
+            <AnimateLayers />
+          </div>
+        )}
       </div>
       <div className="shrink-0" style={{ zoom: uiScale }}>
-        <AnimateTimeline />
+        {!panelsHidden && <AnimateTimeline />}
         <AnimateNotice />
       </div>
+      {panelsHidden && (
+        <button
+          type="button"
+          className={`${PLATE_MEDIUM} absolute right-2 top-2 z-30 bg-paper`}
+          style={{ zoom: uiScale }}
+          title="`"
+          onClick={() => updateSettings({ panelsHidden: false })}
+        >
+          [ SHOW PANELS ]
+        </button>
+      )}
       <AnimatePanels />
     </section>
   );

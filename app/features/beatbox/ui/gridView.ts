@@ -5,31 +5,45 @@ export type CellSize = "s" | "m" | "l" | "xl";
 
 export const CELL_SIZES: readonly CellSize[] = ["s", "m", "l", "xl"];
 
-/** How many rows to show at once, so the controls stay near the grid. */
-const ROWS_AT_SIZE: Record<CellSize, number> = { s: 25, m: 18, l: 13, xl: 9 };
-const MIN_FOCUS_ROWS = 5;
-
-export function visibleRowCount(size: CellSize, totalRows: number): number {
-  return Math.min(ROWS_AT_SIZE[size], totalRows);
+/**
+ * The note grid fills the room it's given: as many whole beats and rows as fit at this size, each cell then stretched so
+ * no room is left over. The row names take a quarter of a cell more than the notes.
+ */
+export interface GridFit {
+  readonly rows: number;
+  readonly columns: number;
+  readonly cellWidth: number;
+  readonly cellHeight: number;
+  readonly headHeight: number;
+  readonly nameWidth: number;
 }
 
-/** Focus view shows as many rows as the screen has room for, leaving one for the headings. */
-export function rowsThatFit(height: number, cellHeight: number, totalRows: number): number {
-  const fits = Math.floor(height / cellHeight) - 1;
-  return Math.max(MIN_FOCUS_ROWS, Math.min(fits, totalRows));
-}
+const MIN_FIT_ROWS = 4;
+const HEAD_SHARE = 0.6;
+const NAME_SHARE = 1.25;
 
-/** Whole beats where they fit, since that's easier to read. At least one column. */
-export function visibleColumnCount(
-  gridWidth: number,
-  cellWidth: number,
+export function fitGrid(
+  width: number,
+  height: number,
+  cell: number,
   stepsPerBeat: number,
   totalColumns: number,
-): number {
-  // One more cell's width is taken by the row names.
-  const fits = Math.max(1, Math.floor(gridWidth / cellWidth) - 1);
-  const wholeBeats = fits - (fits % stepsPerBeat);
-  return Math.min(wholeBeats > 0 ? wholeBeats : fits, totalColumns);
+  totalRows: number,
+): GridFit {
+  const headHeight = Math.round(cell * HEAD_SHARE);
+  const nameWidth = Math.round(cell * NAME_SHARE);
+  const fitsAcross = Math.max(1, Math.floor((width - nameWidth) / cell));
+  const wholeBeats = fitsAcross - (fitsAcross % stepsPerBeat);
+  const columns = Math.min(wholeBeats > 0 ? wholeBeats : fitsAcross, totalColumns);
+  const rows = Math.min(totalRows, Math.max(MIN_FIT_ROWS, Math.floor((height - headHeight) / cell)));
+  return {
+    rows,
+    columns,
+    cellWidth: Math.max(cell, Math.floor((width - nameWidth) / columns)),
+    cellHeight: Math.max(cell, Math.floor((height - headHeight) / rows)),
+    headHeight,
+    nameWidth,
+  };
 }
 
 /** Columns move a page at a time. */

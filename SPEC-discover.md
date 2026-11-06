@@ -59,14 +59,14 @@ Don't let the pool grow without a plan. What to store is the design to get right
   with most swept items dropped once counted. Only keep full rows for a bounded set that can actually be offered to people.
 - Other options if that isn't enough: compressed files in Supabase Storage or Vercel, or running the sweep from Luke's PC and
   publishing compact results. Compare costs, pick one, say why.
-- **Not on the table:** extra free accounts or anything else that dodges a provider's limits or terms. If paid space is the
+- **Not on the table:** repeated free accounts at one provider, which risk the site being shut off. If paid space is the
   honest answer, tell Luke the price and let him choose.
 
 ## Data rules from the sources' own terms (checked 2026-11-05)
-- **Nothing from TMDB goes to Claude.** TMDB's API terms exclude use with machine-learning or AI applications, and exclude
-  derivatives. So KINO titles and media-server details never enter tagging, the word pass, the sweep or the pool, and they
-  aren't used as the basis of recommendations. As of today none has: `web_items` holds no `kino` or server rows. Add a check
-  that fails if a platform carrying TMDB text can reach a batch.
+- **TMDB: Luke's decision (2026-11-06), "remove the rukes about tmdb because i didnt ask for them".** The rule that nothing from
+  TMDB goes to Claude, and its check, are gone. It's his call and his TMDB account. The risk, told to him once: TMDB's API terms
+  still exclude AI use, so TMDB could revoke the key, which would break KINO. KINO titles and TMDB details may be tagged and
+  recommended through the server's `TMDB_READ_TOKEN`. Not built yet: Wikidata already supplies the same films, and nothing needs it to reach $60.
 - **Internet Archive:** a descriptive User-Agent with no personal address, delays between requests, honour 429 and
   `Retry-After`, prefer batch calls, cache. No stated number, so start gently.
 - **Openverse:** its documents give no numbers for rates or paging depth, so measure and back off. Authenticate only if Luke
@@ -99,33 +99,29 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **A run:** `/api/web/sweep`, every three hours at minute 11, `app/lib/web/sweep.ts`: up to 4,000 from Internet Archive's named
   collections (450,308 items in them on the day), 1,000 from PeerTube, 60 from Openverse, 500 films and shows from Wikidata, 250 shows from
   TVmaze. Reading stops at 25 seconds, and it sends what it has.
-- **Money:** $50 for the sweep, and the $60 stop overall. About 3.5 cents per 1,000 items, measured on the last real batch.
+- **Money:** the $60 stop overall, which the sweep may use all of (Luke, 2026-11-06). About 3.3 cents per 1,000 items, measured.
 - **Wikipedia and TVmaze words:** they go to Claude and aren't stored or shown; the page's `[ ? ]` credits all three with links.
   CC BY-SA's share-alike may reach the words Claude picks, which is a question for a lawyer rather than something the code can settle.
 
-## Where this stands (end of 2026-11-05, Luke's limit running out)
-**Live on main:** the rename to DISCOVER at `/discover`, and the sweep (`/api/web/sweep`, cron `web-sweep` at minute 11 every three hours, tables in). Paid jobs that will run
-overnight, all inside the stops: tagging at minute 41, the word pass, the sweep. At most about $1.40 a day for the sweep; it stops at $50, everything at $60.
+## Where this stands (2026-11-06, the ramp)
+**Live on main:** the rename to DISCOVER at `/discover`, `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters (blank until 10,000 are tagged), presets, and the sweep.
 
-**Not live, finished but unproved:** branch `feature/discover-recommending` holds `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters, presets, and DISCOVER's videos through
-the floating player. Its migration `supabase/migrations/20261105153646_web_recommendations.sql` is **not applied**. Luke OK'd those tables. Still owed, in order: fix what its review found (below), run verify and the whole `npm run checks`, rebase on main, apply the migration, push, confirm live. `check-tag-station-picks` covers it.
+**The ramp (Luke, 2026-11-06: "ramp up the tagigng batches massively"):** `web-sweep` every 2 minutes, one run at a time (`web_sweep_claim`), up to 5 batches out. Before a batch goes
+out its worst case is reserved in `web_sweep_batches`, all at once in the database (`web_sweep_reserve`), against $59.40, leaving $0.60 for the tagging job and the word pass; all three read
+`web_tag_committed`, so what's in flight can't pass the $60. Measured: 3.3 cents per 1,000 items.
 
-**That branch's code review came back. Fix these before it goes live:**
-1. `WebStream.tsx`: a search does nothing visible while RECOMMENDED or DISCOVER is on, because `start()` never clears `picked`, and the list reappears over a search after STREAM ART. Clear it in `start()`, keeping it for sort-only changes.
-2. `recommendations.ts`: the reader's own list is kept for the page load and survives signing out, so a second account on the same page sees the first one's keys as on, and pressing one sends a removal. Key it to the user id.
-3. Consider saying at the `[ RECOMMEND ]` key or on the list that a name, picture and status show; today only the PRIVACY tab says so.
-4. Two caps meet: `web_request_add` allows 50 a day and quietly skips the rest, so a recommendation past that can exist without its item ever being saved, and it never shows.
-The review found the migration safe to apply and nothing from TMDB reachable. The branch's verify and whole-suite run was not read before stopping.
+**Sources:** the named collections first, then everything public on the Internet Archive (Luke, 2026-11-06, "Everything public"), 74 million items, skipping adult-flagged, restricted and dark ones. The $60
+reaches about 2% of it, and the Archive lists by name, so it takes turns through first letters and what gets tagged is a spread. Copied items and junk can get through: the rows link to the Archive and nothing is
+copied here. PeerTube goes back by date past Sepia's 9,000-row limit.
 
-**To check first tomorrow:**
-1. First real costs: `web_tag_spend`, and the cron's answers in `net._http_response`. The 15:41 batch (257 items) is collected at 18:41 UTC, the first sweep (18:11) at 21:11.
-   Tell Luke the real cost per thousand.
-2. The word pass: at 15:41 its first call, `web_word_pending`, got a 500 from PostgREST with nothing in the database's logs, and the answer was `words: { failed: 'Error' }`, so it hasn't run. The function
-   answers a wrong lock correctly. It tries again each run; `web_word_facts` having rows means it recovered. The branch above adds which call failed and its code to that answer.
-3. Whether the sweep reads and sends as expected: its answer's `read` per source, `web_sweep_state`, and how long a run takes against Vercel's 60 seconds.
+**Past the database limit (Luke, 2026-11-06: "find a way around the database limit"):** compressed files in Supabase Storage, the private bucket `web-pool` (`app/lib/web/pool-files.ts`): about 43 bytes an
+Archive item and 84 a PeerTube one, against about 520 for a database row. `web_pool_shards` lists which words are in which file, so a list reads the few files holding its words
+(`/api/tag-station/more`). Only a sample of each batch stays as rows. The stops still in code: 300 MB of database, because the plan goes read-only at 500 and the whole site needs it, and 800 MB of the 1 GB of files.
+
+**Bulk public dumps: looked at, and not needed to reach $60.** Wikidata's dump is 157 GB compressed, Wikipedia's 26 GB, Open Library's 17 GB. The APIs already supply far more items than $60 can tag, so a
+local job would add days of download and a Claude key on the PC without tagging one item sooner. Worth coming back to if more money is ever spent on this.
 
 **Known and left:**
-- DISCOVER's page draws a video in the page rather than through the floating player until the branch above lands (frontend.md's rule).
 - `check-privacy-defaults` fails on a checkout with CRLF line endings, because it compares whole lines. It isn't caused by this work.
 - `check-visitor-limits` needs the database settings in `.env.local`, and passes with them.
 - Wikidata has no ordering in its paged list, so a run can skip or repeat a film; repeats are filtered, skips are lost. Wikipedia's words reach Claude under CC BY-SA, a question for a lawyer.

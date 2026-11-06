@@ -7,6 +7,7 @@ which licence that should be is Luke's call (SPEC-animator.md).
 |---|---|---|---|
 | perfect-freehand 1.2.3 (Steve Ruiz) | Turns pen points into a pressure-sensitive outline | MIT | https://github.com/steveruiz/perfect-freehand |
 | gifenc 1.0.3 (Matt DesLauriers) | GIF export | MIT | https://github.com/mattdesl/gifenc |
+| mediabunny 1.65.2 (Vanilagy) | MP4 and WebM export, through the browser's own encoders. Used as an untouched package | MPL-2.0 | https://github.com/Vanilagy/mediabunny |
 
 ## Ideas, not code
 The gap-closing and region work is written from the published paper: Fourey, Tschumperlé and Revoy, "A Fast and Efficient

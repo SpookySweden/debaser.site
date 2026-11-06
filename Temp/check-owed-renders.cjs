@@ -1,6 +1,6 @@
 /*
  * Scratch check for the ten components that arrived with no render (check-structure's OWED_RENDERS), run from the root:
- *   npx tsc app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/StreamAddKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/WatchInRoomKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-owed-renders.cjs
  *
  * What it is for: a server render shows a component's first paint and nothing else, and most of these read their data in
@@ -237,6 +237,8 @@ let cursor = 'contrast';
 let catalogue = { entries: [], items: [] };
 let commentCount = 0;
 let playerNow = { queue: [], track: undefined, playing: false };
+/** What the last GO LIVE or WATCH IN ROOM window asked for. */
+let lastChoice = null;
 
 const FORUM = {
   commentCountForAnchor: (anchor) => {
@@ -326,7 +328,10 @@ override('./owed-render/lib/media/catalogue.js', { useCatalogue: () => catalogue
 override('./owed-render/lib/ui/cursor-slot.js', { cursorState: () => ({ id: cursor }) });
 override('./owed-render/lib/watch/repository.js', { getWatchRepository: () => watchRepo });
 override('./owed-render/lib/watch/canvas-repository.js', { getCanvasRepository: () => canvasRepo });
-override('./owed-render/lib/watch/go-live.js', { goLiveEmpty: async (user, createThread) => say('goLiveEmpty', user.id, createThread === FORUM.createThread) });
+override('./owed-render/lib/watch/go-live.js', { goLiveEmpty: async (user, createThread, choice) => {
+    lastChoice = choice;
+    say('goLiveEmpty', user.id, createThread === FORUM.createThread);
+  } });
 override('./owed-render/lib/watch/use-music-room.js', {
   useLiveRooms: () => ({ rooms: liveRooms, error: null }),
   enterRoom: (...args) => say('enterRoom', ...args),
@@ -363,8 +368,8 @@ const { liveRows, useLiveStreams } = require('./owed-render/components/CytubeLiv
 const CytubePage = require('./owed-render/components/CytubePage.js').default;
 const MusicRoomKeeper = require('./owed-render/components/MusicRoomKeeper.js').default;
 const StreamArtShelf = require('./owed-render/components/StreamArtShelf.js').default;
-const { CYTUBE_HREF } = require('./owed-render/components/StreamAddKey.js');
-const { canWatch, WebDiscussKey, WebWatchKey, WebWatchPanel } = require('./owed-render/components/WebBridgeKeys.js');
+const WatchInRoomKey = require('./owed-render/components/WatchInRoomKey.js').default;
+const { canWatch, WebDiscussKey } = require('./owed-render/components/WebBridgeKeys.js');
 const WebMediaRowModule = require('./owed-render/components/WebMediaRow.js');
 const WebSignInGate = require('./owed-render/components/WebSignInGate.js').default;
 const WebSiteFiles = require('./owed-render/components/WebSiteFiles.js').default;
@@ -932,55 +937,84 @@ test('WebBridgeKeys: DISCUSS counts the item\'s own thread and opens a window fi
   assert.ok(html.includes(`data-comments="${anchor.id}"`));
   assert.ok(html.includes(`data-comments-label="${anchor.label}"`));
 });
-// Renamed on purpose 2026-11-05 (Luke): the key reads ADD TO ROOM, which is what it does.
-test('WebBridgeKeys: ADD TO ROOM is offered for a video on a platform with a player, never for a picture, and shows when it is open', () => {
+// Replaced on purpose 2026-11-06 (SPEC-floating-player.md, part 3): one key for the situation, in place of WATCH/ADD TO ROOM's
+// panel and the catalogue's STREAM key. Who may add, and where it goes, is unchanged.
+const source = () => ({ link: watchLinkForItem(VIDEO) });
+const roomKey = (seedsFor) => draw(el(WatchInRoomKey, { source: source(), playId: 'web:v', title: 'A Train Film' }), seedsFor);
+test('WatchInRoomKey: a room is only offered for what can play in one', () => {
   assert.equal(canWatch(VIDEO), true);
   assert.equal(canWatch(PICTURE), false);
   assert.equal(canWatch(FILM), false, 'a media server plays on its own row only');
-  const shut = draw(el(WebWatchKey, { item: VIDEO, open: false, onToggle: () => say('toggled') }));
-  assert.match(openingTag(shut, '[ ADD TO ROOM ]'), /aria-expanded="false"/);
-  assert.match(openingTag(shut, '[ ADD TO ROOM ]'), /aria-label="Add &quot;/);
-  press('[ ADD TO ROOM ]');
-  assert.deepEqual(said('toggled'), [['toggled']]);
-  assert.match(openingTag(draw(el(WebWatchKey, { item: VIDEO, open: true, onToggle: () => undefined })), '[ ■ ADD TO ROOM ]'), /aria-expanded="true"/);
 });
-test('WebBridgeKeys: the panel sends a visitor to sign in, and anybody without a room of theirs to CYTUBE', () => {
+test('WatchInRoomKey: a visitor has no key', () => {
   auth = { status: 'signed-out', user: null };
-  assert.ok(visible(draw(el(WebWatchPanel, { item: VIDEO }))).includes('SIGN IN AND GO LIVE ON'));
-  auth = { status: 'signed-in', user: USER };
-  let html = draw(el(WebWatchPanel, { item: VIDEO }));
-  assert.ok(visible(html).includes("YOU'RE NOT HOSTING A STREAM ROOM"));
-  assert.ok(html.includes(`href="${CYTUBE_HREF}"`), 'a link to the page where a room is started');
-  assert.ok(!html.includes('ADD TO QUEUE'));
-  // In somebody else's room with no crown: the same, and no key to add.
-  watching = { userId: USER.id, roomId: 'room-1', hosting: false };
-  watchRead = { room: room(), queue: [], crowns: [] };
-  html = draw(el(WebWatchPanel, { item: VIDEO }));
-  assert.ok(visible(html).includes("YOU'RE NOT HOSTING A STREAM ROOM"));
-  assert.ok(!html.includes('ADD TO QUEUE'));
+  assert.equal(roomKey(), '');
 });
-test('WebBridgeKeys: a crown in the room adds to its queue, as the next place, then tells the room to refresh', async () => {
+test('WatchInRoomKey: in no room, it reads WATCH IN ROOM, and a press only opens the menu', () => {
+  auth = { status: 'signed-in', user: USER };
+  watching = null;
+  const html = roomKey();
+  assert.match(openingTag(html, '[ WATCH IN ROOM ]'), /aria-haspopup="dialog"/);
+  assert.ok(!visible(html).includes('[ ADD TO ROOM ]'), 'one key, never both');
+  asked = [];
+  press('[ WATCH IN ROOM ]');
+  assert.deepEqual(said('goLiveEmpty'), [], 'a stray press starts nothing');
+});
+test('WatchInRoomKey: the menu names the video, with PRIVATE picked, and START passes the choices and where it had got to', async () => {
+  auth = { status: 'signed-in', user: USER };
+  watching = null;
+  const html = roomKey({ WatchInRoomKey: slots(true) });
+  assert.ok(html.includes('data-window="WATCH IN ROOM"'));
+  assert.ok(visible(html).includes('A Train Film'));
+  for (const word of ['ROOM NAME', 'TOPIC', 'WHO CAN ADD:', 'WHO CAN JOIN:', '[ START ]']) assert.ok(visible(html).includes(word), word);
+  assert.match(html, /aria-checked="true"[^>]*data-room-privacy="private"/);
+  floating.notePlace('web:v', 42);
+  asked = [];
+  lastChoice = null;
+  drawn.find(({ type }) => type === 'form').props.onSubmit({ preventDefault: () => undefined });
+  await tick();
+  floating.notePlace('web:v', null);
+  assert.deepEqual(said('goLiveEmpty'), [['goLiveEmpty', USER.id, true]]);
+  assert.deepEqual(lastChoice, { privacy: 'private', start: { name: '', topic: '', addMode: 'anyone', first: source(), place: 42 } });
+});
+test('WatchInRoomKey: holding a crown, it reads ADD TO ROOM, and one press goes to the back of the queue', async () => {
+  auth = { status: 'signed-in', user: USER };
   watching = { userId: USER.id, roomId: 'room-1', hosting: false };
   watchRead = { room: room(), queue: [{ position: 4 }], crowns: [{ userId: USER.id }] };
   readRoomAnswer = watchRead;
-  draw(el(WebWatchPanel, { item: VIDEO }));
-  press('[ + ADD TO QUEUE ]');
+  const html = roomKey();
+  assert.ok(visible(html).includes('[ ADD TO ROOM ]') && !visible(html).includes('[ WATCH IN ROOM ]'), 'one key, never both');
+  asked = [];
+  press('[ ADD TO ROOM ]');
   await tick();
   assert.deepEqual(said('addToQueue'), [['addToQueue', { roomId: 'room-1', link: watchLinkForItem(VIDEO), addedBy: USER.id, position: 5, inQueue: true }]]);
   assert.deepEqual(said('applyLocalChange'), [['applyLocalChange', 'room-1', { kind: 'refresh' }]]);
 });
-test('WebBridgeKeys: a host with the crown off adds to their list; a room gone quiet takes nothing', async () => {
-  watching = { userId: USER.id, roomId: 'room-1', hosting: true };
-  watchRead = { room: room({ hostId: USER.id }), queue: [], crowns: [] };
+test('WatchInRoomKey: in somebody else\'s room with no crown, it goes on your own list', async () => {
+  auth = { status: 'signed-in', user: USER };
+  watching = { userId: USER.id, roomId: 'room-1', hosting: false };
+  watchRead = { room: room(), queue: [], crowns: [] };
   readRoomAnswer = watchRead;
-  draw(el(WebWatchPanel, { item: VIDEO }));
-  press('[ + ADD TO QUEUE ]');
+  roomKey();
+  asked = [];
+  press('[ ADD TO ROOM ]');
   await tick();
   assert.equal(said('addToQueue')[0][1].inQueue, false);
-  asked = [];
+});
+test('WatchInRoomKey: a crowns-only room you hold no crown in takes nothing, so the key starts your own', () => {
+  auth = { status: 'signed-in', user: USER };
+  watching = { userId: USER.id, roomId: 'room-1', hosting: false };
+  watchRead = { room: room({ addMode: 'crowns' }), queue: [], crowns: [] };
+  assert.ok(visible(roomKey()).includes('[ WATCH IN ROOM ]'));
+});
+test('WatchInRoomKey: a room gone quiet takes nothing', async () => {
+  auth = { status: 'signed-in', user: USER };
+  watching = { userId: USER.id, roomId: 'room-1', hosting: true };
+  watchRead = { room: room({ hostId: USER.id }), queue: [], crowns: [] };
   readRoomAnswer = { ...watchRead, room: room({ hostId: USER.id, updatedAt: ago(600) }) };
-  draw(el(WebWatchPanel, { item: VIDEO }));
-  press('[ + ADD TO QUEUE ]');
+  roomKey();
+  asked = [];
+  press('[ ADD TO ROOM ]');
   await tick();
   assert.deepEqual(said('addToQueue'), []);
 });
@@ -1119,7 +1153,7 @@ test('WebSiteFiles: a video loads no player until asked, and only a signed-in re
   const video = file('video');
   let html = draw(el(WebSiteFiles, { matches: [video] }));
   assert.ok(!html.includes('<video'));
-  assert.ok(html.includes(`href="${CYTUBE_HREF}"`), 'signed in, not hosting: to the page where a room is started');
+  assert.ok(visible(html).includes('[ WATCH IN ROOM ]'), 'signed in, in no room: it can start one');
   // Updated on purpose 2026-11-05 (SPEC-floating-player.md): a box in the row, the <video> in the one layer.
   press(`Play "${video.item.title}" here`);
   html = draw(el(WebSiteFiles, { matches: [video] }));
@@ -1130,7 +1164,7 @@ test('WebSiteFiles: a video loads no player until asked, and only a signed-in re
   press(`Close the player for "${video.item.title}"`);
   assert.equal(floating.floatingState().entry, null);
   auth = { status: 'signed-out', user: null };
-  assert.ok(!draw(el(WebSiteFiles, { matches: [video] })).includes(`href="${CYTUBE_HREF}"`));
+  assert.ok(!visible(draw(el(WebSiteFiles, { matches: [video] }))).includes('[ WATCH IN ROOM ]'), 'a visitor has no room key');
 });
 test('WebSiteFiles: a picture opens larger when asked, and shows no PLAY', () => {
   const image = file('image');
@@ -1233,7 +1267,7 @@ test('WebStream: a row names its source, its words as text, and links only where
   const also = { ...VIDEO, id: 'vimeo:123', platform: 'vimeo', externalId: '123', url: 'https://vimeo.com/123', title: 'A Train Film' };
   const html = draw(el(WebStream), arrived([{ ...VIDEO, alsoOn: [also] }]));
   const words = visible(html);
-  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', 'YOUTUBE', '[ OPEN ↗ ]', '[ ▶ PLAY ]', '[ DISCUSS ]', '[ ADD TO ROOM ]', 'ALSO ON', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
+  for (const word of ['A Train Film', 'Prelinger', 'VIDEO', '2026-10-01', 'YOUTUBE', '[ OPEN ↗ ]', '[ ▶ PLAY ]', '[ DISCUSS ]', '[ WATCH IN ROOM ]', 'ALSO ON', '[ VIMEO ↗ ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OPEN ↗ ]'), new RegExp(`href="https://youtu\\.be/${YT_ID}"`));
   assert.ok(html.includes(`src="https://i.ytimg.com/vi/${YT_ID}/hqdefault.jpg"`) && html.includes('referrerPolicy="no-referrer"'));
   assert.ok(html.includes('&lt;b&gt;not markup&lt;/b&gt;') && !html.includes('<b>not markup'));

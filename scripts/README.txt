@@ -18,6 +18,14 @@ The distinction is deliberate:
                 Temp/check-resend.cjs stays ignored: it holds a mailbox password, and the repo is public.
     scripts/    tools that outlive a session, and that a rule points at by name.
 
+drive-animate.cjs
+-----------------
+    node scripts/drive-animate.cjs --url <address>/animate [--only phase0,phase1,...] [--out <dir>]
+
+ANIMATE (SPEC-animator.md) in a real browser, with made-up pen events: what `Temp/check-animate-*.cjs` can't reach (canvases,
+storage, workers, keys, exports). A live check, run by hand against the mock server or the deployed site. It uses a throwaway browser profile,
+and never signs in. It proves the numbers, not the feel: `docs/animate-pen-list.md` is what only a real pen can answer.
+
 run-checks.cjs
 --------------
     npm run checks                      every check, in both directories
@@ -135,6 +143,14 @@ drive-floating-player.cjs
 The floating player and the arrows in a real browser (SPEC-floating-player.md): that a playing video stays the same
 element with the same address through scrolling, PIP, dragging, other pages and the arrows, which a server render can't
 show. Not in `npm run checks`: it needs a running site and a network. It writes screenshots to `Temp/browse/float-*.png`.
+
+drive-watch-in-room.cjs
+-----------------------
+    node scripts/drive-watch-in-room.cjs --base http://localhost:3001 --mock        on the dev-mock server, one person
+    node scripts/drive-watch-in-room.cjs --base <site> --env-test <path>            live, as kept test accounts A and B
+
+`[ WATCH IN ROOM ]` and `[ ADD TO ROOM ]` in a real browser (SPEC-floating-player.md, part 3). Live it starts two rooms as A
+and ends them, and prints their ids: each leaves an ended record and a board thread to delete, so ask Luke.
 
 drive-queue-filters.cjs
 -----------------------

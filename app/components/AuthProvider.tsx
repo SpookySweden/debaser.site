@@ -122,6 +122,14 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       setStatus(account === null ? 'anonymous' : 'signed-in');
     };
 
+    /*
+      Draw the answer this browser already holds, at once. Asking the server can take as long as the
+      database does (Luke, 2026-11-06: 40 seconds while it was choking), and it only ever settles the rare
+      session that has been ended elsewhere, so nobody should wait on it to see their own name.
+    */
+    const peeked = repository.peekCurrentUser?.();
+    if (peeked !== undefined) apply(peeked);
+
     void repository
       .getCurrentUser()
       .then((account) => {
@@ -129,10 +137,10 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
         apply(account);
       })
       .catch(() => {
-        // A failed read is not a signed-out reader either, but it is all we are going to get: this
-        // is the one place a null is allowed to be taken as an answer.
+        // The server couldn't be asked, which says nothing about who this is: keep an account we hold.
+        // With none in hand, a failed read is all we are going to get, so a null is taken as the answer.
         readOnce = true;
-        apply(null);
+        if (currentUser.account === null) apply(null);
       });
 
     const unsubscribe = repository.subscribe((account) => {

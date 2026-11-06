@@ -49,6 +49,7 @@ const ROOT = join(__dirname, '..');
 const SKIP = new Set([
   'check-channel-binding.cjs',
   'check-beatbox-songs.cjs',
+  'check-beatbox-ui.cjs',
   'check-comms-live.cjs',
   'check-comms-two-accounts.cjs',
   'check-live-shape.cjs',

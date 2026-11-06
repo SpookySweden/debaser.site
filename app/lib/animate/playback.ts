@@ -12,15 +12,14 @@ import type { PlaneName, Project } from './types';
 /** How much memory playback's pictures may take, in bytes, before they are made smaller. */
 const CACHE_BYTES = 900 * 1024 * 1024;
 
-type Cache = { project: Project; pictures: Map<string, ImageBitmap>; scale: number };
+type Cache = { project: Project; pictures: Map<string, ImageBitmap>; scale: number; layerId: string; lightTable: boolean };
 
 let cache: Cache | null = null;
 let running = 0;
-/** Told the frame each tick; the sound follows it. */
-export const clockHooks: { start: (frame: number, fps: number) => void; stop: () => void; time: () => number | null } = {
+/** The sound follows the picture: started, restarted where the picture jumps, and stopped. */
+export const clockHooks: { start: (frame: number) => void; stop: () => void } = {
   start: () => undefined,
   stop: () => undefined,
-  time: () => null,
 };
 
 function dropCache(): void {
@@ -52,7 +51,7 @@ export async function loadFramePlanes(engine: AnimateEngine, project: Project, f
 async function prepare(engine: AnimateEngine, token: number): Promise<boolean> {
   const state = useStudio.getState();
   const { project } = state;
-  if (cache !== null && cache.project === project) return true;
+  if (cache !== null && cache.project === project && cache.layerId === state.layerId && cache.lightTable === state.lightTable) return true;
   dropCache();
   const { start, end } = playRange(project);
   const distinct = new Set<string>();
@@ -91,7 +90,7 @@ async function prepare(engine: AnimateEngine, token: number): Promise<boolean> {
     // A short shot just starts; a long one says how far along it is.
     if (performance.now() - started > 150) useStudio.setState({ readying: done / distinct.size });
   }
-  cache = { project, pictures, scale };
+  cache = { project, pictures, scale, layerId: state.layerId, lightTable: state.lightTable };
   useStudio.setState({ readying: null });
   return true;
 }
@@ -128,18 +127,30 @@ export async function startPlaying(engine: AnimateEngine): Promise<void> {
   const pictures = cache.pictures;
   const began = performance.now();
   const offset = from - start;
-  clockHooks.start(from, project.fps);
+  clockHooks.start(from);
+  let shown = from;
+  let forwards = true;
 
   const step = () => {
     if (running !== token) return;
-    const audioTime = clockHooks.time();
-    const seconds = audioTime ?? (performance.now() - began) / 1000;
+    const seconds = (performance.now() - began) / 1000;
     const tick = Math.floor(seconds * project.fps) + offset;
     const frame = frameAtTick(tick, start, end, project.playMode);
     if (frame === null) {
       useStudio.setState({ frame: end });
       stopPlaying(engine);
       return;
+    }
+    if (frame !== shown) {
+      const goingForwards = frame > shown;
+      // A loop jumps back and starts its sound again. Ping-pong plays its sound only on the way forward: sound doesn't run backwards.
+      if (project.playMode === 'loop' && !goingForwards) clockHooks.start(frame);
+      if (project.playMode === 'pingpong' && goingForwards !== forwards) {
+        if (goingForwards) clockHooks.start(frame);
+        else clockHooks.stop();
+      }
+      forwards = goingForwards;
+      shown = frame;
     }
     if (frame !== useStudio.getState().frame) useStudio.setState({ frame });
     const picture = pictures.get(frameSignature(project, frame)) ?? null;

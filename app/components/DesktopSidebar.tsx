@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useState, useSyncExternalStore } from 'react';
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
@@ -30,6 +30,7 @@ import {
 } from '../lib/audio/queue-window';
 import type { AccountUser } from '../lib/auth/types';
 import { TITLE_BAR_BUTTON, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import { pagePanelOpen, setPagePanelOpen, subscribeToPagePanel } from '../lib/ui/side-panel-page';
 import { ICON_LIVE } from '../lib/ui/icons';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
@@ -174,8 +175,16 @@ function GoLiveKey({ user }: { user: AccountUser }) {
  *
  * Collapsed, it leaves a rail with the button that brings it back.
  */
-export default function DesktopSidebar() {
-  const isOpen = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnThisPage?: boolean }) {
+  const remembered = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const openHere = useSyncExternalStore(subscribeToPagePanel, pagePanelOpen, () => false);
+  const isOpen = foldedOnThisPage ? openHere : remembered;
+  const setOpen = foldedOnThisPage ? setPagePanelOpen : setSidebarOpen;
+  // Coming back to the page finds it folded again.
+  useEffect(() => {
+    if (!foldedOnThisPage) return;
+    return () => setPagePanelOpen(false);
+  }, [foldedOnThisPage]);
   const musicState = useSyncExternalStore(subscribeToMusicWindow, musicWindowState, musicWindowState);
   const musicOpen = musicState.open;
   const arcadeState = useSyncExternalStore(subscribeToArcadeWindow, arcadeWindowState, arcadeWindowState);
@@ -255,10 +264,24 @@ export default function DesktopSidebar() {
   );
 
 
+  if (!isOpen && foldedOnThisPage) {
+    // The one key that brings it back, as big as the rail itself.
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Open the side panel (\\)"
+        className="hidden w-7 shrink-0 cursor-pointer items-center justify-center border-l-line border-ink bg-sun-pale text-title font-bold text-ink [writing-mode:vertical-rl] hover:bg-ink hover:text-paper md:flex"
+      >
+        [ SIDE PANEL ]
+      </button>
+    );
+  }
+
   if (!isOpen) {
     return (
       <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-line border-ink bg-sun-pale py-2 md:flex">
-        <button type="button" onClick={() => setSidebarOpen(true)} title="Open the side panel" className={TITLE_BAR_BUTTON}>
+        <button type="button" onClick={() => setOpen(true)} title="Open the side panel" className={TITLE_BAR_BUTTON}>
           {'<'}
         </button>
         <span className="text-label font-bold text-ink [writing-mode:vertical-rl]">SIDE PANEL</span>
@@ -277,7 +300,7 @@ export default function DesktopSidebar() {
       <div className="flex justify-end px-2 pt-1">
         <button
           type="button"
-          onClick={() => setSidebarOpen(false)}
+          onClick={() => setOpen(false)}
           title="Collapse the side panel"
           className={TITLE_BAR_BUTTON}
         >

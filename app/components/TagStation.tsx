@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
 import { loadStationIndex } from '../lib/tag-station/client';
+import { useMoreItems } from '../lib/tag-station/more';
 import type { StationItem } from '../lib/tag-station/types';
 import { eraOf } from '../lib/tag-station/words';
 import { FIELD_TIGHT } from '../lib/ui/controls';
@@ -284,10 +285,13 @@ const SORTS: readonly { value: Sort; label: string }[] = [
   { value: 'tagged', label: 'MOST WORDS' },
 ];
 
-export function Station({ index }: { index: StationIndex }) {
+export function Station({ index: mapIndex }: { index: StationIndex }) {
   const router = useRouter();
   const params = useSearchParams();
   const recipe = useMemo(() => parseRecipe(params), [params]);
+  // The chosen words, with what the pool's files hold for them added to the list. The map stays as it is.
+  const chosenWords = useMemo(() => [...new Set([...(recipe.tag !== null ? [recipe.tag] : []), ...recipe.must, ...recipe.any])].slice(0, 12), [recipe.tag, recipe.must, recipe.any]);
+  const index = useMoreItems(mapIndex, chosenWords) ?? mapIndex;
   const searchBox = useRef<HTMLInputElement>(null);
   const textSize = useSyncExternalStore(subscribeTextSize, readTextSize, () => 'M' as TextSize);
   const [shownFor, setShownFor] = useState<{ key: string; count: number }>({ key: '', count: ITEMS_STEP });

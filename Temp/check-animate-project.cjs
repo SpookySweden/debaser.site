@@ -259,6 +259,13 @@ const T = require('./animate-project-out/animate/tags.js');
   assert.deepEqual(T.readTagPreset('nonsense'), []);
   assert.deepEqual(T.readTagPreset('{"tags":[{"nope":1}]}'), []);
   assert.equal(T.readTagPreset('{"tags":[{"id":"x","name":"X","colour":"red"}]}')[0].colour.startsWith('#'), true, 'a bad colour is replaced');
+  // A shared file can't break the studio with a broken bundle (the code review's worry).
+  const broken = T.readTagPreset('{"tags":[{"id":"x","name":"X","behaviours":{"closeGaps":null,"onionSkin":{},"layerDefaults":{"blend":"nonsense"},"dimWhenInactive":7,"stayInsideLines":"yes"}}]}')[0].behaviours;
+  assert.equal(broken.closeGaps.on, false, 'a null gap setting reads as off');
+  assert.equal(broken.onionSkin.mode, 'tint');
+  assert.equal(broken.layerDefaults.blend, 'normal', 'an unknown blend reads as normal');
+  assert.equal(broken.dimWhenInactive.on, false);
+  assert.equal(broken.stayInsideLines, false, 'a behaviour that is not true or false reads as blank');
 
   console.log('animate project: all passed');
 })().catch((error) => {

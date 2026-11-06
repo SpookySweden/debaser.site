@@ -101,4 +101,69 @@ assert.deepEqual(X.exportSize({ ...project, width: 101, height: 77 }, 1, true), 
 const rough = P.updateNode(project, layerId, { tagId: 'rough' });
 assert.deepEqual(X.runsOf(rough, 0, 6), [{ frame: 0, count: 7 }], 'a Rough layer never appears in a render');
 
+// Layers, and the settings.
+useStudio.setState({ project, layerId, panel: 'settings' });
+html = draw();
+assert.ok(html.includes('[ + LAYER ]') && html.includes('[ + FOLDER ]'), 'the layer list can make rows');
+assert.ok(html.includes('aria-label="Blend mode"') && html.includes('aria-label="Tag"'), 'a row has a blend and a tag');
+assert.ok(html.includes('[ 300% ]'), 'the interface goes to 300%');
+assert.ok(html.includes('Pressure curve'), 'the pen has a curve');
+assert.ok(html.includes('Change the key for PENCIL'), 'every action can be given a key');
+assert.ok(html.includes('COLOUR') && !html.includes('FAILED'), 'and it draws');
+useStudio.setState({ panel: 'none' });
+// Tag chips: a folder's passes down, and a Figure shows its planes.
+const figure = P.updateNode(project, layerId, { tagId: 'figure' });
+useStudio.setState({ project: figure });
+html = draw();
+assert.ok(html.includes('data-animate-chip="figure"'), 'a tag shows as a chip');
+assert.ok(html.includes('data-animate-plane="line"') && html.includes('data-animate-plane="colour"'), 'a Figure shows its two planes');
+useStudio.setState({ project });
+
+// The master toggle says where it stands, and the sheet says so too.
+useStudio.setState({ smartOn: true });
+html = draw();
+assert.ok(html.includes('[ SMART ON ]'), 'the smart key says on');
+assert.ok(!html.includes('data-animate-badge'), 'with no badge');
+useStudio.setState({ smartOn: false });
+html = draw();
+assert.ok(html.includes('[ SMART OFF ]'), 'and off');
+assert.match(html, /data-animate-badge[^>]*bg-bubble-pale[^>]*>SMART OFF/, 'with a high-contrast badge');
+useStudio.setState({ smartOn: true });
+useStudio.setState({ hasSelection: true });
+assert.ok(draw().includes('data-animate-make-smart'), 'MAKE SMART shows with a selection');
+useStudio.setState({ hasSelection: false });
+
+// The tag editor: every behaviour has a switch, and each tag can be put on the layer in hand.
+useStudio.setState({ panel: 'tags' });
+html = draw();
+assert.ok(html.includes('[ NEW TAG ]') && html.includes('[ SAVE TAGS ]') && html.includes('[ LOAD TAGS ]'), 'tags can be made and carried as a file');
+assert.ok(html.includes('CTRL + 1') && html.includes('CTRL + 8'), 'and each says its new-layer key');
+assert.ok(html.includes('FIGURE smarts on'), "each tag has its own switch");
+useStudio.setState({ panel: 'none' });
+
+// The sound panel, and Phase 5's keys.
+useStudio.setState({ panel: 'sound' });
+html = draw();
+assert.ok(html.includes('ADD A SOUND'), 'a sound can be added');
+assert.ok(html.includes('STEPPING THROUGH FRAMES PLAYS THE SOUND'), 'and scrubbing is a choice');
+useStudio.setState({ panel: 'export' });
+html = draw();
+assert.ok(html.includes('[ MP4 ]') && html.includes('[ WEBM ]'), 'video is offered');
+useStudio.setState({ panel: 'none' });
+html = draw();
+assert.ok(html.includes('[ LIGHT TABLE ]') && html.includes('[ CARRY COLOUR ]') && html.includes('[ SOUND ]') && html.includes('[ PICTURE ]'), "and Phase 5's keys are on the strip");
+useStudio.setState({ tool: 'shift' });
+assert.ok(draw().includes('data-animate-trace-keys'), 'Shift and Trace shows its options');
+useStudio.setState({ tool: 'ink' });
+
+// Selection geometry and palette files.
+const Sel = require('./animate-render-out/lib/animate/selection.js');
+const square = [[0, 0], [10, 0], [10, 10], [0, 10]];
+assert.equal(Sel.pointInOutline(square, 5, 5), true);
+assert.equal(Sel.pointInOutline(square, 15, 5), false);
+const Colours = require('./animate-render-out/lib/animate/colours.js');
+assert.deepEqual(Colours.readPalette('{"swatches":[{"name":"A","colour":"#ABCDEF"},{"name":"bad","colour":"red"}]}'), [{ name: 'A', colour: '#abcdef' }], 'a palette file: good swatches kept, bad ones left out');
+assert.equal(Colours.readPalette('nonsense'), null);
+assert.equal(Colours.readPalette('{"swatches":[]}'), null);
+
 console.log('animate render: all passed');

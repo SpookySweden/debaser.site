@@ -1,3 +1,4 @@
+import type { WatchLink } from '../watch/types';
 import { createWindowSlot } from './window-slot';
 
 /**
@@ -29,6 +30,9 @@ export type FramePlayer = {
 /** One of the site's own files, in a plain `<video>`: what was uploaded is what plays. */
 export type FilePlayer = { kind: 'file'; src: string };
 
+/** What a room would queue to play this video: a checked link, or one of the site's own files. */
+export type RoomSource = { link: WatchLink; mediaItemId?: undefined } | { mediaItemId: string; link?: undefined };
+
 export type FloatingEntry = {
   /** Which row it belongs to: the same id finds its box again when the row comes back. */
   id: string;
@@ -40,6 +44,8 @@ export type FloatingEntry = {
   shape: 'video' | 'audio';
   /** The address it was started on: the float's `[ BACK ]` goes there. */
   home: string;
+  /** How it can play in a room; left out for a video that can't, which then has no key for it. */
+  room?: RoomSource;
   /** What the row had picked (a media server, a season), for drawing itself again when it comes back. */
   details?: unknown;
 };
@@ -67,6 +73,9 @@ let revealWanted = false;
 let leftInBox = false;
 /** That box, back on the page: put ahead of a saved scroll position, because MEDIA's rows can come back in another order. */
 let kept: HTMLElement | null = null;
+let keptUntil = 0;
+/** MEDIA's rows go on arriving and changing order for a few seconds after the page comes back. */
+const KEEP_IN_VIEW_MS = 6000;
 /** How far each video got this visit, for a row that plays it again. Memory only: never stored, never sent. */
 const places = new Map<string, number>();
 
@@ -142,10 +151,14 @@ export function wantBoxShown(): void {
  * puts it back in its box" (the spec). Returns the way to take it away.
  */
 export function registerBox(id: string, element: HTMLElement): () => void {
+  const arrived = Date.now();
   boxes.set(id, element);
   if (slot.state().entry?.id === id) {
     setFloatAsked(false);
-    if (leftInBox) kept = element;
+    if (leftInBox) {
+      kept = element;
+      keptUntil = Date.now() + KEEP_IN_VIEW_MS;
+    }
     if (revealWanted || leftInBox) element.scrollIntoView({ block: 'nearest' });
     revealWanted = false;
     leftInBox = false;
@@ -153,9 +166,11 @@ export function registerBox(id: string, element: HTMLElement): () => void {
   return () => {
     if (boxes.get(id) !== element) return;
     boxes.delete(id);
-    if (kept === element) kept = null;
+    const wasKept = kept === element;
+    if (wasKept) kept = null;
     const state = slot.state();
-    if (state.entry?.id === id && !state.floating) leftInBox = true;
+    // Longer than a blink, or kept already: React's development mode mounts every box twice, and that is not the reader leaving.
+    if (state.entry?.id === id && (wasKept || (!state.floating && Date.now() - arrived > 500))) leftInBox = true;
   };
 }
 
@@ -163,12 +178,12 @@ export function boxOf(id: string): HTMLElement | undefined {
   return boxes.get(id);
 }
 
-/** The box a video came back to, while the page is being put back as it was. */
+/** The box a video came back to, for as long as the layer keeps it in view while the page settles. */
 export function keptBox(): HTMLElement | null {
-  return kept;
+  return Date.now() < keptUntil ? kept : null;
 }
 
-/** The page is settled, or the reader has done something: from here the box goes wherever the page takes it. */
+/** The reader has done something: from here the box goes wherever the page takes it. */
 export function letKeptBoxGo(): void {
   kept = null;
 }

@@ -19,6 +19,7 @@
   --text-bb-cell-xl: var(--text-xl);
   --spacing-bb-target-min: var(--target-min);
   --spacing-bb-target-large: var(--target-large);
+  --spacing-bb-target-bar: var(--target-bar);
   --spacing-bb-gutter: var(--gutter);
   --spacing-bb-gap: var(--gap);
 }

@@ -76,7 +76,17 @@ export type AuthRepository = {
   readonly backend: AuthBackend;
   /** True when the backend emails a confirmation link before allowing sign-in. */
   readonly requiresEmailConfirmation: boolean;
+  /**
+   * The asking of the server: names the account, says there is none, or throws when the server
+   * couldn't be asked (it is down or slow), which says nothing about who this is.
+   */
   getCurrentUser(): Promise<AccountUser | null>;
+  /**
+   * This browser's own record, with no waiting on any server: an account, `null` for none, or
+   * `undefined` for "can't tell from here". For drawing the page at once; `getCurrentUser` still decides.
+   * The mock has none, because its read is instant anyway.
+   */
+  peekCurrentUser?(): AccountUser | null | undefined;
   signUp(input: SignUpInput): Promise<AuthResult>;
   signIn(input: SignInInput): Promise<AuthResult>;
   signOut(): Promise<void>;

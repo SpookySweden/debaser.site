@@ -12,10 +12,15 @@ export type ClipRect = { left: number; top: number; right: number; bottom: numbe
 
 /** The room the float's title line takes, on top of the picture. */
 export const FLOAT_BAR_HEIGHT = 40;
-export const FLOAT_VIDEO_SIZE: FloatSize = { w: 384, h: 216 + FLOAT_BAR_HEIGHT };
-export const FLOAT_AUDIO_SIZE: FloatSize = { w: 384, h: 44 + FLOAT_BAR_HEIGHT };
-/** Its keys still fit at this width. */
-export const FLOAT_MIN: FloatSize = { w: 280, h: 44 + FLOAT_BAR_HEIGHT };
+/** ...and the row of keys under it. */
+const FLOAT_KEYS_HEIGHT = 34;
+/** Wide enough for its four keys on one row. */
+export const FLOAT_VIDEO_SIZE: FloatSize = { w: 440, h: 248 + FLOAT_BAR_HEIGHT + FLOAT_KEYS_HEIGHT };
+export const FLOAT_AUDIO_SIZE: FloatSize = { w: 440, h: 44 + FLOAT_BAR_HEIGHT + FLOAT_KEYS_HEIGHT };
+/** A folded room's picture: its keys stay on the music bar, so it has the title line alone. */
+export const FLOAT_ROOM_SIZE: FloatSize = { w: 384, h: 216 + FLOAT_BAR_HEIGHT };
+/** Its keys still fit at this width, on two rows. */
+export const FLOAT_MIN: FloatSize = { w: 280, h: 44 + FLOAT_BAR_HEIGHT + FLOAT_KEYS_HEIGHT };
 /** The gap kept from the screen's edge and from the strips along the foot. */
 const FLOAT_MARGIN = 8;
 

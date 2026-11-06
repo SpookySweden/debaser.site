@@ -6,6 +6,7 @@ import { BeatBox, type BeatBoxArt, type SavedSong } from '../features/beatbox';
 import BeatBoxSongs from './BeatBoxSongs';
 import ShareSongToForum from './ShareSongToForum';
 import { PLATE } from '../lib/ui/controls';
+import { togglePagePanel } from '../lib/ui/side-panel-page';
 
 // Where Luke's drawings go (app/lib/ui/art/slots.ts). Until a file is there, its space stays empty.
 const ART: BeatBoxArt = {
@@ -51,13 +52,16 @@ export default function BeatBoxRoom() {
       <>
         <BeatBoxSongs getSong={getSong} onOpen={openSaved} />
         <ShareSongToForum getSong={getSong} />
+        <Link href="/beatbox/credits" className={PLATE}>
+          [ CREDITS ]
+        </Link>
       </>
     ),
     [openSaved],
   );
 
   return (
-    <div className="flex flex-col gap-3 select-text">
+    <div className="h-full select-text">
       <BeatBox
         key={opened.number}
         initialSong={opened.song}
@@ -65,12 +69,8 @@ export default function BeatBoxRoom() {
         extras={extras}
         art={ART}
         hideTitle
+        onTogglePanel={togglePagePanel}
       />
-      <div className="px-3 pb-3">
-        <Link href="/beatbox/credits" className={PLATE}>
-          [ CREDITS ]
-        </Link>
-      </div>
     </div>
   );
 }

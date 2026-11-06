@@ -1,7 +1,6 @@
 'use client';
 
-import { useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type Ref } from "react";
-import { ChoiceGroup } from "./ChoiceGroup";
+import { useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type Ref } from "react";
 import {
   gridStepsPerBeat,
   partsPerBar,
@@ -16,23 +15,20 @@ import {
 import type { Transport } from "./app";
 import { channelName, noteShapeStyle } from "./channelLooks";
 import {
-  CELL_SIZES,
   columnWindowStart,
+  fitGrid,
   moveCursor,
-  rowsThatFit,
   rowWindowStart,
-  visibleColumnCount,
-  visibleRowCount,
   type CellSize,
   type GridCursor,
   type GridMove,
 } from "./gridView";
-import { smallKey, titleLine } from "./looks";
+import { rulerKey, stripKey } from "./looks";
 import { deleteNoteAt, noteAt, stretchNote, toggleNote } from "./noteEdit";
 import { PixelSlot, type BeatBoxArt } from "./PixelSlot";
 import { Playhead, type HitNote } from "./Playhead";
 import { barsUsingPattern } from "./songEdit";
-import { useElementWidth } from "./useElementWidth";
+import { useElementSize } from "./useElementSize";
 
 const CELL_VAR: Record<CellSize, string> = {
   s: "var(--cell-s)",
@@ -58,8 +54,6 @@ const KEY_MOVES: Record<string, GridMove> = {
   PageDown: "page-down",
 };
 
-const FOCUS_BUTTONS_HEIGHT = 80;
-
 function stepLabel(step: number, stepsPerBeat: number): string {
   return `${Math.floor(step / stepsPerBeat) + 1}.${(step % stepsPerBeat) + 1}`;
 }
@@ -69,7 +63,7 @@ function spokenStep(step: number, stepsPerBeat: number): string {
 }
 
 export interface NoteGridHandle {
-  focus: () => void;
+  focus: (options?: FocusOptions) => void;
 }
 
 export interface NoteGridProps {
@@ -81,11 +75,12 @@ export interface NoteGridProps {
   transport: Transport;
   /** Grid cells give only the note and on or off, not the whole position. */
   shortCellNames: boolean;
-  /** Focus view: use all the height there is. */
-  fillHeight: boolean;
+  /** More keys for the row under the grid. */
+  footKeys?: ReactNode;
   art: BeatBoxArt;
   showArtSlots: boolean;
-  onSizeChange: (size: CellSize) => void;
+  /** Moves to the next or previous bar, if there is one. */
+  onBarStep: (direction: 1 | -1) => boolean;
   onNotesChange: (notes: readonly NoteData[]) => void;
   /** A note was turned on or off. */
   onToggled: (pitch: number, on: boolean) => void;
@@ -102,10 +97,10 @@ export function NoteGrid({
   size,
   transport,
   shortCellNames,
-  fillHeight,
+  footKeys,
   art,
   showArtSlots,
-  onSizeChange,
+  onBarStep,
   onNotesChange,
   onToggled,
   onCursorMoved,
@@ -122,44 +117,28 @@ export function NoteGrid({
   const patternNumber = channel.bars[bar] ?? 0;
   const sharedBars = barsUsingPattern(channel, patternNumber);
 
-  const [frame, gridWidth] = useElementWidth();
+  const [frame, gridWidth, gridHeight] = useElementSize();
   const startRow = totalRows - 1 - (channel.isDrum ? 0 : channel.octave * 12);
   const [cursor, setCursor] = useState<GridCursor>({ row: startRow, column: 0 });
-  const [firstRow, setFirstRow] = useState(() =>
-    // Start with the cursor on the bottom row, so the notes above it are in view.
-    rowWindowStart(startRow - visibleRowCount(size, totalRows) + 1, startRow, visibleRowCount(size, totalRows), totalRows),
-  );
+  // Null until the cursor first moves: it starts on the bottom row, so the notes above it are in view.
+  const [firstRow, setFirstRow] = useState<number | null>(null);
   const activeCell = useRef<HTMLDivElement>(null);
   const moveFocusToCell = useRef(false);
   const cellProbe = useRef<HTMLDivElement>(null);
   const [cellWidth, setCellWidth] = useState(64);
 
-  useImperativeHandle(ref, () => ({ focus: () => activeCell.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: (options) => activeCell.current?.focus(options) }), []);
 
   // The size comes from a theme token, so ask the browser how wide it really is.
   useLayoutEffect(() => {
     setCellWidth(cellProbe.current?.getBoundingClientRect().width || 64);
   }, [size, gridWidth]);
 
-  // Focus view: from the top of the grid to the bottom of the screen, less the paging buttons.
-  const [roomBelowGrid, setRoomBelowGrid] = useState(0);
-  useLayoutEffect(() => {
-    if (!fillHeight) return;
-    const measure = () => {
-      const top = frame.current?.offsetTop ?? 0;
-      setRoomBelowGrid(window.innerHeight - top - FOCUS_BUTTONS_HEIGHT);
-    };
-    measure();
-    window.addEventListener("resize", measure);
-    return () => window.removeEventListener("resize", measure);
-  }, [fillHeight, frame]);
-
-  const rowCount = fillHeight
-    ? rowsThatFit(roomBelowGrid, cellWidth, totalRows)
-    : visibleRowCount(size, totalRows);
-  const columnCount = visibleColumnCount(gridWidth, cellWidth, stepsPerBeat, totalColumns);
+  const fit = fitGrid(gridWidth, gridHeight, cellWidth, stepsPerBeat, totalColumns, totalRows);
+  const rowCount = fit.rows;
+  const columnCount = fit.columns;
   const firstColumn = columnWindowStart(cursor.column, columnCount);
-  const visibleFirstRow = rowWindowStart(firstRow, cursor.row, rowCount, totalRows);
+  const visibleFirstRow = rowWindowStart(firstRow ?? startRow - rowCount + 1, cursor.row, rowCount, totalRows);
 
   useLayoutEffect(() => {
     if (moveFocusToCell.current) activeCell.current?.focus();
@@ -229,6 +208,18 @@ export function NoteGrid({
       }
       return;
     }
+    if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && !event.shiftKey) {
+      event.preventDefault();
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      // Ctrl and an arrow jumps a whole beat. Off either end of the bar, the cursor carries on into the next one.
+      const column = cursor.column + direction * (event.ctrlKey ? stepsPerBeat : 1);
+      if (column >= totalColumns || column < 0) {
+        if (onBarStep(direction)) goTo({ ...cursor, column: direction === 1 ? 0 : totalColumns - 1 });
+      } else {
+        goTo({ ...cursor, column });
+      }
+      return;
+    }
     const ctrl = event.ctrlKey && (event.key === "Home" || event.key === "End");
     const move: GridMove | undefined = ctrl ? (event.key === "Home" ? "grid-start" : "grid-end") : KEY_MOVES[event.key];
     if (move && (ctrl || !event.ctrlKey) && !event.shiftKey) {
@@ -237,8 +228,16 @@ export function NoteGrid({
     }
   }
 
+  /** A screenful of steps. Past either end of the bar it goes on to the next bar. */
   function pageColumns(direction: 1 | -1) {
-    const column = Math.max(0, Math.min(totalColumns - 1, firstColumn + direction * columnCount));
+    const column = firstColumn + direction * columnCount;
+    if (column >= totalColumns || column < 0) {
+      if (onBarStep(direction)) {
+        const lastPage = Math.floor((totalColumns - 1) / columnCount) * columnCount;
+        setCursor({ ...cursor, column: direction === 1 ? 0 : lastPage });
+      }
+      return;
+    }
     setCursor({ ...cursor, column });
   }
 
@@ -250,36 +249,46 @@ export function NoteGrid({
 
   const rows = Array.from({ length: rowCount }, (_, index) => visibleFirstRow + index);
   const columns = Array.from({ length: columnCount }, (_, index) => firstColumn + index);
-  const gridStyle = { "--cell": CELL_VAR[size] } as CSSProperties;
-  const cellBox = { width: "var(--cell)", height: "var(--cell)" };
+  const gridStyle = {
+    "--cell": CELL_VAR[size],
+    "--cell-w": `${fit.cellWidth}px`,
+    "--cell-h": `${fit.cellHeight}px`,
+    "--head-h": `${fit.headHeight}px`,
+    "--name-w": `${fit.nameWidth}px`,
+    minHeight: "calc(var(--cell) * 4.7)",
+  } as CSSProperties;
+  const cellBox = { width: "var(--cell-w)", height: "var(--cell-h)" };
+  const headBox = { width: "var(--cell-w)", height: "var(--head-h)" };
+  const nameBox = { width: "var(--name-w)", height: "var(--cell-h)" };
+  const cornerBox = { width: "var(--name-w)", height: "var(--head-h)" };
 
   return (
-    <section aria-label="Note grid" className="flex w-full flex-col gap-bb-gutter">
-      <ChoiceGroup
-        label="Grid size"
-        keyName="- ="
-        value={size}
-        options={CELL_SIZES.map((option) => ({ value: option, label: option.toUpperCase() }))}
-        onChange={onSizeChange}
-      />
-
-      <h2 className={titleLine}>
-        <span>
-          {channelName(song, channelIndex)}, bar {bar + 1}
-          {patternNumber === 0 ? ", silent" : `, pattern ${patternNumber}`}
-          {sharedBars > 1 ? `, on ${sharedBars} bars` : ""}
-          {patternNumber !== 0 && notes.length === 0 ? ", empty" : ""}
-        </span>
+    <section aria-label="Note grid" className="relative flex min-h-0 w-full flex-1 flex-col">
+      <h2 className="sr-only">
+        {channelName(song, channelIndex)}, bar {bar + 1}
+        {patternNumber === 0 ? ", silent" : `, pattern ${patternNumber}`}
+        {sharedBars > 1 ? `, on ${sharedBars} bars` : ""}
+        {patternNumber !== 0 && notes.length === 0 ? ", empty" : ""}
       </h2>
-      {notes.length === 0 && (
-        <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
-      )}
-      <p className="text-bb-large wrap-anywhere">
+      <p className="sr-only">
         Steps {firstColumn + 1} to {firstColumn + columnCount} of {totalColumns}. {nameOf(pitchOfRow(visibleFirstRow + rowCount - 1))}{" "}
         to {nameOf(pitchOfRow(visibleFirstRow))}.
       </p>
 
-      <div ref={frame} className="w-full" style={gridStyle}>
+      {notes.length === 0 && (
+        <div className="pointer-events-none z-30 flex flex-none flex-wrap items-center gap-bb-gutter bg-bb-nigrosine p-2 text-display font-bold uppercase md:absolute md:top-1/2 md:left-1/2 md:w-max md:max-w-full md:-translate-x-1/2 md:-translate-y-1/2 md:flex-nowrap md:p-bb-gutter md:text-bb-large">
+          <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
+          <p>
+            Click a square to put a note.
+            <br />
+            Or arrows and Enter.
+            <br />
+            Ctrl+arrow jumps a beat.
+          </p>
+        </div>
+      )}
+
+      <div ref={frame} className="relative min-h-0 w-full flex-1 overflow-hidden" style={gridStyle}>
         <div ref={cellProbe} aria-hidden="true" style={{ width: "var(--cell)", height: 0 }} />
         <div
           role="grid"
@@ -294,7 +303,7 @@ export function NoteGrid({
               role="columnheader"
               aria-colindex={1}
               className="flex flex-none items-center justify-center font-bold"
-              style={cellBox}
+              style={cornerBox}
             >
               Note
             </div>
@@ -305,7 +314,7 @@ export function NoteGrid({
                 aria-colindex={column + 2}
                 aria-label={spokenStep(column, stepsPerBeat)}
                 className="flex flex-none items-center justify-center font-bold"
-                style={cellBox}
+                style={headBox}
               >
                 {size === "s" && column % stepsPerBeat !== 0 ? "" : stepLabel(column, stepsPerBeat)}
               </div>
@@ -321,8 +330,8 @@ export function NoteGrid({
                 <div
                   role="rowheader"
                   aria-colindex={1}
-                  className={`flex flex-none items-center justify-center overflow-hidden text-center leading-none font-bold wrap-anywhere ${sharp ? "bg-bb-black" : "bg-bb-royal-blue"}`}
-                  style={cellBox}
+                  className={`flex flex-none items-center justify-center overflow-hidden text-center leading-none font-bold ${sharp ? "bg-bb-black" : "bg-bb-royal-blue"}`}
+                  style={nameBox}
                 >
                   {name}
                 </div>
@@ -391,19 +400,43 @@ export function NoteGrid({
         </div>
       </div>
 
-      <div className="flex flex-wrap gap-bb-gutter">
-        <button type="button" onClick={() => pageColumns(-1)} className={smallKey()}>
-          Earlier
-        </button>
-        <button type="button" onClick={() => pageColumns(1)} className={smallKey()}>
-          Later
-        </button>
-        <button type="button" onClick={() => pageRows(-1)} className={smallKey()}>
-          Higher
-        </button>
-        <button type="button" onClick={() => pageRows(1)} className={smallKey()}>
-          Lower
-        </button>
+      <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 p-1">
+        <div role="group" aria-label="Move along the bar" className="flex flex-wrap items-center gap-1">
+          <button type="button" aria-label="Earlier" title="Earlier steps" onClick={() => pageColumns(-1)} className={stripKey()}>
+            &lt;
+          </button>
+          {/* Every beat of the bar, with the ones on screen filled: this is what says there's more than is showing. */}
+          {Array.from({ length: Math.ceil(totalColumns / stepsPerBeat) }, (_, beat) => {
+            const step = beat * stepsPerBeat;
+            const showing = step >= firstColumn && step < firstColumn + columnCount;
+            return (
+              <button
+                key={beat}
+                type="button"
+                tabIndex={-1}
+                aria-label={`Go to beat ${beat + 1}`}
+                aria-current={showing ? "true" : undefined}
+                title={`Beat ${beat + 1} (Ctrl+arrow moves a beat)`}
+                onClick={() => goTo({ ...cursor, column: step })}
+                className={rulerKey(showing)}
+              >
+                {beat + 1}
+              </button>
+            );
+          })}
+          <button type="button" aria-label="Later" title="Later steps" onClick={() => pageColumns(1)} className={stripKey()}>
+            &gt;
+          </button>
+        </div>
+        <div role="group" aria-label="Move up and down the notes" className="flex flex-wrap gap-1">
+          <button type="button" aria-label="Higher" title="Higher notes (Page Up)" onClick={() => pageRows(-1)} className={stripKey()}>
+            Up
+          </button>
+          <button type="button" aria-label="Lower" title="Lower notes (Page Down)" onClick={() => pageRows(1)} className={stripKey()}>
+            Down
+          </button>
+        </div>
+        {footKeys}
       </div>
     </section>
   );

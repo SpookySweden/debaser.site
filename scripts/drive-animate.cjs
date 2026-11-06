@@ -486,6 +486,848 @@ phases.phase1 = async (page, shot) => {
   await page.keyboard.press('\\');
 };
 
+phases.phase2 = async (page, shot) => {
+  console.log('Phase 2: Organise');
+  await freshProject(page);
+  await page.keyboard.press('f');
+  const rowIds = () => page.evaluate(() => window.__animate.project.nodes.map((n) => n.name));
+
+  // Colour on the bottom layer, a new layer above: the top one covers it.
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await penStroke(page, Array.from({ length: 30 }, (_, i) => [300 + i * 10, 300, 0.9]));
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(100);
+  check('a new layer goes above the active one', JSON.stringify(await rowIds()) === '["LAYER 2","LAYER 1"]', JSON.stringify(await rowIds()));
+  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await penStroke(page, Array.from({ length: 30 }, (_, i) => [300 + i * 10, 300, 0.9]));
+  await page.waitForTimeout(100);
+  check('the top layer covers the one below', (await pixel(page, 450, 300)) === '#28c745', await pixel(page, 450, 300));
+
+  // Hide, solo, lock.
+  await page.keyboard.press('v');
+  await page.waitForTimeout(100);
+  check('hiding a layer shows what is under it', (await pixel(page, 450, 300)) === '#e6004c', await pixel(page, 450, 300));
+  await page.keyboard.press('v');
+  await page.keyboard.press('Alt+s');
+  await page.waitForTimeout(100);
+  check('solo shows only that layer', (await pixel(page, 450, 300)) === '#28c745');
+  await page.keyboard.press('Alt+s');
+  await page.keyboard.press('ArrowDown');
+  await page.keyboard.press('Alt+s');
+  await page.waitForTimeout(100);
+  check('the arrows move between layers, and solo follows', (await pixel(page, 450, 300)) === '#e6004c');
+  await page.keyboard.press('Alt+s');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Alt+l');
+  await page.waitForTimeout(50);
+  const opsBefore = await frameOps(page);
+  await penStroke(page, Array.from({ length: 10 }, (_, i) => [900 + i * 5, 500, 0.9]));
+  check('a locked layer refuses, and says so', (await frameOps(page)) === opsBefore && (await page.locator('[data-animate-notice]').textContent()).includes('LOCKED'));
+  await page.keyboard.press('Alt+l');
+
+  // Opacity and blend.
+  const setActive = (change) => page.evaluate((c) => {
+    const engine = window.__animate;
+    const id = engine.activeLayer.id;
+    engine.tweak((p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, ...c } : n)) }));
+  }, change);
+  await setActive({ opacity: 0.5 });
+  await page.waitForTimeout(60);
+  const half = await pixel(page, 450, 300);
+  check('opacity lets what is under show through', half !== '#28c745' && half !== '#e6004c', half);
+  await setActive({ opacity: 1, blend: 'multiply' });
+  await page.waitForTimeout(60);
+  const multiplied = await pixel(page, 450, 300);
+  // Rose #e6004c x Emerald #28c745: red 0x24, green 0, blue 0x14.
+  check('multiply darkens', multiplied === '#240014' || (parseInt(multiplied.slice(1, 3), 16) < 50 && parseInt(multiplied.slice(3, 5), 16) < 10), multiplied);
+  await setActive({ blend: 'normal' });
+
+  // Folders: a layer inside a hidden folder is hidden; a folder's opacity applies to its rows.
+  await page.keyboard.press('Shift+G');
+  await page.waitForTimeout(80);
+  const folderId = await state(page, () => window.__animate.activeLayer.id);
+  check('a folder can be made', (await state(page, () => window.__animate.activeLayer.kind)) === 'folder');
+  await shot('phase2-folder');
+
+  // Drag a layer's row into the folder.
+  const nameButton = page.locator(`[data-animate-row]`).filter({ hasText: 'LAYER 2' }).getByRole('button', { name: 'LAYER 2', exact: true });
+  const folderRow = page.locator(`[data-animate-row="${folderId}"]`);
+  const from = await nameButton.boundingBox();
+  const to = await folderRow.boundingBox();
+  await page.mouse.move(from.x + 10, from.y + from.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(to.x + 60, to.y + to.height * 0.7, { steps: 6 });
+  await page.mouse.up();
+  await page.waitForTimeout(100);
+  check('dragging a row onto a folder puts it inside', (await page.evaluate((id) => window.__animate.project.nodes.find((n) => n.name === 'LAYER 2').parent === id, folderId)));
+  await page.evaluate((id) => document.querySelector(`[data-animate-row="${id}"]`).querySelector('button[aria-label^="Hide"]').click(), folderId);
+  await page.waitForTimeout(100);
+  check('hiding the folder hides what is inside it', (await pixel(page, 450, 300)) === '#e6004c');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+  check('and undo shows it again', (await pixel(page, 450, 300)) === '#28c745');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+  check('undo takes it back out', await page.evaluate(() => window.__animate.project.nodes.find((n) => n.name === 'LAYER 2').parent === null));
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(100);
+
+  // Tag chips show on rows, and a folder's passes down.
+  await page.evaluate((id) => {
+    const engine = window.__animate;
+    engine.edit('TAG', (p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, tagId: 'rough' } : n)) }));
+  }, folderId);
+  await page.waitForTimeout(100);
+  check('a tag shows as a chip on the row', (await page.locator(`[data-animate-row="${folderId}"] [data-animate-chip="rough"]`).count()) === 1);
+  check('and passes down to the layer inside', (await page.locator('[data-animate-row]').filter({ hasText: 'LAYER 2' }).locator('[data-animate-chip="rough"]').count()) === 1);
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(100);
+
+  // Settings: the panel, the biggest interface, a remapped key.
+  await page.keyboard.press('Control+,');
+  await page.waitForTimeout(100);
+  check('the settings panel opens', (await page.getByRole('dialog', { name: 'SETTINGS' }).count()) === 1);
+  await shot('phase2-settings');
+  await page.getByRole('button', { name: 'Change the key for PENCIL' }).click();
+  await page.keyboard.press('j');
+  await page.waitForTimeout(80);
+  check('a key can be remapped', await page.evaluate(() => JSON.parse(localStorage.getItem('debaser.animate.settings')).shortcuts['tool.pencil'] === 'j'));
+  await page.getByRole('button', { name: 'Change the key for ERASER' }).click();
+  await page.keyboard.press('j');
+  await page.waitForTimeout(80);
+  check('taking a key from another action says so', (await page.getByText(/WAS PENCIL, WHICH NOW HAS NO KEY/).count()) === 1);
+  await page.getByRole('button', { name: '[ ALL BACK TO START ]' }).click();
+  await page.getByRole('button', { name: '[ 300% ]' }).click();
+  await page.waitForTimeout(150);
+  await shot('phase2-ui300');
+  await page.keyboard.press('Control+,');
+  await page.keyboard.press('\\');
+  await page.waitForTimeout(250);
+  await shot('phase2-ui300-full');
+  const stageTall = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().height);
+  check('at 300% full screen the sheet still has room', stageTall >= 400, `${stageTall}px`);
+  await page.keyboard.press('`');
+  await page.waitForTimeout(250);
+  await shot('phase2-panels-hidden');
+  const allStage = await page.evaluate(() => document.querySelector('[data-animate-stage]').getBoundingClientRect().height);
+  check('hiding the panels gives the sheet the screen', allStage > stageTall, `${allStage}px`);
+  await page.keyboard.press('`');
+  await page.keyboard.press('\\');
+  await page.keyboard.press('Control+,');
+  await page.waitForTimeout(100);
+  check('the interface goes to 300%', await page.evaluate(() => JSON.parse(localStorage.getItem('debaser.animate.settings')).uiScale === 3));
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  check('and nothing runs off sideways at 300%', overflow <= 0, `${overflow}px`);
+  await page.getByRole('button', { name: '[ 100% ]' }).click();
+  await page.keyboard.press('Control+,');
+  await page.waitForTimeout(100);
+
+  // The pressure curve changes the line. Same light pen, a soft curve makes it thicker.
+  await freshProject(page);
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.keyboard.press('i');
+  await penStroke(page, Array.from({ length: 30 }, (_, i) => [200 + i * 12, 200, 0.3]));
+  await page.keyboard.press('Control+,');
+  await page.getByRole('button', { name: '[ SOFT ]' }).click();
+  await page.keyboard.press('Control+,');
+  await penStroke(page, Array.from({ length: 30 }, (_, i) => [200 + i * 12, 300, 0.3]));
+  const widthOf = (y) => page.evaluate((yy) => {
+    const engine = window.__animate;
+    const cel = engine.activeLayer.cels[0];
+    const data = engine.planes.peek(`${cel.drawingId}.line`).getContext('2d').getImageData(380, yy - 40, 1, 80).data;
+    let count = 0;
+    for (let i = 3; i < data.length; i += 4) if (data[i] > 128) count += 1;
+    return count;
+  }, y);
+  const plain = await widthOf(200);
+  const soft = await widthOf(300);
+  check('a soft pressure curve draws wider for the same press', soft > plain, `even ${plain}px, soft ${soft}px`);
+  await page.keyboard.press('Control+,');
+  await page.getByRole('button', { name: '[ EVEN ]' }).click();
+  await page.keyboard.press('Control+,');
+
+  // Selecting: box, move, undo.
+  await page.keyboard.press('Shift+W');
+  const before = await pixel(page, 380, 200);
+  await penStroke(page, [[300, 150, 0.5], [500, 150, 0.5], [500, 250, 0.5]]);
+  check('a box selects', await state(page, () => document.querySelector('[data-animate-stage]') !== null));
+  await penStroke(page, [[400, 200, 0.5], [400, 300, 0.5], [400, 500, 0.5]]);
+  await page.waitForTimeout(120);
+  check('dragging inside moves what is selected', before === '#000000' && (await pixel(page, 380, 200)) === '#ffffff' && (await pixel(page, 380, 500)) === '#000000', `${await pixel(page, 380, 200)} ${await pixel(page, 380, 500)}`);
+  await shot('phase2-select');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(120);
+  check('undo puts it back', (await pixel(page, 380, 200)) === '#000000' && (await pixel(page, 380, 500)) === '#ffffff');
+  check('the move is kept as data', await page.evaluate(() => Object.values(window.__animate.project.drawings)[0].planes.line.every((op) => op.kind === 'stroke')));
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(120);
+  check('redo moves it again', (await pixel(page, 380, 500)) === '#000000');
+  check('a move lands in the data', await page.evaluate(() => Object.values(window.__animate.project.drawings)[0].planes.line.some((op) => op.kind === 'move')));
+  await page.keyboard.press('Backspace');
+  await page.waitForTimeout(120);
+  check('backspace deletes what is selected', (await pixel(page, 380, 500)) === '#ffffff');
+  await page.keyboard.press('Control+d');
+  await page.keyboard.press('i');
+
+  // Rebuilt from data: throw a plane's picture away and it comes back the same.
+  const rebuilt = await page.evaluate(async () => {
+    const engine = window.__animate;
+    const cel = engine.activeLayer.cels[0];
+    const key = `${cel.drawingId}.line`;
+    const canvas = new OffscreenCanvas(engine.project.width, engine.project.height);
+    engine.replayOps(canvas, engine.project.drawings[cel.drawingId].planes.line);
+    const a = canvas.getContext('2d').getImageData(200, 180, 300, 40).data;
+    const b = engine.planes.peek(key).getContext('2d').getImageData(200, 180, 300, 40).data;
+    let differ = 0;
+    for (let i = 3; i < a.length; i += 4) if (Math.abs(a[i] - b[i]) > 8) differ += 1;
+    return differ;
+  });
+  check('a drawing rebuilt from its data matches its picture', rebuilt < 40, `${rebuilt} pixels differ`);
+
+  // The palette: add, remove.
+  const paletteSize = () => page.evaluate(() => window.__animate.project.palette.length);
+  const n0 = await paletteSize();
+  await page.evaluate(() => {
+    const input = document.querySelector('input[aria-label="Colour"]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set;
+    setter.call(input, '#123456');
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.getByRole('button', { name: 'Keep this colour in the palette' }).click();
+  await page.waitForTimeout(60);
+  check('a colour can be kept in the palette', (await paletteSize()) === n0 + 1);
+  await page.getByRole('button', { name: 'Take this colour out of the palette' }).click();
+  await page.waitForTimeout(60);
+  check('and taken out', (await paletteSize()) === n0);
+
+  // Reorder by keyboard.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(50);
+  const order0 = await rowIds();
+  await page.keyboard.press('Alt+ArrowDown');
+  await page.waitForTimeout(50);
+  check('a row can be moved with the keyboard', JSON.stringify(await rowIds()) !== JSON.stringify(order0), JSON.stringify(await rowIds()));
+  await shot('phase2-desktop');
+};
+
+/** Points along a line, spaced for a pen. */
+const along = (x0, y0, x1, y1, pressure = 0.9) => {
+  const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 6);
+  return Array.from({ length: steps + 1 }, (_, i) => [x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps, pressure]);
+};
+
+phases.phase3 = async (page, shot) => {
+  console.log('Phase 3: Smart Figure');
+  await freshProject(page);
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.setBrushValue('ink', { stabiliser: 0 });
+    engine.setBrushValue('flat', { stabiliser: 0 });
+    const id = engine.activeLayer.id;
+    engine.edit('TAG', (p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, tagId: 'figure' } : n)) }));
+  });
+  await page.waitForTimeout(80);
+  check('a Figure layer shows its two planes', (await page.locator('[data-animate-plane-row]').count()) === 2);
+
+  const opsOf = (plane) => page.evaluate((pl) => {
+    const engine = window.__animate;
+    const cel = engine.celForDrawing(engine.activeLayer);
+    return cel === null ? [] : engine.project.drawings[cel.drawingId].planes[pl];
+  }, plane);
+  /** A plane's alpha at a point. */
+  const alphaOf = (plane, x, y) => page.evaluate(([pl, px, py]) => {
+    const engine = window.__animate;
+    const cel = engine.celForDrawing(engine.activeLayer);
+    const canvas = engine.planes.peek(cel.drawingId + '.' + pl);
+    return canvas === null ? 0 : canvas.getContext('2d').getImageData(px, py, 1, 1).data[3];
+  }, [plane, x, y]);
+
+  // Ink a box with a small gap in its top edge.
+  await page.keyboard.press('i');
+  check('ink draws on the Line plane', (await state(page, () => window.__animate && document.querySelector('[data-animate-plane="line"]').getAttribute('aria-pressed'))) === 'true');
+  await penStroke(page, along(420, 200, 800, 200), { gapMs: 1 });
+  await penStroke(page, along(800, 200, 800, 600), { gapMs: 1 });
+  await penStroke(page, along(800, 600, 400, 600), { gapMs: 1 });
+  await penStroke(page, along(400, 600, 400, 200), { gapMs: 1 });
+  check('the lines are on the Line plane', (await opsOf('line')).length === 4 && (await opsOf('colour')).length === 0);
+  check('and an ink stroke holds no smarts', (await opsOf('line'))[0].smartAtDrawTime.length === 0);
+
+  // Give the background read a moment; the helper line is the proof the gap closed.
+  await page.waitForTimeout(900);
+  const cyan = await page.evaluate(() => {
+    const engine = window.__animate;
+    const canvas = document.querySelector('canvas[data-animate="ui"]');
+    engine.paintUi();
+    const m = engine.viewMatrix(true);
+    const ctx = canvas.getContext('2d');
+    let found = 0;
+    for (let x = 395; x < 425; x += 1) {
+      for (let y = 190; y < 210; y += 1) {
+        const p = m.transformPoint(new DOMPoint(x, y));
+        const d = ctx.getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
+        if (d[3] > 100 && d[0] < 90 && d[1] > 150 && d[2] > 180) found += 1;
+      }
+    }
+    return found;
+  });
+  check('a thin cyan line shows where the gap closed', cyan > 0, cyan + ' pixels');
+  await shot('phase3-closure');
+
+  // Flat colour starts inside and runs out over the line: it stops.
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  check('flat colour goes to the Colour plane', (await state(page, () => document.querySelector('[data-animate-plane="colour"]').getAttribute('aria-pressed'))) === 'true');
+  await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  const flat = (await opsOf('colour'))[0];
+  check('a colour stroke remembers its smarts', flat.smartAtDrawTime.includes('stayInsideLines') && flat.smartAtDrawTime.includes('tuckUnder') && flat.regionId > 0, JSON.stringify(flat.smartAtDrawTime));
+  check('inside the lines it paints', (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 700, 400));
+  check('past the line it does not', (await pixel(page, 900, 400)) === '#ffffff', await pixel(page, 900, 400));
+  // No white halo: colour goes under the line, as far as its middle.
+  check('colour runs under the line', (await alphaOf('colour', 798, 400)) > 200, String(await alphaOf('colour', 798, 400)));
+  check('and stops inside its far edge', (await alphaOf('colour', 806, 400)) === 0, String(await alphaOf('colour', 806, 400)));
+  check('the lines stay on top', (await pixel(page, 800, 400)) === '#000000', await pixel(page, 800, 400));
+  await shot('phase3-inside');
+
+  // Tapping Q reads the lines with no closing, and that must not move colour already down (the code review's worry).
+  await page.keyboard.press('q');
+  await page.waitForTimeout(900);
+  check('tapping Q off moves no colour', (await pixel(page, 900, 400)) === '#ffffff' && (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 900, 400));
+  await page.keyboard.press('q');
+  await page.waitForTimeout(500);
+  check('nor does tapping it on', (await pixel(page, 900, 400)) === '#ffffff' && (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 900, 400));
+
+  // It leaks through a big gap but not the small one. (Starting outside it stays outside.)
+  await penStroke(page, along(1000, 500, 700, 500), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  check('a stroke started outside stays outside', (await pixel(page, 900, 500)) === '#e6004c' && (await pixel(page, 700, 500)) === '#ffffff', (await pixel(page, 900, 500)) + ' ' + (await pixel(page, 700, 500)));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+
+  // Q: off goes anywhere, and says so.
+  await page.keyboard.press('q');
+  await page.waitForTimeout(80);
+  check('the master key turns smarts off', (await page.locator('[data-animate-badge]').count()) === 1);
+  check('and a badge says so', (await page.locator('[data-animate-badge]').textContent()) === 'SMART OFF');
+  await shot('phase3-smart-off');
+  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await penStroke(page, along(600, 300, 1000, 300), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  check('a raw stroke goes past the line', (await pixel(page, 900, 300)) === '#28c745', await pixel(page, 900, 300));
+  const raw = (await opsOf('colour'))[1];
+  check('and remembers it was raw', raw.smartAtDrawTime.length === 0);
+  await page.keyboard.press('q');
+  await page.waitForTimeout(80);
+  check('the key again turns them on', (await page.locator('[data-animate-badge]').count()) === 0);
+
+  // Hold it for one stroke.
+  await page.keyboard.down('q');
+  await penStroke(page, along(600, 250, 1000, 250), { gapMs: 1 });
+  await page.keyboard.up('q');
+  await page.waitForTimeout(150);
+  check('held for one stroke: that stroke is raw', (await pixel(page, 900, 250)) === '#28c745', await pixel(page, 900, 250));
+  check('and smarts come straight back', (await page.locator('[data-animate-badge]').count()) === 0);
+
+  // Lines changed after colouring: a wall through the box. Smart colour moves; raw stays.
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await penStroke(page, along(650, 200, 650, 600), { gapMs: 1 });
+  await page.waitForTimeout(1400);
+  check('smart colour moves to the new lines', (await pixel(page, 620, 400)) === '#e6004c' && (await pixel(page, 700, 400)) === '#ffffff', (await pixel(page, 620, 400)) + ' ' + (await pixel(page, 700, 400)));
+  check('raw colour stays exactly as drawn', (await pixel(page, 700, 300)) === '#28c745' && (await pixel(page, 900, 300)) === '#28c745', (await pixel(page, 700, 300)) + ' ' + (await pixel(page, 900, 300)));
+  await shot('phase3-relaid');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(1400);
+  check('undo takes the wall away and the colour comes back', (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 700, 400));
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(1400);
+  check('redo sends it back again', (await pixel(page, 700, 400)) === '#ffffff', await pixel(page, 700, 400));
+
+  // The bucket: a whole area, and it can be undone.
+  await page.keyboard.press('g');
+  await page.getByRole('button', { name: 'ROYAL', exact: true }).click();
+  await page.waitForTimeout(100);
+  await penStroke(page, [[720, 450, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the bucket fills the area it lands in', (await pixel(page, 700, 590)) === '#1d3ca6' && (await pixel(page, 620, 590)) === '#ffffff', (await pixel(page, 700, 590)) + ' ' + (await pixel(page, 620, 590)));
+  check('and fills are kept as data', (await opsOf('colour')).some((op) => op.kind === 'fill' && op.regionId > 0));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  check('undo takes the fill off', (await pixel(page, 700, 590)) === '#ffffff');
+
+  // Hover preview: a pointer over the sheet tints the area, drawn on the marks canvas.
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.setHover({ x: 720, y: 450 });
+    engine.paintUi();
+  });
+  const tinted = await page.evaluate(() => {
+    const engine = window.__animate;
+    const canvas = document.querySelector('canvas[data-animate="ui"]');
+    const p = engine.viewMatrix(true).transformPoint(new DOMPoint(700, 590));
+    return canvas.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data[3];
+  });
+  check('hovering the bucket previews the area it would fill', tinted > 40, 'alpha ' + tinted);
+  await shot('phase3-preview');
+  await page.evaluate(() => window.__animate.setHover(null));
+
+  // Fill brush: a drag across two areas fills both, in one undo step.
+  await page.keyboard.press('y');
+  await page.getByRole('button', { name: 'DAFFODIL', exact: true }).click();
+  await penStroke(page, along(520, 450, 720, 450, 0.5), { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the fill brush fills every area it crosses', (await pixel(page, 500, 590)) === '#fff000' && (await pixel(page, 700, 590)) === '#fff000', (await pixel(page, 500, 590)) + ' ' + (await pixel(page, 700, 590)));
+  await page.keyboard.press('Shift+Y');
+  await penStroke(page, [[720, 450, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the fill eraser clears an area', (await pixel(page, 700, 590)) === '#ffffff' && (await pixel(page, 500, 590)) === '#fff000', (await pixel(page, 700, 590)) + ' ' + (await pixel(page, 500, 590)));
+
+  // Make smart: a raw stroke, selected, snaps inside.
+  await page.keyboard.press('Shift+W');
+  await penStroke(page, [[580, 240, 0.5], [1020, 240, 0.5], [1020, 260, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(80);
+  check('MAKE SMART shows with a selection', (await page.locator('[data-animate-make-smart]').count()) === 1);
+  await page.getByRole('button', { name: '[ MAKE SMART ]' }).click();
+  await page.waitForTimeout(500);
+  check('MAKE SMART snaps a raw stroke inside its area', (await pixel(page, 900, 250)) === '#ffffff', await pixel(page, 900, 250));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(300);
+  check('and undo unsnaps it', (await pixel(page, 900, 250)) === '#28c745', await pixel(page, 900, 250));
+  await page.keyboard.press('Control+d');
+  await page.keyboard.press('f');
+
+  // Reloading keeps it all, smarts included: nothing depends on memory.
+  await waitSaved(page);
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.project?.nodes?.[0]?.tagId === 'figure', null, { timeout: 20000 });
+  await page.waitForTimeout(1000);
+  const opsCount = (await opsOf('colour')).length;
+  check('a reload brings the smart drawing back', opsCount >= 3 && (await pixel(page, 620, 400)) === '#fff000', opsCount + ' ' + (await pixel(page, 620, 400)));
+  // Painting immediately after a reload, before anything has been read, is still held inside.
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'CANDY', exact: true }).click();
+  await penStroke(page, along(1000, 450, 700, 450), { gapMs: 1 });
+  await page.waitForTimeout(1200);
+  check('a stroke made before the lines are read still lands inside its area', (await pixel(page, 700, 450)) !== '#ffb7e6' && (await pixel(page, 900, 450)) === '#ffb7e6', (await pixel(page, 700, 450)) + ' ' + (await pixel(page, 900, 450)));
+  await shot('phase3-desktop');
+};
+
+phases.phase4 = async (page, shot) => {
+  console.log('Phase 4: Tags');
+  await freshProject(page);
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat', 'pencil']) engine.setBrushValue(b, { stabiliser: 0 });
+  });
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  const rows = () => page.evaluate(() => window.__animate.project.nodes.map((n) => [n.name, n.tagId, n.blend, n.locked]));
+  const pickTag = (tagId) => page.evaluate((t) => {
+    const select = document.querySelector('[data-animate-tag-select]');
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(select, t);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }, tagId);
+
+  // Ctrl + a number: a new layer with that tag.
+  check('all eight tags are there', (await page.evaluate(() => window.__animate.project.tags.map((t) => t.id).join(','))) === 'figure,ink,rough,shade,background,reference,fx,notes');
+  await page.keyboard.press('Control+1');
+  await page.waitForTimeout(100);
+  check('Ctrl + 1 makes a Figure layer', (await rows())[0][1] === 'figure', JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(80);
+
+  // Ink as a fill reference: a Figure on another layer reads its lines.
+  await page.keyboard.press('i');
+  await pickTag('ink');
+  await page.waitForTimeout(80);
+  await penStroke(page, along(400, 200, 800, 200), { gapMs: 1 });
+  await penStroke(page, along(800, 200, 800, 600), { gapMs: 1 });
+  await penStroke(page, along(800, 600, 400, 600), { gapMs: 1 });
+  await penStroke(page, along(400, 600, 400, 200), { gapMs: 1 });
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('figure');
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await page.waitForTimeout(900);
+  await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
+  await page.waitForTimeout(300);
+  check('a Figure stays inside lines on an Ink layer', (await pixel(page, 700, 400)) === '#e6004c' && (await pixel(page, 900, 400)) === '#ffffff', (await pixel(page, 700, 400)) + ' ' + (await pixel(page, 900, 400)));
+
+  // Shade: multiplies, and stays where the layer below has pixels.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('shade');
+  await page.waitForTimeout(80);
+  check('a Shade layer starts on multiply', (await rows())[0][2] === 'multiply', JSON.stringify((await rows())[0]));
+  await page.getByRole('button', { name: 'GREY', exact: true }).click();
+  await penStroke(page, along(650, 450, 1000, 450), { gapMs: 1 });
+  await page.waitForTimeout(600);
+  check('a Shade paints only where the layer below has pixels', (await pixel(page, 900, 450)) === '#ffffff', await pixel(page, 900, 450));
+  await penStroke(page, along(620, 402, 760, 402), { gapMs: 1 });
+  await page.waitForTimeout(500);
+  const shaded = await pixel(page, 700, 402);
+  check('and multiplies over the colour', shaded !== '#e6004c' && shaded !== '#ffffff', shaded);
+  await shot('phase4-shade');
+
+  // Rough: dim, and left out of renders. Reference starts locked.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await pickTag('rough');
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await penStroke(page, along(1100, 300, 1500, 300), { gapMs: 1 });
+  await page.waitForTimeout(100);
+  check('Rough shows full strength while it is the layer in hand', (await pixel(page, 1300, 300)) === '#000000', await pixel(page, 1300, 300));
+  await page.keyboard.press('ArrowDown');
+  await page.waitForTimeout(120);
+  const dimmed = await seen(page, 1300, 300);
+  check('and dims, tinted blue, when it is not', dimmed[2] > dimmed[0] && dimmed[0] > 60, JSON.stringify(dimmed));
+  await page.keyboard.press('ArrowUp');
+
+  // Reference starts locked. Notes stay on top. FX adds.
+  await page.keyboard.press('Control+6');
+  await page.waitForTimeout(80);
+  check('a Reference layer starts locked', (await rows())[0][1] === 'reference' && (await rows())[0][3] === true, JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(80);
+  await page.keyboard.press('Control+7');
+  await page.waitForTimeout(80);
+  check('an FX layer starts on add', (await rows())[0][2] === 'add', JSON.stringify((await rows())[0]));
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(80);
+
+  // Background: one drawing on every frame.
+  await page.keyboard.press('Control+5');
+  await page.waitForTimeout(80);
+  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await penStroke(page, along(1100, 800, 1500, 800), { gapMs: 1 });
+  await page.waitForTimeout(100);
+  await page.evaluate(() => window.__animate.goToFrame(20));
+  await page.waitForTimeout(120);
+  check('a Background drawing shows on every frame', (await pixel(page, 1300, 800)) === '#28c745', await pixel(page, 1300, 800));
+  await page.evaluate(() => window.__animate.goToFrame(0));
+
+  // The off switch, per tag.
+  await page.keyboard.press('Shift+T');
+  await page.waitForTimeout(100);
+  check('the tag editor opens', (await page.getByRole('dialog', { name: 'TAGS' }).count()) === 1);
+  await shot('phase4-tags');
+  await page.getByRole('button', { name: 'FIGURE smarts on' }).click();
+  await page.waitForTimeout(100);
+  check('a tag can be switched off', await page.evaluate(() => window.__animate.project.tags.find((t) => t.id === 'figure').on === false));
+  await page.getByRole('button', { name: 'FIGURE smarts off' }).click();
+
+  // A custom tag: copied, edited, put on a layer, and its behaviour works.
+  await page.getByRole('button', { name: 'Copy FIGURE' }).click();
+  await page.waitForTimeout(100);
+  const customId = await page.evaluate(() => window.__animate.project.tags[window.__animate.project.tags.length - 1].id);
+  check('a tag can be copied', await page.evaluate(() => window.__animate.project.tags.length === 9));
+  await page.locator('input[aria-label="Tag name"]').fill('MY FIG');
+  await page.waitForTimeout(60);
+  await shot('phase4-editor');
+  await page.locator('[data-animate-behaviour="STAY INSIDE LINES"]').uncheck();
+  await page.waitForTimeout(60);
+  check('a behaviour can be switched off in it', await page.evaluate((id) => {
+    const t = window.__animate.project.tags.find((x) => x.id === id);
+    return t.behaviours.stayInsideLines === false && t.name === 'MY FIG';
+  }, customId));
+
+  // Presets: out to a file, and in again.
+  const preset = await downloadFrom(page, () => page.getByRole('button', { name: '[ SAVE TAGS ]' }).click());
+  check('tags save to a small file', preset.name === 'animate-tags.json' && preset.bytes.toString().includes('MY FIG'), preset.bytes.length + ' bytes');
+  const presetPath = path.join(os.tmpdir(), 'animate-preset-' + Date.now() + '.json');
+  fs.writeFileSync(presetPath, preset.bytes);
+  await page.setInputFiles('#animate-tag-file', presetPath);
+  await page.waitForTimeout(200);
+  check('and load back as new tags', await page.evaluate(() => window.__animate.project.tags.filter((t) => t.name === 'MY FIG').length === 2));
+  fs.writeFileSync(presetPath, 'nonsense');
+  await page.setInputFiles('#animate-tag-file', presetPath);
+  await page.waitForTimeout(200);
+  check('a file that is not one is refused, in words', (await page.locator('[data-animate-notice]').textContent()).includes('NOT A TAG FILE'));
+  fs.unlinkSync(presetPath);
+  await page.keyboard.press('Shift+T');
+
+  // A folder's tag passes down.
+  await page.keyboard.press('Shift+G');
+  await page.waitForTimeout(80);
+  await pickTag('rough');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  check('a layer made in a folder takes its tag', (await page.locator('[data-animate-row]').first().locator('[data-animate-chip="rough"]').count()) === 1 || (await page.locator('[data-animate-chip="rough"]').count()) >= 2);
+  await shot('phase4-desktop');
+};
+
+/** A small WAV of a tone, for testing sound without shipping one. */
+function toneWav(seconds = 1, rate = 8000) {
+  const n = seconds * rate;
+  const buffer = Buffer.alloc(44 + n * 2);
+  buffer.write('RIFF', 0);
+  buffer.writeUInt32LE(36 + n * 2, 4);
+  buffer.write('WAVEfmt ', 8);
+  buffer.writeUInt32LE(16, 16);
+  buffer.writeUInt16LE(1, 20);
+  buffer.writeUInt16LE(1, 22);
+  buffer.writeUInt32LE(rate, 24);
+  buffer.writeUInt32LE(rate * 2, 28);
+  buffer.writeUInt16LE(2, 32);
+  buffer.writeUInt16LE(16, 34);
+  buffer.write('data', 36);
+  buffer.writeUInt32LE(n * 2, 40);
+  for (let i = 0; i < n; i += 1) buffer.writeInt16LE(Math.round(Math.sin((i / rate) * 2 * Math.PI * 440) * 20000), 44 + i * 2);
+  return buffer;
+}
+
+phases.phase5 = async (page, shot) => {
+  console.log('Phase 5: Pro polish');
+  await freshProject(page);
+  await page.evaluate(() => {
+    window.showSaveFilePicker = undefined;
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
+  });
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.keyboard.press('i');
+  await penStroke(page, mark(300, 300), { gapMs: 1 });
+  await page.keyboard.press('.');
+  await page.waitForTimeout(60);
+  await page.keyboard.press('.');
+  await page.waitForTimeout(60);
+  await penStroke(page, mark(600, 300), { gapMs: 1 });
+
+  // Light table: a second layer's drawing washes out.
+  await page.keyboard.press('Shift+N');
+  await page.waitForTimeout(80);
+  await penStroke(page, mark(900, 300), { gapMs: 1 });
+  await page.waitForTimeout(80);
+  check('before the light table, the other layer is full strength', JSON.stringify(await seen(page, 620, 320)) === '[0,0,0]', JSON.stringify(await seen(page, 620, 320)));
+  await page.keyboard.press('t');
+  await page.waitForTimeout(120);
+  const washed = await seen(page, 620, 320);
+  check('the light table washes out every layer but the one in hand', washed[0] > 120, JSON.stringify(washed));
+  check('and leaves the one in hand', JSON.stringify(await seen(page, 920, 320)) === '[0,0,0]', JSON.stringify(await seen(page, 920, 320)));
+  await shot('phase5-lighttable');
+  await page.keyboard.press('t');
+  await page.keyboard.press('Alt+Delete');
+  await page.waitForTimeout(100);
+
+  // Shift and Trace: the onion moves; the drawing doesn't; it snaps back.
+  await page.evaluate(() => window.__animate.goToFrame(2));
+  await page.keyboard.press('o');
+  await page.waitForTimeout(100);
+  const opsBefore = await frameOps(page);
+  await page.keyboard.press('j');
+  await page.waitForTimeout(60);
+  check('the trace keys show', (await page.locator('[data-animate-trace-keys]').count()) === 1);
+  check('the neighbour shows in its tint where it was', (await seen(page, 320, 320))[0] > 200 && (await seen(page, 320, 320))[1] < 200, JSON.stringify(await seen(page, 320, 320)));
+  await penStroke(page, [[400, 400, 0.5], [500, 500, 0.5], [600, 600, 0.5]], { gapMs: 4 });
+  await page.waitForTimeout(150);
+  check('dragging moves the onion', JSON.stringify(await seen(page, 320, 320)) === '[255,255,255]' && (await seen(page, 520, 520))[0] > 200, JSON.stringify(await seen(page, 520, 520)));
+  await shot('phase5-trace');
+  check('and changes no drawing', (await frameOps(page)) === opsBefore);
+  await page.keyboard.press('Shift+J');
+  await page.waitForTimeout(100);
+  check('SNAP BACK puts it back', (await seen(page, 320, 320))[0] > 200, JSON.stringify(await seen(page, 320, 320)));
+  await page.keyboard.press('o');
+
+  // Carry colour forward.
+  await freshProject(page);
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    for (const b of ['ink', 'flat']) engine.setBrushValue(b, { stabiliser: 0 });
+    const id = engine.activeLayer.id;
+    engine.edit('TAG', (p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, tagId: 'figure' } : n)) }));
+  });
+  await page.waitForTimeout(80);
+  const box = async (x0, y0, x1, y1) => {
+    await penStroke(page, along(x0, y0, x1, y0), { gapMs: 1 });
+    await penStroke(page, along(x1, y0, x1, y1), { gapMs: 1 });
+    await penStroke(page, along(x1, y1, x0, y1), { gapMs: 1 });
+    await penStroke(page, along(x0, y1, x0, y0), { gapMs: 1 });
+  };
+  await page.keyboard.press('i');
+  await box(300, 300, 700, 700);
+  await page.waitForTimeout(800);
+  await page.keyboard.press('g');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  await page.waitForTimeout(100);
+  await penStroke(page, [[500, 500, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(300);
+  check('a coloured drawing to carry from', (await pixel(page, 500, 500)) === '#e6004c');
+  await page.keyboard.press('.');
+  await page.waitForTimeout(100);
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await box(320, 320, 720, 720);
+  await page.waitForTimeout(800);
+  check('the next drawing has lines and no colour', (await pixel(page, 500, 500)) === '#ffffff');
+  await page.keyboard.press('ArrowLeft');
+  await page.waitForTimeout(150);
+  await page.keyboard.press('c');
+  await page.waitForTimeout(800);
+  check('carrying goes to the next drawing', (await state(page, () => window.__animate.frame)) === 1);
+  check('and fills its matching area', (await pixel(page, 500, 500)) === '#e6004c' && (await pixel(page, 900, 500)) === '#ffffff', (await pixel(page, 500, 500)) + ' ' + (await pixel(page, 900, 500)));
+  await shot('phase5-carry');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  await page.evaluate(() => window.__animate.goToFrame(1));
+  await page.waitForTimeout(100);
+  check('undo takes the carried colour off', (await pixel(page, 500, 500)) === '#ffffff', await pixel(page, 500, 500));
+
+  // The Carry Colour Forward behaviour: stepping on from a coloured drawing carries once. With nothing to carry it doesn't loop.
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: true } } : t)) }));
+    engine.goToFrame(0);
+  });
+  await page.waitForTimeout(150);
+  await page.keyboard.press('.');
+  await page.waitForTimeout(900);
+  check('the behaviour carries colour as you step on to a drawing with none', (await state(page, () => window.__animate.frame)) === 1 && (await pixel(page, 500, 500)) === '#e6004c', await pixel(page, 500, 500));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  const hops = await page.evaluate(async () => {
+    const engine = window.__animate;
+    engine.goToFrame(0);
+    let last = engine.frame;
+    let changes = 0;
+    const started = performance.now();
+    await new Promise((resolve) => {
+      const tick = () => {
+        if (engine.frame !== last) {
+          changes += 1;
+          last = engine.frame;
+        }
+        if (performance.now() - started < 800) requestAnimationFrame(tick);
+        else resolve();
+      };
+      engine.goToFrame(1);
+      tick();
+    });
+    return changes;
+  });
+  check('it tries once for each drawing: the frame does not hop back and forth', hops <= 3, hops + ' changes');
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.tweak((p) => ({ ...p, tags: p.tags.map((t) => (t.id === 'figure' ? { ...t, behaviours: { ...t.behaviours, carryColourForward: false } } : t)) }));
+  });
+
+  // Sound: a file in, a row on the timeline, and it travels with the project.
+  const wavPath = path.join(os.tmpdir(), 'animate-tone-' + Date.now() + '.wav');
+  fs.writeFileSync(wavPath, toneWav());
+  await page.keyboard.press('Shift+A');
+  await page.waitForTimeout(100);
+  await page.setInputFiles('#animate-sound-file', wavPath);
+  await page.waitForFunction(() => window.__animate.project.audio !== null, null, { timeout: 10000 });
+  await page.waitForTimeout(250);
+  check('a sound shows as a row on the timeline', (await page.locator('[data-animate-sound-row]').count()) === 1);
+  const bars = await page.evaluate(() => {
+    const canvas = document.querySelector('[data-animate-sound-row] canvas');
+    const d = canvas.getContext('2d').getImageData(0, 0, Math.min(200, canvas.width), canvas.height).data;
+    let on = 0;
+    for (let i = 3; i < d.length; i += 4) if (d[i] > 100) on += 1;
+    return on;
+  });
+  check('drawn as its loudness', bars > 100, bars + ' pixels');
+  await shot('phase5-sound');
+  fs.writeFileSync(wavPath, 'not a sound');
+  await page.setInputFiles('#animate-sound-file', wavPath);
+  await page.waitForFunction(() => document.querySelector('[data-animate-notice]')?.textContent?.includes('CANNOT READ'), null, { timeout: 8000 });
+  pass('a file that is not a sound is refused, in words');
+  fs.unlinkSync(wavPath);
+  await page.keyboard.press('Shift+A');
+  await page.waitForTimeout(80);
+
+  // Playing with sound: the picture still runs.
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Enter');
+  await page.waitForTimeout(600);
+  const during = await state(page, () => window.__animate.frame);
+  await page.keyboard.press('Enter');
+  check('it plays with sound on', during > 0, 'frame ' + during);
+
+  // Video: real files, with real headers.
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  const canH264 = await page.evaluate(async () => {
+    try {
+      return (await VideoEncoder.isConfigSupported({ codec: 'avc1.42001f', width: 480, height: 270 })).supported === true;
+    } catch {
+      return false;
+    }
+  });
+  await page.getByRole('button', { name: '[ 25% ]' }).click();
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, frames: 12 })));
+  await page.waitForTimeout(60);
+  if (canH264) {
+    const mp4 = await downloadFrom(page, () => page.getByRole('button', { name: '[ MP4 ]' }).click());
+    check('MP4 export gives a real MP4', mp4.name.endsWith('.mp4') && mp4.bytes.subarray(4, 8).toString() === 'ftyp', mp4.bytes.length + ' bytes');
+    check('with sound in it', mp4.bytes.includes('soun', 0, 'latin1'), mp4.bytes.includes('soun', 0, 'latin1') ? 'sound track found' : 'no sound track: ' + (await page.locator('[data-animate-notice]').textContent()));
+    await page.waitForTimeout(200);
+  } else {
+    pass('this browser has no H.264 encoder here, so MP4 was not tried');
+  }
+  const webm = await downloadFrom(page, () => page.getByRole('button', { name: '[ WEBM ]' }).click());
+  check('WebM export gives a real WebM', webm.name.endsWith('.webm') && webm.bytes[0] === 0x1a && webm.bytes[1] === 0x45 && webm.bytes[2] === 0xdf && webm.bytes[3] === 0xa3, webm.bytes.length + ' bytes');
+  await shot('phase5-export');
+  // Closing the panel during an export keeps STOP: reopening shows it still running, and a second can't start.
+  // Hundreds of different drawings, so the export takes long enough to catch in the act. Undone afterwards.
+  await page.evaluate(() => {
+    window.__animate.edit('TEST', (p) => {
+      const drawings = { ...p.drawings };
+      const cels = [...p.nodes[0].cels];
+      for (let i = 0; i < 300; i += 1) {
+        const id = 'test_' + i;
+        drawings[id] = { id, planes: { line: [], colour: [] } };
+        cels.push({ id: 'testcel_' + i, frame: 20 + i, length: 1, drawingId: id, mark: 'key' });
+      }
+      return { ...p, frames: 330, drawings, nodes: p.nodes.map((n, at) => (at === 0 ? { ...n, cels } : n)) };
+    });
+  });
+  await page.getByRole('button', { name: '[ GIF ]' }).click();
+  await page.waitForFunction(() => document.body.textContent.includes('GIF 1 /') || document.body.textContent.includes('STARTING'), null, { timeout: 8000 });
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  await penStroke(page, mark(100, 100), { gapMs: 1 });
+  check('the pen waits while an export reads the pictures', (await page.locator('[data-animate-notice]').textContent()).includes('EXPORTING'));
+  await page.keyboard.press('Control+e');
+  await page.waitForTimeout(100);
+  check('reopening the panel shows it still running', (await page.getByRole('button', { name: '[ STOP ]' }).count()) === 1);
+  await page.getByRole('button', { name: '[ STOP ]' }).click();
+  await page.waitForFunction(() => document.querySelector('[data-animate-notice]')?.textContent?.includes('EXPORT STOPPED'), null, { timeout: 20000 });
+  pass('STOP stops it');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+  await page.evaluate(() => window.__animate.tweak((p) => ({ ...p, frames: 12 })));
+  await page.keyboard.press('Control+e');
+
+  // The sound travels in the project file.
+  await page.waitForTimeout(100);
+  const projectZip = await downloadFrom(page, () => page.getByRole('button', { name: /SAVE FILE/ }).click());
+  check('the project file holds the sound', projectZip.bytes.toString('latin1').includes('assets/a_'), projectZip.bytes.length + ' bytes');
+
+  // A reference picture lands on its own locked layer, and stays out of renders.
+  const pngPath = path.join(os.tmpdir(), 'animate-pic-' + Date.now() + '.png');
+  const pngData = await page.evaluate(() => {
+    const c = document.createElement('canvas');
+    c.width = 40;
+    c.height = 30;
+    c.getContext('2d').fillRect(0, 0, 40, 30);
+    return c.toDataURL('image/png').split(',')[1];
+  });
+  fs.writeFileSync(pngPath, Buffer.from(pngData, 'base64'));
+  await page.setInputFiles('#animate-import-picture', pngPath);
+  await page.waitForFunction(() => window.__animate.project.nodes[0].tagId === 'reference', null, { timeout: 8000 });
+  check('an imported picture lands on a locked Reference layer', await page.evaluate(() => window.__animate.project.nodes[0].locked === true));
+  check('and is kept as data', await page.evaluate(() => Object.values(window.__animate.project.drawings).some((d) => d.planes.line.some((op) => op.kind === 'image'))));
+  fs.unlinkSync(pngPath);
+  await shot('phase5-desktop');
+};
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'animate-drive-'));
@@ -516,6 +1358,21 @@ phases.phase1 = async (page, shot) => {
   const helpers = { penStroke, line, pixel, state, frameOps, waitSaved, check, pass, fail, shot };
   const wanted = ONLY === '' ? Object.keys(phases) : ONLY.split(',');
   for (const name of wanted) await phases[name](page, shot, helpers);
+
+  // Every control in the studio has a name a screen reader can say, and nothing is set below the site's smallest text.
+  const unreadable = await page.evaluate(() => {
+    const studio = document.querySelector('[aria-label="Animation studio"]');
+    const out = [];
+    for (const el of studio.querySelectorAll('button, input, select')) {
+      const name = el.getAttribute('aria-label') || el.textContent?.trim() || el.closest('label')?.textContent?.trim();
+      if (!name) out.push('unnamed ' + el.tagName);
+    }
+    for (const el of studio.querySelectorAll('button, span, p, label, h2, h3, li')) {
+      if (el.textContent?.trim() && Number.parseFloat(getComputedStyle(el).fontSize) < 13) out.push('small ' + el.textContent.trim().slice(0, 20));
+    }
+    return out;
+  });
+  check('every control has a name, and no text is under 13px', unreadable.length === 0, unreadable.slice(0, 6).join(' | '));
 
   // Phone width: no sideways scroll.
   await page.setViewportSize({ width: 390, height: 844 });

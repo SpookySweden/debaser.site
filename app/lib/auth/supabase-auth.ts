@@ -1,4 +1,5 @@
-import { getSupabaseBrowserClient } from '../supabase/client';
+import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { getSupabaseBrowserClient, supabaseAuthStorageKey } from '../supabase/client';
 import { resolveSignInAddress } from './builtin-account';
 import { describeSignUpFailure } from './failure-messages';
 import type {
@@ -84,9 +85,34 @@ class SupabaseAuthRepository implements AuthRepository {
 
   async getCurrentUser(): Promise<AccountUser | null> {
     const { data, error } = await this.client().auth.getUser();
-    if (error !== null || data.user === null) return null;
+    if (error !== null) {
+      // A timeout or a server fault isn't "signed out": the session may be perfectly good.
+      if (isAuthRetryableFetchError(error) || error.status === undefined || error.status >= 500) throw error;
+      return null;
+    }
 
-    return toAccount(data.user);
+    return data.user === null ? null : toAccount(data.user);
+  }
+
+  peekCurrentUser(): AccountUser | null | undefined {
+    if (typeof window === 'undefined') return undefined;
+
+    // Back from Google with the sign-in still in the address: the session isn't stored yet.
+    const address = window.location.search + window.location.hash;
+    if (/[?&#](code|access_token|error_description)=/.test(address)) return undefined;
+
+    const key = supabaseAuthStorageKey();
+    if (key === null) return undefined;
+
+    try {
+      const stored = window.localStorage.getItem(key);
+      if (stored === null) return null;
+
+      const session = JSON.parse(stored) as { user?: SupabaseUserLike | null } | null;
+      return typeof session?.user?.id === 'string' ? toAccount(session.user) : undefined;
+    } catch {
+      return undefined;
+    }
   }
 
   async signUp(input: SignUpInput): Promise<AuthResult> {

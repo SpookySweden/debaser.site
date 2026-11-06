@@ -13,7 +13,7 @@ export const metadata: Metadata = {
  */
 export default function BeatBoxPage() {
   return (
-    <SiteWindow title="DEBASER_OS - v1.0 [BEATBOX]" active="beatbox" tip="A music maker with loop recording.">
+    <SiteWindow title="DEBASER_OS - v1.0 [BEATBOX]" active="beatbox" tip="A music maker with loop recording." fill>
       <h1 className="sr-only">DEBASER.SITE // BEAT BOX</h1>
       <BeatBoxLoader />
     </SiteWindow>

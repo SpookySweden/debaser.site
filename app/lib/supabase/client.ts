@@ -20,6 +20,12 @@ export const isSupabaseConfigured = SUPABASE_URL.length > 0 && SUPABASE_ANON_KEY
 
 let browserClient: SupabaseClient | null = null;
 
+/** Where supabase-js keeps the signed-in session in this browser's storage, by its own default naming. */
+export function supabaseAuthStorageKey(): string | null {
+  if (!isSupabaseConfigured) return null;
+  return `sb-${new URL(SUPABASE_URL).hostname.split('.')[0]}-auth-token`;
+}
+
 /** Returns null when the project env vars are missing, so callers can fall back. */
 export function getSupabaseBrowserClient(): SupabaseClient | null {
   if (!isSupabaseConfigured) return null;

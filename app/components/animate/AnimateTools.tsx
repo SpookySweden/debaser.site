@@ -1,8 +1,12 @@
 'use client';
 
+import { useRef } from 'react';
 import { BRUSH_LABELS, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE } from '../../lib/animate/brushes';
-import { inkOn } from '../../lib/animate/colours';
+import { inkOn, readPalette } from '../../lib/animate/colours';
 import { getEngine } from '../../lib/animate/engine';
+import { saveBlobAs } from '../../lib/animate/project-file';
+import { makeSmart } from '../../lib/animate/smart';
+import { snapBack } from '../../lib/animate/trace';
 import { useStudio, type ToolId } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
@@ -14,9 +18,99 @@ const TOOL_KEYS: ToolKey[] = [
   { tool: 'ink', label: BRUSH_LABELS.ink, key: 'I' },
   { tool: 'flat', label: BRUSH_LABELS.flat, key: 'F' },
   { tool: 'eraser', label: BRUSH_LABELS.eraser, key: 'E' },
+  { tool: 'fill', label: BRUSH_LABELS.fill, key: 'G' },
+  { tool: 'fillbrush', label: BRUSH_LABELS.fillbrush, key: 'Y' },
+  { tool: 'filleraser', label: BRUSH_LABELS.filleraser, key: 'SHIFT + Y' },
+  { tool: 'lasso', label: 'LASSO', key: 'W' },
+  { tool: 'rect', label: 'BOX SELECT', key: 'SHIFT + W' },
+  { tool: 'shift', label: 'SHIFT + TRACE', key: 'J' },
   { tool: 'pick', label: 'PICK COLOUR', key: 'K' },
   { tool: 'hand', label: 'HAND', key: 'H' },
 ];
+
+/** Shift and Trace's options: which neighbour, how to handle it, and back to where it was. */
+function TraceKeys() {
+  const mode = useStudio((state) => state.traceMode);
+  const side = useStudio((state) => state.traceSide);
+  const on = useStudio((state) => state.shiftTraceOn);
+  return (
+    <div role="group" aria-label="Shift and Trace" className="flex flex-wrap gap-x-1" data-animate-trace-keys>
+      {(['prev', 'next'] as const).map((value) => (
+        <button key={value} type="button" className={side === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={side === value} onClick={() => useStudio.setState({ traceSide: value })}>
+          [ {value === 'prev' ? 'BEFORE' : 'AFTER'} ]
+        </button>
+      ))}
+      {(['move', 'turn', 'scale'] as const).map((value) => (
+        <button key={value} type="button" className={mode === value ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={mode === value} onClick={() => useStudio.setState({ traceMode: value })}>
+          [ {value.toUpperCase()} ]
+        </button>
+      ))}
+      <button type="button" className={PLATE_MEDIUM} disabled={!on} onClick={snapBack} title="SHIFT + J">
+        [ SNAP BACK ]
+      </button>
+    </div>
+  );
+}
+
+/** Keep the current colour, drop it, and carry a palette between projects as a file. */
+function PaletteKeys() {
+  const colour = useStudio((state) => state.colour);
+  const palette = useStudio((state) => state.project.palette);
+  const file = useRef<HTMLInputElement>(null);
+  const has = palette.some((swatch) => swatch.colour === colour);
+  const engine = getEngine();
+  return (
+    <div role="group" aria-label="Palette keys" className="flex flex-wrap gap-x-1">
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        disabled={has}
+        aria-label="Keep this colour in the palette"
+        onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: [...project.palette, { name: colour.toUpperCase(), colour }] }))}
+      >
+        [ + ]
+      </button>
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        disabled={!has}
+        aria-label="Take this colour out of the palette"
+        onClick={() => engine.edit('PALETTE', (project) => ({ ...project, palette: project.palette.filter((swatch) => swatch.colour !== colour) }))}
+      >
+        [ - ]
+      </button>
+      <button
+        type="button"
+        className={PLATE_MEDIUM}
+        aria-label="Save the palette as a file"
+        onClick={() => void saveBlobAs(new Blob([JSON.stringify({ animatePalette: 1, swatches: palette }, null, 2)], { type: 'application/json' }), 'palette.json', 'Palette', ['.json'])}
+      >
+        [ SAVE ]
+      </button>
+      <button type="button" className={PLATE_MEDIUM} aria-label="Load a palette file" onClick={() => file.current?.click()}>
+        [ LOAD ]
+      </button>
+      <input
+        ref={file}
+        type="file"
+        accept=".json"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Palette file"
+        onChange={(event) => {
+          const chosen = event.target.files?.[0];
+          event.target.value = '';
+          if (chosen === undefined) return;
+          void chosen.text().then((text) => {
+            const swatches = readPalette(text);
+            if (swatches === null) engine.notify('THAT IS NOT A PALETTE FILE', true);
+            else engine.edit('PALETTE', (project) => ({ ...project, palette: swatches }));
+          });
+        }}
+      />
+    </div>
+  );
+}
 
 /** The tools, the brush's settings and the palette. Words, not pictures: the site draws no icons. */
 export default function AnimateTools() {
@@ -24,6 +118,7 @@ export default function AnimateTools() {
   const colour = useStudio((state) => state.colour);
   const palette = useStudio((state) => state.project.palette);
   const brushes = useStudio((state) => state.brushes);
+  const hasSelection = useStudio((state) => state.hasSelection);
   const engine = getEngine();
   const brush = engine.brushForTool(tool);
   const settings = brush === null ? null : brushes[brush];
@@ -44,6 +139,14 @@ export default function AnimateTools() {
           </button>
         ))}
       </div>
+
+      {tool === 'shift' && <TraceKeys />}
+
+      {hasSelection && (
+        <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart>
+          [ MAKE SMART ]
+        </button>
+      )}
 
       {brush !== null && settings !== null && (
         <div className="flex flex-col gap-1 max-md:flex-row max-md:flex-wrap">
@@ -80,6 +183,7 @@ export default function AnimateTools() {
             </button>
           ))}
         </div>
+        <PaletteKeys />
       </div>
     </div>
   );

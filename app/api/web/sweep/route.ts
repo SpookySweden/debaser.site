@@ -36,13 +36,14 @@ export async function POST(request: Request): Promise<Response> {
   if (lock.length < MIN_LOCK_LENGTH || lock.length > MAX_LOCK_LENGTH) return json({ error: 'Not allowed.' }, 401);
   if (!process.env.ANTHROPIC_API_KEY) return json({ skipped: 'no key set' }, 200);
 
-  const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  // The lock as a header too: the pool's file bucket checks it from there.
+  const db = createClient(supabaseUrl, publicKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { [LOCK_HEADER]: lock } } });
   try {
     const hosts = await peertubeHosts(cachedFetch);
     // Plain fetch, not the day-long cache: a sweep's whole point is the next page, and its answers aren't worth keeping.
     return json(await runSweep(new Anthropic(), makeSweepStore(db, lock), (state, deadline) => readSources(state, deadline, { peertubeHosts: hosts })), 200);
   } catch (error) {
-    if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.' }, 401);
+    if (error instanceof Error && error.message === 'TAGGING_DATABASE') return json({ error: 'Not allowed, or the database could not be read.', failed: (error as Error & { failed?: string }).failed }, 401);
     // Never an error's message or stack: a bad header's message repeats the key. Claude's own status and type say what went wrong.
     const reason = error instanceof Anthropic.APIError ? `claude ${error.status ?? 'no status'} ${error.type ?? 'unknown'}` : error instanceof Error ? error.name : 'unknown';
     return json({ error: 'The sweep could not run.', reason }, 500);

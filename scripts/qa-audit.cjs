@@ -63,6 +63,8 @@ const ROUTES = [
   // The search page (WEB at /web, then ARCHIVE at /archive, until 2026-11-04) and the catalogue (MEDIA at /media until then).
   ['media', '/media'],
   ['discover', '/discover'],
+  // The studio itself renders in the browser (SPEC-animator.md), so this reads its frame; scripts/drive-animate.cjs audits the panels.
+  ['animate', '/animate'],
   ['beatbox', '/beatbox'],
   ['files', '/files'],
   // Watching and listening together (SPEC-cytube.md, 2026-11-03); signed-in only, so a capture is its sign-in check.
