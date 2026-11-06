@@ -171,7 +171,29 @@ function persist(): void {
 
 function notify(): void {
   const next = snapshot();
+  // A private stream's record is its members' on this store too, so what goes out to the page is read through the same rule.
+  if (next.some((thread) => thread.stampedPrivate === true)) {
+    void visibleThreads().then((seen) => {
+      for (const listener of listeners) listener(seen);
+    });
+    return;
+  }
   for (const listener of listeners) listener(next);
+}
+
+/** The database's rule, kept by hand: a private stream's record is its members'. Everybody else gets a day and a count. */
+function visibleThreads(): Promise<ForumThread[]> {
+  return Promise.all(
+    snapshot().map(async (thread) => {
+      const roomId = streamRoomId(thread.anchor);
+      if (roomId === null || thread.stampedPrivate !== true) return thread;
+      const watch = getMockWatchRepository();
+      const door = await watch.readDoor(roomId);
+      if (door.member) return thread;
+      const outline = await watch.readRoomOutline(roomId);
+      return privateRecordThread(thread.id, thread.createdAt, outline?.messages.length ?? 0);
+    }),
+  );
 }
 
 function notifyPins(): void {
@@ -239,18 +261,7 @@ class MockForumRepository implements ForumRepository {
   readonly source = 'mock' as const;
 
   async listThreads(): Promise<ForumThread[]> {
-    // The database's rule, kept by hand: a private stream's record is its members'. Everybody else gets a day and a count.
-    return Promise.all(
-      snapshot().map(async (thread) => {
-        const roomId = streamRoomId(thread.anchor);
-        if (roomId === null || thread.stampedPrivate !== true) return thread;
-        const watch = getMockWatchRepository();
-        const door = await watch.readDoor(roomId);
-        if (door.member) return thread;
-        const outline = await watch.readRoomOutline(roomId);
-        return privateRecordThread(thread.id, thread.createdAt, outline?.messages.length ?? 0);
-      }),
-    );
+    return visibleThreads();
   }
 
   async createThread(input: CreateThreadInput): Promise<ForumThread> {
@@ -286,6 +297,17 @@ class MockForumRepository implements ForumRepository {
     assertNotBanned(input.author);
 
     const threads = ensureState();
+    // The database's `forum_thread_may_reply`: nobody outside replies under a private record.
+    const recordOf =
+      input.threadId !== undefined
+        ? threads.find((thread) => thread.id === input.threadId)
+        : input.anchor !== undefined
+          ? findThreadByAnchor(threads, input.anchor)
+          : undefined;
+    const recordRoom = recordOf === undefined || recordOf.stampedPrivate !== true ? null : streamRoomId(recordOf.anchor);
+    if (recordRoom !== null && !(await getMockWatchRepository().readDoor(recordRoom)).member) {
+      throw new Error('ONLY THE PEOPLE IN THIS STREAM CAN REPLY.');
+    }
     const body = input.body.trim();
     const author = { ...input.author };
     const createdAt = new Date().toISOString();

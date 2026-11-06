@@ -58,6 +58,8 @@ export type AddCommentRequest = {
 
 export type ForumContextValue = {
   threads: ForumThread[];
+  /** Reads the board again. For a change the board hears no event for: joining a private stream makes its record readable. */
+  refreshThreads: () => Promise<void>;
   /**
    * The pins, newest first, lapsed ones included.
    *
@@ -392,6 +394,11 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     [threadForAnchor],
   );
 
+  const refreshThreads = useCallback(async () => {
+    const repository = repositoryRef.current ?? getForumRepository();
+    setThreads(await repository.listThreads());
+  }, []);
+
   const clearLocalPosts = useCallback(async () => {
     const repository = repositoryRef.current ?? getForumRepository();
     await repository.clearLocalPosts?.();
@@ -453,6 +460,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       commentCountForAnchor,
       addProfileComment,
       clearLocalPosts,
+      refreshThreads,
     }),
     [
       boardThreads,
@@ -479,6 +487,7 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
       commentCountForAnchor,
       addProfileComment,
       clearLocalPosts,
+      refreshThreads,
     ],
   );
 

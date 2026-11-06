@@ -264,7 +264,8 @@ export function makeTaggingStore(db: SupabaseClient, lock: string, readSeen: See
         p_rows: items.map((item) => ({ id: item.id, kind: item.kind, title: item.title, creator: item.creator, publishedAt: item.publishedAt })),
       });
     },
-    spent: async () => Number(await call<number | string>('web_tag_spent', {})),
+    // Spent, plus the worst of what the sweep has out, so the three jobs together can't pass the limit.
+    spent: async () => Number(await call<number | string>('web_tag_committed', {})),
     recordSpend: async (batchId, inputTokens, outputTokens, usd) => {
       await call('web_tag_spend_add', { p_batch: batchId, p_input: inputTokens, p_output: outputTokens, p_usd: usd });
     },

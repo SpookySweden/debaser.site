@@ -2,17 +2,17 @@
 
 import { useEffect, useState } from 'react';
 import { getWatchRepository } from '../lib/watch/repository';
-import type { OutlineLine, OutlineSize, RoomOutline } from '../lib/watch/types';
+import type { PrivateLine, PrivateSize, RoomOutline } from '../lib/watch/types';
 
 /** Three sizes, never the real length (decision 13). Characters, not art: a dark bar in the page's ink, so it keeps the site's contrast. */
-const BARS: Record<OutlineSize, string> = {
+const BARS: Record<PrivateSize, string> = {
   short: '███ ██',
   medium: '███ █████ ██ ████',
   long: '███ █████ ██ ████ ██████ ███ ████ ██',
 };
 
 /** One message nobody may read: heard by a screen reader as PRIVATE MESSAGE rather than as a row of block characters. */
-export function PrivateBar({ size }: { size: OutlineSize }) {
+export function PrivateBar({ size }: { size: PrivateSize }) {
   return (
     <span role="img" aria-label="PRIVATE MESSAGE" className="break-words" data-private-bar={size}>
       {BARS[size]}
@@ -26,7 +26,7 @@ function clock(seconds: number): string {
 }
 
 /** `ANON-2 :: 02:14 :: ███ █████ ██`, each line as the database handed it over: it holds no words to hide. */
-export function PrivateLines({ lines }: { lines: OutlineLine[] }) {
+export function PrivateLines({ lines }: { lines: PrivateLine[] }) {
   if (lines.length === 0) return <p>NOTHING SAID YET.</p>;
   return (
     <ul className="flex flex-col gap-0.5" data-private-lines>

@@ -175,9 +175,12 @@ class SupabaseNotificationsRepository implements NotificationsRepository {
     const { error } = await this.client().from(TABLE).insert(rows);
     if (error === null) return;
     // One refused row refuses them all, and somebody outside a private stream is refused (SPEC-privacy-phase-3.md): the rest are still told.
-    if (rows.length > 1) {
-      await Promise.all(rows.map((row) => this.client().from(TABLE).insert(row)));
-      return;
+    // Only a refusal is forgiven, and only when somebody got through. A real failure is still said.
+    if (rows.length > 1 && error.code === '42501') {
+      const each = await Promise.all(rows.map((row) => this.client().from(TABLE).insert(row)));
+      const failed = each.flatMap((result) => (result.error === null ? [] : [result.error]));
+      if (failed.length < rows.length && failed.every((one) => one.code === '42501')) return;
+      this.refuse(failed[0] ?? error);
     }
     this.refuse(error);
   }
