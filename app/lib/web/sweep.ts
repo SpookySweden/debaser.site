@@ -27,8 +27,8 @@ export type SweepSource = (typeof SWEEP_SOURCES)[number];
 export const SWEEP_LIMIT_USD = 60;
 /** What the tagging job and the word pass may have out at worst, which the sweep leaves them. */
 const OTHER_JOBS_IN_FLIGHT_USD = 0.6;
-/** Batches out at once. At a full run each, inside the 200,000 requests Claude's API lets wait in its queue. */
-export const MAX_OUT = 5;
+/** Batches out at once. At a full run each, inside the 200,000 requests Claude's API lets wait in its queue. A batch of 24,000 took 19 minutes, measured. */
+export const MAX_OUT = 7;
 /** The most one batch holds: more than a run can read, so no read item is cut. */
 const MAX_BATCH = 35_000;
 /** Batches sent before the files, whose rows are in the table, at most this many a batch (`web_pool_out`). */
@@ -46,11 +46,12 @@ const AGENT = 'DebaserSiteSweep/1.0 (+https://github.com/SpookySweden/debaser.si
 /** The collections Luke named on 2026-11-05 are read first. */
 export const ARCHIVE_COLLECTIONS = ['librivoxaudio', 'prelinger', 'feature_films', 'etree', 'oldtimeradio', 'classic_tv', 'animationandcartoons', 'silent_films'] as const;
 /**
- * Then anything public (Luke, 2026-11-06: the named-collections rule removed, adult, restricted and dark items still skipped). 3.26 million videos and
- * recordings whose uploader states a licence, which is more than the $60 can pay for: the 87 million others are left out, because with no licence stated more
- * of them are copies of other people's work, and these rows get offered to people.
+ * Then everything public (Luke, 2026-11-06: "Everything public"): 74 million items, skipping adult-flagged, restricted and dark ones, and the named collections,
+ * already read and paid for. The $60 reaches about 2% of that, and the Archive lists by name, so reading from the top would be only names starting with a digit.
+ * So it takes turns through the first letters, each with its own place, and what gets tagged is a spread.
  */
-export const ARCHIVE_WIDER = `licenseurl:* AND mediatype:(movies OR audio) AND NOT collection:(no-preview OR adult OR ${ARCHIVE_COLLECTIONS.join(' OR ')}) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true`;
+export const ARCHIVE_WIDER = `mediatype:(movies OR audio OR texts OR image) AND NOT collection:(no-preview OR adult OR ${ARCHIVE_COLLECTIONS.join(' OR ')}) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true`;
+const ARCHIVE_FIRST_LETTERS = [...'abcdefghijklmnopqrstuvwxyz0123456789'];
 /** Few big calls rather than many small ones, as it asks: 5,000 rows take 8 seconds. */
 const ARCHIVE_ROWS = 5000;
 const ARCHIVE_CALLS = 4;
@@ -137,11 +138,30 @@ export async function readArchive(state: Record<string, unknown>, deadline: numb
   let rows = typeof state.rows === 'number' ? state.rows : ARCHIVE_ROWS;
   let wider = state.wider === true;
   let done = false;
-  const q = () => (wider ? ARCHIVE_WIDER : `collection:(${ARCHIVE_COLLECTIONS.join(' OR ')})`);
+  // On the wider list: whose turn, and each first letter's own place. A letter that's finished holds `false`.
+  let turn = typeof state.turn === 'number' ? state.turn : 0;
+  const places: Record<string, string | false> = { ...((state.places as Record<string, string | false> | undefined) ?? {}) };
+  const nextLetter = () => {
+    for (let step = 0; step < ARCHIVE_FIRST_LETTERS.length; step += 1) {
+      const letter = ARCHIVE_FIRST_LETTERS[(turn + step) % ARCHIVE_FIRST_LETTERS.length];
+      if (places[letter] !== false) {
+        turn = (turn + step) % ARCHIVE_FIRST_LETTERS.length;
+        return letter;
+      }
+    }
+    return null;
+  };
   const fetchedAt = new Date((deps.now ?? Date.now)()).toISOString();
   await each(ARCHIVE_CALLS, deadline, deps, 1000, async () => {
-    const query: [string, string][] = [['q', q()], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(rows)]];
-    if (cursor) query.push(['cursor', cursor]);
+    const letter = wider ? nextLetter() : null;
+    if (wider && letter === null) {
+      done = true;
+      return false;
+    }
+    const place = letter === null ? cursor : (places[letter] as string | undefined) ?? null;
+    const q = letter === null ? `collection:(${ARCHIVE_COLLECTIONS.join(' OR ')})` : `${ARCHIVE_WIDER} AND identifier:${letter}*`;
+    const query: [string, string][] = [['q', q], ['fields', ARCHIVE_FIELDS.join(',')], ['count', String(rows)]];
+    if (place) query.push(['cursor', place]);
     let answer: { items?: unknown[]; cursor?: unknown };
     try {
       answer = (await getJson(buildUrl('archive.org', ['services', 'search', 'v1', 'scrape'], query), ['archive.org'], deps)) as { items?: unknown[]; cursor?: unknown };
@@ -157,17 +177,24 @@ export async function readArchive(state: Record<string, unknown>, deadline: numb
       const tags = (Array.isArray(subject) ? subject : typeof subject === 'string' ? subject.split(';') : []).filter((one): one is string => typeof one === 'string').slice(0, 20);
       items.push({ ...fromWebItem(item, 'internet_archive', null), tags });
     }
-    cursor = typeof answer.cursor === 'string' ? answer.cursor : null;
+    const next = typeof answer.cursor === 'string' ? answer.cursor : null;
     rows = ARCHIVE_ROWS;
-    // The end of the named collections: on to the wider list. The end of that: finished, rather than going round, which would pay again.
+    if (letter !== null) {
+      // A letter's end stops that letter, for good: going round would pay again.
+      places[letter] = next ?? false;
+      turn = (turn + 1) % ARCHIVE_FIRST_LETTERS.length;
+      return true;
+    }
+    cursor = next;
+    // The end of the named collections: on to the wider list.
     if (cursor === null) {
-      if (wider) done = true;
       wider = true;
       return false;
     }
     return true;
   });
-  return { items, state: done ? { done: true } : { cursor, rows, ...(wider ? { wider: true } : {}) } };
+  if (done) return { items, state: { done: true } };
+  return { items, state: wider ? { wider: true, rows, turn, places } : { cursor, rows } };
 }
 
 /** PeerTube through Sepia Search, newest first, safe-for-work only, on instances in the public index. */

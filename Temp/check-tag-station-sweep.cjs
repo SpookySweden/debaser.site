@@ -58,7 +58,8 @@ let finished = false;
   const heavy = network([[/^archive\.org/, () => json({}, 500)]]);
   assert.deepEqual((await sweep.readArchive({ cursor: 'kept' }, later(), deps(heavy))).state, { cursor: 'kept', rows: 2500 }, 'a page too heavy to read asks for less next run');
   const lastPage = network([[/^archive\.org/, () => json({ items: [] })]]);
-  assert.deepEqual((await sweep.readArchive({ cursor: 'x', wider: true }, later(), deps(lastPage))).state, { done: true }, 'the end of the wider list: finished, not going round');
+  const allLetters = Object.fromEntries([...'abcdefghijklmnopqrstuvwxyz0123456789'].map((one) => [one, false]));
+  assert.deepEqual((await sweep.readArchive({ wider: true, places: allLetters }, later(), deps(lastPage))).state, { done: true }, 'every letter finished: finished, not going round');
   assert.equal(stopped.asked.length, 1, 'with no second try');
 
   // 2. A fixed agent naming the project, on every source. Never a person.
@@ -149,14 +150,34 @@ let finished = false;
   // 6. The sources. The "nothing from TMDB" guard was here until Luke removed that rule (2026-11-06): his decision, in SPEC-discover.md.
   assert.deepEqual([...sweep.SWEEP_SOURCES].sort(), ['internet_archive', 'openverse', 'peertube', 'tvmaze', 'wikidata']);
   // Wider than the named collections, and still never adult, restricted or dark.
-  for (const needed of ['licenseurl:*', 'NOT collection:(no-preview OR adult OR ', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
+  for (const needed of ['NOT collection:(no-preview OR adult OR ', 'NOT access-restricted-item:true', 'NOT noindex:true', 'NOT nsfw:true']) assert.ok(sweep.ARCHIVE_WIDER.includes(needed), `the wider list keeps ${needed}`);
   for (const named of sweep.ARCHIVE_COLLECTIONS) assert.ok(sweep.ARCHIVE_WIDER.includes(` OR ${named}`), `and leaves out ${named}, already read and paid for`);
   const lastNamed = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [] })]]);
   const movedOn = await sweep.readArchive({ cursor: 'x' }, later(), deps(lastNamed));
-  assert.deepEqual(movedOn.state, { cursor: null, rows: 5000, wider: true }, 'the end of the named collections: on to the wider list');
+  assert.deepEqual(movedOn.state, { wider: true, rows: 5000, turn: 0, places: {} }, 'the end of the named collections: on to the wider list');
   assert.equal(lastNamed.asked.length, 1);
-  await sweep.readArchive(movedOn.state, later(), deps(lastNamed));
-  assert.equal(new URL(lastNamed.asked[1].url).searchParams.get('q'), sweep.ARCHIVE_WIDER, 'asking for the wider list');
+  // Takes turns through first letters, each with its own place, so what gets tagged is a spread and not only names starting with a digit.
+  const letterNet = network([[/^archive\.org\/services\/search\/v1\/scrape$/, (url) => {
+    const q = url.searchParams.get('q');
+    const letter = q.slice(-2, -1);
+    return json(letter === 'b' ? { items: [] } : { items: [{ identifier: `${letter}-item`, title: 'T', mediatype: 'movies', publicdate: '2020-01-01T00:00:00Z' }], cursor: `${letter}-next` });
+  }]]);
+  const letters = await sweep.readArchive({ wider: true, rows: 5000, turn: 0, places: { a: 'a-was' } }, later(), deps(letterNet));
+  const askedLetters = letterNet.asked.map((one) => new URL(one.url).searchParams);
+  assert.deepEqual(askedLetters.map((one) => one.get('q').slice(-2, -1)), ['a', 'b', 'c', 'd'], 'a different letter each call');
+  assert.ok(askedLetters.every((one) => one.get('q').startsWith(sweep.ARCHIVE_WIDER)), 'all on the wider list');
+  assert.equal(askedLetters[0].get('cursor'), 'a-was', "each from that letter's own place");
+  assert.equal(askedLetters[1].get('cursor'), null);
+  assert.equal(letters.state.places.a, 'a-next');
+  assert.equal(letters.state.places.b, false, "a letter's end stops that letter");
+  assert.equal(letters.state.turn, 4, 'and the next run carries on from the next letter');
+  const skipping = network([[/^archive\.org\/services\/search\/v1\/scrape$/, () => json({ items: [], cursor: 'z' })]]);
+  await sweep.readArchive({ wider: true, turn: 1, places: { b: false } }, later(), deps(skipping));
+  assert.equal(new URL(skipping.asked[0].url).searchParams.get('q').slice(-2, -1), 'c', 'a finished letter is passed over');
+  const stoppedLetter = network([[/^archive\.org/, () => json({}, 429)]]);
+  const held = await sweep.readArchive({ wider: true, turn: 3, places: { d: 'd-was' } }, later(), deps(stoppedLetter));
+  assert.equal(held.state.places.d, 'd-was', 'a 429 keeps its place');
+  assert.equal(held.state.turn, 3);
   const sql = fs.readFileSync(path.join(ROOT, 'supabase/migrations', fs.readdirSync(path.join(ROOT, 'supabase/migrations')).find((name) => name.endsWith('_web_pool.sql'))), 'utf8');
   const code = sql.replace(/--.*$/gm, '');
   assert.ok(/platform in \('internet_archive', 'peertube', 'openverse', 'wikidata', 'tvmaze'\)/.test(code), 'and the table takes no other source');
