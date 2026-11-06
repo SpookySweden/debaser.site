@@ -103,7 +103,31 @@ posters to readers, with its logo and notice. For tags, links and recommendation
 - **Wikipedia and TVmaze words:** they go to Claude and aren't stored or shown; the page's `[ ? ]` credits all three with links.
   CC BY-SA's share-alike may reach the words Claude picks, which is a question for a lawyer rather than something the code can settle.
 
-## Where this stands (2026-11-06, the ramp)
+## Tagging is off (Luke, 2026-11-06: "Stay off")
+`web-sweep` and `web-tag` are switched off and stay off until Luke says otherwise; `web-ingest` still runs. New items don't get tagged and the word pass doesn't run. The database stopped answering from about
+10:15 UTC and recovered about 11:05, 25 minutes after the jobs stopped. Tagging's hours of heavy writing are the likely cause, not proven: the deciding figure is Disk IO on the Supabase dashboard.
+
+**Where it stopped:** $59.25 spent, 1,688,595 items, 301,161 words, about 3.5 cents per 1,000. Database 177 MB, files 72.8 MB (911 files). The file index `web_pool_shards_words_idx` is gone (Luke's OK): finding files now reads the
+table straight through, 0.53 s through the site's route, against 7 to 80 ms before. The map's top-words read asks for 20 or more items (`.gte('items', 20)`), ready for the narrower index below, and works with the old one.
+The January 6 collection (`TrumpDCInsurrectionJan062021`) is skipped in code (Luke: "Skip it"); what's already tagged stays.
+
+**On hold, each until Luke says:**
+- **Batch 6797:** 2,405 items, up to $0.23 and about $0.08 real, part saved and left unsaved. Claude keeps the answers for a limited time, so a long wait loses them. The lightest way in: a "collect only, send nothing" call, run once.
+- **`vacuum full` of the word table:** could give back 20 to 30 MB, but it's heavy disk work. Decide after the Disk IO figure is known.
+- **The other two index changes (Luke's OK given, held):** the common-words index only on words on 20 or more items, and removing `web_word_stats_id_idx` once nothing is confirmed to use it. Before narrowing, time `web_word_vocabulary` and `web_word_waiting`, which read words on 3 or more items.
+
+**Needed only if the jobs return:**
+- **A stop rule:** the worst case set aside is about 3 times the real cost, so batches shrank toward the $59.40 line: 52,668 items from 08:49 to 10:09, about 3% of the total, with four earlier 1-item batches. Stop once the room is too small to be worth a batch.
+- **`web_word_vocabulary` fix:** the word pass's read timed out at 3 seconds, 4 of 4 times in the 09:00 hour and again at 10:11.
+- **The 300,000 word cap:** passed at 301,161, so brand-new words wouldn't be counted.
+
+**What readers get of the pool (measured live, signed in, 2026-11-06, jobs off):** MEDIA's DISCOVER and RECOMMENDED and the DISCOVER page all work, and the 10,000 threshold is long passed. But a reader reaches very little of it:
+- A list holds 2,136 rows at most, against 1.69 million items. Of the first 100 rows on MEDIA's DISCOVER, with no taste held, 53 have no player and at most 7 are from the pool.
+- A chosen word gets a few files' worth: "jazz" is on 19,194 items and one ask brings 57.
+- Search knows only the 2,000 words on the map. "legal case" is on 183 items and the page says NO SUCH WORD. 22,952 words are on 20 or more items.
+- `moreItems` keeps only words on the map, so a word off it can't be shown even when its items come back.
+
+## Where this stood (2026-11-06, the ramp)
 **Live on main:** the rename to DISCOVER at `/discover`, `[ RECOMMEND ]`, MEDIA's RECOMMENDED and DISCOVER filters (blank until 10,000 are tagged), presets, and the sweep.
 
 **The ramp (Luke, 2026-11-06: "ramp up the tagigng batches massively"):** `web-sweep` every 2 minutes, one run at a time (`web_sweep_claim`), up to 5 batches out. Before a batch goes
