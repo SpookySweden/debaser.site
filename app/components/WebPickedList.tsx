@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { loadStationIndex } from '../lib/tag-station/client';
+import { useMoreItems } from '../lib/tag-station/more';
 import { discoverList, POOL_TARGET, poolReady, recommendedList, type PickSort } from '../lib/tag-station/picks';
 import { getPresetStore, withPreset, type Preset } from '../lib/tag-station/presets';
 import type { StationIndex } from '../lib/tag-station/query';
@@ -53,7 +54,7 @@ function NoPlayerRow({ item }: { item: StationItem }) {
  * tagged: never a fake list. Words and scores only order the list and are never shown here.
  */
 export default function WebPickedList({ list, sort, renderRow }: { list: 'recommended' | 'discover'; sort: PickSort; renderRow: (item: WebItem) => ReactNode }) {
-  const [index, setIndex] = useState<StationIndex | null>(null);
+  const [loaded, setIndex] = useState<StationIndex | null>(null);
   const [fault, setFault] = useState<string | null>(null);
   const [picks, setPicks] = useState<readonly RecommendedPick[]>([]);
   const [recipe, setRecipe] = useState<Recipe>(EMPTY_RECIPE);
@@ -65,9 +66,9 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
     let live = true;
     void (async () => {
       try {
-        const [loaded, feed, presets] = await Promise.all([loadStationIndex(), getRecommendationStore().feed(300).catch((): RecommendedPick[] => []), getPresetStore().list().catch((): Preset[] => [])]);
+        const [map, feed, presets] = await Promise.all([loadStationIndex(), getRecommendationStore().feed(300).catch((): RecommendedPick[] => []), getPresetStore().list().catch((): Preset[] => [])]);
         if (!live) return;
-        setIndex(loaded);
+        setIndex(map);
         setPicks(feed);
         const active = presets.find((one) => one.active);
         if (active) setRecipe(withPreset(EMPTY_RECIPE, active.settings));
@@ -79,6 +80,15 @@ export default function WebPickedList({ list, sort, renderRow }: { list: 'recomm
       live = false;
     };
   }, []);
+
+  // What the reader's own taste, or else the commonest words, finds in the pool's files, so the list isn't limited to what's on the map.
+  const askWords = useMemo(() => {
+    if (loaded === null || !poolReady(loaded)) return [];
+    const own = Object.entries(taste.tags).sort(([, a], [, b]) => b - a).map(([word]) => word);
+    const common = [...loaded.graph.tags].sort((a, b) => b.count - a.count).map((tag) => tag.name);
+    return (own.length > 0 ? own : common).slice(0, 12);
+  }, [loaded, taste]);
+  const index = useMoreItems(loaded, askWords);
 
   const rows = useMemo(() => {
     if (index === null || !poolReady(index)) return [];

@@ -8,6 +8,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const sweep = require('./tag-station-sweep-out/web/sweep.js');
 const seen = require('./tag-station-sweep-out/web/seen-items.js');
+const poolFiles = require('./tag-station-sweep-out/web/pool-files.js');
 const { batchCost, customIdFor, requestFor, worstCaseCost } = require('./tag-station-sweep-out/web/tagging.js');
 const { buildStationGraph, MAX_TAGS } = require('./tag-station-sweep-out/tag-station/graph.js');
 const q = require('./tag-station-sweep-out/tag-station/query.js');
@@ -44,7 +45,7 @@ let finished = false;
     { identifier: '../bad', title: 'Bad', mediatype: 'audio', publicdate: '2020-01-01T00:00:00Z' },
   ], cursor: 'next' })]]);
   const fromArchive = await sweep.readArchive({}, later(), deps(archive));
-  assert.equal(archive.asked.length, 4, 'four calls a run');
+  assert.equal(archive.asked.length, 12, 'twelve calls a run, one at a time');
   const first = new URL(archive.asked[0].url);
   assert.ok(first.searchParams.get('q').startsWith('collection:(librivoxaudio OR '), 'named collections, never everything');
   assert.equal(new URL(archive.asked[1].url).searchParams.get('cursor'), 'next', 'follows its cursor');
@@ -129,7 +130,8 @@ let finished = false;
   const fromTvmaze = await sweep.readTvmaze({ page: 3 }, later(), deps(tvmaze));
   assert.equal(fromTvmaze.items[0].id, 'tvmaze:5');
   assert.equal(fromTvmaze.items[0].description, 'Show (Scripted). Genres: Drama. In English. About trains.', 'plain text');
-  assert.deepEqual(fromTvmaze.state, { page: 4 });
+  assert.equal(tvmaze.asked.length, 20, 'one a second for twenty seconds, half of the 20 per 10 seconds it allows');
+  assert.deepEqual(fromTvmaze.state, { page: 23 });
   assert.deepEqual((await sweep.readTvmaze({ page: 99 }, later(), deps(network([])))).state, { done: true }, 'past the end, finished: a second lap would pay again');
   const notAsked = network([[/.*/, () => json({})]]);
   for (const reader of [sweep.readArchive, sweep.readPeertube, sweep.readOpenverse, sweep.readWikidata, sweep.readTvmaze]) {
@@ -144,7 +146,7 @@ let finished = false;
   for (const banned of ['themoviedb', 'tmdb.org', 'TMDB_READ_TOKEN', 'tmdb', 'kino', 'media-titles', 'wildcard']) {
     if (banned === 'tmdb') {
       // The only use: Wikidata's number. Never a fetch.
-      for (const line of noComments.split('\n').filter((one) => one.toLowerCase().includes('tmdb'))) assert.ok(/tmdbRef|tmdbOf|row\.tmdb|'tmdb'|\?tmdb|tmdb:/.test(line), `only Wikidata's number: ${line.trim().slice(0, 80)}`);
+      for (const line of noComments.split('\n').filter((one) => one.toLowerCase().includes('tmdb'))) assert.ok(/tmdbRef|tmdb_ref|tmdbOf|row\.tmdb|'tmdb'|\?tmdb|tmdb:/.test(line), `only Wikidata's number: ${line.trim().slice(0, 80)}`);
     } else {
       assert.ok(!noComments.includes(banned), `sweep.ts must not name ${banned}`);
     }
@@ -171,7 +173,7 @@ let finished = false;
   // 8. The job.
   const candidate = (id, over = {}) => ({ id, platform: 'internet_archive', externalId: id, host: null, kind: 'audio', title: 'T', creator: null, description: 'About trains', tags: null, publishedAt: null, tmdbRef: null, ...over });
   const fake = (over = {}) => {
-    const log = { created: [], sent: [], states: [], collected: [], released: [], spend: [], cancelled: [], reserved: [], unreserved: [], named: [], stats: [], claims: 0, unclaims: 0, createOptions: [] };
+    const log = { files: new Map(), registered: [], hot: [], filed: [], unfiledLeft: over.unfiled ? [...over.unfiled] : [], created: [], states: [], collected: [], released: [], spend: [], cancelled: [], reserved: [], unreserved: [], named: [], stats: [], claims: 0, unclaims: 0, createOptions: [] };
     let place = over.statsPlace ?? 0;
     const store = {
       spent: async () => over.spent ?? 0,
@@ -195,10 +197,16 @@ let finished = false;
       state: async () => over.state ?? {},
       saveState: async (name, state) => log.states.push([name, state]),
       unknown: async (ids) => ids.filter((id) => !(over.known ?? []).includes(id)),
-      sent: async (batchId, rows) => {
-        if (over.sentFails) throw new Error('TAGGING_DATABASE');
-        log.sent.push([batchId, rows.map((row) => row.id)]);
+      putFile: async (where, file) => {
+        if (over.putFails && where.startsWith('out/')) throw new Error('TAGGING_DATABASE');
+        log.files.set(where, file);
       },
+      getFile: async (where) => log.files.get(where) ?? null,
+      removeFile: async (where) => log.files.delete(where),
+      fileAdd: async (where, items, words) => log.registered.push({ where, items, words }),
+      hotAdd: async (rows) => log.hot.push(...rows),
+      unfiled: async () => (log.unfiledLeft ?? []).splice(0, 1000),
+      filed: async (ids) => log.filed.push(...ids),
       pending: async () => over.pending ?? [],
       outIn: async () => over.out ?? [],
       collect: async (batchId, rows) => log.collected.push({ batchId, rows }),
@@ -225,7 +233,8 @@ let finished = false;
   assert.deepEqual(result.read, { internet_archive: 1, wikidata: 1 });
   assert.equal(running.log.created[0][0].custom_id, customIdFor('a'));
   assert.ok(JSON.parse(running.log.created[0][0].params.messages[0].content).description === 'About trains', 'the description goes to Claude');
-  assert.deepEqual(running.log.sent, [['batch-new', ['a', 'b']]]);
+  assert.deepEqual(poolFiles.decodePoolFile(running.log.files.get('out/batch-new.br')).map((row) => `${row.platform}:${row.externalId}`), ['internet_archive:a', 'wikidata:b'], 'what went out is kept as one file, not a row each');
+  assert.ok(!Buffer.from(require('node:zlib').brotliDecompressSync(running.log.files.get('out/batch-new.br'))).toString().includes('About trains'), 'and the description is not in it');
   assert.deepEqual(running.log.states, [['internet_archive', { cursor: 'x' }]], 'its place is only saved once the batch is marked');
   assert.deepEqual(running.log.named, [[7, 'batch-new']], 'the reservation is tied to the batch');
   assert.equal(running.log.reserved[0].items, 2);
@@ -252,8 +261,8 @@ let finished = false;
   await assert.rejects(sweep.runSweep(lostAnswer.client, lostAnswer.store, lostAnswer.read));
   assert.deepEqual(lostAnswer.log.unreserved, [], 'no answer at all: the batch may exist, so its worst case stays counted');
 
-  const everything = fake({ items: Array.from({ length: 5810 }, (_, i) => candidate(`z${i}`)) });
-  assert.equal((await sweep.runSweep(everything.client, everything.store, everything.read)).sent, 5810, 'a full run is sent whole, so no read item is skipped');
+  const everything = fake({ items: Array.from({ length: 21060 }, (_, i) => candidate(`z${i}`)) });
+  assert.equal((await sweep.runSweep(everything.client, everything.store, everything.read)).sent, 21060, 'a full run is sent whole, so no read item is skipped');
   let tick = 0;
   const slowCollect = fake({ pending: ['b1'], out: ['a'], results: [] });
   assert.deepEqual(await sweep.runSweep(slowCollect.client, slowCollect.store, slowCollect.read, () => (tick += 101000)), { collected: 0, sent: 0, waiting: 1, inputTokens: 0, outputTokens: 0 }, 'a long collect means no reading this run');
@@ -274,7 +283,7 @@ let finished = false;
   const manyOut = fake({ pending: Array.from({ length: sweep.MAX_OUT }, (_, i) => `b${i}`), status: 'in_progress', items: [candidate('a')] });
   assert.equal((await sweep.runSweep(manyOut.client, manyOut.store, manyOut.read)).waiting, sweep.MAX_OUT);
   assert.equal(manyOut.reads(), 0, 'but only so many');
-  const lost = fake({ items: [candidate('a')], sentFails: true });
+  const lost = fake({ items: [candidate('a')], putFails: true });
   await assert.rejects(sweep.runSweep(lost.client, lost.store, lost.read));
   assert.deepEqual(lost.log.cancelled, ['batch-new'], 'a batch nothing remembers is cancelled');
   assert.deepEqual(lost.log.states, [], 'and the place is not moved');
@@ -329,6 +338,39 @@ let finished = false;
   assert.ok(calls.filter(([name]) => name === 'web_pool_unknown').every(([, args]) => args.p_ids.length <= 1000), 'at most 1,000 a call');
   assert.equal(calls.filter(([name]) => name === 'web_pool_unknown').length, 3);
   assert.equal((await realStore.outIn('b1')).length, 2300, 'and a big batch is read whole');
+
+  // Collecting from a file: its words go in numbered files, a sample stays as rows, and the file sent goes once it's done with.
+  const fileRow = (id) => ({ platform: 'internet_archive', externalId: id, host: null, kind: 'audio', title: `T ${id}`, creator: null, publishedAt: '2020-01-02T03:04:05.000Z', tmdbRef: null, words: [] });
+  const twoFiles = Array.from({ length: poolFiles.ITEMS_PER_FILE + 500 }, (_, i) => `f${i}`);
+  const fileRun = fake({ pending: ['b9'], results: twoFiles.map((id) => answer(`internet_archive:${id}`, ['jazz', `w${id.length}`])) });
+  fileRun.log.files.set('out/b9.br', poolFiles.encodePoolFile(twoFiles.map(fileRow)));
+  const fileResult = await sweep.runSweep(fileRun.client, fileRun.store, fileRun.read);
+  assert.equal(fileResult.collected, twoFiles.length, 'every answer collected');
+  assert.deepEqual(fileRun.log.registered.map((one) => [one.where, one.items]), [['s/b9-0.br', poolFiles.ITEMS_PER_FILE], ['s/b9-1.br', 500]], 'in numbered files, so a run cut short writes the same ones');
+  assert.ok(fileRun.log.registered[0].words.includes('jazz'), 'each listed with its words');
+  assert.deepEqual(fileRun.log.collected, [], 'with no row written for each item');
+  assert.ok(fileRun.log.hot.length > 0 && fileRun.log.hot.length <= 201, 'and only a sample as rows');
+  const reopened = poolFiles.decodePoolFile(fileRun.log.files.get('s/b9-1.br'));
+  assert.equal(reopened.length, 500);
+  assert.deepEqual(reopened[0], { ...fileRow(twoFiles[poolFiles.ITEMS_PER_FILE]), words: ['jazz', 'w5'] }, 'a row comes back from its file as it went in');
+  assert.equal(fileRun.log.files.has('out/b9.br'), false, 'the file sent is removed once collected');
+  assert.deepEqual(fileRun.log.released, ['b9']);
+  assert.equal(fileRun.log.stats[0].stats.find((one) => one.word === 'jazz').items, twoFiles.length, 'counted once');
+  // A row sent before the files moves over, and only then may it be removed.
+  const unfiled = Array.from({ length: 1500 }, (_, i) => ({ ...fileRow(`old${i}`), words: ['jazz'] }));
+  const moving = fake({ unfiled });
+  await sweep.runSweep(moving.client, moving.store, moving.read);
+  assert.equal(moving.log.filed.length, 1500, 'rows sent before the files are copied in');
+  assert.equal(moving.log.registered.reduce((sum, one) => sum + one.items, 0), 1500);
+  assert.ok(moving.log.registered.every((one) => one.where.startsWith('b/')));
+
+  // The file format: small, and exact.
+  const sample = Array.from({ length: 2000 }, (_, i) => ({ platform: i % 2 ? 'peertube' : 'internet_archive', externalId: `item-${i}-${(i * 7919).toString(36)}`, host: i % 2 ? 'video.example.org' : null, kind: i % 3 ? 'video' : 'audio', title: `A title for item ${i}`, creator: i % 5 ? `Maker ${i % 40}` : null, publishedAt: i % 7 ? '2019-03-04T05:06:07.000Z' : null, tmdbRef: i % 11 ? null : `movie:${i}`, words: ['jazz', `theme ${i % 50}`, `mood ${i % 9}`] }));
+  const encoded = poolFiles.encodePoolFile(sample);
+  assert.deepEqual(poolFiles.decodePoolFile(encoded), sample, 'every row comes back exactly');
+  assert.ok(encoded.length / sample.length < 40, `about 30 bytes an item, not 520: ${(encoded.length / sample.length).toFixed(1)}`);
+  assert.deepEqual(poolFiles.wordsIn(sample.slice(0, 2)), ['jazz', 'mood 0', 'mood 1', 'theme 0', 'theme 1']);
+  assert.throws(() => poolFiles.decodePoolFile(Buffer.from('not a file')));
 
   // 10. The $60 stop, and the size stop.
   assert.equal(sweep.SWEEP_LIMIT_USD, 60);
