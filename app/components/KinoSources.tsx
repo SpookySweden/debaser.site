@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
-import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
+import { closeFloatingIfMine, floatingState, placeOf, playFloating } from '../lib/ui/floating-player';
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { freeServiceUrl } from '../lib/web/free-services';
 import { freeCopyEmbed, type FreeCopy, type KinoSources, type KinoTitle, type WatchOffer } from '../lib/web/kino';
@@ -35,6 +35,8 @@ export function useKinoSources(title: KinoTitle | null): KinoWatch | null {
   return sources;
 }
 
+const freeCopyPlayId = (copy: FreeCopy) => `kino-free:${copy.platform}:${copy.id}`;
+
 const SITE_NAMES: Readonly<Record<FreeCopy['platform'], string>> = { internet_archive: 'ARCHIVE', youtube: 'YOUTUBE' };
 
 /** A film's length as it's read aloud and at a glance: `1H 40M`, or `45M`. */
@@ -45,11 +47,18 @@ function filmLength(seconds: number): string {
 }
 
 /**
+ * What's playing moves to the top of the list: its line straight under the WATCH key, then its video, then the other copies. So
+ * pressing a copy far down a long list doesn't leave CLOSE and the key above the top of the screen when the page goes to the video.
+ */
+export const WATCH_PLAYING_LINE = '-order-2';
+export const WATCH_PLAYER_BOX = '-order-1';
+
+/**
  * One free copy to choose: what it is, then PLAY, or CLOSE and PIP while it plays, in the site's one floating player. With the
  * list shut a playing video's box goes, and the video floats on over the site.
  */
 function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; title: string; audio: string | null; open: boolean; only: boolean }) {
-  const playId = `kino-free:${copy.platform}:${copy.id}`;
+  const playId = freeCopyPlayId(copy);
   const playing = usePlayingHere(playId);
   const embed = officialEmbedUrl(freeCopyEmbed(copy));
   if (embed === null || !open) return null;
@@ -79,7 +88,7 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-2" data-free-copy={copy.platform}>
+      <div className={`flex flex-wrap items-center gap-2 ${playing ? WATCH_PLAYING_LINE : ''}`} data-free-copy={copy.platform}>
         {playing ? (
           <button type="button" onClick={() => closeFloatingIfMine(playId)} aria-label={`Close the player for "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
             [ ■ CLOSE ]
@@ -93,7 +102,7 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
         {copy.publicDomain ? <span className="text-label font-bold text-ink">PUBLIC DOMAIN</span> : null}
         {playing ? <PipKey id={playId} title={title} /> : null}
       </div>
-      {playing ? <PlayerBox id={playId} title={title} className="order-last aspect-video w-full border border-ink-plate bg-paper" /> : null}
+      {playing ? <PlayerBox id={playId} title={title} className={`${WATCH_PLAYER_BOX} aspect-video w-full border border-ink-plate bg-paper`} /> : null}
     </>
   );
 }
@@ -129,19 +138,27 @@ export function watchCount(sources: KinoSources | null): number {
 /**
  * The WATCH key and, open, every way to watch the title: servers first, then free copies, then free services. Shut until asked
  * for. Opening pushes the rest of the row down, a bend of "reveals take their space": keeping room for every line would leave a
- * hole in every row with the list shut. The key itself never moves.
+ * hole in every row with the list shut. The key itself never moves. Shut, a playing video's box goes and it floats, whichever
+ * kind of copy it is; back on the page with one playing, the list is open. `notice` shows open or shut: what a server just said.
  */
-export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean }) {
+export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false, notice }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean; notice?: ReactNode }) {
   const [open, setOpen] = useState(startOpen);
   const copies = sources?.free ?? [];
+  // Sources arrive after the row is drawn, so a free copy still playing from before is only known now. Once: closing it mustn't shut the list.
+  const [cameBack, setCameBack] = useState(false);
+  if (!cameBack && !open && copies.some((copy) => floatingState().entry?.id === freeCopyPlayId(copy))) {
+    setCameBack(true);
+    setOpen(true);
+  }
   const services = offeredServices(sources?.watch);
   const total = serverCount + copies.length + services.length;
   if (total === 0) return null;
   return (
     <div className="mt-2 flex flex-col items-start gap-2" data-watch>
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} min-h-tap`}>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} order-first min-h-tap`}>
         {`[ WATCH · ${total} ${open ? '▴' : '▾'} ]`}
       </button>
+      {notice ? <div className="-order-3">{notice}</div> : null}
       {open ? servers : null}
       {copies.map((copy) => (
         <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} only={total === 1} />
