@@ -519,7 +519,7 @@ export type SweepStore = {
   release(batchId: string): Promise<void>;
 };
 
-export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true; noWords?: number };
+export type SweepResult = { collected: number; sent: number; waiting: number; inputTokens: number; outputTokens: number; read?: Partial<Record<SweepSource, number>>; stopped?: 'spending limit' | 'database full'; busy?: true; noWords?: number; collectFailed?: string };
 
 const COLLECT_CHUNK = 500;
 const SMALLEST_CHUNK = 25;
@@ -568,7 +568,8 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
   let outputTokens = 0;
   // Answers that came back unusable, or not at all, which are said rather than lost quietly. Not sent again: there's more to read than the money can tag.
   let noWords = 0;
-  const said = () => (noWords > 0 ? { noWords } : {});
+  let collectFailed: string | null = null;
+  const said = () => ({ ...(noWords > 0 ? { noWords } : {}), ...(collectFailed !== null ? { collectFailed } : {}) });
 
   for (const batchId of await store.pending()) {
     if (now() - startedAt > COLLECTING_TOO_LONG_MS) {
@@ -576,6 +577,8 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
       continue;
     }
     let unfinished = false;
+    // One batch the database can't take in right now mustn't stop the rest of the job: it stopped everything for ten minutes once. It carries on from its place next run.
+    try {
     const batch = await client.messages.batches.retrieve(batchId);
     if (batch.processing_status !== 'ended') {
       waiting += 1;
@@ -656,6 +659,11 @@ async function oneRun(client: Pick<Anthropic, 'messages'>, store: SweepStore, re
     await store.release(batchId);
     if (heldOut !== null) await store.removeFile(outPath(batchId)).catch(() => undefined);
     collected += rows.length;
+    } catch (error) {
+      if (!(error instanceof Error && error.message === 'TAGGING_DATABASE')) throw error;
+      waiting += 1;
+      collectFailed = (error as Error & { failed?: string }).failed ?? 'unknown';
+    }
   }
 
   // What was sent before the files existed moves over, so those rows can go past the row limit without being lost.

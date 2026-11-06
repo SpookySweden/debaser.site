@@ -408,6 +408,17 @@ let finished = false;
   assert.equal(moving.log.registered.reduce((sum, one) => sum + one.items, 0), 1500);
   assert.ok(moving.log.registered.every((one) => one.where.startsWith('b/')));
 
+  // One batch the database refuses doesn't stop the job: live, a timeout on one stopped everything for ten minutes.
+  const stuckStats = fake({ pending: ['b7'], results: [answer('internet_archive:s1', ['jazz'])], items: [candidate('a')] });
+  stuckStats.log.files.set('out/b7.br', poolFiles.encodePoolFile([fileRow('s1')]));
+  stuckStats.store.addStats = async () => { throw Object.assign(new Error('TAGGING_DATABASE'), { failed: 'web_sweep_stats_add 57014' }); };
+  const stuckStatsRun = await sweep.runSweep(stuckStats.client, stuckStats.store, stuckStats.read);
+  assert.equal(stuckStatsRun.sent, 1, 'the next batch still goes out');
+  assert.equal(stuckStatsRun.waiting, 2, 'and the stuck one is still counted as out');
+  assert.equal(stuckStatsRun.collectFailed, 'web_sweep_stats_add 57014', 'and the answer says what failed');
+  assert.deepEqual(stuckStats.log.released, [], 'it is not released');
+  assert.equal(stuckStats.log.files.has('out/b7.br'), true, 'and its file is kept for next run');
+
   // A list's extra items: words as the files hold them, with their spaces, and no map drawn to get them.
   const more = require('./tag-station-sweep-out/tag-station/pool-more.js');
   const shownGraph = { tags: [{ name: 'science fiction' }, { name: 'jazz' }, { name: 'film' }], aliases: { scifi: 'science fiction' } };
