@@ -36,6 +36,8 @@ export interface ChannelData {
   /** The pattern each bar plays: 0 is silence, 1 is the first pattern. */
   readonly bars: readonly number[];
   readonly patterns: readonly PatternData[];
+  /** BeepBox's settings for each of the channel's instruments, as they are. A new sound is a new object here. */
+  readonly sounds: readonly object[];
 }
 
 export interface SongData {

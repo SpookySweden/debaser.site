@@ -20,7 +20,7 @@ const argument = (name, fallback) => {
 };
 const BASE = argument('--url', 'http://localhost:3001');
 const OUT = argument('--out', path.join(__dirname, 'browse', 'bb-accept'));
-const ONLY = argument('--only', '1,2,3,4,5,6,7').split(',').map(Number);
+const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11').split(',').map(Number);
 const STAND_IN = process.argv.includes('--stand-in');
 assert.ok(!STAND_IN || /localhost|127\.0\.0\.1/.test(BASE), 'the stand-in account is for a local build only');
 fs.mkdirSync(OUT, { recursive: true });
@@ -94,9 +94,9 @@ async function expectStatus(page, pattern, what) {
   ).catch(async () => assert.fail(`${what}: the status line says "${await status(page)}", wanted ${pattern}`));
 }
 
-/** The song as a person gets it out: its own Save key, read back. Opens and shuts the menu. */
+/** The song as a person gets it out: its own Save key, read back. Opens and shuts the Song window. */
 async function songFile(page) {
-  await page.keyboard.press('/');
+  await page.keyboard.press('Shift+O');
   await page.waitForTimeout(150);
   await page.getByRole('button', { name: /Save song file/ }).click();
   await page.waitForTimeout(250);
@@ -124,7 +124,7 @@ const openingLook = ({ MAIN: main, NOTES: notes, PANE: paneName }) => {
   const inView = (box) => box.top >= paneBox.top - 1 && box.bottom <= Math.min(paneBox.bottom, innerHeight) + 1 && box.left >= paneBox.left - 1 && box.right <= paneBox.right + 1;
   const buttons = [...document.querySelectorAll('.debaser-beatbox button')].filter((button) => button.getBoundingClientRect().width > 1 && !button.classList.contains('sr-only'));
   const keyNamed = (pattern) => buttons.find((button) => pattern.test(button.textContent ?? '') || pattern.test(button.getAttribute('aria-label') ?? ''));
-  const keys = { play: keyNamed(/^(Play|Stop)/), record: keyNamed(/^(Record|Rec)/), undo: keyNamed(/^Undo/), slower: keyNamed(/^Slower/), faster: keyNamed(/^Faster/), menu: keyNamed(/^Menu/), help: keyNamed(/^All the keys/) };
+  const keys = { play: keyNamed(/^(Play|Pause)/), stop: keyNamed(/^Stop/), loop: keyNamed(/^Loop/), record: keyNamed(/^(Record|Rec)/), undo: keyNamed(/^Undo/), slower: keyNamed(/^Slower/), faster: keyNamed(/^Faster/), sounds: keyNamed(/^Sounds/), recorder: keyNamed(/^Recorder/), playing: keyNamed(/^Playing/), song: keyNamed(/^Song/), settings: keyNamed(/^Settings/), help: keyNamed(/^All the keys/) };
   const grid = document.querySelector(notes);
   const cells = [...grid.querySelectorAll('[role="gridcell"]')];
   const mainRow = document.querySelector(main);
@@ -157,7 +157,7 @@ async function test(number, name, run) {
     await run();
     results.push({ name: `${number}. ${name}`, ok: true });
   } catch (error) {
-    results.push({ name: `${number}. ${name}`, ok: false, why: error.message.split('\n')[0].slice(0, 300) });
+    results.push({ name: `${number}. ${name}`, ok: false, why: error.message.split('\n').slice(0, 5).join(' ').slice(0, 400) });
   }
   const last = results[results.length - 1];
   console.log(`${last.ok ? 'PASS' : 'FAIL'}  ${last.name}${last.why ? `\n      ${last.why}` : ''}`);
@@ -275,7 +275,7 @@ const main = async () => {
   await test(4, 'records three loop passes and undoes the last, all on one screen', async () => {
     const { context, page } = await open(browser, 1280, 900);
     const notesIn = (json) => json.channels[0].patterns.reduce((sum, pattern) => sum + pattern.notes.length, 0);
-    const key = page.locator(`${MAIN} button[aria-pressed]`).first();
+    const key = page.locator(`${MAIN} [aria-keyshortcuts="R"]`);
     const allInView = async () => {
       const seen = await look(page);
       assert.equal(seen.cellsInView, seen.cells, 'the grid left the screen while recording');
@@ -379,14 +379,20 @@ const main = async () => {
         for (const target of [`${MAIN} button >> nth=0`, `${MAIN} button >> nth=-1`, `${NOTES} [role="gridcell"] >> nth=0`, `${BARS} [role="gridcell"] >> nth=0`]) {
           await page.locator(target).scrollIntoViewIfNeeded({ timeout: 3000 });
         }
-        // The menu too, at this zoom.
-        await page.keyboard.press('/');
-        await page.waitForTimeout(300);
-        const withMenu = await page.evaluate(overflow, PANE);
-        await page.screenshot({ path: path.join(OUT, `zoom-${w}-${size}-menu.png`) });
+        // Every window too, at this zoom.
+        for (const name of ['sounds', 'recorder', 'playing', 'song', 'settings']) {
+          await page.locator(`[data-window-key="${name}"]`).click();
+          await page.waitForTimeout(250);
+          const withWindow = await page.evaluate(overflow, PANE);
+          await page.screenshot({ path: path.join(OUT, `zoom-${w}-${size}-${name}.png`) });
+          assert.equal(withWindow.pane, false, `the ${name} window scrolls sideways`);
+          assert.deepEqual(withWindow.cut, [], `cut off in the ${name} window`);
+          assert.equal(await page.locator(`[data-window="${name}"]`).evaluate((box) => getComputedStyle(box).position), 'static', 'no room to float, so it stacks');
+          assert.equal(await page.getByRole('button', { name: /^Move the / }).count(), 0, 'and it has no title to drag');
+          await page.keyboard.press('Escape');
+          await page.waitForTimeout(100);
+        }
         await context.close();
-        assert.equal(withMenu.pane, false, 'the menu scrolls sideways');
-        assert.deepEqual(withMenu.cut, [], 'cut off in the menu');
       });
     }
   }
@@ -406,15 +412,16 @@ const main = async () => {
     // Anywhere.
     await press('Space');
     await page.waitForTimeout(150);
-    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Stop', 'Space plays');
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'Space plays');
     await press('Escape');
     await page.waitForTimeout(100);
     assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'Esc stops');
     await press('Space');
     await press('Space');
-    await expectStatus(page, /^Stopped/, 'Space stops');
+    await expectStatus(page, /^Paused/, 'Space pauses');
+    await press('Escape');
     await press('r');
-    await page.waitForFunction((main) => document.querySelector(`${main} button[aria-pressed="true"]`) !== null, MAIN, { timeout: 5000 });
+    await page.locator(MAIN).getByRole('button', { name: /^Rec/, pressed: true }).waitFor({ timeout: 5000 });
     await press('r');
     await press('Escape');
     await press(']');
@@ -435,7 +442,8 @@ const main = async () => {
     assert.equal(await page.locator(BARS).isVisible(), false, 'focus view hides the bars');
     assert.equal(await page.getByRole('button', { name: 'Slower' }).isVisible(), false, 'and the speed');
     assert.equal(await page.getByRole('button', { name: 'Bars', exact: true }).count(), 0, 'and the keys for the bars');
-    assert.equal(await page.getByRole('button', { name: /^Menu/ }).isVisible(), true, 'with the menu still there');
+    assert.equal(await page.getByRole('button', { name: /^Settings/ }).isVisible(), true, 'with Settings still there');
+    assert.equal(await page.getByRole('button', { name: /^Sounds/ }).count(), 0, 'and the other windows out of the way');
     await press('.');
     await expectStatus(page, /Focus view off/, '. again');
     assert.equal(await page.locator(BARS).isVisible(), true);
@@ -450,20 +458,19 @@ const main = async () => {
     await press('?');
     assert.equal(await page.locator('dialog[open]').count(), 1, '? opens the help');
     const help = await page.locator('dialog[open]').innerText();
-    for (const words of ['Ctrl+Left', 'Open or close the menu', 'Show or hide the bars', 'Bring back or fold away', "this bar's pattern on the whole loop"]) {
+    for (const words of ['Ctrl+Left', 'Open or close Settings', 'Show or hide the bars', 'Bring back or fold away', "this bar's pattern on the whole loop"]) {
       assert.ok(help.toLowerCase().includes(words.toLowerCase()), `the help lists: ${words}`);
     }
     await press('Escape');
     assert.equal(await page.locator('dialog[open]').count(), 0, 'Esc closes the help');
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
     await press('/');
     await page.waitForTimeout(100);
-    assert.equal(await page.getByRole('region', { name: 'Menu' }).isVisible(), true, '/ opens the menu');
+    assert.equal(await page.getByRole('dialog', { name: 'Settings' }).isVisible(), true, '/ opens Settings');
     await press('Escape');
     await page.waitForTimeout(100);
-    assert.equal(await page.getByRole('region', { name: 'Menu' }).isVisible(), false, 'Esc closes the menu');
-    await onCursor(/^Menu/, 'focus goes back to the Menu key');
-    await press('Shift+Tab'); // leave the key alone, then back to the notes through the page
-    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    assert.equal(await page.getByRole('dialog', { name: 'Settings' }).isVisible(), false, 'Esc closes it');
+    await onCursor(/^Bar 1, beat 1/, 'the cursor goes back where it was');
     await press("'");
     await page.waitForTimeout(100);
     assert.equal(await page.locator(BARS).isVisible(), false, "' hides the bars");
@@ -500,7 +507,7 @@ const main = async () => {
     await expectStatus(page, /capture|Captured/i, 'C');
 
     // Note keys: each plays, none does anything else.
-    await page.getByRole('button', { name: /^Menu/ }).click();
+    await page.getByRole('button', { name: /^Playing/ }).click();
     await page.getByRole('button', { name: /^Pads/ }).click();
     await page.keyboard.press('Escape');
     await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
@@ -632,15 +639,25 @@ const main = async () => {
     await chosen('Size', /L/);
 
     // Where the old keys went, by name.
-    for (const name of [/^Slower$/, /^Faster$/, /^Undo$/, /^Menu$/, /^All the keys$/, /^Earlier$/, /^Later$/, /^Higher$/, /^Lower$/, /^Bars$/, /^Previous pattern$/, /^Next pattern$/, /^Fill$/, /^Loop$/, /^Earlier bars$/, /^Later bars$/]) {
+    for (const name of [/^Stop$/, /^Loop 1-4$/, /^Slower$/, /^Faster$/, /^Undo$/, /^Sounds$/, /^Recorder$/, /^Playing$/, /^Song$/, /^Settings$/, /^All the keys$/, /^Earlier$/, /^Later$/, /^Higher$/, /^Lower$/, /^Bars$/, /^Previous pattern$/, /^Next pattern$/, /^Fill$/, /^Set loop$/, /^Earlier bars$/, /^Later bars$/]) {
       assert.equal(await page.getByRole('button', { name }).count(), 1, `the ${name} key is there`);
     }
-    await page.keyboard.press('/');
-    for (const name of [/^High contrast/, /^Follow/, /^Focus view/, /^Redo$/, /^Capture last pass/, /^Calibrate timing$/, /^Lower$/, /^Connect MIDI keyboard$/, /^Open song$/, /^Use example song$/, /^Open a song file$/, /^Save MIDI/, /^Save sound/, /^Save song file/, /^Copy share link$/]) {
-      assert.ok((await page.getByRole('button', { name }).count()) >= 1, `the ${name} key is in the menu`);
-    }
-    assert.equal(await page.getByRole('slider', { name: /Quantise strength/ }).count(), 1, 'quantise strength');
+    const inWindow = async (windowName, names) => {
+      await page.locator(`[data-window-key="${windowName.toLowerCase()}"]`).click();
+      await page.waitForTimeout(100);
+      const dialog = page.getByRole('dialog', { name: windowName });
+      for (const name of names) assert.ok((await dialog.getByRole('button', { name }).count()) >= 1, `the ${name} key is in ${windowName}`);
+      return dialog;
+    };
+    await inWindow('Settings', [/^High contrast/, /^Follow/, /^Focus view/, /^Redo$/, /^Put windows back$/, /^Put all the keys back$/]);
     assert.equal(await pressed(/^Follow/), 'false');
+    await page.keyboard.press('Escape');
+    const recorder = await inWindow('Recorder', [/^Capture last pass/, /^Calibrate timing$/]);
+    assert.equal(await recorder.getByRole('slider', { name: /Quantise strength/ }).count(), 1, 'quantise strength');
+    await page.keyboard.press('Escape');
+    await inWindow('Playing', [/^Lower$/, /^Higher$/, /^Pads/, /^Connect MIDI keyboard$/]);
+    await page.keyboard.press('Escape');
+    await inWindow('Song', [/^Open song$/, /^Use example song$/, /^Open a song file$/, /^Save MIDI/, /^Save sound/, /^Save song file/, /^Copy share link$/]);
     await page.keyboard.press('Escape');
     await context.close();
   });
@@ -671,7 +688,7 @@ const main = async () => {
     };
     const shut = await reach();
     await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+S');
     await page.waitForTimeout(150);
     const opened = await reach();
     await page.keyboard.press('Escape');
@@ -682,8 +699,8 @@ const main = async () => {
     });
     numbers['keyboard reach'] = { shut, opened, ring };
     await context.close();
-    assert.ok(shut.reached >= shut.wanted, `Tab reached ${shut.reached} of ${shut.wanted} with the menu shut`);
-    assert.ok(opened.reached >= opened.wanted, `Tab reached ${opened.reached} of ${opened.wanted} with the menu open`);
+    assert.ok(shut.reached >= shut.wanted, `Tab reached ${shut.reached} of ${shut.wanted} with the windows shut`);
+    assert.ok(opened.reached >= opened.wanted, `Tab reached ${opened.reached} of ${opened.wanted} with a window open`);
     assert.ok(ring.width >= 2 && ring.style !== 'none', `focus ring ${ring.width}px, DISCOVER's is 2px`);
   });
 
@@ -699,7 +716,7 @@ const main = async () => {
     assert.equal(await page.locator(STATUS).getAttribute('aria-live'), 'off', 'Sonify quiets the status');
     await page.keyboard.press('i');
     await page.keyboard.press('i');
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+O');
     await page.locator('#song-link').fill('not a song');
     await page.keyboard.press('Enter');
     await expectStatus(page, /^Problem/, 'a bad link');
@@ -709,7 +726,7 @@ const main = async () => {
 
   await test(7, 'MIDI: connects, and a played note lights a pad', async () => {
     const { context, page } = await open(browser, 1280, 900);
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+P');
     await page.getByRole('button', { name: /^Pads/ }).click();
     await page.getByRole('button', { name: 'Connect MIDI keyboard' }).click();
     await page.getByText(/Connected: CHECK KEYS/).waitFor({ timeout: 5000 });
@@ -727,14 +744,12 @@ const main = async () => {
     const { context, page } = await open(browser, 1280, 900, { hash: EXAMPLE });
     await expectStatus(page, /^Song opened/, 'a link in the address');
     assert.ok((await page.locator(`${BARS} [role="gridcell"]`).count()) > 0);
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+O');
     await page.getByRole('button', { name: 'Use example song' }).click();
     assert.ok(((await page.locator('#song-link').inputValue()) ?? '').includes('beepbox'), 'the example fills the box');
     await page.locator('#song-link').focus();
     await page.keyboard.press('Enter');
     await expectStatus(page, /^Song opened/, 'the link box');
-    await page.keyboard.press('/');
-    await page.waitForTimeout(100);
     const song = await songFileWhileOpen(page);
     await page.locator('input[type="file"]').setInputFiles({ name: 'song.json', mimeType: 'application/json', buffer: Buffer.from(song) });
     await expectStatus(page, /^Song opened/, 'a song file');
@@ -744,7 +759,7 @@ const main = async () => {
   await test(7, 'exporting: real .mid, .wav and .json downloads, and a share link', async () => {
     const { context, page } = await open(browser, 1280, 900);
     await page.keyboard.press('Enter');
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+O');
     await page.waitForTimeout(100);
     for (const [name, file] of [[/^Save MIDI/, /\.mid$/], [/^Save sound/, /\.wav$/], [/^Save song file/, /\.json$/]]) {
       const [download] = await Promise.all([page.waitForEvent('download', { timeout: 90000 }), page.getByRole('button', { name }).click()]);
@@ -766,9 +781,9 @@ const main = async () => {
 
   await test(7, 'saving and sharing: signed out, the way in; signed in, save, open, delete and post', async () => {
     const { context, page } = await open(browser, 1280, 900);
-    await page.keyboard.press('/');
+    await page.keyboard.press('Shift+O');
     await page.waitForTimeout(100);
-    const menu = page.getByRole('region', { name: 'Menu' });
+    const menu = page.getByRole('dialog', { name: 'Song' });
     if (!STAND_IN) {
       assert.equal(await menu.getByRole('link', { name: /Sign in to save songs/i }).count(), 1, 'sign in to save');
       assert.equal(await menu.getByRole('link', { name: /Sign in to share/i }).count(), 1, 'sign in to share');
@@ -781,9 +796,9 @@ const main = async () => {
     const signed = await open(browser, 1280, 900, { standIn: true });
     const box = signed.page;
     await box.keyboard.press('Enter');
-    await box.keyboard.press('/');
+    await box.keyboard.press('Shift+O');
     await box.waitForTimeout(150);
-    const area = box.getByRole('region', { name: 'Menu' });
+    const area = box.getByRole('dialog', { name: 'Song' });
     await area.getByLabel('Title', { exact: true }).fill('CHECK SONG');
     await area.getByRole('button', { name: /Save as new song/ }).click();
     await area.getByText(/Saved: CHECK SONG/).waitFor({ timeout: 5000 });
@@ -794,9 +809,9 @@ const main = async () => {
     await area.getByRole('button', { name: /^Open CHECK SONG, replacing/ }).click();
     await box.waitForSelector(NOTES, { timeout: 10000 });
     await box.waitForTimeout(500);
-    await box.keyboard.press('/');
+    await box.keyboard.press('Shift+O');
     await box.waitForTimeout(150);
-    const reopened = box.getByRole('region', { name: 'Menu' });
+    const reopened = box.getByRole('dialog', { name: 'Song' });
     await reopened.getByRole('button', { name: /^Delete CHECK SONG/ }).click();
     await reopened.getByRole('button', { name: /^Delete CHECK SONG, really/ }).click();
     await reopened.getByText(/Deleted: CHECK SONG/).waitFor({ timeout: 5000 });
@@ -833,6 +848,493 @@ const main = async () => {
     }
   });
 
+  // 8. The windows: they move, they stay on the screen, and the page works behind them.
+  const windowBox = (page, name) => page.locator(`[data-window="${name}"]`).boundingBox();
+  const dragTitle = async (page, name, by) => {
+    const title = await page.getByRole('button', { name: new RegExp(`^Move the ${name} window`) }).boundingBox();
+    const from = { x: title.x + title.width / 2, y: title.y + title.height / 2 };
+    await page.mouse.move(from.x, from.y);
+    await page.mouse.down();
+    await page.mouse.move(from.x + by.x / 2, from.y + by.y / 2);
+    await page.mouse.move(from.x + by.x, from.y + by.y);
+    await page.mouse.up();
+    await page.waitForTimeout(100);
+  };
+
+  await test(8, 'a window drags by its title, moves by the arrow keys, and is back there next time', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.waitForTimeout(150);
+    const start = await windowBox(page, 'sounds');
+    await dragTitle(page, 'Sounds', { x: 300, y: 40 });
+    const dragged = await windowBox(page, 'sounds');
+    assert.ok(Math.abs(dragged.x - start.x - 300) <= 1, `moved ${dragged.x - start.x} across`);
+    assert.ok(Math.abs(dragged.y - start.y - 40) <= 41, 'and down, as far as there is room');
+    await page.getByRole('button', { name: /^Move the Sounds window/ }).focus();
+    await page.keyboard.press('ArrowLeft');
+    await page.waitForTimeout(80);
+    const nudged = await windowBox(page, 'sounds');
+    assert.equal(Math.round(dragged.x - nudged.x), 32, 'the arrow keys move it too');
+    await page.screenshot({ path: path.join(OUT, 'window-moved.png') });
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    assert.equal(await page.getByRole('dialog', { name: 'Sounds' }).count(), 0, 'the page opens clear');
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.waitForTimeout(150);
+    const again = await windowBox(page, 'sounds');
+    assert.equal(Math.round(again.x), Math.round(nudged.x), 'it opens where it was left');
+    await page.keyboard.press('/');
+    await page.waitForTimeout(150);
+    await page.getByRole('button', { name: 'Put windows back' }).click();
+    await page.waitForTimeout(150);
+    const backAgain = await windowBox(page, 'sounds');
+    assert.equal(Math.round(backAgain.x), Math.round(start.x), 'Put windows back');
+    await context.close();
+  });
+
+  await test(8, 'a window cannot be lost off an edge, even dragged hard, even when the screen shrinks', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.getByRole('button', { name: /^Recorder/ }).click();
+    await page.waitForTimeout(150);
+    const seen = [];
+    const room = () => page.evaluate(() => {
+      const box = document.querySelector('[data-window="recorder"]').parentElement.getBoundingClientRect();
+      return { left: box.left, top: box.top, right: box.right, bottom: box.bottom };
+    });
+    for (const by of [{ x: -3000, y: -3000 }, { x: 3000, y: 3000 }, { x: 3000, y: -3000 }, { x: -3000, y: 3000 }]) {
+      await dragTitle(page, 'Recorder', by);
+      seen.push([await windowBox(page, 'recorder'), await room(), await page.locator(MAIN).boundingBox()]);
+    }
+    await page.setViewportSize({ width: 900, height: 620 });
+    await page.waitForTimeout(300);
+    seen.push([await windowBox(page, 'recorder'), await room(), await page.locator(MAIN).boundingBox()]);
+    await context.close();
+    for (const [box, area, barBottom] of seen) {
+      assert.ok(box.x >= area.left - 1 && box.y >= area.top - 1, `off the top or left: ${JSON.stringify(box)}`);
+      assert.ok(box.x + box.width <= area.right + 1 && box.y + box.height <= area.bottom + 1, `off the bottom or right: ${JSON.stringify(box)} in ${JSON.stringify(area)}`);
+      assert.ok(box.y >= barBottom.y + barBottom.height - 1, 'and never over the main keys');
+    }
+  });
+
+  await test(8, 'the page works behind a window, several stay open, and the one clicked comes to the front', async () => {
+    const { context, page } = await open(browser, 1920, 1080);
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.getByRole('button', { name: /^Recorder/ }).click();
+    await page.waitForTimeout(150);
+    assert.equal(await page.getByRole('dialog').count(), 2, 'both open');
+    // Nothing on the page draws over a window: an empty grid's words once did.
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.waitForTimeout(100);
+    await dragTitle(page, 'Sounds', { x: 750, y: 0 });
+    const covered = await page.evaluate(() => {
+      const box = document.querySelector('[data-window="sounds"]');
+      // Those words let clicks through, so the browser wouldn't say they're there without this.
+      const see = document.createElement('style');
+      see.textContent = '.debaser-beatbox * { pointer-events: auto !important; }';
+      document.head.append(see);
+      const under = [...box.querySelectorAll('button')]
+        .filter((key) => {
+          const { left, top, width, height } = key.getBoundingClientRect();
+          const point = document.elementFromPoint(left + width / 2, top + height / 2);
+          return !box.contains(point);
+        })
+        .map((key) => key.textContent);
+      see.remove();
+      return under;
+    });
+    assert.deepEqual(covered, [], 'keys covered in the window in front');
+    await page.getByRole('button', { name: /^Recorder/ }).click();
+    await page.waitForTimeout(100);
+    const stack = (name) => page.locator(`[data-window="${name}"]`).evaluate((box) => Number(getComputedStyle(box).zIndex));
+    assert.ok((await stack('recorder')) > (await stack('sounds')), 'the newest in front');
+    // Behind them: a note goes in, the song plays, the bars answer.
+    await page.locator(`${NOTES} [role="gridcell"]`).last().click();
+    await expectStatus(page, / on, beat /, 'a note goes in behind the windows');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'and the song plays');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.getByRole('dialog').count(), 1, 'Esc closes the one in front');
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Pause', 'and only that');
+    await page.keyboard.press('Escape');
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'with none open, Esc stops');
+    // The key of a window behind others brings it forward; the key of the one in front closes it.
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.getByRole('button', { name: /^Recorder/ }).click();
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.waitForTimeout(100);
+    assert.ok((await stack('sounds')) > (await stack('recorder')), 'brought forward');
+    assert.equal(await page.getByRole('dialog').count(), 2);
+    await page.getByRole('button', { name: /^Sounds/ }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await page.getByRole('dialog').count(), 1, 'closed');
+    // A click on one behind brings it forward too.
+    await page.getByRole('button', { name: /^Song/ }).click();
+    await page.waitForTimeout(100);
+    await page.getByRole('dialog', { name: 'Recorder' }).getByRole('button', { name: /^Move the / }).click({ position: { x: 12, y: 12 } });
+    await page.waitForTimeout(100);
+    assert.ok((await stack('recorder')) > (await stack('song')), 'a click brings it forward');
+    await context.close();
+  });
+
+  // 9. Play, pause, stop and the loop.
+  await test(9, 'Play, Pause and Stop: a pause keeps the place, Stop goes back, and the keys stay where they are', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const first = page.locator(`${MAIN} button`).first();
+    const spot = () => page.evaluate(() => document.querySelector('.debaser-beatbox [data-playhead]')?.getAttribute('data-playhead') ?? null);
+    const widthBefore = (await first.boundingBox()).width;
+    const stopBefore = (await page.getByRole('button', { name: 'Stop', exact: true }).boundingBox()).x;
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1200);
+    assert.equal(await first.textContent(), 'Pause');
+    assert.equal((await first.boundingBox()).width, widthBefore, 'the key keeps its size between Play and Pause');
+    assert.equal((await page.getByRole('button', { name: 'Stop', exact: true }).boundingBox()).x, stopBefore, 'and nothing moves');
+    await page.keyboard.press('Space');
+    await expectStatus(page, /^Paused/, 'Space pauses');
+    assert.equal(await first.textContent(), 'Play');
+    const held = await spot();
+    assert.ok(held !== null, 'the playhead stays where it paused');
+    await page.waitForTimeout(500);
+    assert.equal(await spot(), held, 'and stays still');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+    assert.equal(await first.textContent(), 'Pause', 'Space carries on');
+    const on = await spot();
+    const [heldBar, heldStep] = held.split(':').map(Number);
+    const [onBar, onStep] = on.split(':').map(Number);
+    assert.ok(onBar * 1000 + onStep >= heldBar * 1000 + heldStep, `carried on from the same place: ${held} then ${on}`);
+    await page.getByRole('button', { name: 'Stop', exact: true }).click();
+    await expectStatus(page, /^Stopped/, 'Stop');
+    assert.equal(await first.textContent(), 'Play');
+    assert.equal(await spot(), null, 'Stop clears the playhead');
+    await context.close();
+  });
+
+  await test(9, 'a pause keeps what was played for Capture, and calls off a calibration', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1500);
+    await page.keyboard.down('a');
+    await page.waitForTimeout(150);
+    await page.keyboard.up('a');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Space');
+    await expectStatus(page, /^Paused/, 'the pause');
+    await page.keyboard.press('c');
+    await expectStatus(page, /^Captured/, 'Capture after a pause');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+R');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Calibrate timing' }).click();
+    await page.getByRole('button', { name: /Calibrating/ }).waitFor({ timeout: 3000 });
+    await page.getByRole('radio', { name: /Overdub/ }).focus();
+    await page.locator(`${MAIN} button`).first().click();
+    await page.getByRole('button', { name: 'Calibrate timing' }).waitFor({ timeout: 3000 });
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'stopped, not left half done');
+    await context.close();
+  });
+
+  await test(9, 'Space plays and pauses wherever the cursor is, and never presses the last key clicked', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const first = page.locator(`${MAIN} button`).first();
+    await page.getByRole('button', { name: /^Faster/ }).click();
+    await expectStatus(page, /Speed: 155/, 'Faster');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(200);
+    assert.equal(await first.textContent(), 'Pause', 'Space plays, with Faster last clicked');
+    assert.match(await page.locator(MAIN).innerText(), /155/, 'and did not press Faster again');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    assert.equal(await first.textContent(), 'Play', 'pauses too');
+    await page.keyboard.press('Escape');
+    // Enter still presses a key, for anyone on the keyboard.
+    await page.getByRole('button', { name: /^Faster/ }).focus();
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /Speed: 160/, 'Enter presses the key');
+    // Where Space has a use of its own, it keeps it: typing, and a set of choices.
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    await page.locator('#song-link').focus();
+    await page.keyboard.type('a b');
+    assert.equal(await page.locator('#song-link').inputValue(), 'a b', 'Space types in a text box');
+    assert.equal(await first.textContent(), 'Play', 'without playing');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+R');
+    await page.waitForTimeout(100);
+    const replace = page.getByRole('radio', { name: /Replace/ });
+    await page.getByRole('radio', { name: /Overdub/ }).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.getByRole('radio', { name: /Overdub/ }).focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    assert.equal(await first.textContent(), 'Play', 'Space picks a choice');
+    assert.equal(await replace.getAttribute('aria-checked'), 'false', 'the one it was on');
+    await context.close();
+  });
+
+  await test(9, 'the Loop key: on repeats, off plays the song once and stops, and recording always goes round', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const first = page.locator(`${MAIN} button`).first();
+    const loop = page.locator(MAIN).getByRole('button', { name: /^Loop/ });
+    assert.equal(await loop.textContent(), 'Loop 1-4', 'it says which bars');
+    assert.equal(await loop.getAttribute('aria-pressed'), 'true');
+    await page.keyboard.press('Shift+L');
+    await expectStatus(page, /^Loop off/, 'Shift+L');
+    assert.equal(await loop.textContent(), 'Loop off');
+    assert.equal(await loop.getAttribute('aria-pressed'), 'false');
+    // A short song, to reach its end in good time.
+    for (let i = 0; i < 6; i += 1) await page.keyboard.press(']');
+    await page.locator(`${BARS} [role="gridcell"]`).nth(0).focus();
+    await page.keyboard.press('End');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(300);
+    assert.equal(await first.textContent(), 'Pause', 'from the last bar');
+    await expectStatus(page, /^That's the end of the song/, 'it stops by itself at the end');
+    assert.equal(await first.textContent(), 'Play');
+    await page.keyboard.press('Control+Home');
+    await page.keyboard.press('r');
+    await page.locator(MAIN).getByRole('button', { name: /^Rec/, pressed: true }).waitFor({ timeout: 5000 });
+    await page.locator(MAIN).getByRole('button', { name: /^Rec.* 2$/ }).waitFor({ timeout: 30000 });
+    await page.keyboard.press('Escape');
+    await loop.click();
+    await expectStatus(page, /^Loop on/, 'and back on');
+    assert.equal(await loop.textContent(), 'Loop 1-4');
+    await context.close();
+  });
+
+  // 10. The keyboard keys.
+  await test(10, 'the Settings window shows every key, and one can be changed, swapped, refused, kept and put back', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const first = page.locator(`${MAIN} button`).first();
+    await page.getByRole('button', { name: /^Settings/ }).click();
+    await page.waitForTimeout(150);
+    const settings = page.getByRole('dialog', { name: 'Settings' });
+    const shown = (action) => settings.locator(`[data-key-shown="${action}"]`).textContent();
+    const change = (action) => settings.locator(`[data-change-key="${action}"]`).click();
+    assert.equal(await shown('playPause'), 'Space', 'Space is play and pause to begin with');
+    assert.equal(await settings.locator('[data-change-key]').count(), 27, 'every key that can change');
+    await page.screenshot({ path: path.join(OUT, 'settings.png') });
+
+    // A key that would break the notes.
+    await change('playPause');
+    assert.equal(await shown('playPause'), 'Press a key');
+    await page.keyboard.press('a');
+    await settings.getByRole('alert').waitFor({ timeout: 2000 });
+    assert.match(await settings.getByRole('alert').textContent(), /A plays notes/);
+    assert.equal(await shown('playPause'), 'Press a key', 'still waiting');
+    await page.keyboard.press('Enter');
+    assert.match(await settings.getByRole('alert').textContent(), /Enter works the notes/);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'Space', 'Esc leaves it');
+    assert.equal(await page.getByRole('dialog', { name: 'Settings' }).isVisible(), true, 'and the window open');
+
+    // Waiting for a key ends when the window shuts, or a press lands elsewhere, so no key is swallowed.
+    await change('playPause');
+    await settings.getByRole('button', { name: 'Close Settings', exact: true }).click();
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    assert.equal(await first.textContent(), 'Pause', 'Space plays once the window is shut');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('/');
+    await page.waitForTimeout(150);
+    assert.equal(await shown('playPause'), 'Space', 'and nothing was given a new key');
+    await change('playPause');
+    await page.locator(`${MAIN} button`).nth(1).click();
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'Space', 'a press elsewhere leaves it too');
+
+    // A free key.
+    await change('playPause');
+    await page.keyboard.press('Insert');
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'Insert');
+    await expectStatus(page, /Play or pause is now Insert/, 'it says so');
+    assert.match(await first.getAttribute('title'), /Insert/, 'the key on the bar says so too');
+    await page.keyboard.press('Insert');
+    await page.waitForTimeout(150);
+    assert.equal(await first.textContent(), 'Pause', 'the new key plays');
+    await page.keyboard.press('Insert');
+    await page.waitForTimeout(100);
+    assert.equal(await first.textContent(), 'Play');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(100);
+    assert.equal(await first.textContent(), 'Play', 'Space does nothing now');
+    await page.keyboard.press('/');
+    await page.waitForTimeout(150);
+
+    // A key something else has: it offers to swap.
+    await change('playPause');
+    await page.keyboard.press('r');
+    await settings.getByRole('alert').waitFor({ timeout: 2000 });
+    assert.match(await settings.getByRole('alert').textContent(), /R is already: Record/);
+    await settings.getByRole('button', { name: 'Leave it' }).click();
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'Insert', 'Leave it leaves it');
+    await change('playPause');
+    await page.keyboard.press('r');
+    await settings.getByRole('button', { name: 'Swap them' }).click();
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'R');
+    assert.equal(await shown('record'), 'Insert', 'each has the other key');
+
+    // A key that plays no note otherwise, and Space given back, pressed on the focused Change key.
+    await change('help');
+    await page.keyboard.press('Shift+A');
+    await page.waitForTimeout(80);
+    assert.equal(await shown('help'), 'Shift+A', 'Shift and a piano key is free');
+    await change('record');
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(80);
+    assert.equal(await shown('record'), 'Space', 'Space can be chosen, and pressed no key doing it');
+    assert.equal(await settings.getByRole('alert').count(), 0);
+
+    // Remembered, in the help too.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Shift+A');
+    await page.waitForTimeout(100);
+    assert.equal(await page.locator('dialog[open]').count(), 1, 'the changed key opens the help after a reload');
+    assert.match(await page.locator('dialog[open]').innerText(), /Shift\+A/, 'and the help lists it');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('/');
+    await page.waitForTimeout(150);
+    await page.getByRole('button', { name: 'Put all the keys back' }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await shown('playPause'), 'Space', 'all back');
+    assert.equal(await shown('record'), 'R');
+    assert.equal(await shown('help'), '?');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    assert.equal(await first.textContent(), 'Pause', 'and they stay back');
+    await context.close();
+  });
+
+  // 11. The sounds.
+  const peaks = async (page) => {
+    await page.getByRole('button', { name: /^Save sound/ }).click();
+    await page.waitForFunction(() => /\.wav$/.test(window.__lastSaved ?? '') || window.__lastBlob?.type === 'audio/wav', null, { timeout: 90000 });
+    await page.waitForTimeout(150);
+    return page.evaluate(async () => {
+      const bytes = new Int16Array(await window.__lastBlob.slice(44).arrayBuffer());
+      let peak = 0;
+      let sum = 0;
+      for (let i = 0; i < bytes.length; i += 1) {
+        peak = Math.max(peak, Math.abs(bytes[i]));
+        sum = (sum * 31 + bytes[i]) % 1000000007;
+      }
+      window.__lastBlob = null;
+      return { peak, sum };
+    });
+  };
+
+  await test(11, 'a channel picks a kind of instrument, the song keeps it, and undo brings the last one back', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.keyboard.press('Shift+S');
+    await page.waitForTimeout(150);
+    const sounds = page.getByRole('dialog', { name: 'Sounds' });
+    const chosen = async () => (await sounds.getByRole('radiogroup', { name: 'Sound' }).locator('[aria-checked="true"]').textContent()).replace('> ', '');
+    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 15, 'fifteen for a tune');
+    const before = await chosen();
+    await sounds.getByRole('radio', { name: 'Plucked string' }).click();
+    await expectStatus(page, /has a new sound/, 'picking one');
+    assert.equal(await chosen(), 'Plucked string');
+    await page.screenshot({ path: path.join(OUT, 'sounds.png') });
+    const saved = async () => {
+      await page.keyboard.press('Shift+O');
+      await page.waitForTimeout(100);
+      await page.getByRole('button', { name: /Save song file/ }).click();
+      await page.waitForTimeout(200);
+      const json = JSON.parse(await page.evaluate(() => window.__lastBlob.text()));
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(100);
+      return json;
+    };
+    assert.equal((await saved()).channels[0].instruments[0].type, 'Picked String', 'the saved song has it');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo');
+    assert.equal(await chosen(), before, 'undo brings the last one back');
+    await page.keyboard.press('Control+y');
+    assert.equal(await chosen(), 'Plucked string', 'redo too');
+    // The drums have their own list, and the window follows the channel.
+    await sounds.getByRole('radio', { name: 'Drums' }).click();
+    await page.waitForTimeout(100);
+    assert.equal(await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').count(), 7, 'seven for the drums');
+    await sounds.getByRole('radio', { name: 'Clang' }).click();
+    assert.equal((await saved()).channels[3].instruments[0].wave, 'clang');
+    // A link keeps it.
+    await page.keyboard.press('Shift+O');
+    await page.getByRole('button', { name: 'Copy share link' }).click();
+    await page.waitForTimeout(200);
+    const link = await page.locator('textarea[readonly]').inputValue();
+    const again = await open(browser, 1280, 900, { hash: link.slice(link.indexOf('#')) });
+    await again.page.keyboard.press('Shift+S');
+    await again.page.waitForTimeout(150);
+    const reopened = again.page.getByRole('dialog', { name: 'Sounds' });
+    assert.equal(await reopened.getByRole('radio', { name: 'Plucked string' }).getAttribute('aria-checked'), 'true', 'a share link brings it back');
+    await again.context.close();
+    await context.close();
+  });
+
+  await test(11, 'a song with a sound of its own keeps it until something else is picked', async () => {
+    const { context, page } = await open(browser, 1280, 900, { hash: EXAMPLE });
+    await expectStatus(page, /^Song opened/, 'the example');
+    await page.keyboard.press('Shift+S');
+    await page.waitForTimeout(150);
+    const sounds = page.getByRole('dialog', { name: 'Sounds' });
+    assert.ok((await sounds.getByRole('radiogroup', { name: 'Sound' }).locator('[aria-checked="true"]').count()) === 1, 'one chosen, whatever it is');
+    await context.close();
+  });
+
+  await test(11, 'every sound on the list makes sound, and each comes out different', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.setViewportSize({ width: 1920, height: 1080 });
+    // One note on the tune and one on the drums, in a short song, so each sound file is quick to make.
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Shift+S');
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(200);
+    await dragTitle(page, 'Song', { x: 800, y: 0 });
+    const sounds = page.getByRole('dialog', { name: 'Sounds' });
+    const report = {};
+    for (const channel of ['Tune 1', 'Drums']) {
+      await sounds.getByRole('radio', { name: channel }).click();
+      await page.waitForTimeout(100);
+      if (channel === 'Drums') {
+        await page.locator(`${NOTES} [role="gridcell"]`).nth(0).click();
+        await page.waitForTimeout(100);
+      }
+      const names = await sounds.getByRole('radiogroup', { name: 'Sound' }).getByRole('radio').allTextContents();
+      for (const raw of names) {
+        const name = raw.replace('> ', '');
+        await sounds.getByRole('radio', { name: new RegExp(`^(> )?${name}$`) }).click();
+        await page.waitForTimeout(60);
+        report[`${channel}: ${name}`] = await peaks(page);
+      }
+    }
+    numbers.sounds = report;
+    await context.close();
+    const entries = Object.entries(report);
+    for (const [name, { peak }] of entries) assert.ok(peak > 100, `${name} is silent: peak ${peak}`);
+    const tuneSums = entries.filter(([name]) => name.startsWith('Tune')).map(([, { sum }]) => sum);
+    assert.equal(new Set(tuneSums).size, tuneSums.length, 'two tune sounds came out the same');
+    const drumSums = entries.filter(([name]) => name.startsWith('Drums')).map(([, { sum }]) => sum);
+    assert.equal(new Set(drumSums).size, drumSums.length, 'two drum sounds came out the same');
+  });
+
   await browser.close();
 
   fs.writeFileSync(path.join(OUT, 'numbers.json'), JSON.stringify(numbers, null, 1));
@@ -843,7 +1345,7 @@ const main = async () => {
   if (failed.length > 0) process.exit(1);
 };
 
-/** The song file while the menu's already open. */
+/** The song file while the Song window's already open. */
 async function songFileWhileOpen(page) {
   await page.getByRole('button', { name: /Save song file/ }).click();
   await page.waitForTimeout(250);

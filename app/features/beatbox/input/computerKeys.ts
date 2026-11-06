@@ -24,6 +24,11 @@ const KEY_NOTES: Readonly<Record<string, number>> = {
 
 export const NOTE_KEY_LABELS = "A W S E D F T G Y H U J K O L P ;";
 
+/** Is this key one of the piano's, by its place on the keyboard? Z and X are, for the octave. */
+export function isNoteKeyCode(code: string): boolean {
+  return code === "KeyZ" || code === "KeyX" || KEY_NOTES[code] !== undefined;
+}
+
 const COMPUTER_KEY_VELOCITY = 100;
 const LOWEST_OCTAVE = 0;
 const HIGHEST_OCTAVE = 7;

@@ -26,13 +26,16 @@ export function bigKey(on = false): string {
 /** The one main action on the screen. */
 export const mainKey = `min-h-bb-target-large min-w-bb-target-large bg-bb-daffodil text-bb-black hover:bg-bb-emerald ${keyShape}`;
 
-/** A key on the slim bar over the grid: big words, little padding. */
+// The slim bar holds a lot on a small screen: its words grow on a big one.
+const barKeyCore = `bb-key-tight min-h-bb-target-bar min-w-bb-target-min cursor-pointer px-1 text-display font-bold uppercase whitespace-nowrap 2xl:px-2 2xl:text-bb-large ${focusOnly} ${pressed}`;
+
+/** A key on the slim bar over the grid. */
 export function barKey(on = false): string {
-  return `min-h-bb-target-bar min-w-bb-target-min px-2 ${keyCore} ${on ? onKey : bracketKey}`;
+  return `${barKeyCore} ${on ? onKey : bracketKey}`;
 }
 
 /** The bar's one main key, filled so the eye lands on it first. */
-export const barMainKey = `min-h-bb-target-bar min-w-bb-target-min px-2 bg-bb-daffodil text-bb-black hover:bg-bb-emerald ${keyCore}`;
+export const barMainKey = `${barKeyCore} bg-bb-daffodil text-bb-black hover:bg-bb-emerald`;
 
 /** A key on the strip of bars or the row under the grid. */
 export function stripKey(on = false): string {
@@ -46,3 +49,11 @@ export function rulerKey(on = false): string {
 
 /** A section's title, set between two rules. */
 export const titleLine = "bb-title-line text-bb-large font-bold wrap-anywhere text-bb-daffodil uppercase";
+
+/** A window's key on the slim bar: smaller words and closer brackets, so the song's own keys stay the biggest. */
+export function windowKey(on = false): string {
+  return `min-h-bb-target-bar min-w-bb-target-min bb-key-tight cursor-pointer px-0.5 text-bb-cell-m font-bold uppercase whitespace-nowrap 2xl:px-1 ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
+}
+
+/** The close key on a window's title line, which is a light colour. */
+export const windowCloseKey = `bb-key min-h-bb-target-min min-w-bb-target-min flex-none cursor-pointer px-2 text-bb-black text-bb-large font-bold uppercase hover:bg-bb-nigrosine hover:text-bb-white focus:outline-(length:--focus-width) focus:outline-bb-pink ${pressed}`;

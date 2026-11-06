@@ -8,7 +8,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
 const { fitGrid, columnWindowStart } = require('./beatbox-fit-out/features/beatbox/ui/gridView.js');
-const { KEY_HELP } = require('./beatbox-fit-out/features/beatbox/ui/keyHelp.js');
+const { keyHelp } = require('./beatbox-fit-out/features/beatbox/ui/keyHelp.js');
+const { STARTING_KEYS } = require('./beatbox-fit-out/features/beatbox/ui/keyBindings.js');
 const panel = require('./beatbox-fit-out/lib/ui/side-panel-page.js');
 
 const ROOT = path.join(__dirname, '..');
@@ -78,14 +79,14 @@ assert.equal(columnWindowStart(13, 12), 12, 'the view pages by a screenful');
 
 // The help lists every key the page answers.
 {
-  const listed = KEY_HELP.flatMap((group) => group.keys.map(([keys]) => keys)).join(' | ');
-  for (const key of ['?', 'Space', 'Esc', '/', '\\', "'", 'R', 'Ctrl+Z', 'Ctrl+Y', 'Ctrl+Shift+Z', '[ and ]', 'B', 'I', '.', ',', '- and =', 'A W S', 'Z and X', 'V', 'N', 'M', 'Q', 'C', 'L', 'F', '0 to 9', '+ and -', 'Enter', 'Ctrl+Left', 'Shift+Left', 'Shift+Up', 'Delete', 'Home and End', 'Ctrl+Home', 'Page Up']) {
+  const listed = keyHelp(STARTING_KEYS).flatMap((group) => group.keys.map(([keys]) => keys)).join(' | ');
+  for (const key of ['?', 'Space', 'Esc', 'Shift+L', 'Shift+S', 'Shift+O', '/', '\\', "'", 'R', 'Ctrl+Z', 'Ctrl+Y', '[', ']', 'B', 'I', '.', ',', '-', '=', 'A W S', 'Z and X', 'V', 'N', 'M', 'Q', 'C', 'L', 'F', '0 to 9', '+ and -', 'Enter', 'Ctrl+Left', 'Shift+Left', 'Shift+Up', 'Delete', 'Home and End', 'Ctrl+Home', 'Page Up']) {
     assert.ok(listed.includes(key), `the help lists ${key}`);
   }
   const page = read('app/features/beatbox/ui/BeatBox.tsx');
   // The main keys say a short word and keep the shortcut for hover and help.
   assert.doesNotMatch(page, /^\s*(Play|Stop|Record|Undo|Redo|Slower|Faster|Follow|Lower|Higher).* \(/m, 'no shortcut spelled out on a key');
-  assert.match(page, /title="Play or stop \(Space\)"/, 'on hover instead');
+  assert.match(page, /title=\{`\$\{playing \? "Pause" : "Play"\} \(\$\{keyFor\("playPause"\)\}\)`\}/, 'on hover instead, as the key is now');
 }
 
 console.log('beat box screen: the grid fills its room, the panel fold is never remembered, the help lists every key: OK');

@@ -1,31 +1,17 @@
-// Every key, for the help panel. When a key is added or changed, change it here too.
+// Every key, for the help panel and the Settings window. The keys a person can change live in keyBindings.ts; the ones that
+// stay as they are live here. When a key is added or changed, change it there or here too.
 import { NOTE_KEY_LABELS } from "../input/computerKeys";
+import { KEY_GROUPS, keyWords, type Bindings } from "./keyBindings";
 
 export interface KeyGroup {
   readonly title: string;
   readonly keys: readonly (readonly [keys: string, action: string])[];
 }
 
-export const KEY_HELP: readonly KeyGroup[] = [
+export const FIXED_KEYS: readonly KeyGroup[] = [
   {
     title: "Anywhere",
-    keys: [
-      ["?", "Open this help"],
-      ["Space", "Play or stop, unless a button has the focus"],
-      ["Esc", "Close the menu, or stop"],
-      ["/", "Open or close the menu"],
-      ["\\", "Bring back or fold away the side panel"],
-      ["'", "Show or hide the bars"],
-      ["R", "Record, or stop recording and keep playing"],
-      ["Ctrl+Z", "Undo. A recorded pass is one undo"],
-      ["Ctrl+Y or Ctrl+Shift+Z", "Redo"],
-      ["[ and ]", "Slower and faster"],
-      ["B", "Notes follow the playing bar, on or off"],
-      ["I", "Change audio mode: Practice, Sonify, Perform"],
-      [".", "Focus view: the notes and little else, on or off"],
-      [",", "High contrast, on or off"],
-      ["- and =", "Smaller and bigger grid"],
-    ],
+    keys: [["Esc", "Close the window in front. With none open, stop"]],
   },
   {
     title: "Playing notes",
@@ -36,16 +22,6 @@ export const KEY_HELP: readonly KeyGroup[] = [
     ],
   },
   {
-    title: "Loop recorder",
-    keys: [
-      ["V", "Overdub or Replace"],
-      ["N", "Count-in: off, 1 bar, 2 bars"],
-      ["M", "Metronome: off, count-in only, always"],
-      ["Q", "Quantise. This also moves the last pass to match"],
-      ["C", "Capture: keep the last pass you played without recording"],
-    ],
-  },
-  {
     title: "In the bars",
     keys: [
       ["Up and Down", "Earlier and later bar"],
@@ -53,7 +29,7 @@ export const KEY_HELP: readonly KeyGroup[] = [
       ["Home and End", "First and last bar"],
       ["Ctrl+Home and Ctrl+End", "First and last bar of all channels"],
       ["Shift+Up and Shift+Down, or Shift+click", "Pick several bars"],
-      ["L", "Loop the picked bars"],
+      ["L", "Set the loop to the picked bars"],
       ["F", "Put this bar's pattern on the whole loop"],
       ["0 to 9", "Set the pattern. 0 is silent"],
       ["+ and -", "Next and previous pattern"],
@@ -67,21 +43,30 @@ export const KEY_HELP: readonly KeyGroup[] = [
       ["Ctrl+Left and Ctrl+Right", "Jump a beat"],
       ["Enter", "Turn a note on or off"],
       ["Shift+Left and Shift+Right", "Make a note shorter or longer"],
-      ["Delete", "Delete a whole note or chord"],
+      ["Delete or Backspace", "Delete a whole note or chord"],
       ["Home and End", "Start and end of the row"],
       ["Ctrl+Home and Ctrl+End", "First and last cell"],
       ["Page Up and Page Down", "Up and down a screenful"],
     ],
   },
   {
-    title: "Opening and saving",
+    title: "In a window",
     keys: [
+      ["Arrow keys, on its title", "Move the window"],
+      ["Enter, on a key", "Press that key. Space plays and pauses wherever you are, unless you've changed it"],
       ["Enter, in the link box", "Open that song"],
-      ["Tab to a Save button, then Enter", "Save a .mid, .wav or song file, or copy a share link"],
+      ["Arrow keys, in a set of choices such as Mode or Size", "Change the choice"],
     ],
   },
-  {
-    title: "In a set of choices, such as Mode or Size",
-    keys: [["Arrow keys", "Change the choice"]],
-  },
 ];
+
+/** Every key as it is right now, the ones that have been changed included. */
+export function keyHelp(bindings: Bindings): readonly KeyGroup[] {
+  return [
+    ...KEY_GROUPS.map(({ title, actions }) => ({
+      title,
+      keys: actions.map(({ id, label }): readonly [string, string] => [keyWords(bindings[id]), label]),
+    })),
+    ...FIXED_KEYS,
+  ];
+}

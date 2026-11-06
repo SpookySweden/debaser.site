@@ -35,6 +35,7 @@ export function Playhead({
     return (
       <div
         aria-hidden="true"
+        data-playhead={`${spot.bar}:${spot.step}`}
         className="pointer-events-none absolute right-0 left-0 z-20 border-(length:--playhead-width) border-bb-flavine"
         style={{ top: `calc(var(--head-h) + var(--cell) * ${column})`, height: "var(--cell)" }}
       />

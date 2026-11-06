@@ -23,6 +23,7 @@ export function ChoiceGroup<T extends string | number>({
   options,
   onChange,
   look = smallKey,
+  stacked = false,
 }: {
   label: string;
   /** The page-wide key that also changes this, shown beside the name. */
@@ -31,6 +32,8 @@ export function ChoiceGroup<T extends string | number>({
   options: readonly { readonly value: T; readonly label: string }[];
   onChange: (value: T) => void;
   look?: (on: boolean) => string;
+  /** Its name above, and the choices lined up in two columns, for a window. */
+  stacked?: boolean;
 }) {
   const group = useRef<HTMLDivElement>(null);
   const chosen = options.findIndex((option) => option.value === value);
@@ -44,6 +47,35 @@ export function ChoiceGroup<T extends string | number>({
     group.current?.querySelectorAll("button")[next]?.focus();
   }
 
+  const keys = options.map((option) => (
+    <button
+      key={String(option.value)}
+      type="button"
+      role="radio"
+      aria-checked={option.value === value}
+      tabIndex={option.value === value ? 0 : -1}
+      onClick={() => onChange(option.value)}
+      className={stacked ? `${look(option.value === value)} text-left whitespace-normal! wrap-anywhere` : look(option.value === value)}
+    >
+      {option.value === value ? "> " : ""}
+      {option.label}
+    </button>
+  ));
+  const name = (
+    <span className={`font-bold uppercase ${look === smallKey ? "text-bb-large" : "text-display"}`} title={keyName ? `Key: ${keyName}` : undefined}>
+      {label}
+    </span>
+  );
+
+  if (stacked) {
+    return (
+      <div ref={group} role="radiogroup" aria-label={label} onKeyDown={keyDown} className="flex w-full flex-col gap-1">
+        {name}
+        <div className="grid w-full grid-cols-1 gap-1 sm:grid-cols-2">{keys}</div>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={group}
@@ -52,23 +84,8 @@ export function ChoiceGroup<T extends string | number>({
       onKeyDown={keyDown}
       className={`flex flex-wrap items-center ${look === smallKey ? "gap-bb-gutter" : "gap-1"}`}
     >
-      <span className={`font-bold uppercase ${look === smallKey ? "text-bb-large" : "text-display"}`} title={keyName ? `Key: ${keyName}` : undefined}>
-        {label}
-      </span>
-      {options.map((option) => (
-        <button
-          key={String(option.value)}
-          type="button"
-          role="radio"
-          aria-checked={option.value === value}
-          tabIndex={option.value === value ? 0 : -1}
-          onClick={() => onChange(option.value)}
-          className={look(option.value === value)}
-        >
-          {option.value === value ? "> " : ""}
-          {option.label}
-        </button>
-      ))}
+      {name}
+      {keys}
     </div>
   );
 }

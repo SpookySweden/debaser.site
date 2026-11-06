@@ -36,5 +36,17 @@ These are the acceptance test, on a real browser at 1280x900 and at 1920x1080:
 - Motion stops under `prefers-reduced-motion`. Contrast 4.5:1 in every theme.
 - Text sizes and focus rings must be at least as strong as on the DISCOVER page.
 
+## Windows, play keys and changeable keys (Luke, 2026-11-06)
+The Menu column became five windows, one key each on the bar: Sounds, Recorder, Playing, Song and Settings.
+- They drag by the title or move by the arrow keys, stay wholly under the main keys, and reopen where they were left, on this browser
+  only. Several can be open, the page works behind them, and Esc closes the one in front. At 400% zoom they stack above the notes and don't move.
+- The bar has Play/Pause, Stop and Loop. Pause keeps the place, Stop goes back to the picked bar. Loop off plays the song once and
+  stops. Recording always goes round. Setting which bars loop stays in the bars column (Set loop).
+- Space plays and pauses wherever the cursor is, except in a text box, on a slider, in a set of choices and on a pad. Enter presses a key.
+- Settings lists every key. Most can be changed, and a taken key offers to swap. Piano letters, arrows, Enter, Tab, numbers and the
+  browser's own keys can't be given a job. Changes stay on this browser.
+- Sounds picks a kind of instrument per channel, as BeepBox's own types and waves. A new thing the beat box couldn't do before. It's kept
+  in the song, its links and files, and undo brings the last one back.
+
 ## Not in scope
 The NVDA run and listening tests stay on Luke's list. Phone layout beyond "doesn't break": phones get the zoomed-out desktop.

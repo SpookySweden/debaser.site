@@ -15,6 +15,15 @@ const ART: BeatBoxArt = {
   emptyState: '/assets/beatbox/empty-bar.png',
 };
 
+/** This browser's own memory, for the keys someone has changed and where they left the windows. Some browsers refuse. */
+function browserMemory(): Storage | null {
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 /** A song link keeps the song after the #, which never reaches the server unless someone posts it. */
 function songInAddress(): string | undefined {
   const hash = window.location.hash;
@@ -25,6 +34,7 @@ export default function BeatBoxRoom() {
   // A new number starts the beat box afresh with the song, as opening a saved one replaces what's there.
   const [opened, setOpened] = useState(() => ({ number: 0, song: songInAddress() }));
   const [shareLinkStart] = useState(() => `${window.location.origin}/beatbox`);
+  const [memory] = useState(browserMemory);
 
   const openSaved = useCallback((song: string) => {
     setOpened((current) => ({ number: current.number + 1, song: `#${song}` }));
@@ -70,6 +80,7 @@ export default function BeatBoxRoom() {
         art={ART}
         hideTitle
         onTogglePanel={togglePagePanel}
+        memory={memory}
       />
     </div>
   );

@@ -49,6 +49,8 @@ export interface RecordSession {
   capture(): void;
   /** Ends any pass in progress, then stops the song. */
   stopPlayback(): void;
+  /** Ends any pass in progress, then holds the song where it is. A calibration can't be held, so that's a stop. */
+  pausePlayback(): void;
   setChannel(channel: number): void;
   setMode(mode: RecordMode): void;
   setCountIn(bars: number): void;
@@ -373,6 +375,23 @@ export function createRecordSession(
       change({ strength: percent });
       announce(`Quantise strength ${percent} percent.`);
       reviseLatestPass(`Quantise strength ${percent} percent. The last pass moved to match.`);
+    },
+
+    pausePlayback() {
+      if (settings.calibrating) {
+        this.stopPlayback();
+        return;
+      }
+      stopRecording("Paused. The pass so far is kept.");
+      if (transport.isPlaying()) endPassHere().forEach(keepForCapture);
+      transport.pause();
+      beat = null;
+      // A pause during a count-in is a stop, with nothing to carry on from.
+      if (!transport.isPaused()) {
+        clock = null;
+        recorder = null;
+      }
+      notify();
     },
 
     calibrate() {

@@ -79,8 +79,15 @@ export interface Transport {
   getSpot(): PlayheadSpot | null;
   play(fromBar: number, countInBars?: number): void;
   stop(): void;
+  /** Holds the song where it is, and the playhead with it. */
+  pause(): void;
+  /** Carries on from a pause. */
+  resume(): void;
+  isPaused(): boolean;
   /** Called about 50 times a second while playing. */
   onTick(listener: Listener): () => void;
+  /** Called when the song reaches its end by itself, with the loop off. */
+  onEnd(listener: Listener): () => void;
 }
 
 const TICK_MS = 20;
@@ -88,10 +95,30 @@ const TICK_MS = 20;
 function createTransport(engine: Engine, songs: SongStore): Transport {
   const signal = createSignal();
   const ticks = createSignal();
+  const ends = createSignal();
   let timer: ReturnType<typeof setInterval> | null = null;
   let spot: PlayheadSpot | null = null;
+  let paused = false;
+
+  function stopTimer() {
+    if (timer !== null) clearInterval(timer);
+    timer = null;
+  }
+
+  function stop() {
+    engine.stop();
+    stopTimer();
+    spot = null;
+    paused = false;
+    signal.notify();
+  }
 
   function tick() {
+    if (!engine.isPlaying()) {
+      stop();
+      ends.notify();
+      return;
+    }
     const song = songs.getSong();
     const position = engine.getPosition();
     const bar = Math.floor(position);
@@ -108,19 +135,31 @@ function createTransport(engine: Engine, songs: SongStore): Transport {
     isPlaying: () => engine.isPlaying(),
     getSpot: () => spot,
     play(fromBar, countInBars = 0) {
+      paused = false;
       engine.play({ fromBar, countInBars });
       timer ??= setInterval(tick, TICK_MS);
       tick();
       signal.notify();
     },
-    stop() {
-      engine.stop();
-      if (timer !== null) clearInterval(timer);
-      timer = null;
-      spot = null;
+    stop,
+    pause() {
+      if (!engine.isPlaying()) return;
+      paused = engine.pause();
+      stopTimer();
+      if (!paused) spot = null;
       signal.notify();
     },
+    resume() {
+      if (!paused) return;
+      paused = false;
+      engine.play();
+      timer ??= setInterval(tick, TICK_MS);
+      tick();
+      signal.notify();
+    },
+    isPaused: () => paused,
     onTick: ticks.subscribe,
+    onEnd: ends.subscribe,
   };
 }
 

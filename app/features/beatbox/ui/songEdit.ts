@@ -5,6 +5,12 @@ function replaceChannel(song: SongData, channelIndex: number, channel: ChannelDa
   return { ...song, channels: song.channels.map((other, index) => (index === channelIndex ? channel : other)) };
 }
 
+/** Gives a channel new sounds, as one undo step like any other edit. */
+export function setChannelSound(song: SongData, channelIndex: number, sounds: readonly object[]): SongData {
+  const channel = song.channels[channelIndex];
+  return channel ? replaceChannel(song, channelIndex, { ...channel, sounds }) : song;
+}
+
 /** Changes the notes of the pattern on this bar. A silent bar gets a new pattern first. */
 export function replacePatternNotes(
   song: SongData,

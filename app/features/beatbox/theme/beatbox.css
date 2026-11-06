@@ -12,8 +12,17 @@
   content: "\00a0]" / "";
 }
 
+/* The same with its brackets close, where a row of them needs the room. */
+.debaser-beatbox .bb-key-tight::before {
+  content: "[" / "";
+}
+.debaser-beatbox .bb-key-tight::after {
+  content: "]" / "";
+}
+
 /* High contrast has no room for subtle: every key gets a thick outline too. */
-.debaser-beatbox[data-theme="high-contrast"] .bb-key {
+.debaser-beatbox[data-theme="high-contrast"] .bb-key,
+.debaser-beatbox[data-theme="high-contrast"] .bb-key-tight {
   border: var(--border-width) solid var(--white);
 }
 
