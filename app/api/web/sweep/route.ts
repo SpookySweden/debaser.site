@@ -5,16 +5,16 @@ import { peertubeHosts } from '../../../lib/web/search/peertube-index';
 import { makeSweepStore, readSources, runSweep } from '../../../lib/web/sweep';
 
 /**
- * The catalogue sweep (lib/web/sweep.ts; SPEC-discover.md). Called every three hours by pg_cron + pg_net with the same lock as the ingest:
+ * The catalogue sweep (lib/web/sweep.ts; SPEC-discover.md). Called every two minutes by pg_cron + pg_net with the same lock as the ingest:
  * the database made it and keeps it in Vault.
  *
- *   POST /api/web/sweep   header  x-web-ingest-secret: <the lock>   ->  { collected, sent, waiting, inputTokens, outputTokens, read, stopped }
+ *   POST /api/web/sweep   header  x-web-ingest-secret: <the lock>   ->  { collected, sent, waiting, inputTokens, outputTokens, read, stopped, busy }
  *
  * ANTHROPIC_API_KEY is a server-only setting in Vercel. Without it the route does nothing and says so. The key never reaches an answer.
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+export const maxDuration = 240;
 
 const LOCK_HEADER = 'x-web-ingest-secret';
 const MIN_LOCK_LENGTH = 32;

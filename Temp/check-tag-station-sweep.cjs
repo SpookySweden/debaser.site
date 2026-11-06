@@ -73,10 +73,28 @@ let finished = false;
   assert.deepEqual((await sweep.readPeertube({ start: 300 }, later(), deps(peertube))).state, { done: true }, 'nothing more: finished');
   const refused = network([[/^sepiasearch\.org/, () => json({}, 400)]]);
   assert.deepEqual((await sweep.readPeertube({ start: 900000 }, later(), deps(refused))).state, { done: true }, 'a refused deep page: finished, not stuck');
+  // Sepia refuses a start of 9,000 or more, so it goes on from the oldest date it reached.
+  const page100 = (date) => json({ data: Array.from({ length: 100 }, () => ({ publishedAt: date })) });
+  const deep = network([[/^sepiasearch\.org/, () => page100('2024-05-05T00:00:00.000Z')]]);
+  const rolled = await sweep.readPeertube({ start: 8900 }, later(), deps(deep));
+  assert.ok(new URL(deep.asked[1].url).searchParams.get('endDate') === '2024-05-05T00:00:00.000Z', 'the next call goes back from that date');
+  assert.equal(new URL(deep.asked[1].url).searchParams.get('start'), '0');
+  assert.ok(deep.asked.every((one) => Number(new URL(one.url).searchParams.get('start')) < 9000), 'and never asks past what it allows');
+  assert.equal(rolled.state.before, '2024-05-05T00:00:00.000Z');
+  const sameDate = network([[/^sepiasearch\.org/, () => page100('2024-05-05T00:00:00.000Z')]]);
+  assert.deepEqual((await sweep.readPeertube({ start: 8900, before: '2024-05-05T00:00:00.000Z' }, later(), deps(sameDate))).state, { done: true }, 'stuck on one date: finished, not going round');
   const openverse = network([[/^api\.openverse\.org/, () => json({ results: [{}] })]]);
   const fromOpenverse = await sweep.readOpenverse({}, later(), deps(openverse));
   assert.equal(openverse.asked.length, 3, 'three calls a run: its stated allowance is 200 a day, shared with MEDIA');
   assert.equal(fromOpenverse.state.page, 4);
+  assert.equal(fromOpenverse.state.calls, 3, 'and they are counted');
+  const usedUp = network([[/^api\.openverse\.org/, () => json({ results: [{}] })]]);
+  const today = new Date().toISOString().slice(0, 10);
+  const spentDay = await sweep.readOpenverse({ page: 9, media: 'audio', day: today, calls: 60 }, later(), deps(usedUp));
+  assert.equal(usedUp.asked.length, 0, 'sixty a day at most, leaving the rest of its 200 for MEDIA');
+  assert.equal(spentDay.state.page, 9);
+  await sweep.readOpenverse({ page: 9, media: 'audio', day: '2020-01-01', calls: 60 }, later(), deps(usedUp));
+  assert.equal(usedUp.asked.length, 3, 'and a new day starts again');
   const limited = network([[/^api\.openverse\.org/, () => json({}, 429)]]);
   assert.equal((await sweep.readOpenverse({ page: 7, media: 'audio' }, later(), deps(limited))).state.page, 7, 'a 429 keeps its place');
 
@@ -153,9 +171,25 @@ let finished = false;
   // 8. The job.
   const candidate = (id, over = {}) => ({ id, platform: 'internet_archive', externalId: id, host: null, kind: 'audio', title: 'T', creator: null, description: 'About trains', tags: null, publishedAt: null, tmdbRef: null, ...over });
   const fake = (over = {}) => {
-    const log = { created: [], sent: [], states: [], collected: [], released: [], spend: [], cancelled: [] };
+    const log = { created: [], sent: [], states: [], collected: [], released: [], spend: [], cancelled: [], reserved: [], unreserved: [], named: [], stats: [], claims: 0, unclaims: 0, createOptions: [] };
+    let place = over.statsPlace ?? 0;
     const store = {
       spent: async () => over.spent ?? 0,
+      claim: async () => ((log.claims += 1), over.claim ?? true),
+      unclaim: async () => { log.unclaims += 1; },
+      reserve: async (items, worst, limit) => {
+        if ((over.spent ?? 0) + worst > limit || over.reserveNull) return null;
+        log.reserved.push({ items, worst, limit });
+        return 7;
+      },
+      reserved: async (id, batchId) => log.named.push([id, batchId]),
+      unreserve: async (id) => log.unreserved.push(id),
+      statsPlace: async () => place,
+      addStats: async (batchId, part, stats) => {
+        assert.equal(part, place, 'parts in order');
+        log.stats.push({ batchId, part, stats });
+        place += 1;
+      },
       recordSpend: async (...args) => log.spend.push(args),
       room: async () => over.room ?? true,
       state: async () => over.state ?? {},
@@ -167,11 +201,16 @@ let finished = false;
       },
       pending: async () => over.pending ?? [],
       outIn: async () => over.out ?? [],
-      collect: async (batchId, rows, stats) => log.collected.push({ batchId, rows, stats }),
+      collect: async (batchId, rows) => log.collected.push({ batchId, rows }),
       release: async (batchId) => log.released.push(batchId),
     };
     const client = { messages: { batches: {
-      create: async ({ requests }) => (log.created.push(requests), { id: 'batch-new' }),
+      create: async ({ requests }, options) => {
+        if (over.createFails) throw over.createFails;
+        log.created.push(requests);
+        log.createOptions.push(options);
+        return { id: 'batch-new' };
+      },
       retrieve: async () => ({ processing_status: over.status ?? 'ended' }),
       cancel: async (id) => log.cancelled.push(id),
       results: async () => (async function* () { for (const result of over.results ?? []) yield result; })(),
@@ -188,24 +227,53 @@ let finished = false;
   assert.ok(JSON.parse(running.log.created[0][0].params.messages[0].content).description === 'About trains', 'the description goes to Claude');
   assert.deepEqual(running.log.sent, [['batch-new', ['a', 'b']]]);
   assert.deepEqual(running.log.states, [['internet_archive', { cursor: 'x' }]], 'its place is only saved once the batch is marked');
+  assert.deepEqual(running.log.named, [[7, 'batch-new']], 'the reservation is tied to the batch');
+  assert.equal(running.log.reserved[0].items, 2);
+  assert.ok(Math.abs(running.log.reserved[0].worst - 2 * worstCaseCost(candidate('a'))) < 1e-12, 'its worst case is taken before it goes out');
+  assert.ok(running.log.reserved[0].limit <= 59.4, 'and the other two jobs keep what they may need, so the $60 holds');
+  assert.equal(running.log.createOptions[0].maxRetries, 0, 'a create is never repeated by itself: that could pay twice');
+  assert.deepEqual([running.log.claims, running.log.unclaims], [1, 1], 'one run at a time, and it lets go');
+
+  // A run still going: this one does nothing at all.
+  const busy = fake({ claim: false, items: [candidate('a')], pending: ['b1'] });
+  assert.deepEqual(await sweep.runSweep(busy.client, busy.store, busy.read), { collected: 0, sent: 0, waiting: 0, inputTokens: 0, outputTokens: 0, busy: true });
+  assert.equal(busy.reads(), 0);
+  assert.equal(busy.log.unclaims, 0, "and it doesn't let go of the other run's claim");
+  const reserveNo = fake({ reserveNull: true, items: [candidate('a')] });
+  assert.equal((await sweep.runSweep(reserveNo.client, reserveNo.store, reserveNo.read)).stopped, 'spending limit', 'the database refusing the reservation stops it');
+  assert.deepEqual(reserveNo.log.created, [], 'with nothing sent');
+  assert.deepEqual(reserveNo.log.states, [], 'and the place not moved');
+  const refusedCreate = fake({ createFails: Object.assign(new Error('x'), { status: 429 }), items: [candidate('a')] });
+  await assert.rejects(sweep.runSweep(refusedCreate.client, refusedCreate.store, refusedCreate.read));
+  assert.deepEqual(refusedCreate.log.unreserved, [7], "Claude's API refusing outright gives the reservation back");
+  assert.deepEqual(refusedCreate.log.states, []);
+  assert.equal(refusedCreate.log.unclaims, 1, 'and a failed run still lets go');
+  const lostAnswer = fake({ createFails: new Error('connection lost'), items: [candidate('a')] });
+  await assert.rejects(sweep.runSweep(lostAnswer.client, lostAnswer.store, lostAnswer.read));
+  assert.deepEqual(lostAnswer.log.unreserved, [], 'no answer at all: the batch may exist, so its worst case stays counted');
 
   const everything = fake({ items: Array.from({ length: 5810 }, (_, i) => candidate(`z${i}`)) });
   assert.equal((await sweep.runSweep(everything.client, everything.store, everything.read)).sent, 5810, 'a full run is sent whole, so no read item is skipped');
   let tick = 0;
   const slowCollect = fake({ pending: ['b1'], out: ['a'], results: [] });
-  assert.deepEqual(await sweep.runSweep(slowCollect.client, slowCollect.store, slowCollect.read, () => (tick += 21000)), { collected: 0, sent: 0, waiting: 0, inputTokens: 0, outputTokens: 0 }, 'a long collect means no reading this run');
+  assert.deepEqual(await sweep.runSweep(slowCollect.client, slowCollect.store, slowCollect.read, () => (tick += 101000)), { collected: 0, sent: 0, waiting: 1, inputTokens: 0, outputTokens: 0 }, 'a long collect means no reading this run');
   assert.equal(slowCollect.reads(), 0);
   let deadlineGiven = 0;
   const timed = fake({});
   await sweep.runSweep(timed.client, timed.store, async (state, deadline) => ((deadlineGiven = deadline), { items: [], state: {} }), () => 1000);
-  assert.equal(deadlineGiven, 31000, 'reading stops 30 seconds after the run began');
-  const heldBackRun = fake({ spent: 50 - worstCaseCost(candidate('a')) * 1.5, items: [candidate('a'), candidate('b')] });
+  assert.equal(deadlineGiven, 61000, 'reading stops after 60 seconds');
+  const heldBackRun = fake({ spent: 59.4 - worstCaseCost(candidate('a')) * 1.5, items: [candidate('a'), candidate('b')] });
   await sweep.runSweep(heldBackRun.client, heldBackRun.store, heldBackRun.read);
   assert.deepEqual(heldBackRun.log.states, [], 'items held back by the limit keep their place');
 
   const stuck = fake({ pending: ['b1'], status: 'in_progress', items: [candidate('a')] });
-  assert.equal((await sweep.runSweep(stuck.client, stuck.store, stuck.read)).waiting, 1);
-  assert.equal(stuck.reads(), 0, 'one batch out at a time: nothing is even read');
+  const stuckRun = await sweep.runSweep(stuck.client, stuck.store, stuck.read);
+  assert.equal(stuckRun.waiting, 2, 'a batch still out, and the new one');
+  assert.equal(stuck.reads(), 1, 'several can be out at once: one still working stops nothing');
+  assert.equal(stuckRun.sent, 1);
+  const manyOut = fake({ pending: Array.from({ length: sweep.MAX_OUT }, (_, i) => `b${i}`), status: 'in_progress', items: [candidate('a')] });
+  assert.equal((await sweep.runSweep(manyOut.client, manyOut.store, manyOut.read)).waiting, sweep.MAX_OUT);
+  assert.equal(manyOut.reads(), 0, 'but only so many');
   const lost = fake({ items: [candidate('a')], sentFails: true });
   await assert.rejects(sweep.runSweep(lost.client, lost.store, lost.read));
   assert.deepEqual(lost.log.cancelled, ['batch-new'], 'a batch nothing remembers is cancelled');
@@ -217,20 +285,31 @@ let finished = false;
   const collecting = fake({ pending: ['b1'], out: many, results: [...many.map((id) => answer(id, ['jazz'])), answer('already-collected', ['not counted'])] });
   const collected = await sweep.runSweep(collecting.client, collecting.store, collecting.read);
   assert.equal(collected.collected, 900, 'what was already collected is not counted again');
-  assert.equal(collecting.log.collected.length, 6, 'in small chunks, inside the API statement time');
-  assert.equal(collecting.log.collected[0].rows.length, 150);
-  assert.equal(collecting.log.collected[0].stats.find((one) => one.word === 'jazz').items, 150, 'each chunk with its own counts');
-  assert.equal(collecting.log.collected[5].stats.find((one) => one.word === sweep.TOTAL_ROW).items, 150);
+  assert.equal(collecting.log.collected.length, 2, 'in chunks, inside the API statement time');
+  assert.equal(collecting.log.collected[0].rows.length, 500);
+  assert.deepEqual(collecting.log.stats.map((one) => one.part), [0], "the batch's counts once, not a chunk at a time");
+  assert.equal(collecting.log.stats[0].stats.find((one) => one.word === 'jazz').items, 900, 'every answer is counted');
+  assert.equal(collecting.log.stats[0].stats.find((one) => one.word === sweep.TOTAL_ROW).items, 901);
+  // Cut short after the first part: the next run works out the same parts and carries on from the second.
+  const manyWords = Array.from({ length: 450 }, (_, i) => `x${i}`);
+  const bigBatch = () => [...manyWords.map((id, i) => answer(id, [`word${i}`]))];
+  const resumed = fake({ pending: ['b1'], out: [], results: bigBatch(), statsPlace: 1 });
+  await sweep.runSweep(resumed.client, resumed.store, resumed.read);
+  assert.deepEqual(resumed.log.stats.map((one) => one.part), [1, 2], 'a run cut short carries on from the next part');
+  const whole = fake({ pending: ['b1'], out: [], results: bigBatch() });
+  await sweep.runSweep(whole.client, whole.store, whole.read);
+  assert.deepEqual(whole.log.stats[1].stats, resumed.log.stats[0].stats, 'and the parts come out the same');
+  assert.equal(whole.log.stats.flatMap((one) => one.stats).find((one) => one.word === sweep.TOTAL_ROW).items, 450, 'with nothing missed');
   assert.deepEqual(collecting.log.spend, [['b1', 450500, 27030, batchCost(450500, 27030)]], 'and everything paid for is counted');
   assert.deepEqual(collecting.log.released, ['b1']);
-  const refusing = fake({ pending: ['b1'], out: many.slice(0, 150), results: many.slice(0, 150).map((id) => answer(id, ['jazz'])) });
+  const refusing = fake({ pending: ['b1'], out: many.slice(0, 500), results: many.slice(0, 500).map((id) => answer(id, ['jazz'])) });
   const realCollect = refusing.store.collect;
   refusing.store.collect = async (batchId, rows, stats) => {
     if (rows.length > 40) throw new Error('TAGGING_DATABASE');
     return realCollect(batchId, rows, stats);
   };
   await sweep.runSweep(refusing.client, refusing.store, refusing.read);
-  assert.equal(refusing.log.collected.reduce((sum, one) => sum + one.rows.length, 0), 150, 'a chunk the database refuses is tried in halves, and nothing is lost');
+  assert.equal(refusing.log.collected.reduce((sum, one) => sum + one.rows.length, 0), 500, 'a chunk the database refuses is tried in halves, and nothing is lost');
 
   // The API answers at most 1,000 rows a call (found in the first real runs): the store asks in parts, so nothing past the first 1,000 is lost.
   const calls = [];
@@ -251,13 +330,13 @@ let finished = false;
   assert.equal(calls.filter(([name]) => name === 'web_pool_unknown').length, 3);
   assert.equal((await realStore.outIn('b1')).length, 2300, 'and a big batch is read whole');
 
-  // 10. The $50 stop, and the size stop.
-  assert.equal(sweep.SWEEP_LIMIT_USD, 50);
-  const atLimit = fake({ spent: 50, items: [candidate('a')] });
+  // 10. The $60 stop, and the size stop.
+  assert.equal(sweep.SWEEP_LIMIT_USD, 60);
+  const atLimit = fake({ spent: 59.4, items: [candidate('a')] });
   assert.equal((await sweep.runSweep(atLimit.client, atLimit.store, atLimit.read)).stopped, 'spending limit');
   assert.equal(atLimit.reads(), 0, 'at the limit nothing is read');
   const oneCost = worstCaseCost(candidate('a'));
-  const near = fake({ spent: 50 - oneCost * 2.5, items: [candidate('a'), candidate('b'), candidate('c'), candidate('d')] });
+  const near = fake({ spent: 59.4 - oneCost * 2.5, items: [candidate('a'), candidate('b'), candidate('c'), candidate('d')] });
   const nearResult = await sweep.runSweep(near.client, near.store, near.read);
   assert.equal(nearResult.sent, 2, 'near it, only what fits the worst case');
   assert.equal(nearResult.stopped, 'spending limit');

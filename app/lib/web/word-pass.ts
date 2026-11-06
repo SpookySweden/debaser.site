@@ -219,7 +219,8 @@ export function makeWordStore(db: SupabaseClient, lock: string): WordStore {
     release: async (batchId) => {
       await call('web_word_release', { p_batch: batchId });
     },
-    spent: async () => Number(await call<number | string>('web_tag_spent', {})),
+    // Spent, plus the worst of what the sweep has out, so the three jobs together can't pass the limit.
+    spent: async () => Number(await call<number | string>('web_tag_committed', {})),
     recordSpend: async (batchId, inputTokens, outputTokens, usd) => {
       await call('web_tag_spend_add', { p_batch: batchId, p_input: inputTokens, p_output: outputTokens, p_usd: usd });
     },
