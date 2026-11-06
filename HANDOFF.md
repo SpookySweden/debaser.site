@@ -1,5 +1,12 @@
-# Handoff (2026-11-05)
+# Handoff (2026-11-06)
 Older notes: `docs/handoff-archive.md`, newest first. Search it when a past decision matters; don't read it all.
+
+## Paused by Luke, 2026-11-06 ("pause the work asap and we will pick up soon")
+- **Live, proven by their sessions or the main session:** modules on the top bar (`app/lib/ui/modules.ts`, `user_modules`, `Temp/check-modules.cjs`), ANIMATE's new interface (`e5c3b09`), KINO sources (`d43be5c`), beat box layout C, `[ WATCH IN ROOM ]`, sign-in shown at once (`15d9326`).
+- **Pushed, not proven:** DISCOVER's work so tags reach readers (`ccc4b35`, `0765b09`, `69abaf9`; `SPEC-discover.md`): MEDIA search lists the catalogue, `[ MORE ]` digs further, any word can be searched, junk titles and no-player rows sink, real counts. Next: its live before and after numbers, and measure file reads.
+- **Tagging is OFF:** `web-sweep` and `web-tag` are inactive by Luke's choice. $59.25, 1.69 million items. The database choked at about 10:15 UTC, likely from tagging, not proven; the Disk IO graph (Supabase, Reports > Database) would settle it and needs his sign-in. Don't turn them back on without his OK. Left: batch 6797, the stop rule, the `web_word_vocabulary` fix, the 300,000 word cap.
+- **For Luke:** tick BEATBOX and ANIMATE back on in MODULES; try one beat box save and post; try ANIMATE with a real pen (`docs/animate-pen-list.md`). Real friends' servers are untested. Claude keys expire Dec 5.
+- **Limit that stays:** no session adds vidsrc, 2embed or similar. The code's block on them was removed at his choice.
 
 ## Tomorrow, from 2026-11-05 (Luke ran out of limit; he drives from a laptop, work runs on the desktop PC)
 The main session answers side sessions from the specs and asks Luke only what is his. Database changes and spending wait for his OK.
