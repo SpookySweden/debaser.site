@@ -180,7 +180,14 @@ async function measure(page) {
       await page.mouse.click(box.x + box.width * 0.45, box.y + box.height * 0.3, { button: 'right' });
       presses += 1;
       await page.waitForTimeout(120);
-      await page.locator('[data-animate-popup]').getByRole('button', { name: word, exact: true }).click();
+      const popup = page.locator('[data-animate-popup]');
+      // The ring keeps some of its words behind MORE: one press further.
+      if ((await popup.getByRole('button', { name: word, exact: true }).count()) === 0) {
+        await popup.getByRole('button', { name: '[ MORE ]' }).click();
+        presses += 1;
+        await page.waitForTimeout(120);
+      }
+      await popup.getByRole('button', { name: word, exact: true }).click();
       presses += 1;
       await page.waitForTimeout(120);
     };
