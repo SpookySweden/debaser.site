@@ -8,6 +8,9 @@ import { selectRow } from '../../lib/animate/layers';
 import { depthOf, moveCel, setExposure, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
 import { tagOf } from '../../lib/animate/tags';
+import { carryForward } from '../../lib/animate/smart';
+import { soundPeaks } from '../../lib/animate/sound';
+import { toggleLightTable } from '../../lib/animate/trace';
 import { clearRange, cycleMark, deleteDrawing, duplicateDrawing, holdsOn, newDrawing, setOnion, setPlayMode, setRangeEnd } from '../../lib/animate/timeline';
 import type { Cel, CelMark, LayerNode, PlayMode } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
@@ -16,6 +19,7 @@ import { TagChip } from './AnimateLayers';
 const ROW_HEIGHT = 44;
 const RULER_HEIGHT = 24;
 const NAME_WIDTH = 150;
+const SOUND_HEIGHT = 32;
 
 const MARK_LETTER: Record<CelMark, string> = { key: 'K', breakdown: 'B', inbetween: 'I' };
 const MARK_FILL: Record<CelMark, string> = { key: 'bg-sun text-ink-plate', breakdown: 'bg-bubble text-ink-plate', inbetween: 'bg-acid text-ink-plate' };
@@ -35,6 +39,7 @@ function Transport() {
   const playMode = useStudio((state) => state.project.playMode);
   const range = useStudio((state) => state.project.range);
   const onionOn = useStudio((state) => state.project.onion.on);
+  const lightTable = useStudio((state) => state.lightTable);
   const engine = getEngine();
 
   return (
@@ -110,6 +115,15 @@ function Transport() {
           [ ... ]
         </button>
       </span>
+      <button type="button" className={lightTable ? PLATE_PRESSED : PLATE_MEDIUM} aria-pressed={lightTable} onClick={toggleLightTable} title="T">
+        [ LIGHT TABLE ]
+      </button>
+      <button type="button" className={PLATE_MEDIUM} onClick={() => void carryForward()} title="C">
+        [ CARRY COLOUR ]
+      </button>
+      <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'sound' })} title="SHIFT + A">
+        [ SOUND ]
+      </button>
       <button type="button" className={PLATE_MEDIUM} onClick={() => useStudio.setState({ panel: 'export' })} title="CTRL + E">
         [ EXPORT ]
       </button>
@@ -303,6 +317,40 @@ function Ruler({ cellWidth, count }: { cellWidth: number; count: number }) {
   );
 }
 
+/** The sound as a picture, one bar per frame, so a mouth can be timed by eye. */
+function SoundRow({ cellWidth, count }: { cellWidth: number; count: number }) {
+  const track = useStudio((state) => state.project.audio);
+  const fps = useStudio((state) => state.project.fps);
+  const ready = useStudio((state) => state.soundReady);
+  const ref = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = ref.current;
+    if (canvas === null || track === null) return;
+    const peaks = soundPeaks(track, fps);
+    const ctx = canvas.getContext('2d');
+    if (ctx === null) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (peaks === null) return;
+    ctx.fillStyle = getComputedStyle(canvas).getPropertyValue('--color-acid');
+    const across = canvas.width / count;
+    for (let f = 0; f < peaks.length; f += 1) {
+      const x = (track.frame + f) * across;
+      if (x > canvas.width) break;
+      const h = Math.max(1, peaks[f] * canvas.height);
+      ctx.fillRect(x, (canvas.height - h) / 2, Math.max(1, across - 1), h);
+    }
+  }, [track, fps, count, ready]);
+
+  if (track === null) return null;
+  return (
+    <div className="relative border-b border-ink" style={{ height: SOUND_HEIGHT }} data-animate-sound-row>
+      {/* A browser limits a canvas's width, so a long shot's picture is stretched rather than cut off. */}
+      <canvas ref={ref} width={Math.min(8000, count * cellWidth)} height={SOUND_HEIGHT} className="absolute inset-0 h-full w-full" aria-hidden="true" />
+    </div>
+  );
+}
+
 function Playhead({ cellWidth }: { cellWidth: number }) {
   const frame = useStudio((state) => state.frame);
   return <div aria-hidden="true" data-animate-playhead className="pointer-events-none absolute inset-y-0 z-10 border-x-line border-bubble" style={{ left: frame * cellWidth, width: cellWidth }} />;
@@ -316,6 +364,7 @@ export default function AnimateTimeline() {
   const uiScale = useStudio((state) => state.settings.uiScale);
   const [cellWidth, setCellWidth] = useState(24);
   const scroller = useRef<HTMLDivElement>(null);
+  const hasSound = useStudio((state) => state.project.audio !== null);
   const rows = visibleRows(project);
   const count = Math.max(project.frames + 24, frame + 24);
 
@@ -342,6 +391,11 @@ export default function AnimateTimeline() {
                 [+]
               </button>
             </div>
+            {hasSound && (
+              <div className="flex items-center truncate border-b border-ink px-1 text-key" style={{ height: SOUND_HEIGHT }}>
+                SOUND
+              </div>
+            )}
             {rows.map((node) => (
               <button
                 key={node.id}
@@ -364,6 +418,7 @@ export default function AnimateTimeline() {
             <Ruler cellWidth={cellWidth} count={count} />
             <div className="relative">
               <Playhead cellWidth={cellWidth} />
+              <SoundRow cellWidth={cellWidth} count={count} />
               {rows.map((node) => (
                 <div key={node.id} className="border-b border-ink">
                   <Row node={node} cellWidth={cellWidth} depth={0} />

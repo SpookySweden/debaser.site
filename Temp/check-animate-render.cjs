@@ -141,6 +141,21 @@ assert.ok(html.includes('CTRL + 1') && html.includes('CTRL + 8'), 'and each says
 assert.ok(html.includes('FIGURE smarts on'), "each tag has its own switch");
 useStudio.setState({ panel: 'none' });
 
+// The sound panel, and Phase 5's keys.
+useStudio.setState({ panel: 'sound' });
+html = draw();
+assert.ok(html.includes('ADD A SOUND'), 'a sound can be added');
+assert.ok(html.includes('STEPPING THROUGH FRAMES PLAYS THE SOUND'), 'and scrubbing is a choice');
+useStudio.setState({ panel: 'export' });
+html = draw();
+assert.ok(html.includes('[ MP4 ]') && html.includes('[ WEBM ]'), 'video is offered');
+useStudio.setState({ panel: 'none' });
+html = draw();
+assert.ok(html.includes('[ LIGHT TABLE ]') && html.includes('[ CARRY COLOUR ]') && html.includes('[ SOUND ]') && html.includes('[ PICTURE ]'), "and Phase 5's keys are on the strip");
+useStudio.setState({ tool: 'shift' });
+assert.ok(draw().includes('data-animate-trace-keys'), 'Shift and Trace shows its options');
+useStudio.setState({ tool: 'ink' });
+
 // Selection geometry and palette files.
 const Sel = require('./animate-render-out/lib/animate/selection.js');
 const square = [[0, 0], [10, 0], [10, 10], [0, 10]];

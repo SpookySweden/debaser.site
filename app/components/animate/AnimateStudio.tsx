@@ -7,7 +7,10 @@ import { loadStoredSettings, updateSettings, useStudio } from '../../lib/animate
 import { PLATE_MEDIUM } from '../../lib/ui/controls';
 import '../../lib/animate/layers';
 import { installSelection } from '../../lib/animate/selection';
+import { installPictures } from '../../lib/animate/picture';
 import { installSmarts } from '../../lib/animate/smart';
+import { installSound } from '../../lib/animate/sound';
+import { installTrace } from '../../lib/animate/trace';
 import '../../lib/animate/timeline';
 import AnimateLayers from './AnimateLayers';
 import AnimateNotice from './AnimateNotice';
@@ -30,6 +33,9 @@ export default function AnimateStudio() {
     const engine = getEngine();
     installSelection();
     installSmarts();
+    installTrace();
+    installSound();
+    installPictures();
     void engine.start();
     const detachKeys = attachKeys();
 

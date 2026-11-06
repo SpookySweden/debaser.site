@@ -7,6 +7,7 @@ import { getEngine, type AnimateEngine } from './engine';
 import { loadFramePlanes } from './playback';
 import { playRange } from './project';
 import { safeFileName, saveBlobAs } from './project-file';
+import { soundBuffer } from './sound';
 import { useStudio } from './store';
 import type { Project } from './types';
 import { startWorker } from './workers';
@@ -148,6 +149,81 @@ export async function exportPngSequence(settings: ExportSettings): Promise<Blob 
     settings.onProgress?.(f - start + 1, total);
   }
   return new Blob(zipParts(entries), { type: 'application/zip' });
+}
+
+/**
+ * A video, through Mediabunny and the browser's own encoders (WebCodecs). MP4 for sharing, WebM as an open alternative. The sound goes in too, placed where
+ * it sits on the timeline. Loaded only when asked for, since it's the biggest thing the studio uses.
+ */
+export async function exportVideo(settings: ExportSettings, kind: 'mp4' | 'webm'): Promise<{ blob: Blob | null; silent: boolean }> {
+  const { Output, Mp4OutputFormat, WebMOutputFormat, BufferTarget, CanvasSource, AudioBufferSource, QUALITY_HIGH, getFirstEncodableVideoCodec, getFirstEncodableAudioCodec } = await import('mediabunny');
+  const engine = getEngine();
+  const { project } = useStudio.getState();
+  const { start, end } = exportSpan(project, settings.rangeOnly);
+  const { w, h } = exportSize(project, settings.scale, true);
+
+  const videoCodec = await getFirstEncodableVideoCodec(kind === 'mp4' ? ['avc', 'hevc', 'av1'] : ['vp9', 'av1', 'vp8'], { width: w, height: h });
+  if (videoCodec === null) throw new Error(`no ${kind} encoder in this browser`);
+
+  const output = new Output({ format: kind === 'mp4' ? new Mp4OutputFormat() : new WebMOutputFormat(), target: new BufferTarget() });
+  const sheet = new OffscreenCanvas(w, h);
+  const sheetCtx = sheet.getContext('2d');
+  if (sheetCtx === null) throw new Error('no 2d context');
+  const video = new CanvasSource(sheet, { codec: videoCodec, bitrate: QUALITY_HIGH });
+  output.addVideoTrack(video, { frameRate: project.fps });
+
+  let audioSource: InstanceType<typeof AudioBufferSource> | null = null;
+  let silent = false;
+  const track = project.audio;
+  const buffer = soundBuffer(track);
+  if (track !== null && buffer !== null) {
+    const audioCodec = await getFirstEncodableAudioCodec(kind === 'mp4' ? ['aac', 'opus'] : ['opus', 'vorbis'], { numberOfChannels: 2, sampleRate: 48000 });
+    if (audioCodec === null) {
+      silent = true;
+    } else {
+      audioSource = new AudioBufferSource({ codec: audioCodec, bitrate: QUALITY_HIGH });
+      output.addAudioTrack(audioSource);
+    }
+  }
+
+  await output.start();
+  try {
+    let lastSignature: string | null = null;
+    const total = end - start + 1;
+    for (let f = start; f <= end; f += 1) {
+      if (settings.cancelled?.() === true) {
+        await output.cancel();
+        return { blob: null, silent };
+      }
+      const signature = frameSignature(project, f, true);
+      if (signature !== lastSignature) {
+        const rendered = await renderFrame(engine, project, f, { scale: settings.scale, transparent: false }, true);
+        sheetCtx.drawImage(rendered, 0, 0);
+        lastSignature = signature;
+      }
+      await video.add((f - start) / project.fps, 1 / project.fps);
+      settings.onProgress?.(f - start + 1, total);
+    }
+    if (audioSource !== null && track !== null && buffer !== null) {
+      // The sound as the shot hears it: placed on its frame, at its volume, cut to the length of the shot.
+      const seconds = total / project.fps;
+      const mix = new OfflineAudioContext(2, Math.ceil(seconds * 48000), 48000);
+      const node = mix.createBufferSource();
+      node.buffer = buffer;
+      const gain = mix.createGain();
+      gain.gain.value = track.volume;
+      node.connect(gain).connect(mix.destination);
+      const offset = (track.frame - start) / project.fps;
+      node.start(Math.max(0, offset), Math.max(0, -offset));
+      await audioSource.add(await mix.startRendering());
+    }
+    await output.finalize();
+  } catch (error) {
+    await output.cancel().catch(() => undefined);
+    throw error;
+  }
+  const bytes = output.target.buffer;
+  return { blob: bytes === null ? null : new Blob([bytes], { type: kind === 'mp4' ? 'video/mp4' : 'video/webm' }), silent };
 }
 
 export async function saveExport(blob: Blob, extension: string, description: string): Promise<boolean> {

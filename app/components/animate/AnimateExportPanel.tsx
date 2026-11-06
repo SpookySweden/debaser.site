@@ -1,7 +1,7 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import { exportGif, exportPngSequence, exportSize, saveExport } from '../../lib/animate/export';
+import { exportGif, exportPngSequence, exportSize, exportVideo, saveExport } from '../../lib/animate/export';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import { AnimatePanelFrame } from './AnimatePanels';
@@ -21,6 +21,24 @@ export default function AnimateExportPanel() {
   const [progress, setProgress] = useState<string | null>(null);
   const cancelled = useRef(false);
   const { w, h } = exportSize(project, scale);
+
+  const runVideo = async (kind: 'mp4' | 'webm') => {
+    cancelled.current = false;
+    setProgress('STARTING...');
+    try {
+      const { blob, silent } = await exportVideo(
+        { scale, rangeOnly, transparent: false, cancelled: () => cancelled.current, onProgress: (done, total) => setProgress(`${kind.toUpperCase()} ${done} / ${total}`) },
+        kind,
+      );
+      if (blob !== null) {
+        const saved = await saveExport(blob, `.${kind}`, kind.toUpperCase());
+        useStudio.setState({ notice: { text: saved ? (silent ? 'EXPORTED WITH NO SOUND: THIS BROWSER CANNOT ENCODE IT' : 'EXPORTED') : 'NOT SAVED', fault: saved && silent } });
+      }
+    } catch {
+      useStudio.setState({ notice: { text: `THIS BROWSER CANNOT MAKE ${kind.toUpperCase()}`, fault: true } });
+    }
+    setProgress(null);
+  };
 
   const run = async (kind: 'gif' | 'png') => {
     cancelled.current = false;
@@ -72,6 +90,12 @@ export default function AnimateExportPanel() {
           </button>
           <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => void run('png')}>
             [ PNG FRAMES ]
+          </button>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => void runVideo('mp4')}>
+            [ MP4 ]
+          </button>
+          <button type="button" className={PLATE_MEDIUM} disabled={progress !== null} onClick={() => void runVideo('webm')}>
+            [ WEBM ]
           </button>
           {progress !== null && (
             <>

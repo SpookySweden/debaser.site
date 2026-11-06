@@ -43,3 +43,11 @@ Make a layer and give it the FIGURE tag (the TAG list in the layer panel). INK (
 2. Do the mix you'd really use: a ROUGH sketch (dims blue, leaves renders), a FIGURE, a SHADE over it (multiplies, stays on the figure), a BACKGROUND (on every frame).
 3. Make a tag of your own in `[ TAGS ]`: start from a copy of FIGURE, change the gap, turn one behaviour off. Do its switches do what they say?
 4. Save your tags to a file with `[ SAVE TAGS ]`, make a new project, load them.
+
+## Phase 5: polish
+1. LIGHT TABLE (`T`): does washing out the other layers help, or is it too faint?
+2. SHIFT + TRACE (`J`): with the onion on, drag the drawing before this one over to where you want it, and trace. MOVE, TURN and SCALE are beside the tools. SNAP BACK (`SHIFT + J`) puts it back; so does moving to another frame.
+3. CARRY COLOUR (`C`): colour a figure, ink the next drawing, press C on the coloured one. Are the colours right when the lines have moved a lot? It goes by what's under most of each area.
+4. SOUND (`SHIFT + A`): add a song. It plays with `Enter`, and stepping with `.` and `,` plays each frame's slice: is that enough to time a mouth by? Is the sound in step with the picture?
+5. EXPORT: make an MP4 with sound, and open it in your usual player.
+6. PICTURE (`CTRL + I`): import a reference picture. It lands on its own locked REFERENCE layer, dimmed, and stays out of renders.

@@ -4,6 +4,7 @@ import { useRef } from 'react';
 import { stepUiScale } from '../../lib/animate/actions';
 import { getEngine } from '../../lib/animate/engine';
 import { updateSettings, useStudio, type SaveState } from '../../lib/animate/store';
+import { importPicture } from '../../lib/animate/picture';
 import { FILE_EXTENSION } from '../../lib/animate/project-file';
 import { toggleSmarts } from '../../lib/animate/smart';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
@@ -27,6 +28,7 @@ export default function AnimateTopBar() {
   const zoomPercent = useStudio((state) => state.zoomPercent);
   const smartOn = useStudio((state) => state.smartOn);
   const openFile = useRef<HTMLInputElement>(null);
+  const importFile = useRef<HTMLInputElement>(null);
 
   return (
     <div className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b-line border-ink bg-sun-pale px-2 py-1 text-key">
@@ -61,6 +63,23 @@ export default function AnimateTopBar() {
           const file = event.target.files?.[0];
           event.target.value = '';
           if (file !== undefined) void getEngine().openFile(file);
+        }}
+      />
+      <button type="button" className={PLATE_MEDIUM} onClick={() => importFile.current?.click()} title="CTRL + I">
+        [ PICTURE ]
+      </button>
+      <input
+        ref={importFile}
+        id="animate-import-picture"
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        tabIndex={-1}
+        aria-label="Import a picture"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = '';
+          if (file !== undefined) void importPicture(file);
         }}
       />
       <span role="status" className={saveState === 'failed' ? 'w-fit bg-bubble-pale px-1 text-ink-bar' : 'text-ink'} data-animate-save={saveState}>

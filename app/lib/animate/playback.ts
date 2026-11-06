@@ -16,11 +16,10 @@ type Cache = { project: Project; pictures: Map<string, ImageBitmap>; scale: numb
 
 let cache: Cache | null = null;
 let running = 0;
-/** Told the frame each tick; the sound follows it. */
-export const clockHooks: { start: (frame: number, fps: number) => void; stop: () => void; time: () => number | null } = {
+/** The sound follows the picture: started, restarted where the picture jumps, and stopped. */
+export const clockHooks: { start: (frame: number) => void; stop: () => void } = {
   start: () => undefined,
   stop: () => undefined,
-  time: () => null,
 };
 
 function dropCache(): void {
@@ -128,18 +127,30 @@ export async function startPlaying(engine: AnimateEngine): Promise<void> {
   const pictures = cache.pictures;
   const began = performance.now();
   const offset = from - start;
-  clockHooks.start(from, project.fps);
+  clockHooks.start(from);
+  let shown = from;
+  let forwards = true;
 
   const step = () => {
     if (running !== token) return;
-    const audioTime = clockHooks.time();
-    const seconds = audioTime ?? (performance.now() - began) / 1000;
+    const seconds = (performance.now() - began) / 1000;
     const tick = Math.floor(seconds * project.fps) + offset;
     const frame = frameAtTick(tick, start, end, project.playMode);
     if (frame === null) {
       useStudio.setState({ frame: end });
       stopPlaying(engine);
       return;
+    }
+    if (frame !== shown) {
+      const goingForwards = frame > shown;
+      // A loop jumps back and starts its sound again. Ping-pong plays its sound only on the way forward: sound doesn't run backwards.
+      if (project.playMode === 'loop' && !goingForwards) clockHooks.start(frame);
+      if (project.playMode === 'pingpong' && goingForwards !== forwards) {
+        if (goingForwards) clockHooks.start(frame);
+        else clockHooks.stop();
+      }
+      forwards = goingForwards;
+      shown = frame;
     }
     if (frame !== useStudio.getState().frame) useStudio.setState({ frame });
     const picture = pictures.get(frameSignature(project, frame)) ?? null;

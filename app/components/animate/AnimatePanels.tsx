@@ -10,6 +10,7 @@ import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
 import AnimateExportPanel from './AnimateExportPanel';
 import AnimateOnionPanel from './AnimateOnionPanel';
 import AnimateSettings from './AnimateSettings';
+import AnimateSoundPanel from './AnimateSoundPanel';
 import AnimateTagPanel from './AnimateTagPanel';
 
 /** The panel that floats over the studio. Esc-free: its key or `[ CLOSE ]` shuts it; the studio's keys still work behind it. */
@@ -176,5 +177,6 @@ export default function AnimatePanels() {
   if (panel === 'export') return <AnimateExportPanel />;
   if (panel === 'settings') return <AnimateSettings />;
   if (panel === 'tags') return <AnimateTagPanel />;
+  if (panel === 'sound') return <AnimateSoundPanel />;
   return null;
 }
