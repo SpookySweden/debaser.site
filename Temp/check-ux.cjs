@@ -55,8 +55,8 @@ for (const [name, value] of [
 
 // 2. The window is a window; the page inside it is prose. One class each, and both have to be there.
 const window = codeOf('app/components/SiteWindow.tsx');
-assert.match(window, /main className="desktop-tile[^"]*select-none/, 'the window itself refuses selection');
-assert.match(window, /select-text sm:p-6/, 'and the reading panel turns it back on for what it holds');
+assert.match(window, /main className=[{`"]*desktop-tile[^"`]*select-none/, 'the window itself refuses selection');
+assert.match(window, /data-scroll-pane="page"\s+className=[^>]*select-text/, 'and the reading panel turns it back on for what it holds');
 
 // 3. The page tabs are the window's header: written above the page, so the keyboard meets them
 //    first, while the tray is pulled to the foot with `order-last`.
