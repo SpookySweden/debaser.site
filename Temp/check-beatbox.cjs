@@ -125,7 +125,8 @@ for (const file of source) {
   const text = read(file);
   if (!file.includes('/engine/')) assert.doesNotMatch(text, /from ['"]beepbox/, `${file}: only the engine imports beepbox`);
   assert.doesNotMatch(text, /\b(localStorage|sessionStorage|indexedDB)\b/, `${file}: saving goes through its props`);
-  assert.doesNotMatch(text, /\b(transition|animate-|duration-\d)/, `${file}: no smooth movement`);
+  // In the sound table "transition" is BeepBox's setting for how a note starts, not anything on screen.
+  if (!file.endsWith('engine/soundBank.ts')) assert.doesNotMatch(text, /\b(transition|animate-|duration-\d)/, `${file}: no smooth movement`);
 }
 assert.match(read('package.json'), /"beepbox": "4\.2\.0"/, 'beepbox stays pinned to the version the engine was checked against');
 assert.match(read('app/components/BeatBoxLoader.tsx'), /ssr: false/, 'the synth loads in the browser only');
