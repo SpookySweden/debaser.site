@@ -54,7 +54,7 @@ export const ARCHIVE_COLLECTIONS = ['librivoxaudio', 'prelinger', 'feature_films
  * already read and paid for. The $60 reaches about 2% of that, and the Archive lists by name, so reading from the top would be only names starting with a digit.
  * So it takes turns through the first letters, each with its own place, and what gets tagged is a spread.
  */
-export const ARCHIVE_WIDER = `mediatype:(movies OR audio OR texts OR image) AND NOT collection:(no-preview OR adult OR ${ARCHIVE_COLLECTIONS.join(' OR ')}) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true`;
+export const ARCHIVE_WIDER = `mediatype:(movies OR audio OR texts OR image) AND NOT collection:(no-preview OR adult OR TrumpDCInsurrectionJan062021 OR ${ARCHIVE_COLLECTIONS.join(' OR ')}) AND NOT access-restricted-item:true AND NOT noindex:true AND NOT nsfw:true`;
 const ARCHIVE_FIRST_LETTERS = [...'abcdefghijklmnopqrstuvwxyz0123456789'];
 /** Few big calls rather than many small ones, as it asks: 5,000 rows take 8 seconds. */
 const ARCHIVE_ROWS = 5000;
