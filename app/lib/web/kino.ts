@@ -60,8 +60,8 @@ export function seasonsLine(details: MediaDetails | undefined): string | null {
  */
 export type KinoTitle = { type: 'movie' | 'tv'; tmdbId: number };
 
-/** TMDB's where-to-watch for one country (the data is JustWatch's: every place it shows must credit them). Service names only. */
-export type WatchOffer = { country: string; stream: string[]; free: string[]; ads: string[]; rent: string[]; buy: string[] };
+/** The services with a title free in the viewer's country, from TMDB (the data is JustWatch's: every place it shows must credit them). Service names only. */
+export type WatchOffer = { free: string[]; ads: string[] };
 
 /**
  * A free copy on the platform's own player (kino-sources.ts). `publicDomain`: Wikidata says so, the one thing that earns the label.

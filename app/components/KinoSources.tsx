@@ -1,27 +1,25 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { PLATE_LARGE, PLATE_MAIN } from '../lib/ui/controls';
+import { useEffect, useState, type ReactNode } from 'react';
+import { PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
 import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
+import { freeServiceUrl } from '../lib/web/free-services';
 import { freeCopyEmbed, type FreeCopy, type KinoSources, type KinoTitle, type WatchOffer } from '../lib/web/kino';
-import { askKinoSources } from '../lib/web/kino-sources-client';
+import { askKinoSources, type KinoWatch } from '../lib/web/kino-sources-client';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
 import { startingEmbed } from '../lib/web/row-addresses';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 
 /**
- * A KINO row's ways to watch beyond this site (SPEC-kino-sources.md): free copies behind a key that opens and closes,
- * played from the platform's own player, and TMDB's where-to-watch for the viewer's country, with JustWatch's credit
- * (TMDB's rule).
+ * A title's `[ WATCH ]` list (SPEC-kino-sources.md, Luke 2026-11-06): one key that opens every way to watch it. Friends' servers
+ * holding its TMDB number (their lines come from `WebMediaRow`), free copies played from the platform's own player, and the
+ * services that have it free in the viewer's country, by name, with JustWatch's credit (TMDB's rule, while those names show).
  */
 
-/** Rent-or-buy names are listed up to here. */
-const RENT_OR_BUY_SHOWN = 4;
-
 /** This title's sources, once read. `null`: none yet, or none could be read: the row is as it always was. */
-export function useKinoSources(title: KinoTitle | null): KinoSources | null {
-  const [sources, setSources] = useState<KinoSources | null>(null);
+export function useKinoSources(title: KinoTitle | null): KinoWatch | null {
+  const [sources, setSources] = useState<KinoWatch | null>(null);
   const type = title?.type;
   const tmdbId = title?.tmdbId;
   useEffect(() => {
@@ -35,14 +33,6 @@ export function useKinoSources(title: KinoTitle | null): KinoSources | null {
     };
   }, [type, tmdbId]);
   return sources;
-}
-
-function countryName(code: string): string {
-  try {
-    return (new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code).toUpperCase();
-  } catch {
-    return code;
-  }
 }
 
 const SITE_NAMES: Readonly<Record<FreeCopy['platform'], string>> = { internet_archive: 'ARCHIVE', youtube: 'YOUTUBE' };
@@ -62,8 +52,7 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
   const playId = `kino-free:${copy.platform}:${copy.id}`;
   const playing = usePlayingHere(playId);
   const embed = officialEmbedUrl(freeCopyEmbed(copy));
-  if (embed === null) return null;
-  if (!open) return null;
+  if (embed === null || !open) return null;
   const site = SITE_NAMES[copy.platform];
   // Plain text from the platform. What the key is read as has to tell the copies apart too.
   const facts = [copy.label, copy.seconds === undefined ? undefined : filmLength(copy.seconds)].filter((fact) => fact !== undefined).join(' · ');
@@ -109,48 +98,60 @@ function FreeCopyKeys({ copy, title, audio, open, only }: { copy: FreeCopy; titl
   );
 }
 
-/**
- * The row's free copies, behind a key that opens and closes, shut until asked for: every copy that will play, to choose from (Luke,
- * 2026-11-06). Opening pushes the rest of the row down, a bend of "reveals take their space": keeping room for up to fourteen
- * copies would leave a hole in every row with the list shut. The key itself never moves.
- */
-export function FreeCopies({ copies, title, audio }: { copies: readonly FreeCopy[]; title: string; audio: string | null }) {
-  const [open, setOpen] = useState(false);
+/** A service that has the title free: its own search for the title where that's been tried, or just its name. */
+function FreeService({ name, kind, title }: { name: string; kind: string; title: string }) {
+  const search = freeServiceUrl(name, title);
+  const shown = name.toUpperCase();
   return (
-    <div className="mt-2 flex flex-col items-start gap-2" data-free-copies>
-      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Free copies of "${title}"`} className={`${PLATE_LARGE} min-h-tap`}>
-        {`[ ${copies.length === 1 ? 'FREE COPY' : `${copies.length} FREE COPIES`} ${open ? '▴' : '▾'} ]`}
-      </button>
-      {copies.map((copy) => (
-        <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} only={copies.length === 1} />
-      ))}
+    <div className="flex flex-wrap items-center gap-2" data-free-service={kind}>
+      {search === null ? (
+        <span className="text-prose font-bold text-ink wrap-anywhere">{shown}</span>
+      ) : (
+        <a href={search} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`Look for "${title}" on ${name} (opens a new tab)`}>
+          {`[ ${shown} ↗ ]`}
+        </a>
+      )}
+      <span className="text-label text-ink">{kind}</span>
     </div>
   );
 }
 
-function WatchLine({ label, names }: { label: string; names: readonly string[] }) {
-  if (names.length === 0) return null;
-  return (
-    <p className="text-prose text-ink wrap-anywhere">
-      <span className="text-label font-bold">{`${label}: `}</span>
-      {names.join(', ')}
-    </p>
-  );
+const offeredServices = (watch: WatchOffer | null | undefined): { name: string; kind: string }[] => [
+  ...(watch?.free ?? []).map((name) => ({ name, kind: 'FREE' })),
+  ...(watch?.ads ?? []).map((name) => ({ name, kind: 'FREE WITH ADS' })),
+];
+
+/** How many ways these sources offer, beyond the title's servers. */
+export function watchCount(sources: KinoSources | null): number {
+  return (sources?.free.length ?? 0) + offeredServices(sources?.watch).length;
 }
 
-/** TMDB's where-to-watch for one country. Service names only. */
-export function WhereToWatch({ offer }: { offer: WatchOffer }) {
-  const rentOrBuy = [...new Set([...offer.rent, ...offer.buy])];
+/**
+ * The WATCH key and, open, every way to watch the title: servers first, then free copies, then free services. Shut until asked
+ * for. Opening pushes the rest of the row down, a bend of "reveals take their space": keeping room for every line would leave a
+ * hole in every row with the list shut. The key itself never moves.
+ */
+export function WatchList({ sources, title, audio, servers, serverCount = 0, startOpen = false }: { sources: KinoSources | null; title: string; audio: string | null; servers?: ReactNode; serverCount?: number; startOpen?: boolean }) {
+  const [open, setOpen] = useState(startOpen);
+  const copies = sources?.free ?? [];
+  const services = offeredServices(sources?.watch);
+  const total = serverCount + copies.length + services.length;
+  if (total === 0) return null;
   return (
-    <div className="mt-2 flex flex-col gap-0.5" data-where-to-watch>
-      <p className="text-label font-bold text-ink-quiet">{`WHERE TO WATCH IN ${countryName(offer.country)}`}</p>
-      <WatchLine label="STREAM" names={offer.stream} />
-      <WatchLine label="FREE" names={offer.free} />
-      <WatchLine label="FREE WITH ADS" names={offer.ads} />
-      <WatchLine label="RENT OR BUY" names={rentOrBuy.slice(0, RENT_OR_BUY_SHOWN)} />
-      <p className="mt-1 text-label text-ink-quiet" data-justwatch-credit>
-        LISTINGS FROM JUSTWATCH
-      </p>
+    <div className="mt-2 flex flex-col items-start gap-2" data-watch>
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} aria-label={`Watch "${title}": ${total} ${total === 1 ? 'way' : 'ways'}`} className={`${PLATE_LARGE} min-h-tap`}>
+        {`[ WATCH · ${total} ${open ? '▴' : '▾'} ]`}
+      </button>
+      {open ? servers : null}
+      {copies.map((copy) => (
+        <FreeCopyKeys key={`${copy.platform}:${copy.id}`} copy={copy} title={title} audio={audio} open={open} only={total === 1} />
+      ))}
+      {open ? services.map((service) => <FreeService key={service.name} name={service.name} kind={service.kind} title={title} />) : null}
+      {open && services.length > 0 ? (
+        <p className="text-label text-ink-quiet" data-justwatch-credit>
+          LISTINGS FROM JUSTWATCH
+        </p>
+      ) : null}
     </div>
   );
 }

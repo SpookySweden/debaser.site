@@ -1021,18 +1021,22 @@ test('WatchInRoomKey: a room gone quiet takes nothing', async () => {
 
 // --- WebMediaRow
 const mediaServer = (id) => [SERVER_ONE, SERVER_TWO].find((server) => server.id === id);
-const row = (item, seedsFor) => draw(el(WebMediaRow, { item, titleId: 'row-title' }), seedsFor);
+// Updated on purpose 2026-11-06 (Luke): a row's servers are lines in its WATCH list, each with its own PLAY, so these draw the list open.
+const row = (item, seedsFor = {}) => draw(el(WebMediaRow, { item, titleId: 'row-title' }), { WatchList: slots(true), ...seedsFor });
 const rowPhase = (phase) => ({ WebMediaRow: (initial) => (initial === 'closed' ? phase : undefined) });
 
 test('WebMediaRow: a film says what it is and offers each server, and nothing from a server loads before PLAY', () => {
   const html = row(FILM);
   const words = visible(html);
   assert.match(html, /id="row-title"/);
-  for (const word of ['A Long Film', '2014 · 169 MIN · SCIENCE FICTION', 'Prelinger', 'THIS WEBSITE USES TMDB AND THE TMDB APIS', '[ OWED ONE ]', '[ OWED TWO ]', '[ ▶ PLAY ]']) assert.ok(words.includes(word), word);
-  assert.match(openingTag(html, '[ OWED ONE ]'), /aria-pressed="true"/);
-  assert.match(openingTag(html, '[ OWED TWO ]'), /aria-pressed="false"/);
+  for (const word of ['A Long Film', '2014 · 169 MIN · SCIENCE FICTION', 'Prelinger', 'THIS WEBSITE USES TMDB AND THE TMDB APIS', '[ WATCH · 2 ▴ ]', '[ ▶ ON OWED ONE ]', '[ ▶ ON OWED TWO ]']) assert.ok(words.includes(word), word);
   assert.ok(!html.includes('<iframe'));
   assert.ok(!html.includes('owed-one.test'), 'no address of the server on the page yet');
+});
+test('WebMediaRow: its WATCH key starts shut, with no line of any server showing', () => {
+  const words = visible(draw(el(WebMediaRow, { item: FILM, titleId: 'row-title' })));
+  assert.ok(words.includes('[ WATCH · 2 ▾ ]'), words);
+  assert.ok(!words.includes('[ ▶ ON OWED ONE ]'));
 });
 test('WebMediaRow: third-party words are text, never markup', () => {
   const html = row({ ...FILM, title: '<img src=x onerror=alert(1)>' });
@@ -1049,7 +1053,7 @@ test('WebMediaRow: PLAY asks our own route whether that server answers, before a
   };
   try {
     row(FILM);
-    press('[ ▶ PLAY ]');
+    press('[ ▶ ON OWED ONE ]');
     await tick();
     await tick();
   } finally {
@@ -1064,7 +1068,7 @@ async function playRow(item) {
   global.fetch = async () => ({ ok: true, json: async () => ({ up: true }) });
   try {
     row(item);
-    press('[ ▶ PLAY ]');
+    press('[ ▶ ON OWED ONE ]');
     await tick();
     await tick();
   } finally {
@@ -1087,12 +1091,13 @@ test('WebMediaRow: playing, the server\'s own player in a sandboxed frame that s
   assert.ok(frame.includes('referrerPolicy="no-referrer"'));
   assert.ok(frame.includes(`sandbox="${mediaServers.playerSandbox(SERVER_ONE)}"`));
   assert.ok(mediaServers.playerSandbox(SERVER_ONE).length > 0);
-  assert.ok(visible(html).includes('[ ■ CLOSE ]') && !visible(html).includes('[ ▶ PLAY ]'));
+  assert.ok(visible(html).includes('[ ■ CLOSE ]') && !visible(html).includes('[ ▶ ON OWED ONE ]'));
+  assert.ok(visible(html).includes('[ ▶ ON OWED TWO ]'), 'the other server can still be chosen');
   row(FILM);
   press(`Close the player for "${FILM.title}"`);
   assert.equal(floating.floatingState().entry, null, 'CLOSE stops it');
   assert.equal(draw(el(FloatingPlayer)), '', 'and nothing of the server is left on the page');
-  assert.ok(visible(row(FILM)).includes('[ ▶ PLAY ]'));
+  assert.ok(visible(row(FILM)).includes('[ ▶ ON OWED ONE ]'));
 });
 test('WebMediaRow: back on the page with its video still playing, it draws what it had picked', async () => {
   await playRow(SHOW);
@@ -1114,7 +1119,7 @@ test('WebMediaRow: a server not answering says so in plain words and offers the 
 test('WebMediaRow: a show picks season and episode; a server without that episode cannot be pressed, and says why', async () => {
   const html = row(SHOW);
   const words = visible(html);
-  for (const word of ['SEASON 1', 'SEASON 2', 'EPISODE 1', 'EPISODE 2', 'PLAYING: SEASON 1 · EPISODE 1', '[ OWED ONE ]', '[ OWED TWO: NOT THIS EPISODE ]', '[ ▶ WHOLE SERIES ]']) assert.ok(words.includes(word), word);
+  for (const word of ['SEASON 1', 'SEASON 2', 'EPISODE 1', 'EPISODE 2', 'PLAYING: SEASON 1 · EPISODE 1', '[ ▶ ON OWED ONE ]', '[ OWED TWO: NOT THIS EPISODE ]', '[ ▶ WHOLE SERIES ]']) assert.ok(words.includes(word), word);
   assert.match(openingTag(html, '[ OWED TWO: NOT THIS EPISODE ]'), /disabled=""/);
   await playRow(SHOW);
   assert.equal(floating.floatingState().entry.player.src, 'https://owed-one.test/play/tv/1399/1/1');
@@ -1343,7 +1348,7 @@ test('SiteHistoryKeeper: draws nothing', () => {
 test('WebStream: each row is drawn by its kind: a server\'s title with its keys, a KINO title with no player', () => {
   const html = draw(el(WebStream), arrived([FILM, KINO]));
   const words = visible(html);
-  assert.ok(words.includes('[ OWED ONE ]'));
+  assert.ok(words.includes('[ WATCH · 2 ▾ ]'), 'the server row has its WATCH key, shut');
   assert.ok(words.includes('NO SERVER HAS THIS.'));
   assert.ok(html.includes('id="web-row-owed_one-film-1"') && html.includes('id="web-row-kino-film-2"'));
 });

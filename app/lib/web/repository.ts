@@ -50,6 +50,11 @@ export type WebRepository = {
    * is hidden or gone; throws when the read itself fails, which a thread must not take for "gone".
    */
   getItem(id: string): Promise<WebItem | null>;
+  /**
+   * Friends' servers' rows for these title ids (`media:tmdb-movie-123`), for a KINO row's WATCH list: only titles with a copy on
+   * a listed server. Throws when the read itself fails.
+   */
+  mediaTitles(ids: readonly string[]): Promise<WebItem[]>;
   /** Claude's words for these items (`web_item_tags`), by item id. An item not tagged yet is simply absent. */
   itemWords(ids: readonly string[]): Promise<Map<string, string[]>>;
   /**

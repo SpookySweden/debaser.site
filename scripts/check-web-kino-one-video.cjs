@@ -1,6 +1,6 @@
 /*
  * WEB: a KINO free copy has to play, and its label has to be true (SPEC-kino-sources.md, Luke 2026-11-06); run by `npm run checks:web`:
- *   npx tsc app/lib/web/kino-sources.ts --outDir Temp/out-web-kino-one-video --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/lib/web/kino-sources.ts app/lib/web/free-services.ts --outDir Temp/out-web-kino-one-video --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *
  * - an Archive film must be one video: its player stops after one, so a DVD copy plays a 10-second menu and ends
  * - PUBLIC DOMAIN is said only when Wikidata says so
@@ -14,6 +14,8 @@ const { makeAsserts } = require('./web-search-check-kit.cjs');
 const asserts = makeAsserts('WEB KINO one video');
 const { same } = asserts;
 const k = require(join(__dirname, '..', 'Temp', 'out-web-kino-one-video', 'lib', 'web', 'kino-sources.js'));
+const { freeServiceUrl } = require(join(__dirname, '..', 'Temp', 'out-web-kino-one-video', 'lib', 'web', 'free-services.js'));
+const { toWatchOffer } = require(join(__dirname, '..', 'Temp', 'out-web-kino-one-video', 'lib', 'web', 'tmdb.js'));
 
 const PD = { publicDomain: true, copyrighted: false };
 const UNSAID = { publicDomain: false, copyrighted: false };
@@ -70,5 +72,14 @@ same(k.youtubeVerdict({ ...upload(false), contentDetails: { duration: 'PT2M' } }
   same(free.every((copy) => Object.keys(copy).every((key) => ['platform', 'id', 'publicDomain', 'label', 'seconds'].includes(key))), true, 'and nothing else about it: no counts reach the page');
   same(k.youtubeVerdict(long('AAAAAAAAAAA', '   '), UNSAID, 100, 'SE')?.label, undefined, 'a blank name is no name');
   same(k.youtubeVerdict(long('AAAAAAAAAAA', 'x'.repeat(200)), UNSAID, 100, 'SE')?.label?.length, 80, 'and a long one is cut');
+  /* Free services: only free ones are read, and a key goes to the service's own search */
+  const providers = (lists) => ({ 'watch/providers': { results: { GB: lists } } });
+  const named = (...names) => names.map((provider_name, display_priority) => ({ provider_name, display_priority }));
+  same(toWatchOffer(providers({ flatrate: named('Netflix'), rent: named('Apple TV'), buy: named('Sky Store'), free: named('BBC iPlayer'), ads: named('Tubi TV', 'BBC iPlayer') }), 'GB'), { free: ['BBC iPlayer'], ads: ['Tubi TV'] }, 'free and free with ads, each once, and nothing paid');
+  same(toWatchOffer(providers({ flatrate: named('Netflix'), rent: named('Apple TV') }), 'GB'), null, 'only paid services: nothing to list');
+  same(freeServiceUrl('Tubi TV', 'Night of the Living Dead'), 'https://tubitv.com/search/Night%20of%20the%20Living%20Dead', 'Tubi: its own search for the title');
+  same(freeServiceUrl('BBC iPlayer', 'A & B?'), 'https://www.bbc.co.uk/iplayer/search?q=A%20%26%20B%3F', 'iPlayer: the title stays one value');
+  same(freeServiceUrl('Channel 4', 'Anything'), null, 'a service whose search was not shown to work: no key');
+  same(/justwatch/i.test(['Tubi TV', 'BBC iPlayer', 'Hoopla', 'YouTube'].map((name) => freeServiceUrl(name, 'x')).join(' ')), false, 'no key goes to JustWatch');
   asserts.done();
 })().catch((error) => { console.error(error); process.exit(1); });

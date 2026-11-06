@@ -101,8 +101,8 @@ export function detailsWithWatchUrl(type: 'movie' | 'tv', tmdbId: number): strin
 const WATCH_NAMES_MAX = 12;
 
 /**
- * One country's where-to-watch from a `detailsWithWatchUrl` answer, or null when it lists nothing there. Service names
- * only, in TMDB's own order: no logo, no address. Pure.
+ * The services with a title free in one country, from a `detailsWithWatchUrl` answer, or null when there are none. Paid ones
+ * aren't read (Luke, 2026-11-06). Service names only, in TMDB's own order: no logo, no address. Pure.
  */
 export function toWatchOffer(doc: unknown, country: string): WatchOffer | null {
   const root = typeof doc === 'object' && doc !== null ? (doc as Record<string, unknown>) : {};
@@ -123,8 +123,9 @@ export function toWatchOffer(doc: unknown, country: string): WatchOffer | null {
       .map((entry) => entry.name);
     return [...new Set(ordered)].slice(0, WATCH_NAMES_MAX);
   };
-  const offer: WatchOffer = { country, stream: names('flatrate'), free: names('free'), ads: names('ads'), rent: names('rent'), buy: names('buy') };
-  return [offer.stream, offer.free, offer.ads, offer.rent, offer.buy].some((list) => list.length > 0) ? offer : null;
+  const free = names('free');
+  const offer: WatchOffer = { free, ads: names('ads').filter((name) => !free.includes(name)) };
+  return offer.free.length > 0 || offer.ads.length > 0 ? offer : null;
 }
 
 /** One film or show from TMDB's search: its number, title, year and poster only. */

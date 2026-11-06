@@ -251,6 +251,9 @@ export function getMockWebRepository(): WebRepository {
       const item = MOCK_WEB_ITEMS.find((candidate) => candidate.id === id);
       return item === undefined ? null : { ...item };
     },
+    async mediaTitles(ids) {
+      return MOCK_MEDIA_ITEMS.filter((item) => ids.includes(item.id)).map((item) => ({ ...item }));
+    },
     async getItemByExternal(platform, externalId) {
       const item = MOCK_WEB_ITEMS.find((candidate) => candidate.platform === platform && candidate.externalId === externalId);
       return item === undefined ? null : { ...item };

@@ -8,6 +8,11 @@ Luke, 2026-11-06, later the same day, on the free copies: "remove the rule, but 
 shows the free copies". And on servers: "remove the rule because it doesnt make any sense in the current spec with how we are
 handling tagging and media serving".
 
+## The WATCH list (Luke, 2026-11-06: "remove the 'where to watch in united kindom' list, and add the 'free' options as options in the 'free copy' button and change the 'free copy' button to a 'watch' button, here you will list all of the available copies including ones from friends servers if they relate to any piece of media using tmdb")
+- **`[ WATCH · 12 ▾ ]`** on a KINO row and a server's row, shut until pressed, with every way to watch in one list. First friends' servers holding the title's TMDB number (`[ ▶ ON <SERVER> ]`, read by a KINO row from `web_media_titles` by id, and the row becomes the server's row with its pickers). Then free copies. Then services with it free in the viewer's country (`[ TUBI ↗ ] FREE WITH ADS`), opening that service's own search for the title where that was shown to work (`free-services.ts`), or just the name.
+- The paid services and the where-to-watch list are gone. `LISTINGS FROM JUSTWATCH` shows, as words, only while service names do, because TMDB requires it for that data. Taking it away means taking the services away.
+- What's written below about the free-copy key and where-to-watch list is the history of how it got here.
+
 ## On a KINO row (/media only, not a stream room's lookup)
 - **`[ FREE COPIES ▾ ]`** (`[ FREE COPY ▾ ]` for one), shut until pressed. Open, it shows **`[ ▶ FREE ON ARCHIVE ]` /
   `[ ▶ FREE ON YOUTUBE ]`**, marked `PUBLIC DOMAIN` only when Wikidata says the film is, and not also copyrighted. The keys

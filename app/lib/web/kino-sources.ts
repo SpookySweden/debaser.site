@@ -8,8 +8,8 @@ import { detailsWithWatchUrl, tmdbJson, toDetails, toWatchOffer, withTmdbToken }
  * Where a KINO title can be watched, beyond this site (SPEC-kino-sources.md, Luke 2026-11-06). SERVER ONLY: the page
  * asks /api/web/kino/sources. Nothing here is saved; answers rest in the same day-long fetch cache as a search.
  *
- * - **Where to watch:** TMDB's watch-providers for the viewer's country, read in one answer with the title's details.
- *   The data is JustWatch's: the row credits them (TMDB's rule) and links to TMDB's page.
+ * - **Free services:** TMDB's watch-providers for the viewer's country, read in one answer with the title's details, free
+ *   and free-with-ads only. The data is JustWatch's: the WATCH list credits them while it shows those names (TMDB's rule).
  * - **Free copies:** Wikidata (CC0) holds a title's TMDB number (P4947 film, P4983 show) and, often, its Internet
  *   Archive id (P724) or YouTube id (P1651). What is offered: `archiveVerdict`, `youtubeVerdict`. A copy says PUBLIC
  *   DOMAIN only when Wikidata does.

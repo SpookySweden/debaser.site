@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
 import { artSlot } from '../lib/ui/art/slots';
-import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK, PLATE_MAIN } from '../lib/ui/controls';
+import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { seasonsLine } from '../lib/web/kino';
@@ -14,15 +14,16 @@ import { webSessionHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
-import { FreeCopies, useKinoSources, WhereToWatch } from './KinoSources';
+import { useKinoSources, WatchList, watchCount } from './KinoSources';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
  *
- * One row whatever the number of servers holding it, with a large SERVER button for each; a show has large
- * SEASON and EPISODE pickers. PLAY first asks our server whether that media server is answering
+ * One row whatever the number of servers holding it. Its WATCH list has a large line for each server, with the free copies and
+ * free services of the same TMDB number after them; a show has large SEASON and EPISODE pickers. A server's key first asks our
+ * server whether that media server is answering
  * (`/api/web/media/ping`), then loads the server's own player page in a sandboxed, no-referrer frame. A server
  * that is not answering is said so in large plain words, with the next server holding it offered. Switching
  * server or episode while the player is open loads the new one straight away: nothing to re-type.
@@ -100,6 +101,8 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
     [],
   );
   const [thumbFailed, setThumbFailed] = useState(false);
+  // The same title's free copies and services. A film series row follows the film picked.
+  const sources = useKinoSources((target.type === 'movie' || target.type === 'tv') && target.tmdbId !== undefined ? { type: target.type, tmdbId: target.tmdbId } : null);
 
   const label = (id: MediaServerId) => PLATFORM_LABELS[id];
   const open = phase !== 'closed' || playing;
@@ -307,50 +310,53 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         <p className="mt-1 text-label font-bold text-ink-quiet">{whole ? 'PLAYING: THE WHOLE SERIES' : `PLAYING: SEASON ${season} · EPISODE ${episode}`}</p>
       ) : null}
 
-      <div className="mt-2 flex flex-wrap items-center gap-2" role="group" aria-label={`Servers holding "${item.title}"`}>
-        {media.copies.map((copy) => {
-          const holds = holders.includes(copy.server);
-          const picked = copy.server === server;
-          return (
-            <button
-              key={copy.server}
-              type="button"
-              onClick={() => pickServer(copy.server)}
-              disabled={!holds}
-              aria-pressed={picked}
-              aria-label={holds ? `Watch on ${label(copy.server)}` : `${label(copy.server)}: ${missing.toLowerCase()}`}
-              className={picked && holds ? BIG_KEY_ON : BIG_KEY}
-            >
-              {holds ? `[ ${label(copy.server)} ]` : `[ ${label(copy.server)}: ${missing} ]`}
-            </button>
-          );
-        })}
-        {open ? (
-          <button
-            type="button"
-            onClick={() => {
-              load.current += 1;
-              setPhase('closed');
-              closeFloatingIfMine(playId);
-            }}
-            aria-label={`Close the player for "${item.title}"`}
-            className={BIG_KEY}
-          >
-            [ ■ CLOSE ]
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={() => start(server, choice)}
-            disabled={playUrl === null}
-            aria-label={`Play "${item.title}" from ${label(server)}`}
-            className={`${PLATE_MAIN} min-h-tap`}
-          >
-            [ ▶ PLAY ]
-          </button>
-        )}
-        {playing ? <PipKey id={playId} title={item.title} /> : null}
-      </div>
+      <WatchList
+        sources={sources}
+        title={item.title}
+        audio={contentLanguage(item)}
+        serverCount={media.copies.length}
+        startOpen={kept !== undefined}
+        servers={
+          <div className="flex flex-col items-start gap-2" role="group" aria-label={`Servers holding "${item.title}"`}>
+            {media.copies.map((copy) => {
+              const holds = holders.includes(copy.server);
+              const here = open && copy.server === server;
+              return (
+                <div key={copy.server} className="flex flex-wrap items-center gap-2" data-server-copy={copy.server}>
+                  {here ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        load.current += 1;
+                        setPhase('closed');
+                        closeFloatingIfMine(playId);
+                      }}
+                      aria-label={`Close the player for "${item.title}"`}
+                      className={BIG_KEY}
+                    >
+                      [ ■ CLOSE ]
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setServer(copy.server);
+                        start(copy.server, choice);
+                      }}
+                      disabled={!holds}
+                      aria-label={holds ? `Play "${item.title}" from ${label(copy.server)}` : `${label(copy.server)}: ${missing.toLowerCase()}`}
+                      className={BIG_KEY}
+                    >
+                      {holds ? `[ ▶ ON ${label(copy.server)} ]` : `[ ${label(copy.server)}: ${missing} ]`}
+                    </button>
+                  )}
+                  {here && playing ? <PipKey id={playId} title={item.title} /> : null}
+                </div>
+              );
+            })}
+          </div>
+        }
+      />
 
       {/* Plain words for every state, large, in one fixed place (Luke's eyesight). */}
       {phase === 'asking' ? (
@@ -393,10 +399,10 @@ function TmdbCredit() {
 
 /**
  * One KINO title (kino.ts): TMDB's details, with no player of its own. A show lists its seasons with their episode
- * counts. After the row is drawn it asks for other places to watch (KinoSources.tsx): free copies to play here,
- * and where it streams in the viewer's country. A title a media server holds is drawn by `WebMediaRow` instead (its
- * row replaces this one, live-merge.ts). A stream room's IMDB lookup never reads the servers, so it cannot say none
- * has it: `action` takes that line's place.
+ * counts. After the row is drawn it asks for ways to watch (KinoSources.tsx): friends' servers holding its TMDB number, free
+ * copies to play here, and free services in the viewer's country. A title a media server holds is drawn by `WebMediaRow` instead
+ * (its row replaces this one, live-merge.ts, or this row once the answer says so). A stream room's IMDB lookup never reads the
+ * servers, so it cannot say none has it: `action` takes that line's place.
  */
 export function KinoRow({ item, titleId, action }: { item: WebItem & { media: MediaInfo }; titleId: string; action?: ReactNode }) {
   const [thumbFailed, setThumbFailed] = useState(false);
@@ -412,11 +418,14 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
     ...(details?.genres ?? []).map((genre) => genre.toUpperCase()),
   ].filter(Boolean);
   const seasons = (details?.seasons ?? []).filter((season) => season.season >= 1 && season.episodes > 0);
-  // A stream room's lookup (`action`) stays as it was: only the /media row offers other places to watch.
+  // A stream room's lookup (`action`) stays as it was: only the /media row offers ways to watch.
   const { type: mediaType, tmdbId } = item.media;
   const title = action === undefined && (mediaType === 'movie' || mediaType === 'tv') && tmdbId !== undefined ? { type: mediaType, tmdbId } : null;
   const sources = useKinoSources(title);
-  const free = sources?.free ?? [];
+  // On a friend's server after all: the row that plays it, as the stream would have drawn.
+  if (sources?.held) {
+    return <WebMediaRow item={{ ...sources.held, media: sources.held.media as MediaInfo, alsoOn: [] }} titleId={titleId} />;
+  }
 
   return (
     <li className="rule-pixel py-2">
@@ -463,10 +472,9 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
           <TmdbCredit />
         </div>
       </div>
-      {free.length > 0 ? <FreeCopies copies={free} title={item.title} audio={contentLanguage(item)} /> : null}
-      {sources?.watch ? <WhereToWatch offer={sources.watch} /> : null}
+      <WatchList sources={sources} title={item.title} audio={contentLanguage(item)} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
-        {action ?? (free.length > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
+        {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
         {addresses.link ? (
           <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
             [ ON TMDB ↗ ]
