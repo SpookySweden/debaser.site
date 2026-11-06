@@ -8,6 +8,7 @@ import type { ProjectListing } from '../../lib/animate/storage';
 import { useStudio } from '../../lib/animate/store';
 import { PLATE_MEDIUM, TITLE_BAR } from '../../lib/ui/controls';
 import AnimateExportPanel from './AnimateExportPanel';
+import AnimateMenu from './AnimateMenu';
 import AnimateOnionPanel from './AnimateOnionPanel';
 import AnimateSettings from './AnimateSettings';
 import AnimateSoundPanel from './AnimateSoundPanel';
@@ -171,7 +172,7 @@ function ProjectsPanel() {
 /** Whichever floating panel is open. */
 export default function AnimatePanels() {
   const panel = useStudio((state) => state.panel);
-  if (panel === 'help') return <HelpPanel />;
+  if (panel === 'menu' || panel === 'help') return <AnimateMenu />;
   if (panel === 'projects') return <ProjectsPanel />;
   if (panel === 'onion') return <AnimateOnionPanel />;
   if (panel === 'export') return <AnimateExportPanel />;

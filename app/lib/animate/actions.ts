@@ -2,6 +2,7 @@
  * Everything the studio can do from a key, in one list: the keyboard handler, the remap screen and the cheat sheet all read it, so a
  * new action is on all three by being written here.
  */
+import { togglePagePanel } from '../ui/side-panel-page';
 import { MAX_BRUSH_SIZE } from './brushes';
 import { getEngine } from './engine';
 import { keys } from './pointer';
@@ -66,7 +67,18 @@ export function allActions(): Action[] {
     { id: 'edit.undo', label: 'UNDO', group: 'EDIT', key: 'ctrl+z', run: () => getEngine().undo() },
     { id: 'edit.redo', label: 'REDO', group: 'EDIT', key: 'ctrl+y', run: () => getEngine().redo() },
     { id: 'edit.redo2', label: 'REDO (2ND KEY)', group: 'EDIT', key: 'ctrl+shift+z', run: () => getEngine().redo() },
-    { id: 'edit.cancel', label: 'DROP THE STROKE', group: 'EDIT', key: 'escape', run: () => getEngine().cancelStroke() },
+    {
+      id: 'edit.cancel',
+      label: 'DROP THE STROKE, OR CLOSE',
+      group: 'EDIT',
+      key: 'escape',
+      run: () => {
+        const state = useStudio.getState();
+        if (state.popup !== null) useStudio.setState({ popup: null });
+        else if (state.panel !== 'none') useStudio.setState({ panel: 'none' });
+        else getEngine().cancelStroke();
+      },
+    },
     { id: 'brush.bigger', label: 'BRUSH BIGGER', group: 'TOOLS', key: ']', run: () => brushSizeBy(1.2) },
     { id: 'brush.smaller', label: 'BRUSH SMALLER', group: 'TOOLS', key: '[', run: () => brushSizeBy(1 / 1.2) },
     { id: 'view.in', label: 'ZOOM IN', group: 'VIEW', key: '=', run: () => getEngine().zoomAt(1.25) },
@@ -75,13 +87,13 @@ export function allActions(): Action[] {
     { id: 'view.left', label: 'TURN LEFT', group: 'VIEW', key: 'shift+r', run: () => getEngine().rotateBy(-15) },
     { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
     { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
-    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '\\', run: toggleFull },
-    { id: 'view.panels', label: 'HIDE / SHOW THE PANELS', group: 'VIEW', key: '`', run: () => updateSettings({ panelsHidden: !useStudio.getState().settings.panelsHidden }) },
+    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '`', run: toggleFull },
+    { id: 'view.sidepanel', label: "THE SITE'S SIDE PANEL", group: 'VIEW', key: '\\', run: togglePagePanel },
     { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: "ctrl+'", run: () => stepUiScale(1) },
     { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+;', run: () => stepUiScale(-1) },
     { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
     { id: 'file.open', label: 'OPEN A FILE', group: 'FILE', key: 'ctrl+o', run: () => document.getElementById('animate-open-file')?.click() },
-    { id: 'help.keys', label: 'THESE KEYS', group: 'HELP', key: '?', run: () => togglePanel('help') },
+    { id: 'help.keys', label: 'MENU', group: 'HELP', key: '?', run: () => togglePanel('menu') },
     { id: 'help.close', label: 'CLOSE THE PANEL', group: 'HELP', key: 'shift+escape', run: () => useStudio.setState({ panel: 'none' }) },
     ...extra,
   ];

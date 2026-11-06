@@ -278,6 +278,8 @@ export class AnimateEngine {
       if (canvas.width !== w) canvas.width = w;
       if (canvas.height !== h) canvas.height = h;
     }
+    // Until the person has moved the view themselves, the sheet stays fitted to whatever room it has (a fold-out opening, the window resized).
+    if (!this.viewMoved) this.fitView();
     this.paintNow();
   }
 
@@ -289,8 +291,9 @@ export class AnimateEngine {
   fitView(): void {
     const { w, h } = this.stageSize();
     const { width, height } = this.project;
-    const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min((w - 16) / width, (h - 16) / height)));
+    const zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, Math.min((w - 8) / width, (h - 8) / height)));
     this.view = { zoom, rot: 0, flip: false, x: 0, y: 0 };
+    this.viewMoved = false;
     this.centreSheet();
     this.afterViewChange();
   }
@@ -325,13 +328,17 @@ export class AnimateEngine {
     this.invalidate();
   }
 
+  private viewMoved = false;
+
   panBy(dx: number, dy: number): void {
+    this.viewMoved = true;
     this.view.x += dx;
     this.view.y += dy;
     this.afterViewChange();
   }
 
   zoomAt(factor: number, px?: number, py?: number): void {
+    this.viewMoved = true;
     const { w, h } = this.stageSize();
     const sx = px ?? w / 2;
     const sy = py ?? h / 2;
@@ -345,6 +352,7 @@ export class AnimateEngine {
 
   /** Turn or mirror the view (never the drawing) about the stage's middle. */
   private aroundCentre(change: () => void): void {
+    this.viewMoved = true;
     const { w, h } = this.stageSize();
     const held = this.toSheet(w / 2, h / 2);
     change();
@@ -515,6 +523,13 @@ export class AnimateEngine {
 
   /** Told where the pen is on the stage, so the badge can sit beside it. */
   onHoverMove: ((screen: { x: number; y: number } | null) => void) | null = null;
+
+  /** Where the pen is on the stage, or null. */
+  get hoverScreen(): { x: number; y: number } | null {
+    if (this.hover === null) return null;
+    const p = this.viewMatrix(false).transformPoint(new DOMPoint(this.hover.x, this.hover.y));
+    return { x: p.x, y: p.y };
+  }
 
   setHover(point: { x: number; y: number } | null): void {
     this.hover = point;

@@ -20,6 +20,7 @@ const ROW_HEIGHT = 44;
 const RULER_HEIGHT = 24;
 const NAME_WIDTH = 150;
 const SOUND_HEIGHT = 32;
+export const THIN_ROW = 30;
 
 const MARK_LETTER: Record<CelMark, string> = { key: 'K', breakdown: 'B', inbetween: 'I' };
 const MARK_FILL: Record<CelMark, string> = { key: 'bg-sun text-ink-plate', breakdown: 'bg-bubble text-ink-plate', inbetween: 'bg-acid text-ink-plate' };
@@ -171,7 +172,7 @@ function CelThumb({ drawingId, width }: { drawingId: string; width: number }) {
   return <canvas ref={ref} width={w} height={h} aria-hidden="true" className="pointer-events-none" />;
 }
 
-function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string; cellWidth: number; active: boolean }) {
+export function CelBox({ cel, layerId, cellWidth, active, rowHeight = ROW_HEIGHT, vertical = false }: { cel: Cel; layerId: string; cellWidth: number; active: boolean; rowHeight?: number; vertical?: boolean }) {
   const engine = getEngine();
   const showThumbs = useStudio((state) => state.settings.showThumbnails);
   const [preview, setPreview] = useState<{ frame: number; length: number } | null>(null);
@@ -180,14 +181,14 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
   const drag = (event: ReactPointerEvent<HTMLElement>, kind: 'move' | 'end') => {
     event.preventDefault();
     event.stopPropagation();
-    const startX = event.clientX;
+    const startX = vertical ? event.clientY : event.clientX;
     const target = event.currentTarget;
     target.setPointerCapture(event.pointerId);
     useStudio.setState({ layerId });
     let moved = false;
-    const at = (clientX: number) => Math.round((clientX - startX) / cellWidth);
+    const at = (point: number) => Math.round((point - startX) / cellWidth);
     const onMove = (move: PointerEvent) => {
-      const delta = at(move.clientX);
+      const delta = at(vertical ? move.clientY : move.clientX);
       if (delta !== 0) moved = true;
       setPreview(kind === 'end' ? { frame: cel.frame, length: Math.max(1, cel.length + delta) } : { frame: Math.max(0, cel.frame + delta), length: cel.length });
     };
@@ -196,7 +197,7 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
       target.removeEventListener('pointerup', onUp);
       target.removeEventListener('pointercancel', onUp);
       setPreview(null);
-      const delta = at(up.clientX);
+      const delta = at(vertical ? up.clientY : up.clientX);
       if (up.type === 'pointercancel') return;
       if (!moved || delta === 0) {
         if (kind === 'move') engine.goToFrame(cel.frame);
@@ -212,12 +213,12 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
 
   const frame = preview?.frame ?? cel.frame;
   const length = preview?.length ?? cel.length;
-  const width = length * cellWidth;
+  const width = vertical ? rowHeight : length * cellWidth;
 
   return (
     <div
       className={`absolute top-0.5 flex touch-none items-center gap-0.5 overflow-hidden border-line ${active ? 'border-bubble' : 'border-ink'} bg-paper`}
-      style={{ left: frame * cellWidth, width: width - 1, height: ROW_HEIGHT - 5 }}
+      style={vertical ? { top: frame * cellWidth + 1, left: 2, width: rowHeight - 5, height: length * cellWidth - 2 } : { left: frame * cellWidth, width: width - 1, height: rowHeight - 5 }}
       data-animate-cel={cel.id}
       data-frame={cel.frame}
       data-length={cel.length}
@@ -239,15 +240,14 @@ function CelBox({ cel, layerId, cellWidth, active }: { cel: Cel; layerId: string
         role="presentation"
         title="DRAG TO HOLD LONGER"
         data-animate-cel-end
-        className="absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-ink"
+        className={vertical ? 'absolute bottom-0 left-0 h-2 w-full cursor-ns-resize bg-ink' : 'absolute right-0 top-0 h-full w-2 cursor-ew-resize bg-ink'}
         onPointerDown={(event) => drag(event, 'end')}
       />
     </div>
   );
 }
 
-function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; depth: number }) {
-  void depth;
+export function Row({ node, cellWidth, height = ROW_HEIGHT }: { node: LayerNode; cellWidth: number; height?: number }) {
   const frame = useStudio((state) => state.frame);
   const isActive = useStudio((state) => state.layerId === node.id);
   const tagColour = useStudio((state) => tagOf(state.project, node)?.colour ?? null);
@@ -257,7 +257,7 @@ function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; d
     <div
       className="relative"
       style={{
-        height: ROW_HEIGHT,
+        height,
         // A line per frame, and a thin hatch: a frame nothing covers reads as empty.
         backgroundImage: `repeating-linear-gradient(to right, var(--color-ink) 0 1px, transparent 1px ${cellWidth}px), repeating-linear-gradient(135deg, var(--color-chrome-dark) 0 2px, transparent 2px 7px)`,
         opacity: isActive ? 1 : 0.85,
@@ -272,13 +272,13 @@ function Row({ node, cellWidth, depth }: { node: LayerNode; cellWidth: number; d
     >
       {tagColour !== null && <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-0.5" style={{ backgroundColor: tagColour }} />}
       {node.cels.map((cel) => (
-        <CelBox key={cel.id} cel={cel} layerId={node.id} cellWidth={cellWidth} active={cel.id === here && isActive} />
+        <CelBox key={cel.id} cel={cel} layerId={node.id} cellWidth={cellWidth} active={cel.id === here && isActive} rowHeight={height} />
       ))}
     </div>
   );
 }
 
-function Ruler({ cellWidth, count }: { cellWidth: number; count: number }) {
+export function Ruler({ cellWidth, count }: { cellWidth: number; count: number }) {
   const fps = useStudio((state) => state.project.fps);
   const range = useStudio((state) => state.project.range);
   const every = Math.max(1, Math.ceil(fps / 2));
@@ -318,7 +318,7 @@ function Ruler({ cellWidth, count }: { cellWidth: number; count: number }) {
 }
 
 /** The sound as a picture, one bar per frame, so a mouth can be timed by eye. */
-function SoundRow({ cellWidth, count }: { cellWidth: number; count: number }) {
+export function SoundRow({ cellWidth, count }: { cellWidth: number; count: number }) {
   const track = useStudio((state) => state.project.audio);
   const fps = useStudio((state) => state.project.fps);
   const ready = useStudio((state) => state.soundReady);
@@ -351,9 +351,31 @@ function SoundRow({ cellWidth, count }: { cellWidth: number; count: number }) {
   );
 }
 
-function Playhead({ cellWidth }: { cellWidth: number }) {
+export function Playhead({ cellWidth }: { cellWidth: number }) {
   const frame = useStudio((state) => state.frame);
   return <div aria-hidden="true" data-animate-playhead className="pointer-events-none absolute inset-y-0 z-10 border-x-line border-bubble" style={{ left: frame * cellWidth, width: cellWidth }} />;
+}
+
+/** A row's name, picks the layer. */
+export function RowName({ node, height }: { node: LayerNode; height: number }) {
+  const active = useStudio((state) => state.layerId === node.id);
+  const project = useStudio((state) => state.project);
+  return (
+    <button
+      type="button"
+      aria-pressed={active}
+      className={`flex w-full cursor-pointer items-center truncate border-b border-ink px-1 text-left text-key ${active ? 'bg-ink text-paper' : 'text-ink'}`}
+      style={{ height }}
+      onClick={() => selectRow(node.id)}
+    >
+      <span className="truncate" style={{ paddingLeft: depthOf(project, node) * 8 }}>
+        {node.kind === 'folder' ? `${node.name} /` : node.name}
+      </span>
+      <span className="ml-auto pl-1">
+        <TagChip project={project} node={node} />
+      </span>
+    </button>
+  );
 }
 
 /** The timeline: layers as rows, frames as columns, each drawing as a box as long as it's held. */
@@ -421,7 +443,7 @@ export default function AnimateTimeline() {
               <SoundRow cellWidth={cellWidth} count={count} />
               {rows.map((node) => (
                 <div key={node.id} className="border-b border-ink">
-                  <Row node={node} cellWidth={cellWidth} depth={0} />
+                  <Row node={node} cellWidth={cellWidth} />
                 </div>
               ))}
             </div>

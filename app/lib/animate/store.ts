@@ -33,6 +33,10 @@ export type Settings = {
   panelsHidden: boolean;
   /** Stepping through frames plays each one's slice of sound. */
   scrubSound: boolean;
+  /** Which trial layout (SPEC-animate-ui.md, Stage 1): local only. */
+  layout: 'a' | 'b' | 'c';
+  /** The first-time hint has done its job. */
+  hintSeen: boolean;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,9 +54,11 @@ export const DEFAULT_SETTINGS: Settings = {
   shortcuts: {},
   defaultGap: 8,
   bigBadge: true,
-  showLayers: true,
+  showLayers: false,
   panelsHidden: false,
   scrubSound: true,
+  layout: 'a',
+  hintSeen: false,
 };
 
 const SETTINGS_KEY = 'debaser.animate.settings';
@@ -77,7 +83,7 @@ export function saveSettings(settings: Settings): void {
 }
 
 export type SaveState = 'saved' | 'saving' | 'failed' | 'waiting';
-export type Panel = 'none' | 'settings' | 'projects' | 'export' | 'tags' | 'help' | 'onion' | 'sound';
+export type Panel = 'none' | 'menu' | 'settings' | 'projects' | 'export' | 'tags' | 'help' | 'onion' | 'sound';
 
 export type StudioState = {
   project: Project;
@@ -109,6 +115,8 @@ export type StudioState = {
   hasSelection: boolean;
   /** Strokes picked by the selection, for MAKE SMART. */
   selectedStrokes: number;
+  /** The tool pop-up, and where on the stage it opened. */
+  popup: { x: number; y: number } | null;
   shiftTraceOn: boolean;
   traceMode: 'move' | 'turn' | 'scale';
   traceSide: 'prev' | 'next';
@@ -141,6 +149,7 @@ export const useStudio = create<StudioState>(() => ({
   zoomPercent: 100,
   hasSelection: false,
   selectedStrokes: 0,
+  popup: null,
   shiftTraceOn: false,
   traceMode: 'move',
   traceSide: 'prev',
