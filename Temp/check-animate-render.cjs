@@ -119,6 +119,20 @@ assert.ok(html.includes('data-animate-chip="figure"'), 'a tag shows as a chip');
 assert.ok(html.includes('data-animate-plane="line"') && html.includes('data-animate-plane="colour"'), 'a Figure shows its two planes');
 useStudio.setState({ project });
 
+// The master toggle says where it stands, and the sheet says so too.
+useStudio.setState({ smartOn: true });
+html = draw();
+assert.ok(html.includes('[ SMART ON ]'), 'the smart key says on');
+assert.ok(!html.includes('data-animate-badge'), 'with no badge');
+useStudio.setState({ smartOn: false });
+html = draw();
+assert.ok(html.includes('[ SMART OFF ]'), 'and off');
+assert.match(html, /data-animate-badge[^>]*bg-bubble-pale[^>]*>SMART OFF/, 'with a high-contrast badge');
+useStudio.setState({ smartOn: true });
+useStudio.setState({ hasSelection: true });
+assert.ok(draw().includes('data-animate-make-smart'), 'MAKE SMART shows with a selection');
+useStudio.setState({ hasSelection: false });
+
 // Selection geometry and palette files.
 const Sel = require('./animate-render-out/lib/animate/selection.js');
 const square = [[0, 0], [10, 0], [10, 10], [0, 10]];

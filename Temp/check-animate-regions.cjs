@@ -114,17 +114,6 @@ assert.ok(box[1] >= 59 && box[3] <= 141, `box top and bottom (${box})`);
 assert.equal(R.regionMaskPixels(map, 0, true), null, 'no region 0');
 assert.equal(R.regionMaskPixels(map, 99, true), null, 'nor one that does not exist');
 
-// ── A plain flood, for a fill with smarts off ────────────────────────────────────────────
-const rgba = new Uint8ClampedArray(W * H * 4);
-for (let y = 50; y <= 150; y += 1) {
-  for (let x = 50; x <= 150; x += 1) {
-    if (x === 50 || x === 150 || y === 50 || y === 150) rgba[at(x, y) * 4 + 3] = 255;
-  }
-}
-const flood = R.floodPixels(rgba, W, H, 100, 100);
-assert.deepEqual([flood.x, flood.y, flood.w, flood.h], [51, 51, 99, 99], 'a flood stops at pixels');
-assert.equal(R.floodPixels(rgba, W, H, -1, 0), null, 'off the sheet is nothing');
-
 // ── Fast enough ──────────────────────────────────────────────────────────────────────────
 // A busy drawing on a full sheet, as the worker would get it: hundreds of curves with gaps.
 const FW = 1920;

@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { getEngine } from '../../lib/animate/engine';
 import { attachPen } from '../../lib/animate/pointer';
+import { useStudio } from '../../lib/animate/store';
 
 const LAYER = 'absolute inset-0 h-full w-full';
 
@@ -13,6 +14,22 @@ export default function AnimateStage() {
   const live = useRef<HTMLCanvasElement>(null);
   const above = useRef<HTMLCanvasElement>(null);
   const ui = useRef<HTMLCanvasElement>(null);
+
+  const badge = useRef<HTMLDivElement>(null);
+  const smartOn = useStudio((state) => state.smartOn);
+  const big = useStudio((state) => state.settings.bigBadge);
+
+  useEffect(() => {
+    const engine = getEngine();
+    engine.onHoverMove = (screen) => {
+      if (badge.current === null) return;
+      // Beside the pen. With no pen over the sheet it waits in the corner, still saying so.
+      badge.current.style.transform = screen === null ? 'translate(8px, 8px)' : `translate(${screen.x + 18}px, ${screen.y + 18}px)`;
+    };
+    return () => {
+      engine.onHoverMove = null;
+    };
+  }, []);
 
   useEffect(() => {
     if (root.current === null || below.current === null || live.current === null || above.current === null || ui.current === null) return undefined;
@@ -38,6 +55,11 @@ export default function AnimateStage() {
       <canvas ref={live} data-animate="live" className={`${LAYER} pointer-events-none`} />
       <canvas ref={above} data-animate="above" className={`${LAYER} pointer-events-none`} />
       <canvas ref={ui} data-animate="ui" className={`${LAYER} pointer-events-none`} />
+      {!smartOn && (
+        <div ref={badge} data-animate-badge className={`pointer-events-none absolute left-0 top-0 bg-bubble-pale px-1.5 py-0.5 text-ink-bar ${big ? 'text-title' : 'text-key'}`}>
+          SMART OFF
+        </div>
+      )}
     </div>
   );
 }

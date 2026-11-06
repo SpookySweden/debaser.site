@@ -710,6 +710,201 @@ phases.phase2 = async (page, shot) => {
   await shot('phase2-desktop');
 };
 
+/** Points along a line, spaced for a pen. */
+const along = (x0, y0, x1, y1, pressure = 0.9) => {
+  const steps = Math.ceil(Math.hypot(x1 - x0, y1 - y0) / 6);
+  return Array.from({ length: steps + 1 }, (_, i) => [x0 + ((x1 - x0) * i) / steps, y0 + ((y1 - y0) * i) / steps, pressure]);
+};
+
+phases.phase3 = async (page, shot) => {
+  console.log('Phase 3: Smart Figure');
+  await freshProject(page);
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.setBrushValue('ink', { stabiliser: 0 });
+    engine.setBrushValue('flat', { stabiliser: 0 });
+    const id = engine.activeLayer.id;
+    engine.edit('TAG', (p) => ({ ...p, nodes: p.nodes.map((n) => (n.id === id ? { ...n, tagId: 'figure' } : n)) }));
+  });
+  await page.waitForTimeout(80);
+  check('a Figure layer shows its two planes', (await page.locator('[data-animate-plane-row]').count()) === 2);
+
+  const opsOf = (plane) => page.evaluate((pl) => {
+    const engine = window.__animate;
+    const cel = engine.celForDrawing(engine.activeLayer);
+    return cel === null ? [] : engine.project.drawings[cel.drawingId].planes[pl];
+  }, plane);
+  /** A plane's alpha at a point. */
+  const alphaOf = (plane, x, y) => page.evaluate(([pl, px, py]) => {
+    const engine = window.__animate;
+    const cel = engine.celForDrawing(engine.activeLayer);
+    const canvas = engine.planes.peek(cel.drawingId + '.' + pl);
+    return canvas === null ? 0 : canvas.getContext('2d').getImageData(px, py, 1, 1).data[3];
+  }, [plane, x, y]);
+
+  // Ink a box with a small gap in its top edge.
+  await page.keyboard.press('i');
+  check('ink draws on the Line plane', (await state(page, () => window.__animate && document.querySelector('[data-animate-plane="line"]').getAttribute('aria-pressed'))) === 'true');
+  await penStroke(page, along(420, 200, 800, 200), { gapMs: 1 });
+  await penStroke(page, along(800, 200, 800, 600), { gapMs: 1 });
+  await penStroke(page, along(800, 600, 400, 600), { gapMs: 1 });
+  await penStroke(page, along(400, 600, 400, 200), { gapMs: 1 });
+  check('the lines are on the Line plane', (await opsOf('line')).length === 4 && (await opsOf('colour')).length === 0);
+  check('and an ink stroke holds no smarts', (await opsOf('line'))[0].smartAtDrawTime.length === 0);
+
+  // Give the background read a moment; the helper line is the proof the gap closed.
+  await page.waitForTimeout(900);
+  const cyan = await page.evaluate(() => {
+    const engine = window.__animate;
+    const canvas = document.querySelector('canvas[data-animate="ui"]');
+    engine.paintUi();
+    const m = engine.viewMatrix(true);
+    const ctx = canvas.getContext('2d');
+    let found = 0;
+    for (let x = 395; x < 425; x += 1) {
+      for (let y = 190; y < 210; y += 1) {
+        const p = m.transformPoint(new DOMPoint(x, y));
+        const d = ctx.getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data;
+        if (d[3] > 100 && d[0] < 90 && d[1] > 150 && d[2] > 180) found += 1;
+      }
+    }
+    return found;
+  });
+  check('a thin cyan line shows where the gap closed', cyan > 0, cyan + ' pixels');
+  await shot('phase3-closure');
+
+  // Flat colour starts inside and runs out over the line: it stops.
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'ROSE', exact: true }).click();
+  check('flat colour goes to the Colour plane', (await state(page, () => document.querySelector('[data-animate-plane="colour"]').getAttribute('aria-pressed'))) === 'true');
+  await penStroke(page, along(600, 400, 1000, 400), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  const flat = (await opsOf('colour'))[0];
+  check('a colour stroke remembers its smarts', flat.smartAtDrawTime.includes('stayInsideLines') && flat.smartAtDrawTime.includes('tuckUnder') && flat.regionId > 0, JSON.stringify(flat.smartAtDrawTime));
+  check('inside the lines it paints', (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 700, 400));
+  check('past the line it does not', (await pixel(page, 900, 400)) === '#ffffff', await pixel(page, 900, 400));
+  // No white halo: colour goes under the line, as far as its middle.
+  check('colour runs under the line', (await alphaOf('colour', 798, 400)) > 200, String(await alphaOf('colour', 798, 400)));
+  check('and stops inside its far edge', (await alphaOf('colour', 806, 400)) === 0, String(await alphaOf('colour', 806, 400)));
+  check('the lines stay on top', (await pixel(page, 800, 400)) === '#000000', await pixel(page, 800, 400));
+  await shot('phase3-inside');
+
+  // It leaks through a big gap but not the small one. (Starting outside it stays outside.)
+  await penStroke(page, along(1000, 500, 700, 500), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  check('a stroke started outside stays outside', (await pixel(page, 900, 500)) === '#e6004c' && (await pixel(page, 700, 500)) === '#ffffff', (await pixel(page, 900, 500)) + ' ' + (await pixel(page, 700, 500)));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(150);
+
+  // Q: off goes anywhere, and says so.
+  await page.keyboard.press('q');
+  await page.waitForTimeout(80);
+  check('the master key turns smarts off', (await page.locator('[data-animate-badge]').count()) === 1);
+  check('and a badge says so', (await page.locator('[data-animate-badge]').textContent()) === 'SMART OFF');
+  await shot('phase3-smart-off');
+  await page.getByRole('button', { name: 'EMERALD', exact: true }).click();
+  await penStroke(page, along(600, 300, 1000, 300), { gapMs: 1 });
+  await page.waitForTimeout(150);
+  check('a raw stroke goes past the line', (await pixel(page, 900, 300)) === '#28c745', await pixel(page, 900, 300));
+  const raw = (await opsOf('colour'))[1];
+  check('and remembers it was raw', raw.smartAtDrawTime.length === 0);
+  await page.keyboard.press('q');
+  await page.waitForTimeout(80);
+  check('the key again turns them on', (await page.locator('[data-animate-badge]').count()) === 0);
+
+  // Hold it for one stroke.
+  await page.keyboard.down('q');
+  await penStroke(page, along(600, 250, 1000, 250), { gapMs: 1 });
+  await page.keyboard.up('q');
+  await page.waitForTimeout(150);
+  check('held for one stroke: that stroke is raw', (await pixel(page, 900, 250)) === '#28c745', await pixel(page, 900, 250));
+  check('and smarts come straight back', (await page.locator('[data-animate-badge]').count()) === 0);
+
+  // Lines changed after colouring: a wall through the box. Smart colour moves; raw stays.
+  await page.keyboard.press('i');
+  await page.getByRole('button', { name: 'BLACK', exact: true }).click();
+  await penStroke(page, along(650, 200, 650, 600), { gapMs: 1 });
+  await page.waitForTimeout(1400);
+  check('smart colour moves to the new lines', (await pixel(page, 620, 400)) === '#e6004c' && (await pixel(page, 700, 400)) === '#ffffff', (await pixel(page, 620, 400)) + ' ' + (await pixel(page, 700, 400)));
+  check('raw colour stays exactly as drawn', (await pixel(page, 700, 300)) === '#28c745' && (await pixel(page, 900, 300)) === '#28c745', (await pixel(page, 700, 300)) + ' ' + (await pixel(page, 900, 300)));
+  await shot('phase3-relaid');
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(1400);
+  check('undo takes the wall away and the colour comes back', (await pixel(page, 700, 400)) === '#e6004c', await pixel(page, 700, 400));
+  await page.keyboard.press('Control+y');
+  await page.waitForTimeout(1400);
+  check('redo sends it back again', (await pixel(page, 700, 400)) === '#ffffff', await pixel(page, 700, 400));
+
+  // The bucket: a whole area, and it can be undone.
+  await page.keyboard.press('g');
+  await page.getByRole('button', { name: 'ROYAL', exact: true }).click();
+  await page.waitForTimeout(100);
+  await penStroke(page, [[720, 450, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the bucket fills the area it lands in', (await pixel(page, 700, 590)) === '#1d3ca6' && (await pixel(page, 620, 590)) === '#ffffff', (await pixel(page, 700, 590)) + ' ' + (await pixel(page, 620, 590)));
+  check('and fills are kept as data', (await opsOf('colour')).some((op) => op.kind === 'fill' && op.regionId > 0));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(200);
+  check('undo takes the fill off', (await pixel(page, 700, 590)) === '#ffffff');
+
+  // Hover preview: a pointer over the sheet tints the area, drawn on the marks canvas.
+  await page.evaluate(() => {
+    const engine = window.__animate;
+    engine.setHover({ x: 720, y: 450 });
+    engine.paintUi();
+  });
+  const tinted = await page.evaluate(() => {
+    const engine = window.__animate;
+    const canvas = document.querySelector('canvas[data-animate="ui"]');
+    const p = engine.viewMatrix(true).transformPoint(new DOMPoint(700, 590));
+    return canvas.getContext('2d').getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data[3];
+  });
+  check('hovering the bucket previews the area it would fill', tinted > 40, 'alpha ' + tinted);
+  await shot('phase3-preview');
+  await page.evaluate(() => window.__animate.setHover(null));
+
+  // Fill brush: a drag across two areas fills both, in one undo step.
+  await page.keyboard.press('y');
+  await page.getByRole('button', { name: 'DAFFODIL', exact: true }).click();
+  await penStroke(page, along(520, 450, 720, 450, 0.5), { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the fill brush fills every area it crosses', (await pixel(page, 500, 590)) === '#fff000' && (await pixel(page, 700, 590)) === '#fff000', (await pixel(page, 500, 590)) + ' ' + (await pixel(page, 700, 590)));
+  await page.keyboard.press('Shift+Y');
+  await penStroke(page, [[720, 450, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(400);
+  check('the fill eraser clears an area', (await pixel(page, 700, 590)) === '#ffffff' && (await pixel(page, 500, 590)) === '#fff000', (await pixel(page, 700, 590)) + ' ' + (await pixel(page, 500, 590)));
+
+  // Make smart: a raw stroke, selected, snaps inside.
+  await page.keyboard.press('Shift+W');
+  await penStroke(page, [[580, 240, 0.5], [1020, 240, 0.5], [1020, 260, 0.5]], { gapMs: 1 });
+  await page.waitForTimeout(80);
+  check('MAKE SMART shows with a selection', (await page.locator('[data-animate-make-smart]').count()) === 1);
+  await page.getByRole('button', { name: '[ MAKE SMART ]' }).click();
+  await page.waitForTimeout(500);
+  check('MAKE SMART snaps a raw stroke inside its area', (await pixel(page, 900, 250)) === '#ffffff', await pixel(page, 900, 250));
+  await page.keyboard.press('Control+z');
+  await page.waitForTimeout(300);
+  check('and undo unsnaps it', (await pixel(page, 900, 250)) === '#28c745', await pixel(page, 900, 250));
+  await page.keyboard.press('Control+d');
+  await page.keyboard.press('f');
+
+  // Reloading keeps it all, smarts included: nothing depends on memory.
+  await waitSaved(page);
+  await page.reload();
+  await page.waitForFunction(() => window.__animate?.project?.nodes?.[0]?.tagId === 'figure', null, { timeout: 20000 });
+  await page.waitForTimeout(1000);
+  const opsCount = (await opsOf('colour')).length;
+  check('a reload brings the smart drawing back', opsCount >= 3 && (await pixel(page, 620, 400)) === '#fff000', opsCount + ' ' + (await pixel(page, 620, 400)));
+  // Painting immediately after a reload, before anything has been read, is still held inside.
+  await page.keyboard.press('f');
+  await page.getByRole('button', { name: 'CANDY', exact: true }).click();
+  await penStroke(page, along(1000, 450, 700, 450), { gapMs: 1 });
+  await page.waitForTimeout(1200);
+  check('a stroke made before the lines are read still lands inside its area', (await pixel(page, 700, 450)) !== '#ffb7e6' && (await pixel(page, 900, 450)) === '#ffb7e6', (await pixel(page, 700, 450)) + ' ' + (await pixel(page, 900, 450)));
+  await shot('phase3-desktop');
+};
+
 (async () => {
   fs.mkdirSync(OUT, { recursive: true });
   const profile = fs.mkdtempSync(path.join(os.tmpdir(), 'animate-drive-'));

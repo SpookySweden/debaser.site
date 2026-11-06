@@ -13,6 +13,8 @@ export type Action = {
   group: string;
   key: string;
   run: () => void;
+  /** For a key held down: told when it's let go. */
+  release?: () => void;
 };
 
 function tool(id: string, label: string, key: string, which: ToolId): Action {
@@ -146,6 +148,9 @@ export function attachKeys(): () => void {
   };
   const onUp = (event: KeyboardEvent) => {
     if (event.key === ' ') keys.space = false;
+    if (isTyping(event.target) || capturingKey) return;
+    const name = keyName(event);
+    for (const action of allActions()) if (action.release !== undefined && keyOf(action) === name) action.release();
   };
   // A key let go in another window never reports it.
   const onBlur = () => {

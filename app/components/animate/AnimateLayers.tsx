@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, type PointerEvent as ReactPointerEvent } from 'react';
+import { Fragment, useState, type PointerEvent as ReactPointerEvent } from 'react';
 import { inkOn, LABEL_COLOURS } from '../../lib/animate/colours';
 import { BLEND_LABELS, deleteRow, dropRow, newRow, selectRow, setRow, toggleRow, tweakRow } from '../../lib/animate/layers';
 import { depthOf, findNode, visibleRows } from '../../lib/animate/project';
 import { useStudio } from '../../lib/animate/store';
-import { tagOf } from '../../lib/animate/tags';
+import { isFigure, tagOf } from '../../lib/animate/tags';
 import type { BlendMode, LayerNode, PlaneName, Project } from '../../lib/animate/types';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
@@ -66,10 +66,46 @@ function Row({ project, node, active, dropMark, onGrab }: { project: Project; no
   );
 }
 
+/** A Figure's two planes, under its row: pick one to draw on, and hide or lock each apart. */
+function PlaneRows({ project, node, active }: { project: Project; node: LayerNode; active: boolean }) {
+  const plane = useStudio((state) => state.plane);
+  const depth = depthOf(project, node) + 1;
+  return (
+    <>
+      {(['line', 'colour'] as PlaneName[]).map((name) => (
+        <li key={name} data-animate-plane-row={name} className="flex items-center gap-1 border-b border-ink py-0.5 pr-1 text-key text-ink" style={{ paddingLeft: 4 + depth * 12 }}>
+          <Toggle
+            on={!node.planeHidden[name]}
+            label={`${node.planeHidden[name] ? 'Show' : 'Hide'} the ${name} plane`}
+            letter="V"
+            onPress={() => setRow(node.id, { planeHidden: { ...node.planeHidden, [name]: !node.planeHidden[name] } }, 'PLANE')}
+          />
+          <Toggle
+            on={node.planeLocked[name]}
+            label={`${node.planeLocked[name] ? 'Unlock' : 'Lock'} the ${name} plane`}
+            letter="L"
+            onPress={() => setRow(node.id, { planeLocked: { ...node.planeLocked, [name]: !node.planeLocked[name] } }, 'PLANE')}
+          />
+          <button
+            type="button"
+            className={active && plane === name ? PLATE_PRESSED : PLATE_MEDIUM}
+            aria-pressed={active && plane === name}
+            data-animate-plane={name}
+            onClick={() => {
+              selectRow(node.id);
+              useStudio.setState({ plane: name });
+            }}
+          >
+            [ {name.toUpperCase()} ]
+          </button>
+        </li>
+      ))}
+    </>
+  );
+}
+
 /** What's picked: its name, opacity, blend, label and tag. */
 function Details({ project, node }: { project: Project; node: LayerNode }) {
-  const figure = tagOf(project, node)?.behaviours.paintBehindLines === true && node.kind === 'layer';
-  const plane = useStudio((state) => state.plane);
   return (
     <div className="flex flex-col gap-1 p-1 text-key">
       <label className="flex flex-col gap-0.5">
@@ -135,35 +171,6 @@ function Details({ project, node }: { project: Project; node: LayerNode }) {
           />
         ))}
       </div>
-      {figure && (
-        <div role="group" aria-label="Planes" className="flex flex-col gap-1">
-          {(['line', 'colour'] as PlaneName[]).map((name) => (
-            <div key={name} className="flex items-center gap-1">
-              <button
-                type="button"
-                className={plane === name ? PLATE_PRESSED : PLATE_MEDIUM}
-                aria-pressed={plane === name}
-                data-animate-plane={name}
-                onClick={() => useStudio.setState({ plane: name })}
-              >
-                [ {name.toUpperCase()} ]
-              </button>
-              <Toggle
-                on={!node.planeHidden[name]}
-                label={`${node.planeHidden[name] ? 'Show' : 'Hide'} the ${name} plane`}
-                letter="V"
-                onPress={() => setRow(node.id, { planeHidden: { ...node.planeHidden, [name]: !node.planeHidden[name] } }, 'PLANE')}
-              />
-              <Toggle
-                on={node.planeLocked[name]}
-                label={`${node.planeLocked[name] ? 'Unlock' : 'Lock'} the ${name} plane`}
-                letter="L"
-                onPress={() => setRow(node.id, { planeLocked: { ...node.planeLocked, [name]: !node.planeLocked[name] } }, 'PLANE')}
-              />
-            </div>
-          ))}
-        </div>
-      )}
       <button type="button" className={PLATE_MEDIUM} onClick={() => deleteRow(node.id)} title="ALT + DELETE">
         [ DELETE {node.kind === 'folder' ? 'FOLDER' : 'LAYER'} ]
       </button>
@@ -232,7 +239,10 @@ export default function AnimateLayers() {
       </div>
       <ul className="max-h-[50%] min-h-16 flex-1 overflow-y-auto border-y-line border-ink max-md:max-h-48">
         {rows.map((node) => (
-          <Row key={node.id} project={project} node={node} active={node.id === layerId} dropMark={drop?.id === node.id ? drop.mark : null} onGrab={grab} />
+          <Fragment key={node.id}>
+            <Row project={project} node={node} active={node.id === layerId} dropMark={drop?.id === node.id ? drop.mark : null} onGrab={grab} />
+            {node.kind === 'layer' && isFigure(project, node) && <PlaneRows project={project} node={node} active={node.id === layerId} />}
+          </Fragment>
         ))}
       </ul>
       {active !== null && <div className="min-h-0 flex-1 overflow-y-auto"><Details project={project} node={active} /></div>}

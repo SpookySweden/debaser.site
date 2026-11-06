@@ -32,7 +32,7 @@ function newProjectId(): string {
 }
 
 /** A stroke in the hand: what `live` is drawing. */
-type LiveStroke = {
+export type LiveStroke = {
   layerId: string;
   plane: PlaneName;
   stroke: Stroke;
@@ -495,8 +495,19 @@ export class AnimateEngine {
     return tool === 'lasso' || tool === 'rect' || tool === 'pick' || tool === 'hand' || tool === 'shift' ? null : tool;
   }
 
+  /** Told where the pen is on the stage, so the badge can sit beside it. */
+  onHoverMove: ((screen: { x: number; y: number } | null) => void) | null = null;
+
   setHover(point: { x: number; y: number } | null): void {
     this.hover = point;
+    if (this.onHoverMove !== null) {
+      if (point === null) {
+        this.onHoverMove(null);
+      } else {
+        const p = this.viewMatrix(false).transformPoint(new DOMPoint(point.x, point.y));
+        this.onHoverMove({ x: p.x, y: p.y });
+      }
+    }
     if (this.stage !== null && this.live === null) this.paintUi();
   }
 
@@ -588,6 +599,8 @@ export class AnimateEngine {
 
   /** Set by the smart module: what mask, if any, the stroke just begun is held to. */
   liveMaskFor: ((live: LiveStroke, x: number, y: number) => PaintMask | null) | null = null;
+  /** Set by the smart module: a mask the stroke has to wait for as it lands, when the lines aren't read yet. */
+  commitMask: ((live: LiveStroke) => Promise<PaintMask | null> | null) | null = null;
 
   private prepareLiveMask(): void {
     const live = this.live;
@@ -689,8 +702,9 @@ export class AnimateEngine {
     }
     const bounds = strokeBounds(stroke, before.width, before.height);
     const key = planeKey(cel.drawingId, live.plane);
-    const mask = live.mask;
+    const generation = this.generation;
     const finish = (canvas: OffscreenCanvas) => {
+      const mask = live.mask;
       const ctx = canvas.getContext('2d');
       const patches: PlanePatch[] = [];
       if (ctx !== null && bounds !== null) {
@@ -706,17 +720,28 @@ export class AnimateEngine {
       this.clearLiveCanvas();
       this.afterStroke(live.layerId, cel.drawingId, live.plane);
     };
-    const canvas = this.planes.openNow(key);
-    if (canvas !== null) {
-      finish(canvas);
-    } else {
+    const land = () => {
+      const canvas = this.planes.openNow(key);
+      if (canvas !== null) {
+        finish(canvas);
+        return;
+      }
       // The picture is still coming from storage: the stroke lands the moment it arrives, unless the person has since dropped
       // it or moved to another project.
-      const generation = this.generation;
       void this.planes.open(key).then((opened) => {
         if (generation === this.generation && this.live === live) finish(opened);
       });
+    };
+    const waitFor = this.commitMask?.(live) ?? null;
+    if (waitFor === null) {
+      land();
+      return;
     }
+    void waitFor.then((mask) => {
+      if (generation !== this.generation || this.live !== live) return;
+      live.mask = mask;
+      land();
+    });
   }
 
   /** Told after every stroke lands (the smart module re-reads the lines). */

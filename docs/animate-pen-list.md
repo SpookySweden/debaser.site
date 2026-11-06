@@ -26,3 +26,14 @@ If the pen gives no pressure at all: in the Huion driver, tick "Windows Ink". Ch
 2. Drag a layer's name with the pen to reorder it, and drop it on a folder. Is it easy to hit? Are the V, L and S keys on a row big enough?
 3. SETTINGS, PEN: try the SOFT and FIRM curves, or drag the two handles. Is there a curve that suits your hand? It's kept once set.
 4. Box-select (`SHIFT + W`) or lasso (`W`), then drag inside to move, a corner to scale, the top handle to turn. Are the handles big enough to hit? Move a drawing, then undo.
+
+## Phase 3: the Smart Figure (the one to judge)
+Make a layer and give it the FIGURE tag (the TAG list in the layer panel). INK (`I`) lands on its lines, FLAT (`F`) and the bucket (`G`) on the colour under them.
+1. Ink a shape with a small gap, under 8 pixels. A thin cyan line should show where the gap is closed. Does it close the gaps you'd expect, and leave the ones you left on purpose?
+2. FLAT colour: start inside the shape and scribble over the line. It should stop at the line, with no white halo against it, and the colour should show under the line while you draw.
+3. Press `Q` (a red SMART OFF badge sits by the pen) and scribble past the line: it goes where the pen goes. `Q` again. Or hold `Q` for just one stroke.
+4. Colour something, then redraw part of its line. The smart colour should move to the new line, and the raw colour should stay exactly where it was.
+5. Raw strokes: select some with the lasso and press MAKE SMART. They should snap inside the lines.
+6. Bucket: hover over areas. Is the tinted preview quick? Press to fill.
+7. FILL BRUSH: drag across several areas in one go. FILL ERASER does the same in reverse.
+8. On a detailed drawing, does painting ever stutter just after inking a line? Reading the lines happens in the background, and the 8 pixel gap is set per tag.

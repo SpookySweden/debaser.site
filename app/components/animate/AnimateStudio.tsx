@@ -7,6 +7,7 @@ import { loadStoredSettings, updateSettings, useStudio } from '../../lib/animate
 import { PLATE_MEDIUM } from '../../lib/ui/controls';
 import '../../lib/animate/layers';
 import { installSelection } from '../../lib/animate/selection';
+import { installSmarts } from '../../lib/animate/smart';
 import '../../lib/animate/timeline';
 import AnimateLayers from './AnimateLayers';
 import AnimateNotice from './AnimateNotice';
@@ -28,6 +29,7 @@ export default function AnimateStudio() {
     loadStoredSettings();
     const engine = getEngine();
     installSelection();
+    installSmarts();
     void engine.start();
     const detachKeys = attachKeys();
 
@@ -72,7 +74,7 @@ export default function AnimateStudio() {
         </div>
       )}
       {/* The sheet always keeps a good share of the screen: at a big interface size the rest scrolls, rather than squeezing the sheet out. */}
-      <div className={`flex min-h-[50vh] flex-1 shrink-0 max-md:flex-none max-md:flex-col ${leftHanded ? 'flex-row-reverse' : ''}`}>
+      <div className={`flex flex-1 shrink-0 max-md:flex-none max-md:flex-col ${full ? 'min-h-[50vh]' : 'min-h-[30vh]'} ${leftHanded ? 'flex-row-reverse' : ''}`}>
         {!panelsHidden && (
           <div className="flex min-h-0 shrink-0 flex-col overflow-y-auto max-md:overflow-visible" style={{ zoom: uiScale }}>
             <AnimateTools />

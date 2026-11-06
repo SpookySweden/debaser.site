@@ -5,6 +5,7 @@ import { BRUSH_LABELS, MAX_BRUSH_SIZE, MIN_BRUSH_SIZE } from '../../lib/animate/
 import { inkOn, readPalette } from '../../lib/animate/colours';
 import { getEngine } from '../../lib/animate/engine';
 import { saveBlobAs } from '../../lib/animate/project-file';
+import { makeSmart } from '../../lib/animate/smart';
 import { useStudio, type ToolId } from '../../lib/animate/store';
 import { PLATE_MEDIUM, PLATE_PRESSED } from '../../lib/ui/controls';
 import AnimateSlider from './AnimateSlider';
@@ -16,6 +17,9 @@ const TOOL_KEYS: ToolKey[] = [
   { tool: 'ink', label: BRUSH_LABELS.ink, key: 'I' },
   { tool: 'flat', label: BRUSH_LABELS.flat, key: 'F' },
   { tool: 'eraser', label: BRUSH_LABELS.eraser, key: 'E' },
+  { tool: 'fill', label: BRUSH_LABELS.fill, key: 'G' },
+  { tool: 'fillbrush', label: BRUSH_LABELS.fillbrush, key: 'Y' },
+  { tool: 'filleraser', label: BRUSH_LABELS.filleraser, key: 'SHIFT + Y' },
   { tool: 'lasso', label: 'LASSO', key: 'W' },
   { tool: 'rect', label: 'BOX SELECT', key: 'SHIFT + W' },
   { tool: 'pick', label: 'PICK COLOUR', key: 'K' },
@@ -88,6 +92,7 @@ export default function AnimateTools() {
   const colour = useStudio((state) => state.colour);
   const palette = useStudio((state) => state.project.palette);
   const brushes = useStudio((state) => state.brushes);
+  const hasSelection = useStudio((state) => state.hasSelection);
   const engine = getEngine();
   const brush = engine.brushForTool(tool);
   const settings = brush === null ? null : brushes[brush];
@@ -108,6 +113,12 @@ export default function AnimateTools() {
           </button>
         ))}
       </div>
+
+      {hasSelection && (
+        <button type="button" className={PLATE_MEDIUM} onClick={() => void makeSmart()} title="SHIFT + Q" data-animate-make-smart>
+          [ MAKE SMART ]
+        </button>
+      )}
 
       {brush !== null && settings !== null && (
         <div className="flex flex-col gap-1 max-md:flex-row max-md:flex-wrap">
