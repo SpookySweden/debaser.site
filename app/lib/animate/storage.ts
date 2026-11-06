@@ -134,6 +134,13 @@ function worker(): Worker | null {
       pending.get(event.data.id)?.(event.data.ok);
       pending.delete(event.data.id);
     };
+    // A worker that dies answers nothing: everything waiting on it falls back to IndexedDB, and the next write starts a new one.
+    saveWorker.onerror = () => {
+      for (const resolve of pending.values()) resolve(false);
+      pending.clear();
+      saveWorker?.terminate();
+      saveWorker = null;
+    };
   }
   return saveWorker;
 }
@@ -148,6 +155,10 @@ export async function writePlanePicture(projectId: string, file: string, canvas:
     const wrote = await new Promise<boolean>((resolve) => {
       pending.set(id, resolve);
       w.postMessage({ id, path: opfsPath(projectId, file), bitmap }, [bitmap]);
+      // No answer in a minute: treated as failed, so a stuck worker can't stop every save after it.
+      setTimeout(() => {
+        if (pending.delete(id)) resolve(false);
+      }, 60_000);
     });
     if (wrote) return true;
   } else {
@@ -199,6 +210,30 @@ export async function readFile(projectId: string, file: string): Promise<Blob | 
     return (blob as Blob | undefined) ?? null;
   } catch {
     return null;
+  }
+}
+
+/** What's in one of a project's folders. Older versions live in private files only. */
+export async function listFiles(projectId: string, folder: string): Promise<string[]> {
+  try {
+    let dir = await navigator.storage.getDirectory();
+    for (const part of [ROOT, projectId, folder]) dir = await dir.getDirectoryHandle(part);
+    const names: string[] = [];
+    for await (const name of (dir as unknown as { keys: () => AsyncIterable<string> }).keys()) names.push(name);
+    return names;
+  } catch {
+    return [];
+  }
+}
+
+export async function deleteFile(projectId: string, file: string): Promise<void> {
+  try {
+    let dir = await navigator.storage.getDirectory();
+    const path = opfsPath(projectId, file);
+    for (const part of path.slice(0, -1)) dir = await dir.getDirectoryHandle(part);
+    await dir.removeEntry(path[path.length - 1]);
+  } catch {
+    // Already gone.
   }
 }
 

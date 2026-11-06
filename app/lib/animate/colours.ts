@@ -53,6 +53,20 @@ export const TAG_COLOURS = {
   notes: '#fff000',
 } as const;
 
+/** A palette read from a file: named swatches of plain colours, or null if it isn't one. */
+export function readPalette(text: string): Swatch[] | null {
+  let raw: unknown;
+  try {
+    raw = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const list = (raw as { swatches?: unknown } | null)?.swatches;
+  if (!Array.isArray(list)) return null;
+  const swatches = list.filter((s): s is Swatch => typeof s?.colour === 'string' && /^#[0-9a-fA-F]{6}$/.test(s.colour)).map((s) => ({ name: String(s.name ?? s.colour).slice(0, 24), colour: s.colour.toLowerCase() }));
+  return swatches.length > 0 ? swatches : null;
+}
+
 /** A readable colour for words on a chip of this colour: black or white, whichever has more contrast. */
 export function inkOn(hex: string): string {
   const n = parseInt(hex.replace('#', ''), 16);

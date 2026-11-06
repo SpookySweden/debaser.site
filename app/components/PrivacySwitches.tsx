@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ProfileVisibility } from '../lib/profile/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
+import { RECOMMEND_NOTE } from '../lib/web/recommendations';
 
 /** Each switch and what it shares, in the plain words the PRIVACY tab and the first-look window both use. */
 export const PRIVACY_SWITCHES: { key: keyof ProfileVisibility; label: string; note: string }[] = [
@@ -68,6 +69,7 @@ export default function PrivacySwitches({ userId }: { userId: string }) {
       <p className="text-prose">YOU STAY LISTED IN THE DIRECTORY. YOUR COUNTRY FLAG SHOWS ONLY TO PEOPLE WHO ARE SIGNED IN: SET IT IN EDIT PROFILE.</p>
 
       {fault === null ? null : <p className="text-prose font-bold">{fault}</p>}
+      <p className="text-prose text-ink">{RECOMMEND_NOTE}</p>
     </div>
   );
 }

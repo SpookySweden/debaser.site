@@ -33,8 +33,8 @@ export function assetIdsOf(project: Project): string[] {
   return [...ids];
 }
 
-/** The project as one file. The drawings no cel uses are left behind. */
-export async function buildProjectFile(project: Project): Promise<Blob> {
+/** The project as one file. The drawings no cel uses are left behind. `pictureFor` gives a plane's newest picture. */
+export async function buildProjectFile(project: Project, pictureFor: (key: string) => Promise<Blob | null>): Promise<Blob> {
   const unused = new Set(unusedDrawings(project));
   const drawings = Object.fromEntries(Object.entries(project.drawings).filter(([id]) => !unused.has(id)));
   const kept: Project = { ...project, drawings };
@@ -43,9 +43,9 @@ export async function buildProjectFile(project: Project): Promise<Blob> {
   for (const drawing of Object.values(drawings)) {
     for (const plane of ['line', 'colour'] as PlaneName[]) {
       if (drawing.planes[plane].length === 0) continue;
-      const file = planeFile(planeKey(drawing.id, plane));
-      const blob = await readFile(project.id, file);
-      if (blob !== null) entries.push({ name: `planes/${file}`, bytes: new Uint8Array(await blob.arrayBuffer()) });
+      const key = planeKey(drawing.id, plane);
+      const blob = await pictureFor(key);
+      if (blob !== null) entries.push({ name: `planes/${planeFile(key)}`, bytes: new Uint8Array(await blob.arrayBuffer()) });
     }
   }
   for (const assetId of assetIdsOf(kept)) {

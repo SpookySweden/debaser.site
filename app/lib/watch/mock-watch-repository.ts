@@ -3,7 +3,7 @@ import { queueRefusal } from './links';
 import { getMockAuthRepository } from '../auth/mock-auth';
 import { goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, ROOM_NAME_MAX, ROOM_TOPIC_MAX, TAKE_OVER_QUIET_MS, cleanRoomWords, hasCrown, mayEditRoom, nextPlayIndex, nextQueuePosition } from './rules';
-import type { JoinAnswer, LiveRoom, OutlineLine, OutlineSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms in this browser only, like the other mocks: the three tables as one localStorage record,
@@ -105,7 +105,7 @@ function addMember(tables: Tables, roomId: string, userId: string): void {
 }
 
 /** The database's three sizes. */
-function sizeOf(words: string): OutlineSize {
+function sizeOf(words: string): PrivateSize {
   return words.length <= 20 ? 'short' : words.length <= 80 ? 'medium' : 'long';
 }
 
@@ -116,7 +116,7 @@ function anonTag(roomId: string, userId: string): string {
   return `ANON-${hash + 1}`;
 }
 
-function outlineLines(tables: Tables, room: WatchRoom): OutlineLine[] {
+function outlineLines(tables: Tables, room: WatchRoom): PrivateLine[] {
   return tables.messages
     .filter((message) => message.roomId === room.id)
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
@@ -396,7 +396,7 @@ class MockWatchRepository implements WatchRepository {
       }));
   }
 
-  async readRecordOutline(threadId: string): Promise<OutlineLine[]> {
+  async readRecordOutline(threadId: string): Promise<PrivateLine[]> {
     const tables = load();
     const room = tables.rooms.find((candidate) => candidate.forumThreadId === threadId);
     return room === undefined ? [] : outlineLines(tables, room);

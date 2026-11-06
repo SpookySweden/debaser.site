@@ -997,5 +997,11 @@ only adds things; `20261105125422_profile_columns_and_authors.sql` went in once 
 comments off, by column default; existing rows keep their values. A presence stamp is readable by its owner, and by other accounts only
 while `show_online` is on. `show_name_to_visitors` and `credit_me_in_art` do nothing until phase 5. `privacy_seen`: the PRIVACY window.
 
+`20261105145655_private_streams.sql`, `20261105151342_private_streams_gaps.sql` (phase 2, SPEC-privacy-phase-2.md): `watch_rooms.privacy`, members in `watch_members`, passwords and wrong tries in two tables nothing can read, and
+`privacy_at_write` on everything made in a room. A room's setting moves only through `watch_room_set_privacy`.
+`20261105154636_private_stream_outlines.sql`, `20261105155832_private_stream_admin_limits.sql` (phase 3, SPEC-privacy-phase-3.md): what outsiders get comes only from `watch_private_rooms`, `watch_room_outline`, `stream_record_outlines`,
+`stream_record_outline` and `private_stream_folds`, which return tags, times, three sizes and counts. Reading who may see a room: a realtime rule that selects from `watch_rooms` is closed for outsiders only because that select runs under the
+subscriber's rules, so don't swap it for a definer function. `Temp/check-private-streams.cjs` is their proof.
+
 `Temp/check-visitor-limits.cjs` is the proof, live. A tab left open from before a change like this keeps its old code until
 it is reloaded.

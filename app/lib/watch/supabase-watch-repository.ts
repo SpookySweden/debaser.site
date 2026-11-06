@@ -4,7 +4,7 @@ import type { AddSeriesInput, AddToQueueInput, OpenMusicRoomInput, OpenRoomInput
 import { isLinkKind, queueRefusal } from './links';
 import { MUSIC_ROOM_GONE_SECONDS, goPublicPlan } from './music-rooms';
 import { NOT_ALLOWED, hasCrown, nextPlayIndex, nextQueuePosition, watchClockSkewMs } from './rules';
-import type { JoinAnswer, LiveRoom, OutlineLine, OutlineSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
+import type { JoinAnswer, LiveRoom, PrivateLine, PrivateSize, PrivateFold, PrivateRoomLine, QueueMove, RoomDoor, RoomMemberRow, RoomOutline, RoomPrivacy, StreamFold, WatchCrown, WatchLink, WatchMember, WatchMessage, WatchQueueEntry, WatchRoom, WatchRoomRead, WatchingEntry, WatchingMap } from './types';
 
 /**
  * Stream rooms on Supabase (supabase/migrations/20261027120000_watch_rooms.sql; additions and crowns,
@@ -372,17 +372,17 @@ class SupabaseWatchRepository implements WatchRepository {
     }));
   }
 
-  async readRecordOutline(threadId: string): Promise<OutlineLine[]> {
+  async readRecordOutline(threadId: string): Promise<PrivateLine[]> {
     const { data, error } = await requireClient().rpc('stream_record_outline', { thread: threadId });
     if (error) throw new Error('THE RECORD COULD NOT BE READ.');
-    return (data ?? []) as OutlineLine[];
+    return (data ?? []) as PrivateLine[];
   }
 
   async listPrivateFolds(mediaItemIds: string[]): Promise<PrivateFold[]> {
     if (mediaItemIds.length === 0) return [];
     const { data, error } = await requireClient().rpc('private_stream_folds', { media_ids: mediaItemIds });
     if (error) throw new Error('THE STREAM CHAT COULD NOT BE READ.');
-    return ((data ?? []) as { media_item_id: string; rooms: number | string; sizes: OutlineSize[] }[]).map((row) => ({
+    return ((data ?? []) as { media_item_id: string; rooms: number | string; sizes: PrivateSize[] }[]).map((row) => ({
       mediaItemId: row.media_item_id,
       rooms: Number(row.rooms),
       sizes: row.sizes,

@@ -1,4 +1,4 @@
-import { wordKey } from './words';
+import { editDistance, wordKey } from './words';
 
 /**
  * What the word pass said about each word (SPEC-tag-station.md), turned into what the map needs: which words are one word, which are too
@@ -24,6 +24,47 @@ export type WordRules = {
   facet(key: string): Facet | null;
 };
 
+const tokens = (word: string): string[] => word.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+
+/** One word inside a longer phrase ("savanna", "african savanna") is a broader and a narrower word, however the answer put it, never the same word. */
+export function narrowerPhrase(a: string, b: string): boolean {
+  const [one, two] = [tokens(a), tokens(b)];
+  if (one.length === two.length) return false;
+  const [short, long] = one.length < two.length ? [one, new Set(two)] : [two, new Set(one)];
+  return short.length > 0 && short.every((token) => long.has(token));
+}
+
+/** Luke, 2026-11-06: these stay on the map, whatever the word pass says of them. The rest of what it calls vague stays off. */
+const KEPT_ON_MAP: ReadonlySet<string> = new Set(['film', 'music']);
+
+/** Whether `short` is made of the start of each word in `long` ("wwii": world war ii; "scifi": science fiction). */
+function abbreviates(short: string, long: readonly string[]): boolean {
+  if (long.length === 0) return short.length === 0;
+  const [first, ...rest] = long;
+  for (let take = Math.min(first.length, short.length); take >= 1; take -= 1) {
+    if (first.startsWith(short.slice(0, take)) && abbreviates(short.slice(take), rest)) return true;
+  }
+  return false;
+}
+
+/**
+ * Only what really is one word (Luke, 2026-11-06, "only true duplicates count"): a spelling or a plural, the same words in another order, or an abbreviation. The word
+ * pass still joined "air force" to "military" and "androids" to "robots" when told not to, so the answer alone isn't enough, and a join has to look like this too.
+ */
+export function trueDuplicate(a: string, b: string): boolean {
+  const [one, two] = [tokens(a), tokens(b)];
+  if (narrowerPhrase(a, b)) return false;
+  const [flatOne, flatTwo] = [one.join(''), two.join('')];
+  if ([...one].sort().join(' ') === [...two].sort().join(' ')) return true;
+  // A different number is a different thing, however close the spelling ("1950s", "1960s").
+  if (flatOne.replace(/\D/g, '') !== flatTwo.replace(/\D/g, '')) return false;
+  const shorter = Math.min(flatOne.length, flatTwo.length);
+  const apart = editDistance(flatOne, flatTwo, 2);
+  if ((apart <= 1 && shorter >= 4) || (apart <= 2 && shorter >= 8)) return true;
+  const [short, long] = flatOne.length < flatTwo.length ? [flatOne, two] : [flatTwo, one];
+  return short.length >= 2 && long.length >= 2 && abbreviates(short, long);
+}
+
 export const NO_WORD_RULES: WordRules = { canonical: (key) => key, isVague: () => false, facet: () => null };
 
 export function buildWordRules(facts: readonly WordFact[]): WordRules {
@@ -40,11 +81,11 @@ export function buildWordRules(facts: readonly WordFact[]): WordRules {
   for (const fact of sorted) {
     const key = wordKey(fact.word);
     if (key.length === 0) continue;
-    if (fact.vague) vague.add(key);
+    if (fact.vague && !KEPT_ON_MAP.has(key)) vague.add(key);
     if (fact.facet !== null && !facetByKey.has(key)) facetByKey.set(key, fact.facet);
   }
   for (const fact of sorted) {
-    if (fact.sameAs === null || fact.vague) continue;
+    if (fact.sameAs === null || vague.has(wordKey(fact.word)) || !trueDuplicate(fact.word, fact.sameAs)) continue;
     const a = find(wordKey(fact.word));
     const b = find(wordKey(fact.sameAs));
     if (a.length === 0 || b.length === 0 || a === b || vague.has(wordKey(fact.sameAs))) continue;

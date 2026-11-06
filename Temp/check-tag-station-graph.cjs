@@ -134,8 +134,8 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.ok(!/client|supabase|\.rpc\(/i.test(fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station/graph.ts'), 'utf8')), 'the graph builder reaches no database');
   for (const file of ['repository.ts', 'supabase-tag-repository.ts', 'mock-tag-repository.ts', 'graph-cache.ts']) {
     const source = fs.readFileSync(path.join(__dirname, '..', 'app/lib/tag-station', file), 'utf8');
-    assert.ok(!/\.(insert|update|upsert|delete)\(/.test(source), `${file} writes nothing`);
-    assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => name !== 'web_tag_limit_reached'), [], `${file} only asks whether the limit is reached`);
+    assert.ok(!/\.(insert|update|upsert|delete|upload|remove)\(/.test(source), `${file} writes nothing`);
+    assert.deepEqual([...source.matchAll(/\.rpc\('(\w+)'/g)].map((match) => match[1]).filter((name) => !['web_tag_limit_reached', 'web_pool_shards_for'].includes(name)), [], `${file} only asks whether the limit is reached, and which files hold a word`);
   }
   assert.ok(MOCK_STATION_ROWS.length >= 30, 'the mock has enough to draw');
 

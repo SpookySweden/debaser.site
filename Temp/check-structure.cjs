@@ -29,7 +29,8 @@ function walk(dir, filter, out = []) {
 }
 
 const key = (file) => relative('.', file).split(sep).join('/');
-const files = walk('app', (name) => /\.(tsx|ts)$/.test(name)).map(key);
+// A `.d.ts` only tells the compiler about a package with no types (gifenc): nothing imports it, by design.
+const files = walk('app', (name) => /\.(tsx|ts)$/.test(name) && !name.endsWith('.d.ts')).map(key);
 const sources = new Map(files.map((file) => [file, readFileSync(file, 'utf8')]));
 
 function resolve(from, specifier) {

@@ -13,6 +13,8 @@ export type Action = {
   group: string;
   key: string;
   run: () => void;
+  /** For a key held down: told when it's let go. */
+  release?: () => void;
 };
 
 function tool(id: string, label: string, key: string, which: ToolId): Action {
@@ -73,9 +75,10 @@ export function allActions(): Action[] {
     { id: 'view.left', label: 'TURN LEFT', group: 'VIEW', key: 'shift+r', run: () => getEngine().rotateBy(-15) },
     { id: 'view.right', label: 'TURN RIGHT', group: 'VIEW', key: 'r', run: () => getEngine().rotateBy(15) },
     { id: 'view.flip', label: 'MIRROR THE VIEW', group: 'VIEW', key: 'm', run: () => getEngine().flipView() },
-    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: 'tab', run: toggleFull },
-    { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: 'ctrl+.', run: () => stepUiScale(1) },
-    { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+,', run: () => stepUiScale(-1) },
+    { id: 'view.full', label: 'FULL SCREEN', group: 'VIEW', key: '\\', run: toggleFull },
+    { id: 'view.panels', label: 'HIDE / SHOW THE PANELS', group: 'VIEW', key: '`', run: () => updateSettings({ panelsHidden: !useStudio.getState().settings.panelsHidden }) },
+    { id: 'ui.bigger', label: 'INTERFACE BIGGER', group: 'VIEW', key: "ctrl+'", run: () => stepUiScale(1) },
+    { id: 'ui.smaller', label: 'INTERFACE SMALLER', group: 'VIEW', key: 'ctrl+;', run: () => stepUiScale(-1) },
     { id: 'file.save', label: 'SAVE TO A FILE', group: 'FILE', key: 'ctrl+s', run: () => void getEngine().saveToFile() },
     { id: 'file.open', label: 'OPEN A FILE', group: 'FILE', key: 'ctrl+o', run: () => document.getElementById('animate-open-file')?.click() },
     { id: 'help.keys', label: 'THESE KEYS', group: 'HELP', key: '?', run: () => togglePanel('help') },
@@ -114,11 +117,17 @@ function isTyping(target: EventTarget | null): boolean {
   return false;
 }
 
+let capturingKey = false;
+
+/** The remap screen is listening for a key of its own. */
+export function setKeyCapture(on: boolean): void {
+  capturingKey = on;
+}
+
 /** The studio's keyboard, for as long as the page is open. */
 export function attachKeys(): () => void {
   const onDown = (event: KeyboardEvent) => {
-    if (isTyping(event.target)) return;
-    if (useStudio.getState().panel === 'keys') return; // The remap screen is listening for a key of its own.
+    if (isTyping(event.target) || capturingKey) return;
     const name = keyName(event);
     if (name === 'space') {
       keys.space = true;
@@ -132,8 +141,6 @@ export function attachKeys(): () => void {
     }
     const action = allActions().find((candidate) => keyOf(candidate) === name);
     if (action === undefined) return;
-    // Tab still walks the keys when something is focused; only with nothing focused does it mean full screen.
-    if (name === 'tab' && document.activeElement !== document.body) return;
     // Enter and arrows belong to a focused key or slider.
     if ((name === 'enter' || name.startsWith('arrow')) && document.activeElement !== document.body && !(document.activeElement instanceof HTMLCanvasElement)) return;
     event.preventDefault();
@@ -141,12 +148,24 @@ export function attachKeys(): () => void {
   };
   const onUp = (event: KeyboardEvent) => {
     if (event.key === ' ') keys.space = false;
+    if (isTyping(event.target) || capturingKey) return;
+    // By the bare key: a modifier may have been let go first.
+    const bare = (key: string) => key.split('+').pop();
+    const name = bare(keyName(event));
+    for (const action of allActions()) if (action.release !== undefined && bare(keyOf(action)) === name) action.release();
+  };
+  // A key let go in another window never reports it.
+  const onBlur = () => {
+    keys.space = false;
+    for (const action of allActions()) action.release?.();
   };
   window.addEventListener('keydown', onDown);
   window.addEventListener('keyup', onUp);
+  window.addEventListener('blur', onBlur);
   return () => {
     window.removeEventListener('keydown', onDown);
     window.removeEventListener('keyup', onUp);
+    window.removeEventListener('blur', onBlur);
     keys.space = false;
   };
 }

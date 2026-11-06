@@ -2,19 +2,23 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
-import { buildIndex, edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
+import { edgePicks, findTag, loosenings, neighbourhood, relatedTags, sameMix, sourceLabel, suggest, tagPassesFacet, tagPassesNiche, type StationIndex } from '../lib/tag-station/query';
 import { listOf, parseRecipe, recipeQuery, withWordIn, type Recipe, type Sort } from '../lib/tag-station/recipe';
-import type { StationGraph, StationItem } from '../lib/tag-station/types';
+import { loadStationIndex } from '../lib/tag-station/client';
+import { useMoreItems } from '../lib/tag-station/more';
+import type { StationItem } from '../lib/tag-station/types';
 import { eraOf } from '../lib/tag-station/words';
 import { FIELD_TIGHT } from '../lib/ui/controls';
 import { loadPeertubeHosts, needsPeertubeHosts } from '../lib/web/everywhere-client';
 import { contentLanguage } from '../lib/web/language';
+import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
+import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-addresses';
 import type { WebItem } from '../lib/web/types';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
-import { webSessionHeaders } from '../lib/web/web-session';
 import { loadWebItem } from '../lib/web/web-track-lookup';
 import InfoFold from './InfoFold';
+import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import TagStationFilters from './TagStationFilters';
 import { linkMapWords, LinkInput, useLinkAnswer } from './TagStationLink';
@@ -73,12 +77,8 @@ function useGraph(): { index: StationIndex | null; error: string | null } {
     let live = true;
     void (async () => {
       try {
-        const headers = await webSessionHeaders();
-        if (headers === null) throw new Error('Sign in to use Discover.');
-        const response = await fetch('/api/tag-station/graph', { headers });
-        const body = (await response.json()) as StationGraph & { error?: string };
-        if (!response.ok) throw new Error(body.error ?? 'The map could not be loaded.');
-        if (live) setState({ index: buildIndex(body), error: null });
+        const index = await loadStationIndex();
+        if (live) setState({ index, error: null });
       } catch (problem) {
         if (live) setState({ index: null, error: problem instanceof Error ? problem.message : 'The map could not be loaded.' });
       }
@@ -113,14 +113,46 @@ const WHERE = { origin: 'shelf', href: PAGE_PATH, where: 'DISCOVER' } as const;
 function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHosts }) {
   const player = useMusicPlayer();
   const [state, setState] = useState<'idle' | 'finding' | 'none'>('idle');
-  const [playerFor, setPlayerFor] = useState<string | null>(null);
-  const open = playerFor === item.id;
+  const [readerFor, setReaderFor] = useState<string | null>(null);
+  // Video and audio go in the site's one floating layer, so they survive moving about the site; text opens where it is.
+  const floats = item.kind === 'video' || item.kind === 'audio';
+  const playId = `web:${item.id}`;
+  const playingHere = usePlayingHere(playId);
+  const open = floats ? playingHere : readerFor === item.id;
   const { link, embed } = rowAddresses(item as WebItem, extraHosts);
   const source = sourceLabel(item.platform);
   const onBar = player.track ? parseWebAudioSrc(player.track.src) : null;
   const mine = onBar !== null && onBar.platform === item.platform && onBar.externalId === item.externalId;
   const sounding = mine && player.playing;
   const inBar = playsInBar(item);
+
+  const startPlayer = () => {
+    if (embed === null) return;
+    if (!floats) {
+      setReaderFor(item.id);
+      return;
+    }
+    const timeFrom = timeSourceOf(item.platform);
+    playFloating({
+      id: playId,
+      title: item.title,
+      shape: item.kind === 'audio' ? 'audio' : 'video',
+      player: {
+        kind: 'frame',
+        src: embedWithPlace(startingEmbed(embed, item.platform, contentLanguage(item as WebItem)), timeFrom, placeOf(playId), window.location.origin),
+        frameTitle: `${source} player: ${item.title}`,
+        referrerPolicy: item.platform === 'youtube' ? 'strict-origin' : 'no-referrer',
+        sandbox: 'allow-scripts allow-same-origin',
+        allow: item.kind === 'video' ? 'autoplay; fullscreen' : 'autoplay',
+        allowFullScreen: false,
+        timeFrom,
+      },
+    });
+  };
+  const stopPlayer = () => {
+    if (floats) closeFloatingIfMine(playId);
+    else setReaderFor(null);
+  };
 
   const pressBar = async () => {
     if (mine) {
@@ -135,7 +167,7 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
       player.playList(tracks, WHERE);
     } else if (embed) {
       setState('idle');
-      setPlayerFor(item.id);
+      startPlayer();
     } else {
       setState('none');
     }
@@ -149,10 +181,11 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
             {state === 'finding' ? '[ … FINDING ]' : sounding ? '❚❚ PAUSE' : '[ ▶ PLAY ]'}
           </button>
         ) : embed ? (
-          <button type="button" onClick={() => setPlayerFor(open ? null : item.id)} aria-expanded={open} aria-label={open ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`} className={open ? STATION_KEY_ON : STATION_KEY}>
+          <button type="button" onClick={() => (open ? stopPlayer() : startPlayer())} aria-expanded={open} aria-label={open ? `Close the ${source} player for "${item.title}"` : `Play "${item.title}" (loads the ${source} player)`} className={open ? STATION_KEY_ON : STATION_KEY}>
             {open ? '■ CLOSE' : '[ ▶ PLAY ]'}
           </button>
         ) : null}
+        {floats && open ? <PipKey id={playId} title={item.title} /> : null}
         {link ? (
           <a href={link} target="_blank" rel="noopener noreferrer nofollow" aria-label={`Open "${item.title}" on ${source} (new tab)`} className={STATION_KEY}>
             [ OPEN ↗ ]
@@ -165,15 +198,16 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
         ) : null}
       </div>
       {/* Nothing from the platform loads until the reader asks; the same sandbox as MEDIA's rows (WebStream.tsx). */}
-      {open && embed ? (
+      {open && embed && floats ? <PlayerBox id={playId} title={item.title} className={`block w-full border border-ink-plate bg-paper ${item.kind === 'video' ? 'aspect-video' : 'h-tap'}`} /> : null}
+      {open && embed && !floats ? (
         <iframe
           src={startingEmbed(embed, item.platform, contentLanguage(item as WebItem))}
           title={`${source} player: ${item.title}`}
           loading="lazy"
           referrerPolicy={item.platform === 'youtube' ? 'strict-origin' : 'no-referrer'}
           sandbox="allow-scripts allow-same-origin"
-          allow={item.kind === 'video' ? 'autoplay; fullscreen' : 'autoplay'}
-          className={`block w-full border border-ink-plate bg-paper ${item.kind === 'video' ? 'aspect-video' : item.kind === 'text' ? 'h-96' : 'h-tap'}`}
+          allow="autoplay"
+          className="block h-96 w-full border border-ink-plate bg-paper"
         />
       ) : null}
     </div>
@@ -251,10 +285,13 @@ const SORTS: readonly { value: Sort; label: string }[] = [
   { value: 'tagged', label: 'MOST WORDS' },
 ];
 
-export function Station({ index }: { index: StationIndex }) {
+export function Station({ index: mapIndex }: { index: StationIndex }) {
   const router = useRouter();
   const params = useSearchParams();
   const recipe = useMemo(() => parseRecipe(params), [params]);
+  // The chosen words, with what the pool's files hold for them added to the list. The map stays as it is.
+  const chosenWords = useMemo(() => [...new Set([...(recipe.tag !== null ? [recipe.tag] : []), ...recipe.must, ...recipe.any])].slice(0, 12), [recipe.tag, recipe.must, recipe.any]);
+  const index = useMoreItems(mapIndex, chosenWords) ?? mapIndex;
   const searchBox = useRef<HTMLInputElement>(null);
   const textSize = useSyncExternalStore(subscribeTextSize, readTextSize, () => 'M' as TextSize);
   const [shownFor, setShownFor] = useState<{ key: string; count: number }>({ key: '', count: ITEMS_STEP });

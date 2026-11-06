@@ -27,7 +27,7 @@ Exact script names live in package.json. If a name here is wrong, fix this secti
 - I don't write code. I judge results by looking at the site, so describe changes by what I'll see, in plain English. Explain any jargon in one line.
 - If my idea is risky or will cause trouble later, say so before building it. Disagreeing with me is part of the job.
 - Never say "should work" or "that fixes it" without evidence (see below). If you couldn't check something, say so.
-- This is a forever project: methods that may not last (unofficial APIs, scraping-style sources) are fine. Say the risk once, build it with a fallback where one exists, and propose better or newer methods when you know of them; I'll notice breakage and adapt. The firm lines still hold: no piracy, no handling my passwords or keys, the asset rules, database changes only with my OK.
+- This is a forever project: methods that may not last (unofficial APIs, scraping-style sources) are fine. Say the risk once, build it with a fallback where one exists, and propose better or newer methods when you know of them; I'll notice breakage and adapt. The firm lines still hold: no handling my passwords or keys, the asset rules, database changes only with my OK.
 
 ## How to work
 - Before a multi-file change, or anything you're unsure about: stay read-only, explore, then give me a short plan in plain English and wait for my OK. If the change is one sentence long (a typo, a colour), just do it.

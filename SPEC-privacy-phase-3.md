@@ -5,9 +5,8 @@ Settled from Luke's privacy plan and `SPEC-privacy-decisions.md` (decisions 12 a
 The one rule: **the database hands outsiders the blacked-out version.** The real words, names, titles and pictures never reach their browser.
 A blur or a black box on screen would not be privacy.
 
-## Status (update as it moves)
-The database half (`20261105154636_private_stream_outlines.sql`) is live. It changes nothing anyone sees until the code lands, and the site stays consistent either way:
-private rooms file no thread until then. Next: the code goes up, then the drive `Temp/private-outsiders-drive.cjs`, then its test threads are listed and deleted (Luke's OK).
+## Status
+Done and live, 2026-11-06. Known limit: a new private record reaches other people's boards the next time they load the board, not live, because nobody gets an event for a thread they can't read. Somebody who joins sees theirs at once.
 
 ## What outsiders will see
 

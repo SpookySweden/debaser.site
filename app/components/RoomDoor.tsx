@@ -9,6 +9,7 @@ import { ROOM_PASSWORD_MAX } from '../lib/watch/rules';
 import type { JoinAnswer, RoomDoor as Door } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { useAuth } from './AuthProvider';
+import { useForum } from './ForumProvider';
 import PrivateOutline from './PrivateOutline';
 
 const line = 'text-label font-bold text-ink';
@@ -19,6 +20,7 @@ const line = 'text-label font-bold text-ink';
  */
 export default function RoomDoor({ roomId }: { roomId: string }) {
   const { user, status } = useAuth();
+  const { refreshThreads } = useForum();
   const userId = user?.id ?? null;
   const [door, setDoor] = useState<Door | null>(null);
   const [password, setPassword] = useState('');
@@ -50,8 +52,11 @@ export default function RoomDoor({ roomId }: { roomId: string }) {
       setAnswer(said);
       setPassword('');
       // In: the room reads again, and now answers. Anything else: the door says why.
-      if (said === 'joined') applyLocalChange(roomId, { kind: 'refresh' });
-      else setDoor(await getWatchRepository().readDoor(roomId));
+      if (said === 'joined') {
+        applyLocalChange(roomId, { kind: 'refresh' });
+        // The stream's record is readable now, and the board hears no event for that.
+        void refreshThreads().catch(() => undefined);
+      } else setDoor(await getWatchRepository().readDoor(roomId));
     } catch {
       setAnswer('refused');
     } finally {
