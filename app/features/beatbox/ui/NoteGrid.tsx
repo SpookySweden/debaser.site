@@ -1,7 +1,6 @@
 'use client';
 
 import { useImperativeHandle, useLayoutEffect, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type Ref } from "react";
-import { ChoiceGroup } from "./ChoiceGroup";
 import {
   gridStepsPerBeat,
   partsPerBar,
@@ -16,7 +15,6 @@ import {
 import type { Transport } from "./app";
 import { channelName, noteShapeStyle } from "./channelLooks";
 import {
-  CELL_SIZES,
   columnWindowStart,
   fitGrid,
   moveCursor,
@@ -25,7 +23,7 @@ import {
   type GridCursor,
   type GridMove,
 } from "./gridView";
-import { stripKey } from "./looks";
+import { rulerKey, stripKey } from "./looks";
 import { deleteNoteAt, noteAt, stretchNote, toggleNote } from "./noteEdit";
 import { PixelSlot, type BeatBoxArt } from "./PixelSlot";
 import { Playhead, type HitNote } from "./Playhead";
@@ -65,7 +63,7 @@ function spokenStep(step: number, stepsPerBeat: number): string {
 }
 
 export interface NoteGridHandle {
-  focus: () => void;
+  focus: (options?: FocusOptions) => void;
 }
 
 export interface NoteGridProps {
@@ -81,7 +79,8 @@ export interface NoteGridProps {
   footKeys?: ReactNode;
   art: BeatBoxArt;
   showArtSlots: boolean;
-  onSizeChange: (size: CellSize) => void;
+  /** Moves to the next or previous bar, if there is one. */
+  onBarStep: (direction: 1 | -1) => boolean;
   onNotesChange: (notes: readonly NoteData[]) => void;
   /** A note was turned on or off. */
   onToggled: (pitch: number, on: boolean) => void;
@@ -101,7 +100,7 @@ export function NoteGrid({
   footKeys,
   art,
   showArtSlots,
-  onSizeChange,
+  onBarStep,
   onNotesChange,
   onToggled,
   onCursorMoved,
@@ -128,7 +127,7 @@ export function NoteGrid({
   const cellProbe = useRef<HTMLDivElement>(null);
   const [cellWidth, setCellWidth] = useState(64);
 
-  useImperativeHandle(ref, () => ({ focus: () => activeCell.current?.focus() }), []);
+  useImperativeHandle(ref, () => ({ focus: (options) => activeCell.current?.focus(options) }), []);
 
   // The size comes from a theme token, so ask the browser how wide it really is.
   useLayoutEffect(() => {
@@ -209,11 +208,16 @@ export function NoteGrid({
       }
       return;
     }
-    // Ctrl and an arrow jumps a whole beat.
-    if (event.ctrlKey && (event.key === "ArrowRight" || event.key === "ArrowLeft")) {
+    if ((event.key === "ArrowRight" || event.key === "ArrowLeft") && !event.shiftKey) {
       event.preventDefault();
-      const by = event.key === "ArrowRight" ? stepsPerBeat : -stepsPerBeat;
-      goTo({ ...cursor, column: Math.max(0, Math.min(totalColumns - 1, cursor.column + by)) });
+      const direction = event.key === "ArrowRight" ? 1 : -1;
+      // Ctrl and an arrow jumps a whole beat. Off either end of the bar, the cursor carries on into the next one.
+      const column = cursor.column + direction * (event.ctrlKey ? stepsPerBeat : 1);
+      if (column >= totalColumns || column < 0) {
+        if (onBarStep(direction)) goTo({ ...cursor, column: direction === 1 ? 0 : totalColumns - 1 });
+      } else {
+        goTo({ ...cursor, column });
+      }
       return;
     }
     const ctrl = event.ctrlKey && (event.key === "Home" || event.key === "End");
@@ -224,8 +228,16 @@ export function NoteGrid({
     }
   }
 
+  /** A screenful of steps. Past either end of the bar it goes on to the next bar. */
   function pageColumns(direction: 1 | -1) {
-    const column = Math.max(0, Math.min(totalColumns - 1, firstColumn + direction * columnCount));
+    const column = firstColumn + direction * columnCount;
+    if (column >= totalColumns || column < 0) {
+      if (onBarStep(direction)) {
+        const lastPage = Math.floor((totalColumns - 1) / columnCount) * columnCount;
+        setCursor({ ...cursor, column: direction === 1 ? 0 : lastPage });
+      }
+      return;
+    }
     setCursor({ ...cursor, column });
   }
 
@@ -243,7 +255,7 @@ export function NoteGrid({
     "--cell-h": `${fit.cellHeight}px`,
     "--head-h": `${fit.headHeight}px`,
     "--name-w": `${fit.nameWidth}px`,
-    minHeight: `calc(var(--cell) * 4.6)`,
+    minHeight: "calc(var(--cell) * 4.7)",
   } as CSSProperties;
   const cellBox = { width: "var(--cell-w)", height: "var(--cell-h)" };
   const headBox = { width: "var(--cell-w)", height: "var(--head-h)" };
@@ -251,7 +263,7 @@ export function NoteGrid({
   const cornerBox = { width: "var(--name-w)", height: "var(--head-h)" };
 
   return (
-    <section aria-label="Note grid" className="flex min-h-0 w-full flex-1 flex-col">
+    <section aria-label="Note grid" className="relative flex min-h-0 w-full flex-1 flex-col">
       <h2 className="sr-only">
         {channelName(song, channelIndex)}, bar {bar + 1}
         {patternNumber === 0 ? ", silent" : `, pattern ${patternNumber}`}
@@ -262,6 +274,19 @@ export function NoteGrid({
         Steps {firstColumn + 1} to {firstColumn + columnCount} of {totalColumns}. {nameOf(pitchOfRow(visibleFirstRow + rowCount - 1))}{" "}
         to {nameOf(pitchOfRow(visibleFirstRow))}.
       </p>
+
+      {notes.length === 0 && (
+        <div className="pointer-events-none z-30 flex flex-none flex-wrap items-center gap-bb-gutter bg-bb-nigrosine p-2 text-display font-bold uppercase md:absolute md:top-1/2 md:left-1/2 md:w-max md:max-w-full md:-translate-x-1/2 md:-translate-y-1/2 md:flex-nowrap md:p-bb-gutter md:text-bb-large">
+          <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
+          <p>
+            Click a square to put a note.
+            <br />
+            Or arrows and Enter.
+            <br />
+            Ctrl+arrow jumps a beat.
+          </p>
+        </div>
+      )}
 
       <div ref={frame} className="relative min-h-0 w-full flex-1 overflow-hidden" style={gridStyle}>
         <div ref={cellProbe} aria-hidden="true" style={{ width: "var(--cell)", height: 0 }} />
@@ -373,26 +398,37 @@ export function NoteGrid({
             }}
           />
         </div>
-        {notes.length === 0 && (
-          <div className="pointer-events-none absolute top-1/2 left-1/2 z-30 flex w-max max-w-full -translate-x-1/2 -translate-y-1/2 items-center gap-bb-gutter bg-bb-nigrosine p-bb-gutter text-bb-large font-bold uppercase wrap-anywhere">
-            <PixelSlot name="empty-state" size="scene" src={art.emptyState} showEmpty={showArtSlots} />
-            <p>
-              Click a square to put a note.
-              <br />
-              Or arrows and Enter. Ctrl+arrow jumps a beat.
-            </p>
-          </div>
-        )}
       </div>
 
-      <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 px-2 py-1">
-        <div role="group" aria-label="Move the view" className="flex flex-wrap gap-1">
+      <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 p-1">
+        <div role="group" aria-label="Move along the bar" className="flex flex-wrap items-center gap-1">
           <button type="button" aria-label="Earlier" title="Earlier steps" onClick={() => pageColumns(-1)} className={stripKey()}>
             &lt;
           </button>
+          {/* Every beat of the bar, with the ones on screen filled: this is what says there's more than is showing. */}
+          {Array.from({ length: Math.ceil(totalColumns / stepsPerBeat) }, (_, beat) => {
+            const step = beat * stepsPerBeat;
+            const showing = step >= firstColumn && step < firstColumn + columnCount;
+            return (
+              <button
+                key={beat}
+                type="button"
+                tabIndex={-1}
+                aria-label={`Go to beat ${beat + 1}`}
+                aria-current={showing ? "true" : undefined}
+                title={`Beat ${beat + 1} (Ctrl+arrow moves a beat)`}
+                onClick={() => goTo({ ...cursor, column: step })}
+                className={rulerKey(showing)}
+              >
+                {beat + 1}
+              </button>
+            );
+          })}
           <button type="button" aria-label="Later" title="Later steps" onClick={() => pageColumns(1)} className={stripKey()}>
             &gt;
           </button>
+        </div>
+        <div role="group" aria-label="Move up and down the notes" className="flex flex-wrap gap-1">
           <button type="button" aria-label="Higher" title="Higher notes (Page Up)" onClick={() => pageRows(-1)} className={stripKey()}>
             Up
           </button>
@@ -400,14 +436,6 @@ export function NoteGrid({
             Down
           </button>
         </div>
-        <ChoiceGroup
-          label="Size"
-          keyName="- ="
-          value={size}
-          options={CELL_SIZES.map((option) => ({ value: option, label: option.toUpperCase() }))}
-          onChange={onSizeChange}
-          look={stripKey}
-        />
         {footKeys}
       </div>
     </section>

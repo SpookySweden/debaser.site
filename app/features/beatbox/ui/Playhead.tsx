@@ -14,15 +14,15 @@ export interface HitNote {
 export function Playhead({
   transport,
   columnOf,
-  headerCells,
+  headerCells = 0,
   hitsAt,
   across = false,
 }: {
   transport: Transport;
   /** Which visible column this spot falls in, or null if it isn't showing. */
   columnOf: (spot: PlayheadSpot) => number | null;
-  /** How many cells wide the row names are. */
-  headerCells: number;
+  /** How many cells wide the row names are, when it isn't given as --name-w. */
+  headerCells?: number;
   /** The notes to light up at this spot, if this grid shows notes. */
   hitsAt?: (spot: PlayheadSpot) => readonly HitNote[];
   /** The bars run down the screen, so the playhead is a band across. */

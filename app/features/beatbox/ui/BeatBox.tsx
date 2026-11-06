@@ -14,7 +14,7 @@ import { QUANTISE_OPTIONS } from "../recorder/convert";
 import type { NoteData, SongData } from "../engine/songData";
 import { createApp } from "./app";
 import { AUDIO_MODES, audioBehaviour, type AudioMode } from "./audioModes";
-import { BarRow, type BarLayout, type BarPick } from "./BarRow";
+import { BarRow, type BarPick } from "./BarRow";
 import { channelName } from "./channelLooks";
 import { ChoiceGroup } from "./ChoiceGroup";
 import { CELL_SIZES, type CellSize } from "./gridView";
@@ -39,13 +39,6 @@ const TEMPO_STEP = 5;
 
 function startingTheme(): BeatBoxTheme {
   return window.matchMedia?.("(prefers-contrast: more)").matches ? "high-contrast" : "default";
-}
-
-/** Local-only, while Luke picks. Never reaches main. */
-function startingLayout(): BarLayout {
-  if (process.env.NODE_ENV !== "development") return "strip";
-  const asked = new URLSearchParams(window.location.search).get("layout");
-  return asked === "map" || asked === "tracker" ? asked : "strip";
 }
 
 export interface BeatBoxProps {
@@ -105,8 +98,7 @@ export function BeatBox({
   const [helpOpen, setHelpOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [padsShown, setPadsShown] = useState(false);
-  const [mapShown, setMapShown] = useState(true);
-  const [layout] = useState<BarLayout>(startingLayout);
+  const [barsFolded, setBarsFolded] = useState(false);
   const grid = useRef<NoteGridHandle>(null);
   const page = useRef<HTMLDivElement>(null);
   const menuKey = useRef<HTMLButtonElement>(null);
@@ -118,7 +110,8 @@ export function BeatBox({
 
   // The cursor is on the grid from the start, so the arrows and Enter work at once.
   useEffect(() => {
-    if (document.activeElement === document.body) grid.current?.focus();
+    // It doesn't scroll to get there: at high zoom the first thing to see is the main keys.
+    if (document.activeElement === document.body) grid.current?.focus({ preventScroll: true });
   }, [songNumber]);
 
   const stop = useCallback(() => {
@@ -209,6 +202,25 @@ export function BeatBox({
     else openMenu();
   }
 
+  function toggleBars() {
+    const inBars = document.activeElement?.closest("[aria-label='Bars']");
+    setBarsFolded(!barsFolded);
+    setStatus(barsFolded ? "Bars showing." : "Bars hidden. The notes get the room.");
+    if (inBars) setTimeout(() => grid.current?.focus());
+  }
+
+  /** Off the end of a bar, on to the next one. */
+  function barStep(direction: 1 | -1): boolean {
+    const bar = pick.bar + direction;
+    if (bar < 0 || bar >= songs.getSong().barCount) {
+      setStatus(direction === 1 ? "That's the end of the song." : "That's the start of the song.");
+      return false;
+    }
+    setPick({ channel: pick.channel, bar });
+    setStatus(`Bar ${bar + 1}.`);
+    return true;
+  }
+
   function cycleMode() {
     session.setMode(session.getSettings().mode === "overdub" ? "replace" : "overdub");
   }
@@ -251,6 +263,7 @@ export function BeatBox({
     toggleMenu,
     menuOpen,
     closeMenu,
+    toggleBars,
     onTogglePanel,
   };
   const pageKeys = useRef(latest);
@@ -299,6 +312,9 @@ export function BeatBox({
         keys.toggleMenu();
       } else if (event.key === "\\") {
         keys.onTogglePanel?.();
+      } else if (event.key === "'") {
+        event.preventDefault();
+        keys.toggleBars();
       } else if (event.code === "KeyI") {
         keys.cycleAudioMode();
       } else if (event.key === ".") {
@@ -441,21 +457,16 @@ export function BeatBox({
   const pickedChannel = song.channels[pick.channel];
   const pickedPattern = pickedChannel?.bars[pick.bar] ?? 0;
   const sharedBars = pickedChannel ? barsUsingPattern(pickedChannel, pickedPattern) : 0;
-  const where = `${channelName(song, pick.channel)} bar ${pick.bar + 1}${pickedPattern === 0 ? " silent" : ` pattern ${pickedPattern}`}${sharedBars > 1 ? ` on ${sharedBars} bars` : ""}`;
+  const barsShowing = !focusView && !barsFolded && !menuOpen;
 
-  const bars = (
-    <BarRow
-      key={`bars-${songNumber}`}
-      layout={layout}
-      song={song}
-      pick={pick}
-      transport={transport}
-      onPick={setPick}
-      onChange={changeSong}
-      onAnnounce={setStatus}
-      onOpenGrid={() => grid.current?.focus()}
-      art={art}
-      showArtSlots={showArtSlots}
+  const sizeKeys = (
+    <ChoiceGroup<CellSize>
+      label="Size"
+      keyName="- ="
+      value={size}
+      options={CELL_SIZES.map((option) => ({ value: option, label: option.toUpperCase() }))}
+      onChange={setSize}
+      look={stripKey}
     />
   );
 
@@ -496,6 +507,9 @@ export function BeatBox({
           <span>Playing notes</span>
         </h3>
         <p className="text-bb-large wrap-anywhere">Computer keys play notes: {NOTE_KEY_LABELS}</p>
+        <button type="button" aria-pressed={padsShown} onClick={() => setPadsShown(!padsShown)} className={smallKey(padsShown)}>
+          Pads {padsShown ? "on" : "off"}
+        </button>
         <div role="group" aria-label="Computer keys" className="flex flex-wrap items-center gap-bb-gutter">
           <span className="text-bb-large font-bold uppercase">Octave {octave}</span>
           <button type="button" title="Key: Z" onClick={() => shiftOctave(-1)} className={smallKey()}>
@@ -520,74 +534,20 @@ export function BeatBox({
     </>
   );
 
-  // Each layout puts the menu somewhere of its own. It stays drawn while shut, so a MIDI keyboard stays connected.
-  const menuPlace =
-    layout === "strip"
-      ? "absolute inset-0 z-40 overflow-y-auto"
-      : layout === "map"
-        ? "absolute top-0 right-0 bottom-0 z-40 w-full max-w-[44rem] overflow-y-auto border-l-(length:--frame-width) border-bb-white"
-        : "h-full w-[34rem] max-w-full flex-none overflow-y-auto border-r-(length:--frame-width) border-bb-white";
-
-  const menu = (
-    <div
-      ref={menuPanel}
-      role="region"
-      aria-label="Menu"
-      tabIndex={-1}
-      hidden={!menuOpen}
-      className={`${menuPlace} ${menuOpen ? "flex" : "hidden"} flex-col items-start gap-bb-gap bg-bb-nigrosine p-bb-gutter focus:outline-none`}
-    >
-      {menuContent}
-    </div>
-  );
-
-  const noteGrid = (
-    <NoteGrid
-      key={`grid-${songNumber}-${pick.channel}`}
-      ref={grid}
-      song={song}
-      channelIndex={pick.channel}
-      bar={pick.bar}
-      size={size}
-      transport={transport}
-      shortCellNames={behaviour.shortCellNames}
-      art={art}
-      showArtSlots={showArtSlots}
-      onSizeChange={setSize}
-      onNotesChange={changeNotes}
-      onToggled={noteToggled}
-      onCursorMoved={cursorMoved}
-      onAnnounce={setStatus}
-      footKeys={
-        <>
-          <button type="button" aria-pressed={padsShown} title="Pads to play with the mouse" onClick={() => setPadsShown(!padsShown)} className={stripKey(padsShown)}>
-            Pads
-          </button>
-          {layout === "map" && (
-            <button type="button" aria-pressed={mapShown} title="The bars under the grid" onClick={() => setMapShown(!mapShown)} className={stripKey(mapShown)}>
-              Bars
-            </button>
-          )}
-        </>
-      }
-    />
-  );
-
   return (
     <div
       ref={page}
       data-theme={theme}
-      data-layout={layout}
-      className="debaser-beatbox relative flex min-h-full flex-col bg-bb-nigrosine font-beatbox text-bb-white print:bg-bb-white"
+      className="debaser-beatbox relative flex min-h-full flex-col bg-bb-nigrosine md:h-full font-beatbox text-bb-white print:bg-bb-white"
     >
       <HelpPanel open={helpOpen} onClose={() => setHelpOpen(false)} />
 
       <div className="contents print:hidden">
         <div className="contents">
-          <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only`}>
+          <button type="button" onClick={() => goToGrid("Bars for")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
             Go to the bars
           </button>
-          <button type="button" onClick={() => goToGrid("Notes")} className={`${smallKey()} sr-only focus:not-sr-only`}>
+          <button type="button" onClick={() => goToGrid("Notes")} className={`${smallKey()} sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-bb-nigrosine`}>
             Go to the notes
           </button>
         </div>
@@ -638,14 +598,46 @@ export function BeatBox({
           </div>
         </div>
 
-        <div className={`relative flex min-h-0 flex-1 ${layout === "tracker" ? "flex-row" : "flex-col"}`}>
-          {layout === "tracker" && menu}
-          {(layout === "strip" || layout === "map") && !focusView && (layout === "strip" || mapShown) && bars}
-          {layout === "tracker" && !focusView && !menuOpen && bars}
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
+          {/* The menu takes the bars' place, so the notes stay in view and answer as it's changed. It stays drawn while
+              shut, so a MIDI keyboard stays connected and a song being made into a sound file carries on. */}
+          <div className={menuOpen ? "relative flex-none md:w-[34rem] md:border-r-(length:--frame-width) md:border-bb-white" : "hidden"}>
+            <div
+              ref={menuPanel}
+              role="region"
+              aria-label="Menu"
+              tabIndex={-1}
+              className="flex flex-col items-start gap-bb-gap bg-bb-nigrosine p-bb-gutter focus:outline-none md:absolute md:inset-0 md:overflow-y-auto"
+            >
+              {menuContent}
+            </div>
+          </div>
+
+          <div className={barsShowing ? "contents" : "hidden"}>
+            <BarRow
+              key={`bars-${songNumber}`}
+              song={song}
+              pick={pick}
+              transport={transport}
+              onPick={setPick}
+              onChange={changeSong}
+              onAnnounce={setStatus}
+              onOpenGrid={() => grid.current?.focus()}
+              art={art}
+              showArtSlots={showArtSlots}
+              footKeys={barsShowing ? sizeKeys : undefined}
+            />
+          </div>
 
           <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <div className="flex flex-none flex-wrap items-baseline gap-x-bb-gutter px-2 text-bb-cell-l">
-              <p className="font-bold whitespace-nowrap text-bb-daffodil uppercase">{where}</p>
+            <div className="flex flex-none flex-wrap items-baseline gap-x-bb-gutter px-2 text-display">
+              {!barsShowing && !focusView && (
+                <p className="font-bold whitespace-nowrap text-bb-daffodil uppercase">
+                  {channelName(song, pick.channel)} bar {pick.bar + 1}
+                  {pickedPattern === 0 ? " silent" : ` pattern ${pickedPattern}`}
+                  {sharedBars > 1 ? ` on ${sharedBars} bars` : ""}
+                </p>
+              )}
               <p role="status" aria-live={behaviour.speaksStatus ? "polite" : "off"} className="wrap-anywhere">
                 {status}
               </p>
@@ -654,11 +646,33 @@ export function BeatBox({
                 {status.startsWith("Problem") ? status : ""}
               </p>
             </div>
-            {noteGrid}
+            <NoteGrid
+              key={`grid-${songNumber}-${pick.channel}`}
+              ref={grid}
+              song={song}
+              channelIndex={pick.channel}
+              bar={pick.bar}
+              size={size}
+              transport={transport}
+              shortCellNames={behaviour.shortCellNames}
+              art={art}
+              showArtSlots={showArtSlots}
+              onBarStep={barStep}
+              onNotesChange={changeNotes}
+              onToggled={noteToggled}
+              onCursorMoved={cursorMoved}
+              onAnnounce={setStatus}
+              footKeys={
+                <>
+                  {!barsShowing && sizeKeys}
+                  <button type="button" aria-pressed={!barsFolded} title="Show or hide the bars (')" onClick={toggleBars} className={stripKey(!barsFolded)}>
+                    Bars
+                  </button>
+                </>
+              }
+            />
+            {padsShown && <Pads song={song} channelIndex={pick.channel} live={live} />}
           </div>
-
-          {padsShown && <Pads song={song} channelIndex={pick.channel} live={live} />}
-          {layout !== "tracker" && menu}
         </div>
       </div>
     </div>

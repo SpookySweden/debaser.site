@@ -67,12 +67,12 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
     // and the window, `my-auto` between them, shrinks when the screen is short - so its title and its
     // taskbar are never behind either strip. With no strip drawn the spacers fall back to what the
     // padding used to keep: nothing at the top, 4rem at the foot (the folded player's key).
-    <main className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? '' : 'p-2 sm:p-4'}`}>
+    <main className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? 'p-2 sm:p-4 md:p-0' : 'p-2 sm:p-4'}`}>
       <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
       <div
         className={
           fill
-            ? 'flex min-h-0 w-full flex-1 flex-col frame bg-sun-pale'
+            ? 'my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale md:my-0 md:h-auto md:max-h-none md:min-h-0 md:w-full md:max-w-none md:flex-1'
             : 'my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale'
         }
       >

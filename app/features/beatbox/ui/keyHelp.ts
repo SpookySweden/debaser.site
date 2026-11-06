@@ -12,7 +12,10 @@ export const KEY_HELP: readonly KeyGroup[] = [
     keys: [
       ["?", "Open this help"],
       ["Space", "Play or stop, unless a button has the focus"],
-      ["Esc", "Stop"],
+      ["Esc", "Close the menu, or stop"],
+      ["/", "Open or close the menu"],
+      ["\\", "Bring back or fold away the side panel"],
+      ["'", "Show or hide the bars"],
       ["R", "Record, or stop recording and keep playing"],
       ["Ctrl+Z", "Undo. A recorded pass is one undo"],
       ["Ctrl+Y or Ctrl+Shift+Z", "Redo"],
@@ -45,11 +48,13 @@ export const KEY_HELP: readonly KeyGroup[] = [
   {
     title: "In the bars",
     keys: [
-      ["Arrow keys", "Move"],
+      ["Up and Down", "Earlier and later bar"],
+      ["Left and Right", "Another channel"],
       ["Home and End", "First and last bar"],
       ["Ctrl+Home and Ctrl+End", "First and last bar of all channels"],
-      ["Shift+Left and Shift+Right", "Pick several bars"],
+      ["Shift+Up and Shift+Down, or Shift+click", "Pick several bars"],
       ["L", "Loop the picked bars"],
+      ["F", "Put this bar's pattern on the whole loop"],
       ["0 to 9", "Set the pattern. 0 is silent"],
       ["+ and -", "Next and previous pattern"],
       ["Enter", "Go to the notes"],
@@ -58,7 +63,8 @@ export const KEY_HELP: readonly KeyGroup[] = [
   {
     title: "In the notes",
     keys: [
-      ["Arrow keys", "Move"],
+      ["Arrow keys", "Move. Off the end of a bar, on to the next"],
+      ["Ctrl+Left and Ctrl+Right", "Jump a beat"],
       ["Enter", "Turn a note on or off"],
       ["Shift+Left and Shift+Right", "Make a note shorter or longer"],
       ["Delete", "Delete a whole note or chord"],

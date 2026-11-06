@@ -264,6 +264,20 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
   );
 
 
+  if (!isOpen && foldedOnThisPage) {
+    // The one key that brings it back, as big as the rail itself.
+    return (
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Open the side panel (\\)"
+        className="hidden w-7 shrink-0 cursor-pointer items-center justify-center border-l-line border-ink bg-sun-pale text-title font-bold text-ink [writing-mode:vertical-rl] hover:bg-ink hover:text-paper md:flex"
+      >
+        [ SIDE PANEL ]
+      </button>
+    );
+  }
+
   if (!isOpen) {
     return (
       <div className="hidden w-7 shrink-0 flex-col items-center gap-2 border-l-line border-ink bg-sun-pale py-2 md:flex">

@@ -6,7 +6,7 @@ export const focusOnly =
   "focus:outline-(length:--focus-width) focus:outline-offset-(length:--focus-width) focus:outline-bb-daffodil";
 
 const pressed = "active:translate-y-(--press-drop) active:bg-bb-pink active:text-bb-black";
-const keyCore = `bb-key cursor-pointer text-bb-large font-bold uppercase whitespace-nowrap ${focusOnly} ${pressed}`;
+const keyCore = `bb-key cursor-pointer text-bb-large font-bold uppercase ${focusOnly} ${pressed}`;
 const keyShape = `${keyCore} px-bb-gutter`;
 
 // A key that's on is filled, and its label says so too, so colour isn't the only sign.
@@ -36,7 +36,12 @@ export const barMainKey = `min-h-bb-target-bar min-w-bb-target-min px-2 bg-bb-da
 
 /** A key on the strip of bars or the row under the grid. */
 export function stripKey(on = false): string {
-  return `min-h-bb-target-min min-w-bb-target-min px-1.5 cursor-pointer text-bb-cell-l font-bold uppercase whitespace-nowrap bb-key ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
+  return `min-h-bb-target-min min-w-bb-target-min px-1 cursor-pointer text-display font-bold uppercase whitespace-nowrap bb-key ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
+}
+
+/** A beat on the ruler under the grid: a bare number, filled while that beat is on screen. */
+export function rulerKey(on = false): string {
+  return `min-h-bb-target-min min-w-11 cursor-pointer text-display font-bold ${focusOnly} ${pressed} ${on ? onKey : bracketKey}`;
 }
 
 /** A section's title, set between two rules. */

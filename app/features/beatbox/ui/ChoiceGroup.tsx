@@ -23,7 +23,6 @@ export function ChoiceGroup<T extends string | number>({
   options,
   onChange,
   look = smallKey,
-  hideLabel = false,
 }: {
   label: string;
   /** The page-wide key that also changes this, shown beside the name. */
@@ -32,7 +31,6 @@ export function ChoiceGroup<T extends string | number>({
   options: readonly { readonly value: T; readonly label: string }[];
   onChange: (value: T) => void;
   look?: (on: boolean) => string;
-  hideLabel?: boolean;
 }) {
   const group = useRef<HTMLDivElement>(null);
   const chosen = options.findIndex((option) => option.value === value);
@@ -54,11 +52,9 @@ export function ChoiceGroup<T extends string | number>({
       onKeyDown={keyDown}
       className={`flex flex-wrap items-center ${look === smallKey ? "gap-bb-gutter" : "gap-1"}`}
     >
-      {!hideLabel && (
-        <span className={`font-bold uppercase ${look === smallKey ? "text-bb-large" : "text-bb-cell-l"}`} title={keyName ? `Key: ${keyName}` : undefined}>
-          {label}
-        </span>
-      )}
+      <span className={`font-bold uppercase ${look === smallKey ? "text-bb-large" : "text-display"}`} title={keyName ? `Key: ${keyName}` : undefined}>
+        {label}
+      </span>
       {options.map((option) => (
         <button
           key={String(option.value)}
