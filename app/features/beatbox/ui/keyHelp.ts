@@ -43,7 +43,7 @@ export const FIXED_KEYS: readonly KeyGroup[] = [
       ["Ctrl+Left and Ctrl+Right", "Jump a beat"],
       ["Enter", "Turn a note on or off"],
       ["Shift+Left and Shift+Right", "Make a note shorter or longer"],
-      ["Delete", "Delete a whole note or chord"],
+      ["Delete or Backspace", "Delete a whole note or chord"],
       ["Home and End", "Start and end of the row"],
       ["Ctrl+Home and Ctrl+End", "First and last cell"],
       ["Page Up and Page Down", "Up and down a screenful"],

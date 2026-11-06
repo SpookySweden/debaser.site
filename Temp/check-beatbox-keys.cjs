@@ -43,11 +43,11 @@ assert.equal(K.keyWords('Escape'), 'Esc');
 assert.equal(K.keyWords('Space'), 'Space');
 
 // Keys that can't be given a job, each saying why.
-for (const refused of ['KeyA', 'KeyL', 'KeyF', 'KeyZ', 'KeyX', ';', '5', 'Enter', 'Tab', 'ArrowUp', 'Shift+ArrowUp', 'Delete', 'PageUp', 'Home', 'F5', 'F12', 'Ctrl+KeyW', 'Ctrl+KeyT', 'Ctrl+KeyR', 'Ctrl+Shift+KeyI', 'Ctrl+5']) {
+for (const refused of ['KeyA', 'KeyL', 'KeyF', 'KeyZ', 'KeyX', ';', '5', 'Enter', 'Tab', 'ArrowUp', 'Shift+ArrowUp', 'Delete', 'Backspace', 'PageUp', 'Home', 'F5', 'F12', 'Ctrl+KeyW', 'Ctrl+KeyT', 'Ctrl+KeyR', 'Ctrl+Shift+KeyI', 'Ctrl+5']) {
   assert.ok(K.whyNot(refused), `${refused} is refused`);
 }
 assert.ok(K.whyNot('ö', 'Semicolon'), 'the piano key at the semicolon, on a keyboard where it prints something else');
-for (const allowed of ['KeyB', 'Shift+KeyA', 'Ctrl+KeyB', 'F2', 'Backspace', 'Insert', '`', 'Shift+Space']) {
+for (const allowed of ['KeyB', 'Shift+KeyA', 'Ctrl+KeyB', 'F2', 'Insert', '`', 'Shift+Space']) {
   assert.equal(K.whyNot(allowed), null, `${allowed} is allowed`);
 }
 

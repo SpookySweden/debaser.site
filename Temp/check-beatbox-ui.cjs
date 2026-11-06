@@ -1015,6 +1015,30 @@ const main = async () => {
     await context.close();
   });
 
+  await test(9, 'a pause keeps what was played for Capture, and calls off a calibration', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(1500);
+    await page.keyboard.down('a');
+    await page.waitForTimeout(150);
+    await page.keyboard.up('a');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Space');
+    await expectStatus(page, /^Paused/, 'the pause');
+    await page.keyboard.press('c');
+    await expectStatus(page, /^Captured/, 'Capture after a pause');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Shift+R');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Calibrate timing' }).click();
+    await page.getByRole('button', { name: /Calibrating/ }).waitFor({ timeout: 3000 });
+    await page.getByRole('radio', { name: /Overdub/ }).focus();
+    await page.locator(`${MAIN} button`).first().click();
+    await page.getByRole('button', { name: 'Calibrate timing' }).waitFor({ timeout: 3000 });
+    assert.equal(await page.locator(`${MAIN} button`).first().textContent(), 'Play', 'stopped, not left half done');
+    await context.close();
+  });
+
   await test(9, 'Space plays and pauses wherever the cursor is, and never presses the last key clicked', async () => {
     const { context, page } = await open(browser, 1280, 900);
     const first = page.locator(`${MAIN} button`).first();
@@ -1104,11 +1128,27 @@ const main = async () => {
     assert.match(await settings.getByRole('alert').textContent(), /A plays notes/);
     assert.equal(await shown('playPause'), 'Press a key', 'still waiting');
     await page.keyboard.press('Enter');
-    assert.match(await settings.getByRole('alert').textContent(), /Enter moves around/);
+    assert.match(await settings.getByRole('alert').textContent(), /Enter works the notes/);
     await page.keyboard.press('Escape');
     await page.waitForTimeout(80);
     assert.equal(await shown('playPause'), 'Space', 'Esc leaves it');
     assert.equal(await page.getByRole('dialog', { name: 'Settings' }).isVisible(), true, 'and the window open');
+
+    // Waiting for a key ends when the window shuts, or a press lands elsewhere, so no key is swallowed.
+    await change('playPause');
+    await settings.getByRole('button', { name: 'Close Settings', exact: true }).click();
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Space');
+    await page.waitForTimeout(150);
+    assert.equal(await first.textContent(), 'Pause', 'Space plays once the window is shut');
+    await page.keyboard.press('Space');
+    await page.keyboard.press('/');
+    await page.waitForTimeout(150);
+    assert.equal(await shown('playPause'), 'Space', 'and nothing was given a new key');
+    await change('playPause');
+    await page.locator(`${MAIN} button`).nth(1).click();
+    await page.waitForTimeout(80);
+    assert.equal(await shown('playPause'), 'Space', 'a press elsewhere leaves it too');
 
     // A free key.
     await change('playPause');

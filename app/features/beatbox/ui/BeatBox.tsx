@@ -30,6 +30,7 @@ import {
   strokeOf,
   type Bindings,
   type KeyAction,
+  type KeyStorage,
 } from "./keyBindings";
 import { KeysPanel } from "./KeysPanel";
 import { createLiveNotes } from "./liveNotes";
@@ -69,15 +70,6 @@ function ariaKeys(stroke: string): string {
   return stroke.replace("Ctrl+", "Control+").replace(/Key([A-Z])$/, "$1");
 }
 
-/** This browser's storage, or nothing where it isn't allowed. */
-function browserStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
 function startingTheme(): BeatBoxTheme {
   return window.matchMedia?.("(prefers-contrast: more)").matches ? "high-contrast" : "default";
 }
@@ -100,6 +92,8 @@ export interface BeatBoxProps {
   showArtSlots?: boolean;
   /** The one key that brings the page's side panel back, or folds it again. */
   onTogglePanel?: () => void;
+  /** Where the changed keys and the windows' places are remembered. Without it they last until the page closes. */
+  memory?: KeyStorage | null;
 }
 
 const NO_ART: BeatBoxArt = {};
@@ -114,6 +108,7 @@ export function BeatBox({
   art = NO_ART,
   showArtSlots = false,
   onTogglePanel,
+  memory = null,
 }: BeatBoxProps = {}) {
   const [status, setStatus] = useState("Stopped.");
   // All one starter: React runs starters twice while developing, and a spare set
@@ -140,8 +135,8 @@ export function BeatBox({
   const [padsShown, setPadsShown] = useState(false);
   const [barsFolded, setBarsFolded] = useState(false);
   const [looping, setLooping] = useState(true);
-  const [bindings, setBindings] = useState<Bindings>(() => loadBindings(browserStorage()));
-  const [windows] = useState(() => createWindowStore(browserStorage()));
+  const [bindings, setBindings] = useState<Bindings>(() => loadBindings(memory));
+  const [windows] = useState(() => createWindowStore(memory));
   const openWindows = useSyncExternalStore(windows.subscribe, windows.getOpen);
   const [room, roomWidth, roomHeight] = useElementSize();
   const grid = useRef<NoteGridHandle>(null);
@@ -181,8 +176,7 @@ export function BeatBox({
   }, [session]);
 
   function pause() {
-    if (session.getSettings().recording) session.toggleRecord();
-    transport.pause();
+    session.pausePlayback();
     pausedOnBar.current = pick.bar;
     setStatus(transport.isPaused() ? "Paused. Play carries on from here, Stop goes back." : "Stopped.");
   }
@@ -205,7 +199,7 @@ export function BeatBox({
   }
 
   function capture() {
-    if (looping) session.capture();
+    if (keepLooping) session.capture();
     else setStatus("Capture needs the loop on, so turn it on and play it round.");
   }
 
@@ -295,7 +289,7 @@ export function BeatBox({
 
   function changeBindings(next: Bindings) {
     setBindings(next);
-    saveBindings(browserStorage(), next);
+    saveBindings(memory, next);
   }
 
   function resetBindings() {
@@ -737,7 +731,7 @@ export function BeatBox({
                   </button>
                 </div>
               </section>
-              <KeysPanel bindings={bindings} onChange={changeBindings} onReset={resetBindings} onAnnounce={setStatus} />
+              <KeysPanel open={openWindows.includes("settings")} bindings={bindings} onChange={changeBindings} onReset={resetBindings} onAnnounce={setStatus} />
             </PopWindow>
           </div>
 

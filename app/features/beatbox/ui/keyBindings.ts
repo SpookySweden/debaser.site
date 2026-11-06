@@ -145,7 +145,7 @@ export function actionLabel(action: KeyAction): string {
   return ALL_ACTIONS.find(({ id }) => id === action)?.label ?? action;
 }
 
-const MOVING_KEYS = new Set(["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown", "Delete"]);
+const MOVING_KEYS = new Set(["Enter", "Tab", "ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown", "Delete", "Backspace"]);
 const BROWSER_KEYS = new Set(["F1", "F3", "F5", "F6", "F7", "F10", "F11", "F12"]);
 // The letters that do something in a browser with Ctrl held, some of which a page can't even stop.
 const BROWSER_CTRL_LETTERS = new Set(["A", "C", "D", "F", "H", "J", "K", "L", "N", "O", "P", "R", "S", "T", "U", "V", "W", "X"]);
@@ -156,7 +156,7 @@ export function whyNot(stroke: string, code = ""): string | null {
   const ctrl = stroke.startsWith("Ctrl+");
   const shift = stroke.includes("Shift+");
   const words = keyWords(stroke);
-  if (MOVING_KEYS.has(base)) return `${words} moves around the notes and bars, so it can't be changed.`;
+  if (MOVING_KEYS.has(base)) return `${words} works the notes and bars, so it can't be changed.`;
   if (BROWSER_KEYS.has(base)) return `${words} belongs to your browser.`;
   if (ctrl) {
     const letter = /^Key([A-Z])$/.exec(base)?.[1];

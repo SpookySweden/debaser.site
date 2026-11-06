@@ -17,11 +17,14 @@ import { smallKey, titleLine } from "./looks";
 
 /** Every key, what it does, and a way to change it. */
 export function KeysPanel({
+  open,
   bindings,
   onChange,
   onReset,
   onAnnounce,
 }: {
+  /** Is the window it's in open? Shut, it stops waiting for a key: nothing else on the page could use one otherwise. */
+  open: boolean;
   bindings: Bindings;
   onChange: (bindings: Bindings) => void;
   onReset: () => void;
@@ -34,9 +37,27 @@ export function KeysPanel({
   const backTo = useRef<KeyAction | null>(null);
   const row = useRef<HTMLDivElement>(null);
 
+  if (!open && (listening || clash)) {
+    setListening(null);
+    setClash(null);
+    setRefusal("");
+  }
+
   useEffect(() => {
     if (!listening) return;
     const action = listening;
+
+    function giveUp() {
+      backTo.current = null;
+      setListening(null);
+      setRefusal("");
+    }
+
+    // A press anywhere but its own key means they've moved on.
+    function pressElsewhere(event: PointerEvent) {
+      if (event.target instanceof Element && event.target.closest(`[data-change-key="${action}"]`)) return;
+      giveUp();
+    }
 
     function press(event: KeyboardEvent) {
       // First in line, so a pressed key is only an answer: it plays nothing and does nothing else.
@@ -79,9 +100,13 @@ export function KeysPanel({
 
     document.addEventListener("keydown", press, true);
     document.addEventListener("keyup", letGo, true);
+    document.addEventListener("pointerdown", pressElsewhere, true);
+    window.addEventListener("blur", giveUp);
     return () => {
       document.removeEventListener("keydown", press, true);
       document.removeEventListener("keyup", letGo, true);
+      document.removeEventListener("pointerdown", pressElsewhere, true);
+      window.removeEventListener("blur", giveUp);
     };
   }, [listening, bindings, onChange, onAnnounce]);
 
