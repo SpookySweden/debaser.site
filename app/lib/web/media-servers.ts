@@ -12,8 +12,8 @@
  * - `base`: the server's https address, nothing after the host. Every list, picture and player address the
  *   site uses for this server must be on this host; anything else in its list file is dropped.
  * - `listPath`: `'*'`, the usual choice since 2026-11-07 (Luke: no list needed, and no waiting for the hourly update): the server plays
- *   any title by its TMDB number, so every film or show a /media search finds on TMDB gets a button for it at once (wildcard-search.ts). A
- *   button doesn't know the server holds that title, so its own player has to say if not. Or the path of a list file on that host, for
+ *   any title by its TMDB number, so every film or show a /media search finds on TMDB gets a button for it at once (wildcard-search.ts). Each
+ *   server is asked first, and a 404 from its player page means no button. Or the path of a list file on that host, for
  *   a server that lists what it holds: that shows only those titles, and also its own videos TMDB doesn't know, after the next hourly update.
  * - `play`: the server's player page for a film, an episode of a show, (optional) a whole show, and (optional)
  *   one of its own videos with no TMDB number. `{tmdb}`, `{season}`, `{episode}` and `{id}` are filled in with

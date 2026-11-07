@@ -22,6 +22,7 @@ One copy per friend. Their side of it, with the details, is `docs/media-server-s
 - [ ] It is a server they run, not a public film-lookup site.
 - [ ] Each show in their list is either one line per episode, or one line for the whole show (their player then needs to answer every episode).
 - [ ] Their player pages send the frame line in step 4 of `docs/media-server-setup.md`.
+- [ ] Their player pages answer 404 for a title they don't have, or a button shows for it anyway.
 - [ ] Their player starts inside a sandbox. If it won't, tick here and the sandbox gets turned off for that server alone: ___
 
 **Then:** give this to Claude, or put it in the Debaser Servers program on the desktop. The program's TEST button checks the list and the

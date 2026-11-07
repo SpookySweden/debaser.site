@@ -10,7 +10,7 @@ This is for servers you and your friends run. Public film-lookup sites aren't ad
 ## What your server needs
 
 1. **An https address**, e.g. `https://media.yourname.xyz`. Plain http isn't read.
-2. **A list file, only if you want one.** Without one, every film and show someone finds on the MEDIA page gets a button for your server, straight away, and your player gets the TMDB number: it has to answer properly when you don't have that title. With one, only what you list shows, plus your own videos TMDB doesn't know, after the next hourly update. It sits at a fixed address on that same host, e.g. `https://media.yourname.xyz/debaser/list.json`.
+2. **A list file, only if you want one.** Without one, the site asks your player page about each film and show someone finds on the MEDIA page, by its TMDB number, and shows a button for your server straight away if you have it. **Your player page must answer 404 for a title you don't have**: any other answer counts as having it. With one, only what you list shows, plus your own videos TMDB doesn't know, after the next hourly update. It sits at a fixed address on that same host, e.g. `https://media.yourname.xyz/debaser/list.json`.
    A JSON array, one entry per film and, for a show, one per episode or one for the whole show:
 
    ```json
