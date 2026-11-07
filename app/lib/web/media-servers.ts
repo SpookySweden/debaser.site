@@ -52,7 +52,7 @@ export type MediaServer = {
 // `isMediaServerId` at run time.
 export const MEDIA_SERVERS: readonly MediaServer[] = [
   // SERVERS-START
-  // (Placeholder slots)
+  { id: 'movies_and_tv', label: 'MOVIES AND TV', base: 'https://www.2embed.cc', listPath: '*', play: { movie: '/embed/{tmdb}', tv: '/embedtv/{tmdb}&s={season}&e={episode}', other: '/debaser/play/item/{id}' }, unsandboxed: true },
 // SERVERS-END
 ];
 
