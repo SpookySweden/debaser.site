@@ -8,7 +8,7 @@ It lists 13 decisions. Luke said to take its recommendations and ask him the big
 | 1 | Private room with no password | The link is the key | Plan's recommendation |
 | 2 | Latecomers | Anyone who joins sees the whole stream | Plan's recommendation |
 | 3 | Removed people | They lose access to that stream's record too | Plan's recommendation |
-| 4 | Directory for new accounts | Listed, with lamp, listening and comments off | Plan's recommendation |
+| 4 | Directory for new accounts | Listed, with listening and comments off, and the online lamp **on** (Luke changed this on 2026-11-07: "if that is due to a privacy default, change the default"; it was off until then) | Plan's recommendation, then Luke's |
 | 5 | Names on the board for signed-out visitors and search engines | ANON tags | **Luke chose** |
 | 6 | Guests | Can join, talk, draw and reply; starting a stream or board thread needs an account | Plan's recommendation |
 | 7 | Idle guests after 30 days | The guest goes, its posts stay as FORMER GUEST | Plan's recommendation |
