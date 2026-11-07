@@ -51,6 +51,8 @@ async function up() {
     assert.ok(await up(), `nothing is serving ${BASE}/account (run npm run build first)`);
 
     const page = await browser.newPage();
+    // Signed-out pages open the lost-account window (LostAccountWindow.tsx), which this check is not about.
+    await page.addInitScript(() => window.localStorage.setItem('debaser.lost-account.never.v1', '1'));
     let signUpCalls = 0;
 
     // The reply GoTrue sends when confirmation is required: the user, and no access token - so

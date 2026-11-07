@@ -35,6 +35,8 @@ async function up() {
   try {
     assert.ok(await up(), `nothing is serving ${BASE}/forum (run npm run build first)`);
     const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    // Signed-out pages open the lost-account window (LostAccountWindow.tsx), which this check is not about.
+    await context.addInitScript(() => window.localStorage.setItem('debaser.lost-account.never.v1', '1'));
     const page = await context.newPage();
     await page.goto(`${BASE}/forum`, { waitUntil: 'domcontentloaded' });
     const nav = page.getByRole('navigation', { name: 'Modules' });
