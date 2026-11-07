@@ -1,4 +1,5 @@
 import { isAuthRetryableFetchError } from '@supabase/supabase-js';
+import { rememberLostAccount } from './lost-account';
 import { getSupabaseBrowserClient, supabaseAuthStorageKey } from '../supabase/client';
 import { resolveSignInAddress } from './builtin-account';
 import { describeSignUpFailure } from './failure-messages';
@@ -146,8 +147,14 @@ class SupabaseAuthRepository implements AuthRepository {
       password: input.password,
     });
 
-    // Said to everybody, whatever they typed, so it never tells anyone which addresses had an account.
     if (error?.code === 'invalid_credentials') {
+      // An old address, waiting to come back: the window asks for a new password. Anything failing here just leaves the words below.
+      const address = resolveSignInAddress(input.email);
+      const { data: name } = await this.client().rpc('lost_account_name', { mail: address });
+      if (typeof name === 'string' && name.length > 0) {
+        rememberLostAccount({ email: address.trim().toLowerCase(), name });
+        return { ok: false, error: 'THIS ACCOUNT NEEDS A NEW PASSWORD. SET ONE IN THE WINDOW.' };
+      }
       return { ok: false, error: 'WRONG ADDRESS OR PASSWORD. EVERY ACCOUNT WAS LOST ON 6 NOVEMBER: IF YOU HAD ONE, SIGN UP AGAIN WITH THE SAME ADDRESS AND IT COMES BACK.' };
     }
     if (error !== null) return { ok: false, error: error.message.toUpperCase() };
