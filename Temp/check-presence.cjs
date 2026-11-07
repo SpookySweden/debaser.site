@@ -140,6 +140,16 @@ assert.equal(
   assert.match(lamps[1], /aria-label="AWAY"/);
   assert.match(lamps[2], /background-color:#e6004c/, 'rose means offline');
   assert.match(lamps[0], /aria-label="ONLINE NOW"/);
+
+  // A private lamp (Luke, 2026-11-07): a plain box of the same size, with a spoken name that says nothing about whether they are here.
+  const box = renderToStaticMarkup(element(StatusDot, { status: 'private', size: 8 }));
+  assert.match(box, /aria-label="ONLINE LAMP PRIVATE"/, 'it has a spoken name');
+  assert.doesNotMatch(box, /ONLINE NOW|AWAY|OFFLINE|LAST ONLINE/, 'and tells nobody whether they are online');
+  assert.match(box, /bg-hardware/, 'a filled box from the tokens');
+  assert.match(box, /border-ink\b/, 'with an outline in the field ink, so it shows on a dark bar');
+  assert.match(box, /width:8px;height:8px/, 'the same size as a lamp');
+  assert.match(lamps[0], /width:8px;height:8px/, 'so it moves nothing');
+  assert.doesNotMatch(box, /background-color/, 'and carries no status colour');
   assert.match(lamps[2], /title="NEVER SEEN"/, 'a red lamp nobody has ever heard from says so');
 
   const tree = (child) => renderToStaticMarkup(element(AuthProvider, null, element(PresenceProvider, null, child)));

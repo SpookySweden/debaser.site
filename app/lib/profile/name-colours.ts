@@ -52,10 +52,25 @@ export const NAME_COLOURS: NameColour[] = [
   { id: 'nigrosine', label: 'NIGROSINE', hex: '#1a1525', dark: '#e1ff00', darkLabel: 'FLAVINE' },
   { id: 'royal-blue', label: 'ROYAL BLUE', hex: '#1d3ca6', dark: '#fff000', darkLabel: 'DAFFODIL' },
   { id: 'emerald', label: 'EMERALD', hex: '#28c745', dark: '#28c745' },
-  { id: 'rose', label: 'ROSE', hex: '#e6004c', dark: '#ff00a0', darkLabel: 'BRILLIANT PINK' },
+  // A lighter shade of itself where the field is dark: Rose is 3.79:1 on Nigrosine and 4.47:1 on the Black strip.
+  { id: 'rose', label: 'ROSE', hex: '#e6004c', dark: '#ff4d7a' },
   { id: 'brilliant-pink', label: 'BRILLIANT PINK', hex: '#ff00a0', dark: '#ff00a0' },
   { id: 'flavine', label: 'FLAVINE', hex: '#e1ff00', dark: '#e1ff00' },
   { id: 'daffodil', label: 'DAFFODIL YELLOW', hex: '#fff000', dark: '#fff000' },
+  /*
+   * The second batch (Luke, 2026-11-07: "create more username colours ... every option has adaptability to themes even
+   * if it changes the colour"). Each is one hue in two shades, a deep one for the bright themes and a light one for the
+   * dark themes, so the same name fits both. Added at the end, and the stored values above stay as they are.
+   */
+  { id: 'red', label: 'RED', hex: '#960d0d', dark: '#ff6b6b' },
+  { id: 'orange', label: 'ORANGE', hex: '#7d3400', dark: '#ff9368' },
+  { id: 'gold', label: 'GOLD', hex: '#5f4600', dark: '#ffc83d' },
+  { id: 'brown', label: 'BROWN', hex: '#5c3a1a', dark: '#d9a066' },
+  { id: 'green', label: 'GREEN', hex: '#0a5519', dark: '#67dca9' },
+  { id: 'teal', label: 'TEAL', hex: '#005050', dark: '#4fe0d8' },
+  { id: 'sky', label: 'SKY', hex: '#004a85', dark: '#6fc3ff' },
+  { id: 'violet', label: 'VIOLET', hex: '#5a189a', dark: '#c9a0ff' },
+  { id: 'orchid', label: 'ORCHID', hex: '#7d1f76', dark: '#f08cdf' },
 ];
 
 /** The default: usernames are drawn in the page's own black. */
@@ -180,7 +195,7 @@ export function nameColourWords(hex: string): string {
 /**
  * Whether a name in this colour wears the dark strip on a bright theme (Luke, 2026-11-06): the GLOW colours, which
  * would otherwise fade into the window, sit on a strip of `--color-hardware` (`.name-strip` in globals.css). The strip is
- * a piece of dark field, so they take their dark reading on it: only Rose changes, because Rose on Black is 4.47:1.
+ * a piece of dark field, so they take their dark reading on it.
  */
 export function nameColourWearsStrip(hex: string): boolean {
   return NAME_COLOURS_THAT_GLOW.some((colour) => colour.hex === hex);

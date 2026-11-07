@@ -52,7 +52,7 @@ export default function ProfileStatusBar({ userId }: ProfileStatusBarProps) {
           height={24}
           title="A pixel sprite loops here once assets/sprites/profile.gif is drawn"
         />
-        {presence.noLamp ? null : <StatusDot status={presence.status ?? 'offline'} record={presence.record} />}
+        {presence.lampPrivate ? <StatusDot status="private" /> : presence.noLamp ? null : <StatusDot status={presence.status ?? 'offline'} record={presence.record} />}
         {/* The server and the browser read the clock at render and agree to the second, and the label
             is minute-resolution, so the only way the two can differ is a request that crosses a
             minute - which is what this suppresses (see lib/ui/use-now.ts). */}

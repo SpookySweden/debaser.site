@@ -178,7 +178,8 @@ for (const file of fs.readdirSync('app/components')) {
 
 // 6. A dialogue nobody is standing in lets Tab walk into the page behind it.
 const popout = codeOf('app/components/PopoutWindow.tsx');
-assert.match(popout, /windowRef\.current\?\.focus\(\)/, 'a pop-up takes focus as it opens');
+// (Changed on purpose, 2026-11-07.) The old line was asked for by text and passed while the focus call ran before the window existed, so it did nothing. It now runs once `host` is set.
+assert.match(popout, /const node = windowRef\.current;\s*if \(host !== null && node !== null[^\n]*node\.focus\(\);\s*\}, \[host\]\);/, 'a pop-up takes focus as it opens');
 assert.match(popout, /tabIndex=\{-1\}/, 'because the window itself is focusable');
 assert.match(popout, /aria-label="Close window"/, 'and the close control has a name of its own');
 

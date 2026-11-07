@@ -6,6 +6,7 @@ import { avatarVersionsNewestFirst, commentCountForVersion, currentAvatarVersion
 import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import ProfileAvatar from './ProfileAvatar';
 import { CUSTOMISER_NOTE } from './ProfileCustomiserOptionsTabs';
+import ProfilePictureSearch from './ProfilePictureSearch';
 import SheetImage from './SheetImage';
 import TimeStamp from './TimeStamp';
 import { displayCrop, versionCrop } from '../lib/profile/avatar-crop';
@@ -148,6 +149,8 @@ export default function ProfileCustomiserPictureTab({
             ))}
           </ul>
         )}
+
+        <ProfilePictureSearch pendingSrc={pendingSrc} onSelectSrc={onSelectSrc} />
 
         <label className={`${CUSTOMISER_NOTE} mt-3 block`} htmlFor="customise-note">
           NOTE

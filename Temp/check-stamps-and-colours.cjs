@@ -1,7 +1,7 @@
 /*
  * Scratch check for the stamps and the username swatch (run from the root):
  *   npx tsc app/lib/forum/format.ts app/lib/profile/name-colours.ts app/lib/profile/visibility.ts app/lib/profile/mock-profile-repository.ts --outDir Temp/check-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop
- *   npx tsc app/components/TimeStamp.tsx app/components/PostAuthorRow.tsx app/components/ProfileCustomiserOptionsTabs.tsx --outDir Temp/render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/TimeStamp.tsx app/components/PostAuthorRow.tsx app/components/ProfileCustomiserOptionsTabs.tsx app/components/NameColourWindow.tsx --outDir Temp/render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-stamps-and-colours.cjs
  */
 const assert = require('node:assert/strict');
@@ -61,8 +61,8 @@ assert.equal(formatStamp('   '), '--:--');
 assert.match(renderToStaticMarkup(element(TimeStamp, { at: undefined })), /--:--/);
 
 // 2. The swatch: the eight dyes, no duplicates, and only those.
-assert.equal(NAME_COLOURS.length, 8);
-assert.equal(new Set(NAME_COLOURS.map((colour) => colour.hex)).size, 8, 'every dye is distinct');
+assert.equal(NAME_COLOURS.length, 17, 'the eight dyes and nine more (Luke, 2026-11-07)');
+assert.equal(new Set(NAME_COLOURS.map((colour) => colour.hex)).size, 17, 'every colour is distinct');
 assert.equal(NAME_COLOURS[0].hex, '#000000');
 assert.equal(NAME_COLOURS[7].hex, '#fff000');
 assert.equal(isNameColour('#ff00a0'), true, 'Brilliant Pink is on the swatch');
@@ -164,23 +164,31 @@ assert.equal(typeof validateNameColour('#123456'), 'string', 'off-swatch colours
       statusProblem: undefined,
     }),
   );
-  // (Changed on purpose, Luke 2026-11-06: "make the username colour swatches better and more legible".) The chips
-  // became rows: the eight dyes and the site colour, each with a tick, a block, its honest name and the reader's own name.
-  assert.equal((tabHtml.match(/aria-pressed/g) ?? []).length, 9, 'the picker shows the eight dyes and the way back to none');
-  assert.equal((tabHtml.match(/aria-pressed="true"/g) ?? []).length, 1, 'with one picked');
-  assert.match(tabHtml, /<button[^>]*aria-pressed="true"[^>]*aria-label="DAFFODIL YELLOW"[^>]*>(?:(?!<\/button>)[\s\S])*\[ ✓ \]/, 'marked by a tick, not by colour alone');
-  assert.equal((tabHtml.match(/\[ ✓ \]/g) ?? []).length, 1, 'and only the picked one has it');
-  assert.match(tabHtml, /aria-label="SITE COLOUR"/, 'the site colour is a choice, so a colour can be taken off again');
-  assert.match(tabHtml, /aria-label="BLACK \/ WHITE"/, 'a dye that draws two colours says both');
-  assert.match(tabHtml, />READS ON ITS OWN<\/p>/, 'the readable dyes are one group');
-  assert.match(tabHtml, />DARK STRIP ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
-  assert.doesNotMatch(tabHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
-  assert.equal((tabHtml.match(/>sweden<\/span>/g) ?? []).length, 9 + 5, 'the reader own name beside each choice and on all five themes');
-  assert.equal((tabHtml.match(/HARD TO READ/g) ?? []).length, 0, 'with the strip, Daffodil reads on every theme (Luke, 2026-11-06)');
+  // (Changed on purpose, Luke 2026-11-07: "make the username colour chooser a pop up that opens when you click change colour
+  // next to where you input your profile name".) The tab has the key and the name as it stands; the rows are in the window.
+  assert.match(tabHtml, /\[ CHANGE COLOUR \]/, 'the key is in the tab');
+  assert.ok(tabHtml.indexOf('[ CHANGE COLOUR ]') > tabHtml.indexOf('id="customise-name"') && tabHtml.indexOf('[ CHANGE COLOUR ]') < tabHtml.indexOf('id="customise-country"'), 'next to the name field');
+  assert.match(tabHtml, /aria-haspopup="dialog"/, 'and says it opens a window');
+  assert.doesNotMatch(tabHtml, /aria-pressed/, 'the swatches are not in the tab any more');
+  assert.match(tabHtml, /DAFFODIL YELLOW/, 'but the colour in force is named');
   assert.doesNotMatch(tabHtml, /\[ SAVE \]/, 'the save key is in the window foot now, not here');
 
-  const blackHtml = renderToStaticMarkup(element(ProfileIdentityTab, { profile: { displayName: 'sweden' }, name: 'sweden', bio: '', country: '', status: '', nameColour: '#000000', onNameChange: () => undefined, onBioChange: () => undefined, onCountryChange: () => undefined, onStatusChange: () => undefined, onNameColourChange: () => undefined, bioProblem: undefined, countryProblem: undefined, statusProblem: undefined }));
-  assert.doesNotMatch(blackHtml, /HARD TO READ/, 'a colour that reads everywhere carries no warning');
+  const { NameColourChooser } = require('./render-out/components/NameColourWindow.js');
+  const chooser = (hex) => renderToStaticMarkup(element(NameColourChooser, { hex, sample: 'sweden', onChoose: () => undefined }));
+  const chooserHtml = chooser('#fff000');
+  assert.equal((chooserHtml.match(/aria-pressed/g) ?? []).length, 18, 'the seventeen colours and the way back to none');
+  assert.equal((chooserHtml.match(/aria-pressed="true"/g) ?? []).length, 1, 'with one picked');
+  assert.match(chooserHtml, /color:#fff000/, 'and previews the chosen dye');
+  assert.match(chooserHtml, /<button[^>]*aria-pressed="true"[^>]*aria-label="DAFFODIL YELLOW"[^>]*>(?:(?!<\/button>)[\s\S])*\[ ✓ \]/, 'marked by a tick, not by colour alone');
+  assert.equal((chooserHtml.match(/\[ ✓ \]/g) ?? []).length, 1, 'and only the picked one has it');
+  assert.match(chooserHtml, /aria-label="SITE COLOUR"/, 'the site colour is a choice, so a colour can be taken off again');
+  assert.match(chooserHtml, /aria-label="BLACK \/ WHITE"/, 'a dye that draws two colours says both');
+  assert.match(chooserHtml, /aria-label="TEAL"/, 'and the new colours are there');
+  assert.match(chooserHtml, />READS ON ITS OWN<\/p>/, 'the readable colours are one group');
+  assert.match(chooserHtml, />DARK STRIP ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
+  assert.doesNotMatch(chooserHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
+  assert.equal((chooserHtml.match(/>sweden<\/span>/g) ?? []).length, 18 + 5, 'the reader own name beside each choice and on all five themes');
+  for (const colour of NAME_COLOURS) assert.doesNotMatch(chooser(colour.hex), /HARD TO READ/, colour.label + ' reads on every theme, so nothing warns');
 
   console.log('stamp + swatch checks passed');
   console.log('  stamp  :', formatStamp('2026-09-21T04:39:52.000Z'), '->', "text-[#0000ff]");

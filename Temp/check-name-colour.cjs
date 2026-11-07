@@ -162,7 +162,7 @@ for (const swatch of NAME_COLOURS_THAT_READ) {
 
 assert.deepEqual(
   NAME_COLOURS_THAT_READ.map((swatch) => swatch.id),
-  ['black', 'nigrosine', 'royal-blue'],
+  ['black', 'nigrosine', 'royal-blue', 'red', 'orange', 'gold', 'brown', 'green', 'teal', 'sky', 'violet', 'orchid'],
   'the INK row is the three dyes that read wherever the field is, each restated in the dark theme',
 );
 
@@ -173,18 +173,19 @@ const { moduleSwatches, moduleInk } = require('./name-colour-render/lib/ui/modul
 
 assert.deepEqual(
   NAME_COLOURS.map((swatch) => swatch.id),
-  ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose', 'brilliant-pink', 'flavine', 'daffodil'],
+  ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose', 'brilliant-pink', 'flavine', 'daffodil', 'red', 'orange', 'gold', 'brown', 'green', 'teal', 'sky', 'violet', 'orchid'],
   'the stored ids have not moved: user_modules holds them',
 );
 assert.deepEqual(
-  NAME_COLOURS.map((swatch) => swatch.hex),
+  NAME_COLOURS.slice(0, 8).map((swatch) => swatch.hex),
   ['#000000', '#1a1525', '#1d3ca6', '#28c745', '#e6004c', '#ff00a0', '#e1ff00', '#fff000'],
   'nor have the stored values: profiles hold those',
 );
 for (const swatch of NAME_COLOURS) {
   const named = NAME_COLOURS.find((other) => other.hex === swatch.dark);
-  if (swatch.dark === swatch.hex) assert.equal(nameColourPairLabel(swatch), swatch.label, swatch.label + ' draws one colour, and has one name');
-  else assert.ok(swatch.darkLabel && nameColourPairLabel(swatch).startsWith(swatch.label + ' / '), swatch.label + ' draws two colours, and names both');
+  // Two different colours name both; two shades of one hue are one name (Rose and the second batch).
+  if (swatch.darkLabel === undefined) assert.equal(nameColourPairLabel(swatch), swatch.label, swatch.label + ' has one name');
+  else assert.ok(nameColourPairLabel(swatch).startsWith(swatch.label + ' / '), swatch.label + ' draws two colours, and names both');
   if (swatch.darkLabel && named) assert.ok(named.label.startsWith(swatch.darkLabel), swatch.label + ' second name is the colour it draws');
 }
 assert.equal(nameColourWords(''), 'SITE COLOUR');
@@ -207,6 +208,18 @@ for (const swatch of NAME_COLOURS) {
     assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label + ': ' + contrastRatio(theme.value, theme.strip ?? theme.field).toFixed(2) + ':1');
   }
 }
+// All seventeen, on both surfaces a name is read on, in all five themes: the real values, not by eye.
+for (const swatch of NAME_COLOURS) {
+  for (const theme of THEMES) {
+    const value = theme.scheme === 'dark' || nameColourWearsStrip(swatch.hex) ? swatch.dark : swatch.hex;
+    const fields = theme.scheme === 'light' && nameColourWearsStrip(swatch.hex) ? [theme.tokens.hardware] : [theme.tokens['sun-pale'], theme.tokens.paper];
+    for (const field of fields) {
+      const ratio = contrastRatio(value, field);
+      assert.ok(ratio >= 4.5, swatch.label + ' on ' + theme.label + ' (' + field + '): ' + ratio.toFixed(2) + ':1');
+    }
+  }
+}
+assert.ok(nameOnThemes('#e6004c').every((theme, index) => theme.value !== nameOnThemes('#ff00a0')[index].value), 'Rose is its own colour again on every theme');
 for (const swatch of NAME_COLOURS) {
   assert.equal(nameColourWearsStrip(swatch.hex), !NAME_COLOURS_THAT_READ.includes(swatch), swatch.label + ' wears the strip only if it would fade');
   for (const theme of nameOnThemes(swatch.hex)) {
@@ -233,10 +246,15 @@ const darkBar = THEMES.find((theme) => theme.id === 'dark').tokens['sun-pale'];
 const offered = moduleSwatches(darkBar, undefined);
 assert.deepEqual(
   offered.map((swatch) => swatch.label),
-  ['WHITE', 'FLAVINE', 'DAFFODIL', 'EMERALD', 'BRILLIANT PINK'],
+  ['WHITE', 'FLAVINE', 'DAFFODIL', 'EMERALD', 'ROSE', 'BRILLIANT PINK', 'RED', 'ORANGE', 'GOLD', 'BROWN', 'GREEN', 'TEAL', 'SKY', 'VIOLET', 'ORCHID'],
   'on the dark bar each swatch is named for what it draws',
 );
-assert.deepEqual(offered.map((swatch) => swatch.id), ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose'], 'and still stores the same ids');
+assert.deepEqual(offered.slice(0, 5).map((swatch) => swatch.id), ['black', 'nigrosine', 'royal-blue', 'emerald', 'rose'], 'and still stores the same ids');
+for (const theme of THEMES) {
+  const bar = theme.tokens['sun-pale'];
+  for (const swatch of moduleSwatches(bar, undefined)) assert.ok(contrastRatio(swatch.ink, bar) >= 4.5, swatch.label + ' reads on the ' + theme.label + ' bar');
+  assert.ok(moduleSwatches(bar, undefined).some((swatch) => swatch.id === 'teal'), 'and the new colours reach MODULOS on ' + theme.label);
+}
 assert.equal(moduleInk('black', darkBar), '#ffffff');
 const brightBar = THEMES.find((theme) => theme.id === 'default').tokens['sun-pale'];
 assert.equal(moduleSwatches(brightBar, undefined)[0].label, 'BLACK', 'and BLACK where it draws black');

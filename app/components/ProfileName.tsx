@@ -49,7 +49,7 @@ type ProfileNameProps = {
  */
 export default function ProfileName({ author, children, className, colour, lamp = true, flag = true }: ProfileNameProps) {
   const { profile } = usePublicProfile(author.id);
-  const { status, record } = usePresence(author.id);
+  const { status, record, noLamp, lampPrivate } = usePresence(author.id);
   const chosen = colour !== undefined && colour.length > 0 ? colour : profileNameColour(profile);
   // The house account is the archive's byline rather than somebody who steps away,
   // so `showsPresenceLamp` keeps the dot off it - see ./builtin-account.ts.
@@ -73,6 +73,9 @@ export default function ProfileName({ author, children, className, colour, lamp 
   return (
     <span className={classes} style={ink}>
       {showsLamp && status !== undefined ? <StatusDot status={status} record={record} className="mr-1" /> : null}
+      {showsLamp && lampPrivate ? <StatusDot status="private" className="mr-1" /> : null}
+      {/* Still being read: the lamp's room, kept empty, so the name doesn't jump when the answer comes. */}
+      {showsLamp && status === undefined && !lampPrivate && !noLamp ? <StatusDot status="private" className="invisible mr-1" /> : null}
       {children ?? authorLabel(author)}
       {flag && profile.country.length > 0 ? (
         <span className="ml-1 inline-flex align-middle">

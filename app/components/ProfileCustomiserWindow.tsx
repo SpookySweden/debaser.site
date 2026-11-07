@@ -19,6 +19,7 @@ import {
 } from '../lib/profile/unsaved-changes';
 import { useBenchFigure, useCharacterStore, useKeptFigure } from '../lib/character/store';
 import { useAuth } from './AuthProvider';
+import NameColourWindow from './NameColourWindow';
 import PopoutWindow from './PopoutWindow';
 import UnsavedPrompt from './UnsavedPrompt';
 import { ProfileIdentityTab } from './ProfileCustomiserOptionsTabs';
@@ -153,6 +154,13 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
   const [countryDraft, setCountryDraft] = useState<string | null>(null);
   const [statusDraft, setStatusDraft] = useState<string | null>(null);
   const [nameColourDraft, setNameColourDraft] = useState<string | null>(null);
+  const [colourOpen, setColourOpen] = useState(false);
+
+  /** Back to the key that opened it, so a keyboard reader carries on from where they were. */
+  function closeColourWindow() {
+    setColourOpen(false);
+    window.requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-change-colour]')?.focus());
+  }
 
 
   /**
@@ -595,7 +603,7 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
             onBioChange={setBioDraft}
             onCountryChange={setCountryDraft}
             onStatusChange={setStatusDraft}
-            onNameColourChange={setNameColourDraft}
+            onChangeColour={() => setColourOpen(true)}
             bioProblem={bioProblem}
             countryProblem={countryProblem}
             statusProblem={statusProblem}
@@ -603,7 +611,8 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
 
           {/* HOW IT WORKS: behind a [ ? ] on the heading's bar (SPEC-less-text.md), not a hover tip a phone never shows. */}
           <PanelHeadingWithHelp title="PICTURE" topic="picture versions">
-            FILING MAKES A NEW VERSION (P{profile.avatar.versions.length + 1}). OLD ONES STAY IN THE HISTORY WITH THEIR COMMENTS.
+            FILING MAKES A NEW VERSION (P{profile.avatar.versions.length + 1}). OLD ONES STAY IN THE HISTORY WITH THEIR COMMENTS. A
+            PICTURE FROM THE SEARCH IS SHOWN FROM GIPHY OR WIKIMEDIA, NOT COPIED HERE: IF THEY REMOVE IT, IT GOES FROM YOUR PROFILE.
           </PanelHeadingWithHelp>
           <ProfileCustomiserPictureTab
             profile={profile}
@@ -708,7 +717,10 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
     <>
       <PopoutWindow
         title="EDIT PROFILE"
-        onClose={() => guard({ kind: 'close' })}
+        // ESC reaches every open window. While the colour window is up it is that one's to answer.
+        onClose={() => {
+          if (!colourOpen) guard({ kind: 'close' });
+        }}
         // Clicking the desktop does not close this one: it holds unsaved work, and a mis-aimed press is not a
         // decision to discard it. Every other window keeps the behaviour - see `PopoutWindow`.
         dismissOnBackdrop={false}
@@ -750,6 +762,15 @@ export default function ProfileCustomiserWindow({ userId, onClose }: ProfileCust
       >
         {panel}
       </PopoutWindow>
+
+      {colourOpen ? (
+        <NameColourWindow
+          hex={nameColour}
+          sample={name.trim().length === 0 ? profile.displayName : name}
+          onChoose={setNameColourDraft}
+          onClose={closeColourWindow}
+        />
+      ) : null}
 
       {prompt}
     </>
