@@ -25,7 +25,8 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 /* --- 1. the defaults ------------------------------------------------------------------------------ */
 
 const { DEFAULT_VISIBILITY } = require(path.join(OUT, 'lib', 'profile', 'visibility.js'));
-for (const [key, value] of Object.entries(DEFAULT_VISIBILITY)) assert.equal(value, false, `${key} is off for a new account`);
+// Updated on purpose 2026-11-07 (Luke): the online lamp alone is on for a new account.
+for (const [key, value] of Object.entries(DEFAULT_VISIBILITY)) assert.equal(value, key === 'showOnline', `${key} is ${key === 'showOnline' ? 'on' : 'off'} for a new account`);
 assert.ok('showOnline' in DEFAULT_VISIBILITY, 'the lamp is one of the switches');
 
 const migration = fs.readFileSync(path.join(__dirname, '..', 'supabase', 'migrations', '20261105135310_privacy_tab_and_new_account_defaults.sql'), 'utf8').replace(/\r\n/g, '\n');
@@ -64,10 +65,11 @@ async function mock() {
 
   const fresh = emptyProfile('privacy-person', 'PERSON');
   assert.equal(fresh.privacySeen, false, 'a new person has not seen the window');
-  assert.equal(fresh.visibility.showOnline, false);
+  // Updated on purpose 2026-11-07 (Luke): the online lamp is on for a new account now; the others stay off.
+  assert.equal(fresh.visibility.showOnline, true);
 
   await repository.markSeen('privacy-person');
-  await repository.saveProfile('privacy-person', { bio: 'x' });
+  await repository.saveProfile('privacy-person', { bio: 'x', visibility: { showOnline: false } });
   assert.equal((await repository.listPresence()).some((record) => record.userId === 'privacy-person'), false, 'lamp off: left out of the list');
 
   await repository.saveProfile('privacy-person', { visibility: { showOnline: true } });
@@ -85,7 +87,9 @@ async function mock() {
 function windowDrawn() {
   const React = require('react');
   const { renderToStaticMarkup } = require('react-dom/server');
-  const { DEFAULT_VISIBILITY: off } = require(path.join(OUT, 'lib', 'profile', 'visibility.js'));
+  const { DEFAULT_VISIBILITY: defaults } = require(path.join(OUT, 'lib', 'profile', 'visibility.js'));
+  // Updated on purpose 2026-11-07 (Luke): a new account shares its lamp, so all-off is a choice now, and the window says what they have.
+  const off = { ...defaults, showOnline: false };
   let profile = { visibility: { ...off }, privacySeen: false };
 
   const stub = (file, exports) => {
@@ -103,7 +107,7 @@ function windowDrawn() {
   assert.equal((fresh.match(/\[ OFF \]/g) ?? []).length, 6, 'six switches, all off');
   assert.match(fresh, /ONLINE LAMP/, 'the lamp is one of them');
 
-  profile = { visibility: { ...off, showOnline: true }, privacySeen: false };
+  profile = { visibility: { ...defaults }, privacySeen: false };
   const sharing = draw();
   assert.doesNotMatch(sharing, /KEEP IT PRIVATE/, 'an account sharing something is not told it is private');
   assert.match(sharing, /\[ KEEP THESE SETTINGS \]/, 'it keeps what it has');

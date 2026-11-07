@@ -33,7 +33,8 @@ export const DEFAULT_VISIBILITY: ProfileVisibility = {
   showAvatarComments: false,
   showSongComments: false,
   showListening: false,
-  showOnline: false,
+  // On since 2026-11-07, Luke's choice: the site is for seeing who's about. The other switches stay off.
+  showOnline: true,
 };
 
 export function withVisibilityDefaults(visibility: Partial<ProfileVisibility> | undefined): ProfileVisibility {

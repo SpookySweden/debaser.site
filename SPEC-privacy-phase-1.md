@@ -18,7 +18,7 @@ Settled from Luke's privacy plan and `SPEC-privacy-decisions.md` (decisions 4 an
   Pressing a main key or closing the window counts as seen. Saying "KEEP IT PRIVATE" over switches that are on would be untrue.
 
 ## New accounts and existing accounts
-- **New accounts:** listed in the directory (decision 4), with lamp, `[ TV ]`, listening and all three comment switches off. Tags were
+- **New accounts:** listed in the directory (decision 4), with listening and all three comment switches off, and since 2026-11-07 the lamp and `[ TV ]` on (Luke's change; they were off before). Tags were
   already off. The database's column defaults do this, so an account made any way gets them.
 - **Existing accounts keep every setting (decision 10)** and see the window once. The test accounts are marked as having seen it, so
   it does not sit on top of every check and drive.
