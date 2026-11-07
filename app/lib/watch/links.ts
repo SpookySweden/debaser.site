@@ -1,3 +1,4 @@
+import { MEDIA_SERVERS, mediaServerForUrl, type MediaServer } from '../web/media-servers';
 import { officialEmbedUrl } from '../web/official-embed';
 import { isSitePath } from './songs';
 import type { WatchLink, WatchLinkKind } from './types';
@@ -40,15 +41,17 @@ export function isLinkKind(value: string | null | undefined): value is WatchLink
 /**
  * Why a link may not be written to a queue, or null. Both watch repositories ask before every write, so
  * the database's own checks (https, length) are met and an `embed` link is always a WEB platform's
- * official player on its allow-listed host: nothing else is ever framed in a room.
+ * official player on its allow-listed host, or a configured media server's own player page (its exact host in
+ * media-servers.ts, SPEC-media-servers.md; Luke 2026-11-07): nothing else is ever framed in a room. Before this
+ * allowed the servers, the room could play a server link but the queue refused to take one.
  */
-export function queueRefusal(link: WatchLink): string | null {
+export function queueRefusal(link: WatchLink, servers: readonly MediaServer[] = MEDIA_SERVERS): string | null {
   if (!isLinkKind(link.kind)) return LINK_REFUSALS.notVideo;
   // A song (`audio`, songs.ts) may be one of the site's own paths, which the music bar plays as it is.
   const sitePath = link.kind === 'audio' && typeof link.url === 'string' && isSitePath(link.url);
   if (typeof link.url !== 'string' || (!link.url.startsWith('https://') && !sitePath)) return LINK_REFUSALS.notHttps;
   if (link.url.length > LINK_URL_MAX) return LINK_REFUSALS.tooLong;
-  if (link.kind === 'embed' && officialEmbedUrl(link.url) === null) return LINK_REFUSALS.notEmbeddable;
+  if (link.kind === 'embed' && officialEmbedUrl(link.url) === null && mediaServerForUrl(link.url, servers) === undefined) return LINK_REFUSALS.notEmbeddable;
   return null;
 }
 

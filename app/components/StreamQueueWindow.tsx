@@ -40,6 +40,7 @@ import type { WatchLink, WatchMember, WatchQueueEntry, WatchRoomRead } from '../
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { isQueueableWebLink, officialEmbedUrl, serverWatchLink, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
+import { oneRowPerTitle } from '../lib/web/live-merge';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { authorList, matchesAuthor } from '../lib/web/search';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
@@ -533,8 +534,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       });
       setSearch((current) =>
         cursor !== null && current.kind === 'found'
-          ? { ...current, web: [...current.web, ...web.filter((item) => !current.web.some((known) => known.id === item.id))], next: page.nextCursor, loadingMore: false }
-          : { kind: 'found', words: trimmed, ours, songs, web, problems, next: page.nextCursor, loadingMore: false },
+          ? { ...current, web: oneRowPerTitle([...current.web, ...web]), next: page.nextCursor, loadingMore: false }
+          : { kind: 'found', words: trimmed, ours, songs, web: oneRowPerTitle(web), problems, next: page.nextCursor, loadingMore: false },
       );
     } catch (failure) {
       if (run !== searchRun.current) return;

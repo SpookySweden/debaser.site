@@ -305,6 +305,11 @@ const run = async () => {
   same(mlink, { url: 'https://media.friend.example/m/157336', kind: 'embed', title: 'A FILM' }, 'a server-held title builds a sandboxed room embed');
   ok(mlink && isQueueableWebLink(mlink, [mserver]), 'and it is queueable against that server');
   ok(bridges.serverWatchLink(mserver, { type: 'movie', tmdbId: 157336, copies: [{ server: 'other' }] }, 'X') === null, 'null when the server holds no copy of the title');
+  // The repositories' write check (queueRefusal) takes the same server links (2026-11-07: before, the room could play one but
+  // the queue refused it as "CAN'T BE EMBEDDED").
+  same(queueRefusal(mlink, [mserver]), null, "the queue's write check takes a configured server's player link");
+  same(queueRefusal(mlink), LINK_REFUSALS.notEmbeddable, 'and refuses it once the server is gone from the list');
+  same(queueRefusal({ url: 'https://evil.example/m/157336', kind: 'embed', title: 'X' }, [mserver]), LINK_REFUSALS.notEmbeddable, 'another host is still refused');
 
   /* ------------------------------------------------- both watch repositories enforce it before writing */
   const { getMockWatchRepository } = require(lib('watch', 'mock-watch-repository.js'));

@@ -1,6 +1,6 @@
 /*
  * The stream queue search's filters (Luke, 2026-11-04): SOURCE, TYPE, VIBE and SORT, as the archive search has them.
- *   npx tsc app/lib/watch/blank-screen.ts app/lib/watch/songs.ts --outDir Temp/out-queue-filters --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop
+ *   npx tsc app/lib/watch/blank-screen.ts app/lib/watch/songs.ts app/lib/web/live-merge.ts --outDir Temp/out-queue-filters --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop
  *
  * - the SOURCE keys offer only what a room can play; a source it cannot is read as ALL
  * - the TYPE keys are the blank screen's three, and `type:audio` (the archive's word) reads as MUSIC
@@ -124,7 +124,19 @@ ok(/flex justify-center">\s*<button[\s\S]{0,120}pick\('in', lookingUp \? 'all' :
 const queueWindow = read('StreamQueueWindow.tsx');
 ok(/type\(`\$\{next\} `\);\s*searchBar\.current\?\.focus\(\);/.test(queueWindow), 'a key with nothing typed leaves a space before the caret, so the next word is not glued to the filter (in:kinoalien)');
 ok(/if \(lookingUp\) return true;\s*if \(playsInBar\(item\)\) return true;/.test(queueWindow), 'looked-up titles pass the "can a room play this" test, and only those');
-ok(/isKinoRow\(item\) \? \(\s*<KinoRow[\s\S]{0,400}data-imdb-find/.test(queueWindow), 'a title is drawn with its poster and details, with FIND TO PLAY');
+// Since 644b121 a TMDB title a media server holds is a KINO row too, with WATCH (the servers) beside FIND TO PLAY.
+ok(/media !== undefined \? \(\s*<KinoRow[\s\S]{0,1000}data-imdb-find/.test(queueWindow), 'a title is drawn with its poster and details, with FIND TO PLAY');
+// One row per title (2026-11-07): TMDB's row and a server's row share an id; the server's (WATCH) takes its place.
+{
+  const { oneRowPerTitle } = require(path.join(OUT, 'lib', 'web', 'live-merge.js'));
+  const kino = { id: 'media:tmdb-movie-1', platform: 'kino', media: { copies: [] } };
+  const held = { id: 'media:tmdb-movie-1', platform: 'friend_1', media: { copies: [{ server: 'friend_1' }] } };
+  const other = { id: 'youtube:abc', platform: 'youtube' };
+  same(oneRowPerTitle([kino, other, held]), [held, other], "a server's row takes its TMDB row's place, where that row was");
+  same(oneRowPerTitle([held, other, kino]), [held, other], 'and a TMDB row after it is dropped');
+  same(oneRowPerTitle([other, other]), [other], 'any other repeat shows once');
+  ok(/web: oneRowPerTitle\(\[\.\.\.current\.web, \.\.\.web\]\)/.test(queueWindow) && /web: oneRowPerTitle\(web\)/.test(queueWindow), 'the queue cuts every search page, LOAD MORE included, to one row per title');
+}
 ok(!/<KinoRow[\s\S]{0,500}AddKey/.test(queueWindow), 'and no ADD');
 
 /* ---------------------------------------------------------------- the site's songs */

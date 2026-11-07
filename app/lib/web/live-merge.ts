@@ -88,7 +88,28 @@ function idsOf(item: WebStreamItem): string[] {
   return [item.id, ...item.alsoOn.map((copy) => copy.id)];
 }
 
-const plays = (item: WebStreamItem) => (item.media?.copies.length ?? 0) > 0;
+const plays = (item: Pick<WebStreamItem, 'media'>) => (item.media?.copies.length ?? 0) > 0;
+
+/**
+ * Each title once, for a list that arrives whole (Luke, 2026-11-07): a KINO search answers with TMDB's row and, for a
+ * title a media server holds, that server's row too, under the same id (`media:tmdb-<type>-<n>`). A stream room's
+ * queue search (StreamQueueWindow.tsx) uses this as `arrive` does on /media: the row that plays takes the other's
+ * place, so one row carries both WATCH (the servers) and FIND TO PLAY. Any other repeat is dropped; order is kept.
+ */
+export function oneRowPerTitle<T extends Pick<WebStreamItem, 'id' | 'media'>>(items: readonly T[]): T[] {
+  const rows: T[] = [];
+  const at = new Map<string, number>();
+  for (const item of items) {
+    const known = at.get(item.id);
+    if (known === undefined) {
+      at.set(item.id, rows.length);
+      rows.push(item);
+    } else if (plays(item) && !plays(rows[known])) {
+      rows[known] = item;
+    }
+  }
+  return rows;
+}
 
 /** Beyond every date: a source that answered with no rows yet but has more could still beat anything. */
 const UNKNOWN = { desc: '￿', asc: '' } as const;
