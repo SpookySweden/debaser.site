@@ -9,6 +9,7 @@ import { clientAddress, makeDailyBudgets, makeRateLimiter } from '../../../lib/w
 import { searchEverywhere } from '../../../lib/web/search/run';
 import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
 import { PLATFORM_LABELS } from '../../../lib/web/types';
+import { anchorsWildcard } from '../../../lib/web/web-filters';
 import { noteSeenLater } from '../../../lib/web/seen-items';
 import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
@@ -130,7 +131,7 @@ export async function GET(request: Request): Promise<Response> {
   // button per such server (wildcard-search.ts). Only on a first page of plain words, video or any kind, and only
   // with the first provider's answer: the page asks each provider on its own, so this goes out once per search.
   // Not under POPULAR: those titles have no popularity to be ordered by (SPEC-web-sort.md).
-  const withWildcard = words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && order !== 'popular' && providers.includes(SEARCH_PROVIDERS[0]);
+  const withWildcard = words !== null && cursor === null && author === null && (kind === undefined || kind === 'video') && order !== 'popular' && anchorsWildcard(only, providers.includes(SEARCH_PROVIDERS[0]));
   const everywhere = searchEverywhere(words ?? '', cursor, providers, { ...deps, spendBudget: dailyBudgets(address) }, author, kind);
   const [result, wildcard] = await Promise.all([
     everywhere,

@@ -309,6 +309,19 @@ export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stre
   return { stream, live };
 }
 
+/**
+ * Which single search request runs the media-server wildcard lookup, so it goes out exactly once per search
+ * (wildcard-search.ts, called from the search route). The page fans an ALL search out into one request per live
+ * provider and anchors the lookup on the first of them (internet-archive). A KINO search has only its own request,
+ * and a media server's titles belong in KINO (`matchesFilters`), so it anchors there. Any other single source
+ * (`in:youtube`, ...) never shows a media server, so it runs no lookup. `hasFirstProvider`: this request includes
+ * SEARCH_PROVIDERS[0]. Before 2026-11-07 the route tested `hasFirstProvider` alone, so a KINO search — whose only
+ * request is the kino one — never ran the lookup and wildcard servers never appeared under KINO.
+ */
+export function anchorsWildcard(only: string | null, hasFirstProvider: boolean): boolean {
+  return hasFirstProvider || only === 'kino';
+}
+
 /** Whether a row belongs in the list under the filters. `fromStream`: it came from the stream, not a live search. */
 export function matchesFilters(
   item: Pick<WebItem, 'platform' | 'kind' | 'creator' | 'media'>,

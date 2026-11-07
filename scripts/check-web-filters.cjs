@@ -105,6 +105,15 @@ same(f.suggestFilterValues('sort', 'o').map((s) => s.word), ['oldest'], 'sort:o 
 same(f.activeFilter('night sort:pop', 14), { key: 'sort', partial: 'pop', start: 11, end: 14 }, 'the caret in a sort value');
 same(f.withAuthor('night sort:popular', 'Rick'), 'from:Rick sort:popular', 'a creator search keeps the sort');
 
+/* ---------------------------------------------------------------- the wildcard anchor (SPEC-media-servers.md: a media server shows in KINO) */
+// Fire the media-server wildcard lookup exactly once per search. Regression (Luke, 2026-11-07: a test server did
+// not show in KINO): before, the route tested `hasFirstProvider` alone, so a KINO search — whose only request is
+// the kino one, never internet-archive — never ran the lookup, and wildcard servers never appeared under KINO.
+ok(f.anchorsWildcard(null, true) === true, 'an ALL search (no provider named) runs the lookup once');
+ok(f.anchorsWildcard('internet_archive', true) === true, '... anchored on the first provider in the fan-out');
+ok(f.anchorsWildcard('youtube', false) === false, 'a non-first single source (in:youtube) runs no lookup: a media server is not YouTube');
+ok(f.anchorsWildcard('kino', false) === true, 'a KINO search runs it on the kino request, so wildcard media servers DO show in KINO');
+
 /* ---------------------------------------------------------------- the page */
 const page = readFileSync(join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
 ok(/SOURCE_OPTIONS\.map/.test(page) && /TYPE_OPTIONS\.map/.test(page), 'the keys are drawn from the choices');
@@ -124,6 +133,7 @@ const client = readFileSync(join(ROOT, 'app/lib/web/everywhere-client.ts'), 'utf
 ok(/if \(type !== 'all'\) params\.set\('type', type\);/.test(client), '... and the request carries it');
 const route = readFileSync(join(ROOT, 'app/api/web/search/route.ts'), 'utf8');
 ok(/SEARCH_KINDS\.find\(\(value\) => value === type\)/.test(route) && /author, kind\);/.test(route), '... and the route hands only a known type on');
+ok(/anchorsWildcard\(only, providers\.includes\(SEARCH_PROVIDERS\[0\]\)\)/.test(route), 'the route gates the wildcard lookup through anchorsWildcard, so a KINO search runs it (media servers show in KINO)');
 ok(/window\.history\.replaceState\(/.test(page) && /searchAddress\(/.test(page), 'the search is put in the address');
 ok(/useState\(\(\) => boxFromAddress\(params\)\)/.test(page), 'the page opens on the address search');
 ok(/matchesFilters\(item, what\.filters, source === 'stream'\)/.test(page), 'arriving rows are kept only when they match');
