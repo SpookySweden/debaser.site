@@ -6,7 +6,7 @@ One copy per friend. Their side of it, with the details, is `docs/media-server-s
 
 **2. ADDRESS of their server:** `https://`______________________ (nothing after the name)
 
-**3. LIST FILE:** is it at `/debaser/list.json`?  YES / NO, it's at: ______________________
+**3. LIST FILE:** none needed. Leave this alone unless they want only the titles they hold to show, or their own videos TMDB doesn't know: then it's at: ______________________
 
 **4. PLAYER LINKS:** are they these? ( `157336`, `1399`, `1`, `2` are examples )
 
@@ -25,4 +25,4 @@ One copy per friend. Their side of it, with the details, is `docs/media-server-s
 - [ ] Their player starts inside a sandbox. If it won't, tick here and the sandbox gets turned off for that server alone: ___
 
 **Then:** give this to Claude, or put it in the Debaser Servers program on the desktop. The program's TEST button checks the list and the
-players before anything is saved. The friend's titles show on /media after the next hourly update.
+players before anything is saved. With no list file they show on /media straight away. With one, after the next hourly update.

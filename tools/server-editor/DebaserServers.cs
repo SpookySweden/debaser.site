@@ -259,7 +259,7 @@ namespace DebaserServers
             Heading(flow, "SERVER");
             Field(flow, "NAME (shown on the SERVER button):", name, existing == null ? "" : existing.Label);
             Field(flow, "ADDRESS (https:// and the server's name):", address, existing == null ? "https://" : existing.Base);
-            Field(flow, "LIST FILE PATH on that server (* = no list file: plays any title by its TMDB number):", list, existing == null ? "/debaser/list.json" : existing.ListPath);
+            Field(flow, "LIST FILE PATH on that server (* = no list file needed: shows at once, for any title by its TMDB number):", list, existing == null ? "*" : existing.ListPath);
             Heading(flow, "FILMS AND FILM SERIES");
             Note(flow, "Films TMDB puts in one series (a TMDB collection) show as one entry with a FILM picker, by themselves.");
             Field(flow, "FILM PLAYER pattern ({tmdb}):", movie, existing == null ? "/debaser/play/movie/{tmdb}" : existing.Movie);
