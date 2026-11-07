@@ -332,8 +332,11 @@ export function matchesFilters(
   const authors = authorList(authorsOf(search));
   if (authors !== null && !matchesAuthor(item, authors)) return false;
   if (search.source === 'all') return true;
-  // KINO: TMDB's rows, and from the stream only the media servers' films and shows.
-  if (search.source === 'kino') return item.platform === 'kino' || (fromStream && item.media !== undefined);
+  // KINO: TMDB's rows, plus any media server's film or show — a live copy from a wildcard server (its row then
+  // takes the KINO row's place, live-merge.ts `swap`), or a saved copy read from the stream. Before 2026-11-07 this
+  // kept a media row only when `fromStream`, so a wildcard server's titles (found live, never ingested) were dropped
+  // here and every KINO row read "NO SERVER HAS THIS".
+  if (search.source === 'kino') return item.platform === 'kino' || (item.media?.copies.length ?? 0) > 0 || (fromStream && item.media !== undefined);
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.
   return item.platform === search.source || (item.media?.copies.some((copy) => copy.server === search.source) ?? false);
 }

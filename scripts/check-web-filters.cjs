@@ -51,7 +51,11 @@ ok(!f.sourcesToAsk({ source: 'all', type: 'all' }).live.includes('kino'), 'an AL
 same(f.sourcesToAsk({ source: 'kino', type: 'audio' }).live, [], 'KINO is never asked for audio');
 ok(f.matchesFilters({ platform: 'kino', kind: 'video' }, { source: 'kino', type: 'all' }, false), 'KINO keeps its own rows');
 ok(f.matchesFilters({ platform: 'server_1', kind: 'video', media: { type: 'movie', copies: [{ server: 'server_1' }] } }, { source: 'kino', type: 'all' }, true), 'and a media server title from the stream');
+// Regression (Luke, 2026-11-07: titles the server has read "NO SERVER HAS THIS" in KINO). A wildcard server's row is
+// found live, never ingested, so it never comes `fromStream`; KINO must still keep it (it then swaps the KINO row).
+ok(f.matchesFilters({ platform: 'server_1', kind: 'video', media: { type: 'movie', copies: [{ server: 'server_1' }] } }, { source: 'kino', type: 'all' }, false), 'and a media server title found live (a wildcard server, not from the stream)');
 ok(!f.matchesFilters({ platform: 'youtube', kind: 'video' }, { source: 'kino', type: 'all' }, true), 'and nothing else from the stream');
+ok(f.matchesFilters({ platform: 'kino', kind: 'video', media: { type: 'movie', copies: [], details: { title: 'x', genres: [] } } }, { source: 'kino', type: 'all' }, false), 'a KINO row with no copy is still kept, by its platform');
 same(f.parseWebSearch('in:vidsrc type:movie z'), { text: 'z', source: 'all', type: 'all' }, 'unknown values are dropped, never passed on');
 same(f.parseWebSearch('in:__proto__ in:constructor q'), { text: 'q', source: 'all', type: 'all' }, 'object-key tricks are unknown values');
 same(f.parseWebSearch('within:youtube tin:x'), { text: 'within:youtube tin:x', source: 'all', type: 'all' }, 'only whole in: / type: words are filters');
