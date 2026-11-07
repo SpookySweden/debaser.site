@@ -27,7 +27,10 @@ export type KeyAction =
   | "audioMode"
   | "focusView"
   | "contrast"
-  | "hand";
+  | "hand"
+  | "gridSize"
+  | "gridUp"
+  | "gridDown";
 
 export interface KeyActionInfo {
   readonly id: KeyAction;
@@ -93,6 +96,9 @@ export const KEY_GROUPS: readonly KeyActionGroup[] = [
       { id: "focusView", label: "Focus view: the notes and little else, on or off", starts: "." },
       { id: "contrast", label: "High contrast, on or off", starts: "," },
       { id: "hand", label: "Hand: dragging moves the view, not the notes", starts: "Shift+KeyH" },
+      { id: "gridSize", label: "How many notes on the grid: 13, 25, 37, 49 or all", starts: "Shift+KeyG" },
+      { id: "gridUp", label: "The grid up an octave", starts: "Shift+KeyU" },
+      { id: "gridDown", label: "The grid down an octave", starts: "Shift+KeyD" },
     ],
   },
 ];

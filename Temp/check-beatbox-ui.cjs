@@ -20,7 +20,7 @@ const argument = (name, fallback) => {
 };
 const BASE = argument('--url', 'http://localhost:3001');
 const OUT = argument('--out', path.join(__dirname, 'browse', 'bb-accept'));
-const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11,12,13,14').split(',').map(Number);
+const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15').split(',').map(Number);
 const STAND_IN = process.argv.includes('--stand-in');
 assert.ok(!STAND_IN || /localhost|127\.0\.0\.1/.test(BASE), 'the stand-in account is for a local build only');
 fs.mkdirSync(OUT, { recursive: true });
@@ -40,6 +40,17 @@ const PANE = '[data-scroll-pane="page"]';
 
 const results = [];
 const numbers = {};
+
+/** Signed out, the site opens with a centred "HAD AN ACCOUNT?" window in the way. The cursor goes back on the notes after it, as a person's arrow key would bring it. */
+async function passThePopUp(page) {
+  const key = page.getByRole('button', { name: '[ NOT NOW ]' });
+  await key.waitFor({ timeout: 2500 }).catch(() => {});
+  if (await key.isVisible().catch(() => false)) {
+    await key.click();
+    await page.waitForTimeout(100);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).evaluate((cell) => cell.focus({ preventScroll: true }));
+  }
+}
 
 async function open(browser, width, height, { hash = '', storage = {}, standIn = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height }, acceptDownloads: true });
@@ -79,6 +90,7 @@ async function open(browser, width, height, { hash = '', storage = {}, standIn =
   await page.goto(`${BASE}/beatbox${hash}`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector(NOTES, { timeout: 120000 });
   await page.waitForTimeout(800);
+  await passThePopUp(page);
   return { context, page };
 }
 
@@ -618,6 +630,7 @@ const main = async () => {
     await expectStatus(page, /Bars 1 to 2 picked/, 'Shift+Down');
     await press('l');
     await expectStatus(page, /Loop: bars 1 to 2/, 'L');
+    assert.equal(await page.locator('[data-held-pitch]').count(), 0, 'L in the bars sets the loop and plays no note');
     await press('Control+z');
     await expectStatus(page, /^Undone/, 'undo of L');
     await press('5');
@@ -889,6 +902,7 @@ const main = async () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector(NOTES, { timeout: 120000 });
     await page.waitForTimeout(500);
+    await passThePopUp(page);
     assert.equal(await page.getByRole('dialog', { name: 'Sounds' }).count(), 0, 'the page opens clear');
     await page.getByRole('button', { name: /^Sounds/ }).click();
     await page.waitForTimeout(150);
@@ -1128,7 +1142,7 @@ const main = async () => {
     const shown = (action) => settings.locator(`[data-key-shown="${action}"]`).textContent();
     const change = (action) => settings.locator(`[data-change-key="${action}"]`).click();
     assert.equal(await shown('playPause'), 'Space', 'Space is play and pause to begin with');
-    assert.equal(await settings.locator('[data-change-key]').count(), 26, 'every key that can change');
+    assert.equal(await settings.locator('[data-change-key]').count(), 29, 'every key that can change');
     await page.screenshot({ path: path.join(OUT, 'settings.png') });
 
     // A key that would break the notes.
@@ -1213,6 +1227,7 @@ const main = async () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector(NOTES, { timeout: 120000 });
     await page.waitForTimeout(500);
+    await passThePopUp(page);
     await page.keyboard.press('Shift+A');
     await page.waitForTimeout(100);
     assert.equal(await page.locator('dialog[open]').count(), 1, 'the changed key opens the help after a reload');
@@ -1228,6 +1243,7 @@ const main = async () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector(NOTES, { timeout: 120000 });
     await page.waitForTimeout(500);
+    await passThePopUp(page);
     await page.keyboard.press('Space');
     await page.waitForTimeout(150);
     assert.equal(await first.getAttribute('aria-label'), 'Pause', 'and they stay back');
@@ -1578,7 +1594,7 @@ const main = async () => {
     numbers['small keys'] = small;
     assert.equal(small.unnamed, 0, 'every key has a name');
     assert.deepEqual(small.tiny, [], 'and a whole target');
-    assert.deepEqual(small.words, [], 'and the page shows no words on its keys');
+    assert.deepEqual(small.words, ['All'], 'and the page shows no words on its keys, but the one size that has no number to say it');
     const hint = page.locator('[data-hint]');
     assert.equal(await hint.count(), 0, 'nothing is said until a key is pointed at');
     const heights = async () => (await page.locator(NOTES).locator('xpath=..').boundingBox());
@@ -1614,6 +1630,7 @@ const main = async () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.waitForSelector(NOTES, { timeout: 120000 });
     await page.waitForTimeout(400);
+    await passThePopUp(page);
     assert.match(await page.getByRole('button', { name: 'Stop', exact: true }).innerText(), /Stop/i, 'still on after a reload');
     await context.close();
   });
@@ -1679,6 +1696,192 @@ const main = async () => {
     await page.keyboard.press(',');
     const high = await number(12).evaluate((cell) => ({ background: getComputedStyle(cell).backgroundColor, colour: getComputedStyle(cell).color }));
     assert.deepEqual(high, { background: 'rgb(255, 255, 255)', colour: 'rgb(0, 0, 0)' }, 'high contrast: black on white');
+    await context.close();
+  });
+
+  // 15. How many notes on the grid.
+  const midiNote = (page, note, on = true) => page.evaluate(({ note: played, on: down }) => window.__midiInput.onmidimessage?.({ data: new Uint8Array([down ? 0x90 : 0x80, played, down ? 100 : 0]), timeStamp: performance.now() }), { note, on });
+  const connectMidi = async (page) => {
+    await page.keyboard.press('Shift+P');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Connect MIDI keyboard' }).click();
+    await page.getByText(/Connected: CHECK KEYS/).waitFor({ timeout: 5000 });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+  };
+  const rowsOnGrid = async (page) => Number(await page.locator(NOTES).getAttribute('aria-rowcount')) - 1;
+  const gridWords = async (page) => (await page.getByRole('group', { name: 'Where the grid is' }).innerText()).replace(/\s+/g, '');
+  const size = (page, name) => page.getByRole('radio', { name });
+  const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const nameOfMidi = (note) => `${NAMES[note % 12]}${Math.floor(note / 12) - 1}`;
+
+  for (const [w, h] of SIZES) {
+    await test(15, `starts on one octave at ${w}x${h}: every note in view, nothing to scroll`, async () => {
+      const { context, page } = await open(browser, w, h);
+      assert.equal(await rowsOnGrid(page), 13, 'thirteen notes');
+      assert.equal(await size(page, /^13 notes/).getAttribute('aria-checked'), 'true');
+      const seen = await look(page);
+      numbers[`starting grid ${w}x${h}`] = { rows: seen.gridRows, columns: seen.gridColumns };
+      assert.equal(seen.gridRows, 13, `all thirteen in view: ${seen.gridRows}`);
+      assert.equal(seen.wholeBar, true);
+      assert.equal(await page.getByRole('button', { name: 'Higher', exact: true }).isVisible(), false, 'so no arrows to scroll with');
+      assert.match(await gridWords(page), /C4-C5/, 'an octave, root to root');
+      assert.equal(seen.keyRows, 1);
+      await page.screenshot({ path: path.join(OUT, `grid-13-${w}.png`) });
+      await context.close();
+    });
+  }
+
+  await test(15, 'the 49: each key of a 49-key keyboard lights its own row, C2 to C6, and lands there when recorded (a stand-in keyboard)', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await connectMidi(page);
+    await size(page, /^49 notes/).click();
+    await page.waitForTimeout(150);
+    assert.equal(await rowsOnGrid(page), 49, 'forty-nine rows');
+    assert.match(await gridWords(page), /C2-C6/);
+    assert.equal(await page.getByRole('button', { name: 'Higher', exact: true }).isVisible(), true, 'more than fits, so arrows');
+    const rows = [];
+    for (let note = 36; note <= 84; note += 1) {
+      await midiNote(page, note);
+      await page.locator('[data-held-pitch]').waitFor({ timeout: 2000 });
+      await page.locator('[data-held-pitch]').evaluate((bar) => bar.scrollIntoView({ block: 'center' }));
+      await page.waitForTimeout(30);
+      rows.push(await page.evaluate((notes) => {
+        const bar = document.querySelector('[data-held-pitch]').getBoundingClientRect();
+        const header = [...document.querySelectorAll(`${notes} [role="rowheader"]`)].find((one) => Math.abs(one.getBoundingClientRect().top - bar.top) < 2);
+        return header?.textContent ?? null;
+      }, NOTES));
+      await midiNote(page, note, false);
+      await page.waitForTimeout(10);
+    }
+    assert.deepEqual(rows, Array.from({ length: 49 }, (_, index) => nameOfMidi(36 + index)), 'every key on its own row');
+    numbers['49 keys'] = `${rows.length} keys, ${rows[0]} to ${rows[48]}, with a stand-in keyboard`;
+    await page.screenshot({ path: path.join(OUT, 'grid-49.png') });
+
+    // Played in a recording, the ends and the middle land on the notes they should.
+    await page.keyboard.press('r');
+    await page.locator(MAIN).getByRole('button', { name: /^Rec/, pressed: true }).waitFor({ timeout: 8000 });
+    await page.waitForTimeout(3800); // Past the bar of count-in.
+    for (const note of [36, 60, 84]) {
+      await midiNote(page, note);
+      await page.waitForTimeout(150);
+      await midiNote(page, note, false);
+      await page.waitForTimeout(150);
+    }
+    await page.keyboard.press('r');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    const json = await songFile(page);
+    const pitches = new Set(json.channels[0].patterns.flatMap((pattern) => pattern.notes.flatMap((note) => note.pitches)));
+    for (const pitch of [24, 48, 72]) assert.ok(pitches.has(pitch), `pitch ${pitch} recorded: ${[...pitches].join(',')}`);
+    assert.match(await gridWords(page), /C2-C6/, 'and the grid has no need to grow');
+    await context.close();
+  });
+
+  await test(15, 'a key past the edge: heard, the line says so, and if recorded the grid grows; above what the engine has, nothing', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await connectMidi(page);
+    await midiNote(page, 84);
+    await expectStatus(page, /^C6 is above the grid/, 'a key above the grid');
+    assert.equal(await page.locator('[data-held-pitch]').count(), 0, 'with no row to light');
+    await midiNote(page, 84, false);
+    await midiNote(page, 40);
+    await expectStatus(page, /^E2 is below the grid/, 'a key below');
+    await midiNote(page, 40, false);
+    await midiNote(page, 101);
+    await page.waitForTimeout(100);
+    assert.match(await page.locator(STATUS).textContent(), /^E2 is below/, 'above the top of the engine: no note and no word');
+    await midiNote(page, 101, false);
+
+    await page.keyboard.press('r');
+    await page.locator(MAIN).getByRole('button', { name: /^Rec/, pressed: true }).waitFor({ timeout: 8000 });
+    await page.waitForTimeout(3800); // Past the bar of count-in.
+    await midiNote(page, 84);
+    await expectStatus(page, /^C6 is above the grid. It's recorded/, 'while recording');
+    await page.waitForTimeout(150);
+    await midiNote(page, 84, false);
+    await page.waitForTimeout(150);
+    await page.keyboard.press('r');
+    await page.waitForTimeout(300);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(300);
+    assert.match(await gridWords(page), /C4-C6\+/, 'the grid has grown by an octave, and says so');
+    assert.equal(await rowsOnGrid(page), 25);
+    assert.equal(await size(page, /^13 notes/).getAttribute('aria-checked'), 'true', 'with 13 still the size picked');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo');
+    await page.waitForTimeout(100);
+    assert.equal(await rowsOnGrid(page), 13, 'undo, and it goes back');
+    assert.doesNotMatch(await gridWords(page), /\+/);
+    await context.close();
+  });
+
+  await test(15, "an old song's notes are all kept: the grid grows to show them, and the saved song is the same note for note", async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await size(page, 'All 85 notes').click();
+    await page.waitForTimeout(150);
+    assert.equal(await rowsOnGrid(page), 85);
+    assert.match(await gridWords(page), /C0-C7/);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    await page.keyboard.press('Control+Home');
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /C7 on/, 'the top note');
+    await page.keyboard.press('Control+End');
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /C0 on/, 'the bottom note');
+    const before = await songFile(page);
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    await page.getByRole('button', { name: 'Copy share link' }).click();
+    await page.waitForTimeout(200);
+    const link = await page.locator('textarea[readonly]').inputValue();
+    await context.close();
+
+    // Opened by someone on the starting size.
+    const again = await open(browser, 1280, 900, { hash: link.slice(link.indexOf('#')) });
+    assert.equal(await size(again.page, /^13 notes/).getAttribute('aria-checked'), 'true', 'a fresh browser, on 13');
+    assert.equal(await rowsOnGrid(again.page), 85, 'it grows to show them both');
+    assert.match(await gridWords(again.page), /C0-C7\+/, 'and says so');
+    const after = await songFile(again.page);
+    assert.deepEqual(after.channels.map((channel) => channel.patterns), before.channels.map((channel) => channel.patterns), 'every note just as it was');
+    await again.context.close();
+  });
+
+  await test(15, 'the octave keys move a small grid and change no notes, the size is remembered, and the drums have none of it', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).focus();
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /C4 on/, 'a note');
+    await page.getByRole('button', { name: 'Grid up an octave' }).click();
+    await page.waitForTimeout(100);
+    assert.match(await gridWords(page), /C4-C6\+/, 'a grid moved past a note keeps the note in view');
+    await page.keyboard.press('Control+z');
+    await expectStatus(page, /^Undone/, 'undo');
+    await page.waitForTimeout(100);
+    assert.match(await gridWords(page), /C5-C6/, 'with no note in the way, it sits on the octave it was moved to');
+    assert.equal(await rowsOnGrid(page), 13);
+    await page.keyboard.press('Shift+D');
+    await page.waitForTimeout(100);
+    assert.match(await gridWords(page), /C4-C5/, 'its key too');
+    await page.keyboard.press('Shift+G');
+    await expectStatus(page, /^25 notes/, 'the key for the size');
+    assert.equal(await rowsOnGrid(page), 25);
+    await size(page, /^49 notes/).click();
+    await page.waitForTimeout(100);
+    assert.equal(await page.getByRole('button', { name: 'Grid up an octave' }).count(), 0, 'the 49 stays where the keyboard is');
+    await page.keyboard.press('Shift+U');
+    await expectStatus(page, /^This size stays where it is/, 'and its key says so');
+    assert.equal(await size(page, /^49 notes/).getAttribute('title').then((title) => /C2 to C6/.test(title)), true, 'and says which keys');
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    await passThePopUp(page);
+    assert.equal(await rowsOnGrid(page), 49, 'remembered');
+    await page.getByRole('button', { name: 'Pick Drums' }).click();
+    await page.waitForTimeout(150);
+    assert.equal(await rowsOnGrid(page), 12, 'twelve drums');
+    assert.equal(await page.getByRole('radiogroup', { name: 'Notes on the grid' }).count(), 0, 'and no sizes');
     await context.close();
   });
 

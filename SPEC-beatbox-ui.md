@@ -66,5 +66,17 @@ The Menu column became five windows, one key each on the bar: Sounds, Recorder, 
   plain waves. MIT, settings for the synth rather than recordings, no sound files: about 34 KB of text. Moving down a list with the arrow keys plays
   each one.
 
+## How many notes on the grid (Luke, 2026-11-07)
+"Make the default number of keys or notes much smaller, and allow options for a few different amounts, one of which is specifically for a 49 key
+keyboard midi."
+- Small numbers under the grid: 13, 25, 37, 49, All (85). Whole octaves and one, so a scale ends on its root. It starts on 13: every note in view with
+  nothing to scroll, the smallest that still holds a whole scale. Rows may give up a tenth of their height for all of them to fit. Remembered on this browser.
+- 49 is a 49-key MIDI keyboard's own keys at its own default octave: MIDI 36 to 84, C2 to C6 (4 octaves and one; C2 to C7 would be 61 keys), with middle C as
+  C4, and the rows stay on those keys whatever key the song's in. A key played lights its row. Other sizes can go up or down an octave; 49 and All stay put.
+- A view, nothing else: no size ever changes a note. The grid is never narrower than the channel's own notes. It grows by whole octaves to show them and
+  says so with a + after its range, and shrinks back when they go.
+- A key played past the edge is heard, and the status line says it's above or below. If it's being recorded it's written, and the grid grows. Past the engine's
+  own range (C0 to C7), it's ignored as it always was.
+
 ## Not in scope
 The NVDA run and listening tests stay on Luke's list. Phone layout beyond "doesn't break": phones get the zoomed-out desktop.

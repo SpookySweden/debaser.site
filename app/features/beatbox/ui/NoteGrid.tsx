@@ -8,6 +8,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type CSSProperties,
   type KeyboardEvent,
   type MouseEvent,
@@ -22,7 +23,6 @@ import {
   partsPerBar,
   partsPerStep,
   patternAtBar,
-  pitchCount,
   pitchName,
   stepsPerBar,
   type NoteData,
@@ -30,8 +30,9 @@ import {
 } from "../engine/songData";
 import type { Transport } from "./app";
 import { channelName, noteShapeStyle } from "./channelLooks";
-import { fitCanvas, moveCursor, scrollToShow, showing, type GridCursor, type GridMove } from "./gridView";
+import { fitCanvas, moveCursor, scrollToShow, showing, type GridCursor, type GridMove, type NoteRange } from "./gridView";
 import { GLYPHS } from "./keyHelp";
+import type { LiveNotes } from "./liveNotes";
 import { glyphKey } from "./looks";
 import { deleteNoteAt, moveNote, noteAt, setNoteEnd, stretchNote, toggleNote } from "./noteEdit";
 import { startPan } from "./panning";
@@ -210,6 +211,26 @@ const NoteRow = memo(function NoteRow({
   );
 });
 
+/** The notes being played right now, lit over their names, so a keyboard's keys can be seen landing on their rows. */
+function HeldRows({ live, range }: { live: LiveNotes; range: NoteRange }) {
+  const held = useSyncExternalStore(live.subscribe, live.getHeld);
+  return (
+    <>
+      {[...held]
+        .filter((pitch) => pitch >= range.low && pitch <= range.high)
+        .map((pitch) => (
+          <div
+            key={pitch}
+            aria-hidden="true"
+            data-held-pitch={pitch}
+            className="pointer-events-none absolute left-0 z-30 bg-bb-pink"
+            style={{ top: `calc(var(--head-h) + var(--cell-h) * ${range.high - pitch})`, width: "var(--name-w)", height: "var(--cell-h)" }}
+          />
+        ))}
+    </>
+  );
+}
+
 /** What a press on the squares is in the middle of doing. Everything's worked out from the notes as they were when it began. */
 interface Gesture {
   readonly kind: "place" | "move" | "stretch";
@@ -245,6 +266,13 @@ export interface NoteGridProps {
   shortCellNames: boolean;
   /** With the hand on, dragging moves the view and nothing else. */
   hand: boolean;
+  /** Which notes the grid shows. */
+  range: NoteRange;
+  /** The pitch the cursor starts on. */
+  homePitch: number;
+  live: LiveNotes;
+  /** A drag on the squares starts or ends: the grid mustn't change its rows under it. */
+  onHold: (holding: boolean) => void;
   /** More keys for the row under the grid. */
   footKeys?: ReactNode;
   art: BeatBoxArt;
@@ -268,6 +296,10 @@ export function NoteGrid({
   transport,
   shortCellNames,
   hand,
+  range,
+  homePitch,
+  live,
+  onHold,
   footKeys,
   art,
   showArtSlots,
@@ -280,7 +312,7 @@ export function NoteGrid({
   const channel = song.channels[channelIndex];
   if (!channel) throw new Error(`The song has no channel ${channelIndex}.`);
 
-  const totalRows = pitchCount(channel);
+  const totalRows = range.high - range.low + 1;
   const totalColumns = stepsPerBar(song);
   const stepsPerBeat = gridStepsPerBeat(song);
   const stepParts = partsPerStep(song);
@@ -290,8 +322,14 @@ export function NoteGrid({
   const sharedBars = barsUsingPattern(channel, patternNumber);
 
   const [frame, viewWidth, viewHeight] = useElementSize();
-  const startRow = totalRows - 1 - (channel.isDrum ? 0 : channel.octave * 12);
+  const startRow = Math.max(0, Math.min(totalRows - 1, range.high - homePitch));
   const [cursor, setCursor] = useState<GridCursor>({ row: startRow, column: 0 });
+  // When the grid changes which notes it shows, the cursor stays on its note, or the nearest one there still is.
+  const [highSeen, setHighSeen] = useState({ high: range.high, total: totalRows });
+  if (highSeen.high !== range.high || highSeen.total !== totalRows) {
+    setHighSeen({ high: range.high, total: totalRows });
+    setCursor({ ...cursor, row: Math.max(0, Math.min(totalRows - 1, range.high - (highSeen.high - cursor.row))) });
+  }
   const cursorNow = useRef(cursor);
   const [spot, setSpot] = useState({ row: Math.max(0, startRow - 12), column: 0 });
   const moveFocusToCell = useRef(false);
@@ -342,6 +380,10 @@ export function NoteGrid({
     setCursor(next);
   }
 
+  useLayoutEffect(() => {
+    cursorNow.current = cursor;
+  });
+
   // Opens looking at the channel's own octave, with the cursor on the bottom row and the notes above it in view.
   useLayoutEffect(() => {
     const view = frame.current;
@@ -355,9 +397,9 @@ export function NoteGrid({
       view.scrollLeft = scrollToShow(view.scrollLeft, fit.cellWidth, viewAcross, cursorNow.current.column);
     }
     viewMoved();
-    // Only when the squares change size or the room does.
+    // Only when the squares change size, the room does, or the grid shows other notes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fit.cellHeight, fit.cellWidth, viewHeight, viewWidth]);
+  }, [fit.cellHeight, fit.cellWidth, viewHeight, viewWidth, range.low, range.high]);
 
   useLayoutEffect(() => {
     const view = frame.current;
@@ -381,7 +423,7 @@ export function NoteGrid({
   }
 
   function pitchOfRow(row: number): number {
-    return totalRows - 1 - row;
+    return range.high - row;
   }
 
   function nameOf(pitch: number): string {
@@ -488,6 +530,7 @@ export function NoteGrid({
     if (!square || Number.isNaN(row) || Number.isNaN(column)) return;
 
     view.setPointerCapture(event.pointerId);
+    onHold(true);
     goTo({ row, column }, "mouse");
     const pitch = pitchOfRow(row);
     const start = column * stepParts;
@@ -504,6 +547,7 @@ export function NoteGrid({
     // On an empty square the note lands now. Another note in the same place makes this a chord, whose length is that note's.
     const placed = toggleAt(row, column);
     if (placed && !under) gesture.current = { ...held, kind: "place", note: null, sent: true, left: placed };
+    else onHold(false);
   }
 
   function placedNotes(held: Gesture, row: number, column: number): readonly NoteData[] {
@@ -519,6 +563,7 @@ export function NoteGrid({
     // The bar's moved on under it, or an undo or a recorded pass has changed its notes: working from what it remembers would write over them.
     if (held.bar !== bar || held.left !== notes) {
       gesture.current = null;
+      onHold(false);
       return;
     }
     const view = frame.current;
@@ -542,7 +587,7 @@ export function NoteGrid({
     if (held.kind === "place") {
       next = placedNotes(held, row, column);
     } else if (held.kind === "move" && held.note) {
-      next = moveNote(held.base, held.note, held.pitch, (column - held.column) * stepParts, pitchOfRow(row) - held.pitch, barParts, totalRows - 1);
+      next = moveNote(held.base, held.note, held.pitch, (column - held.column) * stepParts, pitchOfRow(row) - held.pitch, barParts, range.high);
     } else if (held.note) {
       next = setNoteEnd(held.base, held.note, (column + 1) * stepParts, stepParts, barParts);
       cursorRow = held.row;
@@ -562,6 +607,7 @@ export function NoteGrid({
     const held = gesture.current;
     if (!held || held.pointer !== event.pointerId) return;
     gesture.current = null;
+    onHold(false);
     if (held.bar !== bar || held.left !== notes) return;
     if (cancelled) {
       // A finger that turned out to be the start of a pinch or a scroll leaves no note behind.
@@ -692,6 +738,7 @@ export function NoteGrid({
                 />
               );
             })}
+            <HeldRows live={live} range={range} />
             <Playhead
               transport={transport}
               headerCells={1}
@@ -700,7 +747,7 @@ export function NoteGrid({
                 if (playing.bar !== bar) return [];
                 const start = playing.step * stepParts;
                 const note = noteAt(notes, start, start + stepParts);
-                return note ? note.pitches.map((pitch) => ({ row: totalRows - 1 - pitch })) : [];
+                return note ? note.pitches.filter((pitch) => pitch >= range.low && pitch <= range.high).map((pitch) => ({ row: range.high - pitch })) : [];
               }}
             />
           </div>

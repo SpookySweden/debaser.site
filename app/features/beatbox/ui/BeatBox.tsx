@@ -12,7 +12,7 @@ import { SongLoadError } from "../engine";
 import { makeSound, soundIdOf, tryPitchOf } from "../engine/sounds";
 import { NOTE_KEY_LABELS } from "../input/computerKeys";
 import { QUANTISE_OPTIONS } from "../recorder/convert";
-import type { NoteData, SongData } from "../engine/songData";
+import { DRUM_ROW_COUNT, MAX_PITCH, pitchName, type NoteData, type SongData } from "../engine/songData";
 import { createApp } from "./app";
 import { AUDIO_MODES, audioBehaviour, type AudioMode } from "./audioModes";
 import { BarRow, type BarPick } from "./BarRow";
@@ -32,6 +32,8 @@ import {
   type KeyAction,
   type KeyStorage,
 } from "./keyBindings";
+import { ALL_NOTES, canMoveRange, GRID_SIZES, MIDI_KEYBOARD, noteRange, notesExtent, STARTING_GRID_SIZE, type GridSize, type NoteRange } from "./gridView";
+import { GridSizeKeys } from "./GridSizeKeys";
 import { GLYPHS } from "./keyHelp";
 import { KeysPanel } from "./KeysPanel";
 import { createLiveNotes } from "./liveNotes";
@@ -56,6 +58,8 @@ const TEMPO_STEP = 5;
 // How long a new sound plays, so it can be heard. Long enough for a slow pad to get going.
 const TRY_SOUND_MS = 600;
 const NAMES_KEY = "debaser.beatbox.key-names.v1";
+const GRID_SIZE_KEY = "debaser.beatbox.grid-size.v1";
+const DRUM_RANGE: NoteRange = { low: 0, high: DRUM_ROW_COUNT - 1, widened: false };
 
 const WINDOW_KEYS: readonly { readonly name: WindowName; readonly label: string; readonly glyph: string; readonly action: KeyAction; readonly hint: string }[] = [
   { name: "sounds", label: "Sounds", glyph: GLYPHS.sounds, action: "windowSounds", hint: "Sounds: the kinds of instrument" },
@@ -77,6 +81,15 @@ function KeyFace({ glyph, name, names }: { glyph: string; name: string; names: b
       )}
     </>
   );
+}
+
+function rememberedGridSize(memory: KeyStorage | null): GridSize {
+  try {
+    const saved = Number(memory?.getItem(GRID_SIZE_KEY));
+    return GRID_SIZES.find(({ size }) => size === saved)?.size ?? STARTING_GRID_SIZE;
+  } catch {
+    return STARTING_GRID_SIZE;
+  }
 }
 
 function rememberedNames(memory: KeyStorage | null): boolean {
@@ -156,6 +169,10 @@ export function BeatBox({
   const [helpOpen, setHelpOpen] = useState(false);
   const [padsShown, setPadsShown] = useState(false);
   const [hand, setHand] = useState(false);
+  const [gridSize, setGridSize] = useState<GridSize>(() => rememberedGridSize(memory));
+  // How far each channel's grid has been moved from its own octave, in octaves.
+  const [gridMoves, setGridMoves] = useState<Readonly<Record<number, number>>>({});
+  const [held, setHeld] = useState<{ range: NoteRange; channel: number; song: number } | null>(null);
   const [names, setNames] = useState(() => rememberedNames(memory));
   const [barsFolded, setBarsFolded] = useState(false);
   const [looping, setLooping] = useState(true);
@@ -249,6 +266,35 @@ export function BeatBox({
   function toggleHand() {
     setHand(!hand);
     setStatus(hand ? "Hand off. Dragging moves the notes." : "Hand on. Dragging moves the view.");
+  }
+
+  function chooseGridSize(size: GridSize) {
+    setGridSize(size);
+    setStatus(`${GRID_SIZES.find((option) => option.size === size)?.words ?? ""} on the grid.`);
+    try {
+      memory?.setItem(GRID_SIZE_KEY, String(size));
+    } catch {
+      // A browser that won't keep it only forgets it next time.
+    }
+  }
+
+  function cycleGridSize() {
+    const at = GRID_SIZES.findIndex((option) => option.size === gridSize);
+    const next = GRID_SIZES[(at + 1) % GRID_SIZES.length];
+    if (next) chooseGridSize(next.size);
+  }
+
+  function moveGrid(direction: 1 | -1) {
+    if (!pickedChannel || pickedChannel.isDrum) return;
+    if (gridSize === MIDI_KEYBOARD || gridSize === ALL_NOTES) {
+      setStatus("This size stays where it is. Only the smaller ones move.");
+      return;
+    }
+    if (!canMoveRange(gridSize, baseOctave, direction)) {
+      setStatus(direction === 1 ? "The grid can't go any higher." : "The grid can't go any lower.");
+      return;
+    }
+    setGridMoves({ ...gridMoves, [pick.channel]: baseOctave + direction - pickedChannel.octave });
   }
 
   function toggleNames() {
@@ -427,6 +473,9 @@ export function BeatBox({
     focusView: toggleFocusView,
     contrast: toggleTheme,
     hand: toggleHand,
+    gridSize: cycleGridSize,
+    gridUp: () => moveGrid(1),
+    gridDown: () => moveGrid(-1),
   };
   const latest = { actions, bindings, showOctave, closeWindow };
   const pageKeys = useRef(latest);
@@ -457,11 +506,20 @@ export function BeatBox({
       if (inTextBox && event.key !== "Escape") return;
       // A set of choices and a held pad have a use for Space of their own. In the bars, these three change the pattern.
       const spaceIsTaken = stroke === "Space" && target?.closest("[role='radio'], [aria-label='Pads']");
-      const barsHaveIt = (event.key === "-" || event.key === "=" || event.key === "+") && target?.closest("[aria-label^='Bars for']");
+      const inTheBars = target?.closest("[aria-label^='Bars for']");
+      const barsHaveIt = (event.key === "-" || event.key === "=" || event.key === "+") && inTheBars;
       if (action && !spaceIsTaken && !barsHaveIt) {
         event.preventDefault();
         if (event.key === " ") spaceTaken.current = true;
         if (!event.repeat || action === "undo" || action === "redo") keys.actions[action]();
+        return;
+      }
+      // In the bars, these two work the bars. They'd sound a note otherwise, being piano keys as well.
+      if (inTheBars && !event.ctrlKey && !event.shiftKey && (event.code === "KeyL" || event.code === "KeyF")) return;
+      // Nothing has the cursor, as after a pop-up: the keys that work the notes bring it back there.
+      if (grid.current && document.activeElement === document.body && windows.getOpen().length === 0 && !event.ctrlKey && !event.shiftKey && /^(Arrow|Page|Home$|End$|Enter$)/.test(event.key)) {
+        event.preventDefault();
+        grid.current.focus({ preventScroll: true });
         return;
       }
       if (live.keys.keyDown(event)) {
@@ -525,6 +583,7 @@ export function BeatBox({
         transport.stop();
         session.reset();
         songs.reload();
+        setGridMoves({});
         setPick({ channel: 0, bar: 0 });
         setSongNumber((number) => number + 1);
         setStatus(
@@ -590,6 +649,32 @@ export function BeatBox({
   }
 
   const pickedChannel = song.channels[pick.channel];
+  const highestOctave = Math.floor((MAX_PITCH - (gridSize - 1)) / 12);
+  const baseOctave = Math.max(0, Math.min(highestOctave, (pickedChannel?.octave ?? 0) + (gridMoves[pick.channel] ?? 0)));
+  const wantedRange = pickedChannel?.isDrum ? DRUM_RANGE : noteRange(gridSize, baseOctave, song.key, notesExtent(pickedChannel?.patterns ?? []));
+  // Rows don't change under a note that's being dragged. Letting go brings the grid up to date, and so does the grid going away under the drag.
+  if (held && (held.channel !== pick.channel || held.song !== songNumber)) setHeld(null);
+  const range = held && held.channel === pick.channel && held.song === songNumber ? held.range : wantedRange;
+  const noteName = (pitch: number) => (pickedChannel ? pitchName(song, pickedChannel, pitch) : "");
+  const rangeNow = useRef(range);
+  useEffect(() => {
+    rangeNow.current = range;
+  });
+
+  // A key played past the edge of the grid is still heard, and recorded. This says where it went.
+  useEffect(
+    () =>
+      live.onPlayed(({ event, pitch, channel }) => {
+        if (event.type !== "on" || (pitch >= rangeNow.current.low && pitch <= rangeNow.current.high)) return;
+        const current = songs.getSong();
+        const owner = current.channels[channel];
+        const name = owner ? pitchName(current, owner, pitch) : "";
+        const where = pitch > rangeNow.current.high ? "above" : "below";
+        setStatus(session.getSettings().recording ? `${name} is ${where} the grid. It's recorded, and the grid will grow to show it.` : `${name} is ${where} the grid. Heard, not written. A bigger size shows it.`);
+      }),
+    [live, session, setStatus, songs],
+  );
+
   const pickedPattern = pickedChannel?.bars[pick.bar] ?? 0;
   const sharedBars = pickedChannel ? barsUsingPattern(pickedChannel, pickedPattern) : 0;
   const barsShowing = !focusView && !barsFolded;
@@ -830,6 +915,10 @@ export function BeatBox({
               transport={transport}
               shortCellNames={behaviour.shortCellNames}
               hand={hand}
+              range={range}
+              homePitch={pickedChannel?.isDrum ? 0 : Math.max(range.low, Math.min(range.high, baseOctave * 12))}
+              live={live}
+              onHold={(holding) => setHeld(holding ? { range: wantedRange, channel: pick.channel, song: songNumber } : null)}
               art={art}
               showArtSlots={showArtSlots}
               onBarStep={barStep}
@@ -840,6 +929,32 @@ export function BeatBox({
               footKeys={
                 focusView ? undefined : (
                   <>
+                    {!pickedChannel?.isDrum && (
+                      <>
+                        <div role="group" aria-label="Where the grid is" className="flex items-center">
+                          {gridSize !== MIDI_KEYBOARD && gridSize !== ALL_NOTES && (
+                            <button type="button" aria-label="Grid down an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, -1)} title={`The grid down an octave (${keyFor("gridDown")})`} onClick={() => moveGrid(-1)} className={glyphKey()}>
+                              {GLYPHS.down}
+                            </button>
+                          )}
+                          <span
+                            title={range.widened ? "This song's notes go past the size you picked, so the grid has grown to show them" : undefined}
+                            className="flex min-w-bb-target-min items-center justify-center text-display font-bold whitespace-nowrap"
+                          >
+                            <span className="sr-only">Notes </span>
+                            {noteName(range.low)}-{noteName(range.high)}
+                            {range.widened ? <span className="text-bb-daffodil">+</span> : null}
+                            {range.widened ? <span className="sr-only"> grown to fit this song</span> : null}
+                          </span>
+                          {gridSize !== MIDI_KEYBOARD && gridSize !== ALL_NOTES && (
+                            <button type="button" aria-label="Grid up an octave" aria-disabled={!canMoveRange(gridSize, baseOctave, 1)} title={`The grid up an octave (${keyFor("gridUp")})`} onClick={() => moveGrid(1)} className={glyphKey()}>
+                              {GLYPHS.up}
+                            </button>
+                          )}
+                        </div>
+                        <GridSizeKeys size={gridSize} shortcut={keyFor("gridSize")} onChoose={chooseGridSize} />
+                      </>
+                    )}
                     {handKey}
                     <button type="button" aria-label="Bars" aria-pressed={!barsFolded} title={`Show or hide the bars (${keyFor("bars")})`} onClick={toggleBars} className={glyphKey(!barsFolded)}>
                       {GLYPHS.bars}

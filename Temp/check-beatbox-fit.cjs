@@ -2,12 +2,13 @@
  * The beat box's screen (SPEC-beatbox-ui.md), the parts that need no browser: the grid is a canvas sized to the room it's given, the side
  * panel's fold on this page is never written down, and the help lists every key the page answers. The acceptance tests
  * themselves need a browser and a running site: Temp/check-beatbox-ui.cjs, run by hand.
- *   npx tsc app/features/beatbox/ui/gridView.ts app/features/beatbox/ui/keyHelp.ts app/lib/ui/side-panel-page.ts --rootDir app --outDir Temp/beatbox-fit-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/features/beatbox/ui/gridView.ts app/features/beatbox/ui/keyHelp.ts app/features/beatbox/engine/songData.ts app/lib/ui/side-panel-page.ts --rootDir app --outDir Temp/beatbox-fit-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
-const { fitCanvas, showing, scrollToShow } = require('./beatbox-fit-out/features/beatbox/ui/gridView.js');
+const { fitCanvas, showing, scrollToShow, noteRange, notesExtent, canMoveRange, GRID_SIZES, STARTING_GRID_SIZE } = require('./beatbox-fit-out/features/beatbox/ui/gridView.js');
+const { midiToPitch, pitchName } = require('./beatbox-fit-out/features/beatbox/engine/songData.js');
 const { keyHelp } = require('./beatbox-fit-out/features/beatbox/ui/keyHelp.js');
 const { STARTING_KEYS } = require('./beatbox-fit-out/features/beatbox/ui/keyBindings.js');
 const panel = require('./beatbox-fit-out/lib/ui/side-panel-page.js');
@@ -49,6 +50,56 @@ for (const [width, height] of [[915, 560], [1556, 744], [300, 400], [500, 300]])
 // A drum channel never asks for more rows than it has.
 assert.equal(fitCanvas(1556, 2000, TARGET, STEPS, 12).rows, 12);
 
+// One octave fits with no scrolling, the rows giving up a little height to do it, on the room at 1280x900.
+{
+  const octave = fitCanvas(915, 564, TARGET, STEPS, 13);
+  assert.equal(octave.rows, 13);
+  assert.ok(octave.height <= 564, `${octave.height} fits`);
+  assert.ok(octave.cellHeight >= TARGET * 0.9, `rows ${octave.cellHeight}px`);
+  assert.ok(fitCanvas(915, 300, TARGET, STEPS, 13).cellHeight >= TARGET, 'with no hope of fitting, rows keep their full height and it scrolls');
+}
+
+// The sizes: whole octaves and one, so a scale ends on its root. The 49 is a 49-key keyboard: 4 octaves and one, not 5.
+assert.deepEqual(GRID_SIZES.map(({ size }) => size), [13, 25, 37, 49, 85]);
+for (const { size } of GRID_SIZES) assert.equal((size - 1) % 12, 0, `${size} ends on its root`);
+assert.equal(STARTING_GRID_SIZE, 13);
+assert.deepEqual(noteRange(13, 4, 0, null), { low: 48, high: 60, widened: false });
+assert.deepEqual(noteRange(25, 4, 0, null), { low: 48, high: 72, widened: false });
+assert.deepEqual(noteRange(85, 4, 0, null), { low: 0, high: 84, widened: false });
+assert.deepEqual(noteRange(37, 9, 0, null), { low: 48, high: 84, widened: false }, 'held inside what the engine has');
+
+// Each of the 49 keys has its own row, on the right note, whatever key the song is in.
+for (const key of [0, 2, 7, 11]) {
+  const song = { key };
+  const channel = { isDrum: false };
+  const range = noteRange(49, 4, key, null);
+  assert.equal(range.high - range.low + 1, 49);
+  const rows = new Set();
+  for (let midi = 36; midi <= 84; midi += 1) {
+    const pitch = midiToPitch(song, midi);
+    assert.ok(pitch >= range.low && pitch <= range.high, `key ${midi} is on the grid in song key ${key}`);
+    rows.add(range.high - pitch);
+  }
+  assert.equal(rows.size, 49, 'a row for each');
+  assert.equal(pitchName(song, channel, range.low), 'C2', `the bottom row is C2 in song key ${key}`);
+  assert.equal(pitchName(song, channel, range.high), 'C6', `the top row is C6 in song key ${key}`);
+}
+
+// A song's own notes are never out of sight: the grid grows by whole octaves, never narrows.
+assert.equal(notesExtent([]), null);
+assert.deepEqual(notesExtent([{ notes: [] }, { notes: [{ pitches: [50, 62] }, { pitches: [40] }] }]), { lowest: 40, highest: 62 });
+assert.deepEqual(noteRange(13, 4, 0, { lowest: 48, highest: 60 }), { low: 48, high: 60, widened: false }, 'notes inside: no change');
+assert.deepEqual(noteRange(13, 4, 0, { lowest: 50, highest: 61 }), { low: 48, high: 72, widened: true }, 'one above, up to the next root');
+assert.deepEqual(noteRange(13, 4, 0, { lowest: 47, highest: 50 }), { low: 36, high: 60, widened: true }, 'one below, down to the root under it');
+assert.deepEqual(noteRange(49, 4, 0, { lowest: 0, highest: 84 }), { low: 0, high: 84, widened: true }, 'the 49 grows too');
+assert.deepEqual(noteRange(13, 4, 0, { lowest: 0, highest: 84 }), { low: 0, high: 84, widened: true }, 'to the whole of it at most');
+
+assert.equal(canMoveRange(13, 4, 1), true);
+assert.equal(canMoveRange(13, 0, -1), false, 'not below the bottom');
+assert.equal(canMoveRange(13, 6, 1), false, 'not above the top');
+assert.equal(canMoveRange(49, 2, 1), false, 'the 49 stays where the keyboard is');
+assert.equal(canMoveRange(85, 0, 1), false);
+
 // What's in view, and how far to go to bring something into it.
 assert.deepEqual(showing(0, 44, 440, 85), { first: 0, last: 9 });
 assert.deepEqual(showing(22, 44, 440, 85), { first: 1, last: 9 }, 'part-shown rows at either end do not count');
@@ -81,7 +132,7 @@ assert.equal(scrollToShow(440, 44, 440, 25), 44 * 26 - 440, 'below: only as far 
 // The help lists every key the page answers.
 {
   const listed = keyHelp(STARTING_KEYS).flatMap((group) => group.keys.map(([keys]) => keys)).join(' | ');
-  for (const key of ['?', 'Space', 'Esc', 'Shift+L', 'Shift+S', 'Shift+O', 'Shift+H', '/', '\\', "'", 'R', 'Ctrl+Z', 'Ctrl+Y', '[', ']', 'B', 'I', '.', ',', '-', 'A W S', 'Z and X', 'V', 'N', 'M', 'Q', 'C', 'L', 'F', '0 to 9', '+ and -', 'Enter', 'Ctrl+Left', 'Shift+Left', 'Shift+Up', 'Delete', 'Home and End', 'Ctrl+Home', 'Page Up']) {
+  for (const key of ['?', 'Space', 'Esc', 'Shift+L', 'Shift+S', 'Shift+O', 'Shift+H', 'Shift+G', 'Shift+U', 'Shift+D', '/', '\\', "'", 'R', 'Ctrl+Z', 'Ctrl+Y', '[', ']', 'B', 'I', '.', ',', '-', 'A W S', 'Z and X', 'V', 'N', 'M', 'Q', 'C', 'L', 'F', '0 to 9', '+ and -', 'Enter', 'Ctrl+Left', 'Shift+Left', 'Shift+Up', 'Delete', 'Home and End', 'Ctrl+Home', 'Page Up']) {
     assert.ok(listed.includes(key), `the help lists ${key}`);
   }
   const page = read('app/features/beatbox/ui/BeatBox.tsx');

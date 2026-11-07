@@ -64,6 +64,10 @@ async function measure(browser, throttle) {
   await page.goto(`${BASE}/beatbox`, { waitUntil: 'domcontentloaded' });
   await page.waitForSelector(NOTES, { timeout: 120000 });
   await page.waitForTimeout(1000);
+  // Signed out, a "HAD AN ACCOUNT?" window comes first.
+  const notNow = page.getByRole('button', { name: '[ NOT NOW ]' });
+  await notNow.waitFor({ timeout: 2500 }).catch(() => {});
+  if (await notNow.isVisible().catch(() => false)) await notNow.click();
   const cdp = await context.newCDPSession(page);
   await cdp.send('Emulation.setCPUThrottlingRate', { rate: throttle });
   await page.evaluate(watch);

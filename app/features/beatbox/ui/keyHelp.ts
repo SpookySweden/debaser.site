@@ -55,6 +55,7 @@ export const KEY_FACES: KeyGroup = {
     [GLYPHS.settings, "Settings"],
     [GLYPHS.bars, "Show or hide the bars"],
     [GLYPHS.hand, "Hand: dragging moves the view"],
+    ["13 25 37 49 All", "How many notes on the grid. 49 is a 49-key MIDI keyboard, C2 to C6. A song's own notes always show: the grid grows to fit them, and says so with a +"],
     [GLYPHS.fill, "This bar's pattern on the whole loop"],
     [`${GLYPHS.barBack} ${GLYPHS.barOn}`, "Previous and next bar"],
     [`${GLYPHS.up} ${GLYPHS.down} ${GLYPHS.left} ${GLYPHS.right}`, "Move the view. Hold to keep going"],
