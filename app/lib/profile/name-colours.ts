@@ -177,6 +177,15 @@ export function nameColourWords(hex: string): string {
   return swatch === undefined ? hex : nameColourPairLabel(swatch);
 }
 
+/**
+ * Whether a name in this colour wears the dark strip on a bright theme (Luke, 2026-11-06): the GLOW colours, which
+ * would otherwise fade into the window, sit on a strip of `--color-hardware` (`.name-strip` in globals.css). The strip is
+ * a piece of dark field, so they take their dark reading on it: only Rose changes, because Rose on Black is 4.47:1.
+ */
+export function nameColourWearsStrip(hex: string): boolean {
+  return NAME_COLOURS_THAT_GLOW.some((colour) => colour.hex === hex);
+}
+
 export type NameOnTheme = {
   id: string;
   label: string;
@@ -186,6 +195,8 @@ export type NameOnTheme = {
   ink: string;
   /** What this choice is drawn as there: the same reading `.name-ink` picks by the theme's scheme. */
   value: string;
+  /** The strip behind the name there, or null where it stands on the window itself. */
+  strip: string | null;
   readable: boolean;
 };
 
@@ -196,8 +207,9 @@ export function nameOnThemes(hex: string): NameOnTheme[] {
   return THEMES.map((theme) => {
     const field = theme.tokens['sun-pale'];
     const ink = theme.tokens.ink;
-    const value = swatch === undefined ? ink : theme.scheme === 'dark' ? swatch.dark : swatch.hex;
-    return { id: theme.id, label: theme.label, field, ink, value, readable: contrastRatio(value, field) >= READABLE };
+    const strip = theme.scheme === 'light' && nameColourWearsStrip(hex) ? theme.tokens.hardware : null;
+    const value = swatch === undefined ? ink : theme.scheme === 'dark' || strip !== null ? swatch.dark : swatch.hex;
+    return { id: theme.id, label: theme.label, field, ink, value, strip, readable: contrastRatio(value, strip ?? field) >= READABLE };
   });
 }
 

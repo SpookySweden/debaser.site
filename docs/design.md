@@ -81,6 +81,8 @@ No Win95 bevels anywhere - not on windows, not on buttons, not on the scrollbar.
   readback of a setting. A guest gets one sign-in call per screen (the banner's `[ LOG IN ]`); a locked
   action elsewhere is one line, `[ LOG IN ] TO <DO THE THING>`.
 - Colour is for accents. Big fills are the window colour; colour marks what matters.
+- **Names keep their colour and stay readable** (Luke, 2026-11-06): on a bright theme, a name in a colour that would
+  fade into the window (Emerald, Rose, Brilliant Pink, Flavine, Daffodil) sits on a thin Black strip (`.name-strip`).
 - **Faults are Rose chips** (errors, refusals, warnings, the unread count): White words on a Rose strip,
   `bg-bubble-pale px-1 text-ink-bar` (`w-fit` on a block), 4.70:1 in both themes. Never Rose *words* on
   the window: that is 3.79:1 on Nigrosine and 4.14:1 on Flavine. `Temp/check-themes.cjs` holds it.

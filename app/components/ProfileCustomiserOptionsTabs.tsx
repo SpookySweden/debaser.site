@@ -9,6 +9,7 @@ import {
   SITE_COLOUR_LABEL,
   nameColourDark,
   nameColourPairLabel,
+  nameColourWearsStrip,
   nameOnThemes,
 } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
@@ -27,8 +28,8 @@ const COLOUR_ROW = `${KEY_FOCUS} flex w-full cursor-pointer flex-wrap items-cent
 
 /** The two groups the arithmetic produces (see app/lib/profile/name-colours.ts). */
 const NAME_COLOUR_GROUPS = [
-  { label: 'READS ON EVERY THEME', colours: NAME_COLOURS_THAT_READ },
-  { label: 'FADES ON SOME THEMES', colours: NAME_COLOURS_THAT_GLOW },
+  { label: 'READS ON ITS OWN', colours: NAME_COLOURS_THAT_READ },
+  { label: 'DARK STRIP ON BRIGHT THEMES', colours: NAME_COLOURS_THAT_GLOW },
 ];
 
 /** The pair `.name-ink` picks between (globals.css), so this draws exactly what the board draws. */
@@ -39,6 +40,10 @@ function nameInkStyle(hex: string): CSSProperties {
 function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; label: string; sample: string; chosen: boolean; onChoose: (hex: string) => void }) {
   // No swatch means the theme's own ink, which has no pair to pick between.
   const ink = hex.length === 0 ? { className: 'text-ink', style: undefined } : { className: 'name-ink', style: nameInkStyle(hex) };
+  // The block shows what the name is drawn in. A colour on the strip takes its dark reading on every theme.
+  const stripped = nameColourWearsStrip(hex);
+  const dark = nameColourDark(hex);
+  const blockStyle = stripped ? ({ '--name-ink': dark, '--name-ink-dark': dark } as CSSProperties) : ink.style;
 
   return (
     <button
@@ -52,16 +57,19 @@ function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; 
       <span aria-hidden="true" className="w-12 shrink-0 whitespace-pre">
         {chosen ? '[ ✓ ]' : '[   ]'}
       </span>
-      <span aria-hidden="true" className={`${ink.className} h-6 w-6 shrink-0 border-line border-ink bg-current`} style={ink.style} />
+      <span aria-hidden="true" className={`${ink.className} h-6 w-6 shrink-0 border-line border-ink bg-current`} style={blockStyle} />
       <span className="w-52 shrink-0">{label}</span>
-      <span aria-hidden="true" className={`${ink.className} min-w-0 flex-1 basis-40 truncate text-title`} style={ink.style}>
-        {sample}
+      <span aria-hidden="true" className="min-w-0 flex-1 basis-40 truncate text-title">
+        {/* Its own inline box, so a strip is as wide as the name and not the row. The block above never wears one. */}
+        <span className={`${ink.className} ${stripped ? 'name-strip' : ''}`} style={ink.style}>
+          {sample}
+        </span>
       </span>
     </button>
   );
 }
 
-/** The choice on every theme, each strip in that theme's own window colour. Says so in words where it fails. */
+/** The choice on every theme, each line in that theme's own window colour. Says so in words if one ever fails. */
 function NameOnEveryTheme({ hex, sample }: { hex: string; sample: string }) {
   return (
     <>
@@ -74,8 +82,10 @@ function NameOnEveryTheme({ hex, sample }: { hex: string; sample: string }) {
             style={{ backgroundColor: theme.field, color: theme.ink }}
           >
             <span className="w-24 shrink-0">{theme.label}</span>
-            <span className="min-w-0 flex-1 basis-40 truncate text-title" style={{ color: theme.value }}>
-              {sample}
+            <span className="min-w-0 flex-1 basis-40 truncate text-title">
+              <span className={theme.strip === null ? undefined : 'px-1'} style={{ color: theme.value, backgroundColor: theme.strip ?? undefined }}>
+                {sample}
+              </span>
             </span>
             {theme.readable ? null : <span className="shrink-0">HARD TO READ</span>}
           </li>

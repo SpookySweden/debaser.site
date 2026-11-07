@@ -200,7 +200,32 @@ for (const theme of THEMES) {
   assert.equal(shown.value, theme.scheme === 'dark' ? '#ffffff' : '#000000', 'the strip draws what .name-ink draws on ' + theme.label);
   assert.equal(shown.readable, contrastRatio(shown.value, theme.tokens['sun-pale']) >= 4.5);
 }
-assert.equal(nameOnThemes('#e1ff00').find((entry) => entry.id === 'default').readable, false, 'Flavine on the Flavine window is called hard to read');
+// The strip (Luke, 2026-11-06): every choice reads on every theme now, and a faded colour keeps its colour on a bright one.
+const { nameColourWearsStrip } = require('./name-colour-render/lib/profile/name-colours.js');
+for (const swatch of NAME_COLOURS) {
+  for (const theme of nameOnThemes(swatch.hex)) {
+    assert.ok(theme.readable, swatch.label + ' reads on ' + theme.label + ': ' + contrastRatio(theme.value, theme.strip ?? theme.field).toFixed(2) + ':1');
+  }
+}
+for (const swatch of NAME_COLOURS) {
+  assert.equal(nameColourWearsStrip(swatch.hex), !NAME_COLOURS_THAT_READ.includes(swatch), swatch.label + ' wears the strip only if it would fade');
+  for (const theme of nameOnThemes(swatch.hex)) {
+    const light = THEMES.find((entry) => entry.id === theme.id).scheme === 'light';
+    assert.equal(theme.strip !== null, light && nameColourWearsStrip(swatch.hex), swatch.label + ' on ' + theme.label + ': a strip on bright themes only');
+    if (theme.strip !== null) assert.equal(theme.value, swatch.dark, swatch.label + ' takes its dark reading on the strip, as .name-strip draws it');
+  }
+}
+const flavineName = withProviders(element(ProfileName, { author: { id: 'user-x', displayName: 'x' }, colour: '#e1ff00' }));
+assert.match(flavineName, /class="name-ink name-strip"/, 'a faded name is drawn with the strip');
+const blueName = withProviders(element(ProfileName, { author: { id: 'user-x', displayName: 'x' }, colour: '#1d3ca6' }));
+assert.doesNotMatch(blueName, /name-strip/, 'and a name that reads on its own is not');
+const css = require('node:fs').readFileSync('app/globals.css', 'utf8').replace(/\r\n/g, '\n');
+const stripRule = /:root\[data-scheme='light'\] \.name-strip \{([^}]*)\}/.exec(css);
+assert.ok(stripRule, 'the strip belongs to bright themes only');
+assert.match(stripRule[1], /background-color: var\(--color-hardware\)/, 'and is the colour the arithmetic above asked about');
+assert.match(stripRule[1], /color: var\(--name-ink-dark, var\(--name-ink\)\)/, 'and draws the reading the arithmetic above asked about');
+assert.doesNotMatch(css, /^\.name-strip/m, 'nothing draws it on a dark theme');
+assert.match(css, /\.name-glow:hover \.name-strip \{\s*background-color: transparent;/, 'and a lit directory row has no dark box on it');
 assert.equal(profileNameColour({ nameColour: '#800000' }), undefined, 'a colour since taken off the swatch counts as none');
 
 // MODULOS: the label beside the square is the colour in the square.

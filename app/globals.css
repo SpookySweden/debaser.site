@@ -1341,6 +1341,17 @@ img {
   color: var(--name-ink-dark, var(--name-ink));
 }
 
+/* The colours that would fade into a bright window sit on a thin Black strip (Luke, 2026-11-06): Flavine on the
+   Flavine window was 1:1. The strip is a piece of dark field, so a name takes its dark reading on it: only Rose moves,
+   to Brilliant Pink, because Rose on Black is 4.47:1. `clone` so a name that wraps has its strip on every line. */
+:root[data-scheme='light'] .name-strip {
+  color: var(--name-ink-dark, var(--name-ink));
+  background-color: var(--color-hardware);
+  padding-inline: 0.25em;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 /* A directory row under the pointer lights up in its account's name colour, and its words flip to the
    ink that reads on that colour (`inkOnNameColour`). Same pair as `.name-ink`: `--glow` / `--glow-ink`
    for a light theme, the `-dark` pair everywhere else. A name with no colour lights up in the page's
@@ -1376,6 +1387,11 @@ img {
   }
 
   .name-glow:hover .glow-link:hover {
+    background-color: transparent;
+  }
+
+  /* The whole row is lit and the name has taken the row's ink, so a strip would be a dark box on it with dark words. */
+  :root .name-glow:hover .name-strip {
     background-color: transparent;
   }
 }

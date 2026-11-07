@@ -172,11 +172,11 @@ assert.equal(typeof validateNameColour('#123456'), 'string', 'off-swatch colours
   assert.equal((tabHtml.match(/\[ ✓ \]/g) ?? []).length, 1, 'and only the picked one has it');
   assert.match(tabHtml, /aria-label="SITE COLOUR"/, 'the site colour is a choice, so a colour can be taken off again');
   assert.match(tabHtml, /aria-label="BLACK \/ WHITE"/, 'a dye that draws two colours says both');
-  assert.match(tabHtml, />READS ON EVERY THEME<\/p>/, 'the readable dyes are one group');
-  assert.match(tabHtml, />FADES ON SOME THEMES<\/p>/, 'and the bright ones another');
+  assert.match(tabHtml, />READS ON ITS OWN<\/p>/, 'the readable dyes are one group');
+  assert.match(tabHtml, />DARK STRIP ON BRIGHT THEMES<\/p>/, 'and the bright ones another');
   assert.doesNotMatch(tabHtml, />INK<\/p>|>GLOW<\/p>|PREVIEW ::/, 'the old heads and the readback are gone');
   assert.equal((tabHtml.match(/>sweden<\/span>/g) ?? []).length, 9 + 5, 'the reader own name beside each choice and on all five themes');
-  assert.equal((tabHtml.match(/HARD TO READ/g) ?? []).length, 3, 'Daffodil is called hard to read in words on the three light themes');
+  assert.equal((tabHtml.match(/HARD TO READ/g) ?? []).length, 0, 'with the strip, Daffodil reads on every theme (Luke, 2026-11-06)');
   assert.doesNotMatch(tabHtml, /\[ SAVE \]/, 'the save key is in the window foot now, not here');
 
   const blackHtml = renderToStaticMarkup(element(ProfileIdentityTab, { profile: { displayName: 'sweden' }, name: 'sweden', bio: '', country: '', status: '', nameColour: '#000000', onNameChange: () => undefined, onBioChange: () => undefined, onCountryChange: () => undefined, onStatusChange: () => undefined, onNameColourChange: () => undefined, bioProblem: undefined, countryProblem: undefined, statusProblem: undefined }));
