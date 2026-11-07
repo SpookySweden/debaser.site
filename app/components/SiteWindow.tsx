@@ -1,12 +1,14 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useSyncExternalStore, type ReactNode } from 'react';
 import DesktopSidebar from './DesktopSidebar';
+import FullWindowKey from './FullWindowKey';
 import ProfileControl from './ProfileControl';
 import SiteNav from './SiteNav';
 import Taskbar from './Taskbar';
 import type { NavKey } from './SiteNav';
 import { WINDOW_TITLE_BAR } from '../lib/ui/controls';
+import { chosenFill, subscribeToChosenFill } from '../lib/ui/site-fill';
 import GuestPrompt from './GuestPrompt';
 
 type SiteWindowProps = {
@@ -46,6 +48,10 @@ type SiteWindowProps = {
  * the profile control opens a menu, and the side panel remembers whether it is collapsed.
  */
 export default function SiteWindow({ title, active, tip, fill = false, children }: SiteWindowProps) {
+  // The reader's own choice, from the key at the top right. Kept apart from the page's `fill`, which is never written anywhere, so leaving a
+  // page that fills by itself finds what the reader chose. A page that fills by itself has no key: there's nothing for it to do there.
+  const chosen = useSyncExternalStore(subscribeToChosenFill, chosenFill, () => false);
+  const filled = fill || chosen;
   return (
     // The surface behind the window is the desktop's own tile. (The room kept for the player's bar and
     // the guest strip is the two spacers, below.)
@@ -67,11 +73,11 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
     // and the window, `my-auto` between them, shrinks when the screen is short - so its title and its
     // taskbar are never behind either strip. With no strip drawn the spacers fall back to what the
     // padding used to keep: nothing at the top, 4rem at the foot (the folded player's key).
-    <main className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${fill ? 'p-2 sm:p-4 md:p-0' : 'p-2 sm:p-4'}`}>
+    <main className={`desktop-tile flex h-dvh flex-col items-center font-mono select-none ${filled ? 'p-2 sm:p-4 md:p-0' : 'p-2 sm:p-4'}`}>
       <div aria-hidden="true" className="h-[var(--top-bar,0px)] shrink-0" />
       <div
         className={
-          fill
+          filled
             ? 'my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale md:my-0 md:h-auto md:max-h-none md:min-h-0 md:w-full md:max-w-none md:flex-1'
             : 'my-auto flex h-[84vh] max-h-[84dvh] min-h-[16rem] w-[95vw] max-w-[1280px] flex-col frame bg-sun-pale'
         }
@@ -81,17 +87,18 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
             USERS and MEDIA used to carry a `[ × ]` close key here, which pushed their title and its
             rules left of every other page's (Luke, 2026-10-24) - a page is not a window over the
             board, and the band under this bar already goes everywhere. */}
-        <div className={fill ? `${WINDOW_TITLE_BAR} md:hidden` : WINDOW_TITLE_BAR}>
+        <div className={filled ? `${WINDOW_TITLE_BAR} md:hidden` : WINDOW_TITLE_BAR}>
           <span className="truncate" title={tip}>
             {title}
           </span>
           <span className="flex items-center gap-2">
             <ProfileControl />
+            {filled ? null : <FullWindowKey on={false} />}
           </span>
         </div>
 
         {/* The page tabs: the header, and the first thing under the title bar. */}
-        <SiteNav active={active} />
+        <SiteNav active={active} endKey={chosen && !fill ? <FullWindowKey on /> : undefined} />
 
         {/*
          * Taskbar: the Start menu and the tray, at the foot of the window.
@@ -99,7 +106,7 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
          * Written before the page and pulled to the foot with `order-last`, so a keyboard user reads
          * the page before the tray while the window still looks like a desktop.
          */}
-        <div className={fill ? 'contents md:hidden' : 'contents'}>
+        <div className={filled ? 'contents md:hidden' : 'contents'}>
           <Taskbar />
         </div>
 
@@ -113,7 +120,7 @@ export default function SiteWindow({ title, active, tip, fill = false, children 
             {children}
           </div>
 
-          <DesktopSidebar foldedOnThisPage={fill} />
+          <DesktopSidebar foldedOnThisPage={filled} />
         </div>
 
       </div>

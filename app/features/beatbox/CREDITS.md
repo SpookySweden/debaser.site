@@ -12,6 +12,7 @@ Two things come from BeepBox's own editor (v4.2.2 of the same repository, same l
 - `engine/soundBank.ts`: the settings of the named sounds in the Sounds window, from its instrument list `editor/EditorConfig.ts`. They're
   settings for this synth, not recordings: there are no sound files. The plain names are ours.
 - `ui/loopEdit.ts`: how the loop bar drags, worked out from `editor/LoopEditor.ts`.
+- `ui/recentStore.ts`: how recent songs are kept and thinned out, worked out from `editor/SongRecovery.ts`.
 
 ```
 MIT License

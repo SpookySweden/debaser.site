@@ -31,6 +31,7 @@ export function InOut({
   onSave,
   shareLinkStart,
   extras,
+  recent,
   onAnnounce,
 }: {
   engine: Engine;
@@ -38,6 +39,8 @@ export function InOut({
   onSave?: (song: SavedSong) => void;
   shareLinkStart?: string;
   extras?: (getSong: () => SavedSong) => ReactNode;
+  /** The recent songs, among the ways to open one. */
+  recent?: ReactNode;
   onAnnounce: (message: string) => void;
 }) {
   const [link, setLink] = useState("");
@@ -163,6 +166,8 @@ export function InOut({
           />
         </div>
       </form>
+
+      {recent}
 
       <div role="group" aria-label="Save" className="flex flex-wrap gap-bb-gutter">
         {onSave && (

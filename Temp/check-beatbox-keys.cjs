@@ -3,13 +3,14 @@
  * and pause, a key can't be given a job that would break the notes, a taken key swaps, a bad save can't break the page, a window can never
  * be lost off an edge, the loop drags as BeepBox's does, and a moved note lands only where there's room. The browser's side of it is in
  * Temp/check-beatbox-ui.cjs, run by hand.
- *   npx tsc app/features/beatbox/ui/keyBindings.ts app/features/beatbox/ui/windowStore.ts app/features/beatbox/ui/loopEdit.ts app/features/beatbox/ui/noteEdit.ts --rootDir app --outDir Temp/beatbox-keys-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/features/beatbox/ui/keyBindings.ts app/features/beatbox/ui/windowStore.ts app/features/beatbox/ui/loopEdit.ts app/features/beatbox/ui/noteEdit.ts app/features/beatbox/ui/recentStore.ts --rootDir app --outDir Temp/beatbox-keys-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  */
 const assert = require('node:assert/strict');
 const K = require('./beatbox-keys-out/features/beatbox/ui/keyBindings.js');
 const W = require('./beatbox-keys-out/features/beatbox/ui/windowStore.js');
 const L = require('./beatbox-keys-out/features/beatbox/ui/loopEdit.js');
 const N = require('./beatbox-keys-out/features/beatbox/ui/noteEdit.js');
+const R = require('./beatbox-keys-out/features/beatbox/ui/recentStore.js');
 
 const stroke = (key, code, extra = {}) => K.strokeOf({ key, code, ctrlKey: false, shiftKey: false, ...extra });
 const memory = () => {
@@ -197,6 +198,103 @@ for (const allowed of ['KeyB', 'Shift+KeyA', 'Ctrl+KeyB', 'F2', 'Insert', '`', '
   assert.equal(N.setNoteEnd(notes, b, 1000, 6, 192)[1].end, 192, 'or the end of the bar');
   assert.equal(N.setNoteEnd(notes, a, -5, 6, 192)[0].end, 6, 'one step at the least');
   assert.equal(N.setNoteEnd(notes, a, 6, 6, 192), notes, 'nothing moved, nothing changed');
+}
+
+// Recent songs, kept as BeepBox keeps them.
+{
+  const MINUTE = 60 * 1000;
+  const HOUR = 60 * MINUTE;
+  let songs = [];
+  songs = R.addVersion(songs, 'a', 'one', 1000);
+  assert.equal(songs.length, 1);
+  assert.equal(R.addVersion(songs, 'a', 'one', 2000), songs, 'the same song text again changes nothing');
+  songs = R.addVersion(songs, 'a', 'two', 2000);
+  assert.deepEqual(songs[0].versions.map(({ data }) => data), ['two'], 'a change a second later replaces it: not enough work between them to keep both, as BeepBox has it');
+  songs = R.addVersion(songs, 'a', 'three', 4 * 60 * 1000);
+  songs = R.addVersion(songs, 'a', 'four', 8 * 60 * 1000);
+  assert.deepEqual(songs[0].versions.map(({ data }) => data), ['four', 'three'], 'minutes apart they stay, newest first');
+  assert.equal(R.MOST_RECENT_SONGS, 8);
+
+  // Long work leaves versions behind, thinning towards the past, and never loses the newest or the first.
+  let work = [];
+  for (let at = 0; at < 200; at += 1) work = R.addVersion(work, 'long', `text ${at}`, at * MINUTE);
+  const versions = work[0].versions;
+  assert.equal(versions[0].data, 'text 199', 'the newest stays');
+  assert.ok(versions.length >= 5 && versions.length <= 24, `${versions.length} versions kept of 200`);
+  const gaps = versions.slice(1).map((version, index) => versions[index].time - version.time);
+  assert.ok(Math.max(...gaps.slice(-3)) > Math.min(...gaps.slice(0, 3)), 'further apart further back');
+  // A flurry of changes in a few seconds doesn't crowd out what came before.
+  let flurry = [];
+  for (let at = 0; at < 50; at += 1) flurry = R.addVersion(flurry, 'quick', `text ${at}`, at * 1000);
+  assert.ok(flurry[0].versions.length <= 12, `${flurry[0].versions.length} versions from a minute's clicking`);
+
+  // Eight songs at the most: the newest half are safe, and of the rest the older with less work goes.
+  let many = [];
+  for (let at = 0; at < 8; at += 1) many = R.addVersion(many, `song ${at}`, 'x', at * HOUR);
+  many = R.addVersion(many, 'worked', 'y', 0);
+  for (let at = 1; at <= 40; at += 1) many = R.addVersion(many, 'worked', `y${at}`, at * 3 * MINUTE);
+  assert.equal(many.length, 8);
+  assert.ok(many.some(({ uid }) => uid === 'worked'), 'the most recent is kept');
+  many = R.addVersion(many, 'new', 'z', 10 * HOUR);
+  assert.equal(many.length, 8);
+  assert.equal(many[0].uid, 'new', 'newest first');
+  assert.ok(!many.some(({ uid }) => uid === 'song 0'), 'the oldest with little work has gone');
+  assert.ok(many.some(({ uid }) => uid === 'worked'), 'older, but worked on far longer, stays');
+
+  // Kept in the browser, and a bad save can't hurt.
+  const store = memory();
+  const kept = R.createRecentStore(store);
+  let told = 0;
+  kept.subscribe(() => {
+    told += 1;
+  });
+  kept.save('a', 'one', 1000);
+  assert.equal(told, 1);
+  kept.save('a', 'one', 2000);
+  assert.equal(told, 1, 'nothing new, nobody told');
+  assert.deepEqual(R.createRecentStore(store).getSongs().map(({ uid }) => uid), ['a'], 'there next time');
+  for (const bad of ['not json', '{"a":1}', '[{"uid":"x"},{"uid":"y","versions":[{"time":"soon"}]}]']) {
+    store.setItem('debaser.beatbox.recent.v1', bad);
+    assert.deepEqual(R.createRecentStore(store).getSongs(), [], `a broken save: ${bad}`);
+  }
+  assert.deepEqual(R.createRecentStore(null).getSongs(), [], 'no storage');
+  const noStorage = R.createRecentStore(null);
+  noStorage.save('a', 'one', 1000);
+  assert.equal(noStorage.getSongs().length, 1, 'it still works until the page closes');
+
+  // Two tabs: neither wipes out what the other has kept.
+  {
+    const shared = memory();
+    const one = R.createRecentStore(shared);
+    const two = R.createRecentStore(shared);
+    one.save('first tab', 'a', 1000);
+    two.save('second tab', 'b', 2000);
+    one.save('first tab', 'c', 3 * 60 * 1000);
+    assert.deepEqual(R.createRecentStore(shared).getSongs().map(({ uid }) => uid).sort(), ['first tab', 'second tab'], 'both are there');
+    const three = R.createRecentStore(shared);
+    two.save('second tab', 'd', 4 * 60 * 1000);
+    let heard = 0;
+    three.subscribe(() => {
+      heard += 1;
+    });
+    three.refresh();
+    assert.equal(heard, 1, 'a tab catches up when asked');
+    assert.equal(three.getSongs()[0].versions[0].data, 'd');
+    three.refresh();
+    assert.equal(heard, 1, 'and is not told twice');
+  }
+
+  // A browser out of room gives up the oldest song, not the newest.
+  let room = 2;
+  const small = { getItem: () => null, removeItem() {}, setItem(_, value) { if (JSON.parse(value).length > room) throw new Error('full'); } };
+  const tight = R.createRecentStore(small);
+  tight.save('a', '1', 1000);
+  tight.save('b', '2', 2000);
+  tight.save('c', '3', 3000);
+  assert.deepEqual(tight.getSongs().map(({ uid }) => uid), ['c', 'b'], 'the oldest goes');
+  room = 0;
+  tight.save('d', '4', 4000);
+  assert.equal(tight.getSongs()[0].uid, 'd', 'with no room at all, the newest stays for as long as the page is open');
 }
 
 console.log('beat box keys and windows: Space plays and pauses, the notes keys are safe, taken keys swap, windows stay on screen, the loop drags as BeepBox does, notes move only to room: OK');

@@ -78,5 +78,12 @@ keyboard midi."
 - A key played past the edge is heard, and the status line says it's above or below. If it's being recorded it's written, and the grid grows. Past the engine's
   own range (C0 to C7), it's ignored as it always was.
 
+## Recent songs (Luke, 2026-11-07)
+"Add the same feature beep box has where you can recover recent songs you were working on under the open save and share function."
+- Under Open and share in the Song window: the last 8 songs worked on, newest first, as BeepBox keeps them (`editor/SongRecovery.ts`): each change is kept 3/4 of a second
+  after it stops, older versions thin out so there are more close to now, and older songs with less work go first. In this browser only, signed in or out; no database.
+- Each row has a pick of its versions by time, a key to hear it without opening it (BeepBox's little player), and Open, which takes two presses. The song on screen goes on
+  the list before anything replaces it, so there's always a way back. Opening one carries on as that song: changes add versions to it.
+
 ## Not in scope
 The NVDA run and listening tests stay on Luke's list. Phone layout beyond "doesn't break": phones get the zoomed-out desktop.

@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useSyncExternalStore, type CSSProperties } from 'react';
+import { useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import { moduleBarColour, WipTag } from './ModulesWindow';
 import SiteArrows from './SiteArrows';
 import { MODULES, moduleInk, moduleIsOn } from '../lib/ui/modules';
@@ -195,7 +195,7 @@ function wordClass(isActive: boolean): string {
 }
 
 // No profile key (Luke, 2026-11-03): the reader's own profile is reached from the side panel.
-export default function SiteNav({ active }: { active?: NavKey }) {
+export default function SiteNav({ active, endKey }: { active?: NavKey; /** A key for the far end of the band, when this is the top of the window. */ endKey?: ReactNode }) {
   const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
   const listOpen = useSyncExternalStore(subscribeToModulesWindow, modulesWindowOpen, serverModulesWindowOpen);
   const { id: themeId } = useSyncExternalStore(subscribeToTheme, themeState, themeState);
@@ -228,6 +228,7 @@ export default function SiteNav({ active }: { active?: NavKey }) {
           </Link>
         );
       })}
+      {endKey ? <span className="ml-auto flex items-center">{endKey}</span> : null}
     </nav>
   );
 }

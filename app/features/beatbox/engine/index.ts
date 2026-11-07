@@ -75,6 +75,9 @@ export interface Engine {
   renderAudio(onProgress?: (done: number) => void, stop?: AbortSignal): Promise<RenderedAudio>;
   /** A link to the song that opens on beepbox.co. */
   getSongLink(): string;
+  /** Plays another song on the side, without opening it, round and round. Throws SongLoadError. Playing the song itself stops it. */
+  startPreview(text: string): void;
+  stopPreview(): void;
   /** The song in BeepBox's JSON format. */
   getSongJson(): string;
 }
@@ -156,6 +159,12 @@ export function createEngine(): Engine {
   let keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   let countInBarsLeft = 0;
   let anchor: AudioTiming["anchor"] | null = null;
+  let preview: Synth | null = null;
+
+  function stopPreview(): void {
+    preview?.pause();
+    preview = null;
+  }
 
   // BeepBox counts in for one bar, clearing this flag when the bar ends. Catching that
   // moment lets it count in for more bars, on the exact sample the bar ends.
@@ -251,6 +260,7 @@ export function createEngine(): Engine {
   return {
     loadSong(text) {
       const loaded = parseSong(text);
+      stopPreview();
       stop();
       clearLiveNotes();
       synth.setSong(loaded);
@@ -278,6 +288,7 @@ export function createEngine(): Engine {
     },
 
     play({ fromBar, countInBars = 0 } = {}) {
+      stopPreview();
       if (synth.playing) return;
       if (fromBar !== undefined) {
         synth.goToBar(fromBar);
@@ -407,5 +418,15 @@ export function createEngine(): Engine {
     getSongJson() {
       return JSON.stringify(requireSong().toJsonObject());
     },
+
+    startPreview(text) {
+      const next = new Synth(parseSong(text));
+      stopPreview();
+      next.volume = synth.volume;
+      next.play();
+      preview = next;
+    },
+
+    stopPreview,
   };
 }

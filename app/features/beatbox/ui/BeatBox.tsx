@@ -44,6 +44,8 @@ import { Pads } from "./Pads";
 import { PixelSlot, type BeatBoxArt } from "./PixelSlot";
 import { PopWindow } from "./PopWindow";
 import { BeatLight, RecordPanel } from "./RecordPanel";
+import { createRecentStore, newSongId } from "./recentStore";
+import { RecentSongs } from "./RecentSongs";
 import { createRecordSession } from "./recordSession";
 import { barsUsingPattern, replacePatternNotes, setChannelSound } from "./songEdit";
 import { SoundsPanel } from "./SoundsPanel";
@@ -55,6 +57,8 @@ export type BeatBoxTheme = "default" | "high-contrast";
 const HEAR_NOTE_MS = 250;
 const CURSOR_TONE_MS = 100;
 const TEMPO_STEP = 5;
+// How long after the last change a song is kept as a version, as BeepBox does it.
+const RECENT_SAVE_MS = 750;
 // How long a new sound plays, so it can be heard. Long enough for a slow pad to get going.
 const TRY_SOUND_MS = 600;
 const NAMES_KEY = "debaser.beatbox.key-names.v1";
@@ -90,6 +94,11 @@ function rememberedGridSize(memory: KeyStorage | null): GridSize {
   } catch {
     return STARTING_GRID_SIZE;
   }
+}
+
+/** Does this song have any notes at all? */
+function notesExtentOfSong(song: SongData): boolean {
+  return song.channels.some((channel) => notesExtent(channel.patterns) !== null);
 }
 
 function rememberedNames(memory: KeyStorage | null): boolean {
@@ -173,6 +182,11 @@ export function BeatBox({
   // How far each channel's grid has been moved from its own octave, in octaves.
   const [gridMoves, setGridMoves] = useState<Readonly<Record<number, number>>>({});
   const [held, setHeld] = useState<{ range: NoteRange; channel: number; song: number } | null>(null);
+  const [recent] = useState(() => createRecentStore(memory));
+  const [songUid, setSongUid] = useState(newSongId);
+  const songUidNow = useRef(songUid);
+  // The song as it was last kept or opened, so what hasn't changed isn't kept again.
+  const lastKept = useRef<string | null>(null);
   const [names, setNames] = useState(() => rememberedNames(memory));
   const [barsFolded, setBarsFolded] = useState(false);
   const [looping, setLooping] = useState(true);
@@ -563,6 +577,7 @@ export function BeatBox({
   useEffect(
     () => () => {
       transport.stop();
+      engine.stopPreview();
       engine.stopAllNotes();
     },
     [engine, transport],
@@ -576,13 +591,48 @@ export function BeatBox({
     });
   }, [follow, transport]);
 
+  const songText = useCallback(() => {
+    const link = engine.getSongLink();
+    return link.slice(link.indexOf("#") + 1);
+  }, [engine]);
+
+  // Every change is kept a moment after it stops, as long as the page is here, and as it goes.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    lastKept.current ??= songText();
+    function keepNow() {
+      if (timer !== null) clearTimeout(timer);
+      timer = null;
+      const text = songText();
+      if (text === lastKept.current) return;
+      lastKept.current = text;
+      recent.save(songUidNow.current, text, Date.now());
+    }
+    const stopListening = songs.subscribe(() => {
+      if (timer !== null) clearTimeout(timer);
+      timer = setTimeout(keepNow, RECENT_SAVE_MS);
+    });
+    window.addEventListener("pagehide", keepNow);
+    return () => {
+      stopListening();
+      window.removeEventListener("pagehide", keepNow);
+      keepNow();
+    };
+  }, [recent, songText, songs]);
+
   const openSong = useCallback(
-    (text: string) => {
+    (text: string, uid: string = newSongId()) => {
       try {
+        // What's on screen goes on the list first, even if it was only opened and never changed, so there's always a way back to it.
+        const leaving = songText();
+        if (notesExtentOfSong(engine.getSong()) && leaving) recent.save(songUidNow.current, leaving, Date.now());
         const info = engine.loadSong(text);
+        songUidNow.current = uid;
+        setSongUid(uid);
         transport.stop();
         session.reset();
         songs.reload();
+        lastKept.current = songText();
         setGridMoves({});
         setPick({ channel: 0, bar: 0 });
         setSongNumber((number) => number + 1);
@@ -596,8 +646,32 @@ export function BeatBox({
         setStatus(`Problem: ${error.message}`);
       }
     },
-    [engine, session, setStatus, songs, transport],
+    [engine, recent, session, setStatus, songText, songs, transport],
   );
+
+  function openRecent(uid: string, data: string) {
+    openSong(data, uid);
+    setStatus("Opened. The song you were on is in Recent songs.");
+  }
+
+  function hearRecent(data: string | null) {
+    try {
+      if (data === null) {
+        engine.stopPreview();
+        return;
+      }
+      if (session.getSettings().recording) {
+        setStatus("Stop recording first, so as not to end the pass.");
+        return;
+      }
+      session.stopPlayback();
+      engine.startPreview(data);
+      setStatus("Hearing that one, without opening it.");
+    } catch (error) {
+      if (!(error instanceof SongLoadError)) throw error;
+      setStatus(`Problem: ${error.message}`);
+    }
+  }
 
   // Opens the starting song once. Nothing sounds until someone presses Play.
   const openedInitialSong = useRef(false);
@@ -843,6 +917,7 @@ export function BeatBox({
                 onSave={onSave}
                 shareLinkStart={shareLinkStart}
                 extras={extras}
+                recent={<RecentSongs open={openWindows.includes("song")} store={recent} currentUid={songUid} songPlaying={playing} onOpen={openRecent} onHear={hearRecent} />}
                 onAnnounce={setStatus}
               />
             </PopWindow>

@@ -20,7 +20,7 @@ const argument = (name, fallback) => {
 };
 const BASE = argument('--url', 'http://localhost:3001');
 const OUT = argument('--out', path.join(__dirname, 'browse', 'bb-accept'));
-const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15').split(',').map(Number);
+const ONLY = argument('--only', '1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16').split(',').map(Number);
 const STAND_IN = process.argv.includes('--stand-in');
 assert.ok(!STAND_IN || /localhost|127\.0\.0\.1/.test(BASE), 'the stand-in account is for a local build only');
 fs.mkdirSync(OUT, { recursive: true });
@@ -1882,6 +1882,101 @@ const main = async () => {
     await page.waitForTimeout(150);
     assert.equal(await rowsOnGrid(page), 12, 'twelve drums');
     assert.equal(await page.getByRole('radiogroup', { name: 'Notes on the grid' }).count(), 0, 'and no sizes');
+    await context.close();
+  });
+
+  // 16. Recent songs.
+  await test(16, 'recent songs: kept as you work, there after a reload, opened with two presses, and nothing is lost by opening one', async () => {
+    const { context, page } = await open(browser, 1280, 900);
+    const songWindow = page.getByRole('dialog', { name: 'Song' });
+    const recentRows = songWindow.getByRole('region', { name: 'Recent songs' }).getByRole('listitem');
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    assert.match(await songWindow.getByRole('region', { name: 'Recent songs' }).innerText(), /Nothing yet/i, 'a new browser has nothing');
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+
+    // Work on a song: a note, and a moment later it's on the list.
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).evaluate((cell) => cell.focus({ preventScroll: true }));
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /C4 on/, 'a note');
+    await page.waitForTimeout(1000);
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.count(), 1, 'one song on the list');
+    assert.match(await recentRows.first().innerText(), /On screen/i, 'marked as the one on screen');
+    await page.screenshot({ path: path.join(OUT, 'recent.png') });
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+
+    // Gone: the page is reloaded, and the song on screen is a new one.
+    await page.reload({ waitUntil: 'domcontentloaded' });
+    await page.waitForSelector(NOTES, { timeout: 120000 });
+    await page.waitForTimeout(500);
+    await passThePopUp(page);
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-selected="true"]`).count(), 0, 'a clean page');
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.count(), 1, 'the list is still there');
+    assert.doesNotMatch(await recentRows.first().innerText(), /On screen/i, 'and it is not the one on screen now');
+
+    // Hearing one: it plays, Play stops it, and shutting the window stops it.
+    const hear = recentRows.first().getByRole('button', { name: /^Hear/ });
+    await hear.click();
+    await expectStatus(page, /^Hearing that one/, 'hearing it');
+    assert.equal(await recentRows.first().getByRole('button', { name: /^Stop hearing/ }).getAttribute('aria-pressed'), 'true');
+    await page.locator(`${MAIN} button`).first().click();
+    await page.waitForTimeout(150);
+    assert.equal(await recentRows.first().getByRole('button', { name: /^Hear/ }).getAttribute('aria-pressed'), 'false', 'Play stops it');
+    await page.locator(`${MAIN} button`).nth(1).click();
+    await page.waitForTimeout(100);
+    await recentRows.first().getByRole('button', { name: /^Hear/ }).click();
+    await page.waitForTimeout(100);
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(150);
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.first().getByRole('button', { name: /^Hear/ }).getAttribute('aria-pressed'), 'false', 'shut, it stops');
+
+    // Open takes two presses, and the first changes nothing.
+    await recentRows.first().getByRole('button', { name: /^Open the song/ }).click();
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-selected="true"]`).count(), 0, 'one press opens nothing');
+    await recentRows.first().getByRole('button', { name: /replacing the one on screen$/ }).click();
+    await expectStatus(page, /^Opened. The song you were on/, 'two presses do');
+    await page.waitForTimeout(150);
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-selected="true"]`).count(), 1, 'the note is back');
+    assert.match(await recentRows.first().innerText(), /On screen/i, 'and it is the one on screen again');
+
+    // A way back: another song replacing this one leaves this one on the list, and changes add to it, not a new line.
+    await page.keyboard.press('Escape');
+    await page.waitForTimeout(100);
+    await page.locator(`${NOTES} [role="gridcell"][tabindex="0"]`).evaluate((cell) => cell.focus({ preventScroll: true }));
+    await page.keyboard.press('ArrowUp');
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('Enter');
+    await page.waitForTimeout(1000);
+    await page.keyboard.press('Shift+O');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.count(), 1, 'carrying on is the same song');
+    await page.getByRole('button', { name: 'Use example song' }).click();
+    await page.locator('#song-link').focus();
+    await page.keyboard.press('Enter');
+    await expectStatus(page, /^Song opened/, 'the example');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.count(), 1, 'the example has not been worked on');
+    await recentRows.first().getByRole('button', { name: /^Open the song/ }).click();
+    await recentRows.first().getByRole('button', { name: /replacing the one on screen$/ }).click();
+    await expectStatus(page, /^Opened/, 'back again');
+    await page.waitForTimeout(100);
+    assert.equal(await recentRows.count(), 2, 'and the example, having been left, is on the list as well');
+    assert.equal(await page.locator(`${NOTES} [role="gridcell"][aria-selected="true"]`).count(), 2, 'both notes');
+
+    // A signed-out person has all of this, and the song itself is untouched by opening: no words of its own are saved anywhere but here.
+    const held = await page.evaluate(() => {
+      const value = localStorage.getItem('debaser.beatbox.recent.v1');
+      return { songs: JSON.parse(value).length, bytes: value.length };
+    });
+    numbers['recent songs'] = held;
     await context.close();
   });
 

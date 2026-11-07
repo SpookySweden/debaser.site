@@ -50,6 +50,7 @@ const SKIP = new Set([
   'check-channel-binding.cjs',
   'check-beatbox-songs.cjs',
   'check-beatbox-ui.cjs',
+  'check-full-window-ui.cjs',
   'check-comms-live.cjs',
   'check-comms-two-accounts.cjs',
   'check-live-shape.cjs',
