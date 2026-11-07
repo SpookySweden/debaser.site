@@ -6,6 +6,7 @@ import type { ForumAnchor } from '../lib/forum/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { placeOf, type RoomSource } from '../lib/ui/floating-player';
 import { goLiveEmpty } from '../lib/watch/go-live';
+import { noteFindInRoom } from '../lib/watch/find-in-room';
 import { ROOM_NAME_MAX, ROOM_TOPIC_MAX } from '../lib/watch/rules';
 import type { RoomAddMode, RoomPrivacy } from '../lib/watch/types';
 import PopoutWindow from './PopoutWindow';
@@ -27,12 +28,15 @@ export default function GoLiveWindow({
   user,
   createThread,
   first,
+  findToPlay,
   onClose,
 }: {
   user: AccountUser;
   createThread: (input: { title: string; body: string; anchor: ForumAnchor }) => Promise<{ id: string }>;
   /** The video the room starts with; `playId` finds where the viewer had got to. */
   first?: { source: RoomSource; playId: string; title: string };
+  /** A TMDB title no server holds (find-in-room.ts): the room opens its queue searching for it (FIND TO PLAY). */
+  findToPlay?: string;
   onClose: () => void;
 }) {
   const [privacy, setPrivacy] = useState<RoomPrivacy>('private');
@@ -50,7 +54,9 @@ export default function GoLiveWindow({
     try {
       // The place is read now: the video has been playing on behind this window.
       const opening = first === undefined ? {} : { start: { name, topic, addMode, first: first.source, place: placeOf(first.playId) } };
-      await goLiveEmpty(user, createThread, { privacy, ...(privacy === 'password' ? { password } : {}), ...opening });
+      const roomId = await goLiveEmpty(user, createThread, { privacy, ...(privacy === 'password' ? { password } : {}), ...opening });
+      // An empty room started to find a title a source: open its queue searching for it as it comes up.
+      if (first === undefined && findToPlay !== undefined) noteFindInRoom(roomId, findToPlay);
       onClose();
     } catch (failure) {
       setFault(failure instanceof Error ? failure.message : 'THE STREAM COULD NOT START.');

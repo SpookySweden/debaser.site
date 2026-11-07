@@ -95,3 +95,19 @@ export function isWildcardServer(server: Pick<MediaServer, 'listPath'>): boolean
 export function serverHost(server: Pick<MediaServer, 'base'>): string {
   return new URL(server.base).hostname;
 }
+
+/**
+ * The configured media server an https URL belongs to (matched by host), or undefined. A room plays a server's own
+ * player page with this server's sandbox (`playerSandbox`); the match also proves the url is still one of the
+ * configured servers' (bridges.ts `isMediaServerEmbed`), so a de-configured server's old queue link stops playing.
+ */
+export function mediaServerForUrl(url: string, servers: readonly MediaServer[] = MEDIA_SERVERS): MediaServer | undefined {
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return undefined;
+  }
+  if (parsed.protocol !== 'https:' || parsed.port !== '' || parsed.username !== '' || parsed.password !== '') return undefined;
+  return servers.find((server) => serverHost(server) === parsed.hostname);
+}

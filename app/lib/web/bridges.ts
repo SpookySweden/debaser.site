@@ -1,7 +1,8 @@
 import type { ForumAnchor } from '../forum/types';
 import { LINK_TITLE_MAX, LINK_URL_MAX, recognizeLink, twitchTarget, twitchUrl, vimeoUrl, vimeoVideo, youtubeId, youtubeWatchUrl } from '../watch/links';
 import type { WatchLink, WatchLinkKind } from '../watch/types';
-import { MEDIA_SERVER_IDS, type MediaServerId } from './media-servers';
+import { MEDIA_SERVERS, MEDIA_SERVER_IDS, mediaServerForUrl, type MediaServer, type MediaServerId } from './media-servers';
+import { mediaPlayUrl, type MediaInfo, type PlayChoice } from './media-titles';
 import { officialEmbedUrl } from './official-embed';
 import { rowAddresses } from './row-addresses';
 export { officialEmbedUrl, WEB_EMBED_SANDBOX } from './official-embed';
@@ -99,11 +100,39 @@ export const WATCH_KIND_BY_PLATFORM: Record<WebPlatform, Extract<WatchLinkKind, 
   ...(Object.fromEntries(MEDIA_SERVER_IDS.map((id) => [id, null])) as Record<MediaServerId, null>),
 };
 
+/**
+ * Whether an embed address is one of the configured media servers' own player pages (SPEC-media-servers.md). A room
+ * may play these — the server's own player in a sandboxed frame, the same one /media uses — even though they are not
+ * official allow-listed embeds (Luke, 2026-11-07: "pick a server... watch in the room"). Limited to the exact hosts in
+ * media-servers.ts, https, no port or credentials, so no other address the database holds can reach a room this way.
+ */
+export function isMediaServerEmbed(url: string, servers: readonly MediaServer[] = MEDIA_SERVERS): boolean {
+  return mediaServerForUrl(url, servers) !== undefined;
+}
+
+/**
+ * The room link for a TMDB title held on a media server: the server's own player page (SPEC-media-servers.md), as a
+ * sandboxed embed, so it can be queued and watched in a room (Luke, 2026-11-07). null when that server can't play the
+ * chosen title or episode. The url is built by `mediaPlayUrl` (https, the server's own host, checked there), so
+ * `isMediaServerEmbed` accepts it only while the server stays configured.
+ */
+export function serverWatchLink(
+  server: MediaServer,
+  media: Pick<MediaInfo, 'type' | 'tmdbId' | 'copies'>,
+  title: string,
+  choice: PlayChoice = {},
+): WatchLink | null {
+  const url = mediaPlayUrl(server, media, choice);
+  if (url === null) return null;
+  const clean = title.replace(/\s+/g, ' ').trim().slice(0, LINK_TITLE_MAX).trim() || server.label;
+  return { url, kind: 'embed', title: clean };
+}
+
 /** Whether a link may go in a room's queue from WEB: https, a fitting kind, and an allow-listed address. */
-export function isQueueableWebLink(link: WatchLink): boolean {
+export function isQueueableWebLink(link: WatchLink, servers: readonly MediaServer[] = MEDIA_SERVERS): boolean {
   if (typeof link.url !== 'string' || !link.url.startsWith('https://') || link.url.length > LINK_URL_MAX) return false;
   if (link.title.length === 0 || link.title.length > LINK_TITLE_MAX) return false;
-  if (link.kind === 'embed') return officialEmbedUrl(link.url) !== null;
+  if (link.kind === 'embed') return officialEmbedUrl(link.url) !== null || isMediaServerEmbed(link.url, servers);
   // A site the room already drives: only its own canonical address, exactly as a pasted link is kept.
   if (link.kind === 'youtube' || link.kind === 'vimeo' || link.kind === 'twitch') {
     const verdict = recognizeLink(link.url);

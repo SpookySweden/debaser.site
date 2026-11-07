@@ -285,6 +285,27 @@ const run = async () => {
   same(queueRefusal({ url: `http://archive.org/embed/${id}`, kind: 'embed', title: 'x' }), LINK_REFUSALS.notHttps, 'http is refused as not https');
   ok(!isQueueableWebLink({ url: `https://archive.org/embed/${id}`, kind: 'file', title: 'x' }), 'WEB never queues a file link');
 
+  /* -------------------------------- media-server players as room embeds (SPEC-media-servers.md; Luke 2026-11-07) */
+  // A configured server's own player page may play in a room, even though it is not an official allow-listed embed.
+  // Scoped to the exact hosts in media-servers.ts (the real list is empty, so a fake one is passed here).
+  const fakeServers = [{ id: 'friend_1', label: 'FRIEND 1', base: 'https://media.friend.example', listPath: '*', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' } }];
+  const serverPlay = 'https://media.friend.example/embed/movie/157336';
+  ok(bridges.isMediaServerEmbed(serverPlay, fakeServers), "a configured server's player page is a server embed");
+  ok(!bridges.isMediaServerEmbed(serverPlay), 'with no servers configured (the real empty list) it is not');
+  ok(!bridges.isMediaServerEmbed('https://evil.example/embed/movie/157336', fakeServers), 'another host is not a server embed');
+  ok(!bridges.isMediaServerEmbed('http://media.friend.example/x', fakeServers), 'http is not');
+  ok(!bridges.isMediaServerEmbed('https://media.friend.example:8443/x', fakeServers), 'a port is not');
+  ok(!bridges.isMediaServerEmbed('https://user:pw@media.friend.example/x', fakeServers), 'credentials are not');
+  ok(isQueueableWebLink({ url: serverPlay, kind: 'embed', title: 'A FILM' }, fakeServers), "a server's player link is queueable when its host is configured");
+  ok(!isQueueableWebLink({ url: serverPlay, kind: 'embed', title: 'A FILM' }), 'but not against the empty real server list');
+  ok(isQueueableWebLink(link), 'an official embed is still queueable with no server argument');
+  // serverWatchLink: a TMDB title on a server becomes a room embed of that server's player page.
+  const mserver = { id: 'friend_1', label: 'FRIEND 1', base: 'https://media.friend.example', listPath: '*', play: { movie: '/m/{tmdb}', tv: '/t/{tmdb}/{season}/{episode}' } };
+  const mlink = bridges.serverWatchLink(mserver, { type: 'movie', tmdbId: 157336, copies: [{ server: 'friend_1' }] }, 'A FILM');
+  same(mlink, { url: 'https://media.friend.example/m/157336', kind: 'embed', title: 'A FILM' }, 'a server-held title builds a sandboxed room embed');
+  ok(mlink && isQueueableWebLink(mlink, [mserver]), 'and it is queueable against that server');
+  ok(bridges.serverWatchLink(mserver, { type: 'movie', tmdbId: 157336, copies: [{ server: 'other' }] }, 'X') === null, 'null when the server holds no copy of the title');
+
   /* ------------------------------------------------- both watch repositories enforce it before writing */
   const { getMockWatchRepository } = require(lib('watch', 'mock-watch-repository.js'));
   const mockWatch = getMockWatchRepository();

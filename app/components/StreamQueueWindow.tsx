@@ -38,12 +38,14 @@ import { fetchSeries, useSeriesCount } from '../lib/watch/series-client';
 import { checkLink } from '../lib/watch/stream-player';
 import type { WatchLink, WatchMember, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
-import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
+import { isQueueableWebLink, officialEmbedUrl, serverWatchLink, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { authorList, matchesAuthor } from '../lib/web/search';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
+import { mediaServer, type MediaServer, type MediaServerId } from '../lib/web/media-servers';
+import { heldEpisodes, type MediaInfo } from '../lib/web/media-titles';
 import { searchOrder } from '../lib/web/web-sort';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { songLink, songMatches, trackForSong } from '../lib/watch/songs';
@@ -51,7 +53,7 @@ import { listLinks, playedSinceCleared, storedListItems, storedListName } from '
 import type { Playlist } from '../lib/audio/library';
 import { isBarAudioPlatform, playsInBar } from '../lib/web/web-audio';
 import { loadWebItem, webTrackNow } from '../lib/web/web-track-lookup';
-import { isKinoRow, KinoRow } from './WebMediaRow';
+import { KinoRow } from './WebMediaRow';
 import ArtMark from './ArtMark';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -280,6 +282,36 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       return;
     }
     const link = watchLinkForItem(item);
+    if (link === null || !isQueueableWebLink(link)) {
+      setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
+      return;
+    }
+    try {
+      const words = await put({ link }, straight);
+      if (words !== null) setJustAdded({ key: `web:${item.id}`, words });
+    } catch (failure) {
+      fail('IT COULD NOT BE ADDED.')(failure);
+    }
+  }
+
+  /** The room link for a TMDB title on a given server: a film straight off, a show as its whole-show player or else
+   *  its first held episode, so a server pick always lands on something playable. */
+  function serverLinkFor(server: MediaServer, media: MediaInfo, title: string): WatchLink | null {
+    if (media.type !== 'tv') return serverWatchLink(server, media, title);
+    const whole = serverWatchLink(server, media, title, { whole: true });
+    if (whole !== null) return whole;
+    const seasons = heldEpisodes(media);
+    const first = seasons.keys().next().value;
+    if (first === undefined) return null;
+    return serverWatchLink(server, media, title, { season: first, episode: seasons.get(first)?.[0] });
+  }
+
+  /** WATCH on a media server (Luke, 2026-11-07): queue the picked server's own player for a TMDB title. */
+  async function addServer(item: WebItem, serverId: MediaServerId, straight: boolean) {
+    setProblem(null);
+    const media = item.media;
+    if (media === undefined) return;
+    const link = serverLinkFor(mediaServer(serverId), media, item.title);
     if (link === null || !isQueueableWebLink(link)) {
       setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
       return;
@@ -994,6 +1026,7 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
                   crowned={rights.arrange}
                   onAddFile={(id, straight) => void addFile(id, straight)}
                   onAddWeb={(item, straight) => void addWeb(item, straight)}
+                  onAddServer={(item, serverId, straight) => void addServer(item, serverId, straight)}
                   onAddSeries={(item, links, straight) => void addSeriesResult(item, links, straight)}
                   onAddSong={(track, straight) => void addSong(track, straight)}
                   onMore={(words, cursor) => void find(words, cursor)}
@@ -1380,6 +1413,7 @@ function Results({
   crowned,
   onAddFile,
   onAddWeb,
+  onAddServer,
   onAddSeries,
   onAddSong,
   onMore,
@@ -1391,6 +1425,7 @@ function Results({
   crowned: boolean;
   onAddFile: (mediaItemId: string, straight: boolean) => void;
   onAddWeb: (item: WebItem, straight: boolean) => void;
+  onAddServer: (item: WebItem, serverId: MediaServerId, straight: boolean) => void;
   /** A series result's ticked episodes, or null for all of them (the fold never opened). */
   onAddSeries: (item: WebItem, links: WatchLink[] | null, straight: boolean) => void;
   /** One of the site's own songs. */
@@ -1442,16 +1477,22 @@ function Results({
               <AddKey crowned={crowned} added={added(`song:${track.src}`)} onAdd={(straight) => onAddSong(track, straight)} label={track.title} />
             </li>
           ))}
-          {search.web.map((item) =>
-            isKinoRow(item) ? (
+          {search.web.map((item) => {
+            const media = item.media;
+            return media !== undefined ? (
               <KinoRow
                 key={item.id}
-                item={item}
+                item={{ ...item, media }}
                 titleId={`queue-title-${item.externalId}`}
                 action={
-                  <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find>
-                    [ FIND TO PLAY ]
-                  </button>
+                  <>
+                    {media.copies.length > 0 ? (
+                      <ServerWatch item={{ ...item, media }} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(serverId, straight) => onAddServer(item, serverId, straight)} />
+                    ) : null}
+                    <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find>
+                      [ FIND TO PLAY ]
+                    </button>
+                  </>
                 }
               />
             ) : (
@@ -1463,8 +1504,8 @@ function Results({
                 onAdd={(straight) => onAddWeb(item, straight)}
                 onAddSeries={(links, straight) => onAddSeries(item, links, straight)}
               />
-            ),
-          )}
+            );
+          })}
         </ul>
       )}
       {search.kind === 'found' && search.problems.length > 0 ? (
@@ -1599,6 +1640,39 @@ function WebResult({
  * `[ + ADD ]` onto your own list, and for a crown the crown-plus key beside it, straight into the queue; QUEUED or
  * ADDED for a moment after. The box is as wide as both keys either way, so the row never moves.
  */
+/**
+ * WATCH on a server (SPEC-media-servers.md; Luke 2026-11-07): the server to use — a picker when a title is on more
+ * than one — and the add key (your own list, or straight into the queue for a crown). Shown on a KINO result a media
+ * server holds, beside FIND TO PLAY.
+ */
+function ServerWatch({ item, crowned, added, onAdd }: { item: WebItem & { media: MediaInfo }; crowned: boolean; added: AddedWords | null; onAdd: (serverId: MediaServerId, straight: boolean) => void }) {
+  const copies = item.media.copies;
+  const [server, setServer] = useState<MediaServerId>(copies[0]?.server);
+  if (copies.length === 0) return null;
+  return (
+    <span className="flex flex-wrap items-center gap-1" data-watch-server={server}>
+      <span className="font-bold">WATCH</span>
+      {copies.length > 1 ? (
+        <select
+          value={server}
+          onChange={(event) => setServer(event.target.value as MediaServerId)}
+          aria-label={`Server for "${item.title}"`}
+          className="min-h-tap border border-ink-plate bg-paper px-1 font-bold"
+        >
+          {copies.map((copy) => (
+            <option key={copy.server} value={copy.server}>
+              {PLATFORM_LABELS[copy.server]}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <span className="font-bold">{PLATFORM_LABELS[server]}</span>
+      )}
+      <AddKey crowned={crowned} added={added} onAdd={(straight) => onAdd(server, straight)} label={`${item.title} on ${PLATFORM_LABELS[server]}`} />
+    </span>
+  );
+}
+
 function AddKey({
   crowned,
   added,

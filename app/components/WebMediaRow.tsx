@@ -8,6 +8,7 @@ import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { seasonsLine } from '../lib/web/kino';
 import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../lib/web/media-titles';
+import { serverWatchLink } from '../lib/web/bridges';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
 import { webSessionHeaders } from '../lib/web/web-session';
@@ -17,6 +18,8 @@ import AudioSubsFlags from './AudioSubsFlags';
 import { useKinoSources, WATCH_PLAYER_BOX, WATCH_PLAYING_LINE, WatchList, watchCount } from './KinoSources';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
+import WatchInRoomKey from './WatchInRoomKey';
+import FindInRoomKey from './FindInRoomKey';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
@@ -379,6 +382,15 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         }
       />
 
+      {/* Into a stream room: the title on the chosen server, as a sandboxed embed (SPEC-media-servers.md; Luke 2026-11-07). */}
+      {(() => {
+        const roomLink = serverWatchLink(mediaServer(server), target, item.title, choice);
+        return roomLink === null ? null : (
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <WatchInRoomKey source={{ link: roomLink }} playId={playId} title={item.title} />
+          </div>
+        );
+      })()}
     </li>
   );
 }
@@ -475,6 +487,8 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
       <WatchList sources={sources} title={item.title} audio={contentLanguage(item)} />
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
+        {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
+        {action === undefined ? <FindInRoomKey title={item.title} /> : null}
         {addresses.link ? (
           <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
             [ ON TMDB ↗ ]

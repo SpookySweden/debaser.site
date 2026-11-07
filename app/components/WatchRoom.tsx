@@ -53,6 +53,8 @@ import { steadyInterval } from '../lib/watch/steady-timer';
 import { attachStream, playsDirectly, type StreamHandle } from '../lib/watch/stream-player';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { officialEmbedUrl, WEB_EMBED_SANDBOX } from '../lib/web/official-embed';
+import { mediaServerForUrl, playerSandbox } from '../lib/web/media-servers';
+import { subscribeFindInRoom, takeFindInRoom } from '../lib/watch/find-in-room';
 import { withEnglishSubtitles } from '../lib/web/row-addresses';
 import { webSessionHeaders } from '../lib/web/web-session';
 import { detectLanguage } from '../lib/web/language';
@@ -820,6 +822,19 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
     setQueuePrefill(key === undefined ? undefined : blankPrefill(key));
     setQueueOpen(true);
   };
+  // FIND IN ROOM from the media tab (SPEC-media-servers.md): a TMDB title no server holds opens the queue searched
+  // for it, so a playable source can be queued. Fires as the room opens, and if another arrives while it is open.
+  useEffect(() => {
+    const check = () => {
+      const title = takeFindInRoom(read.room.id);
+      if (title !== null) {
+        setQueuePrefill(title);
+        setQueueOpen(true);
+      }
+    };
+    check();
+    return subscribeFindInRoom(check);
+  }, [read.room.id]);
 
   /* --- the room's look (SPEC-cytube.md) -------------------------------------------------------- */
 
@@ -1671,10 +1686,13 @@ export function TimedMessage({ message }: { message: WatchMessage }) {
  * step: everybody presses play on it themselves, and the host moves the room on with NEXT.
  */
 function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
-  const checked = officialEmbedUrl(link.url);
+  // A configured media server's own player page (SPEC-media-servers.md): played with that server's sandbox. The host
+  // match also re-proves it is still a configured server, so a de-configured server's old queue link stops playing.
+  const server = mediaServerForUrl(link.url);
+  const checked = server !== undefined ? link.url : officialEmbedUrl(link.url);
   // A PeerTube player is asked to start with English subtitles on foreign audio (SPEC-subtitles.md): its own
   // menu is the way to change them, since the room cannot drive this player. Added after the check, never stored.
-  const url = checked !== null && new URL(checked).pathname.startsWith('/videos/embed/') ? withEnglishSubtitles(checked, 'peertube', detectLanguage(link.title)) : checked;
+  const url = checked !== null && server === undefined && new URL(checked).pathname.startsWith('/videos/embed/') ? withEnglishSubtitles(checked, 'peertube', detectLanguage(link.title)) : checked;
 
   if (url === null) {
     return (
@@ -1690,7 +1708,7 @@ function OfficialEmbedStage({ link, fit }: { link: WatchLink; fit: string }) {
         src={url}
         title={`Player: ${link.title}`}
         referrerPolicy="no-referrer"
-        sandbox={WEB_EMBED_SANDBOX}
+        sandbox={server !== undefined ? playerSandbox(server) : WEB_EMBED_SANDBOX}
         allow="fullscreen"
         className="min-h-0 w-full flex-1 bg-paper"
         data-watch-embed="embed"
