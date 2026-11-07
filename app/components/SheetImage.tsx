@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
+import { chatImageUrl } from '../lib/watch/chat-images';
 
 type SheetImageProps = {
   src: string;
@@ -46,7 +47,19 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
     return () => window.cancelAnimationFrame(frame);
   }, [fitMode, src]);
 
+  // A picture chosen from the search lives on GIPHY or Commons: the browser asks them for it directly, so the site's
+  // image optimiser (which would fetch and cache a copy) stays out of it, and it can vanish from under us.
+  const hotlinked = chatImageUrl(src) !== null;
+
   if (missing) {
+    if (hotlinked && !compact) {
+      return (
+        <div className="flex min-h-40 w-full items-center justify-center frame bg-ice-pale p-4 text-center">
+          <span className="text-label font-bold text-ink">[ PICTURE GONE ]</span>
+        </div>
+      );
+    }
+
     if (compact) {
       return (
         <span className="whitespace-nowrap text-label text-ink" title={`${src} is not in the assets folder yet`}>
@@ -70,6 +83,8 @@ export default function SheetImage({ src, alt, width, height, sizes, compact = f
       alt={alt}
       width={width}
       height={height}
+      unoptimized={hotlinked}
+      referrerPolicy={hotlinked ? 'no-referrer' : undefined}
       sizes={fit?.mode === 'cover' && ratio > 1 ? `${Math.ceil(width * ratio)}px` : (sizes ?? '(max-width: 768px) 100vw, 50vw')}
       onError={() => setMissing(true)}
       onLoad={(event) => {

@@ -272,6 +272,8 @@ export type UsePresenceResult = {
   record: PresenceRecord | undefined;
   /** True when no lamp is coming: the reader has no session, or this person's lamp is off. */
   noLamp: boolean;
+  /** This person's lamp is off, and the reader is somebody who would otherwise see one: draw the plain box in its place. */
+  lampPrivate: boolean;
 };
 
 /**
@@ -284,14 +286,16 @@ export function usePresence(userId: string | null): UsePresenceResult {
   const value = useContext(PresenceContext);
   if (value === null) throw new Error('usePresence must be used inside <PresenceProvider>.');
 
-  if (userId === null) return { status: undefined, record: undefined, noLamp: true };
+  if (userId === null) return { status: undefined, record: undefined, noLamp: true, lampPrivate: false };
 
   const record = value.recordFor(userId);
-  const noLamp = value.selfId === null || (value.ready && record === undefined && userId !== value.selfId);
+  const lampPrivate = value.selfId !== null && value.ready && record === undefined && userId !== value.selfId;
+  const noLamp = value.selfId === null || lampPrivate;
 
   return {
     status: value.ready && !noLamp ? value.statusFor(userId) : undefined,
     record,
     noLamp,
+    lampPrivate,
   };
 }

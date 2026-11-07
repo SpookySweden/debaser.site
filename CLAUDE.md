@@ -36,7 +36,7 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   (`app/lib/web/site-server.ts`, `WebSiteFiles.tsx`); read in the browser, never saved into the WEB stream.
 - A KINO row and a server's row have a WATCH key listing every way to watch: friends' servers by TMDB number, free copies, and free services from TMDB, credited to JustWatch while they show
   (SPEC-kino-sources.md). A copy is marked PUBLIC DOMAIN only when Wikidata says so (Luke, 2026-11-06).
-- Luke's own and his friends' media servers are allowed sources, read from each server's list file
+- Luke's own and his friends' media servers are allowed sources, with no list file (any title by its TMDB number, at once) or read from each server's list file
   (`app/lib/web/media-servers.ts`; friends' side: `docs/media-server-setup.md`). Each video plays from the
   server's own player; the site never stores, copies or transcodes video, and holds only images and audio as
   media itself. TMDB details (server-side, `TMDB_READ_TOKEN`) never include ratings, votes or popularity.

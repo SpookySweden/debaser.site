@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { cropPosition, type AvatarCrop } from '../lib/profile/avatar-crop';
+import { chatImageUrl } from '../lib/watch/chat-images';
 
 type AvatarCropEditorProps = {
   /** The picture on display. */
@@ -117,6 +118,8 @@ export default function AvatarCropEditor({ src, crop, onChange, disabled = false
             width={240}
             height={240}
             sizes="240px"
+            unoptimized={chatImageUrl(src) !== null}
+            referrerPolicy={chatImageUrl(src) !== null ? 'no-referrer' : undefined}
             draggable={false}
             onLoad={(event) => {
               const image = event.currentTarget;

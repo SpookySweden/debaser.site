@@ -46,7 +46,8 @@ assert.match(customiser, /dismissOnBackdrop=\{false\}/, 'and the customiser, whi
 assert.match(customiser, /function guard\(intent/, 'there is a single guard');
 assert.match(
   customiser,
-  /onClose=\{\(\) => guard\(\{ kind: 'close' \}\)/,
+  // (Changed on purpose, 2026-11-07.) While the colour window is up, ESC is that window's to answer.
+  /onClose=\{\(\) => \{\s*if \(!colourOpen\) guard\(\{ kind: 'close' \}\);\s*\}\}/,
   'the window`s own close goes through it, so ESC and the `x` cannot bypass it',
 );
 assert.match(

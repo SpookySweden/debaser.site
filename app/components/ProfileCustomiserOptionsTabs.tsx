@@ -1,99 +1,15 @@
 'use client';
 
-import type { CSSProperties } from 'react';
 import { useMemo } from 'react';
 import { countryName, countryOptions } from '../lib/profile/countries';
-import {
-  NAME_COLOURS_THAT_GLOW,
-  NAME_COLOURS_THAT_READ,
-  SITE_COLOUR_LABEL,
-  nameColourDark,
-  nameColourPairLabel,
-  nameColourWearsStrip,
-  nameOnThemes,
-} from '../lib/profile/name-colours';
+import { SITE_COLOUR_LABEL, nameColourWearsStrip, nameColourWords } from '../lib/profile/name-colours';
 import { MAX_BIO_LENGTH, MAX_STATUS_LENGTH } from '../lib/profile/types';
 import type { PublicProfile } from '../lib/profile/types';
-import { FIELD, KEY_FOCUS } from '../lib/ui/controls';
+import { FIELD, PLATE_LARGE } from '../lib/ui/controls';
 import CountryFlag from './CountryFlag';
+import { nameInkStyle } from './NameColourWindow';
 
 export const CUSTOMISER_NOTE = 'text-label font-bold text-ink';
-
-/**
- * A choice of name colour is a whole row: a tick, a block of the colour, its name in the window's own ink, then
- * the reader's own name in that colour on the window itself. It doesn't fill under the pointer as a key does,
- * because the fill would cover the very thing the row is showing.
- */
-const COLOUR_ROW = `${KEY_FOCUS} flex w-full cursor-pointer flex-wrap items-center gap-x-2 gap-y-1 px-1 py-1 text-left text-prose text-ink min-h-9 active:translate-y-press pointer-coarse:min-h-tap`;
-
-/** The two groups the arithmetic produces (see app/lib/profile/name-colours.ts). */
-const NAME_COLOUR_GROUPS = [
-  { label: 'READS ON ITS OWN', colours: NAME_COLOURS_THAT_READ },
-  { label: 'DARK STRIP ON BRIGHT THEMES', colours: NAME_COLOURS_THAT_GLOW },
-];
-
-/** The pair `.name-ink` picks between (globals.css), so this draws exactly what the board draws. */
-function nameInkStyle(hex: string): CSSProperties {
-  return { '--name-ink': hex, '--name-ink-dark': nameColourDark(hex) } as CSSProperties;
-}
-
-function NameColourRow({ hex, label, sample, chosen, onChoose }: { hex: string; label: string; sample: string; chosen: boolean; onChoose: (hex: string) => void }) {
-  // No swatch means the theme's own ink, which has no pair to pick between.
-  const ink = hex.length === 0 ? { className: 'text-ink', style: undefined } : { className: 'name-ink', style: nameInkStyle(hex) };
-  // The block shows what the name is drawn in. A colour on the strip takes its dark reading on every theme.
-  const stripped = nameColourWearsStrip(hex);
-  const dark = nameColourDark(hex);
-  const blockStyle = stripped ? ({ '--name-ink': dark, '--name-ink-dark': dark } as CSSProperties) : ink.style;
-
-  return (
-    <button
-      type="button"
-      onClick={() => onChoose(hex)}
-      aria-pressed={chosen}
-      aria-label={label}
-      className={`${COLOUR_ROW} ${chosen ? 'outline-2 -outline-offset-2 outline-ink' : 'hover:outline-2 hover:-outline-offset-2 hover:outline-dotted hover:outline-ink'}`}
-    >
-      {/* A fixed width: the tick falls back to a wider face, and picking a row must not nudge its words. */}
-      <span aria-hidden="true" className="w-12 shrink-0 whitespace-pre">
-        {chosen ? '[ ✓ ]' : '[   ]'}
-      </span>
-      <span aria-hidden="true" className={`${ink.className} h-6 w-6 shrink-0 border-line border-ink bg-current`} style={blockStyle} />
-      <span className="w-52 shrink-0">{label}</span>
-      <span aria-hidden="true" className="min-w-0 flex-1 basis-40 truncate text-title">
-        {/* Its own inline box, so a strip is as wide as the name and not the row. The block above never wears one. */}
-        <span className={`${ink.className} ${stripped ? 'name-strip' : ''}`} style={ink.style}>
-          {sample}
-        </span>
-      </span>
-    </button>
-  );
-}
-
-/** The choice on every theme, each line in that theme's own window colour. Says so in words if one ever fails. */
-function NameOnEveryTheme({ hex, sample }: { hex: string; sample: string }) {
-  return (
-    <>
-      <p className={`${CUSTOMISER_NOTE} mt-3`}>YOUR PICK ON EVERY THEME</p>
-      <ul className="mt-1 border-line border-ink">
-        {nameOnThemes(hex).map((theme) => (
-          <li
-            key={theme.id}
-            className="flex min-h-8 flex-wrap items-center gap-x-2 px-2 py-1 text-key"
-            style={{ backgroundColor: theme.field, color: theme.ink }}
-          >
-            <span className="w-24 shrink-0">{theme.label}</span>
-            <span className="min-w-0 flex-1 basis-40 truncate text-title">
-              <span className={theme.strip === null ? undefined : 'px-1'} style={{ color: theme.value, backgroundColor: theme.strip ?? undefined }}>
-                {sample}
-              </span>
-            </span>
-            {theme.readable ? null : <span className="shrink-0">HARD TO READ</span>}
-          </li>
-        ))}
-      </ul>
-    </>
-  );
-}
 
 export type ProfileIdentityTabProps = {
   profile: PublicProfile;
@@ -108,7 +24,8 @@ export type ProfileIdentityTabProps = {
   onBioChange: (value: string) => void;
   onCountryChange: (value: string) => void;
   onStatusChange: (value: string) => void;
-  onNameColourChange: (hex: string) => void;
+  /** Opens the colour window, which the editor draws so its ESC can be told apart from its own. */
+  onChangeColour: () => void;
   bioProblem: string | undefined;
   countryProblem: string | undefined;
   statusProblem: string | undefined;
@@ -126,7 +43,7 @@ export function ProfileIdentityTab({
   onBioChange,
   onCountryChange,
   onStatusChange,
-  onNameColourChange,
+  onChangeColour,
   bioProblem,
   countryProblem,
   statusProblem,
@@ -141,38 +58,30 @@ export function ProfileIdentityTab({
       <label htmlFor="customise-name" className={CUSTOMISER_NOTE}>
         NAME
       </label>
-      <input
-        id="customise-name"
-        value={name}
-        onChange={(event) => onNameChange(event.target.value)}
-        placeholder={profile.displayName}
-        className={FIELD}
-      />
-
-      <p className={`${CUSTOMISER_NOTE} mt-3`}>NAME COLOUR</p>
-      <div className="mt-1">
-        <NameColourRow hex="" label={SITE_COLOUR_LABEL} sample={preview} chosen={nameColour.length === 0} onChoose={onNameColourChange} />
+      <div className="flex flex-wrap items-center gap-x-2">
+        <span className="min-w-0 flex-1 basis-56">
+          <input
+            id="customise-name"
+            value={name}
+            onChange={(event) => onNameChange(event.target.value)}
+            placeholder={profile.displayName}
+            className={FIELD}
+          />
+        </span>
+        <button type="button" onClick={onChangeColour} aria-haspopup="dialog" data-change-colour className={PLATE_LARGE}>
+          [ CHANGE COLOUR ]
+        </button>
       </div>
-
-      {NAME_COLOUR_GROUPS.map((group) => (
-        <div key={group.label} className="mt-2">
-          <p className={CUSTOMISER_NOTE}>{group.label}</p>
-          <div className="mt-1">
-            {group.colours.map((colour) => (
-              <NameColourRow
-                key={colour.id}
-                hex={colour.hex}
-                label={nameColourPairLabel(colour)}
-                sample={preview}
-                chosen={nameColour === colour.hex}
-                onChoose={onNameColourChange}
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-
-      <NameOnEveryTheme hex={nameColour} sample={preview} />
+      {/* The name as it stands, in the colour it will be read in, and that colour in words. */}
+      <p className="mt-1 flex flex-wrap items-center gap-x-2 text-label text-ink">
+        <span
+          className={`text-title ${nameColour.length === 0 ? 'text-ink' : 'name-ink'} ${nameColourWearsStrip(nameColour) ? 'name-strip' : ''}`}
+          style={nameColour.length === 0 ? undefined : nameInkStyle(nameColour)}
+        >
+          {preview}
+        </span>
+        <span>{nameColour.length === 0 ? SITE_COLOUR_LABEL : nameColourWords(nameColour)}</span>
+      </p>
 
       {/* A select rather than a text box, and that is the whole change: a place line was a sentence
           the site could not draw, and a country is a code off the list below, which it can. The flag's

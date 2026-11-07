@@ -7,6 +7,7 @@ import { presenceLine } from '../lib/profile/presence';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
 import { PLATE } from '../lib/ui/controls';
 import ProfileAvatarLink from './ProfileAvatarLink';
+import { usePresence } from './PresenceProvider';
 import ProfileLink from './ProfileLink';
 import ProfileName from './ProfileName';
 import RelativeShort from './RelativeShort';
@@ -92,8 +93,11 @@ export default function UserDirectoryRow({
   const asked = showMessage || actions !== undefined;
   const { profile } = usePublicProfile(row.account.id);
   const glow = glowStyle(profileNameColour(profile));
-  // No stamp to read is a lamp switched off: no dot and no time for that person.
+  // No stamp to read is a lamp switched off: the plain box in the lamp's place, and no time for that person.
   const known = lamp && (row.you || row.record !== undefined);
+  const { lampPrivate } = usePresence(row.account.id);
+  // Until the lamps are read, the lamp's room is kept empty, so the row doesn't jump when the answer comes.
+  const lampSlot = known ? <StatusDot status={row.status} record={row.record} /> : lamp ? <StatusDot status="private" className={lampPrivate ? undefined : 'invisible'} /> : null;
 
   /**
    * The panel's row: one line, and only the parts a glance needs.
@@ -111,7 +115,7 @@ export default function UserDirectoryRow({
         className={`name-glow flex items-center gap-1 border-b border-ink px-2 py-1 text-label font-bold last:border-b-0 ${row.admin ? 'bg-sun-pale' : ''}`}
         style={glow}
       >
-        {known ? <StatusDot status={row.status} record={row.record} /> : null}
+        {lampSlot}
 
         <ProfileAvatarLink author={author} size={20} showName={false} />
 
@@ -159,13 +163,11 @@ export default function UserDirectoryRow({
           className="inline-flex w-12 shrink-0 items-center gap-1"
           title={known ? presenceLine(row.status, row.record) : undefined}
         >
+          {lampSlot}
           {known ? (
-            <>
-              <StatusDot status={row.status} record={row.record} />
-              <span className="glow-text text-ink">
-                {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
-              </span>
-            </>
+            <span className="glow-text text-ink">
+              {row.status === 'online' ? 'NOW' : row.status === 'away' ? 'AWAY' : <RelativeShort at={row.record?.lastSeenAt ?? null} />}
+            </span>
           ) : null}
         </span>
       ) : null}

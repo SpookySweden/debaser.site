@@ -183,7 +183,7 @@ function ParticipantsWindow({ piece, onClose }: { piece: StreamArtPiece; onClose
 }
 
 function Participant({ id, label, crowned }: { id: string; label: string; crowned: boolean }) {
-  const { status, record, noLamp } = usePresence(id);
+  const { status, record, noLamp, lampPrivate } = usePresence(id);
   return (
     <li className="flex w-20 flex-col items-center gap-0.5" data-stream-art-person={id} data-crowned={crowned ? 'yes' : 'no'}>
       {/* The crown sits on top of the picture when they held one; the space is kept either way. */}
@@ -194,7 +194,7 @@ function Participant({ id, label, crowned }: { id: string; label: string; crowne
         <PersonPicture id={id} label={label} size={PARTICIPANT_PICTURE} />
       </Link>
       <span className="flex max-w-full items-center gap-1 text-label text-ink">
-        {noLamp ? null : <StatusDot status={status ?? 'offline'} record={record} />}
+        {lampPrivate ? <StatusDot status="private" /> : noLamp ? null : <StatusDot status={status ?? 'offline'} record={record} />}
         <Link href={`/profile/${encodeURIComponent(id)}`} className="truncate font-bold hover:underline">
           {label}
         </Link>

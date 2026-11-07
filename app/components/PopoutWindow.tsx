@@ -75,13 +75,16 @@ export default function PopoutWindow({
   // dialogue nobody is standing in lets a keyboard user tab straight into the page behind it, which
   // is the page the dialogue is covering.
   useEffect(() => {
-    const frame = window.requestAnimationFrame(() => {
-      setHost(document.body);
-      windowRef.current?.focus();
-    });
+    const frame = window.requestAnimationFrame(() => setHost(document.body));
 
     return () => window.cancelAnimationFrame(frame);
   }, []);
+
+  // After the window exists, which is not yet when the host is set. A field inside that asked for focus keeps it.
+  useEffect(() => {
+    const node = windowRef.current;
+    if (host !== null && node !== null && !node.contains(document.activeElement)) node.focus();
+  }, [host]);
 
   // ESC closes the window.
   useEffect(() => {
@@ -108,7 +111,7 @@ export default function PopoutWindow({
         aria-labelledby={titleId}
         onMouseDown={(event) => event.stopPropagation()}
         style={{ transform: `translate(${offset.x}px, ${offset.y}px)` }}
-        className={`${centred ? 'my-auto' : 'mt-6'} w-full ${maxWidth} frame bg-sun-pale ${windowClassName}`}
+        className={`${centred ? 'my-auto' : 'mt-6'} w-full ${maxWidth} frame bg-sun-pale outline-none ${windowClassName}`}
       >
         {/* Draggable title bar */}
         <div
