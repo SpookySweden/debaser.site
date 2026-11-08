@@ -7,7 +7,8 @@
  * email addresses and password hashes. The 14 newest are kept. The files themselves aren't copied: storage wasn't touched by what
  * happened and a delete of rows doesn't remove them.
  *
- * Left out, and said so in the folder's report: MEDIA's search tables (rebuilt by its own jobs, and too big for this route).
+ * Left out, and said so in the folder's report: MEDIA's search tables (rebuilt by its own jobs, and too big for this route). Also left
+ * out: game.backups, the game's copy of itself.
  * A table that fails is reported and the rest carry on; the exit code says if any did, and the report names them.
  */
 const { execFileSync } = require('node:child_process');
@@ -32,7 +33,8 @@ function main() {
   const here = join(FOLDER, stamp);
   mkdirSync(here, { recursive: true });
 
-  const tables = query("select table_schema as s, table_name as t from information_schema.tables where table_type = 'BASE TABLE' and (table_schema = 'public' or (table_schema = 'auth' and table_name in ('users', 'identities'))) order by 1, 2");
+  // The game's `game` and `ink` schemas too (live since 2026-11-08), but not game.backups: that is the game's own copy of itself.
+  const tables = query("select table_schema as s, table_name as t from information_schema.tables where table_type = 'BASE TABLE' and (table_schema in ('public', 'game', 'ink') or (table_schema = 'auth' and table_name in ('users', 'identities'))) and not (table_schema = 'game' and table_name = 'backups') order by 1, 2");
   const report = { at: new Date().toISOString(), saved: {}, failed: {}, skipped: [] };
   for (const { s, t } of tables) {
     if (s === 'public' && SKIPPED.test(t)) {

@@ -57,6 +57,14 @@ CLI has no read-only mode of its own, so this is a courtesy rather than a guard 
 but it is the difference between a typo and an outage. Only the credential lives
 outside the repository, in the gitignored `.env.local`.
 
+### The game's schemas (`game`, `ink`)
+
+Live since 2026-11-08, from the game's own repository (`G:\gane project\supabase\migrations\20261105060000` to
+`20261105100000`), applied whole by this site's `npm run db -- --write --destructive --file` on Luke's OK. `--destructive`
+only because the files' lock triggers say `before truncate`; nothing in them drops or empties anything. They are not in this
+folder's chain and not in the CLI's history table: a change to them is a new file in the game's repository, applied the same
+way. They never touch `public`, and the API does not expose them. The daily backup copies them, except `game.backups`.
+
 ### The migrations, and how the history was adopted
 
 `supabase/migrations/` is now **a real CLI migration chain**, and this is the
