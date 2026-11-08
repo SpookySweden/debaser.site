@@ -3,7 +3,8 @@
  *   npx tsc app/lib/watch/mock-watch-repository.ts app/components/GoLiveWindow.tsx app/components/RoomDoor.tsx app/components/RoomSettingsWindow.tsx --outDir Temp/private-streams-out --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --jsx react-jsx
  *   node Temp/check-private-streams.cjs
  *
- * Live: it signs in as kept test accounts A, B and C and makes one room, ended by the same run. The room's row stays, private and empty.
+ * Live: it signs in as kept test accounts A, B and C and makes one room, ended and then deleted by the same run (2026-11-08: before,
+ * the ended room stayed behind every run).
  * It prints counts and refused/allowed only.
  */
 const assert = require('node:assert/strict');
@@ -106,6 +107,7 @@ async function live() {
   const room = randomUUID();
   const password = randomUUID();
   let threadId = null;
+  let roomGone = false;
   const rowsOf = async (client, table, column = 'room_id') => {
     const { data, error } = await client.from(table).select(column).eq(column, room);
     assert.equal(error, null, `${table} answers`);
@@ -259,10 +261,30 @@ async function live() {
     assert.equal((await visitor.from('watch_messages').select('body').eq('id', first.data.id)).data.length, 0);
     assert.ok((await say(b, 'and now?')).error !== null, 'removed still means removed in an open room');
 
+    // Its own room goes at the end (migration 20261108174247): never while running, and only by its test-account host.
+    // Its record goes first: a room's delete blanks the record's link to it, which the record's own guard refuses.
+    assert.equal((await a.client.from('forum_threads').delete().eq('id', threadId)).error, null, 'the host deletes the test record');
+    threadId = null;
+    const gone = async (client) => {
+      const { data, error } = await client.from('watch_rooms').delete().eq('id', room).select('id');
+      if (error) return `error ${error.code}: ${error.message}`;
+      return data.length;
+    };
+    assert.equal(await gone(a.client), 0, 'a room still running cannot be deleted, by its host either');
+    await a.client.from('watch_rooms').update({ is_playing: false, ended_at: new Date().toISOString() }).eq('id', room);
+    assert.equal(await gone(c.client), 0, 'a finished room cannot be deleted by anyone but its host');
+    assert.equal(await gone(visitor), 0, 'nor by a visitor');
+    assert.equal(await gone(a.client), 1, 'its test-account host deletes it');
+    assert.equal(await rowsOf(a.client, 'watch_rooms', 'id'), 0, 'and it is gone');
+    roomGone = true;
+
     console.log('  ok    the real database');
   } finally {
     if (threadId !== null) await a.client.from('forum_threads').delete().eq('id', threadId);
-    await a.client.from('watch_rooms').update({ is_playing: false, ended_at: new Date().toISOString() }).eq('id', room);
+    if (!roomGone) {
+      await a.client.from('watch_rooms').update({ is_playing: false, ended_at: new Date().toISOString() }).eq('id', room);
+      await a.client.from('watch_rooms').delete().eq('id', room);
+    }
   }
 }
 
