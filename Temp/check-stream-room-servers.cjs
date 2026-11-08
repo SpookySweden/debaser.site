@@ -149,6 +149,7 @@ ok(/const jump = followerJump\(lastJump, step\.at, video\.currentTime, step\.pla
 ok(!rules.refusedByBrowser({ name: 'AbortError' }), 'a start cut short by a pause or a new file raises no key');
 ok(rules.refusedByBrowser({ name: 'NotAllowedError' }), 'the browser refusing sound raises the key');
 ok(rules.refusedByBrowser(new Error('YouTube did not start.')), 'an embedded player that did not start raises the key');
+ok(/function joinPlayback\(\) \{[\s\S]{0,400}setNeedsPress\(false\);\s*void video\.play\(\)\.catch\(refusedPlay\);/.test(room), 'JOIN PLAYBACK goes at the press, and comes back only if the browser refuses again');
 ok((room.match(/refusedPlay/g) ?? []).length >= 7 && !/\(\) => setNeedsPress\(true\)\)/.test(room), 'every refused play goes through that one rule');
 ok(/const JOIN_KEY = PLATE_MAIN\.replace\('px-3 py-1 text-key', 'min-h-tap px-6 py-2 text-heading'\);/.test(room) && /className=\{`\$\{JOIN_KEY\} pointer-events-auto`\}/.test(room), 'JOIN PLAYBACK is large: the 44px tap height at every width, in the heading size');
 ok(read('app/lib/ui/controls.ts').includes('px-3 py-1 text-key'), 'and the main key still has the sizes it is made from');

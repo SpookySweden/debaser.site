@@ -847,10 +847,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   function joinPlayback() {
     const video = videoRef.current;
     if (video === null) return;
-    void video.play().then(
-      () => setNeedsPress(false),
-      refusedPlay,
-    );
+    // The key goes at the press, not when the picture has loaded enough to start (a slow file kept it up for seconds, so the press
+    // looked like it did nothing: live drive, 2026-11-08). A browser that refuses again brings it back.
+    setNeedsPress(false);
+    void video.play().catch(refusedPlay);
   }
 
   /* --- the player bar -------------------------------------------------------------------------- */
