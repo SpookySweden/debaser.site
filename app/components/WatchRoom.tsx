@@ -36,6 +36,7 @@ import {
   currentEntry,
   followerJump,
   formatMediaTime,
+  jumpLanded,
   handoverTo,
   hasCrown,
   hostMayPublish,
@@ -413,9 +414,10 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         Date.now(),
       );
 
+      const loading = video instanceof HTMLMediaElement && (video.seeking || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+      lastJump = jumpLanded(lastJump, loading, Date.now());
       if (step.at !== undefined) {
         // A jump already on its way is let land, and a player that keeps landing behind aims ahead (rules.ts `followerJump`).
-        const loading = video instanceof HTMLMediaElement && (video.seeking || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
         const jump = followerJump(lastJump, step.at, video.currentTime, step.playing, Date.now(), loading);
         if (jump !== undefined) {
           lastJump = jump.mark;

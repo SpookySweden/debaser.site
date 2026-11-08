@@ -548,10 +548,19 @@ export function serverElapsed(room: WatchRoom, now: number): number {
 /** How long a follower's jump is given to land (the player loading the new place) before another is sent. */
 export const SEEK_SETTLE_MS = 4000;
 /** The most a follower's jump aims ahead of the host, for a player that keeps landing behind. */
-export const SEEK_LEAD_MAX_SECONDS = 6;
+export const SEEK_LEAD_MAX_SECONDS = 10;
 
-/** A follower's last jump: when, where to, and how many in a row have landed behind. */
-export type FollowerJump = { at: number; target: number; behind: number };
+/**
+ * A follower's last jump: when, where to, how many in a row have landed behind, and (for a file, which says when it is fetching)
+ * how long it took to land.
+ */
+export type FollowerJump = { at: number; target: number; behind: number; loadSeconds?: number };
+
+/** Notes when a file's jump has landed (it stopped fetching), so the next one can aim ahead by that much. */
+export function jumpLanded(last: FollowerJump | null, loading: boolean, now: number): FollowerJump | null {
+  if (last === null || loading || last.loadSeconds !== undefined) return last;
+  return { ...last, loadSeconds: (now - last.at) / 1000 };
+}
 
 /**
  * Where a follower that is far off jumps now, or undefined to let a jump already on its way land (Luke, 2026-11-08: "no bugs that
@@ -577,7 +586,9 @@ export function followerJump(
     if (Math.abs(target - expected) < SEEK_GAP_SECONDS) return undefined;
   }
   const behind = playing && target > mine && last !== null && now - last.at < SEEK_SETTLE_MS * 3 ? last.behind + 1 : 0;
-  const to = target + (playing ? Math.min(SEEK_LEAD_MAX_SECONDS, behind * 2) : 0);
+  // How long the last one took to land, where the player can tell (a file fetching from far away can take seconds).
+  const measured = behind > 0 ? (last?.loadSeconds ?? 0) : 0;
+  const to = target + (playing ? Math.min(SEEK_LEAD_MAX_SECONDS, Math.max(behind * 2, measured)) : 0);
   return { to, mark: { at: now, target: to, behind } };
 }
 
