@@ -34,6 +34,7 @@ import {
   WATCH_HEARTBEAT_MS,
   accountsPresent,
   currentEntry,
+  followerJump,
   formatMediaTime,
   handoverTo,
   hasCrown,
@@ -47,6 +48,7 @@ import {
   serverElapsed,
   serverRestarted,
   shouldTakeOver,
+  type FollowerJump,
   type ServerMark,
   upcoming,
   viewerStep,
@@ -392,6 +394,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   useEffect(() => {
     if (amHost || !live) return;
 
+    /** This player's last jump to the host, for this play only. */
+    let lastJump: FollowerJump | null = null;
     const tick = () => {
       const video = videoRef.current;
       if (video === null || video.readyState < 1) return;
@@ -409,7 +413,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         Date.now(),
       );
 
-      if (step.at !== undefined) video.currentTime = step.at;
+      if (step.at !== undefined) {
+        // A jump already on its way is let land, and a player that keeps landing behind aims ahead (rules.ts `followerJump`).
+        const loading = video instanceof HTMLMediaElement && (video.seeking || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+        const jump = followerJump(lastJump, step.at, video.currentTime, step.playing, Date.now(), loading);
+        if (jump !== undefined) {
+          lastJump = jump.mark;
+          video.currentTime = Number.isFinite(video.duration) && video.duration > 1 ? Math.min(jump.to, video.duration - 0.5) : jump.to;
+        }
+      }
       if (Math.abs(video.playbackRate - step.rate) > 0.01) video.playbackRate = step.rate;
       if (step.playing && video.paused) {
         void video.play().then(

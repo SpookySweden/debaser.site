@@ -545,6 +545,42 @@ export function serverElapsed(room: WatchRoom, now: number): number {
   return hostPosition(room, now);
 }
 
+/** How long a follower's jump is given to land (the player loading the new place) before another is sent. */
+export const SEEK_SETTLE_MS = 4000;
+/** The most a follower's jump aims ahead of the host, for a player that keeps landing behind. */
+export const SEEK_LEAD_MAX_SECONDS = 6;
+
+/** A follower's last jump: when, where to, and how many in a row have landed behind. */
+export type FollowerJump = { at: number; target: number; behind: number };
+
+/**
+ * Where a follower that is far off jumps now, or undefined to let a jump already on its way land (Luke, 2026-11-08: "no bugs that
+ * cause anyone to fall out of sync"). Sent again every half second, a jump to a place the player hadn't loaded restarted its loading
+ * each time, so it never got there: seen live, a viewer 6 to 12 seconds behind after the host jumped, on YouTube and an Archive file.
+ * Now a jump is given SEEK_SETTLE_MS unless the host moved again; and a player that keeps landing behind (the time it takes to load)
+ * aims that much further ahead, 2 seconds more each time, up to SEEK_LEAD_MAX_SECONDS.
+ */
+export function followerJump(
+  last: FollowerJump | null,
+  target: number,
+  mine: number,
+  playing: boolean,
+  now: number,
+  /** The player is still fetching the place it was sent to (a file's `seeking`): its own time says where it will be, not where it is. */
+  loading = false,
+): { to: number; mark: FollowerJump } | undefined {
+  // Still loading the last jump: wait for it (up to three times as long, so a load that never comes is tried again).
+  if (loading && last !== null && now - last.at < SEEK_SETTLE_MS * 3) return undefined;
+  const recent = last !== null && now - last.at < SEEK_SETTLE_MS;
+  if (recent) {
+    const expected = last.target + (playing ? (now - last.at) / 1000 : 0);
+    if (Math.abs(target - expected) < SEEK_GAP_SECONDS) return undefined;
+  }
+  const behind = playing && target > mine && last !== null && now - last.at < SEEK_SETTLE_MS * 3 ? last.behind + 1 : 0;
+  const to = target + (playing ? Math.min(SEEK_LEAD_MAX_SECONDS, behind * 2) : 0);
+  return { to, mark: { at: now, target: to, behind } };
+}
+
 /* --- words --------------------------------------------------------------------------------------- */
 
 /** Where in a video something was said: `02:14`, or `1:02:14` past the hour. */

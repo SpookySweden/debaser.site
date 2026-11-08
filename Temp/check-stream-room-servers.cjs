@@ -126,6 +126,22 @@ ok(rules.hostMayPublish('next', 'next'), 'once the room names the next play, the
 ok(rules.hostMayPublish(null, 'any'), 'a host that has not moved on writes as ever');
 ok((room.match(/if \(!hostMayPublish\(hostEntry\.current, room\.currentEntryId\)\) return;/g) ?? []).length === 2, 'the host\'s write asks it, and so does the beat for a platform\'s or a server\'s own player');
 ok(/hostEntry\.current = null;\s*setFault\(failure instanceof Error \? failure\.message : 'THE NEXT FILE COULD NOT START\.'\);/.test(room), 'a start that failed (or whose answer was lost) never leaves the host silent');
+// A follower's jump (live drive, 2026-11-08: a viewer 6 to 12 s behind after the host jumped, re-sent every half second).
+const T = 1_000_000;
+const firstJump = rules.followerJump(null, 100, 10, true, T);
+same(firstJump && [firstJump.to, firstJump.mark.behind], [100, 0], 'the first jump goes straight to the host');
+ok(rules.followerJump(firstJump.mark, 102, 10, true, T + 2000) === undefined, 'a jump on its way is let land: not sent again every half second');
+ok(rules.followerJump(firstJump.mark, 160, 10, true, T + 2000) !== undefined, 'unless the host jumped again meanwhile');
+const second = rules.followerJump(firstJump.mark, 104.5, 101, true, T + 4500);
+same(second && [second.to, second.mark.behind], [106.5, 1], 'landed behind (the time it took to load): the next jump aims 2 s ahead');
+const third = rules.followerJump(second.mark, 109, 106, true, T + 9000);
+const fourth = rules.followerJump({ ...third.mark, behind: 5 }, 120, 110, true, T + 14000);
+same([third.to - 109, fourth.to - 120], [4, rules.SEEK_LEAD_MAX_SECONDS], '4 s the time after, and never more than 6');
+same(rules.followerJump(second.mark, 90, 99, true, T + 9000).to, 90, 'a player that landed ahead jumps back with no lead');
+same(rules.followerJump(second.mark, 50, 40, false, T + 9000).to, 50, 'nor with the host paused');
+ok(rules.followerJump(firstJump.mark, 130, 100, true, T + 6000, true) === undefined, 'a file still fetching the place it was sent to is waited for');
+ok(rules.followerJump(firstJump.mark, 130, 100, true, T + 13000, true) !== undefined, 'but not for ever');
+ok(/const jump = followerJump\(lastJump, step\.at, video\.currentTime, step\.playing, Date\.now\(\), loading\);/.test(room) && /if \(jump !== undefined\) \{\s*lastJump = jump\.mark;/.test(room), 'the follower asks it before every jump');
 ok(!rules.refusedByBrowser({ name: 'AbortError' }), 'a start cut short by a pause or a new file raises no key');
 ok(rules.refusedByBrowser({ name: 'NotAllowedError' }), 'the browser refusing sound raises the key');
 ok(rules.refusedByBrowser(new Error('YouTube did not start.')), 'an embedded player that did not start raises the key');
