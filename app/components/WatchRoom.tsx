@@ -414,7 +414,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
         Date.now(),
       );
 
-      const loading = video instanceof HTMLMediaElement && (video.seeking || video.readyState < HTMLMediaElement.HAVE_FUTURE_DATA);
+      // Only a jump being fetched (`seeking`), not a stall from a slow download, which no jump would mend.
+      const loading = video instanceof HTMLMediaElement && video.seeking;
       lastJump = jumpLanded(lastJump, loading, Date.now());
       if (step.at !== undefined) {
         // A jump already on its way is let land, and a player that keeps landing behind aims ahead (rules.ts `followerJump`).
