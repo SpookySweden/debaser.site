@@ -123,7 +123,9 @@ ok(filters.indexOf('data-imdb-key') !== -1 && filters.indexOf('data-imdb-key') <
 ok(/flex justify-center">\s*<button[\s\S]{0,120}pick\('in', lookingUp \? 'all' : QUEUE_LOOKUP_SOURCE\)/.test(filters), 'centred, and it turns the lookup on and off');
 const queueWindow = read('StreamQueueWindow.tsx');
 ok(/type\(`\$\{next\} `\);\s*searchBar\.current\?\.focus\(\);/.test(queueWindow), 'a key with nothing typed leaves a space before the caret, so the next word is not glued to the filter (in:kinoalien)');
-ok(/if \(lookingUp\) return true;\s*if \(playsInBar\(item\)\) return true;/.test(queueWindow), 'looked-up titles pass the "can a room play this" test, and only those');
+// Updated on purpose 2026-11-08: the test moved into blank-screen.ts `roomListable` (held by Temp/check-stream-room-servers.cjs), which also
+// keeps a friend's media-server title in an ordinary search.
+ok(/roomListable\(item, ask\.keep, lookingUp\)/.test(queueWindow) && /if \(lookingUp\) return true;\s*if \(playsInBar\(item\)\) return true;/.test(require('node:fs').readFileSync(path.join(__dirname, '..', 'app', 'lib', 'watch', 'blank-screen.ts'), 'utf8')), 'looked-up titles pass the "can a room play this" test, and only those');
 // Since 644b121 a TMDB title a media server holds is a KINO row too, with WATCH (the servers) beside FIND TO PLAY.
 ok(/media !== undefined \? \(\s*<KinoRow[\s\S]{0,1000}data-imdb-find/.test(queueWindow), 'a title is drawn with its poster and details, with FIND TO PLAY');
 // One row per title (2026-11-07): TMDB's row and a server's row share an id; the server's (WATCH) takes its place.

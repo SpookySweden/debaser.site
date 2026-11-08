@@ -5,7 +5,7 @@ import type { AccountUser } from '../lib/auth/types';
 import type { ForumAnchor } from '../lib/forum/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
 import { placeOf, type RoomSource } from '../lib/ui/floating-player';
-import { goLiveEmpty } from '../lib/watch/go-live';
+import { goLiveEmpty, type RoomSeries } from '../lib/watch/go-live';
 import { noteFindInRoom } from '../lib/watch/find-in-room';
 import { ROOM_NAME_MAX, ROOM_TOPIC_MAX } from '../lib/watch/rules';
 import type { RoomAddMode, RoomPrivacy } from '../lib/watch/types';
@@ -34,7 +34,7 @@ export default function GoLiveWindow({
   user: AccountUser;
   createThread: (input: { title: string; body: string; anchor: ForumAnchor }) => Promise<{ id: string }>;
   /** The video the room starts with; `playId` finds where the viewer had got to. */
-  first?: { source: RoomSource; playId: string; title: string };
+  first?: { source: RoomSource; playId: string; title: string; series?: RoomSeries };
   /** A TMDB title no server holds (find-in-room.ts): the room opens its queue searching for it (FIND TO PLAY). */
   findToPlay?: string;
   onClose: () => void;
@@ -53,7 +53,7 @@ export default function GoLiveWindow({
     setFault(null);
     try {
       // The place is read now: the video has been playing on behind this window.
-      const opening = first === undefined ? {} : { start: { name, topic, addMode, first: first.source, place: placeOf(first.playId) } };
+      const opening = first === undefined ? {} : { start: { name, topic, addMode, first: first.source, ...(first.series === undefined ? {} : { series: first.series }), place: placeOf(first.playId) } };
       const roomId = await goLiveEmpty(user, createThread, { privacy, ...(privacy === 'password' ? { password } : {}), ...opening });
       // An empty room started to find a title a source: open its queue searching for it as it comes up.
       if (first === undefined && findToPlay !== undefined) noteFindInRoom(roomId, findToPlay);
@@ -80,6 +80,11 @@ export default function GoLiveWindow({
             <p className="font-bold wrap-anywhere" data-go-live-video>
               {first.title}
             </p>
+            {first.series?.note ? (
+              <p className="w-fit bg-bubble-pale px-1 font-bold text-ink-bar" role="status" data-go-live-series-note>
+                {first.series.note.replace('ADDED', 'ADDS')}
+              </p>
+            ) : null}
             <label className="flex flex-col gap-1 font-bold">
               ROOM NAME
               <input value={name} maxLength={ROOM_NAME_MAX} autoComplete="off" placeholder="GOES BY YOUR NAME" onChange={(event) => setName(event.target.value)} className={`${FIELD_TIGHT} min-w-0 font-normal`} data-go-live-name />

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { closeFloatingIfMine, floatingState, playCount, playFloating } from '../lib/ui/floating-player';
 import { artSlot } from '../lib/ui/art/slots';
-import { FIELD_TIGHT, PLATE_LARGE, PLATE_LINK } from '../lib/ui/controls';
+import { PLATE_LARGE, PLATE_LINK } from '../lib/ui/controls';
 import type { WebStreamItem } from '../lib/web/dedupe';
 import { mediaServer, playerSandbox, type MediaServerId } from '../lib/web/media-servers';
 import { seasonsLine } from '../lib/web/kino';
 import { heldEpisodes, mediaPlayUrl, type MediaInfo, type PlayChoice } from '../lib/web/media-titles';
-import { serverWatchLink } from '../lib/web/bridges';
+import { allAddNote, choiceFor, episodeName, filmParts, firstPick, pickedLine, pickedPart, pickHolders, pickTarget, roomAddFor, type ServerPick } from '../lib/web/server-picks';
+import ServerPickers from './ServerPickers';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
 import { webSessionHeaders } from '../lib/web/web-session';
@@ -37,14 +38,12 @@ import FindInRoomKey from './FindInRoomKey';
 const MISSING_THUMB_SRC = `/${artSlot('web-thumb-missing')?.path ?? 'assets/web/thumb-missing.png'}`;
 /** The 44px floor at every width, not only on a phone. */
 const BIG_KEY = `${PLATE_LARGE} min-h-tap`;
-const BIG_KEY_ON = `${PLATE_LARGE} min-h-tap key-fill key-on [--key-fill:var(--color-ink)] text-paper`;
-const PICKER = `${FIELD_TIGHT} min-h-tap text-title`;
 
 /** Before the player: the video itself is the site's one floating player (FloatingPlayer.tsx), which the row only asks about. */
 type Phase = 'closed' | 'asking' | 'down' | 'unasked';
 
 /** What the row had picked, kept with the playing video so the row can draw itself again when the reader comes back. */
-type RowPicks = { server: MediaServerId; partIndex: number; season: number | undefined; episode: number | undefined; whole: boolean };
+type RowPicks = { server: MediaServerId; partIndex: number; season: number | undefined; episode: number | undefined; whole: boolean; all?: boolean };
 
 /** Asks our route whether a server answers. null: our own route could not be asked (signed out, offline). */
 async function serverAnswers(server: MediaServerId): Promise<boolean | null> {
@@ -74,24 +73,21 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
     const entry = floatingState().entry;
     return entry?.id === playId ? (entry.details as RowPicks | undefined) : undefined;
   });
-  // A film series row (media-collections.ts): the FILM picker chooses which of its films plays.
-  const parts = media.parts && media.parts.length > 1 ? media.parts : null;
-  const [partIndex, setPartIndex] = useState(kept?.partIndex ?? 0);
-  const part = parts ? parts[Math.min(partIndex, parts.length - 1)] : null;
+  // What the pickers chose (server-picks.ts, ServerPickers.tsx): a film of a film series, the whole series, one episode, or ALL.
+  const [pick, setPick] = useState<ServerPick>(() => (kept ? { partIndex: kept.partIndex, season: kept.season, episode: kept.episode, whole: kept.whole, all: kept.all ?? false } : firstPick(media)));
+  const { whole } = pick;
+  const parts = filmParts(media);
+  const part = pickedPart(media, pick);
   /** What PLAY plays: the picked film of a series, or the row's own title. */
-  const target: Pick<MediaInfo, 'type' | 'tmdbId' | 'copies'> = part ? { type: 'movie', tmdbId: part.tmdbId, copies: part.copies } : media;
+  const target = pickTarget(media, pick);
 
   const seasons = heldEpisodes(media);
-  const firstSeason = seasons.keys().next().value;
-  const [season, setSeason] = useState<number | undefined>(kept ? kept.season : firstSeason);
-  const [episode, setEpisode] = useState<number | undefined>(kept ? kept.episode : firstSeason === undefined ? undefined : seasons.get(firstSeason)?.[0]);
   // WHOLE SERIES: offered when some server holding the show has a whole-series player; the only choice for a show
   // listed only as a whole (no episodes to pick).
   const wholeOffered = media.type === 'tv' && media.copies.some((copy) => mediaPlayUrl(mediaServer(copy.server), media, { whole: true }) !== null);
-  const [whole, setWhole] = useState(kept?.whole ?? (media.type === 'tv' && seasons.size === 0));
-  const choice: PlayChoice = media.type === 'tv' ? (whole ? { whole: true } : { season, episode }) : {};
-  const canPlay = (id: MediaServerId, at: PlayChoice) => mediaPlayUrl(mediaServer(id), target, at) !== null;
-  const holders = media.copies.filter((copy) => canPlay(copy.server, choice)).map((copy) => copy.server);
+  /** What one server is asked for: with ALL, that server's first episode. */
+  const choiceOf = (id: MediaServerId, at: ServerPick = pick): PlayChoice => choiceFor(media, at, id);
+  const holders = pickHolders(media, pick);
   const [server, setServer] = useState<MediaServerId>(kept?.server ?? holders[0] ?? media.copies[0].server);
   const [phase, setPhase] = useState<Phase>('closed');
   /** Bumped by every load, so a slow answer about an earlier server or episode is dropped. */
@@ -121,19 +117,20 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
     ...(shown?.genres ?? []).map((genre) => genre.toUpperCase()),
   ].filter(Boolean);
   const description = part ? part.details?.overview : item.description;
-  const missing = parts ? 'NOT THIS FILM' : whole ? 'NO WHOLE-SERIES PLAYER' : 'NOT THIS EPISODE';
+  const missing = parts ? 'NOT THIS FILM' : whole ? 'NO WHOLE-SERIES PLAYER' : pick.all ? 'NO EPISODES' : 'NOT THIS EPISODE';
 
-  /** Keep the chosen server when it can play the new choice; otherwise the first that can. Reload if open. */
-  const switchTo = (at: PlayChoice, nextTarget = target) => {
-    const able = media.copies.filter((copy) => mediaPlayUrl(mediaServer(copy.server), nextTarget, at) !== null).map((copy) => copy.server);
+  /** A new pick: keep the chosen server when it can play it; otherwise the first that can. Reload if open. */
+  const repick = (next: ServerPick) => {
+    setPick(next);
+    const able = pickHolders(media, next);
     const to = able.includes(server) ? server : (able[0] ?? server);
     setServer(to);
-    if (open) start(to, at, nextTarget);
+    if (open) start(to, next);
   };
 
-  /** Ask the server, then load its player: on PLAY, and again on every switch while the player is open. */
-  const start = (to: MediaServerId, at: PlayChoice, what = target) => {
-    const url = mediaPlayUrl(mediaServer(to), what, at);
+  /** Ask the server, then load its player: on PLAY, and again on every switch while the player is open. ALL plays its first episode. */
+  const start = (to: MediaServerId, at: ServerPick = pick) => {
+    const url = mediaPlayUrl(mediaServer(to), pickTarget(media, at), choiceOf(to, at));
     load.current += 1;
     const mine = load.current;
     // The row's own video stops while the next one is asked for; another row's plays on until this one answers.
@@ -156,13 +153,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         return;
       }
       setPhase('closed');
-      const picks: RowPicks = {
-        server: to,
-        partIndex: parts ? Math.max(0, parts.findIndex((film) => film.tmdbId === what.tmdbId)) : 0,
-        season: at.season ?? season,
-        episode: at.episode ?? episode,
-        whole: at.whole === true,
-      };
+      const picks: RowPicks = { server: to, partIndex: at.partIndex, season: at.season, episode: at.episode, whole: at.whole, all: at.all };
       playFloating({
         id: playId,
         title: item.title,
@@ -188,24 +179,10 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
 
   const pickServer = (id: MediaServerId) => {
     setServer(id);
-    if (open) start(id, choice);
+    if (open) start(id);
   };
-  const pickEpisode = (nextSeason: number | undefined, nextEpisode: number | undefined) => {
-    setSeason(nextSeason);
-    setEpisode(nextEpisode);
-    setWhole(false);
-    switchTo({ season: nextSeason, episode: nextEpisode });
-  };
-  const pickWhole = () => {
-    setWhole(true);
-    switchTo({ whole: true });
-  };
-  const pickPart = (index: number) => {
-    if (!parts) return;
-    setPartIndex(index);
-    const next = parts[index];
-    switchTo({}, { type: 'movie', tmdbId: next.tmdbId, copies: next.copies });
-  };
+  // Into a stream room: the pick on the chosen server, as a sandboxed embed, or with ALL every episode as one block (SPEC-media-servers.md).
+  const roomAdd = roomAddFor(server, media, item.title, pick);
 
   return (
     <li className="rule-pixel py-2">
@@ -252,64 +229,17 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         </div>
       </div>
 
-      {parts ? (
-        <div className="mt-2 flex flex-wrap items-end gap-2">
-          <label className="flex min-w-0 max-w-full flex-col text-label font-bold text-ink">
-            FILM
-            <select value={partIndex} onChange={(event) => pickPart(Number(event.target.value))} className={`${PICKER} max-w-full`}>
-              {parts.map((film, index) => (
-                <option key={film.id} value={index}>
-                  {`${film.date ? `${film.date.slice(0, 4)} · ` : ''}${film.title}`}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-      ) : null}
-
-      {media.type === 'tv' && (seasons.size > 0 || wholeOffered) ? (
-        <div className="mt-2 flex flex-wrap items-end gap-2">
-          {wholeOffered ? (
-            <button type="button" onClick={pickWhole} aria-pressed={whole} className={whole ? BIG_KEY_ON : BIG_KEY}>
-              [ WHOLE SERIES ]
-            </button>
-          ) : null}
-          {/* Picking a season or an episode chooses that episode (WHOLE SERIES lets go). */}
-          {seasons.size > 0 ? (
-            <>
-              <label className="flex flex-col text-label font-bold text-ink">
-                SEASON
-                <select
-                  value={season}
-                  onChange={(event) => {
-                    const next = Number(event.target.value);
-                    pickEpisode(next, seasons.get(next)?.[0]);
-                  }}
-                  className={PICKER}
-                >
-                  {[...seasons.keys()].map((value) => (
-                    <option key={value} value={value}>
-                      {`SEASON ${value}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="flex flex-col text-label font-bold text-ink">
-                EPISODE
-                <select value={episode} onChange={(event) => pickEpisode(season, Number(event.target.value))} className={PICKER}>
-                  {(season === undefined ? [] : (seasons.get(season) ?? [])).map((value) => (
-                    <option key={value} value={value}>
-                      {`EPISODE ${value}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </>
-          ) : null}
-        </div>
-      ) : null}
+      {/* FILM, WHOLE SERIES, SEASON and EPISODE (with ALL first), the same as a room's queue browser offers (ServerPickers.tsx). */}
+      <ServerPickers media={media} pick={pick} onPick={repick} wholeOffered={wholeOffered} title={item.title} />
       {media.type === 'tv' && seasons.size > 0 ? (
-        <p className="mt-1 text-label font-bold text-ink-quiet">{`${playing ? 'PLAYING' : 'PICKED'}: ${whole ? 'THE WHOLE SERIES' : `SEASON ${season} · EPISODE ${episode}`}`}</p>
+        <p className="mt-1 text-label font-bold text-ink-quiet" data-picked-line>
+          {`${playing ? 'PLAYING' : 'PICKED'}: ${
+            playing && pick.all && !whole ? (() => {
+              const first = choiceOf(server);
+              return first.season !== undefined && first.episode !== undefined ? episodeName(first.season, first.episode) : pickedLine(media, pick, server);
+            })() : pickedLine(media, pick, server)
+          }`}
+        </p>
       ) : null}
 
       <WatchList
@@ -363,7 +293,7 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
                       type="button"
                       onClick={() => {
                         setServer(copy.server);
-                        start(copy.server, choice);
+                        start(copy.server);
                       }}
                       disabled={!holds}
                       aria-label={holds ? `Play "${item.title}" from ${label(copy.server)}` : `${label(copy.server)}: ${missing.toLowerCase()}`}
@@ -382,15 +312,21 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
         }
       />
 
-      {/* Into a stream room: the title on the chosen server, as a sandboxed embed (SPEC-media-servers.md; Luke 2026-11-07). */}
-      {(() => {
-        const roomLink = serverWatchLink(mediaServer(server), target, item.title, choice);
-        return roomLink === null ? null : (
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <WatchInRoomKey source={{ link: roomLink }} playId={playId} title={item.title} />
-          </div>
-        );
-      })()}
+      {/* Into a stream room: the pick on the chosen server, as a sandboxed embed (SPEC-media-servers.md; Luke 2026-11-07); ALL as one block. */}
+      {roomAdd === null ? null : (
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {roomAdd.kind === 'one' ? (
+            <WatchInRoomKey source={{ link: roomAdd.link }} playId={playId} title={roomAdd.link.title} />
+          ) : (
+            <WatchInRoomKey
+              source={{ link: roomAdd.links[0] }}
+              series={{ title: roomAdd.title, links: roomAdd.links, note: allAddNote(roomAdd) }}
+              playId={playId}
+              title={`${roomAdd.title} · ${pickedLine(media, pick, server)}`}
+            />
+          )}
+        </div>
+      )}
     </li>
   );
 }

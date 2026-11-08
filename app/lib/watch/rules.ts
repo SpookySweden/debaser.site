@@ -509,6 +509,42 @@ export function viewerStep(room: WatchRoom, mine: ViewerClock, now: number): Vie
   return { at: undefined, rate: 1, playing: true };
 }
 
+/**
+ * Whether the host's player may write where it is. Not while the host has moved on (`hostEntry`) and the room still names the play
+ * that is ending: the stage still holds that play's player, and its last events (a skip seeks and pauses it) would write the next
+ * play's name with the old player's place. Seen live, 2026-11-08: the next file named at 24.1s, racing the start's own write of 0.
+ */
+export function hostMayPublish(hostEntry: string | null, roomEntry: string | null): boolean {
+  return hostEntry === null || hostEntry === roomEntry;
+}
+
+/**
+ * Whether a player's refused start means the browser wants a press (the JOIN PLAYBACK key): any refusal but a start that was only
+ * cut short, by a pause or a new file arriving first (`AbortError`). That player isn't refused, and the key over a paused host would
+ * play this one alone.
+ */
+export function refusedByBrowser(error: unknown): boolean {
+  return !(typeof error === 'object' && error !== null && (error as { name?: unknown }).name === 'AbortError');
+}
+
+/* --- a media server's own player (SPEC-media-servers.md) ------------------------------------------ */
+
+/**
+ * A server's player can't be driven from the room, so the host's PLAY restarts everybody's at once (Luke, 2026-11-08). While one is
+ * on, the host's beat writes how long ago its PLAY was (`positionSeconds`, walking up); the PLAY itself writes 0. So a restart is the
+ * room's position going back on the same play: more than a second, so two beats crossing in flight never read as one.
+ */
+export type ServerMark = { entryId: string | null; position: number };
+
+export function serverRestarted(seen: ServerMark | null, room: Pick<WatchRoom, 'currentEntryId' | 'positionSeconds'>): boolean {
+  return seen !== null && seen.entryId !== null && seen.entryId === room.currentEntryId && room.positionSeconds < seen.position - 1;
+}
+
+/** How long ago the host's PLAY on a server's player was, by the beat: what a viewer who came in part-way can skip to. */
+export function serverElapsed(room: WatchRoom, now: number): number {
+  return hostPosition(room, now);
+}
+
 /* --- words --------------------------------------------------------------------------------------- */
 
 /** Where in a video something was said: `02:14`, or `1:02:14` past the hour. */

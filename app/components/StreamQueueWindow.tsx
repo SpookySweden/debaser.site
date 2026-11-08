@@ -12,7 +12,7 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
-import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, queueSearchPlan } from '../lib/watch/blank-screen';
+import { QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   additionUnits,
@@ -38,14 +38,16 @@ import { fetchSeries, useSeriesCount } from '../lib/watch/series-client';
 import { checkLink } from '../lib/watch/stream-player';
 import type { WatchLink, WatchMember, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
-import { isQueueableWebLink, officialEmbedUrl, serverWatchLink, watchLinkForItem } from '../lib/web/bridges';
+import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
 import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
 import { oneRowPerTitle } from '../lib/web/live-merge';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { authorList, matchesAuthor } from '../lib/web/search';
 import { SITE_SERVER_LABEL } from '../lib/web/site-server';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
-import { mediaServer, type MediaServer, type MediaServerId } from '../lib/web/media-servers';
+import { type MediaServerId } from '../lib/web/media-servers';
+import { allAddNote, firstPick, pickedLine, pickHolders, roomAddFor, serverPlaysPick, type RoomAdd, type ServerPick } from '../lib/web/server-picks';
+import ServerPickers from './ServerPickers';
 import { heldEpisodes, type MediaInfo } from '../lib/web/media-titles';
 import { searchOrder } from '../lib/web/web-sort';
 import type { AudioTrack } from '../lib/audio/tracks';
@@ -295,31 +297,23 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
     }
   }
 
-  /** The room link for a TMDB title on a given server: a film straight off, a show as its whole-show player or else
-   *  its first held episode, so a server pick always lands on something playable. */
-  function serverLinkFor(server: MediaServer, media: MediaInfo, title: string): WatchLink | null {
-    if (media.type !== 'tv') return serverWatchLink(server, media, title);
-    const whole = serverWatchLink(server, media, title, { whole: true });
-    if (whole !== null) return whole;
-    const seasons = heldEpisodes(media);
-    const first = seasons.keys().next().value;
-    if (first === undefined) return null;
-    return serverWatchLink(server, media, title, { season: first, episode: seasons.get(first)?.[0] });
-  }
-
-  /** WATCH on a media server (Luke, 2026-11-07): queue the picked server's own player for a TMDB title. */
-  async function addServer(item: WebItem, serverId: MediaServerId, straight: boolean) {
+  /**
+   * WATCH on a media server (Luke, 2026-11-07): what the row's pickers chose on the picked server (server-picks.ts): a film, an
+   * episode, the whole-series player, or ALL, every episode as one block in one write, so nothing is ever half added. A show
+   * longer than ALL takes at once says so in words (`allAddNote`).
+   */
+  async function addServer(item: WebItem, add: RoomAdd, straight: boolean) {
     setProblem(null);
-    const media = item.media;
-    if (media === undefined) return;
-    const link = serverLinkFor(mediaServer(serverId), media, item.title);
-    if (link === null || !isQueueableWebLink(link)) {
+    const links = add.kind === 'one' ? [add.link] : add.links;
+    if (links.length === 0 || !links.every((link) => isQueueableWebLink(link))) {
       setProblem("THIS ONE CAN'T PLAY IN A ROOM.");
       return;
     }
     try {
-      const words = await put({ link }, straight);
+      const words = add.kind === 'one' ? await put({ link: add.link }, straight) : await putSeries(add.title, add.links, straight);
       if (words !== null) setJustAdded({ key: `web:${item.id}`, words });
+      const note = allAddNote(add);
+      if (words !== null && note !== null) setProblem(note);
     } catch (failure) {
       fail('IT COULD NOT BE ADDED.')(failure);
     }
@@ -525,13 +519,8 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       const problems = page.problems.filter((line) => lookingUp || QUEUE_SOURCES.some((option) => option.value === line.platform));
       // Videos a room can play, and audio the music bar streams from its platform (a song row). IMDB's films and shows
       // play nowhere and are listed anyway: they are looked up, not added.
-      const web = page.items.filter((item) => {
-        if (!keepsKind(ask.keep, item.kind)) return false;
-        if (lookingUp) return true;
-        if (playsInBar(item)) return true;
-        const link = watchLinkForItem(item);
-        return link !== null && isQueueableWebLink(link);
-      });
+      // A title on a friend's media server is listed too, with its WATCH ON row (blank-screen.ts `roomListable`).
+      const web = page.items.filter((item) => roomListable(item, ask.keep, lookingUp));
       setSearch((current) =>
         cursor !== null && current.kind === 'found'
           ? { ...current, web: oneRowPerTitle([...current.web, ...web]), next: page.nextCursor, loadingMore: false }
@@ -1426,7 +1415,7 @@ function Results({
   crowned: boolean;
   onAddFile: (mediaItemId: string, straight: boolean) => void;
   onAddWeb: (item: WebItem, straight: boolean) => void;
-  onAddServer: (item: WebItem, serverId: MediaServerId, straight: boolean) => void;
+  onAddServer: (item: WebItem, add: RoomAdd, straight: boolean) => void;
   /** A series result's ticked episodes, or null for all of them (the fold never opened). */
   onAddSeries: (item: WebItem, links: WatchLink[] | null, straight: boolean) => void;
   /** One of the site's own songs. */
@@ -1488,7 +1477,7 @@ function Results({
                 action={
                   <>
                     {media.copies.length > 0 ? (
-                      <ServerWatch item={{ ...item, media }} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(serverId, straight) => onAddServer(item, serverId, straight)} />
+                      <ServerWatch item={{ ...item, media }} crowned={crowned} added={added(`web:${item.id}`)} onAdd={(add, straight) => onAddServer(item, add, straight)} />
                     ) : null}
                     <button type="button" className={PLATE} onClick={() => onFindToPlay(item.title)} aria-label={`Search for "${item.title}" among what a room can play`} data-imdb-find>
                       [ FIND TO PLAY ]
@@ -1646,31 +1635,50 @@ function WebResult({
  * than one — and the add key (your own list, or straight into the queue for a crown). Shown on a KINO result a media
  * server holds, beside FIND TO PLAY.
  */
-function ServerWatch({ item, crowned, added, onAdd }: { item: WebItem & { media: MediaInfo }; crowned: boolean; added: AddedWords | null; onAdd: (serverId: MediaServerId, straight: boolean) => void }) {
-  const copies = item.media.copies;
-  const [server, setServer] = useState<MediaServerId>(copies[0]?.server);
-  if (copies.length === 0) return null;
+function ServerWatch({ item, crowned, added, onAdd }: { item: WebItem & { media: MediaInfo }; crowned: boolean; added: AddedWords | null; onAdd: (add: RoomAdd, straight: boolean) => void }) {
+  const media = item.media;
+  // The MEDIA page's choices (ServerPickers.tsx, server-picks.ts): FILM for a film series; WHOLE SERIES, SEASON and EPISODE for a
+  // show, with ALL first in the EPISODE list (Luke, 2026-11-08). Until then a show always queued its whole-show player or first episode.
+  const [pick, setPick] = useState<ServerPick>(() => firstPick(media));
+  const holders = pickHolders(media, pick);
+  const [chosen, setChosen] = useState<MediaServerId | undefined>(undefined);
+  // The server picked, while it can play the pick; otherwise the first that can.
+  const server = chosen !== undefined && holders.includes(chosen) ? chosen : holders[0];
+  const wholeOffered = media.type === 'tv' && media.copies.some((copy) => serverPlaysPick(media, { ...pick, whole: true, all: false }, copy.server));
+  const add = server === undefined ? null : roomAddFor(server, media, item.title, pick);
+  if (media.copies.length === 0) return null;
   return (
-    <span className="flex flex-wrap items-center gap-1" data-watch-server={server}>
-      <span className="font-bold">WATCH</span>
-      {copies.length > 1 ? (
-        <select
-          value={server}
-          onChange={(event) => setServer(event.target.value as MediaServerId)}
-          aria-label={`Server for "${item.title}"`}
-          className="min-h-tap border border-ink-plate bg-paper px-1 font-bold"
-        >
-          {copies.map((copy) => (
-            <option key={copy.server} value={copy.server}>
-              {PLATFORM_LABELS[copy.server]}
-            </option>
-          ))}
-        </select>
-      ) : (
-        <span className="font-bold">{PLATFORM_LABELS[server]}</span>
-      )}
-      <AddKey crowned={crowned} added={added} onAdd={(straight) => onAdd(server, straight)} label={`${item.title} on ${PLATFORM_LABELS[server]}`} />
-    </span>
+    <div className="flex basis-full flex-col items-start gap-1" data-watch-server={server ?? 'none'}>
+      <ServerPickers media={media} pick={pick} onPick={setPick} wholeOffered={wholeOffered} title={item.title} />
+      {media.type === 'tv' && heldEpisodes(media).size > 0 && server !== undefined ? (
+        <p className="text-label font-bold text-ink-quiet" data-picked-line>{`PICKED: ${pickedLine(media, pick, server)}`}</p>
+      ) : null}
+      <span className="flex flex-wrap items-center gap-1">
+        <span className="font-bold">WATCH ON</span>
+        {holders.length > 1 && server !== undefined ? (
+          <select
+            value={server}
+            onChange={(event) => setChosen(event.target.value as MediaServerId)}
+            aria-label={`Server for "${item.title}"`}
+            className="min-h-tap border border-ink-plate bg-paper px-1 font-bold"
+            data-pick-server
+          >
+            {holders.map((id) => (
+              <option key={id} value={id}>
+                {PLATFORM_LABELS[id]}
+              </option>
+            ))}
+          </select>
+        ) : server !== undefined ? (
+          <span className="font-bold">{PLATFORM_LABELS[server]}</span>
+        ) : (
+          <span className="font-bold">NO SERVER HAS THIS PICK</span>
+        )}
+        {add !== null && server !== undefined ? (
+          <AddKey crowned={crowned} added={added} onAdd={(straight) => onAdd(add, straight)} label={`${add.kind === 'one' ? add.link.title : `every episode of ${item.title}`} on ${PLATFORM_LABELS[server]}`} />
+        ) : null}
+      </span>
+    </div>
   );
 }
 

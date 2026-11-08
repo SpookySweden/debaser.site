@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { PLATE, PLATE_PRESSED } from '../lib/ui/controls';
 import type { RoomSource } from '../lib/ui/floating-player';
 import { useNow } from '../lib/ui/use-now';
+import type { RoomSeries } from '../lib/watch/go-live';
 import { getWatchRepository } from '../lib/watch/repository';
 import { nextQueuePosition, queueRights, roomIsLive } from '../lib/watch/rules';
 import { applyLocalChange, useWatchRoom } from '../lib/watch/use-watch-room';
@@ -24,12 +25,12 @@ import GoLiveWindow from './GoLiveWindow';
  * Accounts only. The caller draws it only for a video that can play in a room, so there is never a dead key.
  */
 
-type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'added'; roomId: string; listed: boolean } | { kind: 'refused'; roomId: string; reason: string };
+type AddState = { kind: 'idle' } | { kind: 'busy' } | { kind: 'added'; roomId: string; listed: boolean; note: string | null } | { kind: 'refused'; roomId: string; reason: string };
 
 /** How long the key says it worked, before it can add the video again. */
 const ADDED_MS = 5000;
 
-export default function WatchInRoomKey({ source, playId, title, onPress }: { source: RoomSource; playId: string; title: string; onPress?: () => void }) {
+export default function WatchInRoomKey({ source, series, playId, title, onPress }: { source: RoomSource; series?: RoomSeries; playId: string; title: string; onPress?: () => void }) {
   const { user } = useAuth();
   const forum = useForum();
   const watching = useWatching(user?.id ?? null);
@@ -61,10 +62,13 @@ export default function WatchInRoomKey({ source, playId, title, onPress }: { sou
         return;
       }
       const inQueue = rights.addsTo === 'queue';
-      await repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, ...source });
+      // ALL (server-picks.ts): every episode as one block, in one write, so nothing is ever half added.
+      if (series !== undefined) await repository.addSeriesToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, seriesTitle: series.title, links: series.links });
+      else await repository.addToQueue({ roomId, addedBy: user.id, position: nextQueuePosition(fresh.queue), inQueue, ...source });
       applyLocalChange(roomId, { kind: 'refresh' });
-      setState({ kind: 'added', roomId, listed: !inQueue });
-      window.setTimeout(() => setState({ kind: 'idle' }), ADDED_MS);
+      setState({ kind: 'added', roomId, listed: !inQueue, note: series?.note ?? null });
+      // A short ALL (more episodes than fit at once) keeps saying so for longer.
+      window.setTimeout(() => setState({ kind: 'idle' }), series?.note ? ADDED_MS * 4 : ADDED_MS);
     } catch (failure) {
       setState({ kind: 'refused', roomId, reason: failure instanceof Error ? failure.message : 'IT COULD NOT BE ADDED.' });
     }
@@ -87,7 +91,7 @@ export default function WatchInRoomKey({ source, playId, title, onPress }: { sou
         >
           [ WATCH IN ROOM ]
         </button>
-        {asking ? <GoLiveWindow user={user} createThread={forum.createThread} first={{ source, playId, title }} onClose={() => setAsking(false)} /> : null}
+        {asking ? <GoLiveWindow user={user} createThread={forum.createThread} first={{ source, playId, title, ...(series === undefined ? {} : { series }) }} onClose={() => setAsking(false)} /> : null}
       </>
     );
   }
@@ -112,6 +116,11 @@ export default function WatchInRoomKey({ source, playId, title, onPress }: { sou
         <button type="button" onClick={() => openWatch({ kind: 'room', roomId: state.roomId })} className={PLATE}>
           [ OPEN ROOM ]
         </button>
+      ) : null}
+      {added && state.note !== null ? (
+        <span role="status" className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar" data-watch-in-room-note>
+          {state.note}
+        </span>
       ) : null}
       {state.kind === 'refused' && state.roomId === roomId ? (
         <span role="alert" className="w-fit bg-bubble-pale px-1 text-label font-bold text-ink-bar">

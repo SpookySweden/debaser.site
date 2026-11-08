@@ -1,6 +1,6 @@
-import { WATCH_KIND_BY_PLATFORM } from '../web/bridges';
-import type { WebPlatform } from '../web/types';
-import { isBarAudioPlatform } from '../web/web-audio';
+import { isQueueableWebLink, WATCH_KIND_BY_PLATFORM, watchLinkForItem } from '../web/bridges';
+import type { WebItem, WebPlatform } from '../web/types';
+import { isBarAudioPlatform, playsInBar } from '../web/web-audio';
 import { authorsOf, formatWebSearch, LIVE_SOURCE_KINDS, parseWebSearch, SOURCE_OPTIONS, sortOf, withFilter, type FilterKey, type SourceValue } from '../web/web-filters';
 import type { SortChoice } from '../web/web-sort';
 import { nextToPlay } from './rules';
@@ -162,6 +162,24 @@ export function keepsKind(keep: KeepKinds, kind: string): boolean {
   if (keep === 'video') return kind === 'video';
   if (keep === 'audio') return kind === 'audio';
   return kind === 'video' || kind === 'audio';
+}
+
+/**
+ * Whether a search result is listed in a room's queue browser: of a kind the search keeps, and something a room can play, or a
+ * KINO lookup (looked up, not added). A title on a friend's media server plays in a room from that server (its WATCH ON row);
+ * it has no platform player, so until 2026-11-08 it was dropped from every search but a KINO one.
+ */
+export function roomListable(
+  item: WebItem,
+  keep: KeepKinds,
+  lookingUp: boolean,
+): boolean {
+  if (!keepsKind(keep, item.kind)) return false;
+  if (lookingUp) return true;
+  if (playsInBar(item)) return true;
+  if (item.media !== undefined && item.media.copies.length > 0) return true;
+  const link = watchLinkForItem(item);
+  return link !== null && isQueueableWebLink(link);
 }
 
 /** Black: nothing on screen - no current play, or one the queue no longer holds. */

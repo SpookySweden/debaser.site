@@ -7,7 +7,10 @@ import { ROOM_NAME_MAX, ROOM_TOPIC_MAX, cleanRoomWords, streamAnchor, streamThre
 import { primeRoom } from './use-watch-room';
 import { openWatch } from './watch-window';
 import type { ForumAnchor } from '../forum/types';
-import type { RoomAddMode, RoomPrivacy, WatchQueueEntry } from './types';
+import type { RoomAddMode, RoomPrivacy, WatchLink, WatchQueueEntry } from './types';
+
+/** A show's episodes going into a room as one block (ALL, server-picks.ts); `note` says when there were more than fit. */
+export type RoomSeries = { title: string; links: WatchLink[]; note: string | null };
 
 /** `[ WATCH IN ROOM ]` (SPEC-floating-player.md, part 3): the room's words, and the video it starts with. */
 export type RoomStart = {
@@ -15,6 +18,8 @@ export type RoomStart = {
   topic: string;
   addMode: RoomAddMode;
   first: RoomSource;
+  /** ALL: the whole block goes in instead of `first` (its first episode). */
+  series?: RoomSeries;
   /** Where the viewer had got to, when the player can tell. */
   place: number | null;
 };
@@ -66,9 +71,13 @@ export async function goLiveEmpty(
       }
     }
     try {
-      const entry = await repository.addToQueue({ roomId: id, addedBy: host.id, position: 0, inQueue: true, ...start.first });
-      noteRoomStart(entry.id, start.place);
-      queue.push(entry);
+      if (start.series !== undefined) {
+        queue.push(...(await repository.addSeriesToQueue({ roomId: id, addedBy: host.id, position: 0, inQueue: true, seriesTitle: start.series.title, links: start.series.links })));
+      } else {
+        const entry = await repository.addToQueue({ roomId: id, addedBy: host.id, position: 0, inQueue: true, ...start.first });
+        noteRoomStart(entry.id, start.place);
+        queue.push(entry);
+      }
     } catch {
       // A black screen with its three keys, as any new room.
     }

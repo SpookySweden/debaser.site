@@ -275,7 +275,9 @@ same(roomStart.roomStartFor({}, 'e4'), null, 'a player that cannot tell starts f
 const roomKey = read('app/components/WatchInRoomKey.tsx');
 ok(/\[ WATCH IN ROOM \]/.test(roomKey) && /\[ ADD TO ROOM \]/.test(roomKey), 'one key with both words');
 for (const path of ['app/components/WebStream.tsx', 'app/components/WebSiteFiles.tsx', 'app/components/MediaCatalogue.tsx', 'app/components/FloatingPlayer.tsx']) ok(/<WatchInRoomKey\b/.test(read(path)), `${path}: has the key`);
-ok(!/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title can\'t play in a room: no key');
+// Updated on purpose 2026-11-08: since 644b121 (Luke, 2026-11-07: "pick a server... watch in the room") a media server's title plays in
+// a room, so its row has the key, with what its pickers chose (server-picks.ts `roomAddFor`). This line had failed since then.
+ok(/<WatchInRoomKey\b/.test(read('app/components/WebMediaRow.tsx')) && /roomAddFor\(server, media, item\.title, pick\)/.test(read('app/components/WebMediaRow.tsx')), 'a media server\'s title has the key, for the pick on the chosen server');
 ok(/entry\.room === undefined \? null : <WatchInRoomKey/.test(layer), 'the float has it only for what can play in a room');
 ok(/useState<RoomPrivacy>\('private'\)/.test(read('app/components/GoLiveWindow.tsx')), 'PRIVATE already picked');
 ok(/const place = roomStartFor\(videoElement, entryId\);/.test(read('app/components/WatchRoom.tsx')), 'the host\'s room starts from the place');
