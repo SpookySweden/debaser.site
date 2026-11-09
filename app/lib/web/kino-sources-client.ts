@@ -3,7 +3,7 @@ import { MEDIA_SERVERS } from './media-servers';
 import { MEDIA_ID_PREFIX } from './media-titles';
 import { getWebRepository } from './repository';
 import type { WebItem } from './types';
-import { webSessionHeaders } from './web-session';
+import { webReaderHeaders } from './web-session';
 
 /**
  * The page's side of /api/web/kino/sources: rows ask one by one as they are drawn, and all the rows drawn together go
@@ -39,13 +39,11 @@ async function send(batch: readonly { key: string; answer: (sources: KinoWatch |
   const heldBy = readHeld(batch.map((entry) => entry.key));
   let sources: Record<string, KinoSources> | null = null;
   try {
-    const headers = await webSessionHeaders();
-    if (headers !== null) {
-      // In a fixed order, so the same page of rows is the same question, whichever row was drawn first.
-      const titles = batch.map((entry) => entry.key).sort().join(',');
-      const response = await fetch(`/api/web/kino/sources?titles=${encodeURIComponent(titles)}`, { credentials: 'omit', headers });
-      if (response.ok) sources = ((await response.json()) as { sources?: Record<string, KinoSources> }).sources ?? null;
-    }
+    const headers = await webReaderHeaders();
+    // In a fixed order, so the same page of rows is the same question, whichever row was drawn first.
+    const titles = batch.map((entry) => entry.key).sort().join(',');
+    const response = await fetch(`/api/web/kino/sources?titles=${encodeURIComponent(titles)}`, { credentials: 'omit', headers });
+    if (response.ok) sources = ((await response.json()) as { sources?: Record<string, KinoSources> }).sources ?? null;
   } catch {
     sources = null;
   }

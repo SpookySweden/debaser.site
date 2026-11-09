@@ -55,7 +55,7 @@ asked for when the video plays.
 
 ## Server side
 
-- `GET /api/web/subtitles?ia=<id>&file=<name>` (signed-in only, like every WEB route): checks the id and file
+- `GET /api/web/subtitles?ia=<id>&file=<name>` (signed-in only, like every WEB route, until 2026-11-09; open to visitors since): checks the id and file
   name shape, confirms the file is a `.vtt`/`.srt` listed in that item's metadata, fetches it through
   `safe-fetch.ts` (archive.org hosts only, size cap ~512 KB, timeout), converts SRT -> VTT, answers
   `text/vtt` with a private cache header. Nothing written to disk or the database. Rate-limited per person.

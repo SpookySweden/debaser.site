@@ -11,7 +11,6 @@ import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
 import { PLATFORM_LABELS } from '../../../lib/web/types';
 import { anchorsWildcard } from '../../../lib/web/web-filters';
 import { noteSeenLater } from '../../../lib/web/seen-items';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
 
 /**
@@ -56,8 +55,8 @@ function json(body: Record<string, unknown>, status: number, cacheable = false):
     status,
     headers: {
       'Content-Type': 'application/json',
-      // Never kept by Vercel's edge: an answer is for a signed-in reader, and a shared copy would reach the
-      // signed-out (SPEC-media-servers.md). The reader's own browser may keep a complete one for a few minutes;
+      // Never kept by Vercel's edge (each answer is asked for afresh and limited per address). The reader's own browser
+      // may keep a complete one for a few minutes;
       // the platforms' answers are still cached on the server for a day (cached-fetch.ts).
       'Cache-Control': cacheable ? 'private, max-age=300' : 'no-store',
     },
@@ -65,8 +64,7 @@ function json(body: Record<string, unknown>, status: number, cacheable = false):
 }
 
 export async function GET(request: Request): Promise<Response> {
-  // Signed-in people only (SPEC-media-servers.md decision 4): the session first, before anything is read.
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
+  // Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts).
   const address = clientAddress(request.headers);
   if (!perAddress.allow(address) || !perInstance.allow('all')) {
     return json({ error: 'Too many searches. Wait a minute and try again.' }, 429);

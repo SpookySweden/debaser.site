@@ -27,6 +27,11 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
    media servers: today /web is public. Signed out, /web shows a sign-in prompt instead of the stream, the
    WEB search API routes refuse, and media-server rows are unreadable to anonymous database reads.
    Decide (and tell Luke) whether the header's WEB entry stays visible to signed-out visitors.
+   **Changed 2026-11-09 (Luke: "remove the need to be signed in to access the media tab", then "Everything", with his
+   OK for the database part):** /media is open to signed-out visitors, friends' server titles included. The routes
+   answer them, and `20261109003047_media_open_to_visitors.sql` lets them read `web_media_titles` and
+   `web_media_copies` (and DISCOVER's tables). Told to Luke before he chose: this opens friends' titles and server
+   buttons to the whole internet, and the setup guide's promise to friends changed with it.
 5. **TV: one entry per show**, with large Season and Episode pickers inside it, not one item per episode.
 6. **Titles TMDB doesn't know** (friends' own hobby videos): fill the same fields the Internet Archive
    adapter fills (title, creator, plain-text description, thumbnail, date, kind, duration) from the
@@ -49,8 +54,8 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
 
 ## Database (Luke's OK given 2026-11-01 for these tables)
 - New tables for media-server items and their per-server copies (e.g. `web_media_titles`, keyed by TMDB
-  id or server+id; `web_media_copies`, one row per server holding it). Only signed-in users can read
-  them. Only the protected ingest route writes them (service role, as WEB ingest does now).
+  id or server+id; `web_media_copies`, one row per server holding it). Only signed-in users could read
+  them until 2026-11-09; since then visitors can too (decision 4). Only the protected ingest route writes them (service role, as WEB ingest does now).
 - Through migrations (`npm run db:new`, `db:push:dry`, `db:push`), re-runnable, RLS on every table.
   Before pushing, tell Luke in plain English what the migration creates.
 - The hourly ingest reads every listed server's list file, the same way WEB reads its other sources.
@@ -60,7 +65,7 @@ metadata. Each video plays straight from the friend's (later Luke's own) server.
 ## Rule edits to make as part of the build
 - `CLAUDE.md` WEB section and `SPEC-web.md`: Luke's own and his friends' media servers are allowed
   sources (via their list files); the site still never stores, copies or transcodes video, and holds only
-  images and audio as media itself. /web is for signed-in people only.
+  images and audio as media itself. /web was for signed-in people only; open to everyone since 2026-11-09 (decision 4).
 
 ## Accessibility (Luke's eyesight is poor; this is a main purpose of the site)
 - Large, high-contrast server buttons and pickers, at least 44px, from the theme tokens. Plain words

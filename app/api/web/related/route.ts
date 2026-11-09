@@ -2,14 +2,13 @@ import { relatedFor } from '../../../lib/web/related';
 import { searchText } from '../../../lib/web/search';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 
 /**
  * "Did you mean" and related topics for a /web search (lib/web/related.ts):
  *
  *   GET /api/web/related?q=<words>[&kino=1]  ->  { suggestion: string | null, topics: [{ label, query, keyword? }] }
  *
- * Signed-in people only, like every WEB route. Only the words of the search go anywhere (`searchText`); answers from
+ * Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts). Only the words of the search go anywhere (`searchText`); answers from
  * Wikipedia, Wikidata and TMDB are cached on the server for a day. Anything that fails is simply nothing.
  */
 
@@ -28,7 +27,6 @@ function json(body: Record<string, unknown>, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   if (!perAddress.allow(clientAddress(request.headers))) return json({ error: 'Too many searches. Wait a minute and try again.' }, 429);
   const params = new URL(request.url).searchParams;
   const words = searchText((params.get('q') ?? '').slice(0, 600));

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { normaliseLanguage } from './language';
 import type { ArchiveSubtitleFile } from './subtitles';
-import { webSessionHeaders } from './web-session';
+import { webReaderHeaders } from './web-session';
 
 /**
  * The page's side of Archive subtitles (SPEC-subtitles.md): it asks only our own route (`/api/web/subtitles`),
@@ -58,8 +58,7 @@ export function fetchArchiveSubtitles(id: string): Promise<ArchiveSubtitleList |
   const pending = asking.get(id);
   if (pending !== undefined) return pending;
   const ask = (async () => {
-    const headers = await webSessionHeaders();
-    if (headers === null) return null;
+    const headers = await webReaderHeaders();
     try {
       const response = await fetch(`/api/web/subtitles?ia=${encodeURIComponent(id)}`, { headers });
       const list = response.ok ? readList(await response.json().catch(() => null)) : null;
@@ -99,8 +98,7 @@ export function useArchiveSubtitles(id: string | null): ArchiveSubtitleList | nu
  * null. Asked only when a viewer switches it on; held only by that page, for as long as it plays.
  */
 export async function fetchSubtitleVtt(id: string, file: string): Promise<string | null> {
-  const headers = await webSessionHeaders();
-  if (headers === null) return null;
+  const headers = await webReaderHeaders();
   try {
     const response = await fetch(`/api/web/subtitles?ia=${encodeURIComponent(id)}&file=${encodeURIComponent(file)}`, { headers });
     if (!response.ok) return null;

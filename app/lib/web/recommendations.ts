@@ -25,6 +25,9 @@ export function canRecommend(item: Pick<WebItem, 'platform' | 'media'>): boolean
 
 export type RecommendedPick = { person: string; displayName: string; itemId: string; at: string };
 
+/** The start of a `person` that stands for nobody known: a recommendation a visitor sees without its name. */
+export const ANON_PERSON = 'anon:';
+
 export type RecommendationStore = {
   /** Item ids this reader has recommended. */
   mine(): Promise<string[]>;
@@ -62,7 +65,14 @@ const SUPABASE_STORE: RecommendationStore = {
     if (db === null) return [];
     const { data, error } = await db.rpc('web_recommendations_feed', { p_limit: limit });
     if (error) throw new Error('The recommendations could not be read.');
-    return ((data ?? []) as { person: string; display_name: string; item_id: string; created_at: string }[]).map((row) => ({ person: row.person, displayName: row.display_name, itemId: row.item_id, at: row.created_at }));
+    // A visitor gets no person or name (the board's ANON rule; supabase/migrations/*_media_open_to_visitors.sql): each such
+    // recommendation is its own ANON.
+    return ((data ?? []) as { person: string | null; display_name: string | null; item_id: string; created_at: string }[]).map((row, at) => ({
+      person: row.person ?? `${ANON_PERSON}${at}`,
+      displayName: row.person === null ? 'ANON' : (row.display_name ?? 'ANON'),
+      itemId: row.item_id,
+      at: row.created_at,
+    }));
   },
 };
 

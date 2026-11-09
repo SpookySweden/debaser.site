@@ -7,8 +7,10 @@ import type { WordFact } from './word-facts';
 
 /**
  * The built map, kept where every server can reach it (Next's cache, which outlasts a server and a deploy). Building one takes 15 seconds or more, and every fresh
- * server used to build its own while a reader waited. Now a reader gets the kept one in a blink, and when it's old it's rebuilt behind the scenes. SERVER ONLY. The routes
- * check the session BEFORE asking here, so this holds nothing a signed-out visitor can reach, and the routes' answers are never kept by Vercel's edge.
+ * server used to build its own while a reader waited. Now a reader gets the kept one in a blink, and when it's old it's rebuilt behind the scenes. SERVER ONLY. One map
+ * for everyone, whoever's request built it: since 2026-11-09 visitors may read everything it is built from (MEDIA opened to them, and the spend flag with
+ * 20261109011919_media_visitors_tag_limit.sql), so a visitor's map and a reader's are the same. A new read added here must be readable by visitors too, or the
+ * map would differ by who asked first. The routes' answers are never kept by Vercel's edge.
  *
  * Packed, because the cache takes 2 MB an item and the map is about 4 MB as text: 700 KB or so like this.
  */

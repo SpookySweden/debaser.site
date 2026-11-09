@@ -45,7 +45,7 @@ video, image, text) collected automatically from many platforms.
   hotlinked. Only official public APIs, RSS/Atom feeds, oEmbed and open-data endpoints. No HTML
   scraping and no yt-dlp-style extraction.
 - Free and open-source in spirit. Keyless sources wherever possible. No paid services.
-- (Luke, 2026-11-01, SPEC-media-servers.md) /web is for signed-in people only. Luke's own and his friends'
+- (Luke, 2026-11-01, SPEC-media-servers.md) /web is for signed-in people only (changed 2026-11-09: open to everyone, SPEC-media-servers.md decision 4). Luke's own and his friends'
   media servers are allowed sources, read from each server's list file; each video plays from the server's
   own player page. The site still never stores, copies or transcodes video, and holds only images and audio
   as media itself. TMDB details come from TMDB's official API, server-side, without ratings, votes or popularity.

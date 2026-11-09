@@ -165,7 +165,9 @@ const row = (id, words, over) => ({ item: item(id, over), claudeWords: words });
   assert.ok(/stationIncomplete\(\)/.test(sharedSource) && /throw new Error\('MAP_NOT_SHARED'\)/.test(sharedSource), 'a map missing part of the pool is never shared');
   for (const route of ['graph', 'more']) {
     const routeSource = fs.readFileSync(path.join(__dirname, '..', `app/api/tag-station/${route}/route.ts`), 'utf8');
-    assert.ok(routeSource.indexOf('webSignedIn(request)') > 0 && routeSource.indexOf('webSignedIn(request)') < routeSource.indexOf('sharedStationMap(') , `${route}: the session is checked before the shared map is asked for`);
+    // Open to visitors since 2026-11-09 (MEDIA's lists ask it): the reader's token is checked first, and a refused or guest one reads as a visitor.
+    assert.ok(routeSource.indexOf('readerToken(request)') > 0 && routeSource.indexOf('readerToken(request)') < routeSource.indexOf('sharedStationMap(') , `${route}: the reader's token is checked before the shared map is asked for`);
+    assert.ok(!routeSource.includes('webSignedIn'), `${route}: no sign-in refusal (MEDIA is open to visitors)`);
   }
   // A map built while part of the pool couldn't be read is only kept 5 minutes: live, one bad read blanked the lists for 3 hours.
   let poolReads = 0;

@@ -3,7 +3,7 @@ import { moreItems, searchCandidates, searchTerms, spellingsOf } from '../../../
 import { getTagRepository } from '../../../lib/tag-station/repository';
 import { wordKey } from '../../../lib/tag-station/words';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
+import { readerToken } from '../../../lib/web/web-session';
 
 /**
  * One step of digging through the pool's compressed files (SPEC-discover.md): the items of a few words, of a MEDIA search's text, or whatever the files hold.
@@ -14,8 +14,7 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
  *
  * `next` is the `from` of the next step, null when the files have run out. `tags` are asked words the map doesn't show, and how many items each is on.
  *
- * Signed-in people only: the session first, before anything is read, and the reader's own token does the reading. Reads only. Never kept by Vercel's
- * edge, where a copy could reach the signed-out.
+ * Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts). The reader's own token does the reading when signed in, the public key when not. Reads only. Never kept by Vercel's edge.
  */
 
 export const runtime = 'nodejs';
@@ -36,7 +35,6 @@ function json(body: unknown, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   if (!perAddress.allow(clientAddress(request.headers))) return json({ error: 'Too many requests. Wait a minute and try again.' }, 429);
   const params = new URL(request.url).searchParams;
   const words = params.getAll('word').filter((word) => word.length > 0 && word.length <= MAX_WORD_LENGTH).slice(0, MAX_WORDS);
@@ -45,8 +43,7 @@ export async function GET(request: Request): Promise<Response> {
   if (words.length === 0 && search.trim().length === 0 && !browse) return json(NOTHING, 200);
   const seed = (params.get('seed') ?? '').slice(0, 40);
   const from = Math.max(0, Math.min(1_000_000, Math.floor(Number(params.get('from') ?? 0)) || 0));
-  const header = request.headers.get('authorization') ?? '';
-  const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : null;
+  const token = await readerToken(request);
   try {
     const repository = getTagRepository(token);
     const { graph, facts } = await sharedStationMap(repository);

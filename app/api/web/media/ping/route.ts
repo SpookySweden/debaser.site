@@ -1,6 +1,5 @@
 import { isMediaServerId, mediaServer, serverHost } from '../../../../lib/web/media-servers';
 import { SafeFetchError, safeFetchText } from '../../../../lib/web/safe-fetch';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../../lib/web/web-session';
 
 /**
  * Is a media server answering? (SPEC-media-servers.md decision 2: "if a server doesn't answer, say so in large
@@ -11,7 +10,7 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../../lib/web/web-session
  * The page cannot ask a friend's server itself (another site's answer is closed to it), so it asks here before
  * PLAY loads the player. One GET of the server's front page through `safe-fetch`, on that server's own host
  * only, a few seconds at most; any answer below 500 counts as up. Nothing of the answer is passed on. The
- * server comes from the fixed list in code, never from what was sent. Signed-in people only, like all of WEB.
+ * server comes from the fixed list in code, never from what was sent. Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts).
  */
 
 export const runtime = 'nodejs';
@@ -33,7 +32,6 @@ function json(body: Record<string, unknown>, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   const id = new URL(request.url).searchParams.get('server');
   if (!isMediaServerId(id)) return json({ error: 'There is no such server.' }, 400);
 

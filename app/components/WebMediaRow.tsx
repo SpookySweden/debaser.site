@@ -12,7 +12,7 @@ import { allAddNote, choiceFor, episodeName, filmParts, firstPick, pickedLine, p
 import ServerPickers from './ServerPickers';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { PLATFORM_LABELS, type WebItem } from '../lib/web/types';
-import { webSessionHeaders } from '../lib/web/web-session';
+import { webReaderHeaders } from '../lib/web/web-session';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import AudioSubsFlags from './AudioSubsFlags';
@@ -45,10 +45,9 @@ type Phase = 'closed' | 'asking' | 'down' | 'unasked';
 /** What the row had picked, kept with the playing video so the row can draw itself again when the reader comes back. */
 type RowPicks = { server: MediaServerId; partIndex: number; season: number | undefined; episode: number | undefined; whole: boolean; all?: boolean };
 
-/** Asks our route whether a server answers. null: our own route could not be asked (signed out, offline). */
+/** Asks our route whether a server answers. null: our own route could not be asked (offline, too many asks). */
 async function serverAnswers(server: MediaServerId): Promise<boolean | null> {
-  const headers = await webSessionHeaders();
-  if (headers === null) return null;
+  const headers = await webReaderHeaders();
   try {
     const response = await fetch(`/api/web/media/ping?server=${encodeURIComponent(server)}`, { credentials: 'omit', headers });
     if (!response.ok) return null;

@@ -1160,6 +1160,8 @@ function WebRow({
   const [readerOpen, setReaderOpen] = useState(false);
   const playing = floats ? playingHere : readerOpen;
   const [thumbFailed, setThumbFailed] = useState(false);
+  // RECOMMEND saves to an account, so a signed-out visitor (MEDIA is open to them since 2026-11-09) isn't offered it.
+  const signedIn = useAuth().user !== null;
   const opened = () => {
     noteOpened(item, item.pickWords ?? []);
     if (found) void recordOpened(item);
@@ -1325,7 +1327,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
-            {canRecommend(item) ? <WebRecommendKey item={item} onOpen={opened} /> : null}
+            {canRecommend(item) && signedIn ? <WebRecommendKey item={item} onOpen={opened} /> : null}
             {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
           </div>
 

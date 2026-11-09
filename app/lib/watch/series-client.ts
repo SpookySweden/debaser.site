@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import type { WebItem } from '../web/types';
-import { SIGNED_OUT_REFUSAL, webSessionHeaders } from '../web/web-session';
+import { webReaderHeaders } from '../web/web-session';
 import { readSeriesAnswer, seriesQuery, type SeriesRead, type SeriesTarget } from './series';
 
 /**
@@ -12,8 +12,7 @@ import { readSeriesAnswer, seriesQuery, type SeriesRead, type SeriesTarget } fro
 
 /** One series' episodes. Throws with a sentence fit to show. */
 export async function fetchSeries(target: SeriesTarget): Promise<SeriesRead> {
-  const headers = await webSessionHeaders();
-  if (headers === null) throw new Error(SIGNED_OUT_REFUSAL.toUpperCase());
+  const headers = await webReaderHeaders();
   let response: Response;
   try {
     response = await fetch(`/api/web/series?${seriesQuery(target)}`, { headers });
@@ -46,8 +45,8 @@ async function askCounts(): Promise<void> {
   const ids = [...waiting].slice(0, BATCH);
   for (const id of ids) waiting.delete(id);
   if (waiting.size > 0) timer = setTimeout(() => void askCounts(), 0);
-  const headers = await webSessionHeaders();
-  if (headers === null || ids.length === 0) return;
+  const headers = await webReaderHeaders();
+  if (ids.length === 0) return;
   try {
     const response = await fetch(`/api/web/series?counts=${ids.map(encodeURIComponent).join(',')}`, { headers });
     const body = (await response.json().catch(() => null)) as { counts?: Record<string, unknown>; subs?: Record<string, unknown> } | null;

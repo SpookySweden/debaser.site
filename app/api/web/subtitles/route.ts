@@ -3,7 +3,6 @@ import { SafeFetchError } from '../../../lib/web/safe-fetch';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { isSafeIdentifier } from '../../../lib/web/urls';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 
 /**
  * Internet Archive subtitles for the stream room's player (SPEC-subtitles.md):
@@ -15,7 +14,7 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
  * when a viewer switches subtitles on, and is never stored - not on disk, not in the database, not in the
  * server's fetch cache (Luke's OK, 2026-11-03; CLAUDE.md, ARCHIVE). Subtitle text only, never video or audio.
  * Only a `.vtt`/`.srt` file the item's own metadata lists, from archive.org and its file servers, through
- * safe-fetch. Signed-in people only, like the rest of WEB.
+ * safe-fetch. Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts).
  */
 
 export const runtime = 'nodejs';
@@ -33,7 +32,6 @@ function refuse(error: string, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return refuse(SIGNED_OUT_REFUSAL, 401);
   const params = new URL(request.url).searchParams;
   const id = params.get('ia') ?? '';
   if (!isSafeIdentifier(id)) return refuse('Ask for an Archive item.', 400);
@@ -44,7 +42,7 @@ export async function GET(request: Request): Promise<Response> {
     if (file === null) {
       const subtitles = await readArchiveSubtitles(id, { fetch: cachedFetch });
       if (subtitles === null) return refuse('NOTHING HERE PLAYS IN A ROOM.', 404);
-      // Never kept by Vercel's edge (a signed-in reader's answer); the reader's own browser may keep it a few minutes.
+      // Never kept by Vercel's edge; the reader's own browser may keep it a few minutes.
       return new Response(JSON.stringify(subtitles), { status: 200, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'private, max-age=300' } });
     }
     const vtt = await readArchiveSubtitleText(id, file, { fetch: cachedFetch, textFetch: freshFetch });

@@ -142,7 +142,8 @@ const NO_HOSTS = new Set();
   const route = fs.readFileSync(path.join(__dirname, '..', 'app/api/tag-station/link/route.ts'), 'utf8');
   assert.ok(route.indexOf('webSignedIn(request)') > -1 && route.indexOf('webSignedIn(request)') < route.indexOf('searchParams'), 'the session first, before the link is read');
   const graphRoute = fs.readFileSync(path.join(__dirname, '..', 'app/api/tag-station/graph/route.ts'), 'utf8');
-  assert.ok(graphRoute.indexOf('webSignedIn(request)') > -1 && graphRoute.indexOf('webSignedIn(request)') < graphRoute.indexOf('sharedStationMap('), 'and before the map is read');
+  // The map itself answers visitors since 2026-11-09 (MEDIA's lists); the link route above stays signed-in only.
+  assert.ok(graphRoute.indexOf('readerToken(request)') > -1 && graphRoute.indexOf('readerToken(request)') < graphRoute.indexOf('sharedStationMap('), "the map checks the reader's token before it is read");
 
   console.log('check-tag-station-link: all passed');
 })().catch((error) => {

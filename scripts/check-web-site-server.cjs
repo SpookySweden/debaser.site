@@ -149,7 +149,6 @@ const SCREENS = [
   'app/media/page.tsx',
   'app/files/page.tsx',
   'app/components/MediaCatalogue.tsx',
-  'app/components/WebSignInGate.tsx',
   'app/components/WebStream.tsx',
   'app/components/WebSiteFiles.tsx',
   'app/components/StreamQueueWindow.tsx',

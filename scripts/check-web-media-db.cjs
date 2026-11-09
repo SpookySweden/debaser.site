@@ -2,8 +2,9 @@
  * WEB media servers: the tables, the reader, the hourly update and TMDB, offline (SPEC-media-servers.md; run by `npm run checks:web`):
  *   npx tsc app/lib/web/media-rows.ts app/lib/web/media-ingest.ts app/lib/web/tmdb.ts app/lib/web/supabase-web-repository.ts --outDir Temp/out-web-media-db --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *
- * - the migration: Row Level Security on both tables, readable by signed-in people only (never `anon`), no
- *   write policy, every function refuses without the ingest lock, re-runnable
+ * - the migration: Row Level Security on both tables, readable by signed-in people only (never `anon`) in that
+ *   migration, no write policy, every function refuses without the ingest lock, re-runnable. Visitors may read both
+ *   since 20261109003047_media_open_to_visitors.sql (Luke, 2026-11-09), tested by Temp/check-media-visitors.cjs.
  * - the reader: only listed servers' copies count (a title left with none is no row), episodes and TMDB's details
  *   re-checked, no rating or popularity selected; a search is per-word `ilike` carrying the cleaned words only;
  *   a failed media read leaves the stream showing

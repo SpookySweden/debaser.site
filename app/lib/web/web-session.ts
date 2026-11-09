@@ -3,15 +3,17 @@ import { USING_MOCK_AUTH } from '../auth/auth-repository';
 import { getSupabaseBrowserClient } from '../supabase/client';
 
 /**
- * WEB is for signed-in people only (SPEC-media-servers.md decision 4, Luke 2026-11-01): signed out, /web shows
- * a sign-in prompt and the WEB search routes refuse. These are the two halves of that, in the avatar route's
- * pattern: the page presents its session token, the route checks it with `auth.getUser` before anything else.
+ * MEDIA (/media, WEB in the code) is open to signed-out visitors since 2026-11-09 (Luke: "remove the need to be signed
+ * in to access the media tab", then "Everything"; SPEC-media-servers.md decision 4 as changed). Its routes answer anyone,
+ * and the page asks them with `webReaderHeaders`: the session when there is one, nothing when there isn't.
  *
- * With the mock accounts (no auth backend) there is no session to present or check, so both halves let the
- * request through; the page's own gate still shows the prompt to a signed-out visitor.
+ * `webSessionHeaders` and `webSignedIn` stay for what still needs an account (picture search, DISCOVER's links, a stream
+ * room's pictures), in the avatar route's pattern: the page presents its session token, the route checks it with
+ * `auth.getUser` before anything else. With the mock accounts (no auth backend) there is no session to present or
+ * check, so both let the request through.
  */
 
-/** The page's side: headers carrying the session, `{}` on the mock accounts, null when signed out. */
+/** The page's side, for account-only routes: headers carrying the session, `{}` on the mock accounts, null when signed out. */
 export async function webSessionHeaders(): Promise<Record<string, string> | null> {
   if (USING_MOCK_AUTH) return {};
   const client = getSupabaseBrowserClient();
@@ -21,7 +23,21 @@ export async function webSessionHeaders(): Promise<Record<string, string> | null
   return token === null ? null : { Authorization: `Bearer ${token}` };
 }
 
-/** What a route sends a visitor with no session. */
+/**
+ * The page's side, for MEDIA's open routes: the session's headers when signed in to an account, none when signed out or a
+ * stream-room guest (SPEC-guests.md: the rest of the site treats a guest as signed out). Never null.
+ */
+export async function webReaderHeaders(): Promise<Record<string, string>> {
+  if (USING_MOCK_AUTH) return {};
+  const client = getSupabaseBrowserClient();
+  if (client === null) return {};
+  const { data } = await client.auth.getSession();
+  const session = data.session;
+  if (session === null || session.user.is_anonymous === true) return {};
+  return { Authorization: `Bearer ${session.access_token}` };
+}
+
+/** What an account-only route sends a visitor with no session. */
 export const SIGNED_OUT_REFUSAL = 'Sign in to use media.';
 
 export type CheckToken = (token: string) => Promise<boolean>;
@@ -47,8 +63,22 @@ const checkWithSupabase: CheckToken = async (token) => {
  */
 export async function webSignedIn(request: Request, mockAuth = USING_MOCK_AUTH, check: CheckToken = checkWithSupabase): Promise<boolean> {
   if (mockAuth) return true;
-  const header = request.headers.get('authorization') ?? '';
-  const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+  const token = bearerOf(request);
   if (token.length === 0 || token.length > 4000) return false;
   return check(token);
+}
+
+function bearerOf(request: Request): string {
+  const header = request.headers.get('authorization') ?? '';
+  return header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
+}
+
+/**
+ * For an open route that reads the database as the reader: the session token when it is a live account's (not a stream-room
+ * guest's, which the WEB tables keep out), else null, read as a visitor. A stale or made-up token is read as a visitor too.
+ */
+export async function readerToken(request: Request, check: CheckToken = checkWithSupabase): Promise<string | null> {
+  const token = bearerOf(request);
+  if (token.length === 0 || token.length > 4000) return null;
+  return (await check(token)) ? token : null;
 }

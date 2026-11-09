@@ -3,7 +3,6 @@ import { SafeFetchError } from '../../../lib/web/safe-fetch';
 import { cachedFetch } from '../../../lib/web/search/cached-fetch';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
 import { isSafeIdentifier } from '../../../lib/web/urls';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
 
 /**
  * Series for the stream room (SPEC-stream-series.md):
@@ -15,7 +14,7 @@ import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
  *
  * The episode lists come from each platform's own listing, read on the server (app/lib/web/series-files.ts) and
  * cached there for a day; the page checks every answer again (app/lib/watch/series.ts) before a row is written.
- * Signed-in people only, like the rest of WEB: the queue window and /web are where these are asked. The YouTube
+ * Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts): the queue window and /web are where these are asked. The YouTube
  * key is read here and never leaves the server.
  */
 
@@ -30,7 +29,7 @@ const MAX_COUNTS = 30;
 const perAddress = makeRateLimiter(90, 60_000);
 
 function json(body: Record<string, unknown>, status: number): Response {
-  // Never kept by Vercel's edge (a signed-in reader's answer); the reader's own browser may keep one a few minutes.
+  // Never kept by Vercel's edge; the reader's own browser may keep one a few minutes.
   return new Response(JSON.stringify(body), {
     status,
     headers: { 'Content-Type': 'application/json', 'Cache-Control': status === 200 ? 'private, max-age=300' : 'no-store' },
@@ -38,7 +37,6 @@ function json(body: Record<string, unknown>, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   if (!perAddress.allow(clientAddress(request.headers))) return json({ error: 'Too many requests. Wait a minute.' }, 429);
 
   const params = new URL(request.url).searchParams;

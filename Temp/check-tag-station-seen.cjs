@@ -193,7 +193,8 @@ const withToken = new Request('https://x.example/', { headers: { authorization: 
     if (source.startsWith("'use client'")) assert.ok(!source.includes('seen-items') && !source.includes('web_seen_add'), `${name} is browser code`);
   }
   const route = fs.readFileSync(path.join(ROOT, 'app/api/web/search/route.ts'), 'utf8');
-  assert.ok(route.indexOf('webSignedIn(request)') < route.indexOf('noteSeenLater(request'), 'the session is checked first');
+  // The search answers visitors since 2026-11-09; only a signed-in reader's results are noted, since noting needs their token.
+  assert.ok(/const db = client !== undefined \? client : token\.length > 0 \? clientFor\(token\) : null;\s+if \(db === null\) return;/.test(browserOwned), 'a search with no session notes nothing');
   assert.ok(/noteSeenLater\(request, items\)/.test(route), 'and every page of results is noted');
   assert.ok(/after\(\(\) => noteSeen\(request, items\)\)/.test(browserOwned), 'once the answer has gone, so it never holds up a search');
   seen.noteSeenLater(withToken, [webItem()]);

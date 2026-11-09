@@ -1,16 +1,16 @@
 import { sharedStationMap } from '../../../lib/tag-station/graph-shared';
 import { getTagRepository } from '../../../lib/tag-station/repository';
 import { clientAddress, makeRateLimiter } from '../../../lib/web/search/rate-limit';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../lib/web/web-session';
+import { readerToken } from '../../../lib/web/web-session';
 
 /**
  * TAG STATION's map (SPEC-tag-station.md):
  *
  *   GET /api/tag-station/graph  ->  { tags, items }
  *
- * Signed-in people only: the session first, before anything is read. `web_item_tags` can only be read with a session, so the
- * reader's own token does the reading, and the built map is kept for every server to use (graph-shared.ts). Reads
- * only: nothing here writes to the database. Never kept by Vercel's edge, where a copy could reach the signed-out.
+ * Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts): MEDIA's DISCOVER and RECOMMENDED lists ask it. The reader's own token does the reading when signed in, the
+ * public key when not (the tables are readable by visitors since that day's migration), and the built map is kept for every server to use (graph-shared.ts). Reads
+ * only: nothing here writes to the database. Never kept by Vercel's edge.
  */
 
 export const runtime = 'nodejs';
@@ -27,10 +27,8 @@ function json(body: unknown, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   if (!perAddress.allow(clientAddress(request.headers))) return json({ error: 'Too many requests. Wait a minute and try again.' }, 429);
-  const header = request.headers.get('authorization') ?? '';
-  const token = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : null;
+  const token = await readerToken(request);
   try {
     const { graph } = await sharedStationMap(getTagRepository(token));
     return json(graph, 200);

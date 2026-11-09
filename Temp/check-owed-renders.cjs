@@ -1,6 +1,6 @@
 /*
  * Scratch check for the ten components that arrived with no render (check-structure's OWED_RENDERS), run from the root:
- *   npx tsc app/components/LostAccountWindow.tsx app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSignInGate.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/WatchInRoomKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
+ *   npx tsc app/components/LostAccountWindow.tsx app/components/CatCursor.tsx app/components/CytubeLiveStreams.tsx app/components/CytubePage.tsx app/components/MusicRoomKeeper.tsx app/components/StreamArtShelf.tsx app/components/WebBridgeKeys.tsx app/components/WebMediaRow.tsx app/components/WebSiteFiles.tsx app/components/WebStream.tsx app/components/FloatingPlayer.tsx app/components/SiteHistoryKeeper.tsx app/components/WatchInRoomKey.tsx app/components/AuthProvider.tsx app/components/ForumProvider.tsx app/components/MusicPlayerProvider.tsx app/components/PresenceProvider.tsx app/components/PopoutWindow.tsx app/components/CommentWindow.tsx app/lib/auth/builtin-account.ts app/lib/media/catalogue.ts app/lib/ui/cursor-slot.ts app/lib/watch/canvas-repository.ts app/lib/watch/go-live.ts app/lib/watch/repository.ts app/lib/watch/use-music-room.ts app/lib/watch/use-watch-room.ts app/lib/watch/use-watching.ts app/lib/watch/watch-window.ts app/lib/web/bridges.ts app/lib/web/everywhere-client.ts app/lib/web/live-merge.ts app/lib/web/media-servers.ts app/lib/web/media-titles.ts app/lib/web/repository.ts app/lib/web/site-server.ts app/lib/web/web-filters.ts app/lib/web/web-session.ts --rootDir app --outDir Temp/owed-render --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop
  *   node Temp/check-owed-renders.cjs
  *
  * What it is for: a server render shows a component's first paint and nothing else, and most of these read their data in
@@ -372,7 +372,6 @@ const WatchInRoomKey = require('./owed-render/components/WatchInRoomKey.js').def
 const { canWatch, WebDiscussKey } = require('./owed-render/components/WebBridgeKeys.js');
 const LostAccountWindow = require('./owed-render/components/LostAccountWindow.js').default;
 const WebMediaRowModule = require('./owed-render/components/WebMediaRow.js');
-const WebSignInGate = require('./owed-render/components/WebSignInGate.js').default;
 const WebSiteFiles = require('./owed-render/components/WebSiteFiles.js').default;
 const WebStream = require('./owed-render/components/WebStream.js').default;
 const FloatingPlayer = require('./owed-render/components/FloatingPlayer.js').default;
@@ -531,24 +530,6 @@ function reset() {
   playerNow = { queue: [], track: undefined, playing: false };
   canvasPieces = [];
 }
-
-// --- WebSignInGate
-const INSIDE = el('p', { 'data-inside': 'yes' }, 'THE STREAM');
-test('WebSignInGate: signed out, a prompt to sign in and nothing of the stream', () => {
-  auth = { status: 'signed-out', user: null };
-  const html = draw(el(WebSignInGate, null, INSIDE));
-  assert.ok(visible(html).includes('SIGN IN TO USE MEDIA'));
-  assert.match(openingTag(html, '[ SIGN IN ]'), /href="\/account"/);
-  assert.ok(!html.includes('THE STREAM'), 'the stream must not be drawn for a visitor');
-});
-test('WebSignInGate: still checking, says so and shows neither', () => {
-  auth = { status: 'loading', user: null };
-  const html = draw(el(WebSignInGate, null, INSIDE));
-  assert.equal(visible(html), 'CHECKING YOUR SIGN-IN...');
-});
-test('WebSignInGate: signed in, the stream itself and no prompt', () => {
-  assert.equal(draw(el(WebSignInGate, null, INSIDE)), '<p data-inside="yes">THE STREAM</p>');
-});
 
 // --- CytubeLiveStreams
 const LIVE_ROOMS = () => [

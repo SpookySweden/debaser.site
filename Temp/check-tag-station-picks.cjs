@@ -123,7 +123,8 @@ const big = (rows, counted) => buildIndex(buildStationGraph(rows, [], { counted,
   assert.ok(/NOT YET: /.test(list2) && /POOL_TARGET/.test(list2), 'a line showing how far along');
   assert.ok(!/word\.word\}|\.words\.map\(\(word\) => \(\s*</.test(list2), 'no word drawn on MEDIA');
   const stream = fs.readFileSync(path.join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
-  assert.ok(/canRecommend\(item\) \? <WebRecommendKey/.test(stream), 'the key is on a row only when it may be');
+  // And only for a signed-in reader: MEDIA is open to visitors since 2026-11-09, and a recommendation saves to an account.
+  assert.ok(/canRecommend\(item\) && signedIn \? <WebRecommendKey/.test(stream) && /const signedIn = useAuth\(\)\.user !== null;/.test(stream), 'the key is on a row only when it may be, for a signed-in reader');
   const restartBody = /const restart = useCallback\([\s\S]*?\[start\],/.exec(stream)[0];
   assert.ok(restartBody.includes('setPicked(null)'), 'a search leaves the list, or its results would sit behind it');
   assert.ok(/if \(picked !== null\) \{\s*setDraft\(withFilter\(draft, 'sort', word\)\);/.test(stream), 'but the SORT keys keep it, and only change its order');

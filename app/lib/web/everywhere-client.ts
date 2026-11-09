@@ -1,7 +1,7 @@
 import type { WebStreamItem } from './dedupe';
 import { PLATFORM_HOSTS } from './hosts';
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from './types';
-import { SIGNED_OUT_REFUSAL, webSessionHeaders } from './web-session';
+import { webReaderHeaders } from './web-session';
 
 /**
  * The page's side of search everywhere and paste-a-link (SPEC-web-search.md). Client-safe: it only calls our
@@ -62,9 +62,8 @@ export async function searchEverywhere(
   if (from !== null) params.set('from', from);
   if (type !== 'all') params.set('type', type);
   if (cursor !== null) params.set('cursor', cursor);
-  // The route answers signed-in people only (web-session.ts); signed out, nothing is sent at all.
-  const headers = await webSessionHeaders();
-  if (headers === null) throw new EverywhereError(SIGNED_OUT_REFUSAL);
+  // The route answers visitors too (web-session.ts); a signed-in reader's session goes with it.
+  const headers = await webReaderHeaders();
   const response = await fetch(`/api/web/search?${params.toString()}`, { credentials: 'omit', headers });
   const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
   if (!response.ok || body === null) {
@@ -84,8 +83,7 @@ export type Related = { suggestion: string | null; topics: { label: string; quer
 /** "Did you mean" and related topics for some words (`/api/web/related`); nothing at all on any failure. */
 export async function loadRelated(query: string, kino: boolean): Promise<Related> {
   const none: Related = { suggestion: null, topics: [] };
-  const headers = await webSessionHeaders();
-  if (headers === null) return none;
+  const headers = await webReaderHeaders();
   try {
     const params = new URLSearchParams({ q: query });
     if (kino) params.set('kino', '1');

@@ -57,7 +57,8 @@ This is for servers you and your friends run. Public film-lookup sites aren't ad
 
 ## Privacy, honestly
 
-- The archive is for signed-in people only, and the list is read by debaser.site's server, never by readers' browsers.
+- **The MEDIA page is public** (since 9 November 2026): anyone, signed in or not, can see which titles your server
+  holds and press its button to open your player. Your list is still read by debaser.site's server, never by readers' browsers.
 - But your list file and player pages are on your server: **anyone who learns their addresses can open them**.
   The site can't protect them for you. If that matters, protect the player pages on your side (your media
   server's own login works: a reader signs in to your server inside the player).

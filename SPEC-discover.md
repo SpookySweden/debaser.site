@@ -21,7 +21,8 @@ TAGS and Tag Station read DISCOVER at `/discover`, and `/tag-station` redirects 
 WEB and CYTUBE, the code may keep its name. Reader-visible words change everywhere.
 
 ## 2. Recommending
-- `[ RECOMMEND ]` on every MEDIA row, for signed-in people, as MEDIA is. It says plainly when it's on.
+- `[ RECOMMEND ]` on every MEDIA row, for signed-in people, as MEDIA is. It says plainly when it's on. (MEDIA is open to
+  visitors since 2026-11-09: they see RECOMMENDED with ANON in place of each name, and no RECOMMEND key.)
 - One recommendation per person per item. Only you can add or remove yours, through Row Level Security.
 - Follow the privacy plan: new accounts are private by default, and `SPEC-privacy-decisions.md` applies. A person's picture
   and status show to signed-in people only, and their lamp only if it's on. Say on the PRIVACY tab that a recommendation

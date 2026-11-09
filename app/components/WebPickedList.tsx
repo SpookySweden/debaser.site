@@ -9,7 +9,7 @@ import type { StationIndex } from '../lib/tag-station/query';
 import { EMPTY_RECIPE, type Recipe } from '../lib/tag-station/recipe';
 import { keepShownFirst } from '../lib/tag-station/title-quality';
 import type { StationItem } from '../lib/tag-station/types';
-import { getRecommendationStore, RECOMMEND_NOTE, type RecommendedPick } from '../lib/web/recommendations';
+import { ANON_PERSON, getRecommendationStore, RECOMMEND_NOTE, type RecommendedPick } from '../lib/web/recommendations';
 import { readTaste } from '../lib/web/taste-store';
 import type { WebItem } from '../lib/web/types';
 import { usePublicProfile } from '../lib/profile/use-public-profile';
@@ -23,6 +23,18 @@ const STEP = 25;
 
 /** Someone who recommended a row: their picture, their name, their status line. Their lamp only follows their own switch, as everywhere. */
 function PersonBeside({ person }: { person: { id: string; name: string } }) {
+  // A visitor is told no one's name (recommendations.ts `ANON_PERSON`): a plain ANON, with no picture or profile to open.
+  if (person.id.startsWith(ANON_PERSON)) {
+    return (
+      <span className="text-label font-bold text-ink-quiet" data-recommended-by="anon">
+        ANON
+      </span>
+    );
+  }
+  return <NamedPerson person={person} />;
+}
+
+function NamedPerson({ person }: { person: { id: string; name: string } }) {
   const { profile } = usePublicProfile(person.id);
   const status = profile.status.trim();
   const author = { id: person.id, displayName: person.name };

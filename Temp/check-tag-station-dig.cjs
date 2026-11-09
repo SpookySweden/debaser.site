@@ -213,7 +213,8 @@ const NOW = Date.parse('2026-11-06T12:00:00Z');
     assert.ok(/shown(Count)? \+ (ITEMS_)?STEP\)\.map/.test(fs.readFileSync(path.join(ROOT, 'app', file), 'utf8')), `${file} pins the rows a press brings into view, or digging moves them`);
   }
   const route = fs.readFileSync(path.join(ROOT, 'app/api/tag-station/more/route.ts'), 'utf8');
-  assert.ok(route.indexOf('webSignedIn') < route.indexOf('getTagRepository(token)'), 'the session is checked before anything is read');
+  // Open to visitors since 2026-11-09: the reader's token is checked first; a refused one reads with the public key.
+  assert.ok(route.indexOf('readerToken(request)') > 0 && route.indexOf('readerToken(request)') < route.indexOf('getTagRepository(token)'), "the reader's token is checked before anything is read");
   assert.ok(route.includes('MAX_SEARCH_LENGTH'), 'a search is cut to a length');
   for (const file of ['supabase-tag-repository.ts']) assert.ok(!/\.(insert|update|upsert|delete|upload)\(/.test(fs.readFileSync(path.join(ROOT, 'app/lib/tag-station', file), 'utf8')), `${file} writes nothing`);
 

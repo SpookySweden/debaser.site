@@ -28,8 +28,11 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   Never parse HTML pages.
 - Remote fetches go through `app/lib/web/safe-fetch.ts`, never from browser code. Third-party text is
   rendered as plain text, never as HTML. Adding a platform: `.claude/skills/add-web-adapter`.
-- /media is for signed-in people only: signed out it shows a sign-in prompt, the WEB routes refuse, and the
-  media-server tables are unreadable to visitors (SPEC-media-servers.md).
+- /media is open to everyone since 2026-11-09 (Luke: "Everything"; it was signed-in only before): signed out, the stream,
+  search, KINO, friends' servers, DISCOVER and RECOMMENDED all show, the WEB routes answer, and visitors may read those
+  tables (`20261109003047_media_open_to_visitors.sql`). RECOMMENDED shows visitors no names (ANON). What saves to an
+  account still needs one (RECOMMEND, stream rooms, YOUR YOUTUBE, DISCOVER presets); `Temp/check-media-visitors.cjs`
+  asks live that those still refuse a visitor.
 - DEBASER.SITE: the catalogue of the site's own files, FILES at /files, is one of this page's servers. It was MEDIA at
   /media until 2026-11-04 (its `key` in the nav and `app/lib/media/` keep that name), and its old `/media?kind=`, `?cat=`
   and `?tag=` addresses redirect to /files. A search with SOURCE ALL lists the site's own files it finds first, playing as the catalogue does

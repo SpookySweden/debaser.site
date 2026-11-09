@@ -2,16 +2,15 @@ import { KINO_SOURCES_MAX, parseKinoTitleKey, type KinoTitle } from '../../../..
 import { readKinoSources, viewerCountry } from '../../../../lib/web/kino-sources';
 import { cachedFetch } from '../../../../lib/web/search/cached-fetch';
 import { clientAddress, makeRateLimiter } from '../../../../lib/web/search/rate-limit';
-import { SIGNED_OUT_REFUSAL, webSignedIn } from '../../../../lib/web/web-session';
 
 /**
  * Where KINO titles can be watched (SPEC-kino-sources.md):
  *
  *   GET /api/web/kino/sources?titles=movie-157336,tv-1399   ->  { sources: { 'movie-157336': { watch, free }, ... } }
  *
- * The page asks once per page of rows, after the rows are drawn, so a search is exactly as fast as it was. Signed-in
- * people only, like all of WEB. The viewer's country is read from Vercel's header to choose what to answer, and is not
- * kept or logged. Answers are never kept at Vercel's edge (they differ by country and by who may see them); what the
+ * The page asks once per page of rows, after the rows are drawn, so a search is exactly as fast as it was.
+ * Open to signed-out visitors too, like all of MEDIA since 2026-11-09 (web-session.ts). The viewer's country is read from Vercel's header to choose what to answer, and is not
+ * kept or logged. Answers are never kept at Vercel's edge (they differ by country); what the
  * platforms answer rests in the server's day-long cache (cached-fetch.ts).
  */
 
@@ -26,7 +25,6 @@ function json(body: Record<string, unknown>, status: number): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  if (!(await webSignedIn(request))) return json({ error: SIGNED_OUT_REFUSAL }, 401);
   if (!perAddress.allow(clientAddress(request.headers))) return json({ error: 'Too many requests. Wait a minute and try again.' }, 429);
 
   const asked = (new URL(request.url).searchParams.get('titles') ?? '').split(',').filter((part) => part.length > 0);

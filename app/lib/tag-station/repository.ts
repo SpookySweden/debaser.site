@@ -6,7 +6,7 @@ import { createSupabaseTagRepository } from './supabase-tag-repository';
 
 /**
  * Where TAG STATION reads its items and words, by MEDIA's own switch (`NEXT_PUBLIC_WEB_DATA_SOURCE`): the mock unless the
- * site is reading the live stream. SERVER ONLY: the route calls it with the session token it has already checked.
+ * site is reading the live stream. SERVER ONLY: the route calls it with the reader's session token, or none.
  */
 export type TagStationRepository = {
   readonly source: 'mock' | 'supabase';
@@ -26,11 +26,12 @@ export type TagStationRepository = {
 const USES_SUPABASE =
   process.env.NEXT_PUBLIC_WEB_DATA_SOURCE === 'supabase' && Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL) && Boolean(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 
+/** `token`: the reader's session, or null for a signed-out visitor, read with the public key (MEDIA opened to visitors, 2026-11-09). */
 export function getTagRepository(token: string | null): TagStationRepository {
-  if (!USES_SUPABASE || token === null) return getMockTagRepository();
+  if (!USES_SUPABASE) return getMockTagRepository();
   const client = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string, {
     auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: `Bearer ${token}` } },
+    ...(token === null ? {} : { global: { headers: { Authorization: `Bearer ${token}` } } }),
   });
   return createSupabaseTagRepository(client);
 }

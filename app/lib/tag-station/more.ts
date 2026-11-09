@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { webSessionHeaders } from '../web/web-session';
+import { webReaderHeaders } from '../web/web-session';
 import { buildIndex, type StationIndex } from './query';
 import type { StationItem, StationTag } from './types';
 import { eraOf } from './words';
@@ -20,8 +20,7 @@ const NOTHING: PoolAnswer = { items: [], next: null, files: 0, tags: [] };
 const held = new Map<string, Promise<PoolAnswer>>();
 
 async function askFiles(ask: PoolAsk, from: number): Promise<PoolAnswer> {
-  const headers = await webSessionHeaders();
-  if (headers === null) return NOTHING;
+  const headers = await webReaderHeaders();
   const query = new URLSearchParams('words' in ask ? ask.words.map((word) => ['word', word]) : []);
   if ('q' in ask) query.set('q', ask.q);
   if ('browse' in ask) query.set('browse', '1');
