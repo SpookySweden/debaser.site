@@ -50,6 +50,9 @@ const client = () => {
 };
 const SUPABASE_STORE: PresetStore = {
   list: async () => {
+    // A visitor (MEDIA is open to them since 2026-11-09) or a stream-room guest has no presets: not asked, so the refusal never shows in their console.
+    const { data: held } = await client().auth.getSession();
+    if (held.session === null || held.session.user.is_anonymous === true) return [];
     const { data, error } = await client().from('discover_presets').select('id, name, settings, active').order('created_at').limit(MAX_PRESETS);
     if (error) throw new Error('Your presets could not be read.');
     return (data ?? []) as Preset[];
