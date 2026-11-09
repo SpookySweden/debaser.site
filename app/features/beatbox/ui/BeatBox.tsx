@@ -48,6 +48,9 @@ import { createRecentStore, newSongId } from "./recentStore";
 import { RecentSongs } from "./RecentSongs";
 import { createRecordSession } from "./recordSession";
 import { barsUsingPattern, replacePatternNotes, setChannelSound } from "./songEdit";
+import { SongMap } from "./SongMap";
+import { createViewStore } from "./mapPixels";
+import { BarKeys } from "./BarKeys";
 import { SoundsPanel } from "./SoundsPanel";
 import { useElementSize } from "./useElementSize";
 import { createWindowStore, type WindowName } from "./windowStore";
@@ -195,6 +198,7 @@ export function BeatBox({
   const openWindows = useSyncExternalStore(windows.subscribe, windows.getOpen);
   const [room, roomWidth, roomHeight] = useElementSize();
   const grid = useRef<NoteGridHandle>(null);
+  const [gridView] = useState(createViewStore);
   const page = useRef<HTMLDivElement>(null);
   // Where the cursor was when each window opened, to go back to when it shuts.
   const cameFrom = useRef<Partial<Record<WindowName, Element | null>>>({});
@@ -435,6 +439,15 @@ export function BeatBox({
     setPick({ channel: pick.channel, bar });
     setStatus(`Bar ${bar + 1}.`);
     return true;
+  }
+
+  /** A press on the song map: that bar, with the view moved to the place pressed. */
+  function goOnMap({ bar, step, row }: { bar: number; step: number; row: number }) {
+    if (bar !== pick.bar) {
+      setPick({ channel: pick.channel, bar });
+      setStatus(`Bar ${bar + 1}.`);
+    }
+    grid.current?.showSpot(row, step);
   }
 
   function cycleMode() {
@@ -965,6 +978,8 @@ export function BeatBox({
               onOpenGrid={() => grid.current?.focus()}
               art={art}
               showArtSlots={showArtSlots}
+              map={<SongMap song={song} channelIndex={pick.channel} range={range} bar={pick.bar} transport={transport} view={gridView} onGo={goOnMap} />}
+              barKeys={<BarKeys bar={pick.bar} barCount={song.barCount} onStep={barStep} />}
             />
           </div>
 
@@ -994,6 +1009,8 @@ export function BeatBox({
               homePitch={pickedChannel?.isDrum ? 0 : Math.max(range.low, Math.min(range.high, baseOctave * 12))}
               live={live}
               onHold={(holding) => setHeld(holding ? { range: wantedRange, channel: pick.channel, song: songNumber } : null)}
+              barKeysHere={!barsShowing}
+              onView={gridView.set}
               art={art}
               showArtSlots={showArtSlots}
               onBarStep={barStep}

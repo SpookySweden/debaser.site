@@ -39,6 +39,7 @@
   --text-glyph: 1.75rem; /* a key that's one glyph, big enough to read at a glance */
   --target-swatch: 20px; /* channel shape beside its name, decoration only */
   --rail-width: 16px;
+  --map-height: 104px; /* the song map under the bars: always this tall, whatever the song */
   --gutter: 16px;
   --gap: 32px;
   --text-title: clamp(2rem, 8.5vw, 6rem);

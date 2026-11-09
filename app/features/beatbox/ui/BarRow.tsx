@@ -136,6 +136,10 @@ export interface BarRowProps {
   showArtSlots: boolean;
   /** More keys for the foot of the column. */
   footKeys?: ReactNode;
+  /** The song map, under the bars. */
+  map?: ReactNode;
+  /** The bar keys, first in the row under the map. */
+  barKeys?: ReactNode;
 }
 
 /**
@@ -156,6 +160,8 @@ export function BarRow({
   art,
   showArtSlots,
   footKeys,
+  map,
+  barKeys,
 }: BarRowProps) {
   const [selectEnd, setSelectEnd] = useState<number | null>(null);
   const [frame, viewWidth, viewHeight] = useElementSize();
@@ -388,27 +394,31 @@ export function BarRow({
       </h2>
       {/* Before the bars in reading order, so Shift+Tab from the notes lands straight on the bars. */}
       <div className="order-last flex flex-none flex-col gap-1">
-        <div role="group" aria-label="This bar's pattern" className="flex flex-wrap items-center gap-1">
-          <button type="button" aria-label="Previous pattern" title="Previous pattern (-, in the bars)" onClick={() => setPattern(pattern - 1)} className={glyphKey()}>
-            -
-          </button>
-          <button type="button" aria-label="Next pattern" title="Next pattern (+, in the bars)" onClick={() => setPattern(pattern + 1)} className={glyphKey()}>
-            +
-          </button>
-          <button type="button" aria-label="Fill" title="This bar's pattern on the whole loop (F, in the bars)" onClick={fillLoop} className={glyphKey()}>
-            {GLYPHS.fill}
-          </button>
-          {footKeys}
-          <ScrollRail
-            view={frame}
-            axis="across"
-            step={cellSize}
-            backGlyph={GLYPHS.left}
-            forwardGlyph={GLYPHS.right}
-            backName="Earlier channels"
-            forwardName="Later channels"
-            collapse
-          />
+        {map}
+        <div className="flex flex-wrap items-center gap-1">
+          {barKeys}
+          <div role="group" aria-label="This bar's pattern" className="flex flex-wrap items-center gap-1">
+            <button type="button" aria-label="Previous pattern" title="Previous pattern (-, in the bars)" onClick={() => setPattern(pattern - 1)} className={glyphKey()}>
+              -
+            </button>
+            <button type="button" aria-label="Next pattern" title="Next pattern (+, in the bars)" onClick={() => setPattern(pattern + 1)} className={glyphKey()}>
+              +
+            </button>
+            <button type="button" aria-label="Fill" title="This bar's pattern on the whole loop (F, in the bars)" onClick={fillLoop} className={glyphKey()}>
+              {GLYPHS.fill}
+            </button>
+            {footKeys}
+            <ScrollRail
+              view={frame}
+              axis="across"
+              step={cellSize}
+              backGlyph={GLYPHS.left}
+              forwardGlyph={GLYPHS.right}
+              backName="Earlier channels"
+              forwardName="Later channels"
+              collapse
+            />
+          </div>
         </div>
       </div>
 

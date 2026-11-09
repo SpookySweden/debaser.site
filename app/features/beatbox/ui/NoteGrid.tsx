@@ -33,12 +33,13 @@ import { channelName, noteShapeStyle } from "./channelLooks";
 import { fitCanvas, moveCursor, scrollToShow, showing, type GridCursor, type GridMove, type NoteRange } from "./gridView";
 import { GLYPHS } from "./keyHelp";
 import type { LiveNotes } from "./liveNotes";
-import { glyphKey } from "./looks";
 import { deleteNoteAt, moveNote, noteAt, setNoteEnd, stretchNote, toggleNote } from "./noteEdit";
 import { startPan } from "./panning";
 import { PixelSlot, type BeatBoxArt } from "./PixelSlot";
 import { Playhead, type HitNote } from "./Playhead";
 import { ScrollRail } from "./ScrollRail";
+import { BarKeys } from "./BarKeys";
+import type { GridInView } from "./mapPixels";
 import { barsUsingPattern } from "./songEdit";
 import { useElementSize } from "./useElementSize";
 
@@ -254,6 +255,8 @@ interface Gesture {
 
 export interface NoteGridHandle {
   focus: (options?: FocusOptions) => void;
+  /** Moves the view so this row and step are in the middle of it, as near as the edges allow. */
+  showSpot: (row: number, column: number) => void;
 }
 
 export interface NoteGridProps {
@@ -275,6 +278,10 @@ export interface NoteGridProps {
   onHold: (holding: boolean) => void;
   /** More keys for the row under the grid. */
   footKeys?: ReactNode;
+  /** The bar keys sit under the grid, as they do when the bars are hidden. Otherwise they're under the song map. */
+  barKeysHere?: boolean;
+  /** Told the rows and steps in view whenever they change. */
+  onView?: (view: GridInView) => void;
   art: BeatBoxArt;
   showArtSlots: boolean;
   /** Moves to the next or previous bar, if there is one. */
@@ -301,6 +308,8 @@ export function NoteGrid({
   live,
   onHold,
   footKeys,
+  barKeysHere = true,
+  onView,
   art,
   showArtSlots,
   onBarStep,
@@ -343,8 +352,6 @@ export function NoteGrid({
     () => frame.current?.querySelector<HTMLElement>('[role="gridcell"][tabindex="0"]') ?? null,
     [frame],
   );
-  useImperativeHandle(ref, () => ({ focus: (options) => activeCell()?.focus(options) }), [activeCell]);
-
   // The size comes from a theme token, so ask the browser how big it really is.
   useLayoutEffect(() => {
     setTarget(cellProbe.current?.getBoundingClientRect().width || 44);
@@ -353,6 +360,21 @@ export function NoteGrid({
   const fit = fitCanvas(viewWidth, viewHeight, target, totalColumns, totalRows);
   const viewAcross = Math.max(fit.cellWidth, viewWidth - fit.nameWidth);
   const viewDown = Math.max(fit.cellHeight, viewHeight - fit.headHeight);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      focus: (options) => activeCell()?.focus(options),
+      showSpot(row, column) {
+        const view = frame.current;
+        if (!view) return;
+        // The browser keeps a scroll inside the view by itself.
+        view.scrollTop = Math.max(0, row * fit.cellHeight - (viewDown - fit.cellHeight) / 2);
+        view.scrollLeft = Math.max(0, column * fit.cellWidth - (viewAcross - fit.cellWidth) / 2);
+      },
+    }),
+    [activeCell, frame, fit.cellHeight, fit.cellWidth, viewAcross, viewDown],
+  );
 
   /** The rows and columns in view right now, with the view just as the browser has it. */
   function inView() {
@@ -366,6 +388,7 @@ export function NoteGrid({
   /** Keeps up with the view: draws what's come near it, and brings the cursor along if the view has left it behind. */
   function viewMoved() {
     const { rows, columns } = inView();
+    onView?.({ firstRow: rows.first, lastRow: rows.last, firstColumn: columns.first, lastColumn: columns.last });
     setSpot((was) => (Math.abs(was.row - rows.first) <= SPARE_ROWS - 1 && Math.abs(was.column - columns.first) <= SPARE_COLUMNS - 1 ? was : { row: rows.first, column: columns.first }));
     if (gesture.current || revealCursor.current) return;
     const row = Math.max(rows.first, Math.min(rows.last, cursorNow.current.row));
@@ -776,18 +799,7 @@ export function NoteGrid({
       )}
 
       <div className="flex flex-none flex-wrap items-center gap-x-3 gap-y-1 p-1">
-        <div role="group" aria-label="This bar" className="flex items-center">
-          <button type="button" aria-label="Previous bar" title="Previous bar" onClick={() => onBarStep(-1)} className={glyphKey()}>
-            {GLYPHS.barBack}
-          </button>
-          <span className="flex min-w-bb-target-min items-center justify-center text-display font-bold whitespace-nowrap">
-            <span className="sr-only">Bar </span>
-            {bar + 1}/{song.barCount}
-          </span>
-          <button type="button" aria-label="Next bar" title="Next bar" onClick={() => onBarStep(1)} className={glyphKey()}>
-            {GLYPHS.barOn}
-          </button>
-        </div>
+        {barKeysHere && <BarKeys bar={bar} barCount={song.barCount} onStep={onBarStep} />}
         <ScrollRail
           view={frame}
           axis="across"
