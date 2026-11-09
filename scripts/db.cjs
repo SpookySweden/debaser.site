@@ -143,7 +143,8 @@ function writeProblem(sql, { fromFile, viaNpm, destructive }) {
   for (const piece of plain.split(';')) {
     const text = piece.trim();
     if (text === '') continue;
-    const changes = /\b(delete\s+from|update)\b/.test(text) && !/\bcreate\s+(or\s+replace\s+)?(function|trigger|policy|rule|procedure)\b/.test(text);
+    // A grant or revoke only names the right to update or delete (`grant select, update on t to r`): it changes no row.
+    const changes = /\b(delete\s+from|update)\b/.test(text) && !/\bcreate\s+(or\s+replace\s+)?(function|trigger|policy|rule|procedure)\b/.test(text) && !/^(grant|revoke)\b/.test(text);
     if (changes && !/\bwhere\b/.test(text)) return `No "where": this would change every row. ${describe(text)}`;
     if (destructive) continue;
     if (/\btruncate\b/.test(text) || /^drop\s+(table|schema|database)\b/.test(text)) return `This empties or drops a table, so it also needs --destructive. ${describe(text)}`;

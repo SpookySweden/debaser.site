@@ -65,6 +65,11 @@ only because the files' lock triggers say `before truncate`; nothing in them dro
 folder's chain and not in the CLI's history table: a change to them is a new file in the game's repository, applied the same
 way. They never touch `public`, and the API does not expose them. The daily backup copies them, except `game.backups`.
 
+Three more on 2026-11-09, on Luke's OK, the same way (no `--destructive` needed): `20261108120000_game_worker_role`
+(the desktop world worker's own role `game_worker`, created NOLOGIN with no password; Luke gives it LOGIN and a password
+himself, so it must stay created by `postgres`), `20261109120000_wishes_kept_small` and `20261110120000_state_packed`.
+The game's read-only `supabase/live-checks/game_worker_role.sql` passed, all 15 lines.
+
 ### The migrations, and how the history was adopted
 
 `supabase/migrations/` is now **a real CLI migration chain**, and this is the

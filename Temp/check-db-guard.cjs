@@ -35,6 +35,11 @@ allowed("delete from public.watch_rooms r\nwhere r.id = 'x';");
 allowed('alter table public.profiles add column if not exists a text; create index if not exists b on public.profiles (a);');
 allowed('create or replace function public.f() returns void language plpgsql as $$ begin delete from public.t; end; $$;');
 allowed('do $$ begin update public.t set a = 1; end $$;');
+// Giving or taking the right to update or delete changes no row (the game's game_worker role, 2026-11-09)...
+allowed('grant select, insert, update on game.worlds to game_worker;');
+allowed('revoke update, delete on game.worlds from game_worker;');
+// ...but a real update riding after one still needs its where.
+refused('grant update on game.worlds to game_worker; update game.worlds set tick = 0');
 console.log('  ok    writeProblem');
 
 // The tool itself: through npm's name, a command-line write stops before any credential or database is asked for.
