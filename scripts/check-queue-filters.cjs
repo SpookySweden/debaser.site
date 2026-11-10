@@ -29,7 +29,8 @@ const plan = blank.queueSearchPlan;
 const press = blank.withQueueFilter;
 
 /* ---------------------------------------------------------------- the keys on offer */
-same(blank.QUEUE_SOURCES.map((option) => option.label), ['ALL', 'INTERNET ARCHIVE', 'PEERTUBE', 'YOUTUBE'], 'SOURCE: only what a room can play from');
+// 2026-11-11 (Luke: "audiobooks and other audio" in the queue): PODCAST, from the saved stream, and AUDIOBOOKS.
+same(blank.QUEUE_SOURCES.map((option) => option.label), ['ALL', 'INTERNET ARCHIVE', 'PEERTUBE', 'PODCAST', 'YOUTUBE', 'AUDIOBOOKS'], 'SOURCE: only what a room can play from');
 same(blank.QUEUE_TYPES.map((option) => option.label), ['ALL', 'BOOKS', 'VIDEO', 'MUSIC'], "TYPE: the blank screen's keys in Luke's order, behind ALL");
 ok(blank.QUEUE_SOURCES.every((option) => web.SOURCE_OPTIONS.some((known) => known.value === option.value)), 'every SOURCE key is one the archive page knows');
 
@@ -40,10 +41,14 @@ same([youtube.words, youtube.source, youtube.site], ['alien', 'youtube', { video
 same(plan('alien in:archive').source, 'internet_archive', "the archive page's short words work here too");
 // (2026-11-05) KINO came off this list on purpose: Luke asked for the IMDB key inside the stream UI, so `in:kino` now
 // reads as a lookup, tested under "the IMDB key" below. It still has no SOURCE key, and a room still cannot play it.
-for (const unplayable of ['wikimedia-commons', 'openverse', 'podcast']) {
+// (2026-11-11) PODCAST came off this list on purpose: Luke asked for "audiobooks and other audio" in the queue, so `in:podcast`
+// reads the saved stream's podcast episodes, tested just below.
+for (const unplayable of ['wikimedia-commons', 'openverse']) {
   const read = plan(`alien in:${unplayable}`);
   same([read.source, read.words, read.site], ['all', 'alien', { videos: true, songs: true }], `in:${unplayable}: a room cannot play from it, so it reads as ALL`);
 }
+same(plan('alien in:podcast').source, 'podcast', 'in:podcast is a source the queue reads, from the saved stream');
+same(plan('alien in:podcast').site, { videos: false, songs: false }, 'one source is about that source, not the site`s own files');
 same(plan('in:youtube').ask, null, 'one source with no words: nothing to ask');
 same(plan('in:youtube').site, { videos: false, songs: false }, 'one source with no words: nothing of the site\'s either (the bar asks for words)');
 same(plan('alien vibe:on').vibe, true, 'vibe:on');
@@ -76,8 +81,8 @@ same(press('alien', 'sort', 'popular'), 'alien sort:popular', 'POPULAR');
 same(press('alien sort:popular', 'sort', 'newest'), 'alien sort:newest', 'DATE replaces POPULAR');
 same(press('alien sort:newest', 'sort', 'oldest'), 'alien sort:oldest', 'the flip key');
 same(press('alien sort:oldest', 'sort', 'best'), 'alien', 'BEST MATCH takes it out');
-same(press('alien type:image in:podcast', 'type', 'video'), 'type:video alien', 'what the queue cannot read is tidied away');
-same(press('alien type:image in:podcast', 'vibe', 'on'), 'alien vibe:on', 'and by any key');
+same(press('alien type:image in:openverse', 'type', 'video'), 'type:video alien', 'what the queue cannot read is tidied away');
+same(press('alien type:image in:openverse', 'vibe', 'on'), 'alien vibe:on', 'and by any key');
 same(press('from:"rick prelinger" alien', 'in', 'youtube'), 'alien in:youtube from:"rick prelinger"', 'a creator is kept, quoted');
 same(press('', 'in', 'youtube'), 'in:youtube', 'an empty bar');
 

@@ -63,19 +63,21 @@ const PRESET = /(^|\s)type:(video|music|audio|books)(?=\s|$)/gi;
 export const AUDIOBOOK_WORD = 'audiobook';
 
 /**
- * A live source a room can play from: a video its player or an official embed takes, or audio the music bar streams.
- * The others find nothing a room can use, and PODCAST is the saved stream's, which the queue search does not read.
+ * A source a room can play from: a video its player or an official embed takes, or audio the music bar streams (an
+ * audiobook's chapters too, as a block: Luke, 2026-11-11). PODCAST is the saved stream's, not a live source: the queue
+ * reads the stream's podcast episodes for it (Luke, 2026-11-11: "audiobooks and other audio" in the queue).
  */
+export const QUEUE_STREAM_SOURCE: SourceValue = 'podcast';
+
 function roomPlays(platform: WebPlatform): boolean {
+  if (platform === QUEUE_STREAM_SOURCE) return true;
   const kinds = LIVE_SOURCE_KINDS[platform] ?? [];
-  // An audiobook (SPEC-books.md) plays in the music bar, chapter by chapter: it's not something a room plays together.
-  if (platform === 'audiobooks') return false;
   return (WATCH_KIND_BY_PLATFORM[platform] !== null && kinds.includes('video')) || (isBarAudioPlatform(platform) && kinds.includes('audio'));
 }
 
 /** The queue search's SOURCE keys (Luke, 2026-11-04: "similar search filters" to the archive's), from the registries. */
 export const QUEUE_SOURCES: readonly { value: SourceValue; label: string }[] = SOURCE_OPTIONS.filter(
-  (option) => option.value === 'all' || (option.value in LIVE_SOURCE_KINDS && roomPlays(option.value)),
+  (option) => option.value === 'all' || ((option.value in LIVE_SOURCE_KINDS || option.value === QUEUE_STREAM_SOURCE) && roomPlays(option.value)),
 );
 
 /** The TYPE keys: the blank screen's three, in Luke's order, behind ALL. A room cannot play a picture or a text. */

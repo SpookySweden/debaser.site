@@ -12,7 +12,8 @@ import { artSlot } from '../lib/ui/art/slots';
 import { FIELD_TIGHT, PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { fetchEmbedTitle, isEmbedKind } from '../lib/watch/embeds';
 import { LINK_TITLE_MAX, linkTitle, recognizeLink } from '../lib/watch/links';
-import { QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
+import { keepsKind, QUEUE_LOOKUP_SOURCE, QUEUE_SOURCES, QUEUE_STREAM_SOURCE, queueSearchPlan, roomListable } from '../lib/watch/blank-screen';
+import { getWebRepository } from '../lib/web/repository';
 import { getWatchRepository } from '../lib/watch/repository';
 import {
   additionUnits,
@@ -39,7 +40,8 @@ import { checkLink } from '../lib/watch/stream-player';
 import type { WatchLink, WatchMember, WatchQueueEntry, WatchRoomRead } from '../lib/watch/types';
 import { applyLocalChange } from '../lib/watch/use-watch-room';
 import { isQueueableWebLink, officialEmbedUrl, watchLinkForItem } from '../lib/web/bridges';
-import { searchEverywhere, type ProviderLine } from '../lib/web/everywhere-client';
+import { searchEverywhere, type EverywherePage, type ProviderLine } from '../lib/web/everywhere-client';
+import type { WebStreamItem } from '../lib/web/dedupe';
 import { oneRowPerTitle } from '../lib/web/live-merge';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { authorList, matchesAuthor } from '../lib/web/search';
@@ -144,6 +146,20 @@ function isAddress(text: string): boolean {
 }
 
 /** Our own videos whose title has every word in it (VIBE: any one); no words, all of them. `from:` keeps a file by its credit or filer, as the archive page does. */
+/**
+ * Podcast episodes for the queue (Luke, 2026-11-11): MEDIA's saved stream searched by the same words, keeping only the
+ * podcasts' episodes the music bar can play. The stream is where podcasts are: no live search asks a podcast feed.
+ */
+async function savedPodcasts(words: string, authors: readonly string[]): Promise<WebStreamItem[]> {
+  if (words.length === 0 && authors.length === 0) return [];
+  try {
+    const page = await getWebRepository().searchItems({ query: words, from: authors, limit: 40 });
+    return page.items.filter((item) => item.platform === QUEUE_STREAM_SOURCE && playsInBar(item));
+  } catch {
+    return [];
+  }
+}
+
 function ourMatches(videos: MediaItem[], words: string, anyWord: boolean, authors: readonly (readonly string[])[] | null): MediaItem[] {
   const wanted = words.toLowerCase().split(/\s+/).filter((word) => word.length > 0);
   return videos.filter((video) => {
@@ -509,10 +525,25 @@ export default function StreamQueueWindow({ read, itemsById, live, userId, membe
       return;
     }
     try {
-      const page = await searchEverywhere(ask.words, cursor, plan.source === 'all' ? undefined : (plan.source as WebPlatform), plan.authors[0] ?? null, ask.type, {
-        vibe: plan.vibe,
-        order: searchOrder(plan.sort),
-      });
+      // Audio from beyond the live search (Luke, 2026-11-11: "audiobooks and other audio" in the queue), first page only:
+      // podcast episodes from MEDIA's saved stream, and for BOOKS, LibriVox's audiobooks (asked only when named, like KINO).
+      const firstPage = cursor === null;
+      const wantsAudio = keepsKind(ask.keep, 'audio');
+      const podcasts =
+        firstPage && wantsAudio && (plan.source === 'all' || plan.source === QUEUE_STREAM_SOURCE) ? savedPodcasts(plan.words, plan.authors) : Promise.resolve([]);
+      const audiobooks =
+        firstPage && plan.preset === 'books' && plan.source === 'all' && plan.words.length > 0
+          ? searchEverywhere(plan.words, null, 'audiobooks', plan.authors[0] ?? null, 'audio').then((found) => found.items, () => [])
+          : Promise.resolve([]);
+      const live =
+        plan.source === QUEUE_STREAM_SOURCE
+          ? Promise.resolve<EverywherePage>({ items: [], problems: [], nextCursor: null, link: null })
+          : searchEverywhere(ask.words, cursor, plan.source === 'all' ? undefined : (plan.source as WebPlatform), plan.authors[0] ?? null, ask.type, {
+              vibe: plan.vibe,
+              order: searchOrder(plan.sort),
+            });
+      const [found, episodes, books] = await Promise.all([live, podcasts, audiobooks]);
+      const page = { ...found, items: [...episodes, ...books, ...found.items] };
       if (run !== searchRun.current) return;
       const lookingUp = plan.source === QUEUE_LOOKUP_SOURCE;
       // A source a room cannot play from is still asked in an ALL search; its rows are never listed, so nor is its line.
