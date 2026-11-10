@@ -35,6 +35,7 @@ import { BarredTitle, SongMenuKey, SongMenuPanel } from './SongMenu';
 import StreamChatFolds from './StreamChatFolds';
 import TimeStamp from './TimeStamp';
 import WatchInRoomKey from './WatchInRoomKey';
+import AddToLetterKey from './AddToLetterKey';
 
 type Sort = 'newest' | 'title' | 'used';
 
@@ -706,6 +707,10 @@ function CatalogueRow({
             <WatchInRoomKey source={{ mediaItemId: item.id }} playId={playId} title={item.title} />
           </span>
         ) : null}
+
+        <span className="flex shrink-0 items-center justify-end gap-1 max-sm:w-full max-sm:justify-start max-sm:pl-14">
+          <AddToLetterKey thing={{ kind: 'file', ref: item.id, title: item.title, picture: item.kind === 'image' ? item.src : undefined }} />
+        </span>
 
         {/* A track's two keys: the song settings panel (`./SongMenu.tsx`: lists, like, queue, link,
             post, folder), and play through the site's one player. */}

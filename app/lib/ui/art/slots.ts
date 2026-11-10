@@ -695,6 +695,17 @@ export const ART_SLOTS = [
     brief: 'The picture under the title of a bar with no notes yet. 96x96.',
   },
   {
+    id: 'letter-envelope',
+    label: 'LETTERS: ENVELOPE',
+    kind: 'sprite',
+    path: 'assets/letters/envelope.png',
+    shown: [[64, 48]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'a dotted box the envelope\'s size, with the letter\'s round stamp picture in its top right corner',
+    brief: 'One letter in the list of letters on a profile (SPEC-letters.md). 128x96, shown at 64x48. Leave the top right corner plain: the letter\'s own round stamp picture (24px) sits there, where a stamp goes.',
+  },
+  {
     id: 'sprite-profile',
     label: 'SPRITE: PROFILE',
     kind: 'sprite',

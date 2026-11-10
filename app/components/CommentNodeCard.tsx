@@ -7,6 +7,7 @@ import { countReplies } from '../lib/forum/format';
 import { type Mentionable } from '../lib/forum/mentions';
 import { displayTags } from '../lib/forum/tags';
 import type { ForumAuthor, ForumComment, ForumTrack } from '../lib/forum/types';
+import AddToLetterKey from './AddToLetterKey';
 import CommentComposer from './CommentComposer';
 import { CommentModeration } from './ForumModerationControls';
 import InlineTrackPlayer from './InlineTrackPlayer';
@@ -74,6 +75,12 @@ type CommentNodeCardProps = {
  * that make the threading usable - `[ REPLY ]` to answer this comment, and
  * `[ n REPLIES ▾ ] / [ n REPLIES ▴ ]` to unfold or fold the replies underneath.
  */
+/** A post's name on a letter's card: its first words, on one line. */
+function postTitle(body: string): string {
+  const line = body.replace(/\s+/g, ' ').trim();
+  return line.length <= 60 ? line || 'A POST' : `${line.slice(0, 59)}…`;
+}
+
 export default function CommentNodeCard({
   comment,
   index,
@@ -175,6 +182,7 @@ export default function CommentNodeCard({
               {`[ ${countReplies(replyCount)} ${repliesHidden ? '▾' : '▴'} ]`}
             </button>
           )}
+          <AddToLetterKey thing={{ kind: 'post', ref: comment.id, title: postTitle(comment.body) }} />
         </div>
 
         {/* Only drawn for the house account: rewrite the reply, or take it down. */}

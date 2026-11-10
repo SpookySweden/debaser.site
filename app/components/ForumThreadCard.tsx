@@ -26,6 +26,7 @@ import { useComms } from './CommsProvider';
 import { useForum } from './ForumProvider';
 import { ThreadPinControl } from './ForumPinPanel';
 import { ThreadModeration } from './ForumModerationControls';
+import AddToLetterKey from './AddToLetterKey';
 import StreamRecord, { StreamMarker } from './StreamRecord';
 import { streamRoomId } from '../lib/watch/rules';
 import InlineTrackPlayer from './InlineTrackPlayer';
@@ -360,6 +361,8 @@ export default function ForumThreadCard({ thread, isOpen, onToggle, tagFilter = 
                   )}
                 </div>
               )}
+
+              <AddToLetterKey thing={{ kind: 'thread', ref: thread.id, title: thread.title }} />
 
               {/* Only drawn for the house account: rewrite the post, or take it down. */}
               <ThreadModeration thread={thread} />

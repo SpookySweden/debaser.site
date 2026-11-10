@@ -20,6 +20,7 @@ import { rowAddresses, startingEmbed, type ExtraHosts } from '../lib/web/row-add
 import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
+import AddToLetterKey from './AddToLetterKey';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
 import { authorWords, searchText } from '../lib/web/search';
 import { splitYear } from '../lib/web/search-intent';
@@ -1141,7 +1142,7 @@ function rowTitleId(itemId: string): string {
  * DISCUSS, WATCH) asks for it to be saved into the stream (save-opened.ts); DISCUSS is offered only while that
  * saving is on, so a thread is never filed under an item that will not arrive.
  */
-function WebRow({
+export function WebRow({
   item,
   extraHosts,
   found,
@@ -1329,6 +1330,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
             {canRecommend(item) && signedIn ? <WebRecommendKey item={item} onOpen={opened} /> : null}
             {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
+            <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} />
           </div>
 
           {item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}

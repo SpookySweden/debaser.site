@@ -21,6 +21,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import SpriteSlot from './SpriteSlot';
 import WatchInRoomKey from './WatchInRoomKey';
 import FindInRoomKey from './FindInRoomKey';
+import AddToLetterKey from './AddToLetterKey';
 
 /**
  * One title from Luke's or a friend's media server (SPEC-media-servers.md), in the /web stream.
@@ -326,6 +327,9 @@ export default function WebMediaRow({ item, titleId }: { item: WebStreamItem & {
           )}
         </div>
       )}
+      <div className="mt-2 flex flex-wrap items-center gap-2">
+        <AddToLetterKey thing={{ kind: 'media', ref: item.id, title: item.title, picture: rowAddresses(item).thumb ?? undefined }} />
+      </div>
     </li>
   );
 }
@@ -424,6 +428,7 @@ export function KinoRow({ item, titleId, action }: { item: WebItem & { media: Me
         {action ?? (watchCount(sources) > 0 ? null : <p className="text-title font-bold text-ink">NO SERVER HAS THIS.</p>)}
         {/* No server holds it: find a source for it in a room (SPEC-media-servers.md; Luke 2026-11-07). Media tab only. */}
         {action === undefined ? <FindInRoomKey title={item.title} /> : null}
+        {action === undefined ? <AddToLetterKey thing={{ kind: 'kino', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} /> : null}
         {addresses.link ? (
           <a href={addresses.link} target="_blank" rel="noopener noreferrer" className={`${PLATE_LINK} min-h-tap`} aria-label={`"${item.title}" on TMDB (opens a new tab)`}>
             [ ON TMDB ↗ ]

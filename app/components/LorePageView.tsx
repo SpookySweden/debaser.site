@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import { useLorePage, type LoreEditor as LoreEditorIdentity } from '../lib/lore/use-lore-page';
 import { PANEL, PLATE_LINK, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import AddToLetterKey from './AddToLetterKey';
 import LoreEditor from './LoreEditor';
 import TimeStamp from './TimeStamp';
 
@@ -77,6 +78,9 @@ export default function LorePageView({ slug }: LorePageViewProps) {
 
         <div className="p-3 text-label font-bold text-ink">
           {page.summary.length === 0 ? null : <p>{page.summary}</p>}
+          <p className="mt-1">
+            <AddToLetterKey thing={{ kind: 'lore', ref: page.slug, title: page.title }} />
+          </p>
           <p className="mt-1 text-ink">
             OPENED BY {page.createdByLabel} :: LAST FILED BY {page.updatedByLabel}{' '}
             <TimeStamp at={page.updatedAt} />

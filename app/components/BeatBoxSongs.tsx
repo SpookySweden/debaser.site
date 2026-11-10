@@ -7,6 +7,7 @@ import { smallKey } from '../features/beatbox/ui/looks';
 import { getBeatBoxSongRepository } from '../lib/beatbox/repository';
 import { SONG_TEXT_MAX, SONG_TITLE_MAX, type SavedBeatBoxSong } from '../lib/beatbox/types';
 import { useAuth } from './AuthProvider';
+import AddToLetterKey from './AddToLetterKey';
 
 const FIELD =
   'bb-field w-full bg-bb-black p-bb-gutter text-bb-large text-bb-white focus:outline-(length:--focus-width) focus:outline-offset-(length:--focus-width) focus:outline-bb-daffodil';
@@ -184,6 +185,7 @@ function OwnSongs({
               >
                 {armed === `delete:${entry.id}` ? 'Really delete?' : 'Delete'}
               </button>
+              <AddToLetterKey thing={{ kind: 'song', ref: entry.id, title: entry.title }} className={smallKey()} />
             </li>
           ))}
         </ul>

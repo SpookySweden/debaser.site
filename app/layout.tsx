@@ -24,6 +24,7 @@ import PresenceProvider from './components/PresenceProvider';
 import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
 import WatchWindow from './components/WatchWindow';
+import LetterWindow from './components/LetterWindow';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
 import { themeBootScript } from './lib/ui/theme-slot';
@@ -119,6 +120,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         {/* The stream room (SPEC-watch-together.md): drawn here so a stream keeps
                             playing while the reader walks the site. */}
                         <WatchWindow />
+                        {/* One letter (SPEC-letters.md), opened from a profile or `?letter=<id>`. */}
+                        <LetterWindow />
                       </Suspense>
 
                       {/* Preferences: the one window with no address, because a theme is a setting on

@@ -280,9 +280,15 @@ assert.deepEqual(componentHexes, [], 'no component writes a palette hex of its o
 const ROUND_FACE = /<span className="inline-flex overflow-hidden rounded-full">\s*<ProfileAvatar\b/;
 const ROUNDED = /rounded-(sm|md|lg|xl|2xl|3xl|full|tl-|tr-|bl-|br-)/;
 assert.match(read('app/components/VanityView.tsx'), ROUND_FACE, 'VANITY`s faces are the one round thing');
+// (2026-11-10, SPEC-letters.md: "the stamp is replaced by a circular cropped picture of the users choosing") The second
+// named exception: a letter's stamp picture, cropped round, held to the one `StampCircle` wrapper in LetterStamp.tsx.
+const STAMP_CIRCLE = /<span className=\{`block overflow-hidden rounded-full border border-ink bg-paper \$\{className\}`\}>/;
+assert.match(read('app/components/LetterStamp.tsx'), STAMP_CIRCLE, 'a letter`s stamp is the other round thing');
 const rounded = sources.filter((file) => {
   const text = read(file);
-  return ROUNDED.test(file === 'app/components/VanityView.tsx' ? text.replace(ROUND_FACE, '') : text);
+  if (file === 'app/components/VanityView.tsx') return ROUNDED.test(text.replace(ROUND_FACE, ''));
+  if (file === 'app/components/LetterStamp.tsx') return ROUNDED.test(text.replace(STAMP_CIRCLE, ''));
+  return ROUNDED.test(text);
 });
 assert.deepEqual(rounded, [], 'nothing else on this site has rounded a corner');
 

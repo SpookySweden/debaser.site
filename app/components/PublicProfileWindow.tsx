@@ -21,6 +21,7 @@ import { canCommentOnProfile, hiddenProfileCommentCount, profileComments, visibl
 import { HYPER_ARROW } from '../lib/ui/hypertext';
 import { PLATE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
+import AddToLetterKey from './AddToLetterKey';
 import CommentRow, { commentRowData } from './CommentRow';
 import CountryFlag from './CountryFlag';
 import ElementComments from './ElementComments';
@@ -31,6 +32,7 @@ import ProfileCommentMenu, { type ProfileCommentOption } from './ProfileCommentM
 import ProfileCommentPin from './ProfileCommentPin';
 import ProfileCommentWindow from './ProfileCommentWindow';
 import ProfileCustomiserWindow from './ProfileCustomiserWindow';
+import ProfileLetters from './ProfileLetters';
 import ProfileStatusBar from './ProfileStatusBar';
 import ProfileTrackPanel from './ProfileTrackPanel';
 import ProfileTagList from './ProfileTagList';
@@ -148,7 +150,9 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
             <button type="button" onClick={() => setCustomising(true)} aria-haspopup="dialog" className={PLATE}>
               [ EDIT PROFILE ]
             </button>
-          ) : null}
+          ) : (
+            <AddToLetterKey thing={{ kind: 'profile', ref: userId, title: displayName }} />
+          )}
         </div>
 
         {/* One comment control for the whole profile, above both columns, drawn whether or
@@ -305,6 +309,9 @@ export default function PublicProfileWindow({ userId, compact = false }: PublicP
         nameColour={nameColour}
         threads={theirThreads}
       />
+
+      {/* Letters (SPEC-letters.md): all of the owner's for the owner, the public ones for anyone else. */}
+      <ProfileLetters userId={userId} owner={owner} />
 
       <CommentsSection
         owner={owner}

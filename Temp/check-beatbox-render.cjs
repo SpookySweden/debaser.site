@@ -20,6 +20,9 @@ function stub(file, exports) {
 let auth = { status: 'signed-out', user: null };
 stub(path.join(OUT, 'components/AuthProvider.js'), { useAuth: () => auth });
 stub(path.join(OUT, 'components/ForumProvider.js'), { useForum: () => ({ createThread: async () => ({}) }) });
+// A saved song's ADD TO LETTER key (SPEC-letters.md, 2026-11-10) is its own check's business (check-letters-render): drawn
+// here as a marker only, because its envelope picture's `next/image` needs a browser document this check doesn't have.
+stub(path.join(OUT, 'components/AddToLetterKey.js'), { default: ({ thing }) => el('span', { 'data-letter-key': thing.ref }) });
 
 let dynamicOptions = null;
 stub('next/dynamic', {
