@@ -9,7 +9,7 @@ import { clientAddress, makeDailyBudgets, makeRateLimiter } from '../../../lib/w
 import { searchEverywhere } from '../../../lib/web/search/run';
 import { SEARCH_KINDS, SEARCH_ORDERS } from '../../../lib/web/search/types';
 import { PLATFORM_LABELS } from '../../../lib/web/types';
-import { anchorsWildcard } from '../../../lib/web/web-filters';
+import { anchorsWildcard, ASKED_ONLY_WHEN_CHOSEN } from '../../../lib/web/web-filters';
 import { noteSeenLater } from '../../../lib/web/seen-items';
 import { wildcardSearch } from '../../../lib/web/wildcard-search';
 
@@ -75,7 +75,7 @@ export async function GET(request: Request): Promise<Response> {
   const cursor = params.get('cursor');
   const only = params.get('provider');
   // Without `provider`, every source an ALL search asks: KINO only ever when named (web-filters.ts `sourcesToAsk`).
-  const providers = only === null ? SEARCH_PROVIDERS.filter((provider) => provider.platform !== 'kino') : SEARCH_PROVIDERS.filter((provider) => provider.platform === only);
+  const providers = only === null ? SEARCH_PROVIDERS.filter((provider) => !ASKED_ONLY_WHEN_CHOSEN.includes(provider.platform)) : SEARCH_PROVIDERS.filter((provider) => provider.platform === only);
   if (providers.length === 0) return json({ error: 'There is no such source.' }, 400);
   if (q.length > MAX_Q_LENGTH || (cursor !== null && cursor.length > 1500)) {
     return json({ error: 'That search is too long.' }, 400);

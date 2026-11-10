@@ -21,6 +21,8 @@ import { embedWithPlace, timeSourceOf } from '../lib/web/embed-time';
 import { closeFloatingIfMine, placeOf, playFloating } from '../lib/ui/floating-player';
 import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import AddToLetterKey from './AddToLetterKey';
+import Link from 'next/link';
+import { isReadable, openReader } from '../lib/books/reader-window';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
 import { authorWords, searchText } from '../lib/web/search';
 import { splitYear } from '../lib/web/search-intent';
@@ -1326,6 +1328,24 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
             {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
             <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} />
+            {/* A book (SPEC-books.md): READ opens the site's reader when Project Gutenberg has it; both kinds have a page. */}
+            {item.platform === 'books' && isReadable(item.id) ? (
+              <button
+                type="button"
+                onClick={() => {
+                  opened();
+                  openReader(item.id, item.title);
+                }}
+                className={PLATE}
+              >
+                [ READ ]
+              </button>
+            ) : null}
+            {item.platform === 'books' || item.platform === 'audiobooks' ? (
+              <Link href={`/media/book/${item.id}`} className={PLATE}>
+                [ BOOK PAGE ]
+              </Link>
+            ) : null}
           </div>
 
           {item.alsoOn.length > 0 ? <AlsoOn item={item} /> : null}

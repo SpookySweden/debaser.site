@@ -25,6 +25,7 @@ import ThemeHost from './components/ThemeHost';
 import CatCursor from './components/CatCursor';
 import WatchWindow from './components/WatchWindow';
 import LetterWindow from './components/LetterWindow';
+import BookReader from './components/BookReader';
 import WindowLayoutHost from './components/WindowLayoutHost';
 import { cursorBootScript } from './lib/ui/cursor-slot';
 import { themeBootScript } from './lib/ui/theme-slot';
@@ -122,6 +123,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
                         <WatchWindow />
                         {/* One letter (SPEC-letters.md), opened from a profile or `?letter=<id>`. */}
                         <LetterWindow />
+                        {/* The reader (SPEC-books.md): a Gutenberg book's text, never kept; `?read=<ref>` opens it. */}
+                        <BookReader />
                       </Suspense>
 
                       {/* Preferences: the one window with no address, because a theme is a setting on

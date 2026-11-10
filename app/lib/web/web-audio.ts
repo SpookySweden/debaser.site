@@ -14,7 +14,7 @@ import { isSafeIdentifier } from './urls';
  */
 
 /** The platforms whose audio items have a file the bar can play. */
-export const BAR_AUDIO_PLATFORMS = ['internet_archive', 'podcast', 'openverse'] as const;
+export const BAR_AUDIO_PLATFORMS = ['internet_archive', 'podcast', 'openverse', 'audiobooks'] as const;
 export type BarAudioPlatform = (typeof BAR_AUDIO_PLATFORMS)[number];
 
 const ROUTE = '/api/web/audio';

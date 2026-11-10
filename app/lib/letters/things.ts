@@ -1,5 +1,6 @@
 import { commentDomId, threadDomId } from '../forum/anchors';
 import { lorePagePath } from '../lore/pages';
+import { highlightHref } from '../books/types';
 import type { LetterItem, LetterKind } from './types';
 
 /** What a card's key says in its pop-up (Luke: "listen, being watch or read case by case"). */
@@ -42,9 +43,14 @@ export function verbOf(kind: LetterKind): LetterVerb {
 export function hrefOf(item: Pick<LetterItem, 'kind' | 'ref' | 'title'>): string {
   switch (item.kind) {
     case 'web':
+      // A book or an audiobook has its own page (SPEC-books.md); anything else is found on MEDIA by its title.
+      if (/^(books|audiobooks):[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/.test(item.ref)) return `/media/book/${item.ref}`;
+      return `/media?q=${encodeURIComponent(item.title)}`;
     case 'media':
     case 'kino':
       return `/media?q=${encodeURIComponent(item.title)}`;
+    case 'highlight':
+      return highlightHref(item.ref) ?? '/media';
     case 'thread':
       return `/forum#${threadDomId(item.ref)}`;
     case 'post':

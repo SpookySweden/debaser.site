@@ -1,6 +1,8 @@
 import type { WebPlatform } from '../types';
 import { internetArchiveSearch } from './providers/internet-archive';
 import { kinoSearch } from './providers/kino';
+import { audiobooksSearch } from './providers/audiobooks';
+import { booksSearch } from './providers/books';
 import { openverseSearch } from './providers/openverse';
 import { peertubeSearch } from './providers/peertube';
 import { vimeoLookup } from './providers/vimeo';
@@ -19,6 +21,8 @@ export const SEARCH_PROVIDERS: readonly SearchProvider[] = [
   wikimediaCommonsSearch,
   openverseSearch,
   kinoSearch,
+  booksSearch,
+  audiobooksSearch,
 ];
 
 /**

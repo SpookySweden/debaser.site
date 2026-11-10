@@ -48,6 +48,9 @@ export const LIVE_SOURCE_KINDS: Readonly<Partial<Record<WebPlatform, readonly We
   openverse: ['image'],
   // TMDB's films and shows: asked only when KINO is the SOURCE (`sourcesToAsk`), never in an ALL search.
   kino: ['video'],
+  // Asked only when chosen, as KINO is (`sourcesToAsk`): Open Library's books and LibriVox's audiobooks (SPEC-books.md).
+  books: ['text'],
+  audiobooks: ['audio'],
 };
 
 export const LIVE_PROVIDERS = Object.keys(LIVE_SOURCE_KINDS) as WebPlatform[];
@@ -298,11 +301,14 @@ function withSortWord(choice: SortChoice): { sort?: SortWord } {
  * Which sources a search asks: the saved stream when it could match, and only the live sources whose
  * platform the SOURCE filter allows and which can return the TYPE asked for. Nothing is asked of the rest.
  */
+/** Sources an ALL search never asks: each only when it is the SOURCE (KINO; BOOKS and AUDIOBOOKS, SPEC-books.md). */
+export const ASKED_ONLY_WHEN_CHOSEN: readonly WebPlatform[] = ['kino', 'books', 'audiobooks'];
+
 export function sourcesToAsk(search: Pick<WebSearch, 'source' | 'type'>): { stream: boolean; live: WebPlatform[] } {
   const typeOk = (kinds: readonly WebItemKind[]) => search.type === 'all' || kinds.includes(search.type);
   // KINO is asked only when it is the SOURCE: an ALL search never fills up with TMDB's titles.
   const live = LIVE_PROVIDERS.filter(
-    (platform) => (search.source === platform || (search.source === 'all' && platform !== 'kino')) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
+    (platform) => (search.source === platform || (search.source === 'all' && !ASKED_ONLY_WHEN_CHOSEN.includes(platform))) && typeOk(LIVE_SOURCE_KINDS[platform] ?? []),
   );
   // KINO reads the stream too, for the titles a media server holds: those rows play, and take the KINO row's place.
   const stream = search.source === 'all' || search.source === 'kino' || streamPlatform(search.source);

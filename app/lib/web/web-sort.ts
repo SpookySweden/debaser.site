@@ -39,7 +39,7 @@ export type SortSource = 'stream' | WebPlatform;
  * The sources that cannot give POPULAR (Luke: Commons and Openverse have no such order; the saved stream keeps no
  * counts). Kept equal to the providers' own `orders` by `scripts/check-web-sort.cjs`. Every source can give DATE.
  */
-export const NO_POPULAR: readonly SortSource[] = ['wikimedia_commons', 'openverse', 'stream'];
+export const NO_POPULAR: readonly SortSource[] = ['wikimedia_commons', 'openverse', 'books', 'audiobooks', 'stream'];
 
 /** Whether a source is asked under a sort; one that is not shows one plain line instead. */
 export function canSort(source: SortSource, choice: SortChoice): boolean {

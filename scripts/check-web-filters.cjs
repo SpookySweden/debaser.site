@@ -25,7 +25,8 @@ same(
   f.SOURCE_OPTIONS.map((option) => option.label),
   // Updated on purpose 2026-11-02 (Luke): KINO (TMDB alone) after ALL, and no media server is a choice any more
   // ("remove the 'server 1 server 2' search parameters"). 2026-11-03 (Luke): SAVED is no choice any more.
-  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS'],
+  // 2026-11-10 (Luke, SPEC-books.md): BOOKS and AUDIOBOOKS, each asked only when chosen, as KINO is.
+  ['ALL', 'KINO', 'INTERNET ARCHIVE', 'PEERTUBE', 'OPENVERSE', 'PODCAST', 'YOUTUBE', 'WIKIMEDIA COMMONS', 'BOOKS', 'AUDIOBOOKS'],
   'SOURCE: ALL, KINO, every platform the stream reads or a search asks (Vimeo, link-only, is not one); no media server, no SAVED',
 );
 same(f.TYPE_OPTIONS.map((option) => option.label), ['ALL', 'VIDEO', 'AUDIO', 'IMAGE', 'TEXT'], 'TYPE choices');

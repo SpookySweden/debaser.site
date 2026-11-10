@@ -158,6 +158,35 @@ export function parseOpenverseAudio(body: unknown): WebAudioItem | null {
   };
 }
 
+/** LibriVox's own feed for one book: https, on LibriVox, by the book's number (search/providers/audiobooks.ts). */
+export const LIBRIVOX_HOST = 'librivox.org';
+const LIBRIVOX_ID = /^[1-9][0-9]{0,8}$/;
+/** LibriVox keeps every recording on archive.org: a chapter is played from there and from nowhere else. */
+const LIBRIVOX_FILE_HOSTS = new Set(['archive.org', 'www.archive.org']);
+
+/**
+ * A LibriVox book's chapters, in the feed's order, from its RSS feed (SPEC-books.md): each an archive.org MP3 the bar plays
+ * straight from archive.org, as MEDIA's audio does. A chapter on any other host is left out; a book with none is null.
+ */
+export function parseLibrivoxFeed(xml: string): WebAudioItem | null {
+  const channel = child(parseXml(xml), 'channel');
+  const files: WebAudioFile[] = [];
+  for (const item of children(channel, 'item')) {
+    if (files.length >= MAX_WEB_FILES) break;
+    const enclosure = child(item, 'enclosure');
+    if (!(enclosure?.attrs.type ?? '').trim().toLowerCase().startsWith('audio/')) continue;
+    const url = playableUrl(enclosure?.attrs.url);
+    if (!url || !LIBRIVOX_FILE_HOSTS.has(new URL(url).hostname)) continue;
+    files.push({ title: sanitiseText(childText(item, 'title'), 300), seconds: secondsOf(childText(item, 'itunes:duration')), url });
+  }
+  if (files.length === 0) return null;
+  return {
+    title: sanitiseText(childText(channel, 'title'), 300) || 'Untitled audiobook',
+    creator: creatorName(childText(channel, 'itunes:author') ?? childText(channel, 'author')) ?? '',
+    files,
+  };
+}
+
 export type ResolveDeps = { fetch?: FetchLike; spendOpenverse?: () => boolean };
 
 /** An item's playable files, or null when it has none the bar can use. Throws `SafeFetchError` on a failed read. */
@@ -179,6 +208,16 @@ export async function resolveWebAudio(platform: BarAudioPlatform, externalId: st
       accept: 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8',
     });
     return parsePodcastEpisode(xml, externalId);
+  }
+
+  if (platform === 'audiobooks') {
+    if (!LIBRIVOX_ID.test(externalId)) return null;
+    const xml = await safeFetchText(buildUrl(LIBRIVOX_HOST, ['rss', externalId]), {
+      allowedHosts: [LIBRIVOX_HOST],
+      fetchImpl,
+      accept: 'application/rss+xml, application/xml;q=0.9, text/xml;q=0.8',
+    });
+    return parseLibrivoxFeed(xml);
   }
 
   if (!UUID.test(externalId)) return null;

@@ -179,6 +179,30 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     thumbHosts: [TMDB_IMAGE_HOST],
     embedHosts: [],
   },
+  // BOOKS (search/providers/books.ts, SPEC-books.md): Open Library's work page and its cover service; no player (the
+  // site's own reader reads a Project Gutenberg copy's text through /api/web/book, never from these addresses).
+  books: {
+    hosts: ['openlibrary.org', 'covers.openlibrary.org'],
+    linkHosts: [],
+    pagePath: /^\/works\/OL[1-9][0-9]{0,11}W$/,
+    thumbPath: /^\/b\/id\/[1-9][0-9]{0,11}-M\.jpg$/,
+    embedPath: NEVER,
+    pageHosts: ['openlibrary.org'],
+    thumbHosts: ['covers.openlibrary.org'],
+    embedHosts: [],
+  },
+  // AUDIOBOOKS (search/providers/audiobooks.ts, SPEC-books.md): LibriVox's book page and the archive.org picture of the
+  // recording; no player (the chapters play in the music bar from archive.org, as MEDIA's audio does).
+  audiobooks: {
+    hosts: ['librivox.org', 'archive.org'],
+    linkHosts: [],
+    pagePath: /^\/[a-z0-9][a-z0-9-]{0,200}\/$/,
+    thumbPath: /^\/services\/img\/[A-Za-z0-9][A-Za-z0-9._-]{0,100}$/,
+    embedPath: NEVER,
+    pageHosts: ['librivox.org'],
+    thumbHosts: ['archive.org'],
+    embedHosts: [],
+  },
   // The media servers (SPEC-media-servers.md), one entry each from media-servers.ts. A title's row has no link
   // and no embed of its own here: its player is built per server by `mediaPlayUrl` (media-titles.ts), on that
   // server's host. Its picture is TMDB's poster on TMDB's image host, or a picture from the server's list on the

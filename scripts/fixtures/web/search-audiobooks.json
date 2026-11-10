@@ -1,0 +1,94 @@
+{
+ "books": [
+  {
+   "id": "271",
+   "title": "Dracula",
+   "description": "<p>A short summary of <em>Dracula</em> (replaced: the check keeps LibriVox’s shape, not its words).</p>",
+   "language": "English",
+   "copyright_year": "1897",
+   "url_librivox": "https://librivox.org/dracula-by-bram-stoker/",
+   "totaltimesecs": 59469,
+   "authors": [
+    {
+     "id": "138",
+     "first_name": "Bram",
+     "last_name": "Stoker",
+     "dob": "1847",
+     "dod": "1912"
+    }
+   ]
+  },
+  {
+   "id": "3669",
+   "title": "Dracula's Guest & Other Weird Tales",
+   "description": "<p>A short summary of <em>Dracula's Guest & Other Weird Tales</em> (replaced: the check keeps LibriVox’s shape, not its words).</p>",
+   "language": "English",
+   "copyright_year": "1914",
+   "url_librivox": "https://librivox.org/draculas-guest-and-other-weird-tales-by-bram-stoker/",
+   "totaltimesecs": 18738,
+   "authors": [
+    {
+     "id": "138",
+     "first_name": "Bram",
+     "last_name": "Stoker",
+     "dob": "1847",
+     "dod": "1912"
+    }
+   ]
+  },
+  {
+   "id": "4091",
+   "title": "Dracula (version 2 dramatic reading)",
+   "description": "<p>A short summary of <em>Dracula (version 2 dramatic reading)</em> (replaced: the check keeps LibriVox’s shape, not its words).</p>",
+   "language": "English",
+   "copyright_year": "1897",
+   "url_librivox": "https://librivox.org/dracula-version-2-by-bram-stoker/",
+   "totaltimesecs": 64952,
+   "authors": [
+    {
+     "id": "138",
+     "first_name": "Bram",
+     "last_name": "Stoker",
+     "dob": "1847",
+     "dod": "1912"
+    }
+   ]
+  },
+  {
+   "id": "10747",
+   "title": "Dracula (version 3)",
+   "description": "<p>A short summary of <em>Dracula (version 3)</em> (replaced: the check keeps LibriVox’s shape, not its words).</p>",
+   "language": "English",
+   "copyright_year": "1897",
+   "url_librivox": "https://librivox.org/dracula-by-bram-stoker-2/",
+   "totaltimesecs": 57533,
+   "authors": [
+    {
+     "id": "138",
+     "first_name": "Bram",
+     "last_name": "Stoker",
+     "dob": "1847",
+     "dod": "1912"
+    }
+   ]
+  },
+  {
+   "id": "12966",
+   "title": "Dracula (version 4)",
+   "description": "<p>A short summary of <em>Dracula (version 4)</em> (replaced: the check keeps LibriVox’s shape, not its words).</p>",
+   "language": "English",
+   "copyright_year": "1897",
+   "url_librivox": "https://librivox.org/dracula-version-4-by-bram-stoker/",
+   "totaltimesecs": 55997,
+   "authors": [
+    {
+     "id": "138",
+     "first_name": "Bram",
+     "last_name": "Stoker",
+     "dob": "1847",
+     "dod": "1912"
+    }
+   ]
+  }
+ ]
+}

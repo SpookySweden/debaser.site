@@ -68,6 +68,8 @@ export const AUDIOBOOK_WORD = 'audiobook';
  */
 function roomPlays(platform: WebPlatform): boolean {
   const kinds = LIVE_SOURCE_KINDS[platform] ?? [];
+  // An audiobook (SPEC-books.md) plays in the music bar, chapter by chapter: it's not something a room plays together.
+  if (platform === 'audiobooks') return false;
   return (WATCH_KIND_BY_PLATFORM[platform] !== null && kinds.includes('video')) || (isBarAudioPlatform(platform) && kinds.includes('audio'));
 }
 

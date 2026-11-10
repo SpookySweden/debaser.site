@@ -34,7 +34,7 @@ void STREAM_PLATFORMS_COMPLETE;
  * Found only by searching everywhere or by a pasted link (`app/lib/web/search/`, SPEC-web-search.md): no
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
-export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino';
+export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks';
 
 export type WebItemKind = 'audio' | 'video' | 'image' | 'text' | 'other';
 
@@ -105,5 +105,9 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   vimeo: 'VIMEO',
   // TMDB's films and shows, asked only when KINO is the SOURCE (search/providers/kino.ts).
   kino: 'KINO',
+  // Open Library's catalogue, read in the site's reader when Project Gutenberg has it (SPEC-books.md).
+  books: 'BOOKS',
+  // LibriVox's catalogue; chapters play in the music bar from archive.org (SPEC-books.md).
+  audiobooks: 'AUDIOBOOKS',
   ...(Object.fromEntries(MEDIA_SERVERS.map((server) => [server.id, server.label])) as Record<MediaServerId, string>),
 };

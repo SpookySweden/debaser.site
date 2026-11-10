@@ -66,7 +66,7 @@ export type Arrival = {
 const EARLY = 'shown-early';
 
 /** A source's place among the turns; the order is fixed so the same search always reads the same way. */
-const LANE_RANK = ['stream', 'internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'kino'];
+const LANE_RANK = ['stream', 'internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'kino', 'books', 'audiobooks'];
 const LANE_SPACE = 100;
 function laneRank(lane: string): number {
   const rank = LANE_RANK.indexOf(lane);

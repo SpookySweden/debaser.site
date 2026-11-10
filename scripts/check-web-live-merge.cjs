@@ -60,7 +60,7 @@ ok(live, 'the client lists its live sources');
 const clientList = [...live[1].matchAll(/^\s*([a-z_]+):/gm)].map((m) => m[1]).sort();
 const index = readFileSync(join(ROOT, 'app/lib/web/search/index.ts'), 'utf8');
 const serverBlock = index.match(/SEARCH_PROVIDERS: readonly SearchProvider\[\] = \[([^\]]*)\]/)[1];
-const NAMES = { internetArchiveSearch: 'internet_archive', youtubeSearch: 'youtube', peertubeSearch: 'peertube', wikimediaCommonsSearch: 'wikimedia_commons', openverseSearch: 'openverse', kinoSearch: 'kino' };
+const NAMES = { internetArchiveSearch: 'internet_archive', youtubeSearch: 'youtube', peertubeSearch: 'peertube', wikimediaCommonsSearch: 'wikimedia_commons', openverseSearch: 'openverse', kinoSearch: 'kino', booksSearch: 'books', audiobooksSearch: 'audiobooks' };
 const serverList = [...serverBlock.matchAll(/(\w+Search)/g)].map((m) => NAMES[m[1]]).sort();
 same(clientList, serverList, "the page asks exactly the server's live sources");
 ok(/params\.set\('provider', provider\)/.test(client), 'each source is asked on its own');
