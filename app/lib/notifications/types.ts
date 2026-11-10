@@ -20,7 +20,7 @@ import type { GameId } from '../games/types';
  * for a game. The three share one feed because they share one question - what do I owe somebody - and
  * one place to answer it from.
  */
-export type NotificationKind = 'tag' | 'reply' | 'invite';
+export type NotificationKind = 'tag' | 'reply' | 'invite' | 'recommend';
 
 /** How much of the post a notification carries into the menu. */
 export const MAX_NOTIFICATION_SNIPPET = 120;
@@ -52,6 +52,8 @@ export type AppNotification = {
    */
   gameId: GameId | null;
   inviteId: string | null;
+  /** A recommendation sent to this account (SPEC-recommendations.md): written by the database's send, never by a browser. */
+  recommendationId: string | null;
   createdAt: string;
   /** Null until the recipient has seen it: that is what the unread dot is. */
   readAt: string | null;

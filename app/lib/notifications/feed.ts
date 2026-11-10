@@ -12,6 +12,7 @@ import { MAX_NOTIFICATION_SNIPPET, type AppNotification, type NotifyTarget } fro
 export function notificationLabel(kind: AppNotification['kind']): string {
   if (kind === 'tag') return 'TAGGED YOU';
   if (kind === 'reply') return 'REPLIED TO YOU';
+  if (kind === 'recommend') return 'RECOMMENDED YOU SOMETHING';
 
   return 'INVITED YOU TO A GAME';
 }
@@ -20,6 +21,7 @@ export function notificationLabel(kind: AppNotification['kind']): string {
 export function notificationVerb(kind: AppNotification['kind']): string {
   if (kind === 'tag') return 'TAGGED';
   if (kind === 'reply') return 'REPLIED';
+  if (kind === 'recommend') return 'RECOMMENDED';
 
   return 'INVITED';
 }

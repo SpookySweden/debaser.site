@@ -13,8 +13,12 @@ import type { WebItem, WebPlatform } from './types';
  * Mock and Supabase stores behind one switch (`NEXT_PUBLIC_WEB_DATA_SOURCE`). The mock keeps them for the page load: it has no database.
  */
 
-/** Said on the PRIVACY tab and beside the list: pressing the key is the choice, so there's no switch to turn off. */
-export const RECOMMEND_NOTE = 'WHEN YOU RECOMMEND SOMETHING ON MEDIA, SIGNED-IN PEOPLE SEE YOUR NAME, PICTURE AND STATUS NEXT TO IT. PRESS IT AGAIN TO TAKE IT BACK.';
+/**
+ * Said on the PRIVACY tab and beside the list. Since 2026-11-10 (SPEC-recommendations.md) people's picks are the MEDIA things in
+ * public recommendations: posting one publicly is the choice, so there's no switch to turn off.
+ */
+export const RECOMMEND_NOTE =
+  "PEOPLE'S PICKS HERE ARE MEDIA THINGS IN PUBLIC RECOMMENDATIONS (THE RECOMMENDATIONS PAGE). WHEN YOU POST ONE PUBLICLY, SIGNED-IN PEOPLE SEE YOUR NAME, PICTURE AND STATUS NEXT TO IT. DELETE IT THERE TO TAKE IT BACK.";
 
 /** Rows that can't be recommended: KINO's and media servers' carry TMDB's words, and have no id the stream can save. */
 const RECOMMENDABLE: readonly WebPlatform[] = ['internet_archive', 'youtube', 'peertube', 'wikimedia_commons', 'openverse', 'vimeo'];

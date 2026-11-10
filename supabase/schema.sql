@@ -1688,6 +1688,10 @@ create table if not exists public.forum_notifications (
   read_at timestamptz
 );
 
+-- A recommendation sent to this account ('recommend', 2026-11-10): the column only. The recommendations tables, their
+-- link to it, and the kind itself are in supabase/migrations/20261110210717_recommendations.sql.
+alter table public.forum_notifications add column if not exists recommendation_id uuid;
+
 create index if not exists forum_notifications_user_idx
   on public.forum_notifications (user_id, created_at desc);
 

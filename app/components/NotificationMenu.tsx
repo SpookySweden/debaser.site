@@ -12,6 +12,7 @@ import type { AppNotification } from '../lib/notifications/types';
 import { useNotifications } from './NotificationsProvider';
 import ProfileName from './ProfileName';
 import TimeStamp from './TimeStamp';
+import { recommendationHref } from '../lib/recommendations/address';
 import { PLATE_LINK, TITLE_BAR, TITLE_BAR_BUTTON } from '../lib/ui/controls';
 
 /**
@@ -27,6 +28,7 @@ const KIND_BADGE: Record<AppNotification['kind'], string> = {
   tag: 'bg-ena',
   reply: 'bg-bubble-pale',
   invite: 'bg-ena-deep',
+  recommend: 'bg-ena',
 };
 
 /** The three letters on that badge. */
@@ -34,6 +36,7 @@ const KIND_TAG: Record<AppNotification['kind'], string> = {
   tag: 'TAG',
   reply: 'REPLY',
   invite: 'GAME',
+  recommend: 'REC',
 };
 
 /** A group heading inside the list: the flat grey bar a Win95 list view headed a section with. */
@@ -76,7 +79,9 @@ function NotificationRow({
   const target =
     inviteId !== null
       ? arcadeHref({ kind: 'invite', inviteId })
-      : item.threadId === null
+      : item.kind === 'recommend' && item.recommendationId
+        ? recommendationHref(item.recommendationId)
+        : item.threadId === null
         ? null
         : `/forum#${threadDomId(item.threadId)}`;
 

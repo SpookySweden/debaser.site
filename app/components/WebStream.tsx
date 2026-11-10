@@ -51,9 +51,7 @@ import { loadWebItem } from '../lib/web/web-track-lookup';
 import { useCatalogue } from '../lib/media/catalogue';
 import { siteFileMatches } from '../lib/web/site-server';
 import { useMusicPlayer } from './MusicPlayerProvider';
-import { canRecommend, toggleRecommendation, useMyRecommendations } from '../lib/web/recommendations';
 import WebPickedList from './WebPickedList';
-import { useAuth } from './AuthProvider';
 import AudioSubsFlags from './AudioSubsFlags';
 import SpriteSlot from './SpriteSlot';
 import WebMediaRow, { isKinoRow, isMediaRow, KinoRow } from './WebMediaRow';
@@ -1161,8 +1159,6 @@ export function WebRow({
   const [readerOpen, setReaderOpen] = useState(false);
   const playing = floats ? playingHere : readerOpen;
   const [thumbFailed, setThumbFailed] = useState(false);
-  // RECOMMEND saves to an account, so a signed-out visitor (MEDIA is open to them since 2026-11-09) isn't offered it.
-  const signedIn = useAuth().user !== null;
   const opened = () => {
     noteOpened(item, item.pickWords ?? []);
     if (found) void recordOpened(item);
@@ -1328,7 +1324,6 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {floats && playing ? <PipKey id={playId} title={item.title} /> : null}
             {/* The bridges (Phase 5): the item's forum thread, and the stream room the reader hosts. */}
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
-            {canRecommend(item) && signedIn ? <WebRecommendKey item={item} onOpen={opened} /> : null}
             {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
             <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} />
           </div>
@@ -1354,39 +1349,6 @@ ${item.description}` : item.title)} className="ml-1.5" />
         />
       ) : null}
     </li>
-  );
-}
-
-/**
- * `[ RECOMMEND ]`: one press, and again to take it back, with no note. It counts towards the reader's own taste (SPEC-discover.md). Saying so plainly
- * when it's on, in words as well as a filled key.
- */
-function WebRecommendKey({ item, onOpen }: { item: WebItem; onOpen: () => void }) {
-  const { user } = useAuth();
-  const mine = useMyRecommendations(user?.id ?? null);
-  const on = mine.has(item.id);
-  const [fault, setFault] = useState(false);
-  return (
-    <>
-      <button
-        type="button"
-        aria-pressed={on}
-        aria-label={on ? `Take back your recommendation of "${item.title}"` : `Recommend "${item.title}"`}
-        onClick={() => {
-          setFault(false);
-          if (!on) onOpen();
-          void toggleRecommendation(item).catch(() => setFault(true));
-        }}
-        className={on ? PLATE_PRESSED : PLATE}
-      >
-        {on ? 'RECOMMENDED' : '[ RECOMMEND ]'}
-      </button>
-      {fault ? (
-        <span role="status" className="bg-bubble-pale px-1 text-label text-ink-bar">
-          NOT SAVED. TRY AGAIN.
-        </span>
-      ) : null}
-    </>
   );
 }
 

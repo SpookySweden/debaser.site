@@ -121,6 +121,7 @@ class MockNotificationsRepository implements NotificationsRepository {
       body: snippet(input.body),
       gameId: input.gameId ?? null,
       inviteId: input.inviteId ?? null,
+      recommendationId: null,
       createdAt,
       readAt: null,
     }));

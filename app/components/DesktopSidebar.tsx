@@ -35,6 +35,10 @@ import { ICON_LIVE } from '../lib/ui/icons';
 import { useWatching } from '../lib/watch/use-watching';
 import GoLiveWindow from './GoLiveWindow';
 import { openWatch } from '../lib/watch/watch-window';
+import Link from 'next/link';
+import { MODULES, moduleIsOn } from '../lib/ui/modules';
+import { modulesState, serverModules, subscribeToModules } from '../lib/ui/modules-slot';
+import { useUnreadRecommendations } from '../lib/recommendations/store';
 
 /**
  * Where the panel remembers whether it is open. Named like the store keys so the
@@ -125,6 +129,24 @@ function ShelfKey({
         [ <span aria-hidden="true">{item.mark}</span> {item.label} ]
       </span>
     </button>
+  );
+}
+
+/**
+ * RECOMMENDATIONS, under the arcade (SPEC-recommendations.md, Luke 2026-11-10): shown only while the module is ticked on in
+ * MODULOS (it starts off), with [ n NEW ] while something sent to you is unopened. A page, so a link.
+ */
+function RecommendationsKey({ me }: { me: string | null }) {
+  const choices = useSyncExternalStore(subscribeToModules, modulesState, serverModules);
+  const def = MODULES.find((module) => module.key === 'recommendations');
+  const on = def !== undefined && moduleIsOn(def, choices);
+  const unread = useUnreadRecommendations(me, on);
+  if (!on) return null;
+  return (
+    <Link href="/recommendations" className="key flex w-full cursor-pointer items-center gap-2 px-2 py-1 text-label">
+      <span className="min-w-0 flex-1 truncate text-left">[ RECOMMENDATIONS ]</span>
+      {unread > 0 ? <span className="shrink-0 bg-ena px-1 text-ink-bar">{unread} NEW</span> : null}
+    </Link>
   );
 }
 
@@ -331,6 +353,7 @@ export default function DesktopSidebar({ foldedOnThisPage = false }: { foldedOnT
           <div className="space-y-1 p-2">
             {user === null ? null : <GoLiveKey user={user} />}
             <ShelfKey item={SIDE_ARCADE} isOpen={arcadeOpen} onPress={pressArcade} />
+            <RecommendationsKey me={user?.id ?? null} />
             <ShelfKey item={SIDE_MUSIC} isOpen={musicOpen} onPress={pressMusic} />
             <ShelfKey item={SIDE_QUEUES} isOpen={queuesOpen} onPress={pressQueues} />
           </div>

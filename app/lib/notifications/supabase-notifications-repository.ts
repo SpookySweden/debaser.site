@@ -72,6 +72,7 @@ type NotificationRow = {
   /** Section 23: the game an invitation is for, and the row it belongs to. Null on a tag or reply. */
   game_id?: string | null;
   invite_id?: string | null;
+  recommendation_id?: string | null;
   created_at: string;
   read_at: string | null;
 };
@@ -82,7 +83,7 @@ function toNotification(row: NotificationRow): AppNotification {
   return {
     id: row.id,
     userId: row.user_id,
-    kind: row.kind === 'reply' ? 'reply' : row.kind === 'invite' ? 'invite' : 'tag',
+    kind: row.kind === 'reply' ? 'reply' : row.kind === 'invite' ? 'invite' : row.kind === 'recommend' ? 'recommend' : 'tag',
     actorId: row.actor_id,
     actorName: row.actor_name,
     threadId: row.thread_id,
@@ -90,6 +91,7 @@ function toNotification(row: NotificationRow): AppNotification {
     body: row.body,
     gameId: isGameId(row.game_id) ? row.game_id : null,
     inviteId: row.invite_id ?? null,
+    recommendationId: row.recommendation_id ?? null,
     createdAt: row.created_at,
     readAt: row.read_at,
   };

@@ -123,8 +123,9 @@ const big = (rows, counted) => buildIndex(buildStationGraph(rows, [], { counted,
   assert.ok(/NOT YET: /.test(list2) && /POOL_TARGET/.test(list2), 'a line showing how far along');
   assert.ok(!/word\.word\}|\.words\.map\(\(word\) => \(\s*</.test(list2), 'no word drawn on MEDIA');
   const stream = fs.readFileSync(path.join(ROOT, 'app/components/WebStream.tsx'), 'utf8');
-  // And only for a signed-in reader: MEDIA is open to visitors since 2026-11-09, and a recommendation saves to an account.
-  assert.ok(/canRecommend\(item\) && signedIn \? <WebRecommendKey/.test(stream) && /const signedIn = useAuth\(\)\.user !== null;/.test(stream), 'the key is on a row only when it may be, for a signed-in reader');
+  // (Luke, 2026-11-10, SPEC-recommendations.md) The RECOMMENDATIONS page replaces the row's own key: it's gone from MEDIA rows,
+  // and people's picks in RECOMMENDED come from public recommendations instead (the database's web_recommendations_feed).
+  assert.ok(!/WebRecommendKey|\[ RECOMMEND \]/.test(stream), 'MEDIA rows no longer have their own RECOMMEND key');
   const restartBody = /const restart = useCallback\([\s\S]*?\[start\],/.exec(stream)[0];
   assert.ok(restartBody.includes('setPicked(null)'), 'a search leaves the list, or its results would sit behind it');
   assert.ok(/if \(picked !== null\) \{\s*setDraft\(withFilter\(draft, 'sort', word\)\);/.test(stream), 'but the SORT keys keep it, and only change its order');

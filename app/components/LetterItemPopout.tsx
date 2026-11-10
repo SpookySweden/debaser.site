@@ -18,7 +18,18 @@ const NOTHING = () => undefined;
  * key that fits it, WATCH, LISTEN or READ. A MEDIA row is shown as MEDIA shows it, with its own PLAY, so it plays where the
  * site's players play (the floating player or the music bar) and never inside this window. The owner can take it out.
  */
-export default function LetterItemPopout({ item, owner, onClose }: { item: LetterItem; owner: boolean; onClose: () => void }) {
+export default function LetterItemPopout({
+  item,
+  owner,
+  onClose,
+  onUse,
+}: {
+  item: Omit<LetterItem, 'x' | 'y' | 'turn' | 'addedAt'>;
+  owner: boolean;
+  onClose: () => void;
+  /** WATCH, LISTEN, READ or OPEN pressed (a recommendation counts it: SPEC-recommendations.md). */
+  onUse?: () => void;
+}) {
   const webItem = useWebItem(item.kind === 'web' ? item.ref : null);
   const [fault, setFault] = useState<string | null>(null);
   const picture = cardPicture(item.picture);
@@ -45,7 +56,12 @@ export default function LetterItemPopout({ item, owner, onClose }: { item: Lette
       actions={owner ? <button type="button" onClick={() => void remove()} className={PLATE}>[ TAKE OUT ]</button> : undefined}
     >
       {item.kind === 'web' && webItem ? (
-        <ul>
+        <ul
+          onClickCapture={(event) => {
+            const pressed = (event.target as HTMLElement).closest('button, a');
+            if (pressed && /PLAY|OPEN/.test(pressed.textContent ?? '')) onUse?.();
+          }}
+        >
           <WebRow item={{ ...webItem, alsoOn: [] }} extraHosts={NO_HOSTS} found={false} onCreator={NOTHING} />
         </ul>
       ) : (
@@ -59,14 +75,21 @@ export default function LetterItemPopout({ item, owner, onClose }: { item: Lette
             {outside ? <p className="mt-1 break-all text-label text-ink-quiet">{item.ref}</p> : null}
             {item.kind === 'song' ? <p className="mt-1 text-label text-ink-quiet">A BEAT BOX SONG PLAYS FOR THE PERSON WHO SAVED IT.</p> : null}
             {item.kind === 'web' && webItem === undefined ? <p className="mt-1 text-label text-ink-quiet">READING...</p> : null}
-            {item.kind === 'web' && webItem === null ? <p className="mt-1 text-label text-ink-quiet">MEDIA NO LONGER HAS THIS ONE.</p> : null}
+            {item.kind === 'web' && webItem === null ? <p className="mt-1 text-label text-ink-quiet">OPEN FINDS IT ON MEDIA.</p> : null}
             <p className="mt-3">
               {outside ? (
-                <a href={href} target="_blank" rel="noopener noreferrer nofollow" className={PLATE_MAIN}>
+                <a href={href} target="_blank" rel="noopener noreferrer nofollow" onClick={() => onUse?.()} className={PLATE_MAIN}>
                   {verb} ↗
                 </a>
               ) : (
-                <Link href={href} onClick={onClose} className={PLATE_MAIN}>
+                <Link
+                  href={href}
+                  onClick={() => {
+                    onUse?.();
+                    onClose();
+                  }}
+                  className={PLATE_MAIN}
+                >
                   {verb}
                 </Link>
               )}
