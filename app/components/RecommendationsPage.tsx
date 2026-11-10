@@ -16,10 +16,11 @@ import {
   useRecommendationList,
 } from '../lib/recommendations/store';
 import type { RecommendationItem, RecommendationSummary, RecommendationTab } from '../lib/recommendations/types';
-import { PLATE, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
+import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
 import LetterItemPopout from './LetterItemPopout';
+import PopoutWindow from './PopoutWindow';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import RecommendationComposer from './RecommendationComposer';
 import TimeStamp from './TimeStamp';
@@ -116,13 +117,27 @@ export default function RecommendationsPage() {
   );
 }
 
+/** MAKE ONE (Luke, 2026-11-11): a key that opens the composer in a pop-up, over the recommendations. */
 function ComposerSection({ me }: { me: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <section aria-label="Make a recommendation" className="px-2">
+      <button type="button" onClick={() => setOpen(true)} aria-haspopup="dialog" className={PLATE_MAIN}>
+        MAKE A RECOMMENDATION
+      </button>
+      {open ? (
+        <PopoutWindow title="MAKE A RECOMMENDATION" onClose={() => setOpen(false)} dismissOnBackdrop={false} maxWidth="max-w-5xl">
+          <ComposerBody me={me} />
+        </PopoutWindow>
+      ) : null}
+    </section>
+  );
+}
+
+function ComposerBody({ me }: { me: string }) {
   const forum = useForum();
   return (
-    <section aria-labelledby="recs-make">
-      <h2 id="recs-make" className={TITLE_BAR}>
-        MAKE ONE
-      </h2>
+    <>
       <RecommendationComposer
         me={me}
         onSend={async ({ message, isPublic, things, to, title }) => {
@@ -139,7 +154,7 @@ function ComposerSection({ me }: { me: string }) {
           refreshRecommendations();
         }}
       />
-    </section>
+    </>
   );
 }
 

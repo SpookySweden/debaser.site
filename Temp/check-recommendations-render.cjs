@@ -72,12 +72,12 @@ const RecommendationComposer = require('./recommendations-render-out/components/
   auth = { status: 'anonymous', user: null };
   const out = renderToStaticMarkup(el(RecommendationsPage));
   assert.match(out, />PUBLIC</, 'signed out: PUBLIC');
-  assert.doesNotMatch(out, /FOR YOU|>SENT<|MAKE ONE/, 'and nothing that needs an account');
+  assert.doesNotMatch(out, /FOR YOU|>SENT<|MAKE A RECOMMENDATION/, 'and nothing that needs an account');
   assert.match(out, /SIGN IN TO SEND/);
   auth = { status: 'signed-in', user: { id: 'me', displayName: 'ME' } };
   const inside = renderToStaticMarkup(el(RecommendationsPage));
   assert.match(inside, /FOR YOU[\s\S]*PUBLIC[\s\S]*SENT/, 'signed in: FOR YOU, PUBLIC, SENT');
-  assert.match(inside, /MAKE ONE/, 'and making one');
+  assert.match(inside, /aria-haspopup="dialog"[^>]*>MAKE A RECOMMENDATION</, 'and making one, behind a key that opens it (Luke, 2026-11-11)');
   console.log('  ok    the page');
 
   /* 4. The composer: the stream queue's split ----------------------------------------------------- */

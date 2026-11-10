@@ -57,6 +57,15 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
       return next;
     });
   };
+  /** A whole letter, less what was unticked, into the queue at once; its name becomes the message, so the title. */
+  const addLetter = (things: LetterThing[], name: string) => {
+    const fresh = things.filter((thing) => !queue.some((each) => sameThing(each, thing)));
+    const room = RECOMMENDATION_ITEMS_MAX - queue.length;
+    setQueue((held) => [...held, ...fresh.slice(0, room)]);
+    setPre((held) => held.filter((each) => !fresh.some((thing) => sameThing(each, thing))));
+    setMessage(name.slice(0, RECOMMENDATION_MESSAGE_MAX));
+    setNote(fresh.length > room ? `ONLY ${room} FITTED: A RECOMMENDATION HOLDS ${RECOMMENDATION_ITEMS_MAX} THINGS.` : null);
+  };
   const backToPre = (at: number) => {
     const thing = queue[at];
     setQueue((held) => held.filter((_, index) => index !== at));
@@ -149,7 +158,7 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
               </button>
             ) : null}
           </div>
-          {source === 'letters' ? <FromLetters me={me} onAdd={addToPre} /> : null}
+          {source === 'letters' ? <FromLetters me={me} onAdd={addToPre} onAddLetter={addLetter} /> : null}
           {source === 'search' ? <FromSearch onAdd={addToPre} /> : null}
           {source === 'pre' ? (
             <ol className="md:max-h-96 md:overflow-y-auto">
@@ -248,7 +257,15 @@ function SendTo({
   );
 }
 
-function FromLetters({ me, onAdd }: { me: string; onAdd: (thing: LetterThing) => void }) {
+function FromLetters({
+  me,
+  onAdd,
+  onAddLetter,
+}: {
+  me: string;
+  onAdd: (thing: LetterThing) => void;
+  onAddLetter: (things: LetterThing[], name: string) => void;
+}) {
   const letters = useLettersOf(me);
   const [letterId, setLetterId] = useState<string | null>(null);
   const { items } = useLetter(letterId);
@@ -272,17 +289,64 @@ function FromLetters({ me, onAdd }: { me: string; onAdd: (thing: LetterThing) =>
       <button type="button" onClick={() => setLetterId(null)} className={PLATE}>
         [ ALL LETTERS ]
       </button>
-      <ul>
-        {(items.value ?? []).map((item) => (
-          <li key={item.id} className="rule-pixel flex items-center gap-1 py-1">
-            <span className="min-w-0 flex-1 truncate text-label text-ink">{item.title || item.ref}</span>
-            <button type="button" className={PLATE} aria-label={`Add "${item.title}" to the pre-list`} onClick={() => onAdd({ kind: item.kind, ref: item.ref, title: item.title, picture: item.picture })}>
-              [ + ]
-            </button>
-          </li>
-        ))}
-      </ul>
+      <WholeLetter
+        key={letterId}
+        name={(letters.value ?? []).find((letter) => letter.id === letterId)?.name ?? 'LETTER'}
+        things={(items.value ?? []).map((item) => ({ kind: item.kind, ref: item.ref, title: item.title, picture: item.picture }))}
+        onAdd={onAdd}
+        onAddLetter={onAddLetter}
+      />
     </div>
+  );
+}
+
+/**
+ * One letter, as a block (Luke, 2026-11-11: "add the whole letter similar to adding a series into the stream queue"): every
+ * thing on it ticked, untick what to leave out, then [ ADD THE LETTER ] puts the ticked ones in your queue at once and makes
+ * the letter's name the recommendation's title. [ + ] still takes one thing to the pre-list on its own.
+ */
+function WholeLetter({
+  name,
+  things,
+  onAdd,
+  onAddLetter,
+}: {
+  name: string;
+  things: LetterThing[];
+  onAdd: (thing: LetterThing) => void;
+  onAddLetter: (things: LetterThing[], name: string) => void;
+}) {
+  const [left, setLeft] = useState<string[]>([]);
+  const keyOf = (thing: LetterThing) => `${thing.kind}:${thing.ref}`;
+  const kept = things.filter((thing) => !left.includes(keyOf(thing)));
+  return (
+    <>
+      <p className="mt-1 flex flex-wrap items-center gap-1">
+        <button type="button" className={PLATE} disabled={kept.length === 0} onClick={() => onAddLetter(kept, name)}>
+          [ ADD THE LETTER ({kept.length} OF {things.length}) ]
+        </button>
+      </p>
+      <ul>
+        {things.map((thing) => {
+          const key = keyOf(thing);
+          const ticked = !left.includes(key);
+          return (
+            <li key={key} className="rule-pixel flex items-center gap-1 py-1">
+              <input
+                type="checkbox"
+                checked={ticked}
+                aria-label={ticked ? `Leave "${thing.title}" out of the letter` : `Put "${thing.title}" back in`}
+                onChange={() => setLeft((held) => (ticked ? [...held, key] : held.filter((each) => each !== key)))}
+              />
+              <span className={`min-w-0 flex-1 truncate text-label ${ticked ? 'text-ink' : 'text-ink-quiet line-through'}`}>{thing.title || thing.ref}</span>
+              <button type="button" className={PLATE} aria-label={`Add "${thing.title}" to the pre-list on its own`} onClick={() => onAdd(thing)}>
+                [ + ]
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 }
 
