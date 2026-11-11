@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * A book's page (SPEC-books.md, Luke 2026-11-10): `/media/book/books:OL85892W-pg345` or `/media/book/audiobooks:271`. Its
+ * A book's page (SPEC-books.md, Luke 2026-11-10): `/media/book/books:OL85892W-pg345`, `/media/book/audiobooks:271`, or one edition, `/media/book/edition:OL7247530M`. Its
  * details come from Open Library or LibriVox (/api/web/book/info); `?at=<paragraph>` opens the reader at that spot (a
  * highlight's link). Open to visitors, as MEDIA is; who has highlighted it shows names only to signed-in people.
  */

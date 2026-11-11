@@ -1,11 +1,12 @@
 /**
  * BOOKS (SPEC-books.md, Luke 2026-11-10): Open Library's search API (openlibrary.org/search.json, keyless, JSON), asked only
- * when BOOKS is the SOURCE. Only works with a Project Gutenberg copy are asked for (`id_project_gutenberg:*` added to the
- * query; Luke, 2026-11-11: "make sure that any books searched for are opened within the sites own ereader"), so every row
- * opens in the site's own reader at /read (SPEC-reader.md). Open Library's borrowable books are in copyright and lent by
- * Open Library alone, so they may not be copied into the reader, and BOOKS leaves them out rather than link away. Asked
- * for: key, title, author names, first publication year, cover number, ebook access and Gutenberg numbers; no counts or
- * ratings exist in the request.
+ * when BOOKS is the SOURCE. Every book in Open Library's catalogue is found (SPEC-book-editions.md, Luke 2026-11-11: "each
+ * copy of every book appears"), not only the ones the site's reader opens, as it was earlier that day: one row per work,
+ * its editions on the book's page (`[ EDITIONS ]`). The works the reader opens come first in what BOOKS answers: those
+ * with a Project Gutenberg copy (READ opens it at /read), then the Archive's library scans, then works with a free scan of
+ * an edition (READ opens the book's page at the editions it can read). Asked for: key, title, author names, first
+ * publication year, cover number, ebook access, Gutenberg numbers and how many editions the work has; no counts of people
+ * or ratings exist in the request. An ISBN typed as the search finds that one edition's book (`/isbn/{isbn}.json`).
  *
  * And the Internet Archive's library scans (Luke, 2026-11-11: "currently only two books show when searching by the books
  * filter"): public-domain books scanned by libraries (`LIBRARY_COLLECTIONS`: the American and Toronto libraries, the
@@ -22,6 +23,7 @@
  * Addresses: page https://openlibrary.org/works/OL…W, cover https://covers.openlibrary.org/b/id/{n}-M.jpg. An item's
  * external id is the work's key, with `-pg{n}` when Project Gutenberg has it: `OL85892W-pg345`.
  */
+import { isbnOf } from '../../../books/editions';
 import { findIpfsBooks, type IpfsBook } from '../../../books/ipfs-catalogue';
 import { gatewayUrl, IPFS_GATEWAYS } from '../../../books/ipfs';
 import { safeFetchJson } from '../../safe-fetch';
@@ -44,9 +46,12 @@ export function libraryScanQuery(words: string, author = ''): string {
 export const BOOKS_PAGE_SIZE = 20;
 const MAX_PAGE = 25;
 const WORK_KEY = /^\/works\/(OL[1-9][0-9]{0,11}W)$/;
+const EDITION_PATH = /^\/books\/(OL[1-9][0-9]{0,11}M)$/;
 const PG_NUMBER = /^[1-9][0-9]{0,6}$/;
 const BOOK_ID = /^(OL[1-9][0-9]{0,11}W)(?:-pg([1-9][0-9]{0,6}))?$/;
-const FIELDS = 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg';
+/** What a work's row asks of Open Library's search (and the book's page, for one work). */
+export const BOOKS_FIELDS = 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg,edition_count';
+const FIELDS = BOOKS_FIELDS;
 
 /** A BOOKS item's two halves: its Open Library work, and its Project Gutenberg number when there is one. */
 export function bookParts(externalId: string): { work: string; gutenberg: string | null } | null {
@@ -54,12 +59,9 @@ export function bookParts(externalId: string): { work: string; gutenberg: string
   return match ? { work: match[1], gutenberg: match[2] ?? null } : null;
 }
 
-/** The filter that keeps only works with a Project Gutenberg copy: the ones the site's reader can open. */
-export const GUTENBERG_ONLY = 'id_project_gutenberg:*';
-
 export function booksSearchUrl(words: string, page: number, author = '', order: 'relevance' | 'newest' | 'oldest' = 'relevance'): string {
   return buildUrl(API_HOST, ['search.json'], [
-    ['q', words.length > 0 ? `${words} ${GUTENBERG_ONLY}` : GUTENBERG_ONLY],
+    ...(words.length > 0 ? ([['q', words]] as const) : []),
     ...(author.length > 0 ? ([['author', author]] as const) : []),
     ['fields', FIELDS],
     ['limit', String(BOOKS_PAGE_SIZE)],
@@ -86,6 +88,7 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
   const cover = typeof record.cover_i === 'number' && Number.isInteger(record.cover_i) && record.cover_i > 0 ? record.cover_i : null;
   const page = buildUrl(API_HOST, ['works', work]);
   const externalId = gutenberg ? `${work}-pg${gutenberg}` : work;
+  const editions = typeof record.edition_count === 'number' && Number.isInteger(record.edition_count) && record.edition_count >= 0 ? record.edition_count : 0;
   return {
     id: `books:${externalId}`,
     platform: 'books',
@@ -99,7 +102,36 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
     thumbnailUrl: cover ? `https://${COVER_HOST}/b/id/${cover}-M.jpg` : undefined,
     publishedAt: new Date(Date.UTC(year, 0, 1)).toISOString(),
     fetchedAt,
+    // How many editions, and whether one is a free scan (Open Library's `ebook_access: public`), for the row's keys.
+    book: { editions, ...(record.ebook_access === 'public' ? { scan: true } : {}) },
   };
+}
+
+/** How a row stands among Open Library's: a Gutenberg copy first, then a free scan of an edition, then the rest. */
+function readsFirst(item: WebItem): number {
+  return bookParts(item.externalId)?.gutenberg ? 0 : item.book?.scan ? 1 : 2;
+}
+
+/**
+ * An ISBN's book (SPEC-book-editions.md): Open Library's edition for it (its `/isbn/` address answers with a redirect to the
+ * edition on the same host, the only host allowed), then its work's row, carrying the edition so the row's EDITIONS opens
+ * the page at it. Null when Open Library has no such ISBN or its edition names no work.
+ */
+export async function isbnRow(isbn: string, deps: Pick<SearchDeps, 'fetch'>, fetchedAt: string): Promise<WebItem | null> {
+  const edition = await safeFetchJson(buildUrl(API_HOST, ['isbn', `${isbn}.json`]), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }).catch(() => null);
+  const record = edition && typeof edition === 'object' ? (edition as Record<string, unknown>) : null;
+  const key = typeof record?.key === 'string' ? EDITION_PATH.exec(record.key)?.[1] : undefined;
+  const works = Array.isArray(record?.works) ? record.works : [];
+  const workKey = works[0] && typeof works[0] === 'object' ? (works[0] as Record<string, unknown>).key : undefined;
+  const work = typeof workKey === 'string' ? WORK_KEY.exec(workKey)?.[1] : undefined;
+  if (!key || !work) return null;
+  const body = await safeFetchJson(buildUrl(API_HOST, ['search.json'], [['q', `key:/works/${work}`], ['fields', FIELDS], ['limit', '1']]), {
+    allowedHosts: BOOKS_SEARCH_HOSTS,
+    fetchImpl: deps.fetch,
+  }).catch(() => null);
+  const docs = body && typeof body === 'object' ? (body as Record<string, unknown>).docs : undefined;
+  const item = Array.isArray(docs) && docs.length > 0 ? toBookItem(docs[0], fetchedAt) : null;
+  return item ? { ...item, book: { ...(item.book ?? { editions: 0 }), edition: key } } : null;
 }
 
 /**
@@ -142,21 +174,33 @@ export const booksSearch: SearchProvider = {
     const at = pageNumber(page);
     const order = deps.order === 'newest' || deps.order === 'oldest' ? deps.order : 'relevance';
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
+    // An ISBN finds that one edition's book; one Open Library doesn't know is searched as words.
+    const isbn = at === 1 && author.length === 0 ? isbnOf(words) : null;
+    if (isbn !== null) {
+      const found = await isbnRow(isbn, deps, fetchedAt);
+      if (found) return { items: [found], next: null };
+    }
     // The books on IPFS named in the site's own list come first, on the first page only: read here, nothing is asked.
     const fromIpfs = at === 1 ? findIpfsBooks(words, author).map((book) => toIpfsItem(book, fetchedAt)) : [];
-    // Both sources at once: Open Library's Gutenberg works, and the Archive's library scans.
+    // Both sources at once: Open Library's works, and the Archive's library scans.
     const [gutenberg, scans] = await Promise.allSettled([
       safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
       safeFetchJson(iaSearchUrl(libraryScanQuery(words, author), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
     ]);
     if (gutenberg.status === 'rejected' && scans.status === 'rejected' && fromIpfs.length === 0) throw new SearchProblemError('NO ANSWER');
-    let items: WebItem[] = [...fromIpfs];
+    let works: WebItem[] = [];
+    let libraryScans: WebItem[] = [];
     let more = false;
     if (gutenberg.status === 'fulfilled') {
       const record = gutenberg.value && typeof gutenberg.value === 'object' ? (gutenberg.value as Record<string, unknown>) : {};
       const docs = Array.isArray(record.docs) ? record.docs : [];
-      // Asked for Gutenberg works only; anything that still comes back without a copy is dropped, so every row reads here.
-      items = [...items, ...docs.map((doc) => toBookItem(doc, fetchedAt)).filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null)];
+      // Every work found, the ones the reader opens first (Open Library's own order kept within each).
+      works = docs
+        .map((doc) => toBookItem(doc, fetchedAt))
+        .filter((item): item is WebItem => item !== null)
+        .map((item, index) => ({ item, index }))
+        .sort((a, b) => readsFirst(a.item) - readsFirst(b.item) || a.index - b.index)
+        .map(({ item }) => item);
       const found = typeof record.numFound === 'number' ? record.numFound : 0;
       more = at * BOOKS_PAGE_SIZE < found;
     }
@@ -164,12 +208,14 @@ export const booksSearch: SearchProvider = {
       try {
         const scanned = parseIaSearch(scans.value, at, fetchedAt);
         // Texts only (the query asks so; `toWebItem` has already dropped any lending-library item).
-        items = [...items, ...scanned.items.filter((item) => item.kind === 'text')];
+        libraryScans = scanned.items.filter((item) => item.kind === 'text');
         more = more || scanned.next !== null;
       } catch {
         // An answer of the wrong shape is no rows, as a failed request is.
       }
     }
+    // The IPFS copies, the Gutenberg works, the library scans, then every other work (a free scan of an edition first).
+    const items = [...fromIpfs, ...works.filter((item) => readsFirst(item) === 0), ...libraryScans, ...works.filter((item) => readsFirst(item) !== 0)];
     return { items, next: at < MAX_PAGE && more ? at + 1 : null };
   },
   // A BOOKS row is never saved into the stream: its book page reads it again from Open Library when it's opened.

@@ -16,7 +16,8 @@
  * The details for a book's page: Open Library's search answer for one work, LibriVox's for one book, or the Archive's
  * metadata for one item: title, authors, year, cover, and whether the reader can open it. No counts or ratings are asked for.
  */
-import { bookParts, BOOKS_SEARCH_HOSTS, toBookItem } from './search/providers/books';
+import { bookParts } from './search/providers/books';
+import { readEdition, readWorkRow } from './book-editions';
 import { AUDIOBOOKS_SEARCH_HOSTS, toAudiobookItem } from './search/providers/audiobooks';
 import { toWebItem as toArchiveItem, IA_ALLOWED_HOSTS } from './adapters/internet-archive';
 import { SafeFetchError, safeFetchJson, safeFetchStream, type FetchLike } from './safe-fetch';
@@ -26,10 +27,11 @@ import type { WebItem } from './types';
 export const GUTENBERG_HOST = 'www.gutenberg.org';
 
 /**
- * A book's address on the site: `/media/book/books:OL85892W-pg345`, `/media/book/audiobooks:271`, and an Internet Archive
- * book, `/read/internet_archive:<identifier>`.
+ * A book's address on the site: `/media/book/books:OL85892W-pg345`, `/media/book/audiobooks:271`, an Internet Archive
+ * book, `/read/internet_archive:<identifier>`, and one edition of a book, `/media/book/edition:OL7247530M`
+ * (SPEC-book-editions.md: its book's page, opened at that edition).
  */
-export const BOOK_REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|audiobooks:[1-9][0-9]{0,8}|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
+export const BOOK_REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|audiobooks:[1-9][0-9]{0,8}|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100}|edition:OL[1-9][0-9]{0,11}M)$/;
 
 /** The Archive's file servers a download is sent on to (`ia800300.us.archive.org`, `dn721905.ca.archive.org`). */
 const IA_FILE_SERVER = /^(?:ia|dn)\d{1,8}\.(?:[a-z]{2}\.)?archive\.org$/;
@@ -236,21 +238,23 @@ export async function openArchivePdfSlice(
   return { body: opened.body, start: range.start, end: range.end, size: book.pdf.size };
 }
 
-/** One book's row (title, authors, year, cover, readable or not), read again from its catalogue; null when it's gone. */
+/**
+ * One book's row (title, authors, year, cover, readable or not), read again from its catalogue; null when it's gone. An
+ * edition's ref answers with its work's row, carrying the edition (`book.edition`), so the page opens at it.
+ */
 export async function readBookInfo(ref: string, fetchImpl?: FetchLike, now: Date = new Date()): Promise<WebItem | null> {
   if (!BOOK_REF.test(ref)) return null;
   const fetchedAt = now.toISOString();
+  if (ref.startsWith('edition:')) {
+    const edition = await readEdition(ref.slice('edition:'.length), fetchImpl, now);
+    if (!edition?.work) return null;
+    const row = await readWorkRow(edition.work, fetchImpl, now);
+    return row ? { ...row, book: { ...(row.book ?? { editions: 0 }), edition: edition.key } } : null;
+  }
   if (ref.startsWith('books:')) {
     const parts = bookParts(ref.slice('books:'.length));
     if (!parts) return null;
-    const url = buildUrl('openlibrary.org', ['search.json'], [
-      ['q', `key:/works/${parts.work}`],
-      ['fields', 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg'],
-      ['limit', '1'],
-    ]);
-    const body = await safeFetchJson(url, { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl });
-    const docs = body && typeof body === 'object' ? (body as Record<string, unknown>).docs : undefined;
-    return Array.isArray(docs) && docs.length > 0 ? toBookItem(docs[0], fetchedAt) : null;
+    return readWorkRow(parts.work, fetchImpl, now);
   }
   if (ref.startsWith('internet_archive:')) {
     const id = ref.slice('internet_archive:'.length);

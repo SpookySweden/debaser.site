@@ -1,0 +1,1263 @@
+{
+ "note": "Real answers from openlibrary.org and archive.org, 2026-11-11, trimmed: Dracula (OL85892W) has 1,920 editions; here are its first ten as Open Library lists them (bare reprints) and the twelve most detailed of its last 420, with `size` as Open Library said. One-edition book: OL24218144W.",
+ "dracula": {
+  "size": 1920,
+  "page0": {
+   "size": 1920,
+   "entries": [
+    {
+     "isbn_13": [
+      "9781547151578"
+     ],
+     "languages": [
+      {
+       "key": "/languages/spa"
+      }
+     ],
+     "number_of_pages": 338,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781547151578"
+     ],
+     "title": "Dracula",
+     "weight": "0.582",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56646936M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781974474592"
+     ],
+     "languages": [
+      {
+       "key": "/languages/spa"
+      }
+     ],
+     "number_of_pages": 306,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781974474592"
+     ],
+     "title": "Dracula",
+     "weight": "0.532",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56648614M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781975709822"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 132,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781975709822"
+     ],
+     "title": "Dracula",
+     "weight": "0.409",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56649351M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781977635754"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 132,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781977635754"
+     ],
+     "title": "Dracula",
+     "weight": "0.409",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56650346M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781977929907"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 132,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781977929907"
+     ],
+     "title": "Dracula",
+     "weight": "0.409",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56651067M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781979724067"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 422,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781979724067"
+     ],
+     "title": "Dracula",
+     "weight": "0.714",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56652143M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781537326900"
+     ],
+     "languages": [
+      {
+       "key": "/languages/spa"
+      }
+     ],
+     "number_of_pages": 454,
+     "publish_date": "2016",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781537326900"
+     ],
+     "title": "Dracula",
+     "weight": "0.764",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56673942M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781537504988"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 420,
+     "publish_date": "2016",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781537504988"
+     ],
+     "title": "Dracula",
+     "weight": "0.709",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56674149M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781977615770"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 132,
+     "publish_date": "2017",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781977615770"
+     ],
+     "title": "Dracula",
+     "weight": "0.409",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56680209M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    },
+    {
+     "isbn_13": [
+      "9781983498107"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "number_of_pages": 400,
+     "publish_date": "2018",
+     "publishers": [
+      "CreateSpace Independent Publishing Platform"
+     ],
+     "source_records": [
+      "bwb:9781983498107"
+     ],
+     "title": "Dracula",
+     "weight": "0.536",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL56683354M",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-06-28T21:26:32.329129"
+     }
+    }
+   ]
+  },
+  "page1500": {
+   "size": 1920,
+   "entries": [
+    {
+     "publish_date": "2006",
+     "languages": [
+      {
+       "key": "/languages/fre"
+      }
+     ],
+     "edition_name": "Éd. revue.",
+     "notes": {
+      "type": "/type/text",
+      "value": "Glossaire. (Abridged)"
+     },
+     "contributions": [
+      "Cassou-Noguès, Anne",
+      "Langenhagen, Marie-Aude de"
+     ],
+     "title": "Dracula",
+     "subtitle": "Extraits",
+     "by_statement": "Bram Stoker ; traduction par Jacques Finné ; présentation, notes, choix des extraits et dossier par Anne Cassou-Noguès et Marie-Aude de Langenhagen, ...",
+     "publishers": [
+      "Flammarion"
+     ],
+     "pagination": "222p.",
+     "number_of_pages": 222,
+     "source_records": [
+      "ia:draculaextraits0000stok",
+      "amazon:2080723065",
+      "promise:bwb_daily_pallets_2020-06-24"
+     ],
+     "covers": [
+      10749908
+     ],
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL32094672M",
+     "ocaid": "draculaextraits0000stok",
+     "isbn_10": [
+      "2080723065"
+     ],
+     "isbn_13": [
+      "9782080723062"
+     ],
+     "weight": "7.1 ounces",
+     "contributors": [
+      {
+       "role": "Translator",
+       "name": "Jacques Finné"
+      },
+      {
+       "role": "Contributor",
+       "name": "Anne Cassou-Noguès and Marie-Aude de Langenhagen"
+      },
+      {
+       "name": "Anne Cassou-Noguès and Marie-Aude de Langenhagen",
+       "role": "Notes by"
+      }
+     ],
+     "physical_format": "Paperback",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2022-12-10T07:24:54.373935"
+     }
+    },
+    {
+     "publish_date": "1997",
+     "languages": [
+      {
+       "key": "/languages/gle"
+      }
+     ],
+     "edition_name": "Eagrán nua",
+     "notes": "Previous edition: 1933.",
+     "contributions": [
+      "Ó Cuirrín, Seán",
+      "Codrescu, Ion, 1951-",
+      "Ó Ruairc, Maolmhaodhóg"
+     ],
+     "title": "Dracula",
+     "by_statement": "Bram Stoker a scríobh ; Seán Ó Cuirrín a chuir i nGaeilge ; Ion Codrescu a mhaisigh ; (arna chóiriú agus arna chur in eagar ag Maolmhaodhóg Ó Ruairc)",
+     "publishers": [
+      "An Gúm"
+     ],
+     "pagination": "334p.",
+     "number_of_pages": 334,
+     "source_records": [
+      "ia:dracula0000stok_u8l7",
+      "promise:bwb_daily_pallets_2021-01-25"
+     ],
+     "covers": [
+      11414988
+     ],
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL32782562M",
+     "ocaid": "dracula0000stok_u8l7",
+     "isbn_10": [
+      "1857912594"
+     ],
+     "isbn_13": [
+      "9781857912593"
+     ],
+     "contributors": [
+      {
+       "role": "Translator",
+       "name": "Seán Ó Cuirrín"
+      },
+      {
+       "name": "Ion Codrescu",
+       "role": "Illustrator"
+      },
+      {
+       "role": "Editor",
+       "name": "Maolmhaodhóg Ó Ruairc"
+      }
+     ],
+     "physical_format": "Paperback",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2022-12-09T01:12:03.693915"
+     }
+    },
+    {
+     "publishers": [
+      "ICON Classics"
+     ],
+     "covers": [
+      9858033
+     ],
+     "physical_format": "Digital Book",
+     "key": "/books/OL25563452M",
+     "contributions": [
+      "Parker, Philip M."
+     ],
+     "edition_name": "Webster's French Thesaurus ed. for ESL, EFL, ELP, TOEFL, TOEIC and AP Test Preparation",
+     "source_records": [
+      "ia:draculawebstersf00stok"
+     ],
+     "title": "Dracula",
+     "notes": "Text in English, thesaurus in French.",
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "publish_date": "2005",
+     "by_statement": "Bram Stoker ; [edited by Philip M. Parker]",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "contributors": [
+      {
+       "role": "Editor",
+       "name": "Philip M. Parker"
+      }
+     ],
+     "isbn_10": [
+      "1423779703"
+     ],
+     "isbn_13": [
+      "9781423779704"
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2025-03-28T16:09:03.832968"
+     }
+    },
+    {
+     "publishers": [
+      "Oxford University Press"
+     ],
+     "covers": [
+      9276876
+     ],
+     "key": "/books/OL25005948M",
+     "contributions": [
+      "Luckhurst, Roger"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "pagination": "xli, 391 p.",
+     "source_records": [
+      "marc:marc_loc_updates/v39.i34.records.utf8:17289220:1178",
+      "marc:marc_marygrove/marygrovecollegelibrary.full.D20191108.T213022.internetarchive2nd_REPACK.mrc:186907778:3840",
+      "ia:dracula2011stok",
+      "bwb:9780199564095",
+      "marc:marc_loc_2016/BooksAll.2016.part38.utf8:234064059:1178",
+      "marc:harvard_bibliographic_metadata/ab.bib.12.20150123.full.mrc:689239173:1786",
+      "marc:harvard_bibliographic_metadata/20220215_013.bib.mrc:325549691:3519"
+     ],
+     "title": "Dracula",
+     "notes": "Includes bibliographical references.",
+     "number_of_pages": 391,
+     "publish_date": "2011",
+     "by_statement": "Bram Stoker ; edited with an introduction and notes by Roger Luckhurst",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "ocaid": "dracula2011stok",
+     "isbn_10": [
+      "0199564094"
+     ],
+     "isbn_13": [
+      "9780199564095"
+     ],
+     "weight": "10.7 ounces",
+     "contributors": [
+      {
+       "name": "Roger Luckhurst",
+       "role": "Introduction"
+      },
+      {
+       "role": "Notes by",
+       "name": "Roger Luckhurst"
+      }
+     ],
+     "physical_format": "Paperback",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2025-08-17T07:05:17.784910"
+     }
+    },
+    {
+     "publish_date": "1995",
+     "languages": [
+      {
+       "key": "/languages/ger"
+      }
+     ],
+     "edition_name": "Sonderausg",
+     "contributions": [
+      "Schrapfeneder, Franz Mitwirkender",
+      "Stoker, Bram 1847-1912"
+     ],
+     "title": "Dracula",
+     "by_statement": "Bram Stoker. Neu bearb. von Franz Schrapfeneder. [Ill.: Christian Mogg]",
+     "publishers": [
+      "Tosa Verlag"
+     ],
+     "pagination": "297S.",
+     "number_of_pages": 297,
+     "source_records": [
+      "ia:dracula0000stok_v1z6",
+      "promise:bwb_daily_pallets_2020-11-27"
+     ],
+     "covers": [
+      11622191
+     ],
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "key": "/books/OL32988836M",
+     "ocaid": "dracula0000stok_v1z6",
+     "isbn_10": [
+      "3850015238"
+     ],
+     "isbn_13": [
+      "9783850015233"
+     ],
+     "physical_format": "Hardcover",
+     "contributors": [
+      {
+       "role": "Illustrator",
+       "name": "Christian Mogg"
+      }
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2023-01-15T12:54:25.099208"
+     }
+    },
+    {
+     "publishers": [
+      "Penguin Books",
+      "Penguin"
+     ],
+     "number_of_pages": 520,
+     "key": "/books/OL22487551M",
+     "contributions": [
+      "Hindle, Maurice, 1944-"
+     ],
+     "pagination": "xl, 520p.",
+     "source_records": [
+      "marc:talis_openlibrary_contribution/talis-openlibrary-contribution.mrc:1671663187:746",
+      "promise:bwb_daily_pallets_2022-11-10",
+      "bwb:9780140433814",
+      "ia:dracula0000stok_v3f6"
+     ],
+     "title": "Dracula",
+     "notes": "Originally published: London: Constable, 1897.",
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "publish_date": "1994",
+     "by_statement": "Bram Stoker ; edited with an introduction and notes by Maurice Hindle.",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "contributors": [
+      {
+       "role": "Contributor",
+       "name": "Maurice Hindle"
+      }
+     ],
+     "isbn_10": [
+      "0140433813"
+     ],
+     "isbn_13": [
+      "9780140433814"
+     ],
+     "physical_format": "Paperback",
+     "covers": [
+      14306128
+     ],
+     "ocaid": "dracula0000stok_v3f6",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2023-05-04T07:59:00.585155"
+     }
+    },
+    {
+     "publishers": [
+      "Penguin Books"
+     ],
+     "number_of_pages": 454,
+     "pagination": "xlvii, 454p.",
+     "covers": [
+      11999320,
+      109066
+     ],
+     "key": "/books/OL3702706M",
+     "contributions": [
+      "Hindle, Maurice."
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "source_records": [
+      "marc:marc_records_scriblio_net/part14.dat:166394852:980",
+      "amazon:014143984X",
+      "bwb:9780141439846",
+      "marc:marc_loc_2016/BooksAll.2016.part30.utf8:222314728:1299",
+      "ia:dracula0000stok_z3r9",
+      "ia:dracula0000stok_z0y3",
+      "promise:bwb_daily_pallets_2021-06-24",
+      "promise:bwb_daily_pallets_2021-06-14"
+     ],
+     "title": "Dracula",
+     "notes": "Includes bibliographical references (p. [xl]-xlv).",
+     "edition_name": "Rev. ed.",
+     "publish_date": "2003",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "isbn_10": [
+      "014143984X"
+     ],
+     "isbn_13": [
+      "9780141439846"
+     ],
+     "contributors": [
+      {
+       "role": "Introduction",
+       "name": "Maurice Hindle"
+      },
+      {
+       "name": "Maurice Hindle",
+       "role": "Notes by"
+      },
+      {
+       "role": "Preface",
+       "name": "Christopher Frayling"
+      }
+     ],
+     "physical_format": "Paperback",
+     "ocaid": "dracula0000stok_z3r9",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2023-01-14T18:35:00.639132"
+     }
+    },
+    {
+     "publishers": [
+      "Signet"
+     ],
+     "weight": "7.2 ounces",
+     "covers": [
+      12146177,
+      2422980
+     ],
+     "physical_format": "Paperback",
+     "key": "/books/OL10274281M",
+     "contributions": [
+      "Jeffrey Meyers (Afterword)",
+      "Leonard Wolf (Introduction)"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "source_records": [
+      "amazon:0451530667",
+      "ia:dracul00stok",
+      "bwb:9780451530660",
+      "marc:marc_loc_2016/BooksAll.2016.part36.utf8:173933414:945"
+     ],
+     "title": "Dracula",
+     "number_of_pages": 416,
+     "edition_name": "Reissue",
+     "publish_date": "2007",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "contributors": [
+      {
+       "role": "Introduction",
+       "name": "Leonard Wolf"
+      },
+      {
+       "name": "Jeffrey Myers",
+       "role": "Afterword"
+      }
+     ],
+     "by_statement": "With introduction by Leonard Wolf, afterword by Jeffrey Myers",
+     "ocaid": "dracul00stok",
+     "isbn_10": [
+      "0451530667"
+     ],
+     "isbn_13": [
+      "9780451530660"
+     ],
+     "pagination": "416p.",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2021-10-20T18:17:54.980282"
+     }
+    },
+    {
+     "publishers": [
+      "Oxford University Press"
+     ],
+     "number_of_pages": 380,
+     "pagination": "[xxviii], 380 p. ;",
+     "covers": [
+      13362929
+     ],
+     "key": "/books/OL3502023M",
+     "contributions": [
+      "Wilson, A. N., 1950-"
+     ],
+     "source_records": [
+      "marc:marc_records_scriblio_net/part15.dat:220663724:952",
+      "ia:draculastoker00stok",
+      "marc:OpenLibraries-Trent-MARCs/tier5.mrc:66472961:739",
+      "marc:marc_loc_2016/BooksAll.2016.part14.utf8:40595823:1053",
+      "bwb:9780192815989"
+     ],
+     "title": "Dracula",
+     "notes": "Bibliography: p. [xxi]",
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "publish_date": "1984",
+     "by_statement": "Bram Stoker ; with an introduction and notes by A.N. Wilson.",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "ocaid": "draculastoker00stok",
+     "isbn_10": [
+      "0192815989"
+     ],
+     "isbn_13": [
+      "9780192815989"
+     ],
+     "physical_format": "Paperback",
+     "contributors": [
+      {
+       "name": "A.N. Wilson",
+       "role": "Introduction"
+      }
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2023-03-04T04:16:33.288087"
+     }
+    },
+    {
+     "publishers": [
+      "Penguin Books"
+     ],
+     "number_of_pages": 520,
+     "pagination": "xl, 520 p. ;",
+     "covers": [
+      11984898
+     ],
+     "key": "/books/OL1413277M",
+     "contributions": [
+      "Hindle, Maurice."
+     ],
+     "source_records": [
+      "marc:marc_records_scriblio_net/part23.dat:112242784:863",
+      "ia:dracula00stok_0",
+      "marc:marc_loc_updates/v40.i23.records.utf8:2027141:979",
+      "marc:marc_openlibraries_sanfranciscopubliclibrary/sfpl_chq_2018_12_24_run02.mrc:145867446:4797",
+      "marc:marc_loc_2016/BooksAll.2016.part22.utf8:166694267:979",
+      "promise:bwb_daily_pallets_2020-10-20",
+      "bwb:9780140434064"
+     ],
+     "title": "Dracula",
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "publish_date": "1993",
+     "by_statement": "Bram Stoker ; edited with an introduction and notes by Maurice Hindle.",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "physical_format": "Paperback",
+     "edition_name": "Anniversary",
+     "contributors": [
+      {
+       "name": "Maurice Hindle",
+       "role": "Introduction"
+      }
+     ],
+     "ocaid": "dracula00stok_0",
+     "isbn_10": [
+      "0140434062"
+     ],
+     "isbn_13": [
+      "9780140434064"
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2022-12-17T15:24:34.132823"
+     }
+    },
+    {
+     "notes": {
+      "type": "/type/text",
+      "value": "Byblos: Narrativa"
+     },
+     "title": "Drácula",
+     "publish_date": "2006",
+     "publishers": [
+      "Ediciones B"
+     ],
+     "weight": "10.5 ounces",
+     "covers": [
+      12165225,
+      2271184
+     ],
+     "physical_format": "Paperback",
+     "contributions": [
+      "Francisco Torres (Translator)"
+     ],
+     "edition_name": "1a edition ; tra edition",
+     "languages": [
+      {
+       "key": "/languages/spa"
+      }
+     ],
+     "isbn_10": [
+      "846662712X"
+     ],
+     "isbn_13": [
+      "9788466627122"
+     ],
+     "pagination": "534p.",
+     "contributors": [
+      {
+       "role": "Translator",
+       "name": "Francisco Torres Oliver"
+      }
+     ],
+     "by_statement": "Traducción, Francisco Torres Oliver",
+     "source_records": [
+      "amazon:846662712X"
+     ],
+     "key": "/books/OL9134386M",
+     "number_of_pages": 534,
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-05-21T23:39:52.391730"
+     }
+    },
+    {
+     "publishers": [
+      "Barnes & Noble Classics"
+     ],
+     "number_of_pages": 448,
+     "weight": "1.35 pounds",
+     "covers": [
+      12180796,
+      1983320
+     ],
+     "physical_format": "Hardcover",
+     "key": "/books/OL8870209M",
+     "contributions": [
+      "Brooke Allen (Introduction)"
+     ],
+     "title": "Dracula",
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "publish_date": "2005",
+     "works": [
+      {
+       "key": "/works/OL85892W"
+      }
+     ],
+     "source_records": [
+      "ia:dracula0000stok_b3e7",
+      "bwb:9781593081607"
+     ],
+     "ocaid": "dracula0000stok_b3e7",
+     "isbn_10": [
+      "159308160X"
+     ],
+     "isbn_13": [
+      "9781593081607"
+     ],
+     "table_of_contents": [
+      {
+       "level": 0,
+       "label": "",
+       "title": "The world of Bram Stoker and Dracula --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "Introduction by Brooke Allen --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "Dracula --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "Endnotes --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "Inspired by Dracula --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "Comments and questions --",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      },
+      {
+       "level": 0,
+       "label": "",
+       "title": "For further reading.",
+       "pagenum": "",
+       "type": {
+        "key": "/type/toc_item"
+       }
+      }
+     ],
+     "contributors": [
+      {
+       "role": "Introduction",
+       "name": "Brooke Allen"
+      },
+      {
+       "role": "Notes by",
+       "name": "Brooke Allen"
+      }
+     ],
+     "pagination": "xxix, 417p.",
+     "edition_name": "1st ed.",
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2022-08-17T17:56:29.094006"
+     }
+    }
+   ]
+  },
+  "scans": {
+   "response": {
+    "numFound": 9,
+    "docs": [
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula00stok_0"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula0000stok_b3e7"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula0000stok_v1z6"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula2011stok"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula0000stok_z3r9"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "draculastoker00stok"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula0000stok_v3f6"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "draculaextraits0000stok"
+     },
+     {
+      "access-restricted-item": "true",
+      "identifier": "dracula0000stok_u8l7"
+     }
+    ]
+   }
+  },
+  "workRow": {
+   "docs": [
+    {
+     "author_name": [
+      "Bram Stoker"
+     ],
+     "cover_i": 12216503,
+     "ebook_access": "public",
+     "edition_count": 1920,
+     "first_publish_year": 1897,
+     "key": "/works/OL85892W",
+     "title": "Dracula",
+     "id_project_gutenberg": [
+      "345"
+     ]
+    }
+   ]
+  },
+  "isbn9780141439846": {
+   "title": "Dracula",
+   "publish_date": "2003",
+   "publishers": [
+    "Penguin Books"
+   ],
+   "weight": "12.4 ounces",
+   "covers": [
+    10541361,
+    -1
+   ],
+   "physical_format": "Paperback",
+   "source_records": [
+    "amazon:0497900726",
+    "ia:dracula0000stok_z0y3",
+    "marc:marc_columbia/Columbia-extract-20221130-009.mrc:200868027:1717",
+    "idb:9780141439846",
+    "marc:harvard_bibliographic_metadata/ab.bib.09.20150123.full.mrc:232847656:1208"
+   ],
+   "languages": [
+    {
+     "key": "/languages/eng"
+    }
+   ],
+   "isbn_13": [
+    "9780141439846"
+   ],
+   "isbn_10": [
+    "014143984X"
+   ],
+   "contributors": [
+    {
+     "name": "Maurice Hindle",
+     "role": "Editor"
+    },
+    {
+     "role": "Introduction",
+     "name": "Maurice Hindle"
+    },
+    {
+     "role": "Notes by",
+     "name": "Maurice Hindle"
+    },
+    {
+     "role": "Preface",
+     "name": "Christopher Frayling"
+    }
+   ],
+   "edition_name": "Rev. ed.",
+   "pagination": "xlvii, 454p.",
+   "ocaid": "dracula0000stok_z0y3",
+   "key": "/books/OL10416488M",
+   "number_of_pages": 466,
+   "works": [
+    {
+     "key": "/works/OL85892W"
+    }
+   ],
+   "last_modified": {
+    "type": "/type/datetime",
+    "value": "2024-09-15T22:15:57.663185"
+   }
+  }
+ },
+ "oneEdition": {
+  "editions": {
+   "size": 1,
+   "entries": [
+    {
+     "notes": {
+      "type": "/type/text",
+      "value": "Reprint (1st work). Originally published: London : Chatto & Windus, 1919.\r\nReprint (2nd work). Originally published: London : Chatto & Windus, 1920."
+     },
+     "title": "The journal of a disappointed man ; &, A last diary",
+     "publish_date": "1984",
+     "publishers": [
+      "Hogarth Press"
+     ],
+     "covers": [
+      9267538
+     ],
+     "contributions": [
+      "Barbellion, W. N. P., 1889-1919."
+     ],
+     "pagination": "383 p. :",
+     "source_records": [
+      "marc:marc_openlibraries_sanfranciscopubliclibrary/sfpl_chq_2018_12_24_run01.mrc:22902945:2219",
+      "ia:journalofdisappo0000barb",
+      "marc:marc_loc_2016/BooksAll.2016.part15.utf8:184048429:1214",
+      "marc:harvard_bibliographic_metadata/ab.bib.00.20150123.full.mrc:350168178:1195",
+      "marc:harvard_bibliographic_metadata/20220215_028.bib.mrc:244525981:1958"
+     ],
+     "languages": [
+      {
+       "key": "/languages/eng"
+      }
+     ],
+     "by_statement": "W.N.P. Barbellion ; introduction by H.G. Wells, new introduction by Deborah Singmaster.",
+     "key": "/books/OL2918733M",
+     "number_of_pages": 383,
+     "works": [
+      {
+       "key": "/works/OL24218144W"
+      }
+     ],
+     "ocaid": "journalofdisappo0000barb",
+     "isbn_10": [
+      "0701219068"
+     ],
+     "last_modified": {
+      "type": "/type/datetime",
+      "value": "2026-01-19T09:36:04.969716"
+     }
+    }
+   ]
+  },
+  "workRow": {
+   "docs": [
+    {
+     "author_name": [
+      "W. N. P. Barbellion"
+     ],
+     "cover_i": 9267538,
+     "ebook_access": "borrowable",
+     "edition_count": 1,
+     "first_publish_year": 1984,
+     "key": "/works/OL24218144W",
+     "title": "The journal of a disappointed man & A last diary"
+    }
+   ]
+  },
+  "scans": {
+   "response": {
+    "numFound": 1,
+    "docs": [
+     {
+      "access-restricted-item": "true",
+      "identifier": "journalofdisappo0000barb"
+     }
+    ]
+   }
+  }
+ }
+}

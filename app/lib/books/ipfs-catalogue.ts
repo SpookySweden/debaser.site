@@ -18,6 +18,11 @@ export type IpfsBook = {
   author: string;
   year: number;
   coverCid?: string;
+  /**
+   * Its Open Library work (`OL85892W`), when it is a copy of one: every edition on that book's page then offers this copy
+   * in the reader (SPEC-book-editions.md).
+   */
+  work?: string;
 };
 
 export const IPFS_BOOKS: readonly IpfsBook[] = [];
@@ -27,6 +32,7 @@ export function usableIpfsBook(book: IpfsBook, now = new Date()): boolean {
   return (
     isCid(book.cid) &&
     (book.coverCid === undefined || isCid(book.coverCid)) &&
+    (book.work === undefined || /^OL[1-9][0-9]{0,11}W$/.test(book.work)) &&
     book.title.trim().length > 0 &&
     book.title.length <= 300 &&
     book.author.length <= 200 &&

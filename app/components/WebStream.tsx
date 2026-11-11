@@ -23,6 +23,7 @@ import PlayerBox, { PipKey, usePlayingHere } from './PlayerBox';
 import AddToLetterKey from './AddToLetterKey';
 import Link from 'next/link';
 import { isReadable } from '../lib/books/types';
+import { editionCount } from '../lib/books/editions';
 import { recordOpened, SAVE_OPENED } from '../lib/web/save-opened';
 import { authorWords, searchText } from '../lib/web/search';
 import { splitYear } from '../lib/web/search-intent';
@@ -1176,6 +1177,10 @@ export function WebRow({
   const { link, embed, licence } = addresses;
   // A book the site's reader opens: a Gutenberg book from BOOKS, any Internet Archive book, or a book on IPFS (Luke, 2026-11-11).
   const readable = (item.platform === 'books' || item.platform === 'ipfs' || (item.platform === 'internet_archive' && item.kind === 'text')) && isReadable(item.id);
+  // A book with no Gutenberg copy but a free scan of one of its editions (SPEC-book-editions.md): READ opens its page at the
+  // editions the reader opens. Its EDITIONS key opens the page, at the edition an ISBN search found when there is one.
+  const readsOnPage = item.platform === 'books' && !readable && item.book?.scan === true;
+  const bookPage = item.platform === 'books' && item.book?.edition ? `/media/book/edition:${item.book.edition}` : `/media/book/${item.id}`;
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
   const date = item.publishedAt.slice(0, 10);
@@ -1282,6 +1287,7 @@ ${item.description}` : item.title)} className="ml-1.5" />
             <time dateTime={item.publishedAt} className="text-ink">
               {date}
             </time>
+            {item.platform === 'books' && item.book && item.book.editions > 0 ? <span className="text-ink">{editionCount(item.book.editions)}</span> : null}
             {licence ? (
               <a
                 href={licence}
@@ -1302,6 +1308,10 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 Archive's own viewer on that page). */}
             {readable ? (
               <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+                [ READ ]
+              </Link>
+            ) : readsOnPage ? (
+              <Link href={`${bookPage}?show=readable`} onClick={opened} aria-label={`Read "${item.title}": its editions that open here`} className={PLATE}>
                 [ READ ]
               </Link>
             ) : null}
@@ -1355,7 +1365,11 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 [ OPEN ↗ ]
               </a>
             ) : null}
-            {item.platform === 'books' || item.platform === 'audiobooks' ? (
+            {item.platform === 'books' ? (
+              <Link href={bookPage} aria-label={`Editions of "${item.title}": every one Open Library lists`} className={PLATE}>
+                [ EDITIONS ]
+              </Link>
+            ) : item.platform === 'audiobooks' ? (
               <Link href={`/media/book/${item.id}`} className={PLATE}>
                 [ BOOK PAGE ]
               </Link>

@@ -71,6 +71,12 @@ export type WebItem = {
    * episodes) and TMDB's details. Absent on every other item.
    */
   media?: MediaInfo;
+  /**
+   * A BOOKS row only (SPEC-book-editions.md): how many editions Open Library has of the work, whether one of them is a free
+   * scan the reader opens (`scan`), and the edition an ISBN search or an edition's address found (`edition`, `OL…M`).
+   * Absent on every other item. Catalogue facts, not counts of people.
+   */
+  book?: { editions: number; scan?: boolean; edition?: string };
   /** ISO 8601. The stream is ordered by this, newest first, then by `id`. */
   publishedAt: string;
   /** ISO 8601: when WEB last read it. */

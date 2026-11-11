@@ -4,7 +4,9 @@
  *
  * - the fixtures (5 real Open Library works and 5 real LibriVox books for "dracula", 2026-11-10; LibriVox's summaries are
  *   replaced by a short line, so only its shape is kept) parse into rows the page would draw: link and cover, never a player
- * - only works with a Project Gutenberg copy are asked for and kept (Luke, 2026-11-11), each carrying its number, so READ opens it in the reader
+ * - every work is asked for and kept (SPEC-book-editions.md, Luke 2026-11-11, replacing that day's Gutenberg-only rule), each
+ *   carrying how many editions it has; a work with a Project Gutenberg copy carries its number (READ opens it in the reader)
+ *   and comes first, then the library scans, then the other works
  * - one request a BOOKS search; the date orders are Open Library's own; a TYPE that isn't text finds nothing
  * - AUDIOBOOKS asks the start of a title, then the whole title, then an author, stopping at the first that finds something;
  *   a 404 is "nothing", not a failure; DATE reads up to 200 and orders them itself
@@ -57,24 +59,29 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   ok(/title:\(dracula\)/.test(askedIa.searchParams.get('q')), 'the words in the title');
   ok(!/gutenberg/.test(askedIa.searchParams.get('q')), 'not the Archive`s Gutenberg mirror (those are Open Library`s rows)');
   same(asked.hostname, 'openlibrary.org', 'asked of Open Library');
-  ok(!/count|rating|want|read|edition/.test(asked.searchParams.get('fields')), 'no counts or ratings asked for');
-  // Luke, 2026-11-11: "make sure that any books searched for are opened within the sites own ereader". Only works with a
-  // Project Gutenberg copy are asked for, and any that come back without one are dropped (the fixture still has them).
-  same(asked.searchParams.get('q'), 'dracula id_project_gutenberg:*', 'only works with a Gutenberg copy are asked for');
-  same(new URL(books.booksSearchUrl('', 1, 'austen')).searchParams.get('q'), 'id_project_gutenberg:*', 'an author search too');
+  // SPEC-book-editions.md (Luke, 2026-11-11): the edition count is asked (how many editions exist, not a count of people);
+  // no ratings or reading counts are.
+  const fieldsAsked = asked.searchParams.get('fields').split(',');
+  ok(fieldsAsked.includes('edition_count'), 'how many editions each work has is asked');
+  ok(!fieldsAsked.some((field) => field !== 'edition_count' && /count|rating|want|read|edition/.test(field)), 'no counts of people or ratings asked for');
+  // Every book is found now, not only those with a Gutenberg copy (the Gutenberg-only filter is gone).
+  same(asked.searchParams.get('q'), 'dracula', 'the words alone: every work is asked for');
+  ok(!new URL(books.booksSearchUrl('', 1, 'austen')).searchParams.has('q') && new URL(books.booksSearchUrl('', 1, 'austen')).searchParams.get('author') === 'austen', 'an author search asks the author alone');
   ok(olFixture.docs.some((doc) => !doc.id_project_gutenberg), 'the fixture holds works without a Gutenberg copy');
-  const gutenbergRows = page.items.filter((item) => item.platform === 'books');
+  const workRows = page.items.filter((item) => item.platform === 'books');
   const scanRows = page.items.filter((item) => item.platform === 'internet_archive');
-  same(gutenbergRows.length, 1, 'only the Open Library work the reader can open is a row');
-  for (const item of gutenbergRows) {
+  same(workRows.length, olFixture.docs.length, 'every Open Library work is a row, with or without a Gutenberg copy');
+  for (const item of workRows) {
     checkItem(asserts, rowAddresses, item, item.title);
     same(item.kind, 'text', 'a book is text');
     ok(item.embedUrl === undefined, 'no player');
-    ok(/-pg[1-9][0-9]*$/.test(item.externalId), 'every row carries its Gutenberg number, so READ opens it at /read');
     ok(item.description === undefined, 'and has no "free to read" line (Luke, 2026-11-11): its date is the year it came out');
+    ok(item.book && Number.isInteger(item.book.editions), 'each carries how many editions it has');
   }
   same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number, and comes first');
-  same(scanRows.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'then the library scans: the lent item and the film are left out');
+  same(page.items.findIndex((item) => item.platform === 'internet_archive'), workRows.filter((item) => /-pg[1-9]/.test(item.externalId)).length, 'then the library scans');
+  ok(page.items.slice(page.items.findIndex((item) => item.platform === 'internet_archive') + 1).every((item) => item.platform === 'books' && !/-pg[1-9]/.test(item.externalId)), 'then the other works');
+  same(scanRows.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'the lent item and the film are left out');
   checkItem(asserts, rowAddresses, scanRows[0], scanRows[0].title);
   same(scanRows[0].kind, 'text');
   same(page.next, 2, 'and there is more to page through');
@@ -82,7 +89,7 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   const olDown = await books.booksSearch.search('dracula', null, deps(routed(null, iaScans)));
   same(olDown.items.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'Open Library down: the scans still show');
   const iaDown = await books.booksSearch.search('dracula', null, deps(routed(olFixture, null)));
-  same(iaDown.items.map((item) => item.platform), ['books'], 'the Archive down: the Gutenberg rows still show');
+  ok(iaDown.items.length === olFixture.docs.length && iaDown.items.every((item) => item.platform === 'books'), 'the Archive down: the Open Library rows still show');
   let bothDown = null;
   try {
     await books.booksSearch.search('dracula', null, deps(routed(null, null)));

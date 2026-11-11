@@ -7,6 +7,8 @@ const ALLOWED_KEYS = new Set([
   'thumbnailUrl', 'embedUrl', 'licenseUrl', 'durationSeconds', 'tags', 'publishedAt', 'fetchedAt',
   // The platform's own language (Luke, 2026-11-03: language flags on content), a code like 'es' or 'pt-BR'.
   'language',
+  // A BOOKS row's catalogue facts (SPEC-book-editions.md, 2026-11-11): how many editions, a free scan, the edition found.
+  'book',
 ]);
 const ENGAGEMENT = /like|view|download|rating|star|follow|comment|play_?count|favou?rite|subscri|review|score/i;
 const NOW = '2026-10-31T12:00:00.000Z';

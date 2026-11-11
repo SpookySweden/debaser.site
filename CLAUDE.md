@@ -31,7 +31,7 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   quote (300 characters) is ever stored. Luke widened it the same day ("options 2 for epubs and 1 for eveyrthing else"):
   an Internet Archive book's own EPUB (listed, not private, never its `_lcp` lending copy, never an access-restricted item)
   passes through the same way, never kept; an Archive book with no EPUB shows the Archive's own viewer
-  (`archive.org/embed/<id>`) on the /read page. BOOKS shows only Open Library works with a Gutenberg copy.
+  (`archive.org/embed/<id>`) on the /read page. BOOKS finds every Open Library work (SPEC-book-editions.md, 2026-11-11), and a book's page lists every edition, read live from Open Library and never stored.
   Widened again ("try to find a way to have every book, its okay to grab them directly, preferably inside our reader"):
   an Archive book with no EPUB but a PDF reads in our reader a slice at a time (`Range` requests through the same route,
   answered 206, never kept, the slice only of the PDF the item's metadata lists), fetched from the item's own file

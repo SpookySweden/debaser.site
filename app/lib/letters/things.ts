@@ -43,8 +43,9 @@ export function verbOf(kind: LetterKind): LetterVerb {
 export function hrefOf(item: Pick<LetterItem, 'kind' | 'ref' | 'title'>): string {
   switch (item.kind) {
     case 'web':
-      // A book or an audiobook has its own page (SPEC-books.md); anything else is found on MEDIA by its title.
-      if (/^(books|audiobooks):[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/.test(item.ref)) return `/media/book/${item.ref}`;
+      // A book or an audiobook has its own page (SPEC-books.md), and so does one edition of a book, its book's page opened
+      // at it (SPEC-book-editions.md); anything else is found on MEDIA by its title.
+      if (/^(books|audiobooks):[A-Za-z0-9][A-Za-z0-9._-]{0,200}$/.test(item.ref) || /^edition:OL[1-9][0-9]{0,11}M$/.test(item.ref)) return `/media/book/${item.ref}`;
       return `/media?q=${encodeURIComponent(item.title)}`;
     case 'media':
     case 'kino':
