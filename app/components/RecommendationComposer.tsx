@@ -14,9 +14,12 @@ import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib
 import { searchEverywhere } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { useComms } from './CommsProvider';
+import { useMusicLibrary } from './MusicLibraryProvider';
+import { useMusicPlayer } from './MusicPlayerProvider';
+import { parseWebTrackId } from '../lib/web/web-audio';
 import ProfileName from './ProfileName';
 
-type Source = 'pre' | 'letters' | 'search';
+type Source = 'pre' | 'letters' | 'playlists' | 'search';
 type Dragged = { from: 'pre' | 'queue'; at: number };
 const sameThing = (a: LetterThing, b: LetterThing) => a.kind === b.kind && a.ref === b.ref;
 
@@ -149,6 +152,9 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
             <button type="button" onClick={() => setSource('letters')} className={source === 'letters' ? PLATE_PRESSED : PLATE}>
               [ YOUR LETTERS ]
             </button>
+            <button type="button" onClick={() => setSource('playlists')} className={source === 'playlists' ? PLATE_PRESSED : PLATE}>
+              [ YOUR PLAYLISTS ]
+            </button>
             <button type="button" onClick={() => setSource('search')} className={source === 'search' ? PLATE_PRESSED : PLATE}>
               [ SEARCH ]
             </button>
@@ -159,6 +165,7 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
             ) : null}
           </div>
           {source === 'letters' ? <FromLetters me={me} onAdd={addToPre} onAddLetter={addLetter} /> : null}
+          {source === 'playlists' ? <FromPlaylists onAdd={addToPre} onAddLetter={addLetter} /> : null}
           {source === 'search' ? <FromSearch onAdd={addToPre} /> : null}
           {source === 'pre' ? (
             <ol className="md:max-h-96 md:overflow-y-auto">
@@ -301,6 +308,51 @@ function FromLetters({
 }
 
 /**
+ * Your music playlists as a source (Luke: "searching through your letters / playlists etc"): pick one, and it's a block
+ * like a letter, every song ticked, the playlist's name the title. A site song goes in as its file, a MEDIA track as its
+ * MEDIA row, a video kept in a room's saved queue as its link.
+ */
+function FromPlaylists({ onAdd, onAddLetter }: { onAdd: (thing: LetterThing) => void; onAddLetter: (things: LetterThing[], name: string) => void }) {
+  const { playlists } = useMusicLibrary();
+  const { queue } = useMusicPlayer();
+  const [listId, setListId] = useState<string | null>(null);
+  const list = playlists.find((each) => each.id === listId);
+  if (!list) {
+    return (
+      <ul className="p-1">
+        {playlists.length === 0 ? <li className="text-label text-ink">NO PLAYLISTS YET: MAKE ONE FROM A SONG&apos;S MENU.</li> : null}
+        {playlists.map((each) => (
+          <li key={each.id}>
+            <button type="button" onClick={() => setListId(each.id)} className={`${PLATE} w-full text-left`}>
+              [ {each.name} ({each.items.length}) ]
+            </button>
+          </li>
+        ))}
+      </ul>
+    );
+  }
+  const things = list.items
+    .map((item): LetterThing | null => {
+      const link = item.link;
+      if (link && isWebAddress(link.url) && !link.url.startsWith('/')) return { kind: 'link', ref: link.url, title: (link.title || link.url).slice(0, LETTER_TITLE_MAX) };
+      const track = queue.find((each) => each.id === item.trackId);
+      const title = (track?.title ?? link?.title ?? 'A SONG').slice(0, LETTER_TITLE_MAX);
+      const web = parseWebTrackId(item.trackId);
+      return web ? { kind: 'web', ref: `${web.platform}:${web.externalId}`, title } : { kind: 'file', ref: item.trackId.slice(0, 500), title };
+    })
+    .filter((thing): thing is LetterThing => thing !== null)
+    .filter((thing, index, all) => all.findIndex((other) => other.kind === thing.kind && other.ref === thing.ref) === index);
+  return (
+    <div className="p-1">
+      <button type="button" onClick={() => setListId(null)} className={PLATE}>
+        [ ALL PLAYLISTS ]
+      </button>
+      <WholeLetter key={list.id} name={list.name} things={things} onAdd={onAdd} onAddLetter={onAddLetter} what="PLAYLIST" />
+    </div>
+  );
+}
+
+/**
  * One letter, as a block (Luke, 2026-11-11: "add the whole letter similar to adding a series into the stream queue"): every
  * thing on it ticked, untick what to leave out, then [ ADD THE LETTER ] puts the ticked ones in your queue at once and makes
  * the letter's name the recommendation's title. [ + ] still takes one thing to the pre-list on its own.
@@ -310,11 +362,14 @@ function WholeLetter({
   things,
   onAdd,
   onAddLetter,
+  what = 'LETTER',
 }: {
   name: string;
   things: LetterThing[];
   onAdd: (thing: LetterThing) => void;
   onAddLetter: (things: LetterThing[], name: string) => void;
+  /** What the block is called on its key: a LETTER, or a PLAYLIST (the same block, from a music playlist). */
+  what?: 'LETTER' | 'PLAYLIST';
 }) {
   const [left, setLeft] = useState<string[]>([]);
   const keyOf = (thing: LetterThing) => `${thing.kind}:${thing.ref}`;
@@ -323,7 +378,7 @@ function WholeLetter({
     <>
       <p className="mt-1 flex flex-wrap items-center gap-1">
         <button type="button" className={PLATE} disabled={kept.length === 0} onClick={() => onAddLetter(kept, name)}>
-          [ ADD THE LETTER ({kept.length} OF {things.length}) ]
+          [ ADD THE {what} ({kept.length} OF {things.length}) ]
         </button>
       </p>
       <ul>
