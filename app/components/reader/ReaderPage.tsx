@@ -565,7 +565,8 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
   const go = (target: string) => {
     closeBars();
     void viewRef.current?.goTo(target);
-    if (window.matchMedia('(max-width: 639px)').matches) setPanel(null);
+    // On an upright screen the panel is a sheet over the page: going somewhere closes it so the page shows.
+    if (window.matchMedia('(orientation: portrait)').matches) setPanel(null);
   };
 
   // ---------- the bars ----------

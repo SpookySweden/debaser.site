@@ -11,15 +11,16 @@ import { SWATCH } from './HighlightBar';
 export type PanelName = 'contents' | 'search' | 'bookmarks' | 'highlights' | 'look';
 
 /**
- * One of the reader's side panels (SPEC-reader.md): a drawer at the right on a desktop, a sheet from the foot on a phone,
- * laid over the page so the book never reflows under it.
+ * One of the reader's side panels (SPEC-reader.md): a drawer at the right on a wide screen, a sheet from the foot on an
+ * upright one. By orientation, not width: a phone is shown the site 1280px wide and shrunk (`app/layout.tsx`), so a width
+ * rule would never see one. Laid over the page so the book never reflows under it.
  */
 export function Panel({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   return (
     <aside
       aria-label={title}
       onKeyDown={(event) => event.key === 'Escape' && onClose()}
-      className="frame absolute z-20 flex flex-col bg-sun-pale text-ink max-sm:inset-x-0 max-sm:bottom-0 max-sm:max-h-[70%] sm:bottom-2 sm:right-2 sm:top-2 sm:w-[24rem] sm:max-w-[calc(100%-1rem)]"
+      className="frame absolute z-20 flex flex-col bg-sun-pale text-ink portrait:inset-x-0 portrait:bottom-0 portrait:max-h-[45%] landscape:bottom-2 landscape:right-2 landscape:top-2 landscape:w-[24rem] landscape:max-w-[calc(100%-1rem)]"
     >
       <div className="flex items-center gap-2 px-2 pt-1">
         <h2 className={`${TITLE_BAR} min-w-0 flex-1`}>{title}</h2>
