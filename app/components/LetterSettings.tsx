@@ -4,6 +4,8 @@ import { useRef, useState } from 'react';
 import { uploadStamp } from '../lib/letters/repository';
 import { deleteLetter, updateLetter } from '../lib/letters/store';
 import { cardPicture } from '../lib/letters/things';
+import { searchEverywhere } from '../lib/web/everywhere-client';
+import { rowAddresses } from '../lib/web/row-addresses';
 import { LETTER_DESCRIPTION_MAX, LETTER_NAME_MAX, type Letter, type LetterItem, type LetterPatch } from '../lib/letters/types';
 import { NAME_COLOURS } from '../lib/profile/name-colours';
 import { FIELD, PLATE, PLATE_MAIN, PLATE_PRESSED } from '../lib/ui/controls';
@@ -158,6 +160,8 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
           </div>
         </section>
 
+        <StampSearch chosen={draft.stampUrl} onPick={(src) => setDraft((held) => ({ ...held, stampUrl: src }))} />
+
         {pickable.length > 0 ? (
           <section aria-label="Or pick a picture from this letter">
             <p className="mb-1 text-label text-ink">OR PICK ONE FROM THIS LETTER</p>
@@ -257,5 +261,82 @@ export default function LetterSettings({ letter, items, onClose }: { letter: Let
         ) : null}
       </div>
     </PopoutWindow>
+  );
+}
+
+/**
+ * SEARCH PICTURES for the stamp (Luke, 2026-11-11): MEDIA's own search, pictures only (Openverse, Wikimedia Commons, the
+ * Internet Archive: free-licence collections). A press makes one the stamp. The picture stays hotlinked from where it
+ * lives, as MEDIA's thumbnails are; nothing is copied.
+ */
+function StampSearch({ chosen, onPick }: { chosen?: string; onPick: (src: string) => void }) {
+  const [words, setWords] = useState('');
+  const [found, setFound] = useState<{ src: string; title: string }[]>([]);
+  const [note, setNote] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const find = async () => {
+    const asked = words.trim();
+    if (asked.length === 0) return;
+    setBusy(true);
+    setNote(null);
+    try {
+      const page = await searchEverywhere(asked, null, undefined, null, 'image');
+      const pictures = page.items
+        .filter((item) => item.kind === 'image')
+        .map((item) => ({ src: cardPicture(rowAddresses(item).thumb), title: item.title }))
+        .filter((picture): picture is { src: string; title: string } => picture.src !== undefined)
+        .slice(0, 24);
+      setFound(pictures);
+      if (pictures.length === 0) setNote('NO PICTURES FOUND. TRY OTHER WORDS.');
+    } catch {
+      setNote('THE SEARCH DIDN\'T ANSWER. TRY AGAIN.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <section aria-label="Search pictures for the stamp">
+      <p className="mb-1 text-label text-ink">OR SEARCH PICTURES</p>
+      <div className="flex gap-1" role="search">
+        <input
+          type="text"
+          value={words}
+          onChange={(event) => setWords(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') {
+              event.preventDefault();
+              void find();
+            }
+          }}
+          placeholder="WHAT SHOULD IT SHOW?"
+          aria-label="Search pictures for the stamp"
+          className={`${FIELD} mt-0 min-w-0 flex-1`}
+        />
+        <button type="button" onClick={() => void find()} className={PLATE} disabled={busy}>
+          {busy ? '[ ... ]' : '[ FIND ]'}
+        </button>
+      </div>
+      {note ? <p className="mt-1 text-label text-ink">{note}</p> : null}
+      {found.length > 0 ? (
+        <ul className="mt-2 flex flex-wrap gap-2">
+          {found.map((picture) => (
+            <li key={picture.src}>
+              <button
+                type="button"
+                aria-pressed={chosen === picture.src}
+                aria-label={`Use "${picture.title}" as the stamp`}
+                title={picture.title}
+                onClick={() => onPick(picture.src)}
+                className={`block p-0.5 ${chosen === picture.src ? 'outline outline-2 outline-accent-ink' : ''}`}
+              >
+                <StampCircle src={picture.src} className="h-12 w-12" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }

@@ -139,6 +139,7 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   assert.match(settings, /OPACITY[\s\S]*value="30"[\s\S]*30%/, 'the opacity slider starts at 30%');
   assert.match(settings, /DENSITY[\s\S]*value="4"/, 'and the density slider beside it');
   assert.match(settings, /OR PICK ONE FROM THIS LETTER/, 'a picture can be picked from the letter');
+  assert.match(settings, /OR SEARCH PICTURES[\s\S]*aria-label="Search pictures for the stamp"[\s\S]*\[ FIND \]/, 'or searched for (Luke, 2026-11-11)');
   assert.match(settings, /aria-label="ROSE"/, 'the text colours are the name-colour swatches');
   assert.match(settings, /\[ DELETE LETTER \]/);
   console.log('  ok    the settings');
