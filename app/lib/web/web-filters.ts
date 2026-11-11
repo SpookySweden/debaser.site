@@ -346,6 +346,8 @@ export function matchesFilters(
   // BOOKS: Open Library's Gutenberg works and the Internet Archive's library scans it asks for (Luke, 2026-11-11), a scan
   // keeping its own source's name. The saved stream isn't asked for BOOKS, so this only keeps what BOOKS found live.
   if (search.source === 'books' && !fromStream && item.platform === 'internet_archive' && item.kind === 'text') return true;
+  // And the books on IPFS named in the site's own list (ipfs-catalogue.ts, Luke 2026-11-11), as IPFS rows.
+  if (search.source === 'books' && !fromStream && item.platform === 'ipfs') return true;
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.
   return item.platform === search.source || (item.media?.copies.some((copy) => copy.server === search.source) ?? false);
 }

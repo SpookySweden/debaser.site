@@ -34,7 +34,7 @@ void STREAM_PLATFORMS_COMPLETE;
  * Found only by searching everywhere or by a pasted link (`app/lib/web/search/`, SPEC-web-search.md): no
  * stream source reads them, but an opened one can be saved into the stream like any other item.
  */
-export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks';
+export type SearchOnlyPlatform = 'wikimedia_commons' | 'vimeo' | 'kino' | 'books' | 'audiobooks' | 'ipfs';
 
 export type WebItemKind = 'audio' | 'video' | 'image' | 'text' | 'other';
 
@@ -109,5 +109,7 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   books: 'BOOKS',
   // LibriVox's catalogue; chapters play in the music bar from archive.org (SPEC-books.md).
   audiobooks: 'AUDIOBOOKS',
+  // Books on IPFS named in `app/lib/books/ipfs-catalogue.ts`, listed by BOOKS and read in the site's reader (Luke, 2026-11-11).
+  ipfs: 'IPFS',
   ...(Object.fromEntries(MEDIA_SERVERS.map((server) => [server.id, server.label])) as Record<MediaServerId, string>),
 };

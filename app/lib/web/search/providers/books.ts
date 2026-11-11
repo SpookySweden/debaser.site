@@ -22,6 +22,8 @@
  * Addresses: page https://openlibrary.org/works/OL…W, cover https://covers.openlibrary.org/b/id/{n}-M.jpg. An item's
  * external id is the work's key, with `-pg{n}` when Project Gutenberg has it: `OL85892W-pg345`.
  */
+import { findIpfsBooks, type IpfsBook } from '../../../books/ipfs-catalogue';
+import { gatewayUrl, IPFS_GATEWAYS } from '../../../books/ipfs';
 import { safeFetchJson } from '../../safe-fetch';
 import { iaSearchQuery, iaSearchUrl, IA_SEARCH_HOSTS, IA_SEARCH_TIMEOUT_MS, parseIaSearch } from './internet-archive';
 import { sanitiseText } from '../../sanitise';
@@ -100,6 +102,27 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
   };
 }
 
+/**
+ * A book on IPFS named in `ipfs-catalogue.ts` as a row (Luke, 2026-11-11): `ipfs:<CID>`, the reader's own name for it, so
+ * the row's READ opens it at /read. Its page and cover are the first gateway's addresses for the CIDs.
+ */
+export function toIpfsItem(book: IpfsBook, fetchedAt: string): WebItem {
+  const page = gatewayUrl(IPFS_GATEWAYS[0].host, book.cid);
+  return {
+    id: `ipfs:${book.cid}`,
+    platform: 'ipfs',
+    externalId: book.cid,
+    kind: 'text',
+    url: page,
+    canonicalUrl: page,
+    title: sanitiseText(book.title, 300),
+    creator: sanitiseText(book.author, 200) || undefined,
+    thumbnailUrl: book.coverCid ? gatewayUrl(IPFS_GATEWAYS[0].host, book.coverCid) : undefined,
+    publishedAt: new Date(Date.UTC(book.year, 0, 1)).toISOString(),
+    fetchedAt,
+  };
+}
+
 function pageNumber(page: ProviderPage | null): number {
   return typeof page === 'number' && Number.isInteger(page) && page >= 1 && page <= MAX_PAGE ? page : 1;
 }
@@ -107,8 +130,9 @@ function pageNumber(page: ProviderPage | null): number {
 export const booksSearch: SearchProvider = {
   platform: 'books',
   allowedHosts: [...BOOKS_SEARCH_HOSTS, ...IA_SEARCH_HOSTS],
-  // The library scans keep their own source's name: INTERNET ARCHIVE rows (run.ts would drop them otherwise).
-  alsoAnswersFor: ['internet_archive'],
+  // The library scans keep their own source's name: INTERNET ARCHIVE rows (run.ts would drop them otherwise). And the books on
+  // IPFS named in `ipfs-catalogue.ts`, as IPFS rows (Luke, 2026-11-11).
+  alsoAnswersFor: ['internet_archive', 'ipfs'],
   timeoutMs: 12_000,
   orders: ['newest', 'oldest'],
   byAuthor: true,
@@ -118,19 +142,21 @@ export const booksSearch: SearchProvider = {
     const at = pageNumber(page);
     const order = deps.order === 'newest' || deps.order === 'oldest' ? deps.order : 'relevance';
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
+    // The books on IPFS named in the site's own list come first, on the first page only: read here, nothing is asked.
+    const fromIpfs = at === 1 ? findIpfsBooks(words, author).map((book) => toIpfsItem(book, fetchedAt)) : [];
     // Both sources at once: Open Library's Gutenberg works, and the Archive's library scans.
     const [gutenberg, scans] = await Promise.allSettled([
       safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
       safeFetchJson(iaSearchUrl(libraryScanQuery(words, author), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
     ]);
-    if (gutenberg.status === 'rejected' && scans.status === 'rejected') throw new SearchProblemError('NO ANSWER');
-    let items: WebItem[] = [];
+    if (gutenberg.status === 'rejected' && scans.status === 'rejected' && fromIpfs.length === 0) throw new SearchProblemError('NO ANSWER');
+    let items: WebItem[] = [...fromIpfs];
     let more = false;
     if (gutenberg.status === 'fulfilled') {
       const record = gutenberg.value && typeof gutenberg.value === 'object' ? (gutenberg.value as Record<string, unknown>) : {};
       const docs = Array.isArray(record.docs) ? record.docs : [];
       // Asked for Gutenberg works only; anything that still comes back without a copy is dropped, so every row reads here.
-      items = docs.map((doc) => toBookItem(doc, fetchedAt)).filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null);
+      items = [...items, ...docs.map((doc) => toBookItem(doc, fetchedAt)).filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null)];
       const found = typeof record.numFound === 'number' ? record.numFound : 0;
       more = at * BOOKS_PAGE_SIZE < found;
     }

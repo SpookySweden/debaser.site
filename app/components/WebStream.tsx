@@ -1174,8 +1174,8 @@ export function WebRow({
   const source = PLATFORM_LABELS[item.platform];
   const addresses = rowAddresses(item, extraHosts);
   const { link, embed, licence } = addresses;
-  // A book the site's reader opens: a Gutenberg book from BOOKS, or any Internet Archive book (Luke, 2026-11-11).
-  const readable = (item.platform === 'books' || (item.platform === 'internet_archive' && item.kind === 'text')) && isReadable(item.id);
+  // A book the site's reader opens: a Gutenberg book from BOOKS, any Internet Archive book, or a book on IPFS (Luke, 2026-11-11).
+  const readable = (item.platform === 'books' || item.platform === 'ipfs' || (item.platform === 'internet_archive' && item.kind === 'text')) && isReadable(item.id);
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
   const date = item.publishedAt.slice(0, 10);

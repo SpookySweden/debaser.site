@@ -99,6 +99,8 @@ export const WATCH_KIND_BY_PLATFORM: Record<WebPlatform, Extract<WatchLinkKind, 
   // Books open in the site's reader or link out; audiobooks play in the music bar (SPEC-books.md): nothing for a room.
   books: null,
   audiobooks: null,
+  // Books on IPFS open in the site's reader too (lib/books/ipfs.ts): nothing for a room.
+  ipfs: null,
   // Media-server titles play on /web only, from the server's own player (SPEC-media-servers.md).
   ...(Object.fromEntries(MEDIA_SERVER_IDS.map((id) => [id, null])) as Record<MediaServerId, null>),
 };

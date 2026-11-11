@@ -203,6 +203,18 @@ export const PLATFORM_HOSTS: Record<WebPlatform, PlatformAddresses> = {
     thumbHosts: ['archive.org'],
     embedHosts: [],
   },
+  // IPFS (Luke, 2026-11-11): a book named in `app/lib/books/ipfs-catalogue.ts`, its page and cover at the first gateway by
+  // their CIDs. No player: the row's READ opens the book in the site's reader (`lib/books/ipfs.ts` fetches it).
+  ipfs: {
+    hosts: ['4everland.io'],
+    linkHosts: [],
+    pagePath: /^\/ipfs\/(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{50,120})$/,
+    thumbPath: /^\/ipfs\/(?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{50,120})$/,
+    embedPath: NEVER,
+    pageHosts: ['4everland.io'],
+    thumbHosts: ['4everland.io'],
+    embedHosts: [],
+  },
   // The media servers (SPEC-media-servers.md), one entry each from media-servers.ts. A title's row has no link
   // and no embed of its own here: its player is built per server by `mediaPlayUrl` (media-titles.ts), on that
   // server's host. Its picture is TMDB's poster on TMDB's image host, or a picture from the server's list on the
