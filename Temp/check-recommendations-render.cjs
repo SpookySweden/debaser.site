@@ -64,6 +64,17 @@ const RecommendationComposer = require('./recommendations-render-out/components/
   assert.notEqual((await store.list('for_me'))[0].readAt, null, 'opened, it isn`t NEW');
   await store.played(id);
   assert.deepEqual((await store.players([id]))[id], ['b'], 'the face of who played it, and not of who couldn`t read it');
+  // (2026-11-11) A letter travels inside one, titled by its name even with one thing.
+  viewer = { id: 'a', name: 'AY' };
+  const look = { name: 'WEEKEND', description: '', stampOpacity: 30, stampDensity: 4, places: [{ x: 0.2, y: 0.3, turn: 4 }] };
+  const lettered = await store.send({ message: 'not the title', isPublic: true, things: [thing], to: [], letter: look });
+  const sentLetter = (await store.list('public')).find((rec) => rec.id === lettered);
+  assert.equal(sentLetter.title, 'WEEKEND', 'a letter is titled by its name');
+  assert.deepEqual(sentLetter.letter.places, look.places, 'with its cards` spots');
+  const { letterFrom } = require('./recommendations-render-out/lib/recommendations/types.js');
+  assert.equal(letterFrom({ name: '' }), null, 'a letter copy with no name is no letter');
+  assert.equal(letterFrom({ name: 'X', stampUrl: '//evil.example/x.png' }).stampUrl, undefined, 'a stamp address off https is dropped');
+  assert.equal(letterFrom({ name: 'X', stampDensity: 99 }).stampDensity, 10, 'numbers held to their range');
   viewer = null;
   assert.deepEqual(await store.list('public'), [], 'a private one is never public');
   console.log('  ok    the mock store');

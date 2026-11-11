@@ -15,7 +15,11 @@ import {
   useRecommendationItems,
   useRecommendationList,
 } from '../lib/recommendations/store';
-import type { RecommendationItem, RecommendationSummary, RecommendationTab } from '../lib/recommendations/types';
+import type { RecommendationItem, RecommendationLetter, RecommendationSummary, RecommendationTab } from '../lib/recommendations/types';
+import type { Letter, LetterItem } from '../lib/letters/types';
+import LetterCanvas from './LetterCanvas';
+import LetterStamp from './LetterStamp';
+import { nameInkStyle } from './NameColourWindow';
 import { PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import { useForum } from './ForumProvider';
@@ -141,8 +145,8 @@ function ComposerBody({ me }: { me: string }) {
     <>
       <RecommendationComposer
         me={me}
-        onSend={async ({ message, isPublic, things, to, title }) => {
-          const id = await getRecommendationsRepository().send({ message, isPublic, things, to });
+        onSend={async ({ message, isPublic, things, to, title, letter }) => {
+          const id = await getRecommendationsRepository().send({ message, isPublic, things, to, letter });
           if (isPublic) {
             // Its forum thread: one per recommendation, by the sender, linked back (as a stream's thread is).
             try {
@@ -174,10 +178,24 @@ function RecommendationRow({
 }) {
   const players = usePlayers(rec.id);
   const unread = tab === 'for_me' && rec.readAt === null;
+  const [letterOpen, setLetterOpen] = useState(false);
   const [fault, setFault] = useState<string | null>(null);
   return (
     <li className="rule-pixel py-2">
       <div className="flex flex-wrap items-center gap-2">
+        {/* A recommended letter (Luke, 2026-11-11): its envelope, in its colour with its stamp, opens its canvas. */}
+        {rec.letter ? (
+          <button
+            type="button"
+            onClick={() => setLetterOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={`Open the letter "${rec.letter.name}"`}
+            title="Open the letter"
+            className="cursor-pointer p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink"
+          >
+            <LetterStamp letter={rec.letter} scale={2} />
+          </button>
+        ) : null}
         <button type="button" onClick={onToggle} aria-expanded={open} className={`${open ? PLATE_PRESSED : PLATE} max-w-full`}>
           {open ? '▾' : '▸'} <span className="break-words">{rec.title}</span>
         </button>
@@ -224,7 +242,55 @@ function RecommendationRow({
       {rec.message && rec.itemCount > 1 && rec.message !== rec.title ? <p className="mt-1 break-words text-label text-ink">{rec.message}</p> : null}
       {fault ? <p role="status" className="text-label text-ink">{fault}</p> : null}
       {open ? <RecommendationQueue id={rec.id} me={me} /> : null}
+      {letterOpen && rec.letter ? <RecommendedLetter rec={rec} letter={rec.letter} me={me} onClose={() => setLetterOpen(false)} /> : null}
     </li>
+  );
+}
+
+/**
+ * A recommended letter, opened from its envelope (Luke, 2026-11-11): the letter as it was sent, its name in its colour, its
+ * description, and its canvas, with the stamp's pattern behind and the recommendation's things where they sat on it. A card
+ * opens the same pop-up as a letter's, and its WATCH, LISTEN or READ puts the reader's face beside the recommendation.
+ */
+function RecommendedLetter({ rec, letter, me, onClose }: { rec: RecommendationSummary; letter: RecommendationLetter; me: string | null; onClose: () => void }) {
+  const items = useRecommendationItems(rec.id);
+  const [opened, setOpened] = useState<LetterItem | null>(null);
+  const look: Letter = {
+    id: rec.id,
+    owner: rec.sender ?? '',
+    name: letter.name,
+    description: letter.description,
+    textColour: letter.textColour,
+    stampUrl: letter.stampUrl,
+    stampOpacity: letter.stampOpacity,
+    stampDensity: letter.stampDensity,
+    isPublic: rec.isPublic,
+    createdAt: rec.createdAt,
+    updatedAt: rec.createdAt,
+  };
+  const cards: LetterItem[] = (items.value ?? []).map((item) => {
+    const spot = letter.places[item.position] ?? { x: 0.5, y: 0.5, turn: 0 };
+    return { id: item.id, letterId: rec.id, kind: item.kind, ref: item.ref, title: item.title, picture: item.picture, x: spot.x, y: spot.y, turn: spot.turn, addedAt: rec.createdAt };
+  });
+  const ink = letter.textColour ? { className: 'name-ink', style: nameInkStyle(letter.textColour) } : { className: 'text-ink', style: undefined };
+  return (
+    <PopoutWindow title="LETTER" onClose={onClose} maxWidth="max-w-3xl" centred>
+      <div className="flex flex-col gap-2 p-2">
+        <p className="flex items-center gap-2">
+          <LetterStamp letter={letter} scale={2} />
+          <span className={`min-w-0 flex-1 break-words text-title ${ink.className}`} style={ink.style}>
+            {letter.name}
+          </span>
+        </p>
+        {letter.description ? (
+          <p className={`break-words text-label ${ink.className}`} style={ink.style}>
+            {letter.description}
+          </p>
+        ) : null}
+        {items.loading && items.value === null ? <p className="text-label text-ink">READING...</p> : <LetterCanvas letter={look} items={cards} onOpen={setOpened} />}
+      </div>
+      {opened ? <LetterItemPopout item={opened} owner={false} onClose={() => setOpened(null)} onUse={me ? () => void notePlayed(rec.id, me) : undefined} /> : null}
+    </PopoutWindow>
   );
 }
 

@@ -75,6 +75,26 @@ const { loadEnv, testAccountClient } = require('../scripts/browser.cjs');
     assert.equal((await visitor.rpc('recommendations_list', { p_tab: 'for_me', p_limit: 50 })).data.length, 0, 'a visitor has no FOR YOU');
     console.log('  ok    a public one is anyone`s to read, with no names for visitors');
 
+    // A letter travels inside one (Luke, 2026-11-11): titled by its name, rebuilt field by field, read as its recommendation is.
+    const letter = {
+      name: 'WEEKEND LETTER', description: 'two things', textColour: '#ff00a0', stampUrl: 'javascript:alert(1)',
+      stampOpacity: 999, stampDensity: 4, places: [{ x: 0.2, y: 0.4, turn: 99 }, { x: 0.8, y: 0.6, turn: -3 }], extra: 'dropped',
+    };
+    const lettered = await a.client.rpc('recommendation_send', { p_message: 'ignored for the title', p_public: false, p_items: things.slice(0, 1), p_to: [bId], p_letter: letter });
+    assert.equal(lettered.error, null, `A sends a letter to B: ${lettered.error?.message}`);
+    made.push(lettered.data);
+    const forBLetter = (await b.client.rpc('recommendations_list', { p_tab: 'for_me', p_limit: 50 })).data.find((rec) => rec.id === lettered.data);
+    assert.equal(forBLetter.title, 'WEEKEND LETTER', 'a letter is titled by its name, even with one thing');
+    assert.equal(forBLetter.letter.textColour, '#ff00a0', 'B gets the letter`s colour');
+    assert.equal(forBLetter.letter.stampUrl, null, 'a stamp address that is not https is dropped');
+    assert.equal(forBLetter.letter.stampOpacity, 100, 'numbers are held to their range');
+    assert.equal(forBLetter.letter.places[0].turn, 15, 'tilts too');
+    assert.equal(forBLetter.letter.places.length, 2, 'every card`s spot comes');
+    assert.equal('extra' in forBLetter.letter, false, 'nothing but the letter`s own fields is kept');
+    assert.equal((await c.client.from('recommendations').select('letter').eq('id', lettered.data)).data.length, 0, 'C cannot read the letter');
+    assert.equal((await visitor.rpc('recommendations_list', { p_tab: 'for_me', p_limit: 50 })).data.length, 0, 'nor can a visitor');
+    console.log('  ok    a letter travels inside a recommendation, for its readers only');
+
     // Only the sender deletes.
     assert.equal((await b.client.from('recommendations').delete().eq('id', one).select('id')).data.length, 0, 'B cannot delete A`s');
     assert.equal((await a.client.from('recommendations').delete().eq('id', one).select('id')).data.length, 1, 'A deletes it');

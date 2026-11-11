@@ -30,6 +30,7 @@ export function createMockRecommendationsRepository(whoAmI: () => { id: string; 
     createdAt: rec.createdAt,
     readAt: me === null ? null : (rec.read.get(me) ?? null),
     itemCount: rec.things.length,
+    letter: rec.letter,
   });
   const readable = (rec: Held, me: string | null) => rec.isPublic || (me !== null && (rec.sender === me || rec.to.has(me)));
 
@@ -55,7 +56,7 @@ export function createMockRecommendationsRepository(whoAmI: () => { id: string; 
       }
       return found;
     },
-    async send({ message, isPublic, things, to }) {
+    async send({ message, isPublic, things, to, letter }) {
       const me = whoAmI();
       if (me === null) throw new Error('SIGN IN TO RECOMMEND.');
       if (things.length < 1 || things.length > RECOMMENDATION_ITEMS_MAX) throw new Error('A RECOMMENDATION HOLDS 1 TO 50 THINGS.');
@@ -69,13 +70,14 @@ export function createMockRecommendationsRepository(whoAmI: () => { id: string; 
         id,
         sender: me.id,
         senderName: me.name,
-        title: recommendationTitle(message, things),
+        title: letter ? letter.name : recommendationTitle(message, things),
         message: message.trim(),
         isPublic,
         forumThreadId: null,
         createdAt: new Date().toISOString(),
         readAt: null,
         itemCount: things.length,
+        letter: letter ?? null,
         to: new Set(people),
         read: new Map(),
         things: [...things],

@@ -14,6 +14,10 @@ import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../lib
 import { searchEverywhere } from '../lib/web/everywhere-client';
 import { rowAddresses } from '../lib/web/row-addresses';
 import { useComms } from './CommsProvider';
+import LetterStamp from './LetterStamp';
+import { placeCard } from '../lib/letters/placement';
+import type { Placement } from '../lib/letters/types';
+import type { RecommendationLetter } from '../lib/recommendations/types';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
 import { parseWebTrackId } from '../lib/web/web-audio';
@@ -23,7 +27,10 @@ type Source = 'pre' | 'letters' | 'playlists' | 'search';
 type Dragged = { from: 'pre' | 'queue'; at: number };
 const sameThing = (a: LetterThing, b: LetterThing) => a.kind === b.kind && a.ref === b.ref;
 
-export type SendInput = { message: string; isPublic: boolean; things: LetterThing[]; to: string[]; title: string };
+export type SendInput = { message: string; isPublic: boolean; things: LetterThing[]; to: string[]; title: string; letter: RecommendationLetter | null };
+
+/** A whole letter added to the queue: its look, and where each of its things sat on its canvas, by `kind:ref`. */
+type LetterCopy = Omit<RecommendationLetter, 'places'> & { placeOf: Record<string, Placement> };
 
 /**
  * Making a recommendation (SPEC-recommendations.md), split as the stream queue is: on the right the PRE-LIST, filled from
@@ -61,7 +68,11 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
     });
   };
   /** A whole letter, less what was unticked, into the queue at once; its name becomes the message, so the title. */
-  const addLetter = (things: LetterThing[], name: string) => {
+  const [letterCopy, setLetterCopy] = useState<LetterCopy | null>(null);
+  /** A whole letter (or a playlist), less what was unticked, into the queue at once; its name the title. A letter's look and
+   *  its cards' spots come too, so the recommendation carries the letter itself (Luke, 2026-11-11). */
+  const addLetter = (things: LetterThing[], name: string, copy?: LetterCopy) => {
+    if (copy) setLetterCopy(copy);
     const fresh = things.filter((thing) => !queue.some((each) => sameThing(each, thing)));
     const room = RECOMMENDATION_ITEMS_MAX - queue.length;
     setQueue((held) => [...held, ...fresh.slice(0, room)]);
@@ -95,9 +106,19 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
       return;
     }
     setBusy(true);
+    // The letter's cards keep their spots; anything added beside them lands somewhere clear on its canvas.
+    const letter: RecommendationLetter | null = letterCopy
+      ? (() => {
+          const { placeOf, ...look } = letterCopy;
+          const places: Placement[] = [];
+          for (const thing of queue) places.push(placeOf[`${thing.kind}:${thing.ref}`] ?? placeCard(places));
+          return { ...look, places };
+        })()
+      : null;
     try {
-      await onSend({ message: message.trim(), isPublic, things: queue, to, title: recommendationTitle(message, queue) });
+      await onSend({ message: message.trim(), isPublic, things: queue, to, title: letter ? letter.name : recommendationTitle(message, queue), letter });
       setQueue([]);
+      setLetterCopy(null);
       setMessage('');
       setTo([]);
       setIsPublic(false);
@@ -201,7 +222,16 @@ export default function RecommendationComposer({ me, onSend }: { me: string; onS
           className={FIELD_TIGHT}
         />
       </label>
-      {queue.length > 0 ? <p className="text-label text-ink-quiet">TITLE: {recommendationTitle(message, queue)}</p> : null}
+      {queue.length > 0 ? <p className="text-label text-ink-quiet">TITLE: {letterCopy ? letterCopy.name : recommendationTitle(message, queue)}</p> : null}
+      {letterCopy ? (
+        <p className="flex flex-wrap items-center gap-2 text-label text-ink">
+          <LetterStamp letter={letterCopy} scale={2} />
+          <span>THE LETTER &quot;{letterCopy.name}&quot; GOES WITH IT: ITS ENVELOPE OPENS ITS CANVAS.</span>
+          <button type="button" className={PLATE} onClick={() => setLetterCopy(null)}>
+            [ NOT AS A LETTER ]
+          </button>
+        </p>
+      ) : null}
 
       <SendTo me={me} isPublic={isPublic} onPublic={setIsPublic} to={to} onTo={setTo} />
 
@@ -271,11 +301,12 @@ function FromLetters({
 }: {
   me: string;
   onAdd: (thing: LetterThing) => void;
-  onAddLetter: (things: LetterThing[], name: string) => void;
+  onAddLetter: (things: LetterThing[], name: string, copy?: LetterCopy) => void;
 }) {
   const letters = useLettersOf(me);
   const [letterId, setLetterId] = useState<string | null>(null);
   const { items } = useLetter(letterId);
+  const chosen = (letters.value ?? []).find((letter) => letter.id === letterId);
   if (letterId === null) {
     return (
       <ul className="p-1">
@@ -298,10 +329,26 @@ function FromLetters({
       </button>
       <WholeLetter
         key={letterId}
-        name={(letters.value ?? []).find((letter) => letter.id === letterId)?.name ?? 'LETTER'}
+        name={chosen?.name ?? 'LETTER'}
         things={(items.value ?? []).map((item) => ({ kind: item.kind, ref: item.ref, title: item.title, picture: item.picture }))}
         onAdd={onAdd}
-        onAddLetter={onAddLetter}
+        onAddLetter={(things, name) =>
+          onAddLetter(
+            things,
+            name,
+            chosen
+              ? {
+                  name: chosen.name,
+                  description: chosen.description,
+                  textColour: chosen.textColour,
+                  stampUrl: chosen.stampUrl,
+                  stampOpacity: chosen.stampOpacity,
+                  stampDensity: chosen.stampDensity,
+                  placeOf: Object.fromEntries((items.value ?? []).map((item) => [`${item.kind}:${item.ref}`, { x: item.x, y: item.y, turn: item.turn }])),
+                }
+              : undefined,
+          )
+        }
       />
     </div>
   );

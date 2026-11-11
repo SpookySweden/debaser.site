@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { LetterKind } from '../letters/types';
-import { LIST_LIMIT, RECOMMENDATION_ITEMS_MAX, type RecommendationItem, type RecommendationsRepository, type RecommendationSummary } from './types';
+import { letterFrom, LIST_LIMIT, RECOMMENDATION_ITEMS_MAX, type RecommendationItem, type RecommendationsRepository, type RecommendationSummary } from './types';
 
 type ListRow = {
   id: string;
@@ -13,6 +13,7 @@ type ListRow = {
   created_at: string;
   read_at: string | null;
   item_count: number;
+  letter: unknown;
 };
 
 type ItemRow = { id: string; position: number; kind: LetterKind; ref: string; title: string; picture: string | null };
@@ -51,6 +52,7 @@ export function createSupabaseRecommendationsRepository(client: SupabaseClient):
           createdAt: row.created_at,
           readAt: row.read_at,
           itemCount: row.item_count,
+          letter: letterFrom(row.letter),
         }),
       );
     },
@@ -81,12 +83,13 @@ export function createSupabaseRecommendationsRepository(client: SupabaseClient):
       }
       return found;
     },
-    async send({ message, isPublic, things, to }) {
+    async send({ message, isPublic, things, to, letter }) {
       const { data, error } = await client.rpc('recommendation_send', {
         p_message: message,
         p_public: isPublic,
         p_items: things.map((thing) => ({ kind: thing.kind, ref: thing.ref, title: thing.title, picture: thing.picture ?? '' })),
         p_to: [...to],
+        p_letter: letter ?? null,
       });
       if (error) {
         const said = READABLE_REFUSALS.find((words) => error.message.includes(words));
