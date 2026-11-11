@@ -63,6 +63,8 @@ const ROUTES = [
   // The search page (WEB at /web, then ARCHIVE at /archive, until 2026-11-04) and the catalogue (MEDIA at /media until then).
   ['media', '/media'],
   ['discover', '/discover'],
+  // The reader (SPEC-reader.md, 2026-11-11): its bars before the book arrives; Temp/drive-reader.cjs drives the rest live.
+  ['reader', '/read/books:OL85892W-pg345'],
   // The studio itself renders in the browser (SPEC-animator.md), so this reads its frame; scripts/drive-animate.cjs audits the panels.
   ['animate', '/animate'],
   ['beatbox', '/beatbox'],
