@@ -89,6 +89,10 @@ import RoomFloatChrome from './RoomFloatChrome';
 import RoomSettingsWindow from './RoomSettingsWindow';
 import StreamQueueWindow from './StreamQueueWindow';
 import CanvasToggle from './CanvasToggle';
+import RoomVisualiser from './RoomVisualiser';
+import VisualiserToggle from './VisualiserToggle';
+import { useVisualiserOn } from '../lib/watch/visualiser';
+import { analysableSrc } from '../lib/watch/audio-tap';
 import RoomCanvas, { CanvasSaveAsk } from './RoomCanvas';
 import { canvasDraggable, useCanvasOpen } from '../lib/watch/canvas-drag';
 import { useScreenView } from '../lib/watch/canvas-view';
@@ -1110,6 +1114,7 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
   // song plays the canvas is the default; with a video, the picture.
   const canvasAudio = song !== null;
   const screen = useScreenView(roomId, canvasAudio);
+  const visualiserOn = useVisualiserOn(roomId);
   const crownedIds = new Set(read.crowns.map((crown) => crown.userId));
   const canvasContext: CanvasContext = {
     me: user !== null ? { id: user.id, label: user.displayName } : roomGuest !== null && roomGuest.named && room.guestsCanTalk !== false ? { id: roomGuest.id, label: roomGuest.label } : null,
@@ -1169,6 +1174,8 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             // gets its own, so a library tidying up after itself never touches the next play's element.
             key={playsDirectly(link) ? 'direct' : `stream-${entryId}`}
             ref={attachVideo}
+            // Asked so the visualiser may hear it, only where the host allows that (lib/watch/audio-tap.ts); before `src`.
+            crossOrigin={playsDirectly(link) && typeof window !== 'undefined' && analysableSrc(src, window.location.origin) ? 'anonymous' : undefined}
             src={playsDirectly(link) ? src : undefined}
             preload="auto"
             playsInline
@@ -1179,7 +1186,16 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             onPause={onTime}
             // Playing again (the next file after one that would not start) clears the JOIN PLAYBACK key.
             onPlaying={() => setNeedsPress(false)}
-            onError={() => {
+            onError={(event) => {
+              // A host that turned down the visualiser's way of asking: load it again plainly before calling it dead.
+              const element = event.currentTarget;
+              if (element.getAttribute('crossorigin') !== null) {
+                const at = element.currentTime;
+                element.removeAttribute('crossorigin');
+                element.load();
+                if (at > 0) element.currentTime = at;
+                return;
+              }
               if (link !== null) setDeadEntry(entryId);
             }}
             className={`object-contain ${pictureFit}`}
@@ -1208,8 +1224,15 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
             </button>
           </div>
         ) : null}
+        {/* This viewer's music visualiser (Luke, 2026-11-11): hears the bar's song or the room's own player's file. */}
+        {visualiserOn ? (
+          <RoomVisualiser roomId={roomId} element={song !== null ? player.audioElement() : videoElement instanceof HTMLMediaElement ? videoElement : null} />
+        ) : null}
         <RoomCanvas roomId={roomId} context={canvasContext} visible={screen === 'canvas'} />
-        <CanvasToggle roomId={roomId} audio={canvasAudio} className="absolute right-1 top-1 z-30" />
+        <div className="absolute right-1 top-1 z-30 flex gap-1">
+          <VisualiserToggle roomId={roomId} />
+          <CanvasToggle roomId={roomId} audio={canvasAudio} />
+        </div>
         {pictureFloats ? <RoomFloatChrome host={pictureBox} title={entryTitle ?? 'STREAM'} onBack={onBackFromFloat} onHide={onHidePicture} /> : null}
       </div>
       {playerBar}

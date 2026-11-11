@@ -604,6 +604,17 @@ export const ART_SLOTS = [
     brief: "In a room's screen corner: switches this viewer's screen between the picture and the shared drawing canvas. Pressed (filled) while the canvas shows.",
   },
   {
+    id: 'mark-visualiser',
+    label: 'VISUALISER: THE SCREEN TOGGLE',
+    kind: 'mark',
+    path: 'assets/icons/visualiser.png',
+    shown: [[16, 16]],
+    k: 2,
+    fit: 'contain',
+    fallback: 'the key reads `[ VIS ]` (`VisualiserToggle`)',
+    brief: "In a room's screen corner, beside the canvas key: turns this viewer's music visualiser on and off (Luke, 2026-11-11). Pressed (filled) while it shows.",
+  },
+  {
     id: 'mark-pen',
     label: 'CANVAS: PEN',
     kind: 'mark',

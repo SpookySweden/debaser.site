@@ -12,6 +12,7 @@ import { getMusicRepository } from '../lib/audio/repository';
 import type { AudioTrack } from '../lib/audio/tracks';
 import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
 import { useAuth } from './AuthProvider';
+import { prepareForAnalysis } from '../lib/watch/audio-tap';
 
 /**
  * The site's one audio element, and the queue it plays.
@@ -625,6 +626,8 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
     if (track !== undefined && loadedSrc.current !== track.src) {
       swappedAt.current = Date.now();
       loadedSrc.current = track.src;
+      // Asked so the stream room's visualiser may hear it, only where the host allows that (lib/watch/audio-tap.ts).
+      prepareForAnalysis(audio, track.src);
       audio.src = track.src;
       audio.load();
     } else if (track !== undefined && playing && audio.error !== null) {

@@ -53,6 +53,8 @@
     "@tiptap/react": "^3.31.3",
     "@tiptap/starter-kit": "^3.31.3",
     "beepbox": "4.2.0",
+    "butterchurn": "^2.6.7",
+    "butterchurn-presets": "^2.4.7",
     "dashjs": "^5.2.1",
     "gifenc": "1.0.3",
     "hls.js": "^1.7.4",
