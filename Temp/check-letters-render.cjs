@@ -94,8 +94,12 @@ const AddToLetterKey = require('./letters-render-out/components/AddToLetterKey.j
   assert.match(empty, /NOTHING HERE YET/, 'an empty letter says how to fill it');
   assert.doesNotMatch(empty, /background-image/, 'and with no picture there is no pattern');
   const envelope = renderToStaticMarkup(el(LetterStamp, { letter }));
-  assert.match(envelope, /data-slot="\/assets\/letters\/envelope\.png"/, 'the envelope is Luke`s drawing, through its slot');
-  assert.match(envelope, /rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp is the letter`s picture, round');
+  // (2026-11-11) Luke's own envelope (assets/letters/envelope.png, 21x13), painted in the letter's colour on a canvas.
+  assert.match(envelope, /<canvas[^>]*width="21" height="13"[^>]*class="canvas-pixels[^"]*name-ink/, 'the envelope is Luke`s 21x13 drawing, in the letter`s colour');
+  assert.match(envelope, /--name-ink:#e6004c;filter:drop-shadow\(0 0 3px currentColor\)/, 'glowing in that colour');
+  assert.match(envelope, /left:24px;top:12px;width:15px;height:15px[\s\S]*rounded-full[^>]*><img src="https:\/\/example\.org\/stamp\.png"/, 'the stamp picture sits inside the ring, round');
+  const plain = renderToStaticMarkup(el(LetterStamp, { letter: { ...letter, textColour: undefined } }));
+  assert.match(plain, /class="canvas-pixels[^"]*text-accent-ink/, 'with no colour chosen, the theme`s accent ink');
   console.log('  ok    the canvas and the envelope');
 
   /* 4. The window: the owner's keys, and no one else's -------------------------------------- */
