@@ -76,7 +76,7 @@ const RecommendationComposer = require('./recommendations-render-out/components/
   assert.equal(letterFrom({ name: 'X', stampUrl: '//evil.example/x.png' }).stampUrl, undefined, 'a stamp address off https is dropped');
   assert.equal(letterFrom({ name: 'X', stampDensity: 99 }).stampDensity, 10, 'numbers held to their range');
   viewer = null;
-  assert.deepEqual(await store.list('public'), [], 'a private one is never public');
+  assert.deepEqual((await store.list('public')).map((rec) => rec.id), [lettered], 'a private one is never public (only the letter posted publicly is)');
   console.log('  ok    the mock store');
 
   /* 3. The page, signed out and in ----------------------------------------------------------------- */
