@@ -343,6 +343,9 @@ export function matchesFilters(
   // kept a media row only when `fromStream`, so a wildcard server's titles (found live, never ingested) were dropped
   // here and every KINO row read "NO SERVER HAS THIS".
   if (search.source === 'kino') return item.platform === 'kino' || (item.media?.copies.length ?? 0) > 0 || (fromStream && item.media !== undefined);
+  // BOOKS: Open Library's Gutenberg works and the Internet Archive's library scans it asks for (Luke, 2026-11-11), a scan
+  // keeping its own source's name. The saved stream isn't asked for BOOKS, so this only keeps what BOOKS found live.
+  if (search.source === 'books' && !fromStream && item.platform === 'internet_archive' && item.kind === 'text') return true;
   // A media-server title is one row for every server holding it: `in:server-2` keeps it when server 2 has a copy.
   return item.platform === search.source || (item.media?.copies.some((copy) => copy.server === search.source) ?? false);
 }

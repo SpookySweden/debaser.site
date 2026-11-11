@@ -7,6 +7,14 @@
  * for: key, title, author names, first publication year, cover number, ebook access and Gutenberg numbers; no counts or
  * ratings exist in the request.
  *
+ * And the Internet Archive's library scans (Luke, 2026-11-11: "currently only two books show when searching by the books
+ * filter"): public-domain books scanned by libraries (`LIBRARY_COLLECTIONS`: the American and Toronto libraries, the
+ * California Digital Library, the Library of Congress, Europe's libraries, the Universal Library), texts only, never a
+ * lending-library item. The site's reader opens each (its EPUB, else its PDF a slice at a time). They come after the
+ * Gutenberg works, as INTERNET ARCHIVE rows (`internet_archive:<identifier>`, the Archive's own adapter's items), asked
+ * at the same time; one source failing leaves the other's rows. The Archive's own Gutenberg mirror is left out: those
+ * books are Open Library's Gutenberg rows already.
+ *
  * Checked live 2026-11-10: `sort=new` and `sort=old` order by first publication, which is the date shown; there is no
  * popularity order asked for (Luke: counts decide order only, and Open Library's isn't needed). Anna's Archive and every
  * other copy of a book made without its rights holders' leave are not sources (SPEC-books.md).
@@ -15,6 +23,7 @@
  * external id is the work's key, with `-pg{n}` when Project Gutenberg has it: `OL85892W-pg345`.
  */
 import { safeFetchJson } from '../../safe-fetch';
+import { iaSearchQuery, iaSearchUrl, IA_SEARCH_HOSTS, IA_SEARCH_TIMEOUT_MS, parseIaSearch } from './internet-archive';
 import { sanitiseText } from '../../sanitise';
 import { buildUrl } from '../../urls';
 import type { WebItem } from '../../types';
@@ -23,6 +32,13 @@ import { SearchProblemError, type ProviderPage, type SearchDeps, type SearchKind
 const API_HOST = 'openlibrary.org';
 const COVER_HOST = 'covers.openlibrary.org';
 export const BOOKS_SEARCH_HOSTS = [API_HOST] as const;
+/** The Archive's collections of library-scanned books (public domain, free to read), BOOKS's second source. */
+export const LIBRARY_COLLECTIONS = ['americana', 'toronto', 'cdl', 'library_of_congress', 'europeanlibraries', 'universallibrary'] as const;
+
+/** The Archive search for BOOKS: the words in the title, the author as creator, library-scanned texts only. */
+export function libraryScanQuery(words: string, author = ''): string {
+  return `${iaSearchQuery(words, author, 'text')} AND collection:(${LIBRARY_COLLECTIONS.join(' OR ')})`;
+}
 export const BOOKS_PAGE_SIZE = 20;
 const MAX_PAGE = 25;
 const WORK_KEY = /^\/works\/(OL[1-9][0-9]{0,11}W)$/;
@@ -90,7 +106,7 @@ function pageNumber(page: ProviderPage | null): number {
 
 export const booksSearch: SearchProvider = {
   platform: 'books',
-  allowedHosts: BOOKS_SEARCH_HOSTS,
+  allowedHosts: [...BOOKS_SEARCH_HOSTS, ...IA_SEARCH_HOSTS],
   timeoutMs: 12_000,
   orders: ['newest', 'oldest'],
   byAuthor: true,
@@ -99,21 +115,34 @@ export const booksSearch: SearchProvider = {
     if (words.length === 0 && author.length === 0) return { items: [], next: null };
     const at = pageNumber(page);
     const order = deps.order === 'newest' || deps.order === 'oldest' ? deps.order : 'relevance';
-    let body: unknown;
-    try {
-      body = await safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch });
-    } catch {
-      throw new SearchProblemError('NO ANSWER');
-    }
-    const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
-    const docs = Array.isArray(record.docs) ? record.docs : [];
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
-    // Asked for Gutenberg works only; anything that still comes back without a copy is dropped, so every row reads here.
-    const items = docs
-      .map((doc) => toBookItem(doc, fetchedAt))
-      .filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null);
-    const found = typeof record.numFound === 'number' ? record.numFound : 0;
-    return { items, next: at < MAX_PAGE && at * BOOKS_PAGE_SIZE < found ? at + 1 : null };
+    // Both sources at once: Open Library's Gutenberg works, and the Archive's library scans.
+    const [gutenberg, scans] = await Promise.allSettled([
+      safeFetchJson(booksSearchUrl(words, at, author, order), { allowedHosts: BOOKS_SEARCH_HOSTS, fetchImpl: deps.fetch }),
+      safeFetchJson(iaSearchUrl(libraryScanQuery(words, author), at, order), { allowedHosts: IA_SEARCH_HOSTS, fetchImpl: deps.fetch, timeoutMs: IA_SEARCH_TIMEOUT_MS }),
+    ]);
+    if (gutenberg.status === 'rejected' && scans.status === 'rejected') throw new SearchProblemError('NO ANSWER');
+    let items: WebItem[] = [];
+    let more = false;
+    if (gutenberg.status === 'fulfilled') {
+      const record = gutenberg.value && typeof gutenberg.value === 'object' ? (gutenberg.value as Record<string, unknown>) : {};
+      const docs = Array.isArray(record.docs) ? record.docs : [];
+      // Asked for Gutenberg works only; anything that still comes back without a copy is dropped, so every row reads here.
+      items = docs.map((doc) => toBookItem(doc, fetchedAt)).filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null);
+      const found = typeof record.numFound === 'number' ? record.numFound : 0;
+      more = at * BOOKS_PAGE_SIZE < found;
+    }
+    if (scans.status === 'fulfilled') {
+      try {
+        const scanned = parseIaSearch(scans.value, at, fetchedAt);
+        // Texts only (the query asks so; `toWebItem` has already dropped any lending-library item).
+        items = [...items, ...scanned.items.filter((item) => item.kind === 'text')];
+        more = more || scanned.next !== null;
+      } catch {
+        // An answer of the wrong shape is no rows, as a failed request is.
+      }
+    }
+    return { items, next: at < MAX_PAGE && more ? at + 1 : null };
   },
   // A BOOKS row is never saved into the stream: its book page reads it again from Open Library when it's opened.
   async fetchOne(): Promise<WebItem | null> {

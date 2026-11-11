@@ -57,6 +57,11 @@ ok(f.matchesFilters({ platform: 'server_1', kind: 'video', media: { type: 'movie
 ok(f.matchesFilters({ platform: 'server_1', kind: 'video', media: { type: 'movie', copies: [{ server: 'server_1' }] } }, { source: 'kino', type: 'all' }, false), 'and a media server title found live (a wildcard server, not from the stream)');
 ok(!f.matchesFilters({ platform: 'youtube', kind: 'video' }, { source: 'kino', type: 'all' }, true), 'and nothing else from the stream');
 ok(f.matchesFilters({ platform: 'kino', kind: 'video', media: { type: 'movie', copies: [], details: { title: 'x', genres: [] } } }, { source: 'kino', type: 'all' }, false), 'a KINO row with no copy is still kept, by its platform');
+// BOOKS (Luke, 2026-11-11: "currently only two books show"): its live rows include the Internet Archive's library scans.
+ok(f.matchesFilters({ platform: 'books', kind: 'text' }, { source: 'books', type: 'all' }, false), 'BOOKS keeps its Gutenberg rows');
+ok(f.matchesFilters({ platform: 'internet_archive', kind: 'text' }, { source: 'books', type: 'all' }, false), 'and the Archive`s library scans it found live');
+ok(!f.matchesFilters({ platform: 'internet_archive', kind: 'video' }, { source: 'books', type: 'all' }, false), 'but no Archive film');
+ok(!f.matchesFilters({ platform: 'internet_archive', kind: 'text' }, { source: 'books', type: 'all' }, true), 'and nothing from the saved stream');
 same(f.parseWebSearch('in:vidsrc type:movie z'), { text: 'z', source: 'all', type: 'all' }, 'unknown values are dropped, never passed on');
 same(f.parseWebSearch('in:__proto__ in:constructor q'), { text: 'q', source: 'all', type: 'all' }, 'object-key tricks are unknown values');
 same(f.parseWebSearch('within:youtube tin:x'), { text: 'within:youtube tin:x', source: 'all', type: 'all' }, 'only whole in: / type: words are filters');

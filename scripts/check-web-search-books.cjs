@@ -28,10 +28,34 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
 (async () => {
   /* BOOKS ------------------------------------------------------------------------------------- */
   const olFixture = JSON.parse(readFileSync(join(__dirname, 'fixtures', 'web', 'search-books.json'), 'utf8'));
-  const { fetch, urls } = fakeFetch(olFixture);
+  // (2026-11-11, Luke: "currently only two books show") BOOKS also asks the Archive for its library scans: made-up answers.
+  const iaScans = {
+    response: {
+      numFound: 3,
+      docs: [
+        { identifier: 'made_up_scan_one', title: 'A Made-Up Library Scan', mediatype: 'texts', publicdate: '2009-01-01T00:00:00Z', creator: 'Nobody' },
+        { identifier: 'made_up_lent', title: 'Lent Only', mediatype: 'texts', publicdate: '2009-01-01T00:00:00Z', 'access-restricted-item': 'true' },
+        { identifier: 'made_up_film', title: 'Not A Book', mediatype: 'movies', publicdate: '2009-01-01T00:00:00Z' },
+      ],
+    },
+  };
+  const urls = [];
+  const routed = (ol, ia) => async (url) => {
+    urls.push(url);
+    const host = new URL(url).hostname;
+    const body = host === 'openlibrary.org' ? ol : ia;
+    if (body === null) return new Response('down', { status: 503 });
+    return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  const fetch = routed(olFixture, iaScans);
   const page = await books.booksSearch.search('dracula', null, deps(fetch));
-  same(urls.length, 1, 'one request a BOOKS search');
-  const asked = new URL(urls[0]);
+  same(urls.length, 2, 'two requests a BOOKS search: Open Library and the Archive, at once');
+  const asked = new URL(urls.find((url) => url.includes('openlibrary.org')));
+  const askedIa = new URL(urls.find((url) => url.includes('archive.org')));
+  ok(/mediatype:\(texts\) AND NOT access-restricted-item:true/.test(askedIa.searchParams.get('q')), 'the Archive is asked for texts, never a lending-library item');
+  ok(/collection:\(americana OR toronto OR cdl OR library_of_congress OR europeanlibraries OR universallibrary\)/.test(askedIa.searchParams.get('q')), 'from the libraries` scans');
+  ok(/title:\(dracula\)/.test(askedIa.searchParams.get('q')), 'the words in the title');
+  ok(!/gutenberg/.test(askedIa.searchParams.get('q')), 'not the Archive`s Gutenberg mirror (those are Open Library`s rows)');
   same(asked.hostname, 'openlibrary.org', 'asked of Open Library');
   ok(!/count|rating|want|read|edition/.test(asked.searchParams.get('fields')), 'no counts or ratings asked for');
   // Luke, 2026-11-11: "make sure that any books searched for are opened within the sites own ereader". Only works with a
@@ -39,15 +63,33 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   same(asked.searchParams.get('q'), 'dracula id_project_gutenberg:*', 'only works with a Gutenberg copy are asked for');
   same(new URL(books.booksSearchUrl('', 1, 'austen')).searchParams.get('q'), 'id_project_gutenberg:*', 'an author search too');
   ok(olFixture.docs.some((doc) => !doc.id_project_gutenberg), 'the fixture holds works without a Gutenberg copy');
-  same(page.items.length, 1, 'only the work the reader can open is a row');
-  for (const item of page.items) {
+  const gutenbergRows = page.items.filter((item) => item.platform === 'books');
+  const scanRows = page.items.filter((item) => item.platform === 'internet_archive');
+  same(gutenbergRows.length, 1, 'only the Open Library work the reader can open is a row');
+  for (const item of gutenbergRows) {
     checkItem(asserts, rowAddresses, item, item.title);
     same(item.kind, 'text', 'a book is text');
     ok(item.embedUrl === undefined, 'no player');
     ok(/-pg[1-9][0-9]*$/.test(item.externalId), 'every row carries its Gutenberg number, so READ opens it at /read');
     ok(item.description === undefined, 'and has no "free to read" line (Luke, 2026-11-11): its date is the year it came out');
   }
-  same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number');
+  same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number, and comes first');
+  same(scanRows.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'then the library scans: the lent item and the film are left out');
+  checkItem(asserts, rowAddresses, scanRows[0], scanRows[0].title);
+  same(scanRows[0].kind, 'text');
+  same(page.next, 2, 'and there is more to page through');
+  urls.length = 0;
+  const olDown = await books.booksSearch.search('dracula', null, deps(routed(null, iaScans)));
+  same(olDown.items.map((item) => item.id), ['internet_archive:made_up_scan_one'], 'Open Library down: the scans still show');
+  const iaDown = await books.booksSearch.search('dracula', null, deps(routed(olFixture, null)));
+  same(iaDown.items.map((item) => item.platform), ['books'], 'the Archive down: the Gutenberg rows still show');
+  let bothDown = null;
+  try {
+    await books.booksSearch.search('dracula', null, deps(routed(null, null)));
+  } catch (error) {
+    bothDown = error;
+  }
+  ok(bothDown !== null, 'both down: the search says so');
   same(books.bookParts('OL85892W-pg345'), { work: 'OL85892W', gutenberg: '345' });
   same(books.bookParts('OL85892W/../x'), null, 'a bad id is refused');
   same(new URL(books.booksSearchUrl('dracula', 2, '', 'newest')).searchParams.get('sort'), 'new', 'newest is Open Library`s own sort=new');
