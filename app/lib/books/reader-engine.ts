@@ -2,7 +2,8 @@
  * The reader's engine (SPEC-reader.md, Luke 2026-11-11): foliate-js, a pinned copy in `vendor/foliate-js/` (MIT; see its
  * README-DEBASER.md). BROWSER ONLY: loaded on the reader page alone, never on the server.
  *
- * The book arrives as a Blob from the site's own route (/api/web/book/epub), never as an address the engine could fetch.
+ * The book arrives as a Blob from the site's own route (/api/web/book/epub), or for a book on IPFS from a gateway fetched by
+ * the reader's own code (`ipfs.ts`), never as an address the engine could fetch.
  * No script from a book ever runs: script files are refused before they load, and each chapter has its `<script>`
  * elements, `on...` attributes, `javascript:` links and embedded frames taken out, and a Content-Security-Policy written
  * into its head (`CHAPTER_POLICY`: no scripts; pictures, styles and fonts only from the book itself, and the site's own

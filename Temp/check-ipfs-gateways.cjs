@@ -1,9 +1,11 @@
 /*
  * Books on IPFS, step 1 (Luke, 2026-11-11): the book ref, the gateways and the browser's gateway fetcher, offline.
- *   npx tsc app/lib/books/ipfs.ts --outDir Temp/out-ipfs --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
+ *   npx tsc app/lib/books/ipfs.ts app/lib/books/types.ts --outDir Temp/out-ipfs --rootDir app --module commonjs --target es2022 --lib es2022,dom --skipLibCheck --esModuleInterop --moduleResolution node
  *   node Temp/check-ipfs-gateways.cjs
  *
  * - only a real CID is a book address (`ipfs:Qm...` or `ipfs:b...`): nothing that could carry a path, query or address
+ * - the reader takes exactly those (`isReadable`), beside the Gutenberg and Archive books it took before
+ *   (Temp/drive-reader-ipfs.cjs opens one in a real browser: the waiting line, the book, NO COPY, BLOCKED, TRY AGAIN)
  * - each gateway is asked as `https://<host>/ipfs/<cid>`, in order, one at a time, with no cookies and no referrer
  * - a gateway that doesn't start answering is cancelled (its connection aborted) and the next is asked
  * - a book that stops arriving part way is cancelled the same way
@@ -104,6 +106,14 @@ async function problemOf(promise) {
   ]) {
     ok(ipfs.ipfsCid(bad) === null, `not a book address: ${bad.slice(0, 50)}`);
   }
+
+  /* 1b. the reader opens them, and still the books it opened before ------------------------------- */
+  const types = require(path.join(__dirname, 'out-ipfs', 'lib', 'books', 'types.js'));
+  ok(types.isReadable(`ipfs:${V0}`) && types.isReadable(`ipfs:${V1}`), 'the reader opens an ipfs: book');
+  ok(!types.isReadable(`ipfs:${V0}/x`) && !types.isReadable('ipfs:https://evil.example/x') && !types.isReadable('ipfs:'), 'and nothing that only looks like one');
+  ok(types.isReadable('books:OL85892W-pg345') && types.isReadable('internet_archive:dracula00stok'), 'Gutenberg and Archive books still open');
+  ok(!types.isReadable('youtube:abc') && !types.isReadable('books:OL85892W'), 'other refs still do not');
+  ok(types.readHref(`ipfs:${V1}`) === `/read/ipfs:${V1}`, "an ipfs: book's reader address");
 
   /* 2. staying on the gateway --------------------------------------------------------------------- */
   ok(ipfs.onGateway(`https://4everland.io/ipfs/${V0}`, '4everland.io'), 'the gateway itself');

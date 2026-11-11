@@ -18,6 +18,7 @@ import {
 } from '../../lib/books/reader-look';
 import { bookKind, loadEngine, metadataText, openBook, remotePdf, type EngineView, type HighlightDraw, type TocItem } from '../../lib/books/reader-engine';
 import { getBooksRepository } from '../../lib/books/repository';
+import { fetchFromGateways, ipfsCid, IpfsFetchError, IPFS_MAX_BYTES, type IpfsProblem, type IpfsProgress } from '../../lib/books/ipfs';
 import {
   bookThreadAnchor,
   bookThreadTitle,
@@ -41,6 +42,21 @@ const TURN_WAIT_MS = 250;
 const NONE_HIGHLIGHTED: BookHighlight[] = [];
 const NONE_BOOKMARKED: BookBookmark[] = [];
 const placeKey = (bookRef: string) => `debaser-reader-place:${bookRef}`;
+
+/** What the reader says when no IPFS gateway gave the book (`ipfs.ts`). */
+const IPFS_LINES: Record<IpfsProblem, string> = {
+  'NOT A BOOK ADDRESS': "THIS BOOK CAN'T BE READ HERE.",
+  'NO COPY FOUND': 'NO COPY FOUND ON IPFS.',
+  'SOURCE NOT ANSWERING': 'SOURCE NOT ANSWERING. TRY AGAIN.',
+  'BLOCKED BY THE SOURCE': 'BLOCKED BY THE SOURCE. TRY AGAIN LATER.',
+  'TOO BIG TO READ HERE': `TOO BIG TO READ HERE. THE LIMIT IS ${IPFS_MAX_BYTES / (1024 * 1024)} MB.`,
+};
+
+/** How much of an IPFS book has come: a percentage when the gateway said its size, else megabytes. */
+function arrivedText(progress: IpfsProgress): string {
+  if (progress.total) return `${Math.min(100, Math.floor((progress.loaded / progress.total) * 100))}%`;
+  return `${(progress.loaded / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 /** Per-browser memory (a visitor's look and place): never trusted, never required. */
 function remembered(key: string): string | null {
@@ -102,6 +118,8 @@ type Shown = { highlight: BookHighlight; spot: BarSpot };
  * Since Luke's asks of 2026-11-11 it also reads an Internet Archive book: its own EPUB, else its PDF a slice at a time (fixed
  * pages: no highlights there, the engine can't draw them on a PDF), else the Archive's own viewer. And a reader's own PDF or
  * EPUB (`bookRef` null, at /read): opened in this browser from their device, never sent anywhere, nothing saved about it.
+ * And a book on IPFS (`ipfs:<CID>`, Luke 2026-11-11): fetched by this browser from a public gateway (`lib/books/ipfs.ts`),
+ * with how much has come shown as it arrives, a line and TRY AGAIN when no gateway gives it, and its title from the book.
  */
 export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | null }) {
   const own = askedRef === null;
@@ -131,6 +149,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const [kind, setKind] = useState<'epub' | 'pdf' | null>(null);
   const [ownFile, setOwnFile] = useState<File | null>(null);
   const [openCount, setOpenCount] = useState(0);
+  // An IPFS book (`ipfs:<CID>`): fetched by this browser from a gateway, and how much of it has come.
+  const ipfs = own ? null : ipfsCid(bookRef);
+  const [arriving, setArriving] = useState<IpfsProgress | null>(null);
   const resumeRef = useRef<string | null>(null);
   const kindRef = useRef<'epub' | 'pdf' | null>(null);
   const [title, setTitle] = useState('');
@@ -218,7 +239,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   // ---------- the book's title, from its catalogue (the thread's name uses it) ----------
 
   useEffect(() => {
-    if (own) return;
+    // An IPFS book has no catalogue: its title comes from the book itself once it opens.
+    if (own || ipfsCid(bookRef)) return;
     let live = true;
     fetch(`/api/web/book/info?ref=${encodeURIComponent(bookRef)}`)
       .then((response) => (response.ok ? response.json() : null))
@@ -368,10 +390,18 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     let live = true;
     let view: EngineView | null = null;
     const host = hostRef.current;
+    // Leaving the page (or another book) cancels an IPFS book still arriving, and no other gateway is asked.
+    const leaving = new AbortController();
     (async () => {
       try {
         let file: Blob;
-        if (own) {
+        const cid = own ? null : ipfsCid(bookRef);
+        if (cid) {
+          // A book on IPFS: fetched by this browser straight from a gateway, one at a time, into memory (ipfs.ts).
+          setArriving(null);
+          const got = await fetchFromGateways(cid, { signal: leaving.signal, onProgress: (progress) => live && setArriving(progress) });
+          file = got.blob;
+        } else if (own) {
           // A reader's own file: opened here, from their device, never sent anywhere.
           if (!ownFile) {
             setPhase('choose');
@@ -505,11 +535,14 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         await view.init({ lastLocation: start, showTextStart: start === null });
         if (live) setPhase('ready');
       } catch (error) {
-        if (live) setPhase({ fault: error instanceof Error && /^[A-Z0-9 .,'!?-]+$/.test(error.message) ? error.message : 'THIS BOOK COULD NOT BE OPENED.' });
+        if (!live) return;
+        if (error instanceof IpfsFetchError) setPhase({ fault: IPFS_LINES[error.problem] });
+        else setPhase({ fault: error instanceof Error && /^[A-Z0-9 .,'!?-]+$/.test(error.message) ? error.message : 'THIS BOOK COULD NOT BE OPENED.' });
       }
     })();
     return () => {
       live = false;
+      leaving.abort();
       if (placeTimer.current !== null) window.clearTimeout(placeTimer.current);
       view?.close();
       view?.remove();
@@ -741,7 +774,11 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         ) : null}
         {phase === 'reading-file' || phase === 'opening' ? (
           <p className="absolute inset-x-0 top-1/3 text-center text-label" role="status">
-            {phase === 'reading-file' ? `READING THE BOOK FROM ${archiveViewerUrl(bookRef) ? 'THE INTERNET ARCHIVE' : 'PROJECT GUTENBERG'}...` : 'OPENING THE BOOK...'}
+            {phase === 'reading-file'
+              ? ipfs
+                ? `READING THE BOOK FROM IPFS${arriving ? ` (${arriving.gateway})... ${arrivedText(arriving)}` : '...'}`
+                : `READING THE BOOK FROM ${archiveViewerUrl(bookRef) ? 'THE INTERNET ARCHIVE' : 'PROJECT GUTENBERG'}...`
+              : 'OPENING THE BOOK...'}
           </p>
         ) : null}
         {phase === 'viewer' ? (
@@ -758,9 +795,24 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         {typeof phase === 'object' ? (
           <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4">
             <p className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">{phase.fault}</p>
-            <button type="button" onClick={back} className={PLATE}>
-              [ ◀ BACK ]
-            </button>
+            <div className="flex flex-wrap justify-center gap-1">
+              {/* An IPFS book may come next time: gateways are slow, and a file nobody held may be held again. */}
+              {ipfs ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPhase('reading-file');
+                    setOpenCount((count) => count + 1);
+                  }}
+                  className={PLATE_MAIN}
+                >
+                  [ TRY AGAIN ]
+                </button>
+              ) : null}
+              <button type="button" onClick={back} className={PLATE}>
+                [ ◀ BACK ]
+              </button>
+            </div>
           </div>
         ) : null}
         {fault ? (
