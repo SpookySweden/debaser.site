@@ -106,6 +106,11 @@ export type SearchProvider = {
   /** The platform can ask for one creator itself (Internet Archive, Openverse); the rest search the name as words. */
   byAuthor?: boolean;
   /**
+   * Other platforms this provider may answer for, named here in code: BOOKS lists the Internet Archive's library scans as
+   * INTERNET ARCHIVE rows (Luke, 2026-11-11). run.ts still drops any item claiming a platform not named.
+   */
+  alsoAnswersFor?: readonly WebPlatform[];
+  /**
    * One item by its external id, from the platform's own API: how the hourly ingest saves an item someone
    * opened (`web_requests`). Null when the platform no longer has it, or it is not one WEB keeps.
    */

@@ -102,17 +102,18 @@ export async function searchEverywhere(
   const seen = new Set<string>();
   const lists: WebItem[][] = [];
   settled.forEach((outcome, index) => {
-    const { platform } = asked[index];
+    const { platform, alsoAnswersFor = [] } = asked[index];
     if (outcome.status === 'rejected') {
       statuses.push({ platform, problem: problemOf(outcome.reason) });
       return;
     }
     statuses.push({ platform, problem: outcome.value.note ?? null });
-    // A provider answers only for itself: an item claiming another platform is dropped.
+    // A provider answers only for itself (and any platform it names in code, `alsoAnswersFor`): an item claiming
+    // another platform is dropped.
     const own: WebItem[] = [];
     for (const item of outcome.value.items) {
       if (author !== null && !matchesAuthor(item, [author])) continue;
-      if (item.platform === platform && !seen.has(item.id)) {
+      if ((item.platform === platform || alsoAnswersFor.includes(item.platform)) && !seen.has(item.id)) {
         seen.add(item.id);
         own.push(item);
       }

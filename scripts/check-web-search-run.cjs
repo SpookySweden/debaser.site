@@ -154,6 +154,17 @@ function provider(platform, behaviour, timeoutMs = 200) {
   for (let i = 0; i < 50; i += 1) await outcome('a');
   same(free.calls.length, 55, 'a provider without a budget is always asked');
 
+  /* ------------------------------------------- a provider answering for a platform it names (BOOKS, 2026-11-11) */
+  const booksLike = provider('books', () => ({
+    items: [item('books', 'gutenberg', '2026-01-01T00:00:00Z'), item('internet_archive', 'scan', '2026-01-02T00:00:00Z'), item('youtube', 'stray', '2026-01-03T00:00:00Z')],
+    next: null,
+  }));
+  booksLike.alsoAnswersFor = ['internet_archive'];
+  const named = await searchEverywhere('dracula', null, [booksLike]);
+  same(named.items.map((each) => each.id).sort(), ['books:gutenberg', 'internet_archive:scan'], 'BOOKS keeps the Archive scans it names, and still not a stray platform');
+  const unnamed = provider('books', () => ({ items: [item('internet_archive', 'scan', '2026-01-02T00:00:00Z')], next: null }));
+  same((await searchEverywhere('dracula', null, [unnamed])).items, [], 'without naming it, the Archive row is dropped as before');
+
   asserts.done();
 })().catch((error) => {
   console.log(`FAIL ${error.stack}`);

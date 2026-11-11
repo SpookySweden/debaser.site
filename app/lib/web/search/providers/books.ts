@@ -107,6 +107,8 @@ function pageNumber(page: ProviderPage | null): number {
 export const booksSearch: SearchProvider = {
   platform: 'books',
   allowedHosts: [...BOOKS_SEARCH_HOSTS, ...IA_SEARCH_HOSTS],
+  // The library scans keep their own source's name: INTERNET ARCHIVE rows (run.ts would drop them otherwise).
+  alsoAnswersFor: ['internet_archive'],
   timeoutMs: 12_000,
   orders: ['newest', 'oldest'],
   byAuthor: true,
