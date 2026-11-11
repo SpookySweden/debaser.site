@@ -4,7 +4,7 @@
  *
  * - the fixtures (5 real Open Library works and 5 real LibriVox books for "dracula", 2026-11-10; LibriVox's summaries are
  *   replaced by a short line, so only its shape is kept) parse into rows the page would draw: link and cover, never a player
- * - a work with a Project Gutenberg copy carries its number in its id, so the reader can open it; others don't
+ * - only works with a Project Gutenberg copy are asked for and kept (Luke, 2026-11-11), each carrying its number, so READ opens it in the reader
  * - one request a BOOKS search; the date orders are Open Library's own; a TYPE that isn't text finds nothing
  * - AUDIOBOOKS asks the start of a title, then the whole title, then an author, stopping at the first that finds something;
  *   a 404 is "nothing", not a failure; DATE reads up to 200 and orders them itself
@@ -34,14 +34,20 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   const asked = new URL(urls[0]);
   same(asked.hostname, 'openlibrary.org', 'asked of Open Library');
   ok(!/count|rating|want|read|edition/.test(asked.searchParams.get('fields')), 'no counts or ratings asked for');
-  ok(page.items.length >= 4, 'the real works parse');
+  // Luke, 2026-11-11: "make sure that any books searched for are opened within the sites own ereader". Only works with a
+  // Project Gutenberg copy are asked for, and any that come back without one are dropped (the fixture still has them).
+  same(asked.searchParams.get('q'), 'dracula id_project_gutenberg:*', 'only works with a Gutenberg copy are asked for');
+  same(new URL(books.booksSearchUrl('', 1, 'austen')).searchParams.get('q'), 'id_project_gutenberg:*', 'an author search too');
+  ok(olFixture.docs.some((doc) => !doc.id_project_gutenberg), 'the fixture holds works without a Gutenberg copy');
+  same(page.items.length, 1, 'only the work the reader can open is a row');
   for (const item of page.items) {
     checkItem(asserts, rowAddresses, item, item.title);
     same(item.kind, 'text', 'a book is text');
     ok(item.embedUrl === undefined, 'no player');
+    ok(/-pg[1-9][0-9]*$/.test(item.externalId), 'every row carries its Gutenberg number, so READ opens it at /read');
+    ok(/FREE TO READ HERE\./.test(item.description ?? ''), 'and says it reads here');
   }
   same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number');
-  ok(page.items.slice(1).every((item) => !/-pg/.test(item.externalId)), 'and the others do not');
   same(books.bookParts('OL85892W-pg345'), { work: 'OL85892W', gutenberg: '345' });
   same(books.bookParts('OL85892W/../x'), null, 'a bad id is refused');
   same(new URL(books.booksSearchUrl('dracula', 2, '', 'newest')).searchParams.get('sort'), 'new', 'newest is Open Library`s own sort=new');

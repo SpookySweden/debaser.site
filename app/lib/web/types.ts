@@ -105,7 +105,7 @@ export const PLATFORM_LABELS: Record<WebPlatform, string> = {
   vimeo: 'VIMEO',
   // TMDB's films and shows, asked only when KINO is the SOURCE (search/providers/kino.ts).
   kino: 'KINO',
-  // Open Library's catalogue, read in the site's reader when Project Gutenberg has it (SPEC-books.md).
+  // Open Library's catalogue, its works with a Project Gutenberg copy only, each read in the site's reader (SPEC-books.md, SPEC-reader.md).
   books: 'BOOKS',
   // LibriVox's catalogue; chapters play in the music bar from archive.org (SPEC-books.md).
   audiobooks: 'AUDIOBOOKS',

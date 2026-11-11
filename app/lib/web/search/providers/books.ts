@@ -1,9 +1,11 @@
 /**
  * BOOKS (SPEC-books.md, Luke 2026-11-10): Open Library's search API (openlibrary.org/search.json, keyless, JSON), asked only
- * when BOOKS is the SOURCE. Open Library's catalogue covers every kind of book; when one of its works has a Project
- * Gutenberg copy (`id_project_gutenberg`) the site's own reader can open it (/api/web/book), and otherwise the row links to
- * the work on Open Library, where it can be read or borrowed if Open Library has it. Asked for: key, title, author names,
- * first publication year, cover number, ebook access and Gutenberg numbers; no counts or ratings exist in the request.
+ * when BOOKS is the SOURCE. Only works with a Project Gutenberg copy are asked for (`id_project_gutenberg:*` added to the
+ * query; Luke, 2026-11-11: "make sure that any books searched for are opened within the sites own ereader"), so every row
+ * opens in the site's own reader at /read (SPEC-reader.md). Open Library's borrowable books are in copyright and lent by
+ * Open Library alone, so they may not be copied into the reader, and BOOKS leaves them out rather than link away. Asked
+ * for: key, title, author names, first publication year, cover number, ebook access and Gutenberg numbers; no counts or
+ * ratings exist in the request.
  *
  * Checked live 2026-11-10: `sort=new` and `sort=old` order by first publication, which is the date shown; there is no
  * popularity order asked for (Luke: counts decide order only, and Open Library's isn't needed). Anna's Archive and every
@@ -34,9 +36,12 @@ export function bookParts(externalId: string): { work: string; gutenberg: string
   return match ? { work: match[1], gutenberg: match[2] ?? null } : null;
 }
 
+/** The filter that keeps only works with a Project Gutenberg copy: the ones the site's reader can open. */
+export const GUTENBERG_ONLY = 'id_project_gutenberg:*';
+
 export function booksSearchUrl(words: string, page: number, author = '', order: 'relevance' | 'newest' | 'oldest' = 'relevance'): string {
   return buildUrl(API_HOST, ['search.json'], [
-    ...(words.length > 0 ? ([['q', words]] as const) : []),
+    ['q', words.length > 0 ? `${words} ${GUTENBERG_ONLY}` : GUTENBERG_ONLY],
     ...(author.length > 0 ? ([['author', author]] as const) : []),
     ['fields', FIELDS],
     ['limit', String(BOOKS_PAGE_SIZE)],
@@ -111,7 +116,10 @@ export const booksSearch: SearchProvider = {
     const record = body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
     const docs = Array.isArray(record.docs) ? record.docs : [];
     const fetchedAt = (deps.now?.() ?? new Date()).toISOString();
-    const items = docs.map((doc) => toBookItem(doc, fetchedAt)).filter((item): item is WebItem => item !== null);
+    // Asked for Gutenberg works only; anything that still comes back without a copy is dropped, so every row reads here.
+    const items = docs
+      .map((doc) => toBookItem(doc, fetchedAt))
+      .filter((item): item is WebItem => item !== null && bookParts(item.externalId)?.gutenberg != null);
     const found = typeof record.numFound === 'number' ? record.numFound : 0;
     return { items, next: at < MAX_PAGE && at * BOOKS_PAGE_SIZE < found ? at + 1 : null };
   },
