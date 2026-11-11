@@ -55,6 +55,13 @@ export const DYES = {
   deepGreen: '#0b521b',
   lightRed: '#ff5c7a',
   lightBlue: '#7ea6ff',
+  // The reader's papers (SPEC-reader.md, Luke 2026-11-11): reading colours chosen for long reading, worn only by the
+  // reader-* tokens. A warm off-White page with Nigrosine words, Nigrosine with a soft lilac-White (less glare than
+  // Pure White for hours of reading), and sepia: a cream page with deep brown words.
+  vellum: '#faf8f2',
+  moonInk: '#e6e1ee',
+  sepiaPaper: '#f4ecd8',
+  sepiaInk: '#4b3826',
 } as const;
 
 export type ThemeId = 'default' | 'dark' | 'sherbet-pink' | 'sherbet-night' | 'sherbet-mint';
@@ -201,6 +208,25 @@ export type ThemeTokens = {
   'cover-card': string;
   'cover-card-title': string;
   'cover-card-ink': string;
+  /**
+   * The reader's three papers and their words (SPEC-reader.md): the book's own page at /read, picked in its LOOK settings,
+   * the same in every site theme (the paper is the reader's choice, not the theme's). Each pair clears 4.5:1.
+   */
+  'reader-light-paper': string;
+  'reader-light-ink': string;
+  'reader-dark-paper': string;
+  'reader-dark-ink': string;
+  'reader-sepia-paper': string;
+  'reader-sepia-ink': string;
+  /**
+   * The five highlight colours (SPEC-reader.md), laid over the page's words as a tint (`app/lib/books/reader-look.ts`
+   * says how strong on each paper, and `Temp/check-reader.cjs` holds the words readable through every one).
+   */
+  'mark-yellow': string;
+  'mark-pink': string;
+  'mark-green': string;
+  'mark-blue': string;
+  'mark-red': string;
   acid: string;
   'acid-pale': string;
   /**
@@ -232,6 +258,21 @@ export type ThemeTokens = {
  * Each option is still a whole theme with its own id, so storing, booting and applying one is the same
  * as for a template with no options.
  */
+/** The reader's papers and highlight colours: the same in every theme (see `ThemeTokens`). */
+const READER_TOKENS = {
+  'reader-light-paper': DYES.vellum,
+  'reader-light-ink': DYES.nigrosine,
+  'reader-dark-paper': DYES.nigrosine,
+  'reader-dark-ink': DYES.moonInk,
+  'reader-sepia-paper': DYES.sepiaPaper,
+  'reader-sepia-ink': DYES.sepiaInk,
+  'mark-yellow': DYES.daffodil,
+  'mark-pink': DYES.brilliantPink,
+  'mark-green': DYES.emerald,
+  'mark-blue': DYES.lightBlue,
+  'mark-red': DYES.lightRed,
+} as const;
+
 export type ThemeFamily = {
   label: string;
   note: string;
@@ -310,6 +351,7 @@ export const DEFAULT_THEME: Theme = {
     'cover-card': DYES.ash,
     'cover-card-title': DYES.flavine,
     'cover-card-ink': DYES.candy,
+    ...READER_TOKENS,
     acid: DYES.emerald,
     'acid-pale': DYES.flavine,
     // The desktop as it has always been: Brilliant Pink with Nigrosine dithered through it. These two
@@ -410,6 +452,7 @@ export const DARK_THEME: Theme = {
     'cover-card': DYES.ash,
     'cover-card-title': DYES.flavine,
     'cover-card-ink': DYES.candy,
+    ...READER_TOKENS,
     acid: DYES.emerald,
     'acid-pale': DYES.nigrosine,
     // The night desktop: the tile's fill is the field's own Nigrosine and its dither is Black, so the
@@ -467,6 +510,7 @@ export const SHERBET_PINK_THEME: Theme = {
     'cover-card': DYES.ash,
     'cover-card-title': DYES.flavine,
     'cover-card-ink': DYES.candy,
+    ...READER_TOKENS,
     acid: DYES.lime,
     'acid-pale': DYES.carnation,
     desktop: DYES.orchid,
@@ -510,6 +554,7 @@ export const SHERBET_NIGHT_THEME: Theme = {
     'cover-card': DYES.ash,
     'cover-card-title': DYES.flavine,
     'cover-card-ink': DYES.candy,
+    ...READER_TOKENS,
     acid: DYES.lime,
     'acid-pale': DYES.nigrosine,
     desktop: DYES.orchid,
@@ -553,6 +598,7 @@ export const SHERBET_MINT_THEME: Theme = {
     'cover-card': DYES.ash,
     'cover-card-title': DYES.flavine,
     'cover-card-ink': DYES.candy,
+    ...READER_TOKENS,
     acid: DYES.lime,
     'acid-pale': DYES.lime,
     desktop: DYES.tangerine,

@@ -53,19 +53,23 @@ const isGrey = (hex) => {
 const SHERBET = { candy: '#ffb7e6', carnation: '#ffa1c5', salmon: '#ff9da2', coral: '#ff987f', tangerine: '#ff9368', mint: '#67dca9', orchid: '#b149aa', lime: '#c5ff3f' };
 const QUEUE_SHADES = { deepRed: '#8c0027', deepGreen: '#0b521b', lightRed: '#ff5c7a', lightBlue: '#7ea6ff' };
 const ASH = '#3d3c44';
+// (2026-11-11) The reader's papers (SPEC-reader.md, Luke): worn only by the reader-* tokens.
+const READER_PAPERS = { vellum: '#faf8f2', moonInk: '#e6e1ee', sepiaPaper: '#f4ecd8', sepiaInk: '#4b3826' };
 assert.deepEqual(
   [...Object.values(DYES)].sort(),
-  [...NINE, ...Object.values(SHERBET), ...Object.values(QUEUE_SHADES), ASH].sort(),
+  [...NINE, ...Object.values(SHERBET), ...Object.values(QUEUE_SHADES), ...Object.values(READER_PAPERS), ASH].sort(),
   'every dye in themes.ts is one of these, and each is here',
 );
 assert.equal(new Set(Object.values(DYES)).size, Object.keys(DYES).length, 'and no colour is named twice');
-for (const [name, hex] of Object.entries({ ...SHERBET, ...QUEUE_SHADES, ash: ASH })) assert.equal(DYES[name], hex, `${name} is ${hex}`);
+for (const [name, hex] of Object.entries({ ...SHERBET, ...QUEUE_SHADES, ...READER_PAPERS, ash: ASH })) assert.equal(DYES[name], hex, `${name} is ${hex}`);
 
 /** Whether this token, in this theme, may wear this colour: where each colour beyond the nine is allowed to go. */
 const wornAllowed = (themeId, token, hex) => {
   if (NINE.includes(hex)) return true;
   if (hex === ASH) return token === 'cover-card';
-  if (Object.values(QUEUE_SHADES).includes(hex)) return token.startsWith('queue-');
+  if (Object.values(READER_PAPERS).includes(hex)) return token.startsWith('reader-');
+  // The reader's highlight colours (2026-11-11) borrow the queue's light blue and light red as tints.
+  if (Object.values(QUEUE_SHADES).includes(hex)) return token.startsWith('queue-') || token === 'mark-blue' || token === 'mark-red';
   if (Object.values(SHERBET).includes(hex)) return themeId.startsWith('sherbet-') || (token === 'cover-card-ink' && hex === SHERBET.candy);
   return false;
 };
@@ -132,6 +136,10 @@ const PAIRS = [
   ['ink', 'pointed-quiet', 'a pointed-at post the reader has already read'],
   ['accent-ink', 'pointed-quiet', 'the same read post - its timestamps'],
   ['ink-quiet', 'pointed-quiet', 'the same read post - its captions'],
+  // The reader's three papers (SPEC-reader.md, 2026-11-11): a book's words on the page picked in LOOK.
+  ['reader-light-ink', 'reader-light-paper', 'a book on the light paper'],
+  ['reader-dark-ink', 'reader-dark-paper', 'a book on the dark paper'],
+  ['reader-sepia-ink', 'reader-sepia-paper', 'a book on the sepia paper'],
 ];
 
 console.log('\n=== the pairs, per theme ===\n');

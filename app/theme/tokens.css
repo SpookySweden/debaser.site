@@ -57,6 +57,10 @@
   --dye-deep-green: #0b521b;
   --dye-light-red: #ff5c7a;
   --dye-light-blue: #7ea6ff;
+  --dye-vellum: #faf8f2;
+  --dye-moon-ink: #e6e1ee;
+  --dye-sepia-paper: #f4ecd8;
+  --dye-sepia-ink: #4b3826;
 }
 
 /* The colours by job, as the fallback theme (dark) sets them. The theme switcher writes the
@@ -89,6 +93,17 @@
   --color-cover-card: #3d3c44;
   --color-cover-card-title: #e1ff00;
   --color-cover-card-ink: #ffb7e6;
+  --color-reader-light-paper: #faf8f2;
+  --color-reader-light-ink: #1a1525;
+  --color-reader-dark-paper: #1a1525;
+  --color-reader-dark-ink: #e6e1ee;
+  --color-reader-sepia-paper: #f4ecd8;
+  --color-reader-sepia-ink: #4b3826;
+  --color-mark-yellow: #fff000;
+  --color-mark-pink: #ff00a0;
+  --color-mark-green: #28c745;
+  --color-mark-blue: #7ea6ff;
+  --color-mark-red: #ff5c7a;
   --color-acid: #28c745;
   --color-acid-pale: #1a1525;
   --color-desktop: #1a1525;

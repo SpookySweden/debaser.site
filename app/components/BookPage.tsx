@@ -1,11 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { isReadable, openReader } from '../lib/books/reader-window';
 import { getBooksRepository } from '../lib/books/repository';
-import { bookThreadAnchor, type BookReader as Reader } from '../lib/books/types';
+import { bookThreadAnchor, isCfi, isReadable, readHref, type BookReader as Reader } from '../lib/books/types';
 import { threadDomId } from '../lib/forum/anchors';
 import { TITLE_BAR } from '../lib/ui/controls';
 import type { WebItem } from '../lib/web/types';
@@ -24,11 +23,12 @@ const REF = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|audiobooks:[1-9]
 export default function BookPage({ bookRef }: { bookRef: string }) {
   const valid = REF.test(bookRef);
   const search = useSearchParams();
+  const router = useRouter();
   const forum = useForum();
   const [item, setItem] = useState<WebItem | null | undefined>(undefined);
   const [fault, setFault] = useState<string | null>(null);
   const [readers, setReaders] = useState<Reader[] | null>(null);
-  const at = Number(search.get('at'));
+  const at = search.get('at');
 
   useEffect(() => {
     if (!valid) return;
@@ -53,10 +53,10 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
     };
   }, [bookRef, valid]);
 
-  // A highlight's link (`?at=`): straight to that spot in the reader.
+  // An old highlight link (`/media/book/<ref>?at=`): on to the reader (SPEC-reader.md), at that spot when it's a CFI.
   useEffect(() => {
-    if (item && isReadable(bookRef) && search.has('at') && Number.isInteger(at) && at >= 0) openReader(bookRef, item.title, at);
-  }, [item, bookRef, search, at]);
+    if (at !== null && isReadable(bookRef)) router.replace(readHref(bookRef, { cfi: isCfi(at) ? at : null }));
+  }, [at, bookRef, router]);
 
   if (!valid) return <p className="p-3 text-label text-ink">THAT ISN&apos;T A BOOK&apos;S ADDRESS.</p>;
 

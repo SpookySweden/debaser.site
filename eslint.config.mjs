@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
     // Scratch space: verification logs and the throwaway CommonJS check scripts
     // that go with them (see Temp/*.txt for the commands they were run with).
     "Temp/**",
+    // A pinned copy of foliate-js, the reader's engine (SPEC-reader.md): someone else's code, kept as it came.
+    "vendor/**",
     // The tracked tools that read the site and capture its HTML. Deliberately
     // CommonJS and dependency-free: they run with a plain `node scripts/x.cjs`, with
     // no build step, so that the one that reads the deployed HTML is still runnable

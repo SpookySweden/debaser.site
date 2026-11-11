@@ -8,7 +8,7 @@
  * - one request a BOOKS search; the date orders are Open Library's own; a TYPE that isn't text finds nothing
  * - AUDIOBOOKS asks the start of a title, then the whole title, then an author, stopping at the first that finds something;
  *   a 404 is "nothing", not a failure; DATE reads up to 200 and orders them itself
- * - the reader's text comes only from Project Gutenberg's own address for a book with a Gutenberg number, and a chapter
+ * - the reader's EPUB comes only from Project Gutenberg's own addresses for a book with a Gutenberg number, and a chapter
  *   of an audiobook only from archive.org
  */
 const { readFileSync } = require('node:fs');
@@ -83,14 +83,19 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
   same((await audio.audiobooksSearch.search('dracula', null, deps(fakeFetch(lvFixture).fetch), '', 'text')).items, [], 'TYPE TEXT finds no audiobooks');
   same(audio.toAudiobookItem({ id: '1', title: 'x', url_librivox: 'https://evil.example/x/', copyright_year: '1900' }, NOW), null, 'a page off LibriVox is skipped');
 
-  /* The reader's text and the bar's chapters ------------------------------------------------- */
-  same(reading.gutenbergTextUrl('345'), 'https://www.gutenberg.org/cache/epub/345/pg345.txt', 'the text is Gutenberg`s own file for the book');
-  const text = fakeFetch('A made-up line.\r\n\r\nAnother.');
-  same(await reading.readBookText('books:OL85892W-pg345', text.fetch), 'A made-up line.\n\nAnother.', 'the text is passed through, line endings made one kind');
-  same(await reading.readBookText('books:OL85892W', text.fetch), null, 'a book with no Gutenberg copy has no text here');
-  same(await reading.readBookText('audiobooks:271', text.fetch), null, 'nor does an audiobook');
-  same(await reading.readBookText('books:OL1W-pg1/../../x', text.fetch), null, 'a bad ref is refused');
-  same(text.urls.length, 1, 'only the one good ref fetched anything');
+  /* The reader's book (SPEC-reader.md: the EPUB, pictures included) and the bar's chapters ---------- */
+  same(
+    reading.gutenbergEpubUrls('345'),
+    ['https://www.gutenberg.org/cache/epub/345/pg345-images-3.epub', 'https://www.gutenberg.org/cache/epub/345/pg345-images.epub', 'https://www.gutenberg.org/cache/epub/345/pg345.epub'],
+    'the book is Gutenberg`s own EPUB files for it, pictured editions first',
+  );
+  const epub = fakeFetch('PK made-up bytes');
+  const opened = await reading.openBookEpub('books:OL85892W-pg345', epub.fetch);
+  same(await new Response(opened.body).text(), 'PK made-up bytes', 'the file is passed through as it came');
+  same(await reading.openBookEpub('books:OL85892W', epub.fetch), null, 'a book with no Gutenberg copy has no file here');
+  same(await reading.openBookEpub('audiobooks:271', epub.fetch), null, 'nor does an audiobook');
+  same(await reading.openBookEpub('books:OL1W-pg1/../../x', epub.fetch), null, 'a bad ref is refused');
+  same(epub.urls.length, 1, 'only the one good ref fetched anything');
   const feed = `<?xml version="1.0"?><rss><channel><title>A Book</title><item><title>Chapter 1</title><enclosure url="https://www.archive.org/download/a_book/ch1.mp3" type="audio/mpeg"/><itunes:duration>10:00</itunes:duration></item><item><title>Elsewhere</title><enclosure url="https://evil.example/ch2.mp3" type="audio/mpeg"/></item></channel></rss>`;
   const parsed = files.parseLibrivoxFeed(feed);
   same(parsed.files.length, 1, 'a chapter off archive.org is left out');

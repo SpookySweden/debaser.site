@@ -1,8 +1,10 @@
 /*
- * Books (SPEC-books.md, Luke 2026-11-10): asks the live database who may read and write highlights and reading places.
+ * Books (SPEC-books.md, Luke 2026-11-10; SPEC-reader.md, 2026-11-11): asks the live database who may read and write
+ * highlights (with their CFI and colour), reading places, bookmarks and reader settings.
  *   node Temp/check-books.cjs
  *
- * TEST ACCOUNT A makes two highlights in one book (one locked) and saves a place; B and a visitor stand by. Everything A
+ * TEST ACCOUNT A makes two highlights in one book (one locked), saves a place, a bookmark and its look settings; B and a
+ * visitor stand by. Everything A
  * made is deleted again at the end, whatever happens, so it leaves nothing behind. No book text is involved: a quote here
  * is made up.
  */
@@ -19,9 +21,12 @@ const BOOK = 'books:OL1W-pg1';
   const visitor = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
   const aId = (await a.client.auth.getUser()).data.user.id;
   const made = [];
+  const marks = [];
+  let lookBefore = null;
   const add = (client, row) => client.from('book_highlights').insert({ person: aId, book_ref: BOOK, book_title: 'CHECK BOOK', place: 3, start_at: 0, end_at: 9, quote: 'made up', ...row }).select('id').single();
 
   try {
+    lookBefore = (await a.client.from('book_reader_settings').select('settings').eq('person', aId).maybeSingle()).data;
     const open = await add(a.client, { comment: 'mine', is_locked: false });
     assert.equal(open.error, null, `A highlights: ${open.error?.message}`);
     made.push(open.data.id);
@@ -64,10 +69,51 @@ const BOOK = 'books:OL1W-pg1';
     assert.equal((await visitor.from('book_places').select('place').eq('book_ref', BOOK)).data?.length ?? 0, 0, 'nor can a visitor');
     assert.equal((await a.client.from('book_places').select('place').eq('book_ref', BOOK).single()).data.place, 12, 'A reads it back');
     console.log('  ok    a reading place is its owner`s alone');
+
+    // The reader (SPEC-reader.md): a highlight's CFI and colour, a place's CFI, bookmarks and look settings.
+    const CFI = 'epubcfi(/6/14!/4/2/10,/1:0,/1:45)';
+    const placed = await add(a.client, { cfi: CFI, colour: 'pink', place: 0, start_at: 0, end_at: 0 });
+    assert.equal(placed.error, null, `A highlights at a CFI in pink: ${placed.error?.message}`);
+    made.push(placed.data.id);
+    assert.notEqual((await add(a.client, { colour: 'purple' })).error, null, 'a colour off the list is refused');
+    assert.notEqual((await add(a.client, { cfi: 'not a cfi at all' })).error, null, 'a position that isn`t a CFI is refused');
+    assert.equal((await a.client.from('book_highlights').update({ colour: 'green' }).eq('id', placed.data.id)).error, null, 'A recolours it');
+    assert.equal((await b.client.from('book_highlights').update({ colour: 'red' }).eq('id', placed.data.id).select('id')).data?.length ?? 0, 0, 'B cannot');
+    assert.notEqual((await a.client.from('book_highlights').update({ cfi: 'epubcfi(/6/2!/4/2)' }).eq('id', placed.data.id)).error, null, 'nobody moves a highlight to another spot');
+    assert.equal((await a.client.from('book_highlights').select('colour').eq('id', placed.data.id).single()).data.colour, 'green', 'it reads back green');
+    console.log('  ok    a highlight`s CFI and colour');
+
+    assert.equal((await a.client.from('book_places').upsert({ person: aId, book_ref: BOOK, cfi: CFI }, { onConflict: 'person,book_ref' })).error, null, 'A saves a place as a CFI');
+    assert.equal((await b.client.from('book_places').select('cfi').eq('book_ref', BOOK)).data.length, 0, 'B cannot read it');
+    assert.equal((await a.client.from('book_places').select('cfi').eq('book_ref', BOOK).single()).data.cfi, CFI, 'A reads it back');
+    console.log('  ok    a reading place`s CFI');
+
+    const mark = await a.client.from('book_bookmarks').insert({ person: aId, book_ref: BOOK, cfi: CFI, label: 'CHAPTER I · 3%' }).select('id').single();
+    assert.equal(mark.error, null, `A bookmarks: ${mark.error?.message}`);
+    marks.push(mark.data.id);
+    assert.notEqual((await b.client.from('book_bookmarks').insert({ person: aId, book_ref: BOOK, cfi: CFI })).error, null, 'B cannot bookmark in A`s name');
+    assert.notEqual((await visitor.from('book_bookmarks').insert({ person: aId, book_ref: BOOK, cfi: CFI })).error, null, 'nor can a visitor');
+    assert.notEqual((await a.client.from('book_bookmarks').insert({ person: aId, book_ref: BOOK, cfi: 'x' })).error, null, 'a bookmark needs a CFI');
+    assert.equal((await b.client.from('book_bookmarks').select('id').eq('book_ref', BOOK)).data.length, 0, 'B reads none of A`s bookmarks');
+    assert.equal((await visitor.from('book_bookmarks').select('id').eq('book_ref', BOOK)).data?.length ?? 0, 0, 'a visitor reads none');
+    assert.equal((await b.client.from('book_bookmarks').delete().eq('id', mark.data.id).select('id')).data?.length ?? 0, 0, 'B cannot delete it');
+    assert.equal((await a.client.from('book_bookmarks').select('id').eq('book_ref', BOOK)).data.length, 1, 'A reads it');
+    console.log('  ok    a bookmark is its owner`s alone');
+
+    assert.equal((await a.client.from('book_reader_settings').upsert({ person: aId, settings: { paper: 'sepia', size: 120 } }, { onConflict: 'person' })).error, null, 'A saves a look');
+    assert.equal((await b.client.from('book_reader_settings').select('settings').eq('person', aId)).data.length, 0, 'B cannot read it');
+    assert.equal((await visitor.from('book_reader_settings').select('settings').eq('person', aId)).data?.length ?? 0, 0, 'nor can a visitor');
+    assert.notEqual((await b.client.from('book_reader_settings').upsert({ person: aId, settings: {} }, { onConflict: 'person' })).error, null, 'B cannot write A`s');
+    assert.notEqual((await a.client.from('book_reader_settings').upsert({ person: aId, settings: { x: 'y'.repeat(2000) } }, { onConflict: 'person' })).error, null, 'a look is small');
+    assert.equal((await a.client.from('book_reader_settings').select('settings').eq('person', aId).single()).data.settings.paper, 'sepia', 'A reads it back');
+    console.log('  ok    reader settings are their owner`s alone');
     console.log('  ok    the real database');
   } finally {
     for (const id of made) await a.client.from('book_highlights').delete().eq('id', id);
     await a.client.from('book_places').delete().eq('person', aId).eq('book_ref', BOOK);
+    for (const id of marks) await a.client.from('book_bookmarks').delete().eq('id', id);
+    if (lookBefore) await a.client.from('book_reader_settings').upsert({ person: aId, settings: lookBefore.settings }, { onConflict: 'person' });
+    else await a.client.from('book_reader_settings').delete().eq('person', aId);
   }
   process.exit(0);
 })().catch((error) => {

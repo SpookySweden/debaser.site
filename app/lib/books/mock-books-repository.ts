@@ -1,21 +1,32 @@
-import { HIGHLIGHTS_PER_BOOK_MAX, type BookHighlight, type BooksRepository } from './types';
+import { BOOKMARKS_PER_BOOK_MAX, HIGHLIGHTS_PER_BOOK_MAX, type BookBookmark, type BookHighlight, type BooksRepository } from './types';
 
-/** Highlights and places in memory for the page load, for the mock accounts: no database, so nothing is kept. */
+/** Highlights, bookmarks, places and settings in memory for the page load, for the mock accounts: no database, so nothing is kept. */
 export function createMockBooksRepository(): BooksRepository {
   const highlights = new Map<string, BookHighlight>();
-  const places = new Map<string, number>();
+  const bookmarks = new Map<string, BookBookmark>();
+  const places = new Map<string, string>();
+  const settings = new Map<string, Record<string, unknown>>();
   let next = 1;
 
   return {
     async mine(person, bookRef) {
       return [...highlights.values()]
         .filter((highlight) => highlight.person === person && highlight.bookRef === bookRef)
-        .sort((a, b) => a.place - b.place || a.startAt - b.startAt);
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     },
     async add(person, input) {
       const held = [...highlights.values()].filter((highlight) => highlight.person === person && highlight.bookRef === input.bookRef);
       if (held.length >= HIGHLIGHTS_PER_BOOK_MAX) throw new Error('THAT IS 500 HIGHLIGHTS IN THIS BOOK, THE MOST THERE IS ROOM FOR.');
-      const highlight: BookHighlight = { ...input, id: `mock-highlight-${next++}`, person, forumCommentId: null, createdAt: new Date().toISOString() };
+      const highlight: BookHighlight = {
+        ...input,
+        place: 0,
+        startAt: 0,
+        endAt: 0,
+        id: `mock-highlight-${next++}`,
+        person,
+        forumCommentId: null,
+        createdAt: new Date().toISOString(),
+      };
       highlights.set(highlight.id, highlight);
       return highlight;
     },
@@ -41,8 +52,31 @@ export function createMockBooksRepository(): BooksRepository {
     async place(person, bookRef) {
       return places.get(`${person}|${bookRef}`) ?? null;
     },
-    async savePlace(person, bookRef, place) {
-      places.set(`${person}|${bookRef}`, place);
+    async savePlace(person, bookRef, cfi) {
+      places.set(`${person}|${bookRef}`, cfi);
+    },
+    async bookmarks(person, bookRef) {
+      return [...bookmarks.values()]
+        .filter((bookmark) => bookmark.person === person && bookmark.bookRef === bookRef)
+        .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    },
+    async addBookmark(person, input) {
+      const held = [...bookmarks.values()].filter((bookmark) => bookmark.person === person && bookmark.bookRef === input.bookRef);
+      if (held.length >= BOOKMARKS_PER_BOOK_MAX) throw new Error('THAT IS 200 BOOKMARKS IN THIS BOOK, THE MOST THERE IS ROOM FOR.');
+      const same = held.find((bookmark) => bookmark.cfi === input.cfi);
+      if (same) return same;
+      const bookmark: BookBookmark = { ...input, id: `mock-bookmark-${next++}`, person, createdAt: new Date().toISOString() };
+      bookmarks.set(bookmark.id, bookmark);
+      return bookmark;
+    },
+    async removeBookmark(id) {
+      bookmarks.delete(id);
+    },
+    async readerSettings(person) {
+      return settings.get(person) ?? null;
+    },
+    async saveReaderSettings(person, value) {
+      settings.set(person, value);
     },
   };
 }

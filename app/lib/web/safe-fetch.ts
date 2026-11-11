@@ -106,7 +106,39 @@ function redirectAllowed(value: string, redirectHosts: RegExp | undefined): bool
 
 /** GET (or `postJson`: POST) an allow-listed https URL and return its body as text. Throws `SafeFetchError` on any breach. */
 export async function safeFetchText(url: string, options: SafeFetchOptions): Promise<string> {
-  const { allowedHosts, fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS, maxBytes = MAX_RESPONSE_BYTES } = options;
+  const response = await safeFetchResponse(url, options);
+  return readCapped(response, options.maxBytes ?? MAX_RESPONSE_BYTES);
+}
+
+/**
+ * GET an allow-listed https URL and hand its body on as a stream, without holding it: for a file passed straight through to
+ * the browser (the reader's EPUB, SPEC-reader.md). The size cap is enforced as the bytes go by (a declared length over it is
+ * refused before any are read; a body that runs past it is cut off with an error). The timeout covers the whole body.
+ */
+export async function safeFetchStream(url: string, options: SafeFetchOptions): Promise<{ body: ReadableStream<Uint8Array>; length: number | null; type: string | null }> {
+  const maxBytes = options.maxBytes ?? MAX_RESPONSE_BYTES;
+  const response = await safeFetchResponse(url, options);
+  const declared = Number(response.headers.get('content-length'));
+  const length = response.headers.has('content-length') && Number.isFinite(declared) ? declared : null;
+  if (length !== null && length > maxBytes) {
+    await response.body?.cancel().catch(() => undefined);
+    throw new SafeFetchError('response too large');
+  }
+  if (!response.body) throw new SafeFetchError('no body');
+  let total = 0;
+  const capped = new TransformStream<Uint8Array, Uint8Array>({
+    transform(chunk, controller) {
+      total += chunk.byteLength;
+      if (total > maxBytes) controller.error(new SafeFetchError('response too large'));
+      else controller.enqueue(chunk);
+    },
+  });
+  return { body: response.body.pipeThrough(capped), length, type: response.headers.get('content-type') };
+}
+
+/** The hops (each held to the allow-list), down to the answering response, which is returned unread. */
+async function safeFetchResponse(url: string, options: SafeFetchOptions): Promise<Response> {
+  const { allowedHosts, fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS } = options;
   const signal = AbortSignal.timeout(timeoutMs);
   let current = url;
 
@@ -146,7 +178,7 @@ export async function safeFetchText(url: string, options: SafeFetchOptions): Pro
       throw new SafeFetchError(`HTTP ${response.status}`, response.status);
     }
 
-    return readCapped(response, maxBytes);
+    return response;
   }
 
   throw new SafeFetchError('too many redirects');

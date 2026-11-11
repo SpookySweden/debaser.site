@@ -64,6 +64,9 @@ const EXPECTED = [
   'acid', 'acid-pale', 'desktop', 'desktop-dither', 'accent',
   // (2026-11-04) Named since: the BARRED chip, the cover card (Luke 2026-11-03), the stream queue's title inks (Luke 2026-11-02).
   'barred', 'cover-card', 'cover-card-ink', 'cover-card-title', 'queue-played-ink', 'queue-now-ink', 'queue-next-ink',
+  // (2026-11-11) The reader's three papers and five highlight colours (SPEC-reader.md, Luke).
+  'reader-light-paper', 'reader-light-ink', 'reader-dark-paper', 'reader-dark-ink', 'reader-sepia-paper', 'reader-sepia-ink',
+  'mark-yellow', 'mark-pink', 'mark-green', 'mark-blue', 'mark-red',
 ];
 
 assert.deepEqual(Object.keys(palette).sort(), [...EXPECTED].sort(), 'the swatch is exactly these colours');
@@ -83,7 +86,19 @@ const DYES = ['#000000', '#1a1525', '#1d3ca6', '#e1ff00', '#fff000', '#28c745', 
 // (2026-11-04) Beyond the nine, this theme wears four colours Luke named, recorded in themes.ts and docs/design.md, each
 // on exactly one token: the stream queue's deep title inks (2026-11-02) and the cover card's Ash and Candy (2026-11-03).
 // Named exactly, so none can spread to another token or drift. Everything else is still one of the nine.
-const NAMED_TOKENS = { 'queue-played-ink': '#8c0027', 'queue-now-ink': '#0b521b', 'cover-card': '#3d3c44', 'cover-card-ink': '#ffb7e6' };
+const NAMED_TOKENS = {
+  'queue-played-ink': '#8c0027',
+  'queue-now-ink': '#0b521b',
+  'cover-card': '#3d3c44',
+  'cover-card-ink': '#ffb7e6',
+  // (2026-11-11) The reader's papers and two highlight colours (SPEC-reader.md, Luke), worn only at /read.
+  'reader-light-paper': '#faf8f2',
+  'reader-dark-ink': '#e6e1ee',
+  'reader-sepia-paper': '#f4ecd8',
+  'reader-sepia-ink': '#4b3826',
+  'mark-blue': '#7ea6ff',
+  'mark-red': '#ff5c7a',
+};
 
 for (const [name, hex] of Object.entries(palette)) {
   if (NAMED_TOKENS[name] !== undefined) {

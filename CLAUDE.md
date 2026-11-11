@@ -23,6 +23,12 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   through our server (`/api/web/subtitles`) to a viewer's player when they switch it on (archive.org sends no CORS
   header): only files the item lists, SRT converted to VTT, never stored (not on disk, in the database or in the
   fetch cache). Subtitle text only, never video or audio. Each viewer picks their own; nothing is synced.
+- Books (SPEC-reader.md, Luke's OK 2026-11-11, widening SPEC-books.md's for plain text): a Project Gutenberg book's EPUB
+  edition, pictures included, passes through our server (`/api/web/book/epub`) to the reader at `/read/<ref>` as it
+  streams: free Gutenberg books only, from www.gutenberg.org only, never kept (asked `no-store`, answered `private, no-store`;
+  not on disk, in the database, in the fetch cache or on Vercel's edge). The engine is a pinned copy of foliate-js in
+  `vendor/foliate-js/`; it is handed the Blob, never an address, and no script from a book runs. Only a highlight's short
+  quote (300 characters) is ever stored.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.

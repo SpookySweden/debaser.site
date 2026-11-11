@@ -51,6 +51,14 @@ const NAMED_HERE = {
   'queue-now-ink': ['deepGreen', '#0b521b'],
   'cover-card': ['ash', '#3d3c44'],
   'cover-card-ink': ['candy', '#ffb7e6'],
+  // (2026-11-11) The reader's papers and two of its highlight colours (SPEC-reader.md, Luke): reading colours for long
+  // reading, worn only by the book's page at /read.
+  'reader-light-paper': ['vellum', '#faf8f2'],
+  'reader-dark-ink': ['moonInk', '#e6e1ee'],
+  'reader-sepia-paper': ['sepiaPaper', '#f4ecd8'],
+  'reader-sepia-ink': ['sepiaInk', '#4b3826'],
+  'mark-blue': ['lightBlue', '#7ea6ff'],
+  'mark-red': ['lightRed', '#ff5c7a'],
 };
 for (const [token, [dye, hex]] of Object.entries(NAMED_HERE)) {
   assert.equal(DYES[dye], hex, `${dye} is still ${hex} in themes.ts`);
