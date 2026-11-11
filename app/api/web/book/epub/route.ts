@@ -1,4 +1,6 @@
+import { ipfsCid } from '../../../../lib/books/ipfs';
 import { BOOK_REF, openArchivePdfSlice, openBookEpub } from '../../../../lib/web/books';
+import { IPFS_PASS_MAX_BYTES, openIpfsBook } from '../../../../lib/web/ipfs-pass';
 import { SafeFetchError } from '../../../../lib/web/safe-fetch';
 import { clientAddress, makeRateLimiter } from '../../../../lib/web/search/rate-limit';
 
@@ -13,6 +15,9 @@ import { clientAddress, makeRateLimiter } from '../../../../lib/web/search/rate-
  * `?ref=...&format=pdf` with a `Range: bytes=a-b` header for each slice it needs (half a megabyte at a time), answered 206
  * and never kept, so even a scan of hundreds of megabytes reads page by page. One with neither answers `{ viewer: true }`,
  * and the reader shows the Archive's own viewer. Open to visitors, as MEDIA is.
+ *
+ * `?ref=ipfs:<CID>` (Luke, 2026-11-11): a book on IPFS, asked for only when every gateway refused the reader's browser, passed
+ * through as it streams and never kept, and only when its first bytes are an EPUB or a PDF (`lib/web/ipfs-pass.ts`).
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -21,6 +26,8 @@ export const maxDuration = 60;
 const booksPerAddress = makeRateLimiter(20, 60_000);
 /** A PDF is read in many small slices: a page of a scan can take several. */
 const slicesPerAddress = makeRateLimiter(900, 60_000);
+/** IPFS books through the server: a few a minute, enough for a reader, too few to make the route a free relay. */
+const ipfsPerAddress = makeRateLimiter(6, 60_000);
 const freshFetch: typeof fetch = (input, init) => fetch(input, { ...init, cache: 'no-store' });
 
 const NEVER_KEPT = {
@@ -41,8 +48,26 @@ function answer(body: unknown, status = 200): Response {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
   const ref = params.get('ref') ?? '';
-  if (!BOOK_REF.test(ref)) return refuse('Ask for a book.', 400);
   const address = clientAddress(request.headers);
+
+  const cid = ipfsCid(ref);
+  if (cid !== null) {
+    if (!ipfsPerAddress.allow(address)) return refuse('Too many books at once. Wait a minute.', 429);
+    try {
+      const passed = await openIpfsBook(cid, freshFetch);
+      if (passed === 'missing') return refuse('NO COPY FOUND ON IPFS.', 404);
+      if (passed === 'not-a-book') return refuse('THIS BOOK COULD NOT BE OPENED.', 415);
+      if (passed === 'too-big') return refuse(`TOO BIG TO READ HERE. THE LIMIT IS ${IPFS_PASS_MAX_BYTES / (1024 * 1024)} MB.`, 413);
+      if (passed === null) return refuse('SOURCE NOT ANSWERING. TRY AGAIN.', 502);
+      // No Content-Length: a gateway's own is the compressed size when it compressed the book, and fetch hands on the
+      // book unpacked, so it could be wrong. The stream ends when the book does.
+      return new Response(passed.body, { status: 200, headers: { ...NEVER_KEPT, 'Content-Type': passed.type, 'Content-Disposition': 'inline' } });
+    } catch {
+      return refuse('SOURCE NOT ANSWERING. TRY AGAIN.', 502);
+    }
+  }
+
+  if (!BOOK_REF.test(ref)) return refuse('Ask for a book.', 400);
 
   if (params.get('format') === 'pdf') {
     if (!slicesPerAddress.allow(address)) return refuse('Too many pages at once. Wait a minute.', 429);

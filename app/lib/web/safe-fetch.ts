@@ -93,6 +93,8 @@ export type SafeFetchOptions = {
   redirectHosts?: RegExp;
   /** A byte range to ask for (`bytes=0-524287`), for a file read a slice at a time (the reader's PDFs). */
   range?: string;
+  /** Cancels the request from outside as well as on the timeout: an IPFS gateway that doesn't start answering (ipfs-pass.ts). */
+  signal?: AbortSignal;
 };
 
 /** A redirect's address on one of `redirectHosts`, with every other check `isAllowedUrl` makes. */
@@ -144,7 +146,7 @@ export async function safeFetchStream(
 /** The hops (each held to the allow-list), down to the answering response, which is returned unread. */
 async function safeFetchResponse(url: string, options: SafeFetchOptions): Promise<Response> {
   const { allowedHosts, fetchImpl = fetch, timeoutMs = FETCH_TIMEOUT_MS } = options;
-  const signal = AbortSignal.timeout(timeoutMs);
+  const signal = options.signal ? AbortSignal.any([AbortSignal.timeout(timeoutMs), options.signal]) : AbortSignal.timeout(timeoutMs);
   let current = url;
 
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {

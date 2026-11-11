@@ -152,6 +152,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   // An IPFS book (`ipfs:<CID>`): fetched by this browser from a gateway, and how much of it has come.
   const ipfs = own ? null : ipfsCid(bookRef);
   const [arriving, setArriving] = useState<IpfsProgress | null>(null);
+  // Every gateway refused this browser, so the book is coming through the site's own route (step 3).
+  const [through, setThrough] = useState(false);
   // The page turn being drawn (globals.css, "The reader's page turn"): which way, and over half the stage (a two-page
   // spread, turning about the spine) or all of it (one page). A new turn replaces one still swinging.
   const [flip, setFlip] = useState<{ id: number; side: 'left' | 'right'; spread: boolean } | null>(null);
@@ -418,8 +420,22 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
         if (cid) {
           // A book on IPFS: fetched by this browser straight from a gateway, one at a time, into memory (ipfs.ts).
           setArriving(null);
-          const got = await fetchFromGateways(cid, { signal: leaving.signal, onProgress: (progress) => live && setArriving(progress) });
-          file = got.blob;
+          setThrough(false);
+          try {
+            const got = await fetchFromGateways(cid, { signal: leaving.signal, onProgress: (progress) => live && setArriving(progress) });
+            file = got.blob;
+          } catch (error) {
+            // Every gateway refused this browser: the book through the site's own route instead (step 3, ipfs-pass.ts),
+            // passed on as it streams and never kept. Its refusals are plain capitals, shown as they come.
+            if (!(error instanceof IpfsFetchError) || error.problem !== 'BLOCKED BY THE SOURCE') throw error;
+            if (live) setThrough(true);
+            const response = await fetch(`/api/web/book/epub?ref=${encodeURIComponent(bookRef)}`, { cache: 'no-store', signal: leaving.signal });
+            if (!response.ok) {
+              const said = (await response.json().catch(() => ({}))) as { error?: string };
+              throw new Error(said.error ?? IPFS_LINES['BLOCKED BY THE SOURCE']);
+            }
+            file = await response.blob();
+          }
         } else if (own) {
           // A reader's own file: opened here, from their device, never sent anywhere.
           if (!ownFile) {
@@ -815,7 +831,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           <p className="absolute inset-x-0 top-1/3 text-center text-label" role="status">
             {phase === 'reading-file'
               ? ipfs
-                ? `READING THE BOOK FROM IPFS${arriving ? ` (${arriving.gateway})... ${arrivedText(arriving)}` : '...'}`
+                ? through
+                  ? 'READING THE BOOK FROM IPFS THROUGH DEBASER.SITE...'
+                  : `READING THE BOOK FROM IPFS${arriving ? ` (${arriving.gateway})... ${arrivedText(arriving)}` : '...'}`
                 : `READING THE BOOK FROM ${archiveViewerUrl(bookRef) ? 'THE INTERNET ARCHIVE' : 'PROJECT GUTENBERG'}...`
               : 'OPENING THE BOOK...'}
           </p>
