@@ -133,11 +133,17 @@ export function createSupabaseBooksRepository(client: SupabaseClient): BooksRepo
       return (data as BookmarkRow[]).map(fromBookmarkRow);
     },
     async addBookmark(person, bookmark) {
+      // A plain insert: an upsert would ask to rewrite every column on a clash, and only the label may change.
       const { data, error } = await client
         .from('book_bookmarks')
-        .upsert({ person, book_ref: bookmark.bookRef, cfi: bookmark.cfi, label: bookmark.label }, { onConflict: 'person,book_ref,cfi' })
+        .insert({ person, book_ref: bookmark.bookRef, cfi: bookmark.cfi, label: bookmark.label })
         .select(BOOKMARK_COLUMNS)
         .single();
+      if (error?.code === '23505') {
+        // This page is bookmarked already: that one.
+        const held = await client.from('book_bookmarks').select(BOOKMARK_COLUMNS).eq('person', person).eq('book_ref', bookmark.bookRef).eq('cfi', bookmark.cfi).maybeSingle();
+        if (held.data) return fromBookmarkRow(held.data as BookmarkRow);
+      }
       if (error) throw new Error(error.code === 'P0001' ? 'THAT IS 200 BOOKMARKS IN THIS BOOK, THE MOST THERE IS ROOM FOR.' : 'The bookmark could not be saved.');
       return fromBookmarkRow(data as BookmarkRow);
     },

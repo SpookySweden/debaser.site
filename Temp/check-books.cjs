@@ -1,6 +1,8 @@
 /*
  * Books (SPEC-books.md, Luke 2026-11-10; SPEC-reader.md, 2026-11-11): asks the live database who may read and write
- * highlights (with their CFI and colour), reading places, bookmarks and reader settings.
+ * highlights (with their CFI and colour), reading places, bookmarks and reader settings, partly through the site's own
+ * Supabase store (so a query the grants refuse is caught, as an upsert on bookmarks was on 2026-11-11).
+ *   npx tsc app/lib/books/supabase-books-repository.ts --rootDir app --outDir Temp/out-books-live --module commonjs --target es2020 --moduleResolution node --skipLibCheck --esModuleInterop --strictNullChecks
  *   node Temp/check-books.cjs
  *
  * TEST ACCOUNT A makes two highlights in one book (one locked), saves a place, a bookmark and its look settings; B and a
@@ -99,6 +101,27 @@ const BOOK = 'books:OL1W-pg1';
     assert.equal((await b.client.from('book_bookmarks').delete().eq('id', mark.data.id).select('id')).data?.length ?? 0, 0, 'B cannot delete it');
     assert.equal((await a.client.from('book_bookmarks').select('id').eq('book_ref', BOOK)).data.length, 1, 'A reads it');
     console.log('  ok    a bookmark is its owner`s alone');
+
+    // The same through the site's own store, as the reader calls it: adding, adding the same page again, a place, a look.
+    const { createSupabaseBooksRepository } = require('./out-books-live/lib/books/supabase-books-repository.js');
+    const store = createSupabaseBooksRepository(a.client);
+    const OTHER = 'epubcfi(/6/16!/4/2/4,/1:0,/1:9)';
+    const first = await store.addBookmark(aId, { bookRef: BOOK, cfi: OTHER, label: 'CHAPTER II · 5%' });
+    marks.push(first.id);
+    const twice = await store.addBookmark(aId, { bookRef: BOOK, cfi: OTHER, label: 'CHAPTER II · 5%' });
+    assert.equal(twice.id, first.id, 'the same page bookmarked twice is the one bookmark');
+    assert.equal((await store.bookmarks(aId, BOOK)).length, 2, 'the store lists both of A`s bookmarks');
+    await store.savePlace(aId, BOOK, OTHER);
+    assert.equal(await store.place(aId, BOOK), OTHER, 'the store keeps a place');
+    await store.saveReaderSettings(aId, { paper: 'light', size: 100 });
+    assert.equal((await store.readerSettings(aId)).paper, 'light', 'and a look');
+    const coloured = await store.add(aId, { bookRef: BOOK, bookTitle: 'CHECK BOOK', cfi: OTHER, quote: 'made up', comment: '', colour: 'blue', isLocked: true });
+    made.push(coloured.id);
+    await store.update(coloured.id, { colour: 'yellow' });
+    assert.equal((await store.get(coloured.id)).colour, 'yellow', 'the store recolours a highlight');
+    await store.removeBookmark(first.id);
+    assert.equal((await store.bookmarks(aId, BOOK)).length, 1, 'and deletes a bookmark');
+    console.log('  ok    the site`s own store, as the reader calls it');
 
     assert.equal((await a.client.from('book_reader_settings').upsert({ person: aId, settings: { paper: 'sepia', size: 120 } }, { onConflict: 'person' })).error, null, 'A saves a look');
     assert.equal((await b.client.from('book_reader_settings').select('settings').eq('person', aId)).data.length, 0, 'B cannot read it');
