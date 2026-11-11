@@ -182,7 +182,20 @@ function RecommendationRow({
   const [fault, setFault] = useState<string | null>(null);
   return (
     <li className="rule-pixel py-2">
-      <div className="flex flex-wrap items-center gap-2">
+      {/* The row (Luke, 2026-11-11): the sender, a letter's envelope to the right of their name, ": TITLE", and the arrow at
+          the end. A press anywhere along it opens and shuts it; the name, the envelope and the faces keep their own presses. */}
+      <div
+        onClick={(event) => {
+          if ((event.target as HTMLElement).closest('a, button')) return;
+          onToggle();
+        }}
+        className="flex cursor-pointer flex-wrap items-center gap-2 hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink"
+      >
+        {rec.sender ? (
+          <ProfileAvatarLink author={{ id: rec.sender, displayName: rec.senderName ?? '' }} size={20} variant="plain" />
+        ) : (
+          <span className="text-label text-ink">ANON</span>
+        )}
         {/* A recommended letter (Luke, 2026-11-11): its envelope, in its colour with its stamp, opens its canvas. */}
         {rec.letter ? (
           <button
@@ -196,9 +209,7 @@ function RecommendationRow({
             <LetterStamp letter={rec.letter} scale={2} />
           </button>
         ) : null}
-        <button type="button" onClick={onToggle} aria-expanded={open} className={`${open ? PLATE_PRESSED : PLATE} max-w-full`}>
-          {open ? '▾' : '▸'} <span className="break-words">{rec.title}</span>
-        </button>
+        <span className="min-w-0 flex-1 break-words text-label text-ink">: {rec.title}</span>
         {unread ? <span className="bg-ena px-1 text-label text-ink-bar">NEW</span> : null}
         {/* The faces of who has played something in it, to the right of its title (at most five, then +N). */}
         {me !== null && players.length > 0 ? (
@@ -209,13 +220,17 @@ function RecommendationRow({
             {players.length > FACES_SHOWN ? <span className="text-label text-ink">+{players.length - FACES_SHOWN}</span> : null}
           </span>
         ) : null}
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={open}
+          aria-label={open ? `Close "${rec.title}"` : `Open "${rec.title}"`}
+          className={open ? PLATE_PRESSED : PLATE}
+        >
+          {open ? '[ ▾ ]' : '[ ▸ ]'}
+        </button>
       </div>
       <p className="mt-1 flex flex-wrap items-center gap-2 text-label text-ink-quiet">
-        {rec.sender ? (
-          <ProfileAvatarLink author={{ id: rec.sender, displayName: rec.senderName ?? '' }} size={20} variant="plain" />
-        ) : (
-          <span>ANON</span>
-        )}
         <TimeStamp at={rec.createdAt} />
         <span>
           {rec.itemCount} {rec.itemCount === 1 ? 'THING' : 'THINGS'}
