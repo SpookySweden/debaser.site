@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent, type ReactNode } from 'react';
-import { MARGINS, nudge, PAPERS, READER_FONTS, SIZE_MAX, SIZE_MIN, SPACING_MAX, SPACING_MIN, type ReaderSettings } from '../../lib/books/reader-look';
+import { LAYOUTS, MARGINS, nudge, PAGE_COUNTS, PAPERS, READER_FONTS, SIZE_MAX, SIZE_MIN, SPACING_MAX, SPACING_MIN, type ReaderSettings } from '../../lib/books/reader-look';
 import type { SearchExcerpt, TocItem } from '../../lib/books/reader-engine';
 import { highlightRef, type BookBookmark, type BookHighlight } from '../../lib/books/types';
 import { FIELD_TIGHT, PLATE, PLATE_MAIN, PLATE_PRESSED, TITLE_BAR } from '../../lib/ui/controls';
@@ -204,10 +204,28 @@ const PAPER_SAMPLE: Record<ReaderSettings['paper'], string> = {
 const FONT_NAMES: Record<ReaderSettings['font'], string> = { site: 'SITE', typewriter: 'TYPEWRITER', book: "BOOK'S OWN" };
 const MARGIN_NAMES: Record<ReaderSettings['margin'], string> = { narrow: 'NARROW', normal: 'MEDIUM', wide: 'WIDE' };
 
-/** LOOK: text size, line spacing, margins, font and paper, remembered for every book. */
-export function LookSettings({ settings, onChange }: { settings: ReaderSettings; onChange: (next: ReaderSettings) => void }) {
+const LAYOUT_NAMES: Record<ReaderSettings['layout'], string> = { standard: 'STANDARD', comic: 'COMIC', verse: 'VERSE' };
+const PAGE_NAMES: Record<ReaderSettings['pages'], string> = { two: 'TWO PAGES', one: 'ONE PAGE' };
+
+/**
+ * LOOK: the layout (STANDARD, COMIC for graphic novels, VERSE for poems and plays), one page or two, text size, line
+ * spacing, margins, font and paper, remembered for every book. A PDF's pages are fixed pictures of the page: only the
+ * layout, the page count and the paper around them apply there.
+ */
+export function LookSettings({ settings, onChange, fixedPages = false }: { settings: ReaderSettings; onChange: (next: ReaderSettings) => void; fixedPages?: boolean }) {
   return (
     <div className="flex flex-col gap-3">
+      <Choice label="LAYOUT" options={LAYOUTS} names={LAYOUT_NAMES} value={settings.layout} onPick={(layout) => onChange({ ...settings, layout })} />
+      <Choice label="PAGES" options={PAGE_COUNTS} names={PAGE_NAMES} value={settings.pages} onPick={(pages) => onChange({ ...settings, pages })} />
+      {fixedPages ? null : <TextSettings settings={settings} onChange={onChange} />}
+      <PaperChoice settings={settings} onChange={onChange} />
+    </div>
+  );
+}
+
+function TextSettings({ settings, onChange }: { settings: ReaderSettings; onChange: (next: ReaderSettings) => void }) {
+  return (
+    <>
       <Stepper
         label="TEXT SIZE"
         value={`${settings.size}%`}
@@ -230,6 +248,12 @@ export function LookSettings({ settings, onChange }: { settings: ReaderSettings;
       />
       <Choice label="MARGINS" options={MARGINS} names={MARGIN_NAMES} value={settings.margin} onPick={(margin) => onChange({ ...settings, margin })} />
       <Choice label="FONT" options={READER_FONTS} names={FONT_NAMES} value={settings.font} onPick={(font) => onChange({ ...settings, font })} />
+    </>
+  );
+}
+
+function PaperChoice({ settings, onChange }: { settings: ReaderSettings; onChange: (next: ReaderSettings) => void }) {
+  return (
       <fieldset>
         <legend className="pb-1 text-label text-ink-quiet">PAPER</legend>
         <p className="flex flex-wrap gap-2">
@@ -247,7 +271,6 @@ export function LookSettings({ settings, onChange }: { settings: ReaderSettings;
           ))}
         </p>
       </fieldset>
-    </div>
   );
 }
 

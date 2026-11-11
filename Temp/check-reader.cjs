@@ -28,10 +28,10 @@ assert.deepEqual(look.readerSettingsFrom('x'), look.DEFAULT_SETTINGS);
 assert.deepEqual(look.readerSettingsFrom([1, 2]), look.DEFAULT_SETTINGS);
 assert.deepEqual(
   look.readerSettingsFrom({ size: 999, spacing: -4, margin: 'huge', font: 'comic sans', paper: 'neon', extra: '<script>' }),
-  { size: 200, spacing: 1.2, margin: 'normal', font: 'site', paper: 'dark' },
+  { size: 200, spacing: 1.2, margin: 'normal', font: 'site', paper: 'dark', layout: 'standard', pages: 'two' },
   'out of range is clamped, off-list takes the default, extras are dropped',
 );
-assert.deepEqual(look.readerSettingsFrom({ size: 133, spacing: 1.66, margin: 'wide', font: 'typewriter', paper: 'sepia' }), { size: 130, spacing: 1.7, margin: 'wide', font: 'typewriter', paper: 'sepia' }, 'onto the steps');
+assert.deepEqual(look.readerSettingsFrom({ size: 133, spacing: 1.66, margin: 'wide', font: 'typewriter', paper: 'sepia' }), { size: 130, spacing: 1.7, margin: 'wide', font: 'typewriter', paper: 'sepia', layout: 'standard', pages: 'two' }, 'onto the steps');
 let s = look.DEFAULT_SETTINGS;
 for (let n = 0; n < 30; n += 1) s = look.nudge(s, 'size', 1);
 assert.equal(s.size, look.SIZE_MAX, 'A+ stops at the largest');
@@ -39,7 +39,23 @@ for (let n = 0; n < 30; n += 1) s = look.nudge(s, 'spacing', -1);
 assert.equal(s.spacing, look.SPACING_MIN, 'spacing stops at the tightest');
 assert.equal(look.nudge(look.DEFAULT_SETTINGS, 'spacing', 1).spacing, 1.7, 'a step is 0.1, with no float dust');
 for (const margin of look.MARGINS) assert.match(look.marginLayout(margin).gap, /^\d+%$/);
-console.log('  ok    LOOK settings');
+// The layouts (Luke, 2026-11-11): STANDARD as built is the first; COMIC and VERSE; ONE PAGE or TWO.
+assert.equal(look.DEFAULT_SETTINGS.layout, 'standard', 'the reader as first built is the layout to start with');
+assert.equal(look.DEFAULT_SETTINGS.pages, 'two');
+assert.deepEqual(look.readerSettingsFrom({ layout: 'comic', pages: 'one' }).layout, 'comic');
+assert.equal(look.readerSettingsFrom({ layout: 'zine', pages: 'three' }).layout, 'standard', 'an unknown layout is STANDARD');
+assert.equal(look.readerSettingsFrom({ pages: 'three' }).pages, 'two');
+assert.deepEqual(look.pageLayout({ margin: 'normal', layout: 'standard', pages: 'two' }), { gap: '7%', maxInlineSize: '720px', columns: 2 }, 'STANDARD is the margins as before');
+assert.equal(look.pageLayout({ margin: 'wide', layout: 'comic', pages: 'two' }).gap, '0%', 'COMIC has no margins');
+assert.equal(look.pageLayout({ margin: 'narrow', layout: 'verse', pages: 'two' }).maxInlineSize, '620px', 'VERSE is one narrow column');
+assert.equal(look.pageLayout({ margin: 'normal', layout: 'standard', pages: 'one' }).columns, 1, 'ONE PAGE is one column, however wide the screen');
+const verse = look.readerCss({ ...look.DEFAULT_SETTINGS, layout: 'verse' }, { paper: '#000000', ink: '#ffffff' }, { site: 'x', typewriter: 'y' });
+assert.doesNotMatch(verse, /hyphens: auto/, 'VERSE never hyphenates');
+assert.match(verse, /text-align: start !important; hyphens: manual/, 'and never stretches a line');
+assert.match(verse, /white-space: pre-wrap/, 'and keeps a poem`s lines');
+const comic = look.readerCss({ ...look.DEFAULT_SETTINGS, layout: 'comic' }, { paper: '#000000', ink: '#ffffff' }, { site: 'x', typewriter: 'y' });
+assert.match(comic, /max-height: 100vh !important/, 'COMIC fits a picture to the page');
+console.log('  ok    LOOK settings, the layouts and ONE PAGE');
 
 /* 2. The CSS laid over a chapter --------------------------------------------------------------------- */
 const faces = { site: '"__Plex_abc", "Courier New", monospace', typewriter: '"Courier New", monospace' };
@@ -228,10 +244,11 @@ const ask = (ref, address = '203.0.113.1') => GET(new Request(`https://debaser.s
   assert.ok(asked.every((each) => !each.url.includes('evil.example')), 'and never followed');
 
   asked = [];
-  answer = archive(item([{ name: 'Made Up.pdf', size: '99' }, { name: 'Made Up_lcp.epub', size: '9' }]));
+  // (2026-11-11) A PDF now opens in the reader too (section 7): only a book with neither gets the Archive's viewer.
+  answer = archive(item([{ name: 'Made Up_djvu.txt', size: '99' }, { name: 'Made Up_lcp.epub', size: '9' }, { name: 'Made Up_lcp.pdf', size: '9' }]));
   response = await ask('internet_archive:made_up_book', '203.0.113.8');
   assert.equal(response.status, 404);
-  assert.deepEqual(await response.json(), { error: 'NO EPUB', viewer: true }, 'no EPUB anyone may read: the reader shows the Archive`s viewer');
+  assert.deepEqual(await response.json(), { error: 'NO EPUB', viewer: true }, 'no EPUB or PDF anyone may read: the reader shows the Archive`s viewer');
   assert.equal(asked.length, 1, 'and no file is fetched');
 
   for (const [why, body] of [
@@ -254,6 +271,69 @@ const ask = (ref, address = '203.0.113.1') => GET(new Request(`https://debaser.s
   }
   assert.deepEqual(writes, [], 'still nothing written to disk');
   console.log('  ok    an Internet Archive book: its own EPUB, the viewer without one, never a lending copy');
+
+  /* 7. An Archive book with only a PDF, read a slice at a time (Luke, 2026-11-11: "every book ... inside our reader") ---- */
+  const pdfItem = JSON.stringify({
+    metadata: { identifier: 'made_up_scan', mediatype: 'texts', title: 'Made Up Scan' },
+    d1: 'ia601601.us.archive.org',
+    d2: 'evil.example',
+    workable_servers: ['ia601601.us.archive.org', 'ia801601.us.archive.org'],
+    dir: '/3/items/made_up_scan',
+    files: [
+      { name: 'scan_lcp.pdf', size: '50', format: 'Text PDF' },
+      { name: 'scan_bw.pdf', size: '900000000', format: 'Grayscale PDF' },
+      { name: 'scan_text.pdf', size: '17216196', format: 'Text PDF' },
+    ],
+  });
+  const slices = (ignoreRangeOn = '') => (url, n) => {
+    if (url.startsWith('https://archive.org/metadata/')) return new Response(pdfItem, { status: 200 });
+    const host = new URL(url).hostname;
+    if (host === ignoreRangeOn) return new Response('the whole file', { status: 200 });
+    return new Response('%PDF-slice', { status: 206, headers: { 'content-range': 'bytes 0-9/17216196', 'content-length': '10' } });
+  };
+  const askSlice = (range, address) =>
+    GET(new Request('https://debaser.site/api/web/book/epub?ref=internet_archive:made_up_scan&format=pdf', { headers: { 'x-forwarded-for': address, ...(range ? { range } : {}) } }));
+
+  asked = [];
+  answer = slices();
+  response = await ask('internet_archive:made_up_scan', '203.0.113.50');
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { pdf: { size: 17216196 } }, 'no EPUB but a PDF: the reader is told its size, nothing more');
+  assert.equal(asked.length, 1, 'and only the metadata was asked');
+
+  asked = [];
+  response = await askSlice('bytes=0-524287', '203.0.113.51');
+  assert.equal(response.status, 206, 'a slice is a partial answer');
+  assert.equal(await response.text(), '%PDF-slice', 'passed through as it came');
+  assert.equal(response.headers.get('content-range'), 'bytes 0-524287/17216196');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store', 'never kept');
+  assert.equal(response.headers.get('vercel-cdn-cache-control'), 'no-store');
+  assert.equal(asked[0].url, 'https://archive.org/metadata/made_up_scan', 'the item asked first, every time');
+  assert.equal(asked[1].url, 'https://ia601601.us.archive.org/3/items/made_up_scan/scan_text.pdf', 'the Text PDF (not the LCP copy, not the bigger scan), from the item`s own server');
+  assert.ok(asked.every((each) => each.cache === 'no-store'));
+
+  asked = [];
+  answer = slices('ia601601.us.archive.org');
+  response = await askSlice('bytes=0-524287', '203.0.113.52');
+  assert.equal(response.status, 206, 'a server that ignores the range is passed over');
+  assert.equal(asked[2].url.split('/')[2], 'ia801601.us.archive.org', 'for the next one');
+  assert.ok(!asked.some((each) => each.url.includes('evil.example')), 'a server name that isn`t the Archive`s is never asked');
+
+  for (const [range, why] of [
+    [null, 'no range'],
+    ['bytes=0-99999999', 'a slice over 4 MB'],
+    ['bytes=99999999999-99999999999', 'a range past the end'],
+    ['bytes=5-1', 'a backwards range'],
+    ['bytes=0-10,20-30', 'several ranges'],
+  ]) {
+    asked = [];
+    answer = slices();
+    response = await askSlice(range, `203.0.113.${60 + why.length}`);
+    assert.equal(response.status, 416, `${why} is refused`);
+    assert.equal(asked.length, 1, `${why}: no file is fetched`);
+  }
+  assert.deepEqual(writes, [], 'nothing written to disk while slices passed through');
+  console.log('  ok    an Archive PDF: its size, then slices from the item`s own servers, never kept, odd ranges refused');
   console.log('reader checks passed');
 })().catch((error) => {
   console.error(error);

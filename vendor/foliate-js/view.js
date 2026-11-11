@@ -76,12 +76,17 @@ const fetchFile = async url => {
     return new File([await res.blob()], new URL(res.url).pathname)
 }
 
-// DEBASER (SPEC-reader.md): EPUB only, and only from a Blob the site's own route handed over. The other formats'
+// DEBASER (SPEC-reader.md): EPUB and PDF only, and only from a Blob (or a Blob-like slicer) the site handed over. The other formats'
 // modules (comic book, FB2, PDF, MOBI) are not vendored, so their branches are cut, and an address is refused so the
 // engine never fetches anything itself. Upstream's makeBook (commit 78914ae) is the one to compare with.
 export const makeBook = async file => {
     if (typeof file === 'string') throw new UnsupportedTypeError('Open a Blob, not an address')
     if (!file.size) throw new NotFoundError('File not found')
+    // DEBASER: and PDFs (Luke, 2026-11-11), from the site's route a slice at a time or from the reader's own device.
+    if (await isPDF(file)) {
+        const { makePDF } = await import('./pdf.js')
+        return makePDF(file)
+    }
     if (!(await isZip(file))) throw new UnsupportedTypeError('File type not supported')
     const loader = await makeZipLoader(file)
     const { EPUB } = await import('./epub.js')

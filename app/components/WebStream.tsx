@@ -778,6 +778,11 @@ export default function WebStream() {
           >
             [ IMDB ]
           </button>
+          {/* Luke, 2026-11-11: your own PDF or EPUB in the site's reader, opened in the browser, never uploaded. */}
+          {/* A key to the site's own page: nothing to prefetch for a page that only opens a file picker. */}
+          <button type="button" onClick={() => window.location.assign('/read')} className={PLATE} data-own-book-key>
+            [ READ YOUR OWN ]
+          </button>
         </div>
         <div role="group" aria-label="Source" className="flex flex-wrap items-center gap-1">
           <span className="text-label font-bold text-ink-quiet">SOURCE:</span>

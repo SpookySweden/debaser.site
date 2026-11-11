@@ -45,7 +45,7 @@ const deps = (fetch, order) => ({ fetch, now: () => new Date(NOW), order });
     same(item.kind, 'text', 'a book is text');
     ok(item.embedUrl === undefined, 'no player');
     ok(/-pg[1-9][0-9]*$/.test(item.externalId), 'every row carries its Gutenberg number, so READ opens it at /read');
-    ok(/FREE TO READ HERE\./.test(item.description ?? ''), 'and says it reads here');
+    ok(item.description === undefined, 'and has no "free to read" line (Luke, 2026-11-11): its date is the year it came out');
   }
   same(page.items[0].externalId, 'OL85892W-pg345', 'a work Project Gutenberg has carries its number');
   same(books.bookParts('OL85892W-pg345'), { work: 'OL85892W', gutenberg: '345' });

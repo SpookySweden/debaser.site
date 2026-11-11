@@ -66,15 +66,7 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
   if (year === null || year < 1 || year > new Date(fetchedAt).getUTCFullYear() + 1) return null;
   const gutenberg = strings(record.id_project_gutenberg).find((number) => PG_NUMBER.test(number)) ?? null;
   const cover = typeof record.cover_i === 'number' && Number.isInteger(record.cover_i) && record.cover_i > 0 ? record.cover_i : null;
-  const access = typeof record.ebook_access === 'string' ? record.ebook_access : '';
   const page = buildUrl(API_HOST, ['works', work]);
-  const where = gutenberg
-    ? 'FREE TO READ HERE.'
-    : access === 'public'
-      ? 'FREE TO READ ON OPEN LIBRARY.'
-      : access === 'borrowable'
-        ? 'BORROWABLE ON OPEN LIBRARY.'
-        : 'IN OPEN LIBRARY\'S CATALOGUE.';
   const externalId = gutenberg ? `${work}-pg${gutenberg}` : work;
   return {
     id: `books:${externalId}`,
@@ -85,7 +77,7 @@ export function toBookItem(doc: unknown, fetchedAt: string): WebItem | null {
     canonicalUrl: page,
     title,
     creator: sanitiseText(strings(record.author_name).slice(0, 3).join(', '), 200) || undefined,
-    description: `FIRST PUBLISHED ${year}. ${where}`,
+    // No line of its own (Luke, 2026-11-11: the "free to read" line is gone): the row's date is the year it came out.
     thumbnailUrl: cover ? `https://${COVER_HOST}/b/id/${cover}-M.jpg` : undefined,
     publishedAt: new Date(Date.UTC(year, 0, 1)).toISOString(),
     fetchedAt,

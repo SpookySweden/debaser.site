@@ -32,6 +32,11 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   an Internet Archive book's own EPUB (listed, not private, never its `_lcp` lending copy, never an access-restricted item)
   passes through the same way, never kept; an Archive book with no EPUB shows the Archive's own viewer
   (`archive.org/embed/<id>`) on the /read page. BOOKS shows only Open Library works with a Gutenberg copy.
+  Widened again ("try to find a way to have every book, its okay to grab them directly, preferably inside our reader"):
+  an Archive book with no EPUB but a PDF reads in our reader a slice at a time (`Range` requests through the same route,
+  answered 206, never kept, the slice only of the PDF the item's metadata lists), fetched from the item's own file
+  servers; the Archive's viewer is for a book with neither. A reader's own PDF or EPUB opens at `/read` in their
+  browser and is never uploaded. Lending-library books stay out: they are copy-protected.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.

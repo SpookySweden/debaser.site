@@ -93,9 +93,46 @@ export async function loadEngine(): Promise<{ highlight: HighlightDraw; makeBook
   return { highlight: Overlayer.highlight, makeBook };
 }
 
-/** Opens a book from its Blob, with scripts refused and every chapter cleaned (above). */
+/**
+ * An Internet Archive book's PDF, read a slice at a time through the site's route (Luke, 2026-11-11): what pdf.js is handed
+ * in place of a whole file. It only ever asks a file for its size and for slices, so each slice is one Range request to
+ * /api/web/book/epub, never kept, and a scan of hundreds of megabytes reads page by page.
+ */
+export function remotePdf(bookRef: string, size: number): Blob {
+  const address = `/api/web/book/epub?ref=${encodeURIComponent(bookRef)}&format=pdf`;
+  const slicer = {
+    size,
+    type: 'application/pdf',
+    name: 'book.pdf',
+    slice(begin = 0, end = size) {
+      const from = Math.max(0, begin);
+      const to = Math.min(size, end);
+      return {
+        size: Math.max(0, to - from),
+        async arrayBuffer(): Promise<ArrayBuffer> {
+          if (to <= from) return new ArrayBuffer(0);
+          const response = await fetch(address, { headers: { Range: `bytes=${from}-${to - 1}` }, cache: 'no-store' });
+          if (response.status !== 206) throw new Error('A PAGE OF THE BOOK DID NOT COME.');
+          return response.arrayBuffer();
+        },
+      };
+    },
+  };
+  return slicer as unknown as Blob;
+}
+
+/** What kind of book the engine opened: an EPUB (reflowing pages, highlights) or a PDF (fixed pages). */
+export function bookKind(book: EngineBook): 'epub' | 'pdf' {
+  return (book as { rendition?: { layout?: string } }).rendition?.layout === 'pre-paginated' && !book.transformTarget ? 'pdf' : 'epub';
+}
+
+/**
+ * Opens a book from its Blob, with scripts refused and every EPUB chapter cleaned (above). A PDF's pages are drawn by pdf.js
+ * itself (a picture and its words, no markup of the book's own, its scripts never run), so it has nothing to clean.
+ */
 export async function openBook(file: Blob, makeBook: (file: Blob) => Promise<EngineBook>): Promise<EngineBook> {
   const book = await makeBook(file);
+  if (bookKind(book) === 'pdf') return book;
   const target = book.transformTarget;
   if (!target) throw new Error('The engine has no way to clean chapters.');
   target.addEventListener('load', (event) => {

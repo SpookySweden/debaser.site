@@ -19,6 +19,19 @@ export type ReaderFont = (typeof READER_FONTS)[number];
 export const MARGINS = ['narrow', 'normal', 'wide'] as const;
 export type Margin = (typeof MARGINS)[number];
 
+/**
+ * The layouts (Luke, 2026-11-11: "the current interface is great and save it as the intial layout, give two alternative
+ * layouts suited to other kinds of books such as graphic novels poems or scripts, and a single page option"):
+ * STANDARD, the reader as first built; COMIC, for graphic novels: pictures as large as the page, edge to edge, no margins;
+ * VERSE, for poems and plays: one narrow column, every line where the book put it, nothing stretched or hyphenated.
+ */
+export const LAYOUTS = ['standard', 'comic', 'verse'] as const;
+export type Layout = (typeof LAYOUTS)[number];
+
+/** Two pages side by side when the screen is wide enough, or always one. */
+export const PAGE_COUNTS = ['two', 'one'] as const;
+export type PageCount = (typeof PAGE_COUNTS)[number];
+
 export type ReaderSettings = {
   /** Text size, in percent of the book's own (80 to 200, in steps of 10). */
   size: number;
@@ -27,6 +40,8 @@ export type ReaderSettings = {
   margin: Margin;
   font: ReaderFont;
   paper: Paper;
+  layout: Layout;
+  pages: PageCount;
 };
 
 export const SIZE_MIN = 80;
@@ -36,7 +51,7 @@ export const SPACING_MIN = 1.2;
 export const SPACING_MAX = 2.2;
 export const SPACING_STEP = 0.1;
 
-export const DEFAULT_SETTINGS: ReaderSettings = { size: 110, spacing: 1.6, margin: 'normal', font: 'site', paper: 'dark' };
+export const DEFAULT_SETTINGS: ReaderSettings = { size: 110, spacing: 1.6, margin: 'normal', font: 'site', paper: 'dark', layout: 'standard', pages: 'two' };
 
 function pick<T extends string>(list: readonly T[], value: unknown, fallback: T): T {
   return typeof value === 'string' && (list as readonly string[]).includes(value) ? (value as T) : fallback;
@@ -57,6 +72,8 @@ export function readerSettingsFrom(saved: unknown): ReaderSettings {
     margin: pick(MARGINS, value.margin, DEFAULT_SETTINGS.margin),
     font: pick(READER_FONTS, value.font, DEFAULT_SETTINGS.font),
     paper: pick(PAPERS, value.paper, DEFAULT_SETTINGS.paper),
+    layout: pick(LAYOUTS, value.layout, DEFAULT_SETTINGS.layout),
+    pages: pick(PAGE_COUNTS, value.pages, DEFAULT_SETTINGS.pages),
   };
 }
 
@@ -65,6 +82,17 @@ export function nudge(settings: ReaderSettings, key: 'size' | 'spacing', directi
   return key === 'size'
     ? readerSettingsFrom({ ...settings, size: settings.size + direction * SIZE_STEP })
     : readerSettingsFrom({ ...settings, spacing: settings.spacing + direction * SPACING_STEP });
+}
+
+/**
+ * The engine's layout: the gap between and around columns (a share of the width), a column's widest, and how many columns.
+ * COMIC has no margins and pages as wide as they come; VERSE one narrow column with wide margins; STANDARD follows MARGINS.
+ */
+export function pageLayout(settings: Pick<ReaderSettings, 'margin' | 'layout' | 'pages'>): { gap: string; maxInlineSize: string; columns: 1 | 2 } {
+  const columns = settings.pages === 'one' ? 1 : 2;
+  if (settings.layout === 'comic') return { gap: '0%', maxInlineSize: '2400px', columns };
+  if (settings.layout === 'verse') return { gap: '12%', maxInlineSize: '620px', columns };
+  return { ...marginLayout(settings.margin), columns };
 }
 
 /** The engine's layout for a margin: the gap between and around columns (a share of the width), and a column's widest. */
@@ -98,7 +126,7 @@ export function readerCss(settings: ReaderSettings, colours: PaperColours, faces
     `html, body { background: ${paper} !important; color: ${ink} !important; }`,
     `body { font-size: ${settings.size}% !important; }`,
     face ? `body, p, li, blockquote, dd, dt, td, th, h1, h2, h3, h4, h5, h6, span, div { font-family: ${face} !important; }` : '',
-    `p, li, blockquote, dd, div { line-height: ${settings.spacing} !important; hyphens: auto; -webkit-hyphens: auto; }`,
+    `p, li, blockquote, dd, div { line-height: ${settings.spacing} !important;${settings.layout === 'verse' ? '' : ' hyphens: auto; -webkit-hyphens: auto;'} }`,
     // A monospaced face justified leaves wide gaps between words: plain paragraphs (no class, so not the book's centred
     // lines) start at the left instead.
     settings.font !== 'book' ? `p:not([class]):not([align]):not([style]) { text-align: start !important; }` : '',
@@ -106,10 +134,30 @@ export function readerCss(settings: ReaderSettings, colours: PaperColours, faces
     `a:link, a:visited { color: inherit !important; text-decoration: underline; }`,
     `img, svg { max-width: 100%; height: auto; }`,
     `pre { white-space: pre-wrap !important; }`,
+    ...layoutCss(settings.layout),
     `::selection { background: ${ink}; color: ${paper}; }`,
   ]
     .filter(Boolean)
     .join('\n');
+}
+
+/** What each layout adds to a chapter's CSS (STANDARD adds nothing). */
+export function layoutCss(layout: Layout): string[] {
+  if (layout === 'comic') {
+    return [
+      `html, body { margin: 0 !important; padding: 0 !important; }`,
+      `img, svg, image { display: block; max-width: 100% !important; max-height: 100vh !important; width: auto; height: auto; margin: 0 auto !important; object-fit: contain; }`,
+      `p:has(> img:only-child), div:has(> img:only-child) { margin: 0 !important; text-indent: 0 !important; }`,
+    ];
+  }
+  if (layout === 'verse') {
+    return [
+      `p, div, span, li, blockquote, dd { text-align: start !important; hyphens: manual !important; -webkit-hyphens: manual !important; }`,
+      `.poem, .stanza, .verse, .line, .poetry, pre { white-space: pre-wrap !important; }`,
+      `p { text-indent: 0 !important; }`,
+    ];
+  }
+  return [];
 }
 
 /**

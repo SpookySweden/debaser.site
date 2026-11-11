@@ -17,6 +17,8 @@ const eslintConfig = defineConfig([
     "Temp/**",
     // A pinned copy of foliate-js, the reader's engine (SPEC-reader.md): someone else's code, kept as it came.
     "vendor/**",
+    // pdf.js's worker, styles and decoders, served as they came (vendor/foliate-js/README-DEBASER.md).
+    "public/vendor/**",
     // The tracked tools that read the site and capture its HTML. Deliberately
     // CommonJS and dependency-free: they run with a plain `node scripts/x.cjs`, with
     // no build step, so that the one that reads the deployed HTML is still runnable

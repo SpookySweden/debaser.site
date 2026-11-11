@@ -73,6 +73,14 @@ assert.match(reading, /bg-reader-dark-paper/, 'the page is the dark paper until 
 assert.doesNotMatch(reading, /gutenberg\.org/, 'no Gutenberg address reaches the page');
 console.log('  ok    the reader, before the book arrives');
 
+// A reader's own PDF or EPUB (Luke, 2026-11-11): the page asks for a file, and offers nothing that would save anything.
+const ownPage = renderToStaticMarkup(el(ReaderPage, { bookRef: null }));
+assert.match(ownPage, /YOUR OWN BOOK/, 'the page says what it is for');
+assert.match(ownPage, /CHOOSE A PDF OR EPUB[\s\S]*type="file"[^>]*accept="\.pdf,\.epub/, 'a file picker for a PDF or an EPUB');
+assert.match(ownPage, /STAYS ON YOUR DEVICE/, 'and says the file goes nowhere');
+assert.doesNotMatch(ownPage, /BOOKMARKS|HIGHLIGHTS|READING THE BOOK FROM/, 'no bookmarks or highlights, nothing fetched');
+console.log('  ok    your own book');
+
 const spot = { x: 300, top: 200, bottom: 230, stageWidth: 900, stageHeight: 600 };
 const noop = () => undefined;
 const outBar = renderToStaticMarkup(el(HighlightBar, { spot, quote: 'made up', existing: null, signedIn: false, onColour: noop, onComment: noop, onLock: noop, onDelete: noop, onClose: noop }));
@@ -92,6 +100,12 @@ console.log('  ok    the highlight bar');
 const lookPanel = renderToStaticMarkup(el(panels.LookSettings, { settings: look.DEFAULT_SETTINGS, onChange: noop }));
 for (const word of ['TEXT SIZE', 'LINE SPACING', 'MARGINS', 'FONT', 'PAPER', 'LIGHT', 'DARK', 'SEPIA', 'TYPEWRITER']) assert.match(lookPanel, new RegExp(word), `LOOK has ${word}`);
 assert.match(lookPanel, /bg-reader-sepia-paper/, 'each paper shown in its own colours');
+// The layouts (Luke, 2026-11-11): STANDARD first and on, COMIC and VERSE, and ONE PAGE / TWO PAGES.
+assert.match(lookPanel, /LAYOUT[\s\S]*STANDARD[\s\S]*\[ COMIC \][\s\S]*\[ VERSE \]/, 'LOOK offers the three layouts, STANDARD chosen');
+assert.match(lookPanel, /PAGES[\s\S]*TWO PAGES[\s\S]*\[ ONE PAGE \]/, 'and one page or two');
+const pdfLook = renderToStaticMarkup(el(panels.LookSettings, { settings: look.DEFAULT_SETTINGS, onChange: noop, fixedPages: true }));
+assert.doesNotMatch(pdfLook, /TEXT SIZE|LINE SPACING|MARGINS|FONT/, 'a PDF`s fixed pages: no text settings');
+assert.match(pdfLook, /LAYOUT[\s\S]*PAGES[\s\S]*PAPER/, 'only the layout, the pages and the paper');
 assert.match(renderToStaticMarkup(el(panels.BookmarkList, { signedIn: false, bookmarks: [], onAdd: noop, onGo: noop, onRemove: noop })), /LOG IN TO KEEP BOOKMARKS/);
 const marks = renderToStaticMarkup(el(panels.BookmarkList, { signedIn: true, bookmarks: [{ id: 'b1', person: 'me', bookRef: 'books:OL1W-pg1', cfi: 'epubcfi(/6/2!/4)', label: 'CHAPTER I · 3%', createdAt: '' }], onAdd: noop, onGo: noop, onRemove: noop }));
 assert.match(marks, /\+ BOOKMARK THIS PAGE/);

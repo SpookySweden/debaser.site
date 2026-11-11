@@ -91,6 +91,8 @@ export type SafeFetchOptions = {
   userAgent?: string;
   /** Hosts a redirect may also lead to (https, the same checks), for a platform that hands downloads to numbered file servers. */
   redirectHosts?: RegExp;
+  /** A byte range to ask for (`bytes=0-524287`), for a file read a slice at a time (the reader's PDFs). */
+  range?: string;
 };
 
 /** A redirect's address on one of `redirectHosts`, with every other check `isAllowedUrl` makes. */
@@ -115,7 +117,10 @@ export async function safeFetchText(url: string, options: SafeFetchOptions): Pro
  * the browser (the reader's EPUB, SPEC-reader.md). The size cap is enforced as the bytes go by (a declared length over it is
  * refused before any are read; a body that runs past it is cut off with an error). The timeout covers the whole body.
  */
-export async function safeFetchStream(url: string, options: SafeFetchOptions): Promise<{ body: ReadableStream<Uint8Array>; length: number | null; type: string | null }> {
+export async function safeFetchStream(
+  url: string,
+  options: SafeFetchOptions,
+): Promise<{ body: ReadableStream<Uint8Array>; length: number | null; type: string | null; status: number; contentRange: string | null }> {
   const maxBytes = options.maxBytes ?? MAX_RESPONSE_BYTES;
   const response = await safeFetchResponse(url, options);
   const declared = Number(response.headers.get('content-length'));
@@ -133,7 +138,7 @@ export async function safeFetchStream(url: string, options: SafeFetchOptions): P
       else controller.enqueue(chunk);
     },
   });
-  return { body: response.body.pipeThrough(capped), length, type: response.headers.get('content-type') };
+  return { body: response.body.pipeThrough(capped), length, type: response.headers.get('content-type'), status: response.status, contentRange: response.headers.get('content-range') };
 }
 
 /** The hops (each held to the allow-list), down to the answering response, which is returned unread. */
@@ -148,7 +153,8 @@ async function safeFetchResponse(url: string, options: SafeFetchOptions): Promis
 
     let response: Response;
     try {
-      const headers = { 'User-Agent': options.userAgent ?? userAgent(), Accept: options.accept ?? 'application/json' };
+      const headers: Record<string, string> = { 'User-Agent': options.userAgent ?? userAgent(), Accept: options.accept ?? 'application/json' };
+      if (options.range !== undefined && /^bytes=\d{1,12}-\d{0,12}$/.test(options.range)) headers.Range = options.range;
       response = await fetchImpl(
         current,
         options.postJson === undefined
