@@ -36,6 +36,8 @@ import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
 
 const LOOK_KEY = 'debaser-reader-look';
+/** How long a click on the page's edge waits before turning it: long enough for a double-click to choose a word. */
+const TURN_WAIT_MS = 250;
 const NONE_HIGHLIGHTED: BookHighlight[] = [];
 const NONE_BOOKMARKED: BookBookmark[] = [];
 const placeKey = (bookRef: string) => `debaser-reader-place:${bookRef}`;
@@ -117,8 +119,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const indexOf = useRef(new WeakMap<Document, number>());
   const highlightsRef = useRef<BookHighlight[]>([]);
   const settingsRef = useRef<ReaderSettings>(DEFAULT_SETTINGS);
-  const touchRef = useRef(false);
   const annotationHit = useRef(false);
+  const barsOpenRef = useRef(false);
+  const turnTimer = useRef<number | null>(null);
   const placeTimer = useRef<number | null>(null);
   const meRef = useRef(me);
 
@@ -154,6 +157,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   useEffect(() => {
     meRef.current = me;
     highlightsRef.current = mine;
+    barsOpenRef.current = picked !== null || shown !== null;
   });
 
   // ---------- the look: read once (the account's, else this browser's), applied to the engine on every change ----------
@@ -294,21 +298,39 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   }, [closeBars]);
 
   /**
-   * A tap at this point on the screen: the outer thirds of the reading area turn the page. Taps on the page itself come
-   * from the chapter's frame; taps beside it (a phone shows the site 1280px wide and shrunk, so one page sits in the
-   * middle with margins round it) come from the stage.
+   * A click or a tap at this point on the screen: the outer thirds of the reading area turn the page (a mouse too, Luke
+   * 2026-11-11). Clicks on the page itself come from the chapter's frame; clicks beside it come from the stage. The turn
+   * waits a quarter of a second, so a double-click to choose a word cancels it, and it doesn't happen if words were chosen
+   * meanwhile. With the highlight bar open, a click only closes the bar.
    */
   const tapAt = useCallback(
-    (clientX: number) => {
+    (clientX: number, doc: Document | null = null) => {
       const stage = stageRef.current;
       if (!stage) return;
+      if (barsOpenRef.current) {
+        closeBars();
+        return;
+      }
       const box = stage.getBoundingClientRect();
       const x = clientX - box.left;
-      if (x < box.width / 3) turn('left');
-      else if (x > (box.width * 2) / 3) turn('right');
+      const side = x < box.width / 3 ? 'left' : x > (box.width * 2) / 3 ? 'right' : null;
+      if (side === null) return;
+      if (turnTimer.current !== null) window.clearTimeout(turnTimer.current);
+      turnTimer.current = window.setTimeout(() => {
+        turnTimer.current = null;
+        const selection = doc?.getSelection();
+        if (selection && !selection.isCollapsed) return;
+        turn(side);
+      }, TURN_WAIT_MS);
     },
-    [turn],
+    [turn, closeBars],
   );
+
+  /** A double-click is for choosing a word: the turn its first click set off is cancelled. */
+  const cancelTurn = useCallback(() => {
+    if (turnTimer.current !== null) window.clearTimeout(turnTimer.current);
+    turnTimer.current = null;
+  }, []);
 
   const keys = useCallback(
     (event: KeyboardEvent) => {
@@ -395,9 +417,7 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           const { doc, index } = (event as CustomEvent<{ doc: Document; index: number }>).detail;
           indexOf.current.set(doc, index);
           doc.addEventListener('keydown', (keyEvent) => keysRef.current(keyEvent));
-          doc.addEventListener('pointerdown', (pointer) => {
-            touchRef.current = pointer.pointerType === 'touch' || pointer.pointerType === 'pen';
-          });
+          doc.addEventListener('dblclick', cancelTurn);
           let timer: number | null = null;
           doc.addEventListener('selectionchange', () => {
             // Highlights are an EPUB's, in a book the site knows: none on a PDF's fixed pages or in a reader's own file.
@@ -417,19 +437,18 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
               setPicked({ cfi, quote, spot });
             }, 280);
           });
-          // A tap on the page's outer thirds turns it (a touch, not a mouse: a click on a desktop is for choosing words).
+          // A click or tap on the page's outer thirds turns it; not on a link, a highlight, or after choosing words.
           doc.addEventListener('click', (click) => {
             window.setTimeout(() => {
               if (annotationHit.current) {
                 annotationHit.current = false;
                 return;
               }
-              if (!touchRef.current) return;
               const selection = doc.getSelection();
               if (selection && !selection.isCollapsed) return;
               if ((click.target as Element | null)?.closest?.('a[href]')) return;
               const frame = doc.defaultView?.frameElement;
-              if (frame) tapAt(frame.getBoundingClientRect().left + click.clientX);
+              if (frame) tapAt(frame.getBoundingClientRect().left + click.clientX, doc);
             }, 0);
           });
         });
@@ -710,10 +729,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           className="absolute inset-0"
           aria-label="The book"
           role="document"
-          onPointerDown={(event) => {
-            touchRef.current = event.pointerType === 'touch' || event.pointerType === 'pen';
-          }}
-          onClick={(event) => touchRef.current && tapAt(event.clientX)}
+          onClick={(event) => tapAt(event.clientX)}
+          onDoubleClick={cancelTurn}
         />
 
         {phase === 'choose' ? (
