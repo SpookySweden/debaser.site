@@ -87,7 +87,7 @@ docs that string/array fields both work, restricted and invalid ids are skipped,
 every URL is on the allow-list, no engagement keys come out, the request asks for none, and the
 fake fetch sees one request. `npm run checks:web` picks it up by its `check-web-` name and
 `npm run verify` runs it. Prove it: break the adapter (drop the id check), watch it fail, restore.
-`scripts/check-web-types.cjs` already guards `types.ts` and keeps fetching out of browser code.
+`scripts/check-web-types.cjs` already guards `types.ts` and keeps the server's fetching code (beside the keys) out of browser code.
 
 ## Done
 `npm run verify` passes, the check was seen failing, the live findings are in the commit message,

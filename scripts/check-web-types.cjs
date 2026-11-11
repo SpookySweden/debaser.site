@@ -3,7 +3,8 @@
  *
  * - the WEB types have no engagement field (likes, views, downloads, ratings, followers, comments...)
  * - no browser file reaches `app/lib/web/safe-fetch.ts`, `app/lib/web/adapters/`, `app/lib/web/search/` or `app/lib/web/ingest.ts`, directly or through
- *   other imports: remote fetching is server-side only
+ *   other imports: that code sits beside the server's keys. (Browser code may fetch outside sites itself since
+ *   2026-11-11, when Luke lifted the server-only fetching rule; it just never pulls in the server's fetchers.)
  * - WEB code never renders HTML (`dangerouslySetInnerHTML`) and reads no NEXT_PUBLIC value for fetching
  * - the page's outbound links, thumbnails and player keep their safety attributes
  */

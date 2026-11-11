@@ -40,7 +40,9 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.
-- Remote fetches go through `app/lib/web/safe-fetch.ts`, never from browser code. Third-party text is
+- Remote fetches from the server go through `app/lib/web/safe-fetch.ts`. Browser code may fetch outside sites
+  directly too (Luke lifted the server-only rule, 2026-11-11), but never imports the server's fetching code, which
+  sits beside the keys (`scripts/check-web-types.cjs` holds that). Third-party text is
   rendered as plain text, never as HTML. Adding a platform: `.claude/skills/add-web-adapter`.
 - /media is open to everyone since 2026-11-09 (Luke: "Everything"; it was signed-in only before): signed out, the stream,
   search, KINO, friends' servers, DISCOVER and RECOMMENDED all show, the WEB routes answer, and visitors may read those
