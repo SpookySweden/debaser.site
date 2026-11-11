@@ -11,6 +11,9 @@ import { FIELD_TIGHT, PLATE, PLATE_LINK, PLATE_PRESSED } from '../lib/ui/control
 import { songOwner } from '../lib/audio/song-notes';
 import AboveAnchor from './AboveAnchor';
 import { useAuth } from './AuthProvider';
+import AddToLetterKey from './AddToLetterKey';
+import type { LetterThing } from '../lib/letters/types';
+import { parseWebTrackId } from '../lib/web/web-audio';
 import { SongCardEditor } from './SongCoverCard';
 import { useMusicLibrary } from './MusicLibraryProvider';
 import { useMusicPlayer } from './MusicPlayerProvider';
@@ -87,6 +90,17 @@ type SongMenuPanelProps = {
   /** True when the row is an archive song already (archive and MY MUSIC rows), so no lookup is needed. */
   fromShelf?: boolean;
 };
+
+/**
+ * A song as a letter's item (Luke, 2026-11-11: add the playing song to a letter from this menu). A MEDIA track (an Archive
+ * recording, a podcast episode, an audiobook chapter) goes in as its MEDIA row, so its card opens it there; a site song as
+ * its file in the catalogue.
+ */
+function songThing(song: AudioTrack): LetterThing {
+  const web = parseWebTrackId(song.id);
+  const title = song.title.slice(0, 200);
+  return web ? { kind: 'web', ref: `${web.platform}:${web.externalId}`, title } : { kind: 'file', ref: song.id.slice(0, 500), title };
+}
 
 export function SongMenuPanel({ track, onClose, placement = 'below', anchor, side = 'right', fromShelf = false }: SongMenuPanelProps) {
   const library = useMusicLibrary();
@@ -287,6 +301,8 @@ export function SongMenuPanel({ track, onClose, placement = 'below', anchor, sid
           <button type="button" role="menuitem" onClick={() => setPosting(true)} className={PLATE}>
             [ ATTACH TO POST ]
           </button>
+          {/* The song into a letter (Luke, 2026-11-11): a MEDIA track as its MEDIA row, a site song as its file. */}
+          <AddToLetterKey thing={songThing(song)} />
           {top.length === 0 ? null : (
             <Link
               href={`/files?cat=${encodeURIComponent(folderCategoryId(top))}`}
