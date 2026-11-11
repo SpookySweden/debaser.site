@@ -152,6 +152,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   // An IPFS book (`ipfs:<CID>`): fetched by this browser from a gateway, and how much of it has come.
   const ipfs = own ? null : ipfsCid(bookRef);
   const [arriving, setArriving] = useState<IpfsProgress | null>(null);
+  // The page turn being drawn (globals.css, "The reader's page turn"): which way, and over half the stage (a two-page
+  // spread, turning about the spine) or all of it (one page). A new turn replaces one still swinging.
+  const [flip, setFlip] = useState<{ id: number; side: 'left' | 'right'; spread: boolean } | null>(null);
+  const flipCount = useRef(0);
   const resumeRef = useRef<string | null>(null);
   const kindRef = useRef<'epub' | 'pdf' | null>(null);
   const [title, setTitle] = useState('');
@@ -312,11 +316,26 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
     };
   }, []);
 
+  /**
+   * A page turn (the arrow keys, a click or tap on the page's outer thirds, the ◀ ▶ keys), with the leaf swinging over it
+   * (Luke, 2026-11-11). The leaf is drawn first, covering the page being left, and the book changes on the next frames
+   * underneath it. Under reduced motion the page simply changes. A swipe is the engine's own and turns without the leaf.
+   */
   const turn = useCallback((direction: 'left' | 'right') => {
     const view = viewRef.current;
     if (!view) return;
     closeBars();
-    void (direction === 'left' ? view.goLeft() : view.goRight());
+    const go = () => void (direction === 'left' ? view.goLeft() : view.goRight());
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      go();
+      return;
+    }
+    // Two pages side by side: the engine draws one column head per column; a PDF's spread is ONE PAGE / TWO PAGES.
+    const columns = kindRef.current === 'pdf' ? (settingsRef.current.pages === 'two' ? 2 : 1) : ((view.renderer as { heads?: unknown[] | null }).heads?.length ?? 1);
+    flipCount.current += 1;
+    setFlip({ id: flipCount.current, side: direction, spread: columns >= 2 });
+    // A plain timer, not animation frames (those wait while the tab is hidden): long enough for the leaf to be painted first.
+    window.setTimeout(go, 40);
   }, [closeBars]);
 
   /**
@@ -765,6 +784,26 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           onClick={(event) => tapAt(event.clientX)}
           onDoubleClick={cancelTurn}
         />
+
+        {flip && ready ? (
+          // The page turn: a leaf of this paper swinging over the spine in whole frames (globals.css). Its front covers the page
+          // being left; its back, past the edge-on frame, the page it lands on. Taken away when it lands.
+          <div
+            key={flip.id}
+            aria-hidden="true"
+            className={`page-leaf pointer-events-none absolute inset-y-0 z-30 ${PAPER_CLASS[settings.paper]} ${
+              flip.side === 'right' ? 'page-leaf-right animate-page-turn-right' : 'page-leaf-left animate-page-turn-left'
+            } ${flip.spread ? (flip.side === 'right' ? 'left-1/2 right-0' : 'left-0 right-1/2') : 'inset-x-0'}`}
+            onAnimationEnd={() => setFlip((held) => (held?.id === flip.id ? null : held))}
+          >
+            <div className={`page-leaf-face border-current ${flip.side === 'right' ? 'border-r-line' : 'border-l-line'}`}>
+              <div className={`page-leaf-fold ${flip.side === 'right' ? 'left-0' : 'right-0'}`} />
+            </div>
+            <div className={`page-leaf-face page-leaf-back border-current ${flip.side === 'right' ? 'border-l-line' : 'border-r-line'}`}>
+              <div className={`page-leaf-fold ${flip.side === 'right' ? 'right-0' : 'left-0'}`} />
+            </div>
+          </div>
+        ) : null}
 
         {phase === 'choose' ? (
           <div className="absolute inset-x-0 top-1/4 flex flex-col items-center gap-3 p-4 text-center">

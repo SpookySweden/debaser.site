@@ -249,6 +249,10 @@
   /* A CYTUBE blank screen's key pressed (SPEC-cytube.md): a few quick blinks of its lit colour while it squashes
      and springs back, then the queue window opens (on `animationend`). Still under reduced motion. */
   --animate-blank-press: blank-press 420ms steps(1, end) 1;
+  /* The reader's page turn (Luke, 2026-11-11): a leaf of the book's paper swings over the spine in six whole frames, like a
+     flip-book cel, and holds its last frame until the reader takes it away (on `animationend`). None under reduced motion. */
+  --animate-page-turn-right: page-turn-right 360ms steps(6, end) 1 forwards;
+  --animate-page-turn-left: page-turn-left 360ms steps(6, end) 1 forwards;
 }
 
 /* -----------------------------------------------------------------------------------------------------

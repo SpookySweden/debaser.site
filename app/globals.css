@@ -1402,6 +1402,85 @@ img {
   background-image: repeating-linear-gradient(45deg, var(--color-sun) 0 4px, var(--color-bubble) 4px 8px);
 }
 
+/* The reader's page turn (Luke, 2026-11-11: "add a page flipping affect make it stylish"). A leaf of the book's own paper
+   lifts off the page being left and swings over the spine in six whole frames (`--animate-page-turn-*`), never eased (the
+   design guide's Feel): a hard ink line on its outer edge, and near the fold a 2px dither of the ink instead of a soft
+   shadow. Its front covers the page being left while the book changes underneath; past the edge-on frame its back covers
+   the page it lands on, and the reader takes it away when it lands (ReaderPage.tsx). Not drawn under reduced motion. */
+.page-leaf {
+  transform-style: preserve-3d;
+}
+
+.page-leaf-right {
+  transform-origin: left center;
+}
+
+.page-leaf-left {
+  transform-origin: right center;
+}
+
+.page-leaf-face {
+  position: absolute;
+  inset: 0;
+  background-color: inherit;
+  backface-visibility: hidden;
+}
+
+.page-leaf-back {
+  transform: rotateY(180deg);
+}
+
+/* The leaf's grain: the same 2px dots, faint, over the whole face, so the leaf reads as a sheet apart from the page under
+   it (it is the same paper colour), and the fold's band darker on top of it. */
+.page-leaf-face::before,
+.page-leaf-fold {
+  background-image: linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%),
+    linear-gradient(45deg, currentColor 25%, transparent 25%, transparent 75%, currentColor 75%);
+  background-position: 0 0, 2px 2px;
+  background-size: 4px 4px;
+}
+
+.page-leaf-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.12;
+}
+
+/* The fold's shading: a band of 2px ink dots along the spine side of a face, the spine on the right or the left. */
+.page-leaf-fold {
+  position: absolute;
+  inset-block: 0;
+  width: 18%;
+  opacity: 0.45;
+}
+
+@keyframes page-turn-right {
+  from {
+    transform: perspective(2400px) rotateY(0deg);
+  }
+
+  to {
+    transform: perspective(2400px) rotateY(-180deg);
+  }
+}
+
+@keyframes page-turn-left {
+  from {
+    transform: perspective(2400px) rotateY(0deg);
+  }
+
+  to {
+    transform: perspective(2400px) rotateY(180deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-leaf {
+    display: none;
+  }
+}
+
 /* Everything above, off for anybody who has asked for less motion - the wobble, the ticker, the
    blinking glyph. The colours, the presses and the dotted links stay: they are how the site looks,
    not how it moves. */
