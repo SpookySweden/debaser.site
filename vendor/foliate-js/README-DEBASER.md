@@ -17,10 +17,13 @@ Copied: `view.js`, `epub.js`, `epubcfi.js`, `paginator.js`, `fixed-layout.js`, `
 Left out: the comic book, FB2, MOBI and PDF readers (and PDF.js), `dict.js`, `opds.js`, `footnotes.js`, the demo
 reader (`reader.html`, `reader.js`, `ui/`).
 
-## The one change from upstream
-`view.js`, `makeBook`: EPUB only, from a Blob only. An address is refused, so the engine never fetches a book
-itself; the site hands it the Blob its own route passed through. The other formats' branches are cut, because
-their files aren't here.
+## The two changes from upstream
+- `view.js`, `makeBook`: EPUB only, from a Blob only. An address is refused, so the engine never fetches a book
+  itself; the site hands it the Blob its own route passed through. The other formats' branches are cut, because
+  their files aren't here.
+- `paginator.js`, the touch handlers (marked `DEBASER`): a swipe snaps to the next page when the zoom didn't change
+  during it, instead of only at zoom 1. Phones get the site laid out at 1280px and shrunk to fit (`app/layout.tsx`),
+  so their zoom is never 1, and upstream's test left every swipe half-turned there.
 
 ## Scripts in books
 foliate-js frames each chapter with `sandbox="allow-same-origin allow-scripts"` (a WebKit bug needs
@@ -30,5 +33,5 @@ Content-Security-Policy written into its head (no scripts at all; pictures, styl
 itself) before the engine draws it.
 
 ## Updating
-Clone upstream, copy the same files over these, re-apply the `makeBook` change, update the commit above, and run
+Clone upstream, copy the same files over these, re-apply both changes, update the commit above, and run
 `npm run checks -- --only check-reader`.

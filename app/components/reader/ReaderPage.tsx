@@ -271,6 +271,23 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
     void (direction === 'left' ? view.goLeft() : view.goRight());
   }, [closeBars]);
 
+  /**
+   * A tap at this point on the screen: the outer thirds of the reading area turn the page. Taps on the page itself come
+   * from the chapter's frame; taps beside it (a phone shows the site 1280px wide and shrunk, so one page sits in the
+   * middle with margins round it) come from the stage.
+   */
+  const tapAt = useCallback(
+    (clientX: number) => {
+      const stage = stageRef.current;
+      if (!stage) return;
+      const box = stage.getBoundingClientRect();
+      const x = clientX - box.left;
+      if (x < box.width / 3) turn('left');
+      else if (x > (box.width * 2) / 3) turn('right');
+    },
+    [turn],
+  );
+
   const keys = useCallback(
     (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -358,13 +375,8 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
               const selection = doc.getSelection();
               if (selection && !selection.isCollapsed) return;
               if ((click.target as Element | null)?.closest?.('a[href]')) return;
-              const stage = stageRef.current;
               const frame = doc.defaultView?.frameElement;
-              if (!stage || !frame) return;
-              const stageBox = stage.getBoundingClientRect();
-              const x = frame.getBoundingClientRect().left + click.clientX - stageBox.left;
-              if (x < stageBox.width / 3) turn('left');
-              else if (x > (stageBox.width * 2) / 3) turn('right');
+              if (frame) tapAt(frame.getBoundingClientRect().left + click.clientX);
             }, 0);
           });
         });
@@ -607,7 +619,16 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
       ) : null}
 
       <div ref={stageRef} className={`relative min-h-0 flex-1 overflow-hidden ${PAPER_CLASS[settings.paper]}`}>
-        <div ref={hostRef} className="absolute inset-0" aria-label="The book" role="document" />
+        <div
+          ref={hostRef}
+          className="absolute inset-0"
+          aria-label="The book"
+          role="document"
+          onPointerDown={(event) => {
+            touchRef.current = event.pointerType === 'touch' || event.pointerType === 'pen';
+          }}
+          onClick={(event) => touchRef.current && tapAt(event.clientX)}
+        />
 
         {phase === 'reading-file' || phase === 'opening' ? (
           <p className="absolute inset-x-0 top-1/3 text-center text-label" role="status">

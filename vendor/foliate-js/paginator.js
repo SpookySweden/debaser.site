@@ -826,12 +826,14 @@ export class Paginator extends HTMLElement {
             x: touch?.screenX, y: touch?.screenY,
             t: e.timeStamp,
             vx: 0, xy: 0,
+            // DEBASER: the zoom the gesture started at (a page laid out wider than the phone starts below 1)
+            scale: globalThis.visualViewport?.scale ?? 1,
         }
     }
     #onTouchMove(e) {
         const state = this.#touchState
         if (state.pinched) return
-        state.pinched = globalThis.visualViewport.scale > 1
+        state.pinched = globalThis.visualViewport.scale > state.scale + 0.01
         if (this.scrolled || state.pinched) return
         if (e.touches.length > 1) {
             if (this.#touchScrolled) e.preventDefault()
@@ -858,7 +860,7 @@ export class Paginator extends HTMLElement {
         // at this point I'm basically throwing `requestAnimationFrame` at
         // anything that doesn't work
         requestAnimationFrame(() => {
-            if (globalThis.visualViewport.scale === 1)
+            if (Math.abs(globalThis.visualViewport.scale - (this.#touchState?.scale ?? 1)) < 0.01)
                 this.snap(this.#touchState.vx, this.#touchState.vy)
         })
     }
