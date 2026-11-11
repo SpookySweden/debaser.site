@@ -195,6 +195,65 @@ const ask = (ref, address = '203.0.113.1') => GET(new Request(`https://debaser.s
 
   assert.deepEqual(writes, [], 'nothing was written to disk while the route answered');
   console.log('  ok    the EPUB route');
+
+  /* 6. An Internet Archive book (Luke, 2026-11-11: its EPUB in the reader, the Archive's viewer otherwise) ---------- */
+  const item = (files, metadata = {}) => JSON.stringify({ metadata: { identifier: 'made_up_book', mediatype: 'texts', title: 'Made Up', ...metadata }, files });
+  const archive = (metadataBody, redirectTo = 'https://ia800300.us.archive.org/1/items/made_up_book/Made%20Up.epub') => (url) => {
+    if (url.startsWith('https://archive.org/metadata/')) return new Response(metadataBody, { status: 200, headers: { 'content-type': 'application/json' } });
+    if (url.startsWith('https://archive.org/download/')) return new Response(null, { status: 302, headers: { location: redirectTo } });
+    if (url.startsWith('https://ia800300.us.archive.org/')) return new Response('PK archive bytes', { status: 200 });
+    return new Response('no', { status: 404 });
+  };
+  const withEpub = item([
+    { name: 'Made Up_lcp.epub', size: '900' },
+    { name: 'Secret.epub', size: '10', private: 'true' },
+    { name: 'Made Up.epub', size: '16' },
+    { name: 'Made Up.pdf', size: '99' },
+  ]);
+  asked = [];
+  answer = archive(withEpub);
+  response = await ask('internet_archive:made_up_book', '203.0.113.6');
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'PK archive bytes', 'the Archive book`s own EPUB, passed through');
+  assert.equal(response.headers.get('cache-control'), 'private, no-store', 'never kept');
+  assert.equal(asked[0].url, 'https://archive.org/metadata/made_up_book', 'its metadata asked fresh');
+  assert.equal(asked[1].url, 'https://archive.org/download/made_up_book/Made%20Up.epub', 'the plain EPUB: not the LCP lending copy, not a private file');
+  assert.equal(asked[2].url.split('/')[2], 'ia800300.us.archive.org', 'on to the Archive`s file server');
+  assert.ok(asked.every((each) => each.cache === 'no-store'), 'every request asked no-store');
+
+  asked = [];
+  answer = archive(withEpub, 'https://evil.example/book.epub');
+  response = await ask('internet_archive:made_up_book', '203.0.113.7');
+  assert.equal(response.status, 502, 'a download sent anywhere but the Archive`s servers is refused');
+  assert.ok(asked.every((each) => !each.url.includes('evil.example')), 'and never followed');
+
+  asked = [];
+  answer = archive(item([{ name: 'Made Up.pdf', size: '99' }, { name: 'Made Up_lcp.epub', size: '9' }]));
+  response = await ask('internet_archive:made_up_book', '203.0.113.8');
+  assert.equal(response.status, 404);
+  assert.deepEqual(await response.json(), { error: 'NO EPUB', viewer: true }, 'no EPUB anyone may read: the reader shows the Archive`s viewer');
+  assert.equal(asked.length, 1, 'and no file is fetched');
+
+  for (const [why, body] of [
+    ['a lending-library item', item([{ name: 'Made Up.epub' }], { 'access-restricted-item': 'true' })],
+    ['a film, not a book', item([{ name: 'Made Up.epub' }], { mediatype: 'movies' })],
+    ['a dark item', JSON.stringify({ is_dark: true, files: [] })],
+  ]) {
+    asked = [];
+    answer = archive(body);
+    response = await ask('internet_archive:made_up_book', `203.0.113.${20 + why.length}`);
+    assert.equal(response.status, 404, `${why} is refused`);
+    assert.notEqual((await response.json()).viewer, true, `${why} gets no viewer either`);
+    assert.equal(asked.length, 1, `${why}: nothing but the metadata is asked`);
+  }
+  for (const ref of ['internet_archive:../x', 'internet_archive:', 'internet_archive:a/b']) {
+    asked = [];
+    response = await ask(ref, '203.0.113.40');
+    assert.ok(response.status === 400 || response.status === 404, `${ref} is refused`);
+    assert.equal(asked.length, 0, `${ref} fetches nothing`);
+  }
+  assert.deepEqual(writes, [], 'still nothing written to disk');
+  console.log('  ok    an Internet Archive book: its own EPUB, the viewer without one, never a lending copy');
   console.log('reader checks passed');
 })().catch((error) => {
   console.error(error);

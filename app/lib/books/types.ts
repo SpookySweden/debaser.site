@@ -81,11 +81,26 @@ export function bookThreadTitle(name: string, bookTitle: string): string {
   return `${name.toUpperCase()} READING ${bookTitle.toUpperCase()}`.slice(0, 200);
 }
 
-const BOOK_ITEM = /^books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?$/;
+const BOOK_ITEM = /^(books:OL[1-9][0-9]{0,11}W(?:-pg[1-9][0-9]{0,6})?|internet_archive:[A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
+const ARCHIVE_BOOK = /^internet_archive:([A-Za-z0-9][A-Za-z0-9._-]{0,100})$/;
 
-/** A Gutenberg book the reader can open: its MEDIA ref carries a Gutenberg number. */
+/**
+ * A book the reader can open: a Gutenberg one (its MEDIA ref carries a Gutenberg number), or an Internet Archive book
+ * (Luke, 2026-11-11), read in the site's reader when it has its own EPUB and in the Archive's viewer when it hasn't.
+ */
 export function isReadable(bookRef: string): boolean {
-  return /^books:OL[1-9][0-9]{0,11}W-pg[1-9][0-9]{0,6}$/.test(bookRef);
+  return /^books:OL[1-9][0-9]{0,11}W-pg[1-9][0-9]{0,6}$/.test(bookRef) || ARCHIVE_BOOK.test(bookRef);
+}
+
+/** An Internet Archive book's identifier, or null for any other ref. */
+export function archiveBookId(bookRef: string): string | null {
+  return ARCHIVE_BOOK.exec(bookRef)?.[1] ?? null;
+}
+
+/** The Archive's own viewer for one of its books, for one with no EPUB: played from archive.org, nothing passes through us. */
+export function archiveViewerUrl(bookRef: string): string | null {
+  const id = archiveBookId(bookRef);
+  return id === null ? null : `https://archive.org/embed/${id}`;
 }
 
 /** A CFI as an address's `at=`: the characters a query keeps as they are (`/`, `:`, `,`, `!`) left readable. */

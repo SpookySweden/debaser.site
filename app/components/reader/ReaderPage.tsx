@@ -22,6 +22,7 @@ import {
   bookThreadAnchor,
   bookThreadTitle,
   highlightPost,
+  archiveViewerUrl,
   isCfi,
   QUOTE_MAX,
   type BookBookmark,
@@ -115,7 +116,7 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
   const placeTimer = useRef<number | null>(null);
   const meRef = useRef(me);
 
-  const [phase, setPhase] = useState<'reading-file' | 'opening' | 'ready' | { fault: string }>('reading-file');
+  const [phase, setPhase] = useState<'reading-file' | 'opening' | 'ready' | 'viewer' | { fault: string }>('reading-file');
   const [title, setTitle] = useState('');
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [location, setLocation] = useState<Location>({ fraction: 0, chapter: '', chapterHref: null, timeLeft: '', cfi: null });
@@ -327,7 +328,15 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
     (async () => {
       try {
         const response = await fetch(`/api/web/book/epub?ref=${encodeURIComponent(bookRef)}`, { cache: 'no-store' });
-        if (!response.ok) throw new Error(((await response.json().catch(() => ({}))) as { error?: string }).error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+        if (!response.ok) {
+          const refused = (await response.json().catch(() => ({}))) as { error?: string; viewer?: boolean };
+          // An Internet Archive book with no EPUB: the Archive's own viewer, on this page (Luke, 2026-11-11).
+          if (refused.viewer === true && archiveViewerUrl(bookRef) !== null) {
+            if (live) setPhase('viewer');
+            return;
+          }
+          throw new Error(refused.error ?? 'THIS BOOK CAN\'T BE READ HERE.');
+        }
         const file = await response.blob();
         if (!live) return;
         setPhase('opening');
@@ -573,7 +582,8 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
 
   const back = () => {
     if (window.history.length > 1) router.back();
-    else router.push(`/media/book/${bookRef}`);
+    // An Archive book has no book page of its own: back to MEDIA.
+    else router.push(archiveViewerUrl(bookRef) ? '/media' : `/media/book/${bookRef}`);
   };
 
   const toggle = (name: PanelName) => {
@@ -607,11 +617,16 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
             {title ? title.toUpperCase() : 'BOOK'}
           </h1>
           <nav aria-label="The reader's keys" className="flex flex-wrap items-center gap-1">
-            {topKey('contents', 'CONTENTS')}
-            {topKey('search', 'SEARCH')}
-            {topKey('bookmarks', `BOOKMARKS${bookmarks.length ? ` ${bookmarks.length}` : ''}`)}
-            {topKey('highlights', `HIGHLIGHTS${highlights.length ? ` ${highlights.length}` : ''}`)}
-            {topKey('look', 'LOOK')}
+            {/* The Archive's viewer has its own contents and search: only FOCUS is ours there. */}
+            {phase !== 'viewer' ? (
+              <>
+                {topKey('contents', 'CONTENTS')}
+                {topKey('search', 'SEARCH')}
+                {topKey('bookmarks', `BOOKMARKS${bookmarks.length ? ` ${bookmarks.length}` : ''}`)}
+                {topKey('highlights', `HIGHLIGHTS${highlights.length ? ` ${highlights.length}` : ''}`)}
+                {topKey('look', 'LOOK')}
+              </>
+            ) : null}
             <button type="button" onClick={() => setFocus(true)} className={PLATE}>
               [ FOCUS ]
             </button>
@@ -633,8 +648,19 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
 
         {phase === 'reading-file' || phase === 'opening' ? (
           <p className="absolute inset-x-0 top-1/3 text-center text-label" role="status">
-            {phase === 'reading-file' ? 'READING THE BOOK FROM PROJECT GUTENBERG...' : 'OPENING THE BOOK...'}
+            {phase === 'reading-file' ? `READING THE BOOK FROM ${archiveViewerUrl(bookRef) ? 'THE INTERNET ARCHIVE' : 'PROJECT GUTENBERG'}...` : 'OPENING THE BOOK...'}
           </p>
+        ) : null}
+        {phase === 'viewer' ? (
+          // The Archive's own viewer for a book with no EPUB (Luke, 2026-11-11): its pages come straight from archive.org.
+          <iframe
+            src={archiveViewerUrl(bookRef) ?? undefined}
+            title={`${title || 'The book'} in the Internet Archive's viewer`}
+            className="absolute inset-0 h-full w-full border-0"
+            allow="fullscreen"
+            allowFullScreen
+            referrerPolicy="no-referrer"
+          />
         ) : null}
         {typeof phase === 'object' ? (
           <div className="absolute inset-x-0 top-1/3 flex flex-col items-center gap-2 p-4">
@@ -721,7 +747,10 @@ export default function ReaderPage({ bookRef }: { bookRef: string }) {
         ) : null}
       </div>
 
-      {!focus ? (
+      {!focus && phase === 'viewer' ? (
+        <footer className="border-t border-ink bg-sun-pale px-2 py-1 text-label text-ink-quiet">THE INTERNET ARCHIVE&apos;S OWN VIEWER: THIS BOOK HAS NO EPUB FOR THE SITE&apos;S READER.</footer>
+      ) : null}
+      {!focus && phase !== 'viewer' ? (
         <footer className="flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-ink bg-sun-pale px-2 py-1 text-ink">
           <button type="button" onClick={() => turn('left')} disabled={!ready} className={PLATE} aria-label="Page back">
             [ ◀ ]

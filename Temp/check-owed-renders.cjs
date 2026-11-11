@@ -1321,11 +1321,18 @@ test('WebStream: PLAY opens the platform\'s own sandboxed player; only YouTube i
     floating.closeFloating();
   });
 });
-test('WebStream: a book\'s reader stays in its row', () => {
+// Changed on purpose 2026-11-11 (Luke: "options 2 for epubs and 1 for eveyrthing else", "replace the position of the
+// "open" button with the read button"): an Archive book no longer plays the Archive's viewer in its row. READ opens it at
+// /read (its own EPUB in the site's reader, or the Archive's viewer there), standing first, where OPEN was.
+test('WebStream: a book reads at /read, READ first where OPEN was', () => {
   const book = { ...VIDEO, id: 'internet_archive:book', kind: 'text', platform: 'internet_archive', externalId: 'book', url: 'https://archive.org/details/book', thumbnailUrl: undefined, embedUrl: 'https://archive.org/embed/book' };
-  draw(el(WebStream), arrived([book]));
-  press(`Play "${book.title}" (loads the INTERNET ARCHIVE player)`);
-  assert.equal(floating.floatingState().entry, null, 'it does not take over the one video');
+  const html = draw(el(WebStream), arrived([book]));
+  const words = visible(html);
+  assert.ok(html.includes('href="/read/internet_archive:book"'), 'READ goes to the reader');
+  assert.ok(!words.includes('[ ▶ PLAY ]'), 'no player in the row');
+  assert.ok(words.indexOf('[ READ ]') < words.indexOf('[ OPEN ↗ ]'), 'READ stands before OPEN');
+  assert.ok(words.indexOf('[ READ ]') >= 0 && words.indexOf('[ OPEN ↗ ]') > words.indexOf('[ DISCUSS'), 'and OPEN has moved after the site`s own keys');
+  assert.equal(floating.floatingState().entry, null, 'nothing floats');
 });
 test('FloatingPlayer: nothing until PLAY; then one player, its keys only while floating, POP OUT only for our own file', async () => {
   assert.equal(draw(el(FloatingPlayer)), '', 'nothing loads until the reader asks');

@@ -1169,6 +1169,8 @@ export function WebRow({
   const source = PLATFORM_LABELS[item.platform];
   const addresses = rowAddresses(item, extraHosts);
   const { link, embed, licence } = addresses;
+  // A book the site's reader opens: a Gutenberg book from BOOKS, or any Internet Archive book (Luke, 2026-11-11).
+  const readable = (item.platform === 'books' || (item.platform === 'internet_archive' && item.kind === 'text')) && isReadable(item.id);
   const thumb = thumbFailed ? null : addresses.thumb;
   const inBar = playsInBar(item);
   const date = item.publishedAt.slice(0, 10);
@@ -1290,7 +1292,15 @@ ${item.description}` : item.title)} className="ml-1.5" />
 
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <span className="bg-ice-pale px-1 text-label font-bold text-ink">{source}</span>
-            {link ? (
+            {/* A book (SPEC-books.md, SPEC-reader.md) opens in the site's reader at /read: READ stands first, where OPEN was
+                (Luke, 2026-11-11), for a Gutenberg book and for an Internet Archive one (its EPUB in the reader, or the
+                Archive's own viewer on that page). */}
+            {readable ? (
+              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
+                [ READ ]
+              </Link>
+            ) : null}
+            {link && !readable ? (
               <a
                 href={link}
                 target="_blank"
@@ -1301,8 +1311,8 @@ ${item.description}` : item.title)} className="ml-1.5" />
                 [ OPEN ↗ ]
               </a>
             ) : null}
-            {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. */}
-            {inBar && !playing ? (
+            {/* Audio the bar can play goes there (web-audio.ts); the platform's player is the fallback. A book reads at /read. */}
+            {readable ? null : inBar && !playing ? (
               <WebBarPlayKey item={item} onOpen={opened} onFallback={embed ? startPlayer : null} />
             ) : embed ? (
               <button
@@ -1328,11 +1338,17 @@ ${item.description}` : item.title)} className="ml-1.5" />
             {!found || SAVE_OPENED ? <WebDiscussKey item={item} onOpen={opened} /> : null}
             {roomSource !== undefined ? <WatchInRoomKey source={roomSource} playId={playId} title={item.title} onPress={opened} /> : null}
             <AddToLetterKey thing={{ kind: 'web', ref: item.id, title: item.title, picture: addresses.thumb ?? undefined }} />
-            {/* A book (SPEC-books.md): READ opens the site's reader (/read, SPEC-reader.md) when Project Gutenberg has it; both kinds have a page. */}
-            {item.platform === 'books' && isReadable(item.id) ? (
-              <Link href={`/read/${item.id}`} onClick={opened} className={PLATE}>
-                [ READ ]
-              </Link>
+            {/* A book's way out to its source sits here, after the site's own keys, where READ was. */}
+            {link && readable ? (
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                aria-label={`Open "${item.title}" on ${source} (new tab)`}
+                className={PLATE}
+              >
+                [ OPEN ↗ ]
+              </a>
             ) : null}
             {item.platform === 'books' || item.platform === 'audiobooks' ? (
               <Link href={`/media/book/${item.id}`} className={PLATE}>

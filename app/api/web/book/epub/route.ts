@@ -6,8 +6,9 @@ import { clientAddress, makeRateLimiter } from '../../../../lib/web/search/rate-
  * GET /api/web/book/epub?ref=books:OL85892W-pg345: a Project Gutenberg book's EPUB, pictures included, for the site's reader
  * (SPEC-reader.md, Luke's OK 2026-11-11, widening SPEC-books.md's for the text). Passed through as it streams, never kept:
  * asked with `cache: 'no-store'`, answered `private, no-store`, nothing written to disk, the database or the fetch cache, and
- * Vercel's edge told not to keep it either. Only a book with a Gutenberg number, only from www.gutenberg.org; anything else
- * is refused. Open to visitors, as MEDIA is.
+ * Vercel's edge told not to keep it either. Only a book with a Gutenberg number, from www.gutenberg.org, or an Internet
+ * Archive book's own EPUB (Luke, 2026-11-11), from archive.org and its file servers; anything else is refused. An Archive
+ * book with no EPUB answers `{ viewer: true }`, and the reader shows the Archive's own viewer. Open to visitors, as MEDIA is.
  */
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -27,6 +28,10 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const opened = await openBookEpub(ref, freshFetch);
     if (opened === null) return refuse('THIS BOOK CAN\'T BE READ HERE.', 404);
+    // An Internet Archive book with no EPUB anyone may read: the reader shows the Archive's own viewer instead.
+    if (opened === 'viewer') {
+      return new Response(JSON.stringify({ error: 'NO EPUB', viewer: true }), { status: 404, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } });
+    }
     const headers: Record<string, string> = {
       'Content-Type': 'application/epub+zip',
       'Cache-Control': 'private, no-store',

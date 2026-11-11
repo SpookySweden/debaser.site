@@ -28,7 +28,10 @@ The house rules live in `.claude/rules/core.md` (loaded automatically).
   streams: free Gutenberg books only, from www.gutenberg.org only, never kept (asked `no-store`, answered `private, no-store`;
   not on disk, in the database, in the fetch cache or on Vercel's edge). The engine is a pinned copy of foliate-js in
   `vendor/foliate-js/`; it is handed the Blob, never an address, and no script from a book runs. Only a highlight's short
-  quote (300 characters) is ever stored.
+  quote (300 characters) is ever stored. Luke widened it the same day ("options 2 for epubs and 1 for eveyrthing else"):
+  an Internet Archive book's own EPUB (listed, not private, never its `_lcp` lending copy, never an access-restricted item)
+  passes through the same way, never kept; an Archive book with no EPUB shows the Archive's own viewer
+  (`archive.org/embed/<id>`) on the /read page. BOOKS shows only Open Library works with a Gutenberg copy.
 - Public APIs, RSS/Atom, oEmbed and open-data endpoints; unofficial JSON APIs a platform's own site uses
   (YouTube's InnerTube) are fine too, with an official fallback where one exists (core.md, "forever project").
   Never parse HTML pages.
