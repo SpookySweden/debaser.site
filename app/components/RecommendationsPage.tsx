@@ -183,16 +183,14 @@ function RecommendationRow({
   return (
     <li className="rule-pixel py-2">
       {/* The row (Luke, 2026-11-11): the sender, a letter's envelope to the right of their name, ": TITLE", and the arrow at
-          the end. A press anywhere along it opens and shuts it; the name, the envelope and the faces keep their own presses. */}
-      <div
-        onClick={(event) => {
-          if ((event.target as HTMLElement).closest('a, button')) return;
-          onToggle();
-        }}
-        className="flex cursor-pointer flex-wrap items-center gap-2 hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink"
-      >
+          the end. A press anywhere along it opens and shuts it: a layer behind the row, for the pointer only (the arrow is the
+          key a keyboard or a screen reader uses). The name, the envelope, the faces and the arrow sit above it with their own. */}
+      <div className="relative flex flex-wrap items-center gap-2 hover:outline hover:outline-1 hover:outline-dotted hover:outline-ink">
+        <span aria-hidden="true" onClick={onToggle} className="absolute inset-0 cursor-pointer" />
         {rec.sender ? (
-          <ProfileAvatarLink author={{ id: rec.sender, displayName: rec.senderName ?? '' }} size={20} variant="plain" />
+          <span className="relative">
+            <ProfileAvatarLink author={{ id: rec.sender, displayName: rec.senderName ?? '' }} size={20} variant="plain" />
+          </span>
         ) : (
           <span className="text-label text-ink">ANON</span>
         )}
@@ -204,7 +202,7 @@ function RecommendationRow({
             aria-haspopup="dialog"
             aria-label={`Open the letter "${rec.letter.name}"`}
             title="Open the letter"
-            className="cursor-pointer p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink"
+            className="relative cursor-pointer p-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-ink"
           >
             <LetterStamp letter={rec.letter} scale={2} />
           </button>
@@ -213,7 +211,7 @@ function RecommendationRow({
         {unread ? <span className="bg-ena px-1 text-label text-ink-bar">NEW</span> : null}
         {/* The faces of who has played something in it, to the right of its title (at most five, then +N). */}
         {me !== null && players.length > 0 ? (
-          <span className="flex items-center gap-1" aria-label={`${players.length} played something in it`}>
+          <span className="relative flex items-center gap-1" aria-label={`${players.length} played something in it`}>
             {players.slice(0, FACES_SHOWN).map((person) => (
               <ProfileAvatarLink key={person} author={{ id: person, displayName: '' }} size={20} showName={false} variant="plain" />
             ))}
@@ -225,7 +223,7 @@ function RecommendationRow({
           onClick={onToggle}
           aria-expanded={open}
           aria-label={open ? `Close "${rec.title}"` : `Open "${rec.title}"`}
-          className={open ? PLATE_PRESSED : PLATE}
+          className={`relative ${open ? PLATE_PRESSED : PLATE}`}
         >
           {open ? '[ ▾ ]' : '[ ▸ ]'}
         </button>
