@@ -25,9 +25,10 @@ import ProfileAvatarLink from './ProfileAvatarLink';
 import RecommendationComposer from './RecommendationComposer';
 import TimeStamp from './TimeStamp';
 
+/** PUBLIC first, and what the page opens on (Luke, 2026-11-11). */
 const TABS: { tab: RecommendationTab; label: string; signedIn: boolean }[] = [
-  { tab: 'for_me', label: 'FOR YOU', signedIn: true },
   { tab: 'public', label: 'PUBLIC', signedIn: false },
+  { tab: 'for_me', label: 'FOR YOU', signedIn: true },
   { tab: 'sent', label: 'SENT', signedIn: true },
 ];
 
@@ -45,7 +46,7 @@ export default function RecommendationsPage() {
   const me = signedIn ? user.id : null;
   const search = useSearchParams();
   const asked = recommendationIdFromSearch(search.toString());
-  const [chosenTab, setTab] = useState<RecommendationTab>('for_me');
+  const [chosenTab, setTab] = useState<RecommendationTab>('public');
   // Signed out (or a stream guest), PUBLIC is the only tab there is.
   const tab: RecommendationTab = signedIn ? chosenTab : 'public';
   // Undefined until the reader opens or shuts one: until then, whichever the address names (a notification's link).

@@ -76,7 +76,8 @@ const RecommendationComposer = require('./recommendations-render-out/components/
   assert.match(out, /SIGN IN TO SEND/);
   auth = { status: 'signed-in', user: { id: 'me', displayName: 'ME' } };
   const inside = renderToStaticMarkup(el(RecommendationsPage));
-  assert.match(inside, /FOR YOU[\s\S]*PUBLIC[\s\S]*SENT/, 'signed in: FOR YOU, PUBLIC, SENT');
+  // (2026-11-11, Luke) PUBLIC first, and the tab the page opens on.
+  assert.match(inside, /aria-selected="true"[^>]*>PUBLIC<[\s\S]*FOR YOU[\s\S]*SENT/, 'signed in: PUBLIC (chosen), FOR YOU, SENT');
   assert.match(inside, /aria-haspopup="dialog"[^>]*>MAKE A RECOMMENDATION</, 'and making one, behind a key that opens it (Luke, 2026-11-11)');
   console.log('  ok    the page');
 
