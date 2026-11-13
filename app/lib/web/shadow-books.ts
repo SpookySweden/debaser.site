@@ -28,12 +28,23 @@ const shadowFetch: FetchLike = (input, init) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (undiciFetch as any)(input, { ...(init ?? {}), dispatcher: shadowAgent }) as Promise<Response>;
 
-/** LibGen's JSON-API mirrors, tried in order. Most are blocked from Vercel's egress, so Anna's Archive is the primary. */
-export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc'] as const;
-/** Anna's Archive's hosts (and mirrors), tried in order. Vercel's DNS refuses to resolve annas-archive.org, so mirrors matter. */
+/** LibGen's JSON-API mirrors, tried first with a short timeout. Most are blocked from Vercel; Anna's via proxy is the real path. */
+export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.li'] as const;
+/** Anna's Archive's hosts (and mirrors), tried in order. Vercel's DNS refuses to resolve these at all. */
 export const ANNAS_HOSTS = ['annas-archive.org', 'annas-archive.se', 'annas-archive.li'] as const;
 /** Kept for the existing openShadowBook fallback — first reachable mirror wins. */
 export const ANNAS_HOST = ANNAS_HOSTS[0];
+
+/**
+ * Public CORS proxies to route through when Vercel's DNS refuses a shadow host (Luke, 2026-11-13: "get annahs archive
+ * working by any means"). Each URL has `TARGET` where the destination goes, URL-encoded. Tried in order; the first to
+ * answer wins. These proxies are rate-limited and go up and down (said once per `forever-project` note in core.md).
+ */
+export const CORS_PROXIES = [
+  'https://api.allorigins.win/raw?url=TARGET',
+  'https://corsproxy.io/?TARGET',
+  'https://cors-anywhere.herokuapp.com/TARGET',
+] as const;
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
 /** Hosts a file download may be served from, as library.lol's redirect takes us through. Narrow on purpose. */
@@ -134,7 +145,7 @@ export async function findShadowCopy(
         allowedHosts: [host],
         fetchImpl: impl,
         maxBytes: 4 * 1024 * 1024,
-        timeoutMs: 25_000,
+        timeoutMs: 6_000,
       });
       if (!Array.isArray(body)) {
         trace.push({ host, status: 'failed', note: 'not an array' });
@@ -197,40 +208,55 @@ export function extractAnnasMd5(html: string, wantTitle: string): string | null 
   return null;
 }
 
+/** A direct Anna's URL wrapped in each CORS proxy. Each proxy embeds the target as `TARGET`. */
+function proxiedUrls(targetUrl: string): { proxy: string; url: string }[] {
+  return CORS_PROXIES.map((template) => {
+    const encoded = encodeURIComponent(targetUrl);
+    return { proxy: new URL(template.replace('TARGET', '')).hostname, url: template.replace('TARGET', encoded) };
+  });
+}
+
+/** Fetches Anna's Archive HTML through one of the public CORS proxies, since Vercel blocks the direct DNS. Short timeout. */
+async function fetchAnnasHtml(targetUrl: string, fetchImpl: FetchLike, trace: ShadowTrace): Promise<string | null> {
+  for (const { proxy, url } of proxiedUrls(targetUrl)) {
+    try {
+      const html = await safeFetchText(url, {
+        allowedHosts: [proxy],
+        fetchImpl,
+        maxBytes: 2 * 1024 * 1024,
+        timeoutMs: 8_000,
+        accept: 'text/html,application/xhtml+xml',
+        userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
+      });
+      if (html.length > 0) return html;
+      trace.push({ host: proxy, status: 'no-match', note: `empty response for ${targetUrl}` });
+    } catch (error) {
+      trace.push({ host: proxy, status: 'failed', note: (error as Error).message });
+    }
+  }
+  return null;
+}
+
 async function findOnAnnas(
   title: string,
   author: string,
   fetchImpl: FetchLike,
   trace: ShadowTrace,
 ): Promise<ShadowCopy | null> {
+  // EPUB only (scope-cut for the 60 s function timeout): if a book has no EPUB on Anna's, the reader still shows the
+  // no-free-copy page with a BORROW ON ARCHIVE key.
   const query = author ? `${title} ${author}` : title;
-  for (const host of ANNAS_HOSTS) {
-    for (const extension of ['epub', 'pdf'] as const) {
-      const url = buildUrl(host, ['search'], [
-        ['q', query],
-        ['ext', extension],
-        ['lang', 'en'],
-        ['sort', ''],
-      ]);
-      let html = '';
-      try {
-        html = await safeFetchText(url, {
-          allowedHosts: [host],
-          fetchImpl,
-          maxBytes: 2 * 1024 * 1024,
-          timeoutMs: 15_000,
-          accept: 'text/html,application/xhtml+xml',
-          userAgent: 'Mozilla/5.0 DebaserSiteWEB/1.0 (+https://debaser.site)',
-        });
-      } catch (error) {
-        trace.push({ host, status: 'failed', note: `${extension}: ${(error as Error).message}` });
-        continue;
-      }
-      const md5 = extractAnnasMd5(html, title);
-      if (md5) return { md5, extension, filesize: 0, title, author, year: '', language: 'en' };
-      trace.push({ host, status: 'no-match', note: `${extension}: no /md5/ link in ${html.length}B of HTML` });
-    }
-  }
+  const target = buildUrl(ANNAS_HOST, ['search'], [
+    ['q', query],
+    ['ext', 'epub'],
+    ['lang', 'en'],
+    ['sort', ''],
+  ]);
+  const html = await fetchAnnasHtml(target, fetchImpl, trace);
+  if (!html) return null;
+  const md5 = extractAnnasMd5(html, title);
+  if (md5) return { md5, extension: 'epub', filesize: 0, title, author, year: '', language: 'en' };
+  trace.push({ host: ANNAS_HOST, status: 'no-match', note: `no /md5/ in ${html.length}B via proxy` });
   return null;
 }
 
