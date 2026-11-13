@@ -10,6 +10,7 @@ import { TITLE_BAR } from '../lib/ui/controls';
 import type { WebItem } from '../lib/web/types';
 import { useForum } from './ForumProvider';
 import BookEditions from './BookEditions';
+import GetThisBook from './GetThisBook';
 import ProfileAvatarLink from './ProfileAvatarLink';
 import { WebRow } from './WebStream';
 
@@ -87,6 +88,10 @@ export default function BookPage({ bookRef }: { bookRef: string }) {
           <ul className="px-2">
             <WebRow item={{ ...item, alsoOn: [] }} extraHosts={NO_HOSTS} found={false} onCreator={NOTHING} />
           </ul>
+        ) : null}
+        {/* Every legal way to get it (Luke, 2026-11-13): borrow, a library, buy, listen, preview. */}
+        {item && item.platform === 'books' ? (
+          <GetThisBook title={item.title} author={item.creator} work={/^books:(OL[1-9][0-9]{0,11}W)/.exec(item.id)?.[1]} />
         ) : null}
         <p className="px-3 text-label">
           <Link href="/media" className="underline">
