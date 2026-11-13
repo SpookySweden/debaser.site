@@ -1,7 +1,7 @@
 /*
  * TAG STATION's page, drawn (SPEC-tag-station.md): signed out it shows a prompt and asks for nothing, words are marked with their
  * source, players don't load until asked for, and no third-party text is drawn as HTML.
- *   npx tsc app/components/TagStation.tsx app/components/TagStationGate.tsx app/lib/tag-station/graph.ts app/lib/tag-station/mock-tag-repository.ts --rootDir app --outDir Temp/tag-station-render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
+ *   npx tsc app/components/TagStation.tsx app/components/TagStationGate.tsx app/components/HistoryNote.tsx app/components/HistoryPanel.tsx app/lib/tag-station/graph.ts app/lib/tag-station/mock-tag-repository.ts --rootDir app --outDir Temp/tag-station-render-out --module commonjs --target es2020 --moduleResolution node --jsx react-jsx --skipLibCheck --esModuleInterop --strictNullChecks
  */
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
@@ -24,7 +24,12 @@ stub('next/navigation', {
   useSearchParams: () => address,
 });
 let authStatus = 'signed-in';
-stub(path.join(__dirname, 'tag-station-render-out/components/AuthProvider.js'), { useAuth: () => ({ status: authStatus }) });
+// Updated on purpose 2026-11-13 (SPEC-recommender.md): FOR YOU sits at the top of the page and reads the signed-in person,
+// the board (VANITY's filed songs) and the music library (barred songs), so the page is drawn inside stand-ins for them,
+// as it always is on the site.
+stub(path.join(__dirname, 'tag-station-render-out/components/AuthProvider.js'), { useAuth: () => ({ status: authStatus, user: authStatus === 'signed-in' ? { id: 'reader' } : null }) });
+stub(path.join(__dirname, 'tag-station-render-out/components/ForumProvider.js'), { useForum: () => ({ threads: [] }), default: ({ children }) => children });
+stub(path.join(__dirname, 'tag-station-render-out/components/MusicLibraryProvider.js'), { useMusicLibrary: () => ({ barredSrcs: new Set() }), default: ({ children }) => children });
 stub(path.join(__dirname, 'tag-station-render-out/components/MusicPlayerProvider.js'), {
   useMusicPlayer: () => ({ track: null, playing: false, toggle() {}, playList() {} }),
   default: ({ children }) => children,
@@ -58,6 +63,19 @@ const home = draw('view=list');
 for (const words of ['WORD, ITEM OR LINK', 'INPUT', 'WORDS', 'NEIGHBOURHOOD', 'MOST USED WORDS', 'PICK A WORD']) assert.ok(home.includes(words), words);
 assert.ok(/role="combobox"/.test(home), 'the box is a combobox');
 assert.ok(draw('link=https%3A%2F%2Fexample.org%2Fx&view=list').includes('READING THE LINK'), 'a link says so while it is read');
+
+// 2b. FOR YOU (SPEC-recommender.md): above the map, with its HISTORY key shut and its lanes reading; no score drawn.
+assert.ok(home.indexOf('FOR YOU') !== -1 && home.indexOf('FOR YOU') < home.indexOf('WORD, ITEM OR LINK'), 'FOR YOU sits above the map');
+assert.match(home, /aria-expanded="false"[^>]*aria-controls="for-you-history"/, 'its HISTORY key starts shut');
+assert.ok(home.includes('data-for-you-lane="for-you-media"'), 'the MEDIA lane is there while it reads');
+assert.doesNotMatch(home.slice(home.indexOf('FOR YOU'), home.indexOf('WORD, ITEM OR LINK')), /SCORE|\d+%/, 'no score drawn');
+{
+  const HistoryPanel = require('./tag-station-render-out/components/HistoryPanel.js').default;
+  const panel = renderToStaticMarkup(el(HistoryPanel));
+  for (const words of ['HISTORY', 'KEPT 90 DAYS. ONLY YOU CAN SEE IT.', '[ PAUSE HISTORY ]', '[ ERASE MY HISTORY ]', 'READING...']) assert.ok(panel.includes(words), words);
+  const HistoryNote = require('./tag-station-render-out/components/HistoryNote.js').default;
+  assert.equal(renderToStaticMarkup(el(HistoryNote, { kind: 'lore', refName: 'x', title: 'X' })), '', 'HistoryNote draws nothing');
+}
 assert.ok(home.includes('aria-label="Text size S"') && home.includes('aria-label="Text size XL"'), 'S to XL');
 
 // 3. A word chosen: said out loud with its closest words, its related words with a reason, and its facts.

@@ -54,6 +54,7 @@ import {
 import { PLATFORM_LABELS, type WebItem, type WebPlatform } from '../lib/web/types';
 import { canSort, ORDER_KEYS, orderLabel, searchOrder, type SortChoice } from '../lib/web/web-sort';
 import WebFilterFold, { FILTER_KEY, FILTER_KEY_ON } from './WebFilterFold';
+import { noteHistory } from '../lib/recommender/history';
 import { contentLanguage } from '../lib/web/language';
 import { burnedInSubtitles } from '../lib/web/subtitles';
 import { isBarAudioPlatform, parseWebAudioSrc, playsInBar } from '../lib/web/web-audio';
@@ -1306,6 +1307,8 @@ export function WebRow({
   const [thumbFailed, setThumbFailed] = useState(false);
   const opened = () => {
     noteOpened(item, item.pickWords ?? []);
+    // FOR YOU's private history (SPEC-recommender.md): kept on the account, owner only, 90 days.
+    noteHistory({ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: [...(item.tags ?? []), ...(item.pickWords ?? [])], action: floats ? 'played' : 'opened' });
     if (found) void recordOpened(item);
   };
 

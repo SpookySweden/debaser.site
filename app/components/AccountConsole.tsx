@@ -6,6 +6,7 @@ import AccountDetails from './AccountDetails';
 import AccountForms from './AccountForms';
 import { useAuth } from './AuthProvider';
 import PrivacySwitches from './PrivacySwitches';
+import HistoryPanel from './HistoryPanel';
 
 type AccountTab = 'account' | 'privacy';
 
@@ -69,6 +70,10 @@ export default function AccountConsole() {
           </div>
           <div className="p-3">
             <PrivacySwitches userId={user.id} />
+            {/* FOR YOU's private history (SPEC-recommender.md): pause, erase, and the list of what is kept. */}
+            <div className="mt-4">
+              <HistoryPanel />
+            </div>
           </div>
         </section>
       )}

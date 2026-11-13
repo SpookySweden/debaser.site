@@ -13,6 +13,7 @@ import LetterItemPopout from './LetterItemPopout';
 import LetterLinkForm from './LetterLinkForm';
 import LetterSettings from './LetterSettings';
 import { nameInkStyle } from './NameColourWindow';
+import { noteHistory } from '../lib/recommender/history';
 
 /**
  * One letter, in a window over whatever page it was opened from (SPEC-letters.md). Its name at the top in its own colour,
@@ -49,6 +50,12 @@ function LetterWindowBody({ letterId, onClose }: { letterId: string; onClose: ()
   const value = letter.value;
   const owner = value !== null && user !== null && user.id === value.owner;
   const held = items.value ?? [];
+  // FOR YOU's private history (SPEC-recommender.md): someone else's letter, opened by a signed-in person.
+  const letterName = value?.name ?? '';
+  const othersLetter = value !== null && user !== null && !owner;
+  useEffect(() => {
+    if (othersLetter && letterName !== '') noteHistory({ kind: 'letter', ref: letterId, title: letterName, maker: '', words: [], action: 'opened' });
+  }, [othersLetter, letterId, letterName]);
 
   const flipLock = async () => {
     if (!value) return;

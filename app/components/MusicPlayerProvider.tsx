@@ -13,6 +13,7 @@ import type { AudioTrack } from '../lib/audio/tracks';
 import { LOCAL_TRACKS, buildQueue } from '../lib/audio/tracks';
 import { useAuth } from './AuthProvider';
 import { prepareForAnalysis } from '../lib/watch/audio-tap';
+import { noteHistory } from '../lib/recommender/history';
 
 /**
  * The site's one audio element, and the queue it plays.
@@ -488,6 +489,11 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
    * heard either. A repeat starts a new play. Guests are not logged.
    */
   const listenerId = useAuth().user?.id ?? null;
+  /** The track playing, for FOR YOU's history note (its title and credit) when a listen is logged. */
+  const historyTrack = useRef(track);
+  useEffect(() => {
+    historyTrack.current = track;
+  }, [track]);
 
   useEffect(() => {
     const audio = audioRef.current;
@@ -523,6 +529,9 @@ export default function MusicPlayerProvider({ children }: { children: React.Reac
       if (!logged && src !== null && heard >= listenThreshold(audio.duration)) {
         logged = true;
         void repository.logListen(listenerId, src);
+        // FOR YOU's private history (SPEC-recommender.md): a song heard, with its title and credit as the bar shows them.
+        const heardTrack = historyTrack.current;
+        if (heardTrack?.src === src) noteHistory({ kind: 'song', ref: src, title: heardTrack.title, maker: heardTrack.credit, words: heardTrack.kind ? [heardTrack.kind] : [], action: 'played' });
       }
     };
     const onEnded = () => {

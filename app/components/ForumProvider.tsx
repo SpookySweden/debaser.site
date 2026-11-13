@@ -27,6 +27,7 @@ import type {
   ThreadPin,
 } from '../lib/forum/types';
 import { useAuth } from './AuthProvider';
+import { noteHistory } from '../lib/recommender/history';
 
 export type CreateThreadRequest = {
   title: string;
@@ -266,9 +267,19 @@ export default function ForumProvider({ children }: { children: React.ReactNode 
     return () => window.cancelAnimationFrame(frame);
   }, [account]);
 
+  /** The board as it stands, read by `markThreadRead` without changing that function when the board changes. */
+  const threadsForHistory = useRef(threads);
+  useEffect(() => {
+    threadsForHistory.current = threads;
+  }, [threads]);
   const markThreadRead = useCallback(
     (threadId: string) => {
       setSeenByThread(saveThreadRead(account, threadId, new Date().toISOString()));
+      // FOR YOU's private history (SPEC-recommender.md). A private stream's record (no title, no words) stays out.
+      const thread = threadsForHistory.current.find((one) => one.id === threadId);
+      if (thread !== undefined && !thread.privateRecord && thread.title !== '') {
+        noteHistory({ kind: 'thread', ref: threadId, title: thread.title, maker: thread.author.displayName, words: thread.tags.map((tag) => tag.label), action: 'read' });
+      }
     },
     [account],
   );

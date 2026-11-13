@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import DocView from '../../components/DocView';
 import ProjectSectionNav from '../../components/ProjectSectionNav';
 import SiteWindow from '../../components/SiteWindow';
+import HistoryNote from '../../components/HistoryNote';
 import { titleFromSlug } from '../../lib/docs/rules';
 
 type LorePageProps = {
@@ -34,6 +35,8 @@ export default async function LorePage({ params }: LorePageProps) {
       <ProjectSectionNav current="lore" />
 
       <DocView target={{ slug: address }} />
+      {/* FOR YOU's private history (SPEC-recommender.md): a lore page read, by its title. */}
+      <HistoryNote kind="lore" refName={address} title={titleFromSlug(address)} words={address.split('-').filter((word) => word.length > 3)} />
     </SiteWindow>
   );
 }

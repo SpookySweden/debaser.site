@@ -83,6 +83,7 @@ import { useForum } from '../ForumProvider';
 import HighlightBar, { type BarSpot } from './HighlightBar';
 import { BookmarkList, ContentsList, HighlightList, LookSettings, Panel, SearchBox, type PanelName, type SearchGroup } from './ReaderPanels';
 import ReadingShelf from './ReadingShelf';
+import { noteHistory } from '../../lib/recommender/history';
 import { MatchSearch, OWN_ACCEPT } from './OwnFileDrop';
 
 const LOOK_KEY = 'debaser-reader-look';
@@ -289,6 +290,8 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
   const resumeRef = useRef<string | null>(null);
   const kindRef = useRef<'epub' | 'pdf' | null>(null);
   const [title, setTitle] = useState('');
+  /** The book's author as FOR YOU's history notes it, kept for the FINISHED note made inside the engine's callback. */
+  const historyMaker = useRef('');
   const [settings, setSettings] = useState<ReaderSettings>(DEFAULT_SETTINGS);
   const [location, setLocation] = useState<Location>({ fraction: 0, chapter: '', chapterHref: null, timeLeft: '', cfi: null, page: 0 });
   const [dragging, setDragging] = useState<number | null>(null);
@@ -395,7 +398,10 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
 
   useEffect(() => {
     if (title) document.title = `${title.toUpperCase()} - DEBASER.SITE`;
-  }, [title]);
+    // FOR YOU's private history (SPEC-recommender.md): a free book read here. A reader's own file stays out of it.
+    historyMaker.current = forInfo?.author ?? '';
+    if (title && !own && bookRef) noteHistory({ kind: 'book', ref: bookRef, title, maker: historyMaker.current, words: [], action: 'read' });
+  }, [title, own, bookRef, forInfo]);
 
   // ---------- this reader's highlights and bookmarks ----------
 
@@ -965,6 +971,9 @@ export default function ReaderPage({ bookRef: askedRef }: { bookRef: string | nu
           placeTimer.current = window.setTimeout(() => {
             const held = heldPlace.current;
             const finishedAt = finishedAfter(fraction, held?.finishedAt ?? null);
+            if (finishedAt && !held?.finishedAt && !own && bookRef) {
+              noteHistory({ kind: 'book', ref: bookRef, title: savedTitle.current, maker: historyMaker.current, words: [], action: 'finished' });
+            }
             const save: PlaceSave = {
               cfi,
               page,

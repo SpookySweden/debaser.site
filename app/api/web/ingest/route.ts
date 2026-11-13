@@ -73,7 +73,10 @@ export async function POST(request: Request): Promise<Response> {
     // 20261113173009_youtube_taste.sql). Lock-checked like the rest; a failure here never fails the run.
     const forgot = await db.rpc('web_forget_old_youtube_taste', { p_secret: lock });
     const youtubeTasteForgotten = forgot.error === null && typeof forgot.data === 'number' ? forgot.data : null;
-    return json({ ...result, media, youtubeTasteForgotten }, 200);
+    // FOR YOU's history rows untouched for 90 days go (Luke's OK 2026-11-13, 20261113210656_user_history.sql), the same way.
+    const old = await db.rpc('web_forget_old_history', { p_secret: lock });
+    const historyForgotten = old.error === null && typeof old.data === 'number' ? old.data : null;
+    return json({ ...result, media, youtubeTasteForgotten, historyForgotten }, 200);
   } catch (error) {
     if (error instanceof IngestLockError) return json({ error: 'Not allowed.' }, 401);
     return json({ error: 'The WEB sources could not be read.' }, 500);

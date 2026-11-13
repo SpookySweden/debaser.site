@@ -99,6 +99,7 @@ import { useScreenView } from '../lib/watch/canvas-view';
 import { useChatLineDrag } from '../lib/watch/use-chat-line-drag';
 import { askToSaveCanvas, closeRoomCanvas, type CanvasContext } from '../lib/watch/use-room-canvas';
 import SongCoverCard from './SongCoverCard';
+import { noteHistory } from '../lib/recommender/history';
 
 /** One per tab: two tabs of one account are two members of a room. */
 function newTabKey(): string {
@@ -178,6 +179,14 @@ export default function WatchRoom({ read, closing, onStay, onLeft, pictureFloats
    * reads and steers the bar's one audio element as it does the stage's `<video>`.
    */
   const song = isSongLink(link) ? link : null;
+  // FOR YOU's private history (SPEC-recommender.md): a room this person is in, by its name and topic. Signed in only.
+  const roomName = room.name ?? '';
+  const roomTopic = room.topic ?? '';
+  const roomHost = room.originalHostLabel;
+  useEffect(() => {
+    if (user === null) return;
+    noteHistory({ kind: 'room', ref: roomId, title: roomName || `${roomHost.toUpperCase()}'S ROOM`, maker: roomHost, words: roomTopic ? [roomTopic] : [], action: 'opened' });
+  }, [user, roomId, roomName, roomTopic, roomHost]);
   const webSong = useWebTrack(song?.url);
   const songTrack = song === null ? null : trackForSong(song, player.queue, webSong);
   /** What the stage plays: the link's own address, or the catalogue file's. */

@@ -27,6 +27,8 @@ import TagStationList from './TagStationList';
 import TagStationMap from './TagStationMap';
 import { FindInMedia, ItemRow, STATION_KEY, STATION_KEY_ON, Thumb, TitleLine, WordChip, WordFacets } from './TagStationParts';
 import TagStationSearch from './TagStationSearch';
+import { noteHistory } from '../lib/recommender/history';
+import ForYou from './ForYou';
 
 const PAGE_PATH = '/discover';
 const ITEMS_STEP = 12;
@@ -129,6 +131,8 @@ function PlayKeys({ item, extraHosts }: { item: StationItem; extraHosts: ExtraHo
 
   const startPlayer = () => {
     if (embed === null) return;
+    // FOR YOU's private history (SPEC-recommender.md): the same row MEDIA would note.
+    noteHistory({ kind: 'media', ref: item.id, title: item.title, maker: item.creator ?? '', words: item.words.map((word) => word.word), action: floats ? 'played' : 'opened' });
     if (!floats) {
       setReaderFor(item.id);
       return;
@@ -366,6 +370,8 @@ export function Station({ index: mapIndex }: { index: StationIndex }) {
   return (
     <WordFacets.Provider value={facetOf}>
     <div style={TEXT_SIZES[textSize] as CSSProperties} className="flex min-w-0 flex-col gap-3">
+      {/* FOR YOU (SPEC-recommender.md): lanes of picks above the map, from the reader's own history and what's shared openly. */}
+      <ForYou index={index} extraHosts={extraHosts} onPick={pickItem} />
       <div className="flex flex-wrap items-end gap-2">
         <TagStationSearch index={index} inputRef={searchBox} onTag={pickTag} onItem={pickItem} onLink={(link) => go({ ...recipe, link, tag: null, item: null }, 'push')} />
         <div role="group" aria-label="Text size" className="flex items-center gap-1">
