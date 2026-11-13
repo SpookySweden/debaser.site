@@ -28,8 +28,8 @@ const shadowFetch: FetchLike = (input, init) =>
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   (undiciFetch as any)(input, { ...(init ?? {}), dispatcher: shadowAgent }) as Promise<Response>;
 
-/** LibGen's JSON-API mirrors, tried in order until one answers. */
-export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st'] as const;
+/** LibGen's JSON-API mirrors, tried in order until one answers. More mirrors = better odds any one is reachable from Vercel. */
+export const LIBGEN_JSON_HOSTS = ['libgen.is', 'libgen.rs', 'libgen.st', 'libgen.li', 'libgen.lc', 'libgen.gs'] as const;
 /** Where a file is asked for. One host, so the allow-list stays small; the redirect allow-list catches the actual file host. */
 export const LIBGEN_PAGE_HOST = 'library.lol';
 /** Hosts a file download may be served from, as library.lol's redirect takes us through. Narrow on purpose. */
@@ -130,7 +130,7 @@ export async function findShadowCopy(
         allowedHosts: [host],
         fetchImpl: impl,
         maxBytes: 4 * 1024 * 1024,
-        timeoutMs: 10_000,
+        timeoutMs: 25_000,
       });
       if (!Array.isArray(body)) {
         trace.push({ host, status: 'failed', note: 'not an array' });
