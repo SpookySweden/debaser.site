@@ -8,7 +8,8 @@
  *      figure baked into exactly the low-res grid the FRONT view is drawing, compared with the FRONT view on screen, block
  *      by block. Every baked pixel must be the screen's colour exactly, and the screen must show no figure pixel the bake
  *      lacks. Writes Temp/browse/profile-character-proof.png: the screen on the left, the bake on the right.
- *   2. As TEST ACCOUNT A: saves the bench as PROFILE DRIVE (once), shows it ON YOUR PROFILE, mood BUSY.
+ *   2. As TEST ACCOUNT A: saves the bench as PROFILE DRIVE (once), shows it ON YOUR PROFILE, mood BUSY, and files a quiet
+ *      test tone as A's profile track (DRIVE TONE, once) so the dance can be driven.
  *   3. As TEST ACCOUNT B, on A's profile: for 30 seconds, the character's box never crosses text, a picture, a key or a field,
  *      and it walks; clicked, it waves; with A's track playing, it dances.
  *   4. Reduced motion: it stands still in its idle frame. A phone: shown only with room, and measured if shown.
@@ -178,6 +179,48 @@ async function proof(page) {
   pass('a baked frame is the workbench FRONT render, block for block (Temp/browse/profile-character-proof.png)');
 }
 
+/** Twenty seconds of a very quiet low hum, as a WAV: a test track for A to file, so the dance can be driven. */
+function quietTone() {
+  const rate = 8000;
+  const samples = rate * 20;
+  const data = Buffer.alloc(samples);
+  for (let i = 0; i < samples; i += 1) data[i] = 128 + Math.round(2 * Math.sin((2 * Math.PI * 110 * i) / rate));
+  const head = Buffer.alloc(44);
+  head.write('RIFF', 0);
+  head.writeUInt32LE(36 + samples, 4);
+  head.write('WAVEfmt ', 8);
+  head.writeUInt32LE(16, 16);
+  head.writeUInt16LE(1, 20);
+  head.writeUInt16LE(1, 22);
+  head.writeUInt32LE(rate, 24);
+  head.writeUInt32LE(rate, 28);
+  head.writeUInt16LE(1, 32);
+  head.writeUInt16LE(8, 34);
+  head.write('data', 36);
+  head.writeUInt32LE(samples, 40);
+  return Buffer.concat([head, data]);
+}
+
+/** A's profile track, filed once (M1, DRIVE TONE) when A has none, through the customiser's own upload. */
+async function trackForA(page) {
+  await page.getByRole('button', { name: '[ PROFILE ]' }).click();
+  // The proof's GUY on the bench, when PROFILE DRIVE was already saved on an earlier run: nothing to keep.
+  const discard = page.getByRole('button', { name: '[ DISCARD ]' });
+  if (await discard.isVisible({ timeout: 2000 }).catch(() => false)) await discard.click();
+  const upload = page.locator('#customise-song-upload');
+  await upload.waitFor({ state: 'attached', timeout: 15000 }).catch(async (error) => {
+    await page.screenshot({ path: join(SHOTS, 'profile-character-track-fail.png') });
+    throw error;
+  });
+  if ((await page.getByText(/M1( \(CURRENT\))? :: /).count()) > 0) return;
+  await upload.setInputFiles({ name: 'drive-tone.wav', mimeType: 'audio/wav', buffer: quietTone() });
+  await page.getByText('READY.').waitFor({ timeout: 60000 });
+  await page.locator('#customise-song-title').fill('DRIVE TONE');
+  await page.getByRole('button', { name: /\[ FILE AS M1 \]/ }).click();
+  await page.getByText(/M1( \(CURRENT\))? :: DRIVE TONE/).waitFor({ timeout: 60000 });
+  pass("A's profile has a track (DRIVE TONE, filed by this drive)");
+}
+
 async function showAsA(page) {
   // Save the bench once, as PROFILE DRIVE.
   await page.getByRole('button', { name: '[ SAVED CHARACTERS ]' }).click();
@@ -269,8 +312,10 @@ async function reducedMotion(browser, account, profileUrl) {
   await page.goto(profileUrl, { waitUntil: 'domcontentloaded' });
   await clearPrivacyWindow(page);
   await page.waitForSelector('[data-profile-character]', { timeout: 60000 });
+  // The page finishes loading first (the board, letters and comments arrive after it), and the character is placed again then.
+  await sleep(6000);
   const first = await page.evaluate(measureInPage);
-  await sleep(3000);
+  await sleep(4000);
   const later = await page.evaluate(measureInPage);
   assert.equal(first.motion, 'idle');
   assert.equal(later.motion, 'idle');
@@ -339,6 +384,7 @@ async function database(aId) {
     if (DEV) await proof(pageA);
     else console.log('  (the pixel proof runs against the dev server, where the workbench lends the bake to the page)');
     await showAsA(pageA);
+    await trackForA(pageA);
     await pageA.context().close();
 
     const pageB = await signedIn(browser, b);

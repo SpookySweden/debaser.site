@@ -14,6 +14,9 @@ import { useAuth } from './AuthProvider';
  * mood. Picking one bakes it there and then: every motion drawn once, in this browser, as pixel art, and saved as one small
  * picture strip. Visitors only ever get the pictures.
  */
+/** The select's value while the character on show has been removed from the shelf. */
+const REMOVED = '__removed__';
+
 export default function ProfileCharacterPicker() {
   const { user, status } = useAuth();
   const person = status === 'signed-in' && user !== null ? user.id : null;
@@ -67,12 +70,18 @@ export default function ProfileCharacterPicker() {
         ON YOUR PROFILE
         <select
           id="profile-character-pick"
-          value={shownStillSaved ? shown.characterId : ''}
+          value={shownStillSaved ? shown.characterId : shown !== null && shown !== undefined ? REMOVED : ''}
           disabled={busy || shown === undefined}
           onChange={(event) => void pick(event.target.value)}
           className="frame bg-paper px-1 py-0.5 text-label text-ink max-sm:min-h-tap"
         >
           <option value="">NONE</option>
+          {/* On show but no longer on the shelf (removed in another browser): named, so picking NONE takes it off. */}
+          {shown !== null && shown !== undefined && !shownStillSaved ? (
+            <option value={REMOVED} disabled>
+              A REMOVED CHARACTER
+            </option>
+          ) : null}
           {shelf.map((character) => (
             <option key={character.id} value={character.id}>
               {character.name} ({RIG_PRESETS[character.presetId as RigPresetId]?.label ?? 'FIGURE'})

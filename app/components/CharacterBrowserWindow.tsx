@@ -20,7 +20,7 @@ import type { Figure } from '../lib/character/figure';
 import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
 import { useCharacterStore, type Placing } from '../lib/character/store';
 import { saveRefusal } from '../lib/character/structure';
-import { loadedCharacter, noteLoadedCharacter, showOnProfile } from '../lib/character/show-on-profile';
+import { hideFromProfile, loadedCharacter, noteLoadedCharacter, showOnProfile } from '../lib/character/show-on-profile';
 import { useShownCharacter } from '../lib/character/use-shown-character';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
@@ -84,6 +84,8 @@ export default function CharacterBrowserWindow() {
     if (status !== 'loading') void syncCharacters(person);
   }, [person, status]);
   const [name, setName] = useState('');
+  /** Re-baking the profile's character after the one on show was re-saved. */
+  const [profileBake, setProfileBake] = useState<'idle' | 'baking' | 'failed'>('idle');
   /**
    * The bench as it was when SAVE was pressed and refused. The reason shows only while the bench is still exactly that
    * - the next edit takes it away (it may no longer be true), and so does shutting the shelf - so it never comes back
@@ -120,8 +122,15 @@ export default function CharacterBrowserWindow() {
     // The bench was loaded from the character on the profile: the new save takes its place there, baked afresh.
     const loaded = loadedCharacter();
     if (person !== null && loaded !== null && loaded === shownOnProfile?.characterId) {
-      noteLoadedCharacter(next[0].id);
-      void showOnProfile(person, next[0], shownOnProfile.mood).catch(() => undefined);
+      const saved = next[0];
+      setProfileBake('baking');
+      showOnProfile(person, saved, shownOnProfile.mood)
+        .then(() => {
+          // Only now does the new save stand for the one on show: a failed bake leaves the old link, so the next save tries again.
+          noteLoadedCharacter(saved.id);
+          setProfileBake('idle');
+        })
+        .catch(() => setProfileBake('failed'));
     }
     // The figure on the bench is now the one just kept, so it stops being unsaved work.
     markKept();
@@ -144,6 +153,15 @@ export default function CharacterBrowserWindow() {
       onClose={closeCharacterBrowser}
       maxWidth="max-w-3xl"
     >
+      {profileBake === 'baking' ? (
+        <p role="status" className="w-fit px-1 text-label font-bold text-ink">
+          UPDATING THE CHARACTER ON YOUR PROFILE...
+        </p>
+      ) : profileBake === 'failed' ? (
+        <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
+          COULD NOT UPDATE THE CHARACTER ON YOUR PROFILE. PICK IT AGAIN UNDER ON YOUR PROFILE.
+        </p>
+      ) : null}
       {saveFailed ? (
         <p role="alert" className="w-fit bg-bubble-pale px-1 text-label text-ink-bar">
           COULD NOT SAVE TO YOUR ACCOUNT. KEPT IN THIS BROWSER.
@@ -229,6 +247,10 @@ export default function CharacterBrowserWindow() {
                         className="key key-fill cursor-pointer [--key-fill:var(--color-bubble-pale)] px-2 py-0.5 text-label text-ink-bar hover:[--key-fill:var(--color-sun)] hover:text-ink-plate focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-acid active:translate-y-press active:[--key-fill:var(--color-bubble)] active:text-ink-plate max-sm:min-h-tap max-sm:px-3 max-sm:py-2 max-sm:text-sm"
                         onClick={() => {
                           update(removeCharacter(shelf, character.id));
+                          // Removing the one on the profile takes it off the profile too.
+                          if (person !== null && character.id === shownOnProfile?.characterId) {
+                            void hideFromProfile(person).catch(() => setProfileBake('failed'));
+                          }
                           confirmCharacterRemoval(null);
                         }}
                       >
