@@ -12,6 +12,7 @@ import type {
   DocRecord,
   DocRole,
   DocRoom,
+  DocScope,
   DocShare,
   DocSummary,
   DocVersion,
@@ -171,12 +172,11 @@ class SupabaseDocsRepository implements DocsRepository {
     return ((data ?? []) as FolderRow[]).map(toFolder);
   }
 
-  async listDocs(): Promise<DocSummary[]> {
-    const { data, error } = await this.client()
-      .from('docs')
-      .select(SUMMARY_COLUMNS)
-      .order('updated_at', { ascending: false })
-      .limit(500);
+  async listDocs(scope: DocScope = {}): Promise<DocSummary[]> {
+    let query = this.client().from('docs').select(SUMMARY_COLUMNS);
+    if (scope.folderId !== undefined) query = scope.folderId === null ? query.is('folder_id', null) : query.eq('folder_id', scope.folderId);
+    if (scope.ownerId !== undefined) query = query.eq('owner_id', scope.ownerId);
+    const { data, error } = await query.order('updated_at', { ascending: false }).limit(500);
     if (error !== null) throw plain(error, 'DOCUMENTS DID NOT LOAD.');
     return sortByUpdated(((data ?? []) as SummaryRow[]).map(toSummary));
   }
@@ -194,6 +194,12 @@ class SupabaseDocsRepository implements DocsRepository {
       boardThreadId: row.board_thread_id,
       role,
     };
+  }
+
+  async readState(id: string): Promise<string | null> {
+    const { data, error } = await this.client().from('docs').select('yjs_state').eq('id', id).limit(1);
+    if (error !== null) return null;
+    return ((data ?? []) as { yjs_state: string }[])[0]?.yjs_state ?? null;
   }
 
   async getDoc(id: string): Promise<DocRecord | null> {
@@ -445,6 +451,14 @@ class SupabaseDocsRepository implements DocsRepository {
     return client.storage.from(PICTURE_BUCKET).getPublicUrl(path).data.publicUrl;
   }
 
+  async removePictures(addresses: string[]): Promise<void> {
+    const paths = addresses
+      .map((address) => address.split(`/${PICTURE_BUCKET}/`)[1])
+      .filter((path): path is string => typeof path === 'string' && /^[0-9a-f-]{36}\/[A-Za-z0-9-]+\.(png|jpg|gif|webp)$/.test(path));
+    if (paths.length === 0) return;
+    await this.client().storage.from(PICTURE_BUCKET).remove(paths.slice(0, 300));
+  }
+
   /**
    * The document's channel. Sends before the subscription lands are held, not dropped: the first
    * message is the request for the document, and losing it would leave a joiner believing it empty.
@@ -452,7 +466,9 @@ class SupabaseDocsRepository implements DocsRepository {
   openRoom(docId: string): DocRoom {
     const name = `doc:${docId}`;
     const listeners = new Set<(message: DocChannelMessage) => void>();
+    const rejoinListeners = new Set<() => void>();
     const waiting: DocChannelMessage[] = [];
+    let everJoined = false;
     const client = getSupabaseBrowserClient();
     let channel: RealtimeChannel | null = null;
     let joined = false;
@@ -467,8 +483,16 @@ class SupabaseDocsRepository implements DocsRepository {
       });
 
       channel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
+        if (status !== 'SUBSCRIBED') {
+          // Dropped (a sleeping laptop, a network switch): hold sends until it is back.
+          if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') joined = false;
+          return;
+        }
+        {
           joined = true;
+          const back = everJoined;
+          everJoined = true;
+          if (back) for (const listener of rejoinListeners) listener();
           while (waiting.length > 0) {
             const next = waiting.shift();
             if (next !== undefined) void channel?.send({ type: 'broadcast', event: BROADCAST_EVENT, payload: next });
@@ -491,7 +515,12 @@ class SupabaseDocsRepository implements DocsRepository {
         listeners.add(handler);
         return () => void listeners.delete(handler);
       },
+      onRejoin: (handler) => {
+        rejoinListeners.add(handler);
+        return () => void rejoinListeners.delete(handler);
+      },
       close: () => {
+        rejoinListeners.clear();
         if (channel !== null && client !== null) void client.removeChannel(channel);
         channel = null;
         waiting.length = 0;

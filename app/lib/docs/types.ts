@@ -155,9 +155,14 @@ export type DocChannelMessage =
   | { kind: 'pointer'; from: number; at: string | null; dx: number; dy: number }
   | { kind: 'saved'; from: number };
 
+/** Which documents a list asks for. */
+export type DocScope = { folderId?: string | null; ownerId?: string };
+
 /** A document's live channel: the transport stops at this line (./session.ts is the rest). */
 export type DocRoom = {
   name: string;
+  /** Called when the channel comes back after dropping, so the session can ask for what it missed. */
+  onRejoin?: (handler: () => void) => () => void;
   send: (message: DocChannelMessage) => void;
   listen: (handler: (message: DocChannelMessage) => void) => () => void;
   close: () => void;
@@ -167,8 +172,13 @@ export type DocsRepository = {
   readonly source: DocsDataSource;
   /** The folders this reader may see. */
   listFolders(): Promise<DocFolder[]>;
-  /** The documents this reader may see, newest first, at most 500. */
-  listDocs(): Promise<DocSummary[]>;
+  /**
+   * The documents this reader may see, newest first, at most 500: in one folder (`folderId`, null for no folder),
+   * by one owner, or all of them.
+   */
+  listDocs(scope?: DocScope): Promise<DocSummary[]>;
+  /** The saved Yjs state alone, for merging before a save; null when it cannot be read. */
+  readState(id: string): Promise<string | null>;
   getDoc(id: string): Promise<DocRecord | null>;
   getDocBySlug(slug: string): Promise<DocRecord | null>;
   createDoc(input: CreateDocInput): Promise<DocSummary>;
@@ -193,5 +203,7 @@ export type DocsRepository = {
   keepVersion(input: { docId: string; state: string; snippet: string; name: string | null; viewer: DocViewer }): Promise<DocVersion | null>;
   /** A picture for a document: shrunk already, filed, and answered with its address. */
   uploadPicture(file: Blob, viewer: DocViewer): Promise<string>;
+  /** Removes this account's own pictures, by address. */
+  removePictures(addresses: string[]): Promise<void>;
   openRoom(docId: string): DocRoom;
 };

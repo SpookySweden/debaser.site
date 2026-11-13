@@ -43,13 +43,16 @@ export default function DocsBrowser() {
   const [removing, setRemoving] = useState(false);
 
   const signedIn = viewer !== null;
+  const viewerId = viewer?.id ?? null;
   const asked = params.get('folder');
   const place: Place = asked ?? (signedIn ? 'mine' : LORE_FOLDER_ID);
 
   useEffect(() => {
     if (status === 'loading') return;
     let cancelled = false;
-    Promise.all([repository.listFolders(), repository.listDocs()])
+    // Each place asks for its own documents, so a folder never loses its older ones behind 500 newer elsewhere.
+    const scope = place === 'mine' ? { ownerId: viewerId ?? '', folderId: null } : place === 'others' || place === 'shared' ? {} : { folderId: place };
+    Promise.all([repository.listFolders(), place === 'shared' ? Promise.resolve([]) : repository.listDocs(scope)])
       .then(([folderRows, docRows]) => {
         if (cancelled) return;
         setFolders(folderRows);
@@ -65,7 +68,7 @@ export default function DocsBrowser() {
     return () => {
       cancelled = true;
     };
-  }, [attempt, repository, status]);
+  }, [attempt, place, repository, status, viewerId]);
 
   const refresh = useCallback(() => setAttempt((value) => value + 1), []);
 

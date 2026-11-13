@@ -48,6 +48,8 @@ type DocEditorProps = {
   onSave: (text: string) => void;
   saving: boolean;
   savedAt: string | null;
+  /** When the document was last saved by anybody, for the filing line before this tab has saved. */
+  lastSavedAt: string;
   saveError: string | null;
   /** Hands the editor up, for the history window's restore. */
   onEditor: (editor: Editor | null) => void;
@@ -75,6 +77,7 @@ export default function DocEditor({
   onSave,
   saving,
   savedAt,
+  lastSavedAt,
   saveError,
   onEditor,
 }: DocEditorProps) {
@@ -85,6 +88,8 @@ export default function DocEditor({
   const [draft, setDraft] = useState<CommentDraft | null>(null);
   const [pictureNote, setPictureNote] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  /** Typing waiting for its save: what UNSAVED means. */
+  const [pending, setPending] = useState(false);
 
   const editor = useEditor(
     {
@@ -134,9 +139,11 @@ export default function DocEditor({
 
   function schedule(text: string): void {
     latest.current = text;
+    setPending(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       timer.current = null;
+      setPending(false);
       onSave(latest.current);
     }, SAVE_AFTER_MS);
   }
@@ -162,6 +169,9 @@ export default function DocEditor({
 
   function saveNow(): void {
     if (editor === null) return;
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+    setPending(false);
     latest.current = editor.getText();
     onSave(latest.current);
   }
@@ -284,11 +294,11 @@ export default function DocEditor({
 
       {editing ? (
         <div className="flex flex-wrap items-center gap-2 px-2 py-1 text-label font-bold text-ink">
-          {savedAt === null ? (
+          {pending ? (
             <span className="bg-bubble-pale px-1 text-ink-bar">UNSAVED</span>
           ) : (
             <span>
-              SAVED :: <TimeStamp at={savedAt} />
+              SAVED :: <TimeStamp at={savedAt ?? lastSavedAt} />
             </span>
           )}
           {saving ? <span>SAVING...</span> : null}

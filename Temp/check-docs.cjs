@@ -191,6 +191,18 @@ void (async () => {
   sessionEditor.announceSaved();
   assert.equal(savedHeard, 1, 'and is told when a save lands, so it can read the saved copy again');
 
+  // Back after a dropped connection: the session asks for the document again, so it catches up on what it missed.
+  const rejoiners = new Set();
+  const rejoinSent = [];
+  const rejoinRoom = { name: 'rejoin', send: (message) => rejoinSent.push(message.kind), listen: () => () => undefined, close: () => undefined, onRejoin: (handler) => { rejoiners.add(handler); return () => rejoiners.delete(handler); } };
+  const docJ = new Y.Doc();
+  const sessionJ = createDocSession({ room: rejoinRoom, doc: docJ, awareness: new Awareness(docJ), user: { name: 'TEST A', colour: '#000080', userId: 'A' }, canSend: true });
+  rejoinSent.length = 0;
+  for (const handler of rejoiners) handler();
+  assert.ok(rejoinSent.includes('sync-request'), 'a tab that reconnects asks for the document again');
+  sessionJ.destroy();
+  assert.equal(rejoiners.size, 0, 'and stops listening for that when it leaves');
+
   for (const session of [sessionA, sessionB, sessionEditor, sessionR]) session.destroy();
 
   // A seeded lore page opens with its writing in the document.

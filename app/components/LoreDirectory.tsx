@@ -41,10 +41,10 @@ export default function LoreDirectory() {
     let cancelled = false;
 
     repository
-      .listDocs()
+      .listDocs({ folderId: LORE_FOLDER_ID })
       .then((rows) => {
         if (cancelled) return;
-        setPages(rows.filter((row) => row.folderId === LORE_FOLDER_ID));
+        setPages(rows);
         setError(null);
         setReady(true);
       })

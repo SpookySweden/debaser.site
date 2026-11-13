@@ -126,7 +126,18 @@ export default function DocView({ target }: DocViewProps) {
     if (record === null) return;
     setError(null);
     try {
+      // The owner's own pictures in it go with it (other editors' files are theirs to remove), and so does its board
+      // post, which the owner made. Its [ COMMENT ] thread stays: other people's replies are in it.
+      const own = `/doc-pictures/${record.ownerId ?? ''}/`;
+      const pictures = (editor?.getJSON().content ?? [])
+        .flatMap(function walk(node: { type?: string; attrs?: Record<string, unknown>; content?: unknown[] }): string[] {
+          const here = node.type === 'image' && typeof node.attrs?.src === 'string' ? [node.attrs.src] : [];
+          return [...here, ...((node.content ?? []) as (typeof node)[]).flatMap(walk)];
+        })
+        .filter((src) => src.includes(own));
       await repository.deleteDoc(record.id);
+      if (pictures.length > 0) await repository.removePictures(pictures).catch(() => undefined);
+      if (record.boardThreadId !== null) await forum.deleteThread(record.boardThreadId).catch(() => undefined);
       router.push(lore ? LORE_PATH : folderPath(record.folderId));
     } catch (caught: unknown) {
       setError(caught instanceof Error ? caught.message : 'NOT DELETED.');
@@ -157,7 +168,7 @@ export default function DocView({ target }: DocViewProps) {
               [ HISTORY ]
             </button>
             <CommentPopout anchor={docAnchor(record)} />
-            {lore ? <AddToLetterKey thing={{ kind: 'lore', ref: record.slug ?? record.id, title: record.title }} /> : null}
+            {lore && record.slug !== null ? <AddToLetterKey thing={{ kind: 'lore', ref: record.slug ?? record.id, title: record.title }} /> : null}
             {live.editing ? (
               renaming === null ? (
                 <button type="button" className={PLATE} onClick={() => setRenaming(record.title)}>
@@ -208,7 +219,8 @@ export default function DocView({ target }: DocViewProps) {
         status={live.status}
         onSave={onSave}
         saving={live.saving}
-        savedAt={live.savedAt ?? record.updatedAt}
+        savedAt={live.savedAt}
+        lastSavedAt={record.updatedAt}
         saveError={live.saveError}
         onEditor={onEditor}
       />

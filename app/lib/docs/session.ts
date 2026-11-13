@@ -247,6 +247,11 @@ export function createDocSession({ room, doc, awareness, user, canSend }: DocSes
   doc.on('update', onDocUpdate);
   awareness.on('update', onAwarenessUpdate);
   const stopListening = room.listen(onMessage);
+  // Back after a dropped connection: what was said meanwhile is gone, so ask for the document again.
+  const stopRejoin = room.onRejoin?.(() => {
+    send({ kind: 'sync-request', from: doc.clientID });
+    announce();
+  });
 
   send({ kind: 'sync-request', from: doc.clientID });
   announce();
@@ -312,6 +317,7 @@ export function createDocSession({ room, doc, awareness, user, canSend }: DocSes
       doc.off('update', onDocUpdate);
       awareness.off('update', onAwarenessUpdate);
       stopListening();
+      stopRejoin?.();
       room.close();
     },
   };

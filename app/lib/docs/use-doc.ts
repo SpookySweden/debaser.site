@@ -178,10 +178,14 @@ export function useDoc(target: DocTarget, viewer: DocViewer | null, colour: stri
       if (record === null || shared === null || viewerId === null || !canEdit(record.role)) return false;
 
       const viewerNow: DocViewer = { id: viewerId, name: viewerName ?? 'Anonymous' };
-      const state = bytesToBase64(Y.encodeStateAsUpdate(shared));
       setSaving(true);
 
       try {
+        // What is saved now goes into this copy first: a tab that missed something (a dropped connection, an
+        // answer that never came) then saves everything, never a copy older than the one it replaces.
+        const stored = await repository.readState(record.id);
+        if (stored !== null && stored.length > 0) Y.applyUpdate(shared, base64ToBytes(stored), 'remote');
+        const state = bytesToBase64(Y.encodeStateAsUpdate(shared));
         const savedAt = await repository.saveDoc({ id: record.id, state, bodyText: text, viewer: viewerNow });
         sessionRef.current?.announceSaved();
         setFiled({ key, savedAt, saveError: null });

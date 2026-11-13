@@ -13,6 +13,7 @@ import {
   type DocPatch,
   type DocRecord,
   type DocRoom,
+  type DocScope,
   type DocShare,
   type DocSummary,
   type DocVersion,
@@ -253,8 +254,19 @@ class MockDocsRepository implements DocsRepository {
     );
   }
 
-  async listDocs(): Promise<DocSummary[]> {
-    return sortByUpdated(load().docs.filter((doc) => roleOf(doc) !== null).map(summary)).slice(0, 500);
+  async listDocs(scope: DocScope = {}): Promise<DocSummary[]> {
+    return sortByUpdated(
+      load()
+        .docs.filter((doc) => roleOf(doc) !== null)
+        .filter((doc) => scope.folderId === undefined || doc.folderId === scope.folderId)
+        .filter((doc) => scope.ownerId === undefined || doc.ownerId === scope.ownerId)
+        .map(summary),
+    ).slice(0, 500);
+  }
+
+  async readState(id: string): Promise<string | null> {
+    const doc = load().docs.find((row) => row.id === id);
+    return doc === undefined || roleOf(doc) === null ? null : doc.state;
   }
 
   async getDoc(id: string): Promise<DocRecord | null> {
@@ -535,6 +547,9 @@ class MockDocsRepository implements DocsRepository {
       reader.readAsDataURL(file);
     });
   }
+
+  /** Nothing to remove: a mock picture lives inside its document. */
+  async removePictures(): Promise<void> {}
 
   openRoom(docId: string): DocRoom {
     return openRoom(docId);
