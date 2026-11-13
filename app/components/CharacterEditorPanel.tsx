@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { openCharacterBrowser } from '../lib/character/browser-window';
 import { PLATE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
+import ProfileCharacterPicker from './ProfileCharacterPicker';
 
 /**
  * The canvas is loaded in the browser only, and this is the whole reason the import is wrapped.
@@ -58,6 +59,9 @@ export default function CharacterEditorPanel() {
           </button>
         </span>
       </div>
+
+      {/* Which saved character lives on the profile, and its mood (SPEC-profile-characters.md). */}
+      <ProfileCharacterPicker />
 
       <div className="p-2">
         <CharacterViewport />

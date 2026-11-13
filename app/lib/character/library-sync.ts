@@ -59,6 +59,19 @@ async function send(person: string, upload: readonly SavedCharacter[], removed: 
   }
 }
 
+/**
+ * Make sure one character is on the account now, not on the next sync: the profile can only show a character the account
+ * holds (`profile_characters_guard`), and a save sends it up in the background. Nothing to do with the mock accounts.
+ */
+export async function ensureCharacterOnAccount(person: string, character: SavedCharacter): Promise<void> {
+  if (USING_MOCK_AUTH) return;
+  const client = getSupabaseBrowserClient();
+  if (client === null) return;
+  const { error } = await client.from('user_characters').upsert(toRow(person, character));
+  if (error) throw new Error('COULD NOT SAVE THE CHARACTER TO YOUR ACCOUNT');
+  known.add(character.id);
+}
+
 /** Who is signed in, from the saved-characters window. Null: nobody, or a guest. */
 export async function syncCharacters(person: string | null): Promise<void> {
   if (person === account) return;

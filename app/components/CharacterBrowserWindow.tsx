@@ -20,6 +20,8 @@ import type { Figure } from '../lib/character/figure';
 import { isRigPresetId, nodeName, RIG_PRESETS, type RigPresetId } from '../lib/character/rig';
 import { useCharacterStore, type Placing } from '../lib/character/store';
 import { saveRefusal } from '../lib/character/structure';
+import { loadedCharacter, noteLoadedCharacter, showOnProfile } from '../lib/character/show-on-profile';
+import { useShownCharacter } from '../lib/character/use-shown-character';
 import { PLATE, PLATE_LARGE, TITLE_BAR_INACTIVE } from '../lib/ui/controls';
 import { useAuth } from './AuthProvider';
 import InfoFold from './InfoFold';
@@ -74,6 +76,7 @@ export default function CharacterBrowserWindow() {
   const [shelf, setShelf] = useState<SavedCharacter[]>(readLibrary);
   const { user, status } = useAuth();
   const person = status === 'signed-in' && user !== null ? user.id : null;
+  const shownOnProfile = useShownCharacter(person);
   const saveFailed = useSyncExternalStore(subscribeToCharactersSaveFailed, charactersSaveFailed, serverCharactersSaveFailed);
   // Signing in brings this browser's figures and the account's together. It's why this window, drawn on every page, says who is signed in.
   useEffect(() => subscribeToLibrary(() => setShelf(readLibrary())), []);
@@ -111,8 +114,15 @@ export default function CharacterBrowserWindow() {
       return;
     }
     setRefusedAt(null);
-    update(saveCharacter(shelf, { name, presetId, figure }));
+    const next = saveCharacter(shelf, { name, presetId, figure });
+    update(next);
     setName('');
+    // The bench was loaded from the character on the profile: the new save takes its place there, baked afresh.
+    const loaded = loadedCharacter();
+    if (person !== null && loaded !== null && loaded === shownOnProfile?.characterId) {
+      noteLoadedCharacter(next[0].id);
+      void showOnProfile(person, next[0], shownOnProfile.mood).catch(() => undefined);
+    }
     // The figure on the bench is now the one just kept, so it stops being unsaved work.
     markKept();
   }
@@ -199,6 +209,7 @@ export default function CharacterBrowserWindow() {
                     className={PLATE}
                     onClick={() => {
                       loadFigure(character.figure, isRigPresetId(character.presetId) ? character.presetId : 'base');
+                      noteLoadedCharacter(character.id);
                       closeCharacterBrowser();
                     }}
                   >

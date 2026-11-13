@@ -99,8 +99,43 @@ function pressable(on: boolean): string {
 
 const PANEL = 'rounded-none border-line border-ink bg-sun-pale';
 
+/**
+ * In development only: the bake and the front view's numbers on `window`, so `scripts/drive-profile-character.cjs` can bake
+ * the bench's figure into exactly the grid the FRONT view is drawing and compare the two pixel for pixel (the spec's proof
+ * that a baked frame is the workbench's render). A production build drops this.
+ */
+function useBakeProofHook() {
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'production') return;
+    let live = true;
+    void Promise.all([import('../lib/character/bake'), import('./CharacterScene'), import('../lib/character/pixel-render')]).then(
+      ([bake, scene, pixel]) => {
+        if (!live) return;
+        (window as unknown as Record<string, unknown>).__characterBakeProof = {
+          bakeStill: bake.bakeStill,
+          bakeCharacter: bake.bakeCharacter,
+          fitZoom: scene.fitZoom,
+          centreY: scene.FIGURE_CENTRE_Y,
+          pixelGrid: pixel.pixelGrid,
+          lowResFrustum: pixel.lowResFrustum,
+          figure: () => useCharacterStore.getState().figure,
+          applyPreset: (id: Parameters<ReturnType<typeof useCharacterStore.getState>['applyPreset']>[0]) =>
+            useCharacterStore.getState().applyPreset(id),
+          hideSkeleton: () => {
+            if (useCharacterStore.getState().showSkeleton) useCharacterStore.getState().toggleSkeleton();
+          },
+        };
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, []);
+}
+
 export default function CharacterViewport() {
   useUndoKeys();
+  useBakeProofHook();
   const bench = useRef<HTMLDivElement>(null);
   usePlacingKeys(bench);
   const placing = useCharacterStore((state) => state.placing !== null);

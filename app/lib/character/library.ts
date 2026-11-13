@@ -212,6 +212,8 @@ export function removeCharacter(existing: readonly SavedCharacter[], id: string)
 export function persistLibrary(characters: readonly SavedCharacter[]): void {
   writeLibrary(characters);
   afterPersist?.(characters);
+  // Anything else listing the shelf (the profile's ON YOUR PROFILE row) hears about a save or a removal at once.
+  listeners.forEach((listener) => listener());
 }
 
 /** The shelf as a sign-in left it: saved here and redrawn, with nothing to send back. */
