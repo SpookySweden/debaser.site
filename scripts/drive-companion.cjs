@@ -64,9 +64,9 @@ async function clearPrivacyWindow(page) {
 
 /** Switches the companion on through Preferences, as a person would. */
 async function switchOn(page) {
-  const settings = page.getByRole('button', { name: /SETTINGS/ }).first();
+  const settings = page.getByRole('button', { name: 'Profile settings' }).first();
   await settings.click();
-  await page.getByRole('menuitem', { name: 'Open preferences' }).click();
+  await page.locator('button, [role="menuitem"]').filter({ hasText: 'PREFERENCES' }).first().click();
   const section = page.locator('[data-companion-preferences]');
   await section.waitFor({ timeout: 15000 });
   await section.getByRole('button', { name: /^\[ ON \]$/ }).click();
@@ -176,31 +176,37 @@ async function waitMood(page, wanted, ms) {
 
     console.log('Several pages, the bar open');
     await openBar(a.page);
-    await watchStrip(a.page, 20, '/forum');
+    await watchStrip(a.page, QUICK ? 6 : 20, '/forum');
     for (const page of ['/media', '/users']) {
       await a.page.goto(`${BASE}${page}`, { waitUntil: 'domcontentloaded' });
       await sleep(2500);
       await clearPrivacyWindow(a.page);
       await openBar(a.page);
-      await watchStrip(a.page, 20, page);
+      await watchStrip(a.page, QUICK ? 6 : 20, page);
     }
     await a.page.screenshot({ path: join(SHOTS, 'companion-desktop.png') });
 
     console.log('It dances while the music bar plays');
-    await a.page.goto(`${BASE}/files`, { waitUntil: 'domcontentloaded' });
-    await sleep(3000);
+    // The bar's one transport cell walks playing -> paused -> looping; pressed until the bar is playing.
     await openBar(a.page);
-    const play = a.page.locator('button[aria-label^="Play"]').first();
-    await play.waitFor({ timeout: 30000 });
-    await play.click();
-    await a.page.mouse.move(700, 200);
-    assert.ok(await waitMood(a.page, 'dance', 8000), `dances while playing (mood ${await mood(a.page)})`);
+    const cell = a.page.locator('button[title="Playing"], button[title="Paused"], button[title="Looping"]').first();
+    await cell.waitFor({ timeout: 30000 });
+    let danced = false;
+    for (let press = 0; press < 4 && !danced; press += 1) {
+      await cell.click();
+      await a.page.mouse.move(700, 200);
+      danced = await waitMood(a.page, 'dance', 4000);
+    }
+    assert.ok(danced, `dances while playing (mood ${await mood(a.page)})`);
     await a.page.screenshot({ path: join(SHOTS, 'companion-dance.png') });
     pass('the music bar playing: it dances');
-    // Pause it again (the cycle key: playing -> paused).
-    await a.page.locator('.fixed.bottom-0 button[title="PAUSE"], .fixed.bottom-0 button[title="Pause"]').first().click().catch(() => undefined);
-    await a.page.evaluate(() => document.querySelectorAll('audio').forEach((audio) => audio.pause()));
-    await sleep(1500);
+    // Quiet again: every press of the cell until nothing plays.
+    for (let press = 0; press < 4 && (await mood(a.page)) === 'dance'; press += 1) {
+      await cell.click();
+      await sleep(1500);
+    }
+    assert.notEqual(await mood(a.page), 'dance', 'stops dancing when the music stops');
+    pass('the music stopping: it stops dancing');
 
     if (!QUICK) {
       console.log('It falls asleep with nothing happening, and wakes');
@@ -247,7 +253,7 @@ async function waitMood(page, wanted, ms) {
     await a.page.goto(`${BASE}/media`, { waitUntil: 'domcontentloaded' });
     await a.page.waitForFunction(() => document.querySelector('[data-watch-in-room="start"]') !== null || document.querySelector('button[aria-label^="Play"]') !== null, null, { timeout: 45000 });
     await clearPrivacyWindow(a.page);
-    const row = a.page.locator('li').filter({ hasText: 'YOUTUBE' }).filter({ hasText: '[ ▶ PLAY ]' }).first();
+    const row = a.page.locator('li').filter({ hasText: 'YOUTUBE' }).filter({ hasText: '[ â–¶ PLAY ]' }).first();
     await row.locator('button[aria-label^="Play"]').first().click();
     await a.page.waitForSelector('[data-floating-player] iframe', { timeout: 20000 });
     await sleep(3000);
